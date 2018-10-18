@@ -4,3 +4,5 @@
 *.l#?
 *.s#?
 *.pyc
+fw/BUILD/
+fw/.mbedignore
