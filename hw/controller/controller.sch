@@ -1183,16 +1183,6 @@ Regulator</text>
 </library>
 <library name="mfpassives">
 <packages>
-<package name="R0402">
-<description>&lt;b&gt;Description:&lt;/b&gt; Standard 0402 Package for Resistors&lt;br/&gt;</description>
-<smd name="P$1" x="-0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
-<smd name="P$2" x="0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
-<wire x1="-1.1" y1="0.55" x2="-1.1" y2="-0.55" width="0.127" layer="21"/>
-<wire x1="-1.1" y1="-0.55" x2="1.1" y2="-0.55" width="0.127" layer="21"/>
-<wire x1="1.1" y1="-0.55" x2="1.1" y2="0.55" width="0.127" layer="21"/>
-<wire x1="1.1" y1="0.55" x2="-1.1" y2="0.55" width="0.127" layer="21"/>
-<text x="-1.1" y="1.1" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
-</package>
 <package name="R0603">
 <description>&lt;b&gt;Description:&lt;/b&gt; Standard 0603 Package for Resistors&lt;br/&gt;</description>
 <smd name="P$1" x="-0.75" y="0" dx="0.6" dy="0.9" layer="1" rot="R180"/>
@@ -1201,47 +1191,7 @@ Regulator</text>
 <wire x1="-1.4" y1="-0.7" x2="1.4" y2="-0.7" width="0.127" layer="21"/>
 <wire x1="1.4" y1="-0.7" x2="1.4" y2="0.7" width="0.127" layer="21"/>
 <wire x1="1.4" y1="0.7" x2="-1.4" y2="0.7" width="0.127" layer="21"/>
-<text x="-1.4" y="1.1" size="0.8" layer="25" font="vector" ratio="10">&gt;NAME</text>
-</package>
-<package name="R0805">
-<description>&lt;b&gt;Description:&lt;/b&gt; Standard 0805 Package for Resistors&lt;br/&gt;</description>
-<smd name="P$1" x="-0.95" y="0" dx="0.7" dy="1.3" layer="1" rot="R180"/>
-<smd name="P$2" x="0.95" y="0" dx="0.7" dy="1.3" layer="1" rot="R180"/>
-<wire x1="-1.8" y1="0.9" x2="-1.8" y2="-0.9" width="0.127" layer="21"/>
-<wire x1="-1.8" y1="-0.9" x2="1.8" y2="-0.9" width="0.127" layer="21"/>
-<wire x1="1.8" y1="-0.9" x2="1.8" y2="0.9" width="0.127" layer="21"/>
-<wire x1="1.8" y1="0.9" x2="-1.8" y2="0.9" width="0.127" layer="21"/>
-<text x="-1.8" y="1.1" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
-</package>
-<package name="R1206">
-<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1206 Package for Resistors&lt;br/&gt;</description>
-<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
-<smd name="P$2" x="1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
-<wire x1="-2.2" y1="1.1" x2="-2.2" y2="-1.1" width="0.127" layer="21"/>
-<wire x1="-2.2" y1="-1.1" x2="2.2" y2="-1.1" width="0.127" layer="21"/>
-<wire x1="2.2" y1="-1.1" x2="2.2" y2="1.1" width="0.127" layer="21"/>
-<wire x1="2.2" y1="1.1" x2="-2.2" y2="1.1" width="0.127" layer="21"/>
-<text x="-2.2" y="1.3" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
-</package>
-<package name="R1210">
-<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1210 Package for Resistors&lt;br/&gt;</description>
-<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="2.5" layer="1" rot="R180"/>
-<smd name="P$2" x="1.45" y="0" dx="0.9" dy="2.5" layer="1" rot="R180"/>
-<wire x1="-2.2" y1="1.6" x2="-2.2" y2="-1.6" width="0.127" layer="21"/>
-<wire x1="-2.2" y1="-1.6" x2="2.2" y2="-1.6" width="0.127" layer="21"/>
-<wire x1="2.2" y1="-1.6" x2="2.2" y2="1.6" width="0.127" layer="21"/>
-<wire x1="2.2" y1="1.6" x2="-2.2" y2="1.6" width="0.127" layer="21"/>
-<text x="-2.2" y="1.8" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
-</package>
-<package name="C0402">
-<description>&lt;b&gt;Description:&lt;/b&gt; Standard 0402 Package for Capacitors&lt;br/&gt;</description>
-<smd name="P$1" x="-0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
-<smd name="P$2" x="0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
-<wire x1="-1.1" y1="0.55" x2="-1.1" y2="-0.55" width="0.127" layer="21"/>
-<wire x1="-1.1" y1="-0.55" x2="1.1" y2="-0.55" width="0.127" layer="21"/>
-<wire x1="1.1" y1="-0.55" x2="1.1" y2="0.55" width="0.127" layer="21"/>
-<wire x1="1.1" y1="0.55" x2="-1.1" y2="0.55" width="0.127" layer="21"/>
-<text x="-1.1" y="1.1" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
+<text x="-1.4" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 <package name="C0603">
 <description>&lt;b&gt;Description:&lt;/b&gt; Standard 0603 Package for Capacitors&lt;br/&gt;</description>
@@ -1251,7 +1201,57 @@ Regulator</text>
 <wire x1="-1.4" y1="-0.7" x2="1.4" y2="-0.7" width="0.127" layer="21"/>
 <wire x1="1.4" y1="-0.7" x2="1.4" y2="0.7" width="0.127" layer="21"/>
 <wire x1="1.4" y1="0.7" x2="-1.4" y2="0.7" width="0.127" layer="21"/>
-<text x="-1.4" y="1.1" size="0.8" layer="25" font="vector" ratio="10">&gt;NAME</text>
+<text x="-1.4" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
+</package>
+<package name="R0402">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 0402 Package for Resistors&lt;br/&gt;</description>
+<smd name="P$1" x="-0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
+<smd name="P$2" x="0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
+<wire x1="-1.1" y1="0.55" x2="-1.1" y2="-0.55" width="0.127" layer="21"/>
+<wire x1="-1.1" y1="-0.55" x2="1.1" y2="-0.55" width="0.127" layer="21"/>
+<wire x1="1.1" y1="-0.55" x2="1.1" y2="0.55" width="0.127" layer="21"/>
+<wire x1="1.1" y1="0.55" x2="-1.1" y2="0.55" width="0.127" layer="21"/>
+<text x="-1.1" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
+</package>
+<package name="R0805">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 0805 Package for Resistors&lt;br/&gt;</description>
+<smd name="P$1" x="-0.95" y="0" dx="0.7" dy="1.3" layer="1" rot="R180"/>
+<smd name="P$2" x="0.95" y="0" dx="0.7" dy="1.3" layer="1" rot="R180"/>
+<wire x1="-1.8" y1="0.9" x2="-1.8" y2="-0.9" width="0.127" layer="21"/>
+<wire x1="-1.8" y1="-0.9" x2="1.8" y2="-0.9" width="0.127" layer="21"/>
+<wire x1="1.8" y1="-0.9" x2="1.8" y2="0.9" width="0.127" layer="21"/>
+<wire x1="1.8" y1="0.9" x2="-1.8" y2="0.9" width="0.127" layer="21"/>
+<text x="-1.8" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
+</package>
+<package name="R1206">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1206 Package for Resistors&lt;br/&gt;</description>
+<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<smd name="P$2" x="1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<wire x1="-2.2" y1="1.1" x2="-2.2" y2="-1.1" width="0.127" layer="21"/>
+<wire x1="-2.2" y1="-1.1" x2="2.2" y2="-1.1" width="0.127" layer="21"/>
+<wire x1="2.2" y1="-1.1" x2="2.2" y2="1.1" width="0.127" layer="21"/>
+<wire x1="2.2" y1="1.1" x2="-2.2" y2="1.1" width="0.127" layer="21"/>
+<text x="-2.2" y="1.3" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
+</package>
+<package name="R1210">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1210 Package for Resistors&lt;br/&gt;</description>
+<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="2.5" layer="1" rot="R180"/>
+<smd name="P$2" x="1.45" y="0" dx="0.9" dy="2.5" layer="1" rot="R180"/>
+<wire x1="-2.2" y1="1.6" x2="-2.2" y2="-1.6" width="0.127" layer="21"/>
+<wire x1="-2.2" y1="-1.6" x2="2.2" y2="-1.6" width="0.127" layer="21"/>
+<wire x1="2.2" y1="-1.6" x2="2.2" y2="1.6" width="0.127" layer="21"/>
+<wire x1="2.2" y1="1.6" x2="-2.2" y2="1.6" width="0.127" layer="21"/>
+<text x="-2.2" y="1.8" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
+</package>
+<package name="C0402">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 0402 Package for Capacitors&lt;br/&gt;</description>
+<smd name="P$1" x="-0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
+<smd name="P$2" x="0.55" y="0" dx="0.5" dy="0.6" layer="1" rot="R180"/>
+<wire x1="-1.1" y1="0.55" x2="-1.1" y2="-0.55" width="0.127" layer="21"/>
+<wire x1="-1.1" y1="-0.55" x2="1.1" y2="-0.55" width="0.127" layer="21"/>
+<wire x1="1.1" y1="-0.55" x2="1.1" y2="0.55" width="0.127" layer="21"/>
+<wire x1="1.1" y1="0.55" x2="-1.1" y2="0.55" width="0.127" layer="21"/>
+<text x="-1.1" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 <package name="C0805">
 <description>&lt;b&gt;Description:&lt;/b&gt; Standard 0805 Package for Capacitors&lt;br/&gt;</description>
@@ -1261,7 +1261,7 @@ Regulator</text>
 <wire x1="-1.8" y1="-0.9" x2="1.8" y2="-0.9" width="0.127" layer="21"/>
 <wire x1="1.8" y1="-0.9" x2="1.8" y2="0.9" width="0.127" layer="21"/>
 <wire x1="1.8" y1="0.9" x2="-1.8" y2="0.9" width="0.127" layer="21"/>
-<text x="-1.5" y="1.1" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
+<text x="-1.8" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 <package name="C1206">
 <description>&lt;b&gt;Description:&lt;/b&gt; Standard 1206 Package for Capacitors&lt;br/&gt;</description>
@@ -1271,7 +1271,7 @@ Regulator</text>
 <wire x1="-2.2" y1="-1.1" x2="2.2" y2="-1.1" width="0.127" layer="21"/>
 <wire x1="2.2" y1="-1.1" x2="2.2" y2="1.1" width="0.127" layer="21"/>
 <wire x1="2.2" y1="1.1" x2="-2.2" y2="1.1" width="0.127" layer="21"/>
-<text x="-2.2" y="1.3" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
+<text x="-2.2" y="1.3" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 <package name="C1210">
 <description>&lt;b&gt;Description:&lt;/b&gt; Standard 1210 Package for Capacitors&lt;br/&gt;</description>
@@ -1281,34 +1281,34 @@ Regulator</text>
 <wire x1="-2.2" y1="-1.575" x2="2.2" y2="-1.575" width="0.127" layer="21"/>
 <wire x1="2.2" y1="-1.575" x2="2.2" y2="1.6" width="0.127" layer="21"/>
 <wire x1="2.2" y1="1.6" x2="-2.2" y2="1.6" width="0.127" layer="21"/>
-<text x="-2.2" y="1.8" size="0.8128" layer="25" font="vector" ratio="16">&gt;NAME</text>
+<text x="-2.2" y="1.8" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 </packages>
 <symbols>
 <symbol name="RESISTOR">
 <description>&lt;b&gt;Library:&lt;/b&gt;  MF_Passives&lt;br/&gt;
 &lt;b&gt;Description:&lt;/b&gt; Symbol for Resistors&lt;br/&gt;</description>
-<pin name="P$1" x="-5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
-<pin name="P$2" x="5.08" y="0" visible="off" length="short" direction="pas" swaplevel="1" rot="R180"/>
-<wire x1="-2.54" y1="0" x2="-2.159" y2="1.016" width="0.1524" layer="94"/>
-<wire x1="-2.159" y1="1.016" x2="-1.524" y2="-1.016" width="0.1524" layer="94"/>
-<wire x1="-1.524" y1="-1.016" x2="-0.889" y2="1.016" width="0.1524" layer="94"/>
-<wire x1="-0.889" y1="1.016" x2="-0.254" y2="-1.016" width="0.1524" layer="94"/>
-<wire x1="-0.254" y1="-1.016" x2="0.381" y2="1.016" width="0.1524" layer="94"/>
-<wire x1="0.381" y1="1.016" x2="1.016" y2="-1.016" width="0.1524" layer="94"/>
-<wire x1="1.016" y1="-1.016" x2="1.651" y2="1.016" width="0.1524" layer="94"/>
-<wire x1="1.651" y1="1.016" x2="2.286" y2="-1.016" width="0.1524" layer="94"/>
-<wire x1="2.286" y1="-1.016" x2="2.54" y2="0" width="0.1524" layer="94"/>
-<text x="-5.08" y="2.54" size="1.016" layer="95" font="vector">&gt;NAME</text>
-<text x="0" y="2.54" size="1.016" layer="96" font="vector">&gt;VALUE</text>
+<pin name="P$1" x="0" y="5.08" visible="off" length="short" direction="pas" swaplevel="1" rot="R270"/>
+<pin name="P$2" x="0" y="-5.08" visible="off" length="short" direction="pas" swaplevel="1" rot="R90"/>
+<wire x1="0" y1="2.54" x2="1.016" y2="2.159" width="0.1524" layer="94"/>
+<wire x1="1.016" y1="2.159" x2="-1.016" y2="1.524" width="0.1524" layer="94"/>
+<wire x1="-1.016" y1="1.524" x2="1.016" y2="0.889" width="0.1524" layer="94"/>
+<wire x1="1.016" y1="0.889" x2="-1.016" y2="0.254" width="0.1524" layer="94"/>
+<wire x1="-1.016" y1="0.254" x2="1.016" y2="-0.381" width="0.1524" layer="94"/>
+<wire x1="1.016" y1="-0.381" x2="-1.016" y2="-1.016" width="0.1524" layer="94"/>
+<wire x1="-1.016" y1="-1.016" x2="1.016" y2="-1.651" width="0.1524" layer="94"/>
+<wire x1="1.016" y1="-1.651" x2="-1.016" y2="-2.286" width="0.1524" layer="94"/>
+<wire x1="-1.016" y1="-2.286" x2="0" y2="-2.54" width="0.1524" layer="94"/>
+<text x="2.54" y="1.524" size="1.016" layer="95" font="vector" align="top-left">&gt;NAME</text>
+<text x="2.54" y="-1.524" size="1.016" layer="96" font="vector">&gt;VALUE</text>
 </symbol>
 <symbol name="CAPACITOR_NP">
 <description>&lt;b&gt;Library:&lt;/b&gt;  MF_Passives&lt;br/&gt;
 &lt;b&gt;Description:&lt;/b&gt; Symbol for Non-Polarized Capacitors&lt;br/&gt;</description>
-<pin name="P$1" x="0" y="5.08" visible="off" length="short" direction="pas" swaplevel="1" rot="R270"/>
-<pin name="P$2" x="0" y="-5.08" visible="off" length="short" direction="pas" swaplevel="1" rot="R90"/>
-<text x="2.54" y="2.54" size="1.016" layer="95" font="vector">&gt;NAME</text>
-<text x="2.54" y="-2.54" size="1.016" layer="96" font="vector" align="top-left">&gt;VALUE</text>
+<pin name="P$1" x="0" y="2.54" visible="off" length="point" direction="pas" swaplevel="1" rot="R270"/>
+<pin name="P$2" x="0" y="-2.54" visible="off" length="point" direction="pas" swaplevel="1" rot="R90"/>
+<text x="2.54" y="1.524" size="1.016" layer="95" font="vector" align="top-left">&gt;NAME</text>
+<text x="2.54" y="-1.524" size="1.016" layer="96" font="vector">&gt;VALUE</text>
 <wire x1="0" y1="2.54" x2="0" y2="1.016" width="0.1524" layer="94"/>
 <wire x1="0" y1="-2.54" x2="0" y2="-1.016" width="0.1524" layer="94"/>
 <rectangle x1="-1.778" y1="0.508" x2="1.778" y2="1.27" layer="94"/>
@@ -1318,7 +1318,7 @@ Regulator</text>
 <devicesets>
 <deviceset name="RESISTOR" prefix="R" uservalue="yes">
 <description>&lt;b&gt;Library:&lt;/b&gt;  MF_Passives&lt;br/&gt;
-&lt;b&gt;Description:&lt;/b&gt; Device for Resistors. Manufacture part number (MFG#), Voltage, Tolerance, and Wattage Rating can be added via Attributes.&lt;br/&gt;</description>
+&lt;b&gt;Description:&lt;/b&gt; Device for Resistors. Manufacture part number (MPN), Voltage, Tolerance, and Wattage Rating can be added via Attributes.  Check https://factory.macrofab.com/parts for the house parts list.&lt;br/&gt;</description>
 <gates>
 <gate name="G$1" symbol="RESISTOR" x="0" y="0"/>
 </gates>
@@ -1330,10 +1330,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
-<attribute name="WATTAGE" value="N/A" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
+<attribute name="WATTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1344,10 +1347,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
-<attribute name="WATTAGE" value="N/A" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
+<attribute name="WATTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1358,10 +1364,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
-<attribute name="WATTAGE" value="N/A" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
+<attribute name="WATTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1372,10 +1381,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
-<attribute name="WATTAGE" value="N/A" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
+<attribute name="WATTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1386,10 +1398,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
-<attribute name="WATTAGE" value="N/A" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
+<attribute name="WATTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1397,7 +1412,7 @@ Regulator</text>
 </deviceset>
 <deviceset name="CAPACITOR_NP" prefix="C" uservalue="yes">
 <description>&lt;b&gt;Library:&lt;/b&gt;  MF_Passives&lt;br/&gt;
-&lt;b&gt;Description:&lt;/b&gt; Device for Non-Polarized Capacitors. Manufacture part number (MFG#), Voltage, Temperature Coefficient, and Tolerance can be added via Attributes.&lt;br/&gt;</description>
+&lt;b&gt;Description:&lt;/b&gt; Device for Non-Polarized Capacitors. Manufacture part number (MPN) can be added via Attributes. Check https://factory.macrofab.com/parts for the house parts list.&lt;br/&gt;</description>
 <gates>
 <gate name="G$1" symbol="CAPACITOR_NP" x="0" y="0"/>
 </gates>
@@ -1409,10 +1424,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TEMP_COF" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
+<attribute name="DIELECTRIC" value="" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1423,10 +1441,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TEMP_COF" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
+<attribute name="DIELECTRIC" value="" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1437,10 +1458,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TEMP_COF" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
+<attribute name="DIELECTRIC" value="" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1451,10 +1475,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TEMP_COF" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
+<attribute name="DIELECTRIC" value="" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -1465,10 +1492,13 @@ Regulator</text>
 </connects>
 <technologies>
 <technology name="">
-<attribute name="MFG#" value="N/A" constant="no"/>
-<attribute name="TEMP_COF" value="N/A" constant="no"/>
-<attribute name="TOLERANCE" value="N/A" constant="no"/>
-<attribute name="VOLTAGE" value="N/A" constant="no"/>
+<attribute name="DIELECTRIC" value="" constant="no"/>
+<attribute name="HOUSEPART" value="" constant="no"/>
+<attribute name="MPN" value="" constant="no"/>
+<attribute name="POPULATE" value="1" constant="no"/>
+<attribute name="TOLERANCE" value="" constant="no"/>
+<attribute name="URL" value="" constant="no"/>
+<attribute name="VOLTAGE" value="" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -7617,7 +7647,7 @@ Source: AVX .. aphvc.pdf</description>
 <part name="C6" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
-<part name="C4" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C4" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="C5" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
@@ -7803,8 +7833,8 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="+3V9" gate="G$1" x="-27.94" y="99.06"/>
 <instance part="GND16" gate="1" x="-30.48" y="60.96"/>
 <instance part="+3V8" gate="G$1" x="58.42" y="132.08"/>
-<instance part="R1" gate="G$1" x="78.74" y="109.22" rot="R90">
-<attribute name="MPN" x="78.74" y="109.22" size="1.778" layer="96" rot="R90" display="off"/>
+<instance part="R1" gate="G$1" x="78.74" y="109.22" rot="R180">
+<attribute name="MPN" x="78.74" y="109.22" size="1.778" layer="96" rot="R180" display="off"/>
 </instance>
 <instance part="C2" gate="G$1" x="40.64" y="116.84">
 <attribute name="MPN" x="40.64" y="116.84" size="1.778" layer="96" display="off"/>
@@ -7843,13 +7873,13 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" x="223.52" y="7.62" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="GND18" gate="1" x="-5.08" y="-218.44"/>
-<instance part="R7" gate="G$1" x="-5.08" y="-190.5" rot="R90">
-<attribute name="DPN" x="-5.08" y="-190.5" size="1.778" layer="96" rot="R90" display="off"/>
-<attribute name="MPN" x="-5.08" y="-190.5" size="1.778" layer="96" rot="R90" display="off"/>
+<instance part="R7" gate="G$1" x="-5.08" y="-187.96" rot="R180">
+<attribute name="DPN" x="-5.08" y="-187.96" size="1.778" layer="96" rot="R180" display="off"/>
+<attribute name="MPN" x="-5.08" y="-187.96" size="1.778" layer="96" rot="R180" display="off"/>
 </instance>
-<instance part="R8" gate="G$1" x="-5.08" y="-203.2" rot="R90">
-<attribute name="DPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R90" display="off"/>
-<attribute name="MPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R90" display="off"/>
+<instance part="R8" gate="G$1" x="-5.08" y="-203.2" rot="R180">
+<attribute name="DPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R180" display="off"/>
+<attribute name="MPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R180" display="off"/>
 </instance>
 <instance part="GND6" gate="1" x="88.9" y="-45.72"/>
 <instance part="U3" gate="G$1" x="88.9" y="-129.54"/>
@@ -7941,30 +7971,30 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="GND5" gate="1" x="83.82" y="-350.52"/>
 <instance part="P+3" gate="1" x="25.4" y="-317.5"/>
 <instance part="P-4" gate="1" x="45.72" y="-340.36"/>
-<instance part="R2" gate="G$1" x="35.56" y="-325.12" rot="R180">
-<attribute name="DPN" x="35.56" y="-325.12" size="1.778" layer="96" rot="R180" display="off"/>
-<attribute name="MPN" x="35.56" y="-325.12" size="1.778" layer="96" rot="R180" display="off"/>
+<instance part="R2" gate="G$1" x="35.56" y="-325.12" rot="R270">
+<attribute name="DPN" x="35.56" y="-325.12" size="1.778" layer="96" rot="R270" display="off"/>
+<attribute name="MPN" x="35.56" y="-325.12" size="1.778" layer="96" rot="R270" display="off"/>
 </instance>
 <instance part="+3V3" gate="G$1" x="134.62" y="-312.42"/>
-<instance part="R3" gate="G$1" x="134.62" y="-330.2" rot="R270">
-<attribute name="MPN" x="134.62" y="-330.2" size="1.778" layer="96" rot="R270" display="off"/>
-<attribute name="MF" x="134.62" y="-330.2" size="1.778" layer="96" rot="R270" display="off"/>
+<instance part="R3" gate="G$1" x="134.62" y="-330.2">
+<attribute name="MPN" x="134.62" y="-330.2" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="134.62" y="-330.2" size="1.778" layer="96" display="off"/>
 </instance>
-<instance part="R4" gate="G$1" x="134.62" y="-342.9" rot="R270">
-<attribute name="MPN" x="134.62" y="-342.9" size="1.778" layer="96" rot="R270" display="off"/>
-<attribute name="MF" x="134.62" y="-342.9" size="1.778" layer="96" rot="R270" display="off"/>
+<instance part="R4" gate="G$1" x="134.62" y="-342.9">
+<attribute name="MPN" x="134.62" y="-342.9" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="134.62" y="-342.9" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="GND7" gate="1" x="134.62" y="-353.06"/>
 <instance part="C20" gate="G$1" x="144.78" y="-332.74"/>
-<instance part="C21" gate="G$1" x="109.22" y="-320.04">
-<attribute name="MPN" x="109.22" y="-320.04" size="1.778" layer="96" display="off"/>
+<instance part="C21" gate="G$1" x="109.22" y="-322.58">
+<attribute name="MPN" x="109.22" y="-322.58" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="L1" gate="A" x="116.84" y="-325.12" smashed="yes">
 <attribute name="NAME" x="115.9256" y="-321.7672" size="3.4798" layer="95" ratio="10" rot="SR0"/>
 <attribute name="MPN" x="116.84" y="-325.12" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="D1" gate="G$1" x="106.68" y="-332.74" rot="R90"/>
-<instance part="C22" gate="G$1" x="48.26" y="-238.76" rot="R90"/>
+<instance part="C22" gate="G$1" x="45.72" y="-238.76" rot="R90"/>
 <instance part="C23" gate="G$1" x="38.1" y="-233.68" rot="R90">
 <attribute name="MPN" x="38.1" y="-233.68" size="1.778" layer="96" rot="R90" display="off"/>
 </instance>
@@ -7985,17 +8015,17 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="J5" gate="A" x="228.6" y="-129.54" rot="MR0"/>
 <instance part="+3V6" gate="G$1" x="215.9" y="-119.38"/>
 <instance part="GND11" gate="1" x="215.9" y="-154.94"/>
-<instance part="R5" gate="G$1" x="215.9" y="-144.78" rot="R270">
-<attribute name="MPN" x="215.9" y="-144.78" size="1.778" layer="96" rot="R270" display="off"/>
+<instance part="R5" gate="G$1" x="215.9" y="-144.78">
+<attribute name="MPN" x="215.9" y="-144.78" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="D2" gate="G$1" x="208.28" y="-60.96" rot="R270"/>
 <instance part="D3" gate="G$1" x="187.96" y="-60.96" rot="R270"/>
 <instance part="+3V7" gate="G$1" x="193.04" y="-35.56"/>
-<instance part="R6" gate="G$1" x="187.96" y="-50.8" rot="R270">
-<attribute name="MPN" x="187.96" y="-50.8" size="1.778" layer="96" rot="R270" display="off"/>
+<instance part="R6" gate="G$1" x="187.96" y="-50.8">
+<attribute name="MPN" x="187.96" y="-50.8" size="1.778" layer="96" display="off"/>
 </instance>
-<instance part="R9" gate="G$1" x="208.28" y="-50.8" rot="R270">
-<attribute name="MPN" x="208.28" y="-50.8" size="1.778" layer="96" rot="R270" display="off"/>
+<instance part="R9" gate="G$1" x="208.28" y="-50.8">
+<attribute name="MPN" x="208.28" y="-50.8" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="J6" gate="A" x="-2.54" y="-147.32"/>
 <instance part="GND3" gate="1" x="7.62" y="-157.48"/>
@@ -8019,31 +8049,26 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="48.26" y1="124.46" x2="40.64" y2="124.46" width="0.1524" layer="91"/>
 <wire x1="40.64" y1="124.46" x2="33.02" y2="124.46" width="0.1524" layer="91"/>
 <wire x1="33.02" y1="124.46" x2="25.4" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="25.4" y1="119.38" x2="25.4" y2="121.92" width="0.1524" layer="91"/>
-<wire x1="25.4" y1="121.92" x2="25.4" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="33.02" y1="119.38" x2="33.02" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="25.4" y1="119.38" x2="25.4" y2="124.46" width="0.1524" layer="91"/>
 <junction x="33.02" y="124.46"/>
-<wire x1="33.02" y1="121.92" x2="33.02" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="40.64" y1="119.38" x2="40.64" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="33.02" y1="119.38" x2="33.02" y2="124.46" width="0.1524" layer="91"/>
 <junction x="40.64" y="124.46"/>
-<wire x1="40.64" y1="121.92" x2="40.64" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="48.26" y1="119.38" x2="48.26" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="40.64" y1="119.38" x2="40.64" y2="124.46" width="0.1524" layer="91"/>
 <junction x="48.26" y="124.46"/>
-<wire x1="48.26" y1="121.92" x2="48.26" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="58.42" y1="119.38" x2="58.42" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="48.26" y1="119.38" x2="48.26" y2="124.46" width="0.1524" layer="91"/>
 <junction x="58.42" y="124.46"/>
-<wire x1="58.42" y1="121.92" x2="58.42" y2="124.46" width="0.1524" layer="91"/>
+<wire x1="58.42" y1="119.38" x2="58.42" y2="124.46" width="0.1524" layer="91"/>
 <wire x1="58.42" y1="124.46" x2="88.9" y2="124.46" width="0.1524" layer="91"/>
 <pinref part="C2" gate="G$1" pin="P$1"/>
-<junction x="40.64" y="121.92"/>
+<junction x="40.64" y="119.38"/>
 <pinref part="C4" gate="G$1" pin="P$1"/>
-<junction x="33.02" y="121.92"/>
+<junction x="33.02" y="119.38"/>
 <pinref part="C5" gate="G$1" pin="P$1"/>
-<junction x="25.4" y="121.92"/>
+<junction x="25.4" y="119.38"/>
 <pinref part="C3" gate="G$1" pin="P$1"/>
-<junction x="48.26" y="121.92"/>
+<junction x="48.26" y="119.38"/>
 <pinref part="C1" gate="G$1" pin="P$1"/>
-<junction x="58.42" y="121.92"/>
+<junction x="58.42" y="119.38"/>
 <wire x1="88.9" y1="124.46" x2="88.9" y2="99.06" width="0.1524" layer="91"/>
 <pinref part="U1" gate="G$1" pin="VBAT"/>
 <pinref part="U1" gate="G$1" pin="VDD1"/>
@@ -8073,7 +8098,7 @@ Source: AVX .. aphvc.pdf</description>
 <pinref part="U3" gate="G$1" pin="VDD3V"/>
 <wire x1="66.04" y1="-127" x2="73.66" y2="-127" width="0.1524" layer="91"/>
 <pinref part="C10" gate="G$1" pin="P$1"/>
-<wire x1="66.04" y1="-127" x2="66.04" y2="-132.08" width="0.1524" layer="91"/>
+<wire x1="66.04" y1="-127" x2="66.04" y2="-134.62" width="0.1524" layer="91"/>
 <junction x="66.04" y="-127"/>
 </segment>
 <segment>
@@ -8088,10 +8113,10 @@ Source: AVX .. aphvc.pdf</description>
 <junction x="35.56" y="-71.12"/>
 <pinref part="C11" gate="G$1" pin="P$1"/>
 <wire x1="48.26" y1="-71.12" x2="35.56" y2="-71.12" width="0.1524" layer="91"/>
-<wire x1="38.1" y1="-78.74" x2="38.1" y2="-76.2" width="0.1524" layer="91"/>
+<wire x1="38.1" y1="-81.28" x2="38.1" y2="-76.2" width="0.1524" layer="91"/>
 <junction x="38.1" y="-76.2"/>
 <pinref part="C12" gate="G$1" pin="P$1"/>
-<wire x1="48.26" y1="-78.74" x2="48.26" y2="-71.12" width="0.1524" layer="91"/>
+<wire x1="48.26" y1="-81.28" x2="48.26" y2="-71.12" width="0.1524" layer="91"/>
 <junction x="48.26" y="-71.12"/>
 </segment>
 <segment>
@@ -8110,7 +8135,7 @@ Source: AVX .. aphvc.pdf</description>
 <segment>
 <pinref part="C24" gate="G$1" pin="P$2"/>
 <pinref part="U2" gate="G$1" pin="VREF"/>
-<wire x1="48.26" y1="-292.1" x2="53.34" y2="-292.1" width="0.1524" layer="91"/>
+<wire x1="45.72" y1="-292.1" x2="53.34" y2="-292.1" width="0.1524" layer="91"/>
 <pinref part="+3V4" gate="G$1" pin="+3V3"/>
 <wire x1="53.34" y1="-292.1" x2="55.88" y2="-292.1" width="0.1524" layer="91"/>
 <wire x1="53.34" y1="-289.56" x2="53.34" y2="-292.1" width="0.1524" layer="91"/>
@@ -8160,17 +8185,17 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="48.26" y1="109.22" x2="58.42" y2="109.22" width="0.1524" layer="91"/>
 <wire x1="58.42" y1="109.22" x2="58.42" y2="104.14" width="0.1524" layer="91"/>
 <wire x1="58.42" y1="104.14" x2="58.42" y2="101.6" width="0.1524" layer="91"/>
-<wire x1="25.4" y1="111.76" x2="25.4" y2="109.22" width="0.1524" layer="91"/>
-<wire x1="33.02" y1="111.76" x2="33.02" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="25.4" y1="114.3" x2="25.4" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="33.02" y1="114.3" x2="33.02" y2="109.22" width="0.1524" layer="91"/>
 <junction x="33.02" y="109.22"/>
-<wire x1="40.64" y1="111.76" x2="40.64" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="40.64" y1="114.3" x2="40.64" y2="109.22" width="0.1524" layer="91"/>
 <junction x="40.64" y="109.22"/>
-<wire x1="48.26" y1="111.76" x2="48.26" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="48.26" y1="114.3" x2="48.26" y2="109.22" width="0.1524" layer="91"/>
 <junction x="48.26" y="109.22"/>
-<wire x1="58.42" y1="111.76" x2="58.42" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="58.42" y1="114.3" x2="58.42" y2="109.22" width="0.1524" layer="91"/>
 <junction x="58.42" y="109.22"/>
 <wire x1="58.42" y1="104.14" x2="68.58" y2="104.14" width="0.1524" layer="91"/>
-<wire x1="68.58" y1="104.14" x2="68.58" y2="106.68" width="0.1524" layer="91"/>
+<wire x1="68.58" y1="104.14" x2="68.58" y2="109.22" width="0.1524" layer="91"/>
 <junction x="58.42" y="104.14"/>
 <pinref part="R1" gate="G$1" pin="P$1"/>
 <wire x1="78.74" y1="104.14" x2="68.58" y2="104.14" width="0.1524" layer="91"/>
@@ -8184,22 +8209,21 @@ Source: AVX .. aphvc.pdf</description>
 <pinref part="GND1" gate="1" pin="GND"/>
 </segment>
 <segment>
-<wire x1="134.62" y1="114.3" x2="134.62" y2="111.76" width="0.1524" layer="91"/>
 <pinref part="GND14" gate="1" pin="GND"/>
-<wire x1="134.62" y1="111.76" x2="134.62" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="134.62" y1="114.3" x2="134.62" y2="109.22" width="0.1524" layer="91"/>
 <wire x1="134.62" y1="109.22" x2="142.24" y2="109.22" width="0.1524" layer="91"/>
 <pinref part="C7" gate="G$1" pin="P$2"/>
-<junction x="134.62" y="111.76"/>
+<junction x="134.62" y="114.3"/>
 </segment>
 <segment>
-<wire x1="182.88" y1="2.54" x2="182.88" y2="-5.08" width="0.1524" layer="91"/>
+<wire x1="182.88" y1="5.08" x2="182.88" y2="-5.08" width="0.1524" layer="91"/>
 <pinref part="GND17" gate="1" pin="GND"/>
 <wire x1="182.88" y1="-5.08" x2="203.2" y2="-5.08" width="0.1524" layer="91"/>
 <pinref part="X1" gate="G$1" pin="P$3"/>
 <wire x1="203.2" y1="2.54" x2="203.2" y2="-5.08" width="0.1524" layer="91"/>
 <junction x="203.2" y="-5.08"/>
 <wire x1="203.2" y1="-5.08" x2="223.52" y2="-5.08" width="0.1524" layer="91"/>
-<wire x1="223.52" y1="-5.08" x2="223.52" y2="2.54" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="-5.08" x2="223.52" y2="5.08" width="0.1524" layer="91"/>
 <pinref part="C8" gate="G$1" pin="P$2"/>
 <pinref part="C9" gate="G$1" pin="P$2"/>
 </segment>
@@ -8242,7 +8266,7 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="86.36" y1="-152.4" x2="86.36" y2="-154.94" width="0.1524" layer="91"/>
 <junction x="86.36" y="-152.4"/>
 <pinref part="C10" gate="G$1" pin="P$2"/>
-<wire x1="66.04" y1="-142.24" x2="66.04" y2="-152.4" width="0.1524" layer="91"/>
+<wire x1="66.04" y1="-139.7" x2="66.04" y2="-152.4" width="0.1524" layer="91"/>
 <wire x1="66.04" y1="-152.4" x2="83.82" y2="-152.4" width="0.1524" layer="91"/>
 <junction x="83.82" y="-152.4"/>
 </segment>
@@ -8251,12 +8275,12 @@ Source: AVX .. aphvc.pdf</description>
 <pinref part="U4" gate="G$1" pin="GND"/>
 <wire x1="88.9" y1="-99.06" x2="88.9" y2="-96.52" width="0.1524" layer="91"/>
 <pinref part="C11" gate="G$1" pin="P$2"/>
-<wire x1="38.1" y1="-88.9" x2="38.1" y2="-96.52" width="0.1524" layer="91"/>
+<wire x1="38.1" y1="-86.36" x2="38.1" y2="-96.52" width="0.1524" layer="91"/>
 <wire x1="38.1" y1="-96.52" x2="48.26" y2="-96.52" width="0.1524" layer="91"/>
 <junction x="88.9" y="-96.52"/>
 <pinref part="C12" gate="G$1" pin="P$2"/>
 <wire x1="48.26" y1="-96.52" x2="88.9" y2="-96.52" width="0.1524" layer="91"/>
-<wire x1="48.26" y1="-88.9" x2="48.26" y2="-96.52" width="0.1524" layer="91"/>
+<wire x1="48.26" y1="-86.36" x2="48.26" y2="-96.52" width="0.1524" layer="91"/>
 <junction x="48.26" y="-96.52"/>
 <wire x1="88.9" y1="-96.52" x2="116.84" y2="-96.52" width="0.1524" layer="91"/>
 <wire x1="116.84" y1="-96.52" x2="116.84" y2="-83.82" width="0.1524" layer="91"/>
@@ -8291,12 +8315,12 @@ Source: AVX .. aphvc.pdf</description>
 <segment>
 <pinref part="C24" gate="G$1" pin="P$1"/>
 <pinref part="GND8" gate="1" pin="GND"/>
-<wire x1="38.1" y1="-292.1" x2="25.4" y2="-292.1" width="0.1524" layer="91"/>
+<wire x1="40.64" y1="-292.1" x2="25.4" y2="-292.1" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="C25" gate="G$1" pin="P$1"/>
 <pinref part="GND9" gate="1" pin="GND"/>
-<wire x1="116.84" y1="-236.22" x2="121.92" y2="-236.22" width="0.1524" layer="91"/>
+<wire x1="114.3" y1="-236.22" x2="121.92" y2="-236.22" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="GND10" gate="1" pin="GND"/>
@@ -8318,11 +8342,10 @@ Source: AVX .. aphvc.pdf</description>
 </net>
 <net name="N$24" class="0">
 <segment>
-<wire x1="68.58" y1="114.3" x2="68.58" y2="116.84" width="0.1524" layer="91"/>
-<wire x1="68.58" y1="116.84" x2="68.58" y2="119.38" width="0.1524" layer="91"/>
+<wire x1="68.58" y1="114.3" x2="68.58" y2="119.38" width="0.1524" layer="91"/>
 <wire x1="68.58" y1="119.38" x2="86.36" y2="119.38" width="0.1524" layer="91"/>
 <pinref part="C6" gate="G$1" pin="P$1"/>
-<junction x="68.58" y="116.84"/>
+<junction x="68.58" y="114.3"/>
 <wire x1="86.36" y1="99.06" x2="86.36" y2="119.38" width="0.1524" layer="91"/>
 <wire x1="86.36" y1="119.38" x2="86.36" y2="139.7" width="0.1524" layer="91"/>
 <junction x="86.36" y="119.38"/>
@@ -8345,7 +8368,7 @@ Source: AVX .. aphvc.pdf</description>
 <net name="N$23" class="0">
 <segment>
 <wire x1="114.3" y1="124.46" x2="134.62" y2="124.46" width="0.1524" layer="91"/>
-<wire x1="134.62" y1="124.46" x2="134.62" y2="121.92" width="0.1524" layer="91"/>
+<wire x1="134.62" y1="124.46" x2="134.62" y2="119.38" width="0.1524" layer="91"/>
 <pinref part="C7" gate="G$1" pin="P$1"/>
 <pinref part="U1" gate="G$1" pin="VCAP1"/>
 <wire x1="114.3" y1="124.46" x2="114.3" y2="99.06" width="0.1524" layer="91"/>
@@ -8371,14 +8394,13 @@ Source: AVX .. aphvc.pdf</description>
 </net>
 <net name="N$35" class="0">
 <segment>
-<wire x1="182.88" y1="10.16" x2="182.88" y2="12.7" width="0.1524" layer="91"/>
 <pinref part="X1" gate="G$1" pin="P$1"/>
-<wire x1="182.88" y1="12.7" x2="182.88" y2="15.24" width="0.1524" layer="91"/>
+<wire x1="182.88" y1="10.16" x2="182.88" y2="15.24" width="0.1524" layer="91"/>
 <wire x1="182.88" y1="15.24" x2="190.5" y2="15.24" width="0.1524" layer="91"/>
 <wire x1="167.64" y1="15.24" x2="182.88" y2="15.24" width="0.1524" layer="91"/>
 <junction x="182.88" y="15.24"/>
 <pinref part="C8" gate="G$1" pin="P$1"/>
-<junction x="182.88" y="12.7"/>
+<junction x="182.88" y="10.16"/>
 <pinref part="U1" gate="G$1" pin="PH0"/>
 </segment>
 </net>
@@ -8386,15 +8408,14 @@ Source: AVX .. aphvc.pdf</description>
 <segment>
 <pinref part="X1" gate="G$1" pin="P$2"/>
 <wire x1="215.9" y1="15.24" x2="223.52" y2="15.24" width="0.1524" layer="91"/>
-<wire x1="223.52" y1="15.24" x2="223.52" y2="12.7" width="0.1524" layer="91"/>
-<wire x1="223.52" y1="12.7" x2="223.52" y2="10.16" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="15.24" x2="223.52" y2="10.16" width="0.1524" layer="91"/>
 <wire x1="223.52" y1="15.24" x2="223.52" y2="25.4" width="0.1524" layer="91"/>
 <junction x="223.52" y="15.24"/>
 <wire x1="223.52" y1="25.4" x2="182.88" y2="25.4" width="0.1524" layer="91"/>
 <wire x1="182.88" y1="25.4" x2="182.88" y2="17.78" width="0.1524" layer="91"/>
 <wire x1="182.88" y1="17.78" x2="167.64" y2="17.78" width="0.1524" layer="91"/>
 <pinref part="C9" gate="G$1" pin="P$1"/>
-<junction x="223.52" y="12.7"/>
+<junction x="223.52" y="10.16"/>
 <pinref part="U1" gate="G$1" pin="PH1"/>
 </segment>
 </net>
@@ -8426,7 +8447,7 @@ Source: AVX .. aphvc.pdf</description>
 <segment>
 <pinref part="R8" gate="G$1" pin="P$2"/>
 <pinref part="R7" gate="G$1" pin="P$1"/>
-<wire x1="-5.08" y1="-198.12" x2="-5.08" y2="-195.58" width="0.1524" layer="91"/>
+<wire x1="-5.08" y1="-198.12" x2="-5.08" y2="-193.04" width="0.1524" layer="91"/>
 <wire x1="-5.08" y1="-198.12" x2="10.16" y2="-198.12" width="0.1524" layer="91"/>
 <junction x="-5.08" y="-198.12"/>
 <label x="5.08" y="-198.12" size="1.778" layer="95"/>
@@ -8668,7 +8689,7 @@ Source: AVX .. aphvc.pdf</description>
 <net name="V+" class="0">
 <segment>
 <pinref part="R7" gate="G$1" pin="P$2"/>
-<wire x1="-5.08" y1="-185.42" x2="-5.08" y2="-177.8" width="0.1524" layer="91"/>
+<wire x1="-5.08" y1="-182.88" x2="-5.08" y2="-177.8" width="0.1524" layer="91"/>
 <pinref part="P+2" gate="1" pin="V+"/>
 </segment>
 <segment>
@@ -9013,7 +9034,7 @@ Source: AVX .. aphvc.pdf</description>
 <segment>
 <pinref part="P-3" gate="1" pin="V-"/>
 <pinref part="C13" gate="G$1" pin="P$2"/>
-<wire x1="30.48" y1="-248.92" x2="30.48" y2="-246.38" width="0.1524" layer="91"/>
+<wire x1="30.48" y1="-248.92" x2="30.48" y2="-243.84" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="P-4" gate="1" pin="V-"/>
@@ -9029,7 +9050,7 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="55.88" y1="-231.14" x2="50.8" y2="-231.14" width="0.1524" layer="91"/>
 <wire x1="50.8" y1="-231.14" x2="30.48" y2="-231.14" width="0.1524" layer="91"/>
 <wire x1="30.48" y1="-231.14" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
-<wire x1="30.48" y1="-233.68" x2="30.48" y2="-236.22" width="0.1524" layer="91"/>
+<wire x1="30.48" y1="-233.68" x2="30.48" y2="-238.76" width="0.1524" layer="91"/>
 <wire x1="50.8" y1="-231.14" x2="50.8" y2="-218.44" width="0.1524" layer="91"/>
 <junction x="50.8" y="-231.14"/>
 <wire x1="50.8" y1="-218.44" x2="104.14" y2="-218.44" width="0.1524" layer="91"/>
@@ -9037,7 +9058,7 @@ Source: AVX .. aphvc.pdf</description>
 <pinref part="U2" gate="G$1" pin="VDRAIN"/>
 <wire x1="104.14" y1="-231.14" x2="101.6" y2="-231.14" width="0.1524" layer="91"/>
 <pinref part="C23" gate="G$1" pin="P$1"/>
-<wire x1="33.02" y1="-233.68" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
+<wire x1="35.56" y1="-233.68" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
 <junction x="30.48" y="-233.68"/>
 </segment>
 </net>
@@ -9135,16 +9156,16 @@ Source: AVX .. aphvc.pdf</description>
 <net name="N$12" class="0">
 <segment>
 <pinref part="C21" gate="G$1" pin="P$1"/>
-<wire x1="109.22" y1="-314.96" x2="101.6" y2="-314.96" width="0.1524" layer="91"/>
+<wire x1="109.22" y1="-320.04" x2="101.6" y2="-320.04" width="0.1524" layer="91"/>
 <pinref part="U2" gate="G$1" pin="CB"/>
-<wire x1="101.6" y1="-314.96" x2="101.6" y2="-322.58" width="0.1524" layer="91"/>
+<wire x1="101.6" y1="-320.04" x2="101.6" y2="-322.58" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$10" class="0">
 <segment>
 <pinref part="U2" gate="G$1" pin="CPL"/>
 <pinref part="C22" gate="G$1" pin="P$2"/>
-<wire x1="55.88" y1="-238.76" x2="53.34" y2="-238.76" width="0.1524" layer="91"/>
+<wire x1="55.88" y1="-238.76" x2="48.26" y2="-238.76" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$13" class="0">
@@ -9159,14 +9180,14 @@ Source: AVX .. aphvc.pdf</description>
 <segment>
 <pinref part="C23" gate="G$1" pin="P$2"/>
 <pinref part="U2" gate="G$1" pin="VCP"/>
-<wire x1="43.18" y1="-233.68" x2="55.88" y2="-233.68" width="0.1524" layer="91"/>
+<wire x1="40.64" y1="-233.68" x2="55.88" y2="-233.68" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$16" class="0">
 <segment>
 <pinref part="U2" gate="G$1" pin="DVDD"/>
 <pinref part="C25" gate="G$1" pin="P$2"/>
-<wire x1="101.6" y1="-236.22" x2="106.68" y2="-236.22" width="0.1524" layer="91"/>
+<wire x1="101.6" y1="-236.22" x2="109.22" y2="-236.22" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$9" class="0">
