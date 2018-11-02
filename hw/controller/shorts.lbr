@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="6.2">
+<eagle version="6.5.0">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
@@ -82,8 +82,8 @@
 <packages>
 <package name="SHORT_TOP-50">
 <description>Short, top layer, 50mil width</description>
-<smd name="1" x="0.635" y="0" dx="1.27" dy="1.27" layer="1" stop="no" cream="no"/>
-<smd name="2" x="-0.635" y="0" dx="1.27" dy="1.27" layer="1" stop="no" cream="no"/>
+<smd name="1" x="0.127" y="0" dx="0.254" dy="0.254" layer="1" stop="no" cream="no"/>
+<smd name="2" x="-0.127" y="0" dx="0.254" dy="0.254" layer="1" stop="no" cream="no"/>
 <text x="-1.27" y="-2.032" size="1.27" layer="25" ratio="16">&gt;NAME</text>
 </package>
 <package name="SHORT_ALL-50">
@@ -96,6 +96,11 @@
 <rectangle x1="-0.254" y1="-0.635" x2="0.254" y2="-0.381" layer="1"/>
 <rectangle x1="-0.254" y1="0.381" x2="0.254" y2="0.635" layer="16"/>
 <rectangle x1="-0.254" y1="-0.635" x2="0.254" y2="-0.381" layer="16"/>
+</package>
+<package name="SHORT_TOP-BIG">
+<smd name="1" x="0.635" y="0" dx="1.27" dy="1.27" layer="1" stop="no" cream="no"/>
+<smd name="2" x="-0.635" y="0" dx="1.27" dy="1.27" layer="1" stop="no" cream="no"/>
+<text x="-1.27" y="-2.032" size="1.27" layer="25" ratio="16">&gt;NAME</text>
 </package>
 </packages>
 <symbols>
@@ -133,6 +138,15 @@
 <technology name="">
 <attribute name="BOM" value="no"/>
 </technology>
+</technologies>
+</device>
+<device name="BIG" package="SHORT_TOP-BIG">
+<connects>
+<connect gate="G$1" pin="P$1" pad="1"/>
+<connect gate="G$1" pin="P$2" pad="2"/>
+</connects>
+<technologies>
+<technology name=""/>
 </technologies>
 </device>
 </devices>
