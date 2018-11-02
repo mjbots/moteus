@@ -8542,9 +8542,9 @@ Source: AVX .. aphvc.pdf</description>
 <label x="35.56" y="-297.18" size="1.778" layer="95"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PC4/I2S1_MCK"/>
-<wire x1="167.64" y1="63.5" x2="195.58" y2="63.5" width="0.1524" layer="91"/>
-<label x="190.5" y="63.5" size="1.778" layer="95"/>
+<pinref part="U1" gate="G$1" pin="PC5/UART3_RX"/>
+<wire x1="167.64" y1="60.96" x2="195.58" y2="60.96" width="0.1524" layer="91"/>
+<label x="187.96" y="60.96" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="CUR2" class="0">
@@ -8554,9 +8554,9 @@ Source: AVX .. aphvc.pdf</description>
 <label x="35.56" y="-299.72" size="1.778" layer="95"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PC5/UART3_RX"/>
-<wire x1="167.64" y1="60.96" x2="195.58" y2="60.96" width="0.1524" layer="91"/>
-<label x="190.5" y="60.96" size="1.778" layer="95"/>
+<pinref part="U1" gate="G$1" pin="PB0/TIM1_2N/TIM3_3/TIM8_2N/SPI3_MOSI/I2S3_SD/UART4_CTS"/>
+<wire x1="20.32" y1="33.02" x2="-2.54" y2="33.02" width="0.1524" layer="91"/>
+<label x="-2.54" y="33.02" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="VBAT_SENSE" class="0">
@@ -9210,9 +9210,9 @@ Source: AVX .. aphvc.pdf</description>
 <label x="35.56" y="-302.26" size="1.778" layer="95"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PB0/TIM1_2N/TIM3_3/TIM8_2N/SPI3_MOSI/I2S3_SD/UART4_CTS"/>
-<wire x1="20.32" y1="33.02" x2="-2.54" y2="33.02" width="0.1524" layer="91"/>
-<label x="-2.54" y="33.02" size="1.778" layer="95"/>
+<pinref part="U1" gate="G$1" pin="PB1/TIM1_3N/TIM3_4/TIM8_3N"/>
+<wire x1="20.32" y1="30.48" x2="-2.54" y2="30.48" width="0.1524" layer="91"/>
+<label x="-2.54" y="30.48" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="MOTOR_HIZ" class="0">
@@ -9256,9 +9256,9 @@ Source: AVX .. aphvc.pdf</description>
 <label x="35.56" y="-314.96" size="1.778" layer="95"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PB1/TIM1_3N/TIM3_4/TIM8_3N"/>
-<wire x1="20.32" y1="30.48" x2="-2.54" y2="30.48" width="0.1524" layer="91"/>
-<label x="-2.54" y="30.48" size="1.778" layer="95"/>
+<pinref part="U1" gate="G$1" pin="PC4/I2S1_MCK"/>
+<wire x1="167.64" y1="63.5" x2="195.58" y2="63.5" width="0.1524" layer="91"/>
+<label x="187.96" y="63.5" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="N$5" class="0">
