@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="mm" unit="mm" style="lines" multiple="1" display="yes" altdistance="0.02" altunitdist="mm" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
 <layer number="2" name="Route2" color="1" fill="3" visible="no" active="yes"/>
@@ -954,6 +954,24 @@ MAX3223-MAX3243.pdf</description>
 <smd name="P1" x="-4.4" y="-0.29" dx="1.6" dy="3" layer="1"/>
 <smd name="P2" x="4.4" y="-0.29" dx="1.6" dy="3" layer="1"/>
 </package>
+<package name="M2.5MOUNT">
+<pad name="P$1" x="0" y="0" drill="2.6"/>
+<polygon width="0.127" layer="39">
+<vertex x="-2.5" y="0" curve="-90"/>
+<vertex x="0" y="2.5" curve="-90"/>
+<vertex x="2.5" y="0" curve="-90"/>
+<vertex x="0" y="-2.5" curve="-90"/>
+</polygon>
+</package>
+<package name="M2MOUNT">
+<pad name="P$1" x="0" y="0" drill="2.1"/>
+<polygon width="0.127" layer="39">
+<vertex x="-2" y="0" curve="-90"/>
+<vertex x="0" y="2" curve="-90"/>
+<vertex x="2" y="0" curve="-90"/>
+<vertex x="0" y="-2" curve="-90"/>
+</polygon>
+</package>
 </packages>
 <symbols>
 <symbol name="STM32F4_64PINS">
@@ -1329,6 +1347,15 @@ Regulator</text>
 <text x="-5.08" y="-7.366" size="1.778" layer="96">&gt;VALUE</text>
 <pin name="2" x="5.08" y="0" length="short" direction="pas" rot="R180"/>
 <pin name="1" x="5.08" y="2.54" length="short" direction="pas" rot="R180"/>
+</symbol>
+<symbol name="MOUNT">
+<wire x1="-2.54" y1="2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="-2.54" x2="-2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="2.54" x2="2.54" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
+<text x="-2.54" y="5.08" size="1.27" layer="94">&gt;NAME</text>
 </symbol>
 </symbols>
 <devicesets>
@@ -1820,6 +1847,23 @@ Regulator</text>
 <connect gate="A" pin="5" pad="5"/>
 <connect gate="A" pin="6" pad="6"/>
 </connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="MOUNT">
+<gates>
+<gate name="G$1" symbol="MOUNT" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="M2.5MOUNT">
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="M2" package="M2MOUNT">
 <technologies>
 <technology name=""/>
 </technologies>

@@ -482,6 +482,24 @@ MAX3223-MAX3243.pdf</description>
 <smd name="P1" x="-4.4" y="-0.29" dx="1.6" dy="3" layer="1"/>
 <smd name="P2" x="4.4" y="-0.29" dx="1.6" dy="3" layer="1"/>
 </package>
+<package name="M2.5MOUNT">
+<pad name="P$1" x="0" y="0" drill="2.6"/>
+<polygon width="0.127" layer="39">
+<vertex x="-2.5" y="0" curve="-90"/>
+<vertex x="0" y="2.5" curve="-90"/>
+<vertex x="2.5" y="0" curve="-90"/>
+<vertex x="0" y="-2.5" curve="-90"/>
+</polygon>
+</package>
+<package name="M2MOUNT">
+<pad name="P$1" x="0" y="0" drill="2.1"/>
+<polygon width="0.127" layer="39">
+<vertex x="-2" y="0" curve="-90"/>
+<vertex x="0" y="2" curve="-90"/>
+<vertex x="2" y="0" curve="-90"/>
+<vertex x="0" y="-2" curve="-90"/>
+</polygon>
+</package>
 </packages>
 <symbols>
 <symbol name="STM32F4_64PINS">
@@ -754,6 +772,15 @@ Regulator</text>
 <text x="-5.08" y="-7.366" size="1.778" layer="96">&gt;VALUE</text>
 <pin name="2" x="5.08" y="0" length="short" direction="pas" rot="R180"/>
 <pin name="1" x="5.08" y="2.54" length="short" direction="pas" rot="R180"/>
+</symbol>
+<symbol name="MOUNT">
+<wire x1="-2.54" y1="2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="-2.54" x2="-2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="2.54" x2="2.54" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
+<text x="-2.54" y="5.08" size="1.27" layer="94">&gt;NAME</text>
 </symbol>
 </symbols>
 <devicesets>
@@ -1081,6 +1108,23 @@ Regulator</text>
 <connect gate="A" pin="1" pad="1"/>
 <connect gate="A" pin="2" pad="2"/>
 </connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="MOUNT">
+<gates>
+<gate name="G$1" symbol="MOUNT" x="0" y="0"/>
+</gates>
+<devices>
+<device name="" package="M2.5MOUNT">
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="M2" package="M2MOUNT">
 <technologies>
 <technology name=""/>
 </technologies>
@@ -7638,22 +7682,23 @@ Source: AVX .. aphvc.pdf</description>
 <part name="+3V9" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
 <part name="+3V8" library="supply1" deviceset="+3V3" device=""/>
-<part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0603" value="10">
+<part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0402" value="10">
 <attribute name="MPN" value="MF-RES-0603-10"/>
 </part>
-<part name="C2" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C2" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
-<part name="C6" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C6" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="C4" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
+</part>
+<part name="C5" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
-<part name="C5" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
-</part>
-<part name="C3" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C3" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="C1" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="4.7uF">
@@ -7666,15 +7711,15 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="DPN" value="311-1455-1-ND"/>
 <attribute name="MPN" value="CC0603KRX5R6BB475"/>
 </part>
-<part name="X1" library="gimbal" deviceset="CRYSTAL" device="ABM3B">
+<part name="X1" library="gimbal" deviceset="CRYSTAL" device="ABM3B" value="8.0MHz">
 <attribute name="DPN" value="535-9721-1-ND"/>
 <attribute name="MPN" value="ABM3B-8.000MHZ-10-1-U-T"/>
 </part>
 <part name="GND17" library="supply1" deviceset="GND" device=""/>
-<part name="C8" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="10pF">
+<part name="C8" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="10pF">
 <attribute name="MPN" value="MF-CAP-0603-10pF"/>
 </part>
-<part name="C9" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="10pF">
+<part name="C9" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="10pF">
 <attribute name="MPN" value="MF-CAP-0603-10pF"/>
 </part>
 <part name="GND18" library="supply1" deviceset="GND" device=""/>
@@ -7690,7 +7735,7 @@ Source: AVX .. aphvc.pdf</description>
 <part name="U3" library="controller" deviceset="AS5147" device=""/>
 <part name="+3V1" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND2" library="supply1" deviceset="GND" device=""/>
-<part name="C10" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C10" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="Q1" library="controller" deviceset="TPN1R603PL" device=""/>
@@ -7703,10 +7748,10 @@ Source: AVX .. aphvc.pdf</description>
 <part name="U4" library="controller" deviceset="MAX13431E" device=""/>
 <part name="GND4" library="supply1" deviceset="GND" device=""/>
 <part name="+3V2" library="supply1" deviceset="+3V3" device=""/>
-<part name="C11" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C11" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
-<part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="1.0uF">
+<part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.0uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="RA" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
@@ -7727,7 +7772,7 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MF" value="Stackpole Electronics"/>
 <attribute name="MPN" value="HCS1206FT1L00"/>
 </part>
-<part name="C13" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C13" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="A" library="controller" deviceset="PAD" device=""/>
@@ -7764,7 +7809,7 @@ Source: AVX .. aphvc.pdf</description>
 <part name="GND5" library="supply1" deviceset="GND" device=""/>
 <part name="P+3" library="supply1" deviceset="V+" device=""/>
 <part name="P-4" library="supply1" deviceset="V-" device=""/>
-<part name="R2" library="mfpassives" deviceset="RESISTOR" device="_0603" value="100k">
+<part name="R2" library="mfpassives" deviceset="RESISTOR" device="_0402" value="100k">
 <attribute name="DPN" value="P100KHCT-ND"/>
 <attribute name="MPN" value="ERJ-3EKF1003V"/>
 </part>
@@ -7779,7 +7824,7 @@ Source: AVX .. aphvc.pdf</description>
 </part>
 <part name="GND7" library="supply1" deviceset="GND" device=""/>
 <part name="C20" library="rcl" deviceset="C-US" device="C1206" value="10uF 16V"/>
-<part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="0.1uF">
+<part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
 </part>
 <part name="L1" library="controller" deviceset="SRN4018-220M" device="">
@@ -7787,15 +7832,15 @@ Source: AVX .. aphvc.pdf</description>
 </part>
 <part name="D1" library="mfdiscretesemi" deviceset="DIODES" device="_SMA" technology="_B140" value="MF-DIO-SMA-B140"/>
 <part name="C22" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="47nF"/>
-<part name="C23" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="1uF">
+<part name="C23" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
 <attribute name="MPN" value="MF-CAP-0603-1uF"/>
 </part>
-<part name="C24" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="1uF">
+<part name="C24" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
 <attribute name="MPN" value="MF-CAP-0603-1uF"/>
 </part>
 <part name="GND8" library="supply1" deviceset="GND" device=""/>
 <part name="+3V4" library="supply1" deviceset="+3V3" device=""/>
-<part name="C25" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="1uF">
+<part name="C25" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
 <attribute name="MPN" value="MF-CAP-0603-1uF"/>
 </part>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
@@ -7807,22 +7852,34 @@ Source: AVX .. aphvc.pdf</description>
 <part name="J5" library="controller" deviceset="PAD2" device=""/>
 <part name="+3V6" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND11" library="supply1" deviceset="GND" device=""/>
-<part name="R5" library="mfpassives" deviceset="RESISTOR" device="_0603" value="10k">
+<part name="R5" library="mfpassives" deviceset="RESISTOR" device="_0402" value="10k">
 <attribute name="MPN" value="MF-RES-0603-10K"/>
 </part>
 <part name="D2" library="mfleds" deviceset="LED_SINGLE" device="-0603-GREEN" value="MF-LED-0603-GREEN"/>
 <part name="D3" library="mfleds" deviceset="LED_SINGLE" device="-0603-RED" value="MF-LED-0603-RED"/>
 <part name="+3V7" library="supply1" deviceset="+3V3" device=""/>
-<part name="R6" library="mfpassives" deviceset="RESISTOR" device="_0603" value="220">
+<part name="R6" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
 <attribute name="MPN" value="MF-RES-0603-220"/>
 </part>
-<part name="R9" library="mfpassives" deviceset="RESISTOR" device="_0603" value="220">
+<part name="R9" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
 <attribute name="MPN" value="MF-RES-0603-220"/>
 </part>
 <part name="J6" library="controller" deviceset="PAD4" device=""/>
 <part name="GND3" library="supply1" deviceset="GND" device=""/>
 <part name="+3V10" library="supply1" deviceset="+3V3" device=""/>
 <part name="J1" library="controller" deviceset="JST-PH3" device="SMT_VERT" value="JST-PH3SMT_VERT"/>
+<part name="U$1" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
+<part name="U$2" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
+<part name="U$3" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
+<part name="U$4" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
+<part name="C26" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
+<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+</part>
+<part name="C27" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF"/>
+</part>
+<part name="P+4" library="supply1" deviceset="V+" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -8031,6 +8088,17 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="GND3" gate="1" x="7.62" y="-157.48"/>
 <instance part="+3V10" gate="G$1" x="10.16" y="-132.08"/>
 <instance part="J1" gate="A" x="147.32" y="-81.28" rot="MR0"/>
+<instance part="U$1" gate="G$1" x="10.16" y="165.1"/>
+<instance part="U$2" gate="G$1" x="25.4" y="165.1"/>
+<instance part="U$3" gate="G$1" x="38.1" y="165.1"/>
+<instance part="U$4" gate="G$1" x="53.34" y="165.1"/>
+<instance part="C26" gate="G$1" x="17.78" y="116.84">
+<attribute name="MPN" x="17.78" y="116.84" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C27" gate="G$1" x="53.34" y="-185.42">
+<attribute name="MPN" x="53.34" y="-185.42" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="P+4" gate="1" x="30.48" y="-226.06"/>
 </instances>
 <busses>
 </busses>
@@ -8091,6 +8159,10 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="109.22" y1="99.06" x2="109.22" y2="124.46" width="0.1524" layer="91"/>
 <wire x1="109.22" y1="124.46" x2="104.14" y2="124.46" width="0.1524" layer="91"/>
 <junction x="104.14" y="124.46"/>
+<pinref part="C26" gate="G$1" pin="P$1"/>
+<wire x1="25.4" y1="124.46" x2="17.78" y2="124.46" width="0.1524" layer="91"/>
+<wire x1="17.78" y1="124.46" x2="17.78" y2="119.38" width="0.1524" layer="91"/>
+<junction x="25.4" y="124.46"/>
 </segment>
 <segment>
 <pinref part="+3V1" gate="G$1" pin="+3V3"/>
@@ -8146,6 +8218,10 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="66.04" y1="-175.26" x2="66.04" y2="-180.34" width="0.1524" layer="91"/>
 <pinref part="J3" gate="A" pin="1"/>
 <wire x1="66.04" y1="-180.34" x2="81.28" y2="-180.34" width="0.1524" layer="91"/>
+<pinref part="C27" gate="G$1" pin="P$1"/>
+<wire x1="66.04" y1="-180.34" x2="53.34" y2="-180.34" width="0.1524" layer="91"/>
+<wire x1="53.34" y1="-180.34" x2="53.34" y2="-182.88" width="0.1524" layer="91"/>
+<junction x="66.04" y="-180.34"/>
 </segment>
 <segment>
 <pinref part="+3V6" gate="G$1" pin="+3V3"/>
@@ -8207,6 +8283,10 @@ Source: AVX .. aphvc.pdf</description>
 <pinref part="C3" gate="G$1" pin="P$2"/>
 <pinref part="C1" gate="G$1" pin="P$2"/>
 <pinref part="GND1" gate="1" pin="GND"/>
+<pinref part="C26" gate="G$1" pin="P$2"/>
+<wire x1="17.78" y1="114.3" x2="17.78" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="17.78" y1="109.22" x2="25.4" y2="109.22" width="0.1524" layer="91"/>
+<junction x="25.4" y="109.22"/>
 </segment>
 <segment>
 <pinref part="GND14" gate="1" pin="GND"/>
@@ -8324,9 +8404,14 @@ Source: AVX .. aphvc.pdf</description>
 </segment>
 <segment>
 <pinref part="GND10" gate="1" pin="GND"/>
-<wire x1="66.04" y1="-198.12" x2="66.04" y2="-187.96" width="0.1524" layer="91"/>
+<wire x1="66.04" y1="-198.12" x2="66.04" y2="-193.04" width="0.1524" layer="91"/>
 <pinref part="J3" gate="A" pin="4"/>
+<wire x1="66.04" y1="-193.04" x2="66.04" y2="-187.96" width="0.1524" layer="91"/>
 <wire x1="66.04" y1="-187.96" x2="81.28" y2="-187.96" width="0.1524" layer="91"/>
+<pinref part="C27" gate="G$1" pin="P$2"/>
+<wire x1="66.04" y1="-193.04" x2="53.34" y2="-193.04" width="0.1524" layer="91"/>
+<wire x1="53.34" y1="-193.04" x2="53.34" y2="-187.96" width="0.1524" layer="91"/>
+<junction x="66.04" y="-193.04"/>
 </segment>
 <segment>
 <pinref part="R5" gate="G$1" pin="P$2"/>
@@ -8746,6 +8831,26 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="25.4" y1="-325.12" x2="25.4" y2="-322.58" width="0.1524" layer="91"/>
 <junction x="25.4" y="-322.58"/>
 </segment>
+<segment>
+<pinref part="U2" gate="G$1" pin="VM"/>
+<pinref part="C13" gate="G$1" pin="P$1"/>
+<wire x1="55.88" y1="-231.14" x2="50.8" y2="-231.14" width="0.1524" layer="91"/>
+<wire x1="50.8" y1="-231.14" x2="30.48" y2="-231.14" width="0.1524" layer="91"/>
+<wire x1="30.48" y1="-231.14" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
+<wire x1="30.48" y1="-233.68" x2="30.48" y2="-238.76" width="0.1524" layer="91"/>
+<wire x1="50.8" y1="-231.14" x2="50.8" y2="-218.44" width="0.1524" layer="91"/>
+<junction x="50.8" y="-231.14"/>
+<wire x1="50.8" y1="-218.44" x2="104.14" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="104.14" y1="-218.44" x2="104.14" y2="-231.14" width="0.1524" layer="91"/>
+<pinref part="U2" gate="G$1" pin="VDRAIN"/>
+<wire x1="104.14" y1="-231.14" x2="101.6" y2="-231.14" width="0.1524" layer="91"/>
+<pinref part="C23" gate="G$1" pin="P$1"/>
+<wire x1="35.56" y1="-233.68" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
+<junction x="30.48" y="-233.68"/>
+<pinref part="P+4" gate="1" pin="V+"/>
+<wire x1="30.48" y1="-231.14" x2="30.48" y2="-228.6" width="0.1524" layer="91"/>
+<junction x="30.48" y="-231.14"/>
+</segment>
 </net>
 <net name="SPA" class="0">
 <segment>
@@ -9041,25 +9146,6 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="45.72" y1="-337.82" x2="45.72" y2="-327.66" width="0.1524" layer="91"/>
 <pinref part="U2" gate="G$1" pin="BGND"/>
 <wire x1="45.72" y1="-327.66" x2="55.88" y2="-327.66" width="0.1524" layer="91"/>
-</segment>
-</net>
-<net name="N$2" class="0">
-<segment>
-<pinref part="U2" gate="G$1" pin="VM"/>
-<pinref part="C13" gate="G$1" pin="P$1"/>
-<wire x1="55.88" y1="-231.14" x2="50.8" y2="-231.14" width="0.1524" layer="91"/>
-<wire x1="50.8" y1="-231.14" x2="30.48" y2="-231.14" width="0.1524" layer="91"/>
-<wire x1="30.48" y1="-231.14" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
-<wire x1="30.48" y1="-233.68" x2="30.48" y2="-238.76" width="0.1524" layer="91"/>
-<wire x1="50.8" y1="-231.14" x2="50.8" y2="-218.44" width="0.1524" layer="91"/>
-<junction x="50.8" y="-231.14"/>
-<wire x1="50.8" y1="-218.44" x2="104.14" y2="-218.44" width="0.1524" layer="91"/>
-<wire x1="104.14" y1="-218.44" x2="104.14" y2="-231.14" width="0.1524" layer="91"/>
-<pinref part="U2" gate="G$1" pin="VDRAIN"/>
-<wire x1="104.14" y1="-231.14" x2="101.6" y2="-231.14" width="0.1524" layer="91"/>
-<pinref part="C23" gate="G$1" pin="P$1"/>
-<wire x1="35.56" y1="-233.68" x2="30.48" y2="-233.68" width="0.1524" layer="91"/>
-<junction x="30.48" y="-233.68"/>
 </segment>
 </net>
 <net name="CUR3" class="0">
