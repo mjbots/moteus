@@ -7695,7 +7695,8 @@ Source: AVX .. aphvc.pdf</description>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
 <part name="+3V8" library="supply1" deviceset="+3V3" device=""/>
 <part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0402" value="10">
-<attribute name="MPN" value="MF-RES-0603-10"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-10"/>
 </part>
 <part name="C2" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="HOUSEPART" value="1"/>
