@@ -26,3 +26,7 @@ Design controller board
      * JST-6 pin
    * motor temperature sensor
    * motor output absolute encoder / position sensor
+
+
+Future ideas:
+  * on-board temperature sensor to measure FET temp accurately
