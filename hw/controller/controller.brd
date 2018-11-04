@@ -2112,7 +2112,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <element name="RA" library="rcl" package="M1206" value="1mOhm 1% 2W" x="18.2" y="9.6" smashed="yes" rot="R270">
 <attribute name="MF" value="Stackpole Electronics" x="18.2" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="HCS1206FT1L00" x="18.2" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="18.770003125" y="7.13" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="18.770003125" y="7.23" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="18.2" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="SH1" library="shorts" package="SHORT_TOP-50" value="SHORTT5" x="17.8" y="11.95" smashed="yes" rot="R90">
@@ -2130,13 +2130,13 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <element name="RB" library="rcl" package="M1206" value="1mOhm 1% 2W" x="21.4" y="9.6" smashed="yes" rot="R270">
 <attribute name="MPN" value="HCS1206FT1L00" x="21.4" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="21.4" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="22.070003125" y="7.13" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="22.070003125" y="7.23" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="21.4" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="RC" library="rcl" package="M1206" value="1mOhm 1% 2W" x="34.5" y="9.6" smashed="yes" rot="R270">
 <attribute name="MPN" value="HCS1206FT1L00" x="34.5" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="34.5" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="35.17" y="7.129996875" size="0.6096" layer="25" ratio="10" rot="R180"/>
+<attribute name="NAME" x="35.17" y="7.229996875" size="0.6096" layer="25" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="34.5" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="C13" library="mfpassives" package="C0402" value="0.1uF 50V" x="14.83" y="13.59" smashed="yes" rot="R270">
@@ -2197,7 +2197,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="POPULATE" value="1" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="11.4" y="19.85" size="1.016" layer="25" font="vector" ratio="16" rot="R270"/>
+<attribute name="NAME" x="10.8" y="20.75" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="MF" value="TDK" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="L1" library="controller" package="IND_BOURNS_SRN4018" value="SRN4018-220M" x="3.6" y="19.8" smashed="yes">
