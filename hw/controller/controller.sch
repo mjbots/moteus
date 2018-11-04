@@ -5734,6 +5734,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value="Panasonic"/>
 <attribute name="MPN" value="ERJ-2RKF1003X"/>
 </part>
+<part name="C29" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL05A105KL5NRNC"/>
+</part>
 </parts>
 <sheets>
 <sheet>
@@ -6072,6 +6076,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" x="134.62" y="-330.2" size="1.778" layer="96" display="off"/>
 <attribute name="MF" x="134.62" y="-330.2" size="1.778" layer="96" display="off"/>
 </instance>
+<instance part="C29" gate="G$1" x="7.62" y="116.84">
+<attribute name="MPN" x="7.62" y="116.84" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="7.62" y="116.84" size="1.778" layer="96" display="off"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -6136,6 +6144,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="25.4" y1="124.46" x2="17.78" y2="124.46" width="0.1524" layer="91"/>
 <wire x1="17.78" y1="124.46" x2="17.78" y2="119.38" width="0.1524" layer="91"/>
 <junction x="25.4" y="124.46"/>
+<pinref part="C29" gate="G$1" pin="P$1"/>
+<wire x1="7.62" y1="119.38" x2="7.62" y2="124.46" width="0.1524" layer="91"/>
+<wire x1="7.62" y1="124.46" x2="17.78" y2="124.46" width="0.1524" layer="91"/>
+<junction x="17.78" y="124.46"/>
 </segment>
 <segment>
 <pinref part="+3V1" gate="G$1" pin="+3V3"/>
@@ -6265,6 +6277,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="17.78" y1="114.3" x2="17.78" y2="109.22" width="0.1524" layer="91"/>
 <wire x1="17.78" y1="109.22" x2="25.4" y2="109.22" width="0.1524" layer="91"/>
 <junction x="25.4" y="109.22"/>
+<pinref part="C29" gate="G$1" pin="P$2"/>
+<wire x1="17.78" y1="109.22" x2="7.62" y2="109.22" width="0.1524" layer="91"/>
+<wire x1="7.62" y1="109.22" x2="7.62" y2="114.3" width="0.1524" layer="91"/>
+<junction x="17.78" y="109.22"/>
 </segment>
 <segment>
 <pinref part="GND14" gate="1" pin="GND"/>
