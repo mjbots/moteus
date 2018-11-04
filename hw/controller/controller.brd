@@ -2017,7 +2017,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="URL" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="NAME" x="5.06" y="30.46" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="R7" library="mfpassives" package="R0603" value="100k" x="7.83" y="25.14" smashed="yes">
+<element name="R7" library="mfpassives" package="R0603" value="100k 1%" x="7.83" y="25.14" smashed="yes">
 <attribute name="TOLERANCE" value="" x="34.5" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="ERJ-3EKF1003V" x="34.5" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="MFG#" value="N/A" x="34.5" y="-15.5" size="1.778" layer="27" display="off"/>
@@ -2029,7 +2029,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="URL" x="7.83" y="25.14" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="6.53" y="26.04" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="R8" library="mfpassives" package="R0603" value="10k" x="4.82" y="25.14" smashed="yes">
+<element name="R8" library="mfpassives" package="R0603" value="10k 1%" x="4.82" y="25.14" smashed="yes">
 <attribute name="TOLERANCE" value="" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="ERJ-3EKF1002V" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="MFG#" value="N/A" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
@@ -2115,9 +2115,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="URL" value="" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="28.2" y="24.93" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C12" library="mfpassives" package="C0402" value="1.0uF" x="26.9" y="25.9" smashed="yes">
+<element name="C12" library="mfpassives" package="C0402" value="1uF" x="26.9" y="25.9" smashed="yes">
 <attribute name="TOLERANCE" value="" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
 <attribute name="HOUSEPART" value="1" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
@@ -2245,7 +2245,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="MFG#" value="N/A" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="WATTAGE" value="" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="P10.0KHCT-ND" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="ERJ-3EKF1002V" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="Panasonic" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="HOUSEPART" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>

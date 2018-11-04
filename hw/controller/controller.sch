@@ -7743,11 +7743,11 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" value="MF-CAP-0402-10pF"/>
 </part>
 <part name="GND18" library="supply1" deviceset="GND" device=""/>
-<part name="R7" library="mfpassives" deviceset="RESISTOR" device="_0603" value="100k">
+<part name="R7" library="mfpassives" deviceset="RESISTOR" device="_0603" value="100k 1%">
 <attribute name="DPN" value="P100KHCT-ND"/>
 <attribute name="MPN" value="ERJ-3EKF1003V"/>
 </part>
-<part name="R8" library="mfpassives" deviceset="RESISTOR" device="_0603" value="10k">
+<part name="R8" library="mfpassives" deviceset="RESISTOR" device="_0603" value="10k 1%">
 <attribute name="DPN" value="P10.0KHCT-ND"/>
 <attribute name="MPN" value="ERJ-3EKF1002V"/>
 </part>
@@ -7809,9 +7809,9 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="HOUSEPART" value="1"/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
-<part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.0uF">
+<part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
 <attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF"/>
 </part>
 <part name="RA" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
@@ -7905,7 +7905,7 @@ Source: AVX .. aphvc.pdf</description>
 </part>
 <part name="R4" library="mfpassives" deviceset="RESISTOR" device="_0603" value="10k 1%">
 <attribute name="MF" value="Panasonic"/>
-<attribute name="MPN" value="P10.0KHCT-ND"/>
+<attribute name="MPN" value="ERJ-3EKF1002V"/>
 </part>
 <part name="GND7" library="supply1" deviceset="GND" device=""/>
 <part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
