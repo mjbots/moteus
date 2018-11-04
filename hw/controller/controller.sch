@@ -7735,12 +7735,12 @@ Source: AVX .. aphvc.pdf</description>
 </part>
 <part name="GND17" library="supply1" deviceset="GND" device=""/>
 <part name="C8" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="10pF">
-<attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-CAP-0402-10pF"/>
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL05C100JB51PNC"/>
 </part>
 <part name="C9" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="10pF">
-<attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-CAP-0402-10pF"/>
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL05C100JB51PNC"/>
 </part>
 <part name="GND18" library="supply1" deviceset="GND" device=""/>
 <part name="R7" library="mfpassives" deviceset="RESISTOR" device="_0603" value="100k 1%">
@@ -7748,7 +7748,7 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" value="ERJ-3EKF1003V"/>
 </part>
 <part name="R8" library="mfpassives" deviceset="RESISTOR" device="_0603" value="10k 1%">
-<attribute name="DPN" value="P10.0KHCT-ND"/>
+<attribute name="MF" value="Panasonic"/>
 <attribute name="MPN" value="ERJ-3EKF1002V"/>
 </part>
 <part name="GND6" library="supply1" deviceset="GND" device=""/>
@@ -8068,9 +8068,11 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="GND17" gate="1" x="203.2" y="-7.62"/>
 <instance part="C8" gate="G$1" x="182.88" y="7.62">
 <attribute name="MPN" x="182.88" y="7.62" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="182.88" y="7.62" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C9" gate="G$1" x="223.52" y="7.62">
 <attribute name="MPN" x="223.52" y="7.62" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="223.52" y="7.62" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="GND18" gate="1" x="-5.08" y="-218.44"/>
 <instance part="R7" gate="G$1" x="-5.08" y="-187.96" rot="R180">
@@ -8078,8 +8080,8 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" x="-5.08" y="-187.96" size="1.778" layer="96" rot="R180" display="off"/>
 </instance>
 <instance part="R8" gate="G$1" x="-5.08" y="-203.2" rot="R180">
-<attribute name="DPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R180" display="off"/>
 <attribute name="MPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R180" display="off"/>
+<attribute name="MF" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R180" display="off"/>
 </instance>
 <instance part="GND6" gate="1" x="88.9" y="-45.72"/>
 <instance part="U3" gate="G$1" x="88.9" y="-129.54">

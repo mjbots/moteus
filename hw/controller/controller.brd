@@ -1999,23 +1999,25 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C8" library="mfpassives" package="C0402" value="10pF" x="4.23" y="34.7" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="MF-CAP-0402-10pF" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="CL05C100JB51PNC" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="HOUSEPART" value="1" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="HOUSEPART" value="" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="4.8" y="33.37" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="MF" value="Samsung Electro-Mechanics" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="C9" library="mfpassives" package="C0402" value="10pF" x="6.24" y="29.96" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0402-10pF" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="CL05C100JB51PNC" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="1" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="NAME" x="5.06" y="30.46" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="MF" value="Samsung Electro-Mechanics" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="R7" library="mfpassives" package="R0603" value="100k 1%" x="7.83" y="25.14" smashed="yes">
 <attribute name="TOLERANCE" value="" x="34.5" y="-15.5" size="1.778" layer="27" display="off"/>
@@ -2035,11 +2037,11 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="MFG#" value="N/A" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="WATTAGE" value="" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
-<attribute name="DPN" value="P10.0KHCT-ND" x="35.3" y="-15.5" size="1.778" layer="27" display="off"/>
 <attribute name="HOUSEPART" x="4.82" y="25.14" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="4.82" y="25.14" size="1.778" layer="27" display="off"/>
 <attribute name="URL" x="4.82" y="25.14" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="3.42" y="26.04" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="MF" value="Panasonic" x="4.82" y="25.14" size="1.778" layer="27" display="off"/>
 </element>
 <element name="U3" library="controller" package="TSSOP14" value="AS5147" x="22.5" y="22.5" smashed="yes" rot="MR180">
 <attribute name="NAME" x="19.8044" y="23.4828" size="0.6096" layer="26" ratio="10" rot="MR270"/>
