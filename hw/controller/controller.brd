@@ -423,10 +423,10 @@ MAX3223-MAX3243.pdf</description>
 <text x="-1.5" y="1.75" size="0.6096" layer="25">&gt;NAME</text>
 </package>
 <package name="18AWG_PAD">
-<pad name="1" x="0" y="0" drill="1.6" stop="no" thermals="no"/>
+<pad name="1" x="0" y="0" drill="1.6" thermals="no"/>
 </package>
 <package name="12AWG_PAD">
-<pad name="1" x="0" y="0" drill="2.8" stop="no" thermals="no"/>
+<pad name="1" x="0" y="0" drill="2.8" thermals="no"/>
 </package>
 <package name="IND_BOURNS_SRN4018">
 <smd name="1" x="-1.524" y="0" dx="1.4986" dy="3.6068" layer="1"/>
