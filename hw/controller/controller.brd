@@ -9,7 +9,7 @@
 <grid distance="0.1" unitdist="mm" unit="mm" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="mm" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
-<layer number="2" name="Route2" color="1" fill="3" visible="no" active="yes"/>
+<layer number="2" name="Route2" color="1" fill="3" visible="yes" active="yes"/>
 <layer number="3" name="Route3" color="4" fill="3" visible="no" active="no"/>
 <layer number="4" name="Route4" color="1" fill="4" visible="no" active="no"/>
 <layer number="5" name="Route5" color="4" fill="4" visible="no" active="no"/>
@@ -22,7 +22,7 @@
 <layer number="12" name="Route12" color="1" fill="5" visible="no" active="no"/>
 <layer number="13" name="Route13" color="4" fill="5" visible="no" active="no"/>
 <layer number="14" name="Route14" color="1" fill="6" visible="no" active="no"/>
-<layer number="15" name="Route15" color="4" fill="6" visible="no" active="yes"/>
+<layer number="15" name="Route15" color="4" fill="6" visible="yes" active="yes"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
 <layer number="17" name="Pads" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="18" name="Vias" color="2" fill="1" visible="yes" active="yes"/>
@@ -509,6 +509,19 @@ MAX3223-MAX3243.pdf</description>
 <vertex x="0" y="-2" curve="-90"/>
 </polygon>
 </package>
+<package name="ABM3B">
+<smd name="1" x="-2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<smd name="2" x="2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<smd name="3" x="2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<smd name="4" x="-2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<wire x1="-3.235" y1="2.235" x2="-3.235" y2="-2.235" width="0.127" layer="21"/>
+<wire x1="-3.235" y1="-2.235" x2="3.235" y2="-2.235" width="0.127" layer="21"/>
+<wire x1="3.235" y1="-2.235" x2="3.235" y2="2.235" width="0.127" layer="21"/>
+<wire x1="3.235" y1="2.235" x2="-3.235" y2="2.235" width="0.127" layer="21"/>
+<text x="-2.5" y="2.735" size="0.8" layer="21" ratio="10">&gt;NAME</text>
+<wire x1="-3.2" y1="-1.9" x2="-2.9" y2="-1.9" width="0.127" layer="21"/>
+<wire x1="-2.9" y1="-1.9" x2="-2.9" y2="-2.2" width="0.127" layer="21"/>
+</package>
 </packages>
 </library>
 <library name="mfpassives">
@@ -553,20 +566,15 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="1.4" y1="0.7" x2="-1.4" y2="0.7" width="0.127" layer="21"/>
 <text x="-1.4" y="1.1" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
-</packages>
-</library>
-<library name="gimbal">
-<packages>
-<package name="ABM3B">
-<smd name="1" x="-2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<smd name="2" x="2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<smd name="3" x="2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<smd name="4" x="-2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<wire x1="-3.235" y1="2.235" x2="-3.235" y2="-2.235" width="0.127" layer="21"/>
-<wire x1="-3.235" y1="-2.235" x2="3.235" y2="-2.235" width="0.127" layer="21"/>
-<wire x1="3.235" y1="-2.235" x2="3.235" y2="2.235" width="0.127" layer="21"/>
-<wire x1="3.235" y1="2.235" x2="-3.235" y2="2.235" width="0.127" layer="21"/>
-<text x="-2.5" y="2.735" size="0.8" layer="21" ratio="10">&gt;NAME</text>
+<package name="C1206">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1206 Package for Capacitors&lt;br/&gt;</description>
+<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<smd name="P$2" x="1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<wire x1="-2.2" y1="1.1" x2="-2.2" y2="-1.1" width="0.127" layer="21"/>
+<wire x1="-2.2" y1="-1.1" x2="2.2" y2="-1.1" width="0.127" layer="21"/>
+<wire x1="2.2" y1="-1.1" x2="2.2" y2="1.1" width="0.127" layer="21"/>
+<wire x1="2.2" y1="1.1" x2="-2.2" y2="1.1" width="0.127" layer="21"/>
+<text x="-2.2" y="1.3" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 </packages>
 </library>
@@ -1896,6 +1904,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <elements>
 <element name="U1" library="controller" package="LQFP64" value="STM32F4R_64PIN" x="16.68" y="31.72" smashed="yes">
 <attribute name="NAME" x="20.78" y="36.995" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="16.68" y="31.72" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="STM32F446RET6" x="16.68" y="31.72" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="ST" x="16.68" y="31.72" size="1.778" layer="27" display="off"/>
 </element>
 <element name="R1" library="mfpassives" package="R0402" value="10" x="15.46" y="39.16" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-7.4" y="79.8" size="1.778" layer="27" rot="R180" display="off"/>
@@ -1910,9 +1921,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C2" library="mfpassives" package="C0402" value="0.1uF" x="23.06" y="37.13" smashed="yes">
 <attribute name="TOLERANCE" value="" x="38.3" y="0.3" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="38.3" y="0.3" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="38.3" y="0.3" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="38.3" y="0.3" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="" x="23.06" y="37.13" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="23.06" y="37.13" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="23.06" y="37.13" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="23.06" y="37.13" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="23.06" y="37.13" size="1.778" layer="27" display="off"/>
@@ -1920,9 +1931,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C6" library="mfpassives" package="C0402" value="0.1uF" x="8.68" y="29.97" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-21.8" y="66.8" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="-21.8" y="66.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="-21.8" y="66.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-21.8" y="66.8" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="" x="8.68" y="29.97" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="8.68" y="29.97" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="8.68" y="29.97" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="8.68" y="29.97" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="8.68" y="29.97" size="1.778" layer="27" rot="R180" display="off"/>
@@ -1940,9 +1951,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C5" library="mfpassives" package="C0402" value="0.1uF" x="21.73" y="25.43" smashed="yes">
 <attribute name="TOLERANCE" value="" x="48.4" y="-11.4" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="48.4" y="-11.4" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="48.4" y="-11.4" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="48.4" y="-11.4" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="" x="21.73" y="25.43" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="21.73" y="25.43" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="21.73" y="25.43" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="21.73" y="25.43" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="21.73" y="25.43" size="1.778" layer="27" display="off"/>
@@ -1950,9 +1961,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C3" library="mfpassives" package="C0402" value="0.1uF" x="11.97" y="38.05" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="48.8" y="57.1" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="48.8" y="57.1" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="48.8" y="57.1" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="48.8" y="57.1" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="HOUSEPART" value="" x="11.97" y="38.05" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="HOUSEPART" value="1" x="11.97" y="38.05" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="11.97" y="38.05" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="11.97" y="38.05" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="11.97" y="38.05" size="1.778" layer="27" rot="R90" display="off"/>
@@ -1960,36 +1971,37 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C1" library="mfpassives" package="C0603" value="4.7uF" x="21.22" y="42.03" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="51.7" y="81.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="CC0603KRX5R6BB475" x="51.7" y="81.4" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="CL10A475MP8NNNC" x="51.7" y="81.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="51.7" y="81.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="DPN" value="311-1455-1-ND" x="51.7" y="81.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="HOUSEPART" value="" x="21.22" y="42.03" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="21.22" y="42.03" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="21.22" y="42.03" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="21.22" y="42.03" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="21.87" y="44.72" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="MF" value="Samsung Electro-Mechanics" x="21.22" y="42.03" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C7" library="mfpassives" package="C0603" value="4.7uF" x="20.61" y="23.83" smashed="yes">
 <attribute name="TOLERANCE" value="" x="54.9" y="-13" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="CC0603KRX5R6BB475" x="54.9" y="-13" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="CL10A475MP8NNNC" x="54.9" y="-13" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="54.9" y="-13" size="1.778" layer="27" display="off"/>
-<attribute name="DPN" value="311-1455-1-ND" x="54.9" y="-13" size="1.778" layer="27" display="off"/>
 <attribute name="HOUSEPART" value="" x="20.61" y="23.83" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="20.61" y="23.83" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="20.61" y="23.83" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="20.61" y="23.83" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="22.11" y="23.43" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="MF" value="Samsung Electro-Mechanics" x="20.61" y="23.83" size="1.778" layer="27" display="off"/>
 </element>
-<element name="X1" library="gimbal" package="ABM3B" value="8.0MHz" x="7.5" y="34.05" smashed="yes" rot="R270">
+<element name="X1" library="controller" package="ABM3B" value="8.0MHz" x="7.5" y="34.05" smashed="yes" rot="R270">
 <attribute name="MPN" value="ABM3B-8.000MHZ-10-1-U-T" x="-17.9" y="2.3" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="DPN" value="535-9721-1-ND" x="-17.9" y="2.3" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="6.05" y="37.435" size="0.6096" layer="21" ratio="10"/>
+<attribute name="POPULATE" value="1" x="7.5" y="34.05" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MF" value="Abracon" x="7.5" y="34.05" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="C8" library="mfpassives" package="C0402" value="10pF" x="4.23" y="34.7" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-10pF" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-10pF" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="-32.6" y="-3.4" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="HOUSEPART" value="" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="HOUSEPART" value="1" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="4.23" y="34.7" size="1.778" layer="27" rot="R270" display="off"/>
@@ -1997,9 +2009,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C9" library="mfpassives" package="C0402" value="10pF" x="6.24" y="29.96" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-10pF" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-10pF" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-9" y="70.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="6.24" y="29.96" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2031,12 +2043,15 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="U3" library="controller" package="TSSOP14" value="AS5147" x="22.5" y="22.5" smashed="yes" rot="MR180">
 <attribute name="NAME" x="19.6044" y="24.5828" size="1.016" layer="26" ratio="10" rot="MR270"/>
+<attribute name="POPULATE" value="1" x="22.5" y="22.5" size="1.778" layer="28" rot="MR180" display="off"/>
+<attribute name="MPN" value="AS5047P-ATSM" x="22.5" y="22.5" size="1.778" layer="28" rot="MR180" display="off"/>
+<attribute name="MF" value="AMS" x="22.5" y="22.5" size="1.778" layer="28" rot="MR180" display="off"/>
 </element>
 <element name="C10" library="mfpassives" package="C0402" value="0.1uF" x="22.3" y="21.98" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="3.25" y="62.62" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="3.25" y="62.62" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="3.25" y="62.62" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="3.25" y="62.62" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="" x="22.3" y="21.98" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="22.3" y="21.98" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="22.3" y="21.98" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="22.3" y="21.98" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="22.3" y="21.98" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2044,125 +2059,171 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="Q1" library="controller" package="TSON_ADVANCE_8" value="TPN1R603PL" x="13.37" y="4.8" smashed="yes">
 <attribute name="NAME" x="13.13" y="3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="13.37" y="4.8" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q" x="13.37" y="4.8" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="Toshiba" x="13.37" y="4.8" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q2" library="controller" package="TSON_ADVANCE_8" value="TPN1R603PL" x="17.64" y="4.8" smashed="yes" rot="R180">
 <attribute name="NAME" x="19.04" y="3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="17.64" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q" x="17.64" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="Toshiba" x="17.64" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="Q3" library="controller" package="TSON_ADVANCE_8" value="TPN1R603PL" x="24.88" y="4.8" smashed="yes">
 <attribute name="NAME" x="25.92" y="3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="24.88" y="4.8" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q" x="24.88" y="4.8" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="Toshiba" x="24.88" y="4.8" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q4" library="controller" package="TSON_ADVANCE_8" value="TPN1R603PL" x="21.3" y="4.8" smashed="yes" rot="R180">
 <attribute name="NAME" x="21.6" y="3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="21.3" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q" x="21.3" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="Toshiba" x="21.3" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="Q5" library="controller" package="TSON_ADVANCE_8" value="TPN1R603PL" x="29.55" y="4.8" smashed="yes">
 <attribute name="NAME" x="28.55" y="3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="29.55" y="4.8" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q" x="29.55" y="4.8" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="Toshiba" x="29.55" y="4.8" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q6" library="controller" package="TSON_ADVANCE_8" value="TPN1R603PL" x="33.75" y="4.8" smashed="yes" rot="R180">
 <attribute name="NAME" x="34.25" y="3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="33.75" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q" x="33.75" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="Toshiba" x="33.75" y="4.8" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="U2" library="controller" package="PVQFN-N48" value="DRV8323RS" x="15.05" y="19.22" smashed="yes" rot="R180">
 <attribute name="NAME" x="17.85" y="15.52" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="15.05" y="19.22" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="DRV8323RSRGZR" x="15.05" y="19.22" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="TI" x="15.05" y="19.22" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="U4" library="controller" package="TDFN10" value="MAX13431E" x="26.6" y="22.4" smashed="yes">
 <attribute name="NAME" x="28.6" y="20.75" size="0.6096" layer="25" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="26.6" y="22.4" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MAX13431EETB+T" x="26.6" y="22.4" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="Maxim" x="26.6" y="22.4" size="1.778" layer="27" display="off"/>
 </element>
-<element name="C11" library="mfpassives" package="C0402" value="0.1uF" x="26.5" y="24.63" smashed="yes">
-<attribute name="TOLERANCE" value="" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="VOLTAGE" value="" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="POPULATE" value="1" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="DIELECTRIC" value="" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="URL" value="" x="26.5" y="24.63" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="27.8" y="24.93" size="0.6096" layer="25" font="vector" ratio="10"/>
+<element name="C11" library="mfpassives" package="C0402" value="0.1uF" x="26.9" y="24.63" smashed="yes">
+<attribute name="TOLERANCE" value="" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="POPULATE" value="1" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="DIELECTRIC" value="" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="26.9" y="24.63" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="28.2" y="24.93" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C12" library="mfpassives" package="C0402" value="1.0uF" x="26.5" y="25.9" smashed="yes">
-<attribute name="TOLERANCE" value="" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="VOLTAGE" value="" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="POPULATE" value="1" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="DIELECTRIC" value="" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="URL" value="" x="26.5" y="25.9" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="26.7" y="26.6" size="0.6096" layer="25" font="vector" ratio="10"/>
+<element name="C12" library="mfpassives" package="C0402" value="1.0uF" x="26.9" y="25.9" smashed="yes">
+<attribute name="TOLERANCE" value="" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="POPULATE" value="1" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="DIELECTRIC" value="" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="26.9" y="25.9" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="27.1" y="26.6" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
 <element name="RA" library="rcl" package="M1206" value="1mOhm 1% 2W" x="18.2" y="9.6" smashed="yes" rot="R270">
 <attribute name="MF" value="Stackpole Electronics" x="18.2" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="HCS1206FT1L00" x="18.2" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="18.770003125" y="7.73" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="18.2" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="SH1" library="shorts" package="SHORT_TOP-50" value="SHORTT5" x="17.8" y="11.95" smashed="yes" rot="R90">
 <attribute name="BOM" value="no" x="17.8" y="11.95" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="POPULATE" value="0" x="17.8" y="11.95" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="SH2" library="shorts" package="SHORT_TOP-50" value="SHORTT5" x="20.9" y="11.94" smashed="yes" rot="R90">
 <attribute name="BOM" value="no" x="20.9" y="11.94" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="POPULATE" value="0" x="20.9" y="11.94" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="SH3" library="shorts" package="SHORT_TOP-50" value="SHORTT5" x="34.04" y="12.01" smashed="yes" rot="R90">
 <attribute name="BOM" value="no" x="34.04" y="12.01" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="POPULATE" value="0" x="34.04" y="12.01" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="RB" library="rcl" package="M1206" value="1mOhm 1% 2W" x="21.4" y="9.6" smashed="yes" rot="R270">
 <attribute name="MPN" value="HCS1206FT1L00" x="21.4" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="21.4" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="22.070003125" y="7.73" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="21.4" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="RC" library="rcl" package="M1206" value="1mOhm 1% 2W" x="34.5" y="9.6" smashed="yes" rot="R270">
 <attribute name="MPN" value="HCS1206FT1L00" x="34.5" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="34.5" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="35.17" y="7.629996875" size="0.6096" layer="25" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="34.5" y="9.6" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
-<element name="C13" library="mfpassives" package="C0402" value="0.1uF" x="14.83" y="13.59" smashed="yes" rot="R270">
+<element name="C13" library="mfpassives" package="C0402" value="0.1uF 50V" x="14.83" y="13.59" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="C1005X7R1H104K050BE" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="HOUSEPART" value="" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="15.51" y="13.73" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="MF" value="TDK" x="14.83" y="13.59" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
-<element name="A" library="controller" package="18AWG_PAD" value="PAD" x="15.4" y="1.7" smashed="yes"/>
-<element name="B" library="controller" package="18AWG_PAD" value="PAD" x="23" y="1.7" smashed="yes"/>
-<element name="C" library="controller" package="18AWG_PAD" value="PAD" x="30.1" y="1.7" smashed="yes"/>
-<element name="V-" library="controller" package="12AWG_PAD" value="PAD12AWG_PAD" x="4.5" y="11.1" smashed="yes"/>
-<element name="V+" library="controller" package="12AWG_PAD" value="PAD12AWG_PAD" x="7.7" y="7.8" smashed="yes"/>
+<element name="A" library="controller" package="18AWG_PAD" value="PAD" x="15.4" y="1.7" smashed="yes">
+<attribute name="POPULATE" value="0" x="15.4" y="1.7" size="1.778" layer="27" display="off"/>
+</element>
+<element name="B" library="controller" package="18AWG_PAD" value="PAD" x="23" y="1.7" smashed="yes">
+<attribute name="POPULATE" value="0" x="23" y="1.7" size="1.778" layer="27" display="off"/>
+</element>
+<element name="C" library="controller" package="18AWG_PAD" value="PAD" x="30.1" y="1.7" smashed="yes">
+<attribute name="POPULATE" value="0" x="30.1" y="1.7" size="1.778" layer="27" display="off"/>
+</element>
+<element name="V-" library="controller" package="12AWG_PAD" value="PAD12AWG_PAD" x="4.5" y="11.1" smashed="yes">
+<attribute name="POPULATE" value="0" x="4.5" y="11.1" size="1.778" layer="27" display="off"/>
+</element>
+<element name="V+" library="controller" package="12AWG_PAD" value="PAD12AWG_PAD" x="7.7" y="7.8" smashed="yes">
+<attribute name="POPULATE" value="0" x="7.7" y="7.8" size="1.778" layer="27" display="off"/>
+</element>
 <element name="C15" library="rcl" package="C1206" value="15uF" x="25.96" y="9.6" smashed="yes" rot="R90">
 <attribute name="MF" value="TDK" x="25.96" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC" x="25.96" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="25.13" y="12.14" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="25.96" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C14" library="rcl" package="C1206" value="15uF" x="23.93" y="9.6" smashed="yes" rot="R90">
 <attribute name="MPN" value="C3216X5R1V156M160AC" x="23.93" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="23.93" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="23.03" y="12.14" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="23.93" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C16" library="rcl" package="C1206" value="15uF" x="11.8" y="9.6" smashed="yes" rot="R90">
 <attribute name="MPN" value="C3216X5R1V156M160AC" x="11.8" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="11.8" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="10.63" y="8.13" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="POPULATE" value="1" x="11.8" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C17" library="rcl" package="C1206" value="15uF" x="14.04" y="9.6" smashed="yes" rot="R90">
 <attribute name="MPN" value="C3216X5R1V156M160AC" x="14.04" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="14.04" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="15.23" y="10.37" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="POPULATE" value="1" x="14.04" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C18" library="rcl" package="C1206" value="15uF" x="28.5" y="9.6" smashed="yes" rot="R90">
 <attribute name="MPN" value="C3216X5R1V156M160AC" x="28.5" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="28.5" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="27.63" y="12.13" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="28.5" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C19" library="rcl" package="C1206" value="15uF" x="30.53" y="9.6" smashed="yes" rot="R90">
 <attribute name="MPN" value="C3216X5R1V156M160AC" x="30.53" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="30.53" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="29.729996875" y="12.13" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="30.53" y="9.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="R2" library="mfpassives" package="R0402" value="100k" x="10.3" y="16.4" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="ERJ-3EKF1003V" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-100K" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MFG#" value="N/A" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="WATTAGE" value="" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="DPN" value="P100KHCT-ND" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="HOUSEPART" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="HOUSEPART" value="1" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" x="10.3" y="16.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="10.9" y="15.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
@@ -2191,24 +2252,23 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="URL" x="8.2" y="11.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="NAME" x="9.6" y="10.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
-<element name="C20" library="rcl" package="C1206" value="10uF 16V" x="3.6" y="23.3" smashed="yes">
-<attribute name="NAME" x="1.63" y="24.27" size="0.6096" layer="25" ratio="10"/>
-</element>
-<element name="C21" library="mfpassives" package="C0402" value="0.1uF" x="10.3" y="18.75" smashed="yes" rot="R270">
+<element name="C21" library="mfpassives" package="C0402" value="0.1uF 50V" x="10.3" y="18.75" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="C1005X7R1H104K050BE" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="HOUSEPART" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="11.4" y="19.85" size="1.016" layer="25" font="vector" ratio="16" rot="R270"/>
+<attribute name="MF" value="TDK" x="10.3" y="18.75" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="L1" library="controller" package="IND_BOURNS_SRN4018" value="SRN4018-220M" x="3.6" y="19.8" smashed="yes">
 <attribute name="VENDOR" value="Bourns Electronics" x="3.6" y="19.8" size="1.778" layer="27" display="off"/>
 <attribute name="MANUFACTURER_PART_NUMBER" value="SRN4018220M" x="3.6" y="19.8" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="SRN4018-220M" x="3.6" y="19.8" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="1.135" y="20.6234" size="0.6096" layer="25" ratio="10" rot="SR90"/>
+<attribute name="NAME" x="1.235" y="20.2234" size="0.6096" layer="25" ratio="10" rot="SR90"/>
+<attribute name="POPULATE" value="1" x="3.6" y="19.8" size="1.778" layer="27" display="off"/>
 </element>
 <element name="D1" library="mfdiscretesemi" package="SMA" value="MF-DIO-SMA-B140" x="8" y="20.5" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="YES" x="8" y="20.5" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2217,31 +2277,33 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="URL" value="https://factory.macrofab.com/part/MF-DIO-SMA-B140" x="8" y="20.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="6.11" y="16.3" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C22" library="mfpassives" package="C0603" value="47nF" x="11.78" y="13.7" smashed="yes" rot="R90">
+<element name="C22" library="mfpassives" package="C0603" value="47nF 35V" x="11.78" y="13.7" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="HOUSEPART" value="" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="CGA2B3X5R1V473K050BB" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="10.88" y="12.3" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="MF" value="TDK" x="11.78" y="13.7" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="C23" library="mfpassives" package="C0402" value="1uF" x="13.56" y="13.6" smashed="yes" rot="R90">
+<element name="C23" library="mfpassives" package="C0402" value="1uF 35V" x="13.56" y="13.6" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-1uF" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="CL05A105KL5NRNC" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="HOUSEPART" value="" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="13" y="14.84" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="MF" value="Samsung Electro-Mechanics" x="13.56" y="13.6" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C24" library="mfpassives" package="C0402" value="1uF" x="17.3" y="23.8" smashed="yes">
 <attribute name="TOLERANCE" value="" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-1uF" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="17.3" y="23.8" size="1.778" layer="27" display="off"/>
@@ -2249,9 +2311,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="C25" library="mfpassives" package="C0402" value="1uF" x="12.1" y="23.8" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-1uF" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="12.1" y="23.8" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2259,23 +2321,31 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 </element>
 <element name="SWD" library="controller" package="JST_S6B-ZR-SM4A-TF(LF)(SN)" value="JST-ZH6" x="35" y="35" smashed="yes" rot="R315">
 <attribute name="NAME" x="31.030153125" y="42.11888125" size="1.016" layer="25" ratio="10" rot="R45" align="top-left"/>
+<attribute name="POPULATE" value="1" x="35" y="35" size="1.778" layer="27" rot="R315" display="off"/>
+<attribute name="MPN" value="S6B-ZR-SM4A-TF(LF)(SN)" x="35" y="35" size="1.778" layer="27" rot="R315" display="off"/>
+<attribute name="MF" value="JST" x="35" y="35" size="1.778" layer="27" rot="R315" display="off"/>
 </element>
 <element name="J2" library="controller" package="JST_B3B_PH-SM4-TB(LF)(SN)" value="JST-PH3SMT_VERT" x="39.3" y="22.5" smashed="yes" rot="R90">
 <attribute name="NAME" x="39.7409875" y="16.732740625" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="39.3" y="22.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="B3B-PH-SM4-TB(LF)(SN)" x="39.3" y="22.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="JST" x="39.3" y="22.5" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="ABS" library="controller" package="PAD15_4" value="PAD4" x="17" y="42.2" smashed="yes">
 <attribute name="NAME" x="15.4" y="43.8" size="1.016" layer="25" ratio="10"/>
+<attribute name="POPULATE" value="0" x="17" y="42.2" size="1.778" layer="27" display="off"/>
 </element>
 <element name="TEMP" library="controller" package="PAD15_2" value="PAD2" x="9.4" y="39.7" smashed="yes" rot="R45">
 <attribute name="NAME" x="10.10710625" y="41.0544125" size="0.8128" layer="25" ratio="10" rot="R45"/>
+<attribute name="POPULATE" value="0" x="9.4" y="39.7" size="1.778" layer="27" rot="R45" display="off"/>
 </element>
 <element name="R5" library="mfpassives" package="R0402" value="10k" x="12.7" y="40.2" smashed="yes">
 <attribute name="TOLERANCE" value="" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="MFG#" value="N/A" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="WATTAGE" value="" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-RES-0603-10K" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-10K" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="URL" x="12.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="11" y="40.9" size="0.6096" layer="25" font="vector" ratio="10"/>
@@ -2299,8 +2369,8 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="MFG#" value="N/A" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="WATTAGE" value="" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-RES-0603-220" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-220" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" x="33.4" y="29.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="NAME" x="34.5" y="28.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
@@ -2310,26 +2380,38 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="MFG#" value="N/A" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="WATTAGE" value="" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-RES-0603-220" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-220" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" x="33.4" y="30.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="NAME" x="32.6" y="31.5" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
 <element name="DBG" library="controller" package="PAD15_4" value="PAD4" x="25.4" y="42.2" smashed="yes" rot="R180">
 <attribute name="NAME" x="23.9" y="43.8" size="1.016" layer="25" ratio="10"/>
+<attribute name="POPULATE" value="0" x="25.4" y="42.2" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="J1" library="controller" package="JST_B3B_PH-SM4-TB(LF)(SN)" value="JST-PH3SMT_VERT" x="31.2" y="22.5" smashed="yes" rot="R90">
 <attribute name="NAME" x="34.2409875" y="16.732740625" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="31.2" y="22.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="B3B-PH-SM4-TB(LF)(SN)" x="31.2" y="22.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="JST" x="31.2" y="22.5" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="U$1" library="controller" package="M2MOUNT" value="MOUNTM2" x="42.5" y="30.1" locked="yes" smashed="yes"/>
-<element name="U$2" library="controller" package="M2MOUNT" value="MOUNTM2" x="2.5" y="30.1" locked="yes" smashed="yes"/>
-<element name="U$3" library="controller" package="M2MOUNT" value="MOUNTM2" x="2.5" y="14.9" locked="yes" smashed="yes"/>
-<element name="U$4" library="controller" package="M2MOUNT" value="MOUNTM2" x="42.5" y="14.9" locked="yes" smashed="yes"/>
+<element name="U$1" library="controller" package="M2MOUNT" value="MOUNTM2" x="42.5" y="30.1" locked="yes" smashed="yes">
+<attribute name="POPULATE" value="0" x="42.5" y="30.1" size="1.778" layer="27" display="off"/>
+</element>
+<element name="U$2" library="controller" package="M2MOUNT" value="MOUNTM2" x="2.5" y="30.1" locked="yes" smashed="yes">
+<attribute name="POPULATE" value="0" x="2.5" y="30.1" size="1.778" layer="27" display="off"/>
+</element>
+<element name="U$3" library="controller" package="M2MOUNT" value="MOUNTM2" x="2.5" y="14.9" locked="yes" smashed="yes">
+<attribute name="POPULATE" value="0" x="2.5" y="14.9" size="1.778" layer="27" display="off"/>
+</element>
+<element name="U$4" library="controller" package="M2MOUNT" value="MOUNTM2" x="42.5" y="14.9" locked="yes" smashed="yes">
+<attribute name="POPULATE" value="0" x="42.5" y="14.9" size="1.778" layer="27" display="off"/>
+</element>
 <element name="C26" library="mfpassives" package="C0402" value="0.1uF" x="8.68" y="28.7" smashed="yes" rot="R180">
-<attribute name="HOUSEPART" value="" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="1" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0603-0.1uF" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="8.68" y="28.7" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2346,16 +2428,29 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="URL" value="" x="13.3" y="42.1" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="12.6" y="43.4" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="SH4" library="shorts" package="SHORT_TOP-BIG" value="SHORTBIG" x="6.6" y="23.1" smashed="yes"/>
-<element name="C28" library="mfpassives" package="C0402" value="1uF" x="8.5" y="15.6" smashed="yes" rot="R180">
+<element name="SH4" library="shorts" package="SHORT_TOP-BIG" value="SHORTBIG" x="6.6" y="23.1" smashed="yes">
+<attribute name="POPULATE" value="0" x="6.6" y="23.1" size="1.778" layer="27" display="off"/>
+</element>
+<element name="C28" library="mfpassives" package="C0402" value="1uF 35V" x="8.5" y="15.6" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="MF-CAP-0402-1uF" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="CL05A105KL5NRNC" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="NAME" x="6.7" y="14" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="MF" value="Samsung Electro-Mechanics" x="8.5" y="15.6" size="1.778" layer="27" rot="R180" display="off"/>
+</element>
+<element name="C20" library="mfpassives" package="C1206" value="10uF" x="3.58" y="23.1" smashed="yes">
+<attribute name="HOUSEPART" value="1" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="TOLERANCE" value="" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="MPN" value="MF-CAP-1206-10uF" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="POPULATE" value="1" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="DIELECTRIC" value="" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="VOLTAGE" value="" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="URL" value="" x="3.58" y="23.1" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="NAME" x="1.24" y="22.02" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
 </elements>
 <signals>
@@ -2378,7 +2473,6 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <contactref element="C11" pad="P$1"/>
 <contactref element="C12" pad="P$1"/>
 <contactref element="R3" pad="P$1"/>
-<contactref element="C20" pad="1"/>
 <contactref element="L1" pad="1"/>
 <contactref element="C24" pad="P$2"/>
 <contactref element="U2" pad="26"/>
@@ -2407,7 +2501,6 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <vertex x="0.3" y="22"/>
 </polygon>
 <wire x1="2.076" y1="19.8" x2="2.076" y2="23.176" width="0.8128" layer="1"/>
-<wire x1="2.076" y1="23.176" x2="2.2" y2="23.3" width="0.8128" layer="1"/>
 <polygon width="0.127" layer="1" thermals="no">
 <vertex x="2.8" y="23.1"/>
 <vertex x="0.3" y="23.1"/>
@@ -2455,13 +2548,13 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <wire x1="34.2" y1="30.7" x2="35" y2="29.9" width="0.254" layer="1"/>
 <wire x1="33.95" y1="29.3" x2="34.4" y2="29.3" width="0.254" layer="1"/>
 <wire x1="34.4" y1="29.3" x2="35" y2="29.9" width="0.254" layer="1"/>
-<via x="25.9" y="26.8" extent="1-16" drill="0.4"/>
-<wire x1="25.95" y1="25.9" x2="25.95" y2="26.75" width="0.254" layer="1"/>
-<wire x1="25.95" y1="26.75" x2="25.9" y2="26.8" width="0.254" layer="1"/>
-<wire x1="25.95" y1="25.9" x2="25.95" y2="24.63" width="0.254" layer="1"/>
-<wire x1="25.95" y1="24.63" x2="25.95" y2="24.225" width="0.254" layer="1"/>
-<wire x1="25.95" y1="24.225" x2="25.125" y2="23.4" width="0.254" layer="1"/>
-<wire x1="25.95" y1="24.63" x2="26.68" y2="23.9" width="0.254" layer="1"/>
+<via x="26.3" y="26.8" extent="1-16" drill="0.4"/>
+<wire x1="26.35" y1="25.9" x2="26.35" y2="26.75" width="0.254" layer="1"/>
+<wire x1="26.35" y1="26.75" x2="26.3" y2="26.8" width="0.254" layer="1"/>
+<wire x1="26.35" y1="25.9" x2="26.35" y2="24.63" width="0.254" layer="1"/>
+<wire x1="26.35" y1="24.63" x2="26.05" y2="24.625" width="0.254" layer="1"/>
+<wire x1="26.05" y1="24.625" x2="25.125" y2="23.4" width="0.254" layer="1"/>
+<wire x1="26.35" y1="24.63" x2="26.68" y2="23.9" width="0.254" layer="1"/>
 <wire x1="26.68" y1="23.9" x2="27.8" y2="23.9" width="0.254" layer="1"/>
 <wire x1="27.8" y1="23.9" x2="28.075" y2="23.625" width="0.254" layer="1"/>
 <wire x1="28.075" y1="23.625" x2="28.075" y2="23.4" width="0.254" layer="1"/>
@@ -2493,6 +2586,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <wire x1="12.1" y1="29.27" x2="12.28" y2="29.17" width="0.254" layer="1"/>
 <wire x1="9.23" y1="28.7" x2="10" y2="29.47" width="0.254" layer="1"/>
 <wire x1="10" y1="29.47" x2="10.93" y2="29.47" width="0.254" layer="1"/>
+<contactref element="C20" pad="P$1"/>
 </signal>
 <signal name="N$24">
 <contactref element="C6" pad="P$1"/>
@@ -3378,7 +3472,6 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <contactref element="C27" pad="P$2"/>
 <contactref element="SH4" pad="2"/>
 <wire x1="5.765" y1="23.3" x2="5.965" y2="23.1" width="0.127" layer="1"/>
-<contactref element="C20" pad="2"/>
 <via x="3.3" y="34.1" extent="1-16" drill="0.4"/>
 <wire x1="3.3" y1="34.1" x2="4.18" y2="34.1" width="0.254" layer="1"/>
 <wire x1="4.18" y1="34.1" x2="4.23" y2="34.15" width="0.254" layer="1"/>
@@ -3390,10 +3483,9 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <via x="5.6" y="29.1" extent="1-16" drill="0.4"/>
 <wire x1="5.69" y1="29.96" x2="5.69" y2="29.19" width="0.254" layer="1"/>
 <wire x1="5.69" y1="29.19" x2="5.6" y2="29.1" width="0.254" layer="1"/>
-<wire x1="5" y1="23.3" x2="5" y2="24.21" width="0.254" layer="1"/>
 <wire x1="5" y1="24.21" x2="4.07" y2="25.14" width="0.254" layer="1"/>
-<via x="3.6" y="23.8" extent="1-16" drill="0.4"/>
-<via x="3.6" y="22.9" extent="1-16" drill="0.4"/>
+<via x="3.7" y="23.8" extent="1-16" drill="0.4"/>
+<via x="3.7" y="22.9" extent="1-16" drill="0.4"/>
 <polygon width="0.127" layer="1" thermals="no">
 <vertex x="3.3" y="24.2"/>
 <vertex x="3.3" y="22.3"/>
@@ -3448,11 +3540,11 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <wire x1="26.975" y1="20.3" x2="28.075" y2="21.4" width="0.254" layer="1"/>
 <wire x1="28.075" y1="21.4" x2="27.6" y2="21.4" width="0.254" layer="1"/>
 <wire x1="27.6" y1="21.4" x2="26.6" y2="22.4" width="0.254" layer="1"/>
-<via x="28" y="24.6" extent="1-16" drill="0.4"/>
-<via x="28" y="25.9" extent="1-16" drill="0.4"/>
-<wire x1="27.05" y1="24.63" x2="27.97" y2="24.63" width="0.254" layer="1"/>
-<wire x1="27.97" y1="24.63" x2="28" y2="24.6" width="0.254" layer="1"/>
-<wire x1="27.05" y1="25.9" x2="28" y2="25.9" width="0.254" layer="1"/>
+<via x="28.4" y="24.6" extent="1-16" drill="0.4"/>
+<via x="28.4" y="25.9" extent="1-16" drill="0.4"/>
+<wire x1="27.45" y1="24.63" x2="28.37" y2="24.63" width="0.254" layer="1"/>
+<wire x1="28.37" y1="24.63" x2="28.4" y2="24.6" width="0.254" layer="1"/>
+<wire x1="27.45" y1="25.9" x2="28.4" y2="25.9" width="0.254" layer="1"/>
 <via x="21" y="22" extent="1-16" drill="0.4"/>
 <wire x1="21.75" y1="21.98" x2="21.73" y2="22" width="0.254" layer="1"/>
 <wire x1="21.73" y1="22" x2="21" y2="22" width="0.254" layer="1"/>
@@ -3484,7 +3576,10 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <via x="12.29" y="30.19" extent="1-16" drill="0.4"/>
 <wire x1="10.93" y1="29.97" x2="12.07" y2="29.97" width="0.254" layer="1"/>
 <wire x1="12.07" y1="29.97" x2="12.29" y2="30.19" width="0.254" layer="1"/>
-<wire x1="5" y1="23.3" x2="5.765" y2="23.3" width="0" layer="19" extent="1-1"/>
+<contactref element="C20" pad="P$2"/>
+<wire x1="5.03" y1="23.1" x2="5.03" y2="24.18" width="0.127" layer="1"/>
+<wire x1="5.03" y1="24.18" x2="5" y2="24.21" width="0.127" layer="1"/>
+<wire x1="5.03" y1="23.1" x2="5.965" y2="23.1" width="0.127" layer="1"/>
 </signal>
 </signals>
 </board>

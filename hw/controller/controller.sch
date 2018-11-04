@@ -500,6 +500,33 @@ MAX3223-MAX3243.pdf</description>
 <vertex x="0" y="-2" curve="-90"/>
 </polygon>
 </package>
+<package name="ABM3B">
+<smd name="1" x="-2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<smd name="2" x="2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<smd name="3" x="2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<smd name="4" x="-2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
+<wire x1="-3.235" y1="2.235" x2="-3.235" y2="-2.235" width="0.127" layer="21"/>
+<wire x1="-3.235" y1="-2.235" x2="3.235" y2="-2.235" width="0.127" layer="21"/>
+<wire x1="3.235" y1="-2.235" x2="3.235" y2="2.235" width="0.127" layer="21"/>
+<wire x1="3.235" y1="2.235" x2="-3.235" y2="2.235" width="0.127" layer="21"/>
+<text x="-2.5" y="2.735" size="0.8" layer="21" ratio="10">&gt;NAME</text>
+<wire x1="-3.2" y1="-1.9" x2="-2.9" y2="-1.9" width="0.127" layer="21"/>
+<wire x1="-2.9" y1="-1.9" x2="-2.9" y2="-2.2" width="0.127" layer="21"/>
+</package>
+<package name="CRYSTAL-OSC-SMD-5X3.2">
+<circle x="-2.54" y="-1.524" radius="0.0284" width="0.127" layer="21"/>
+<circle x="-2.54" y="-1.524" radius="0.127" width="0.127" layer="21"/>
+<wire x1="-0.254" y1="1.778" x2="0.254" y2="1.778" width="0.2032" layer="21"/>
+<wire x1="2.54" y1="1.524" x2="2.54" y2="-1.524" width="0.2032" layer="21"/>
+<wire x1="0.254" y1="-1.778" x2="-0.254" y2="-1.778" width="0.2032" layer="21"/>
+<wire x1="-2.54" y1="1.524" x2="-2.54" y2="-1.016" width="0.2032" layer="21"/>
+<smd name="1" x="-1.27" y="-1.1" dx="1.397" dy="1.1938" layer="1"/>
+<smd name="2" x="1.27" y="-1.1" dx="1.397" dy="1.1938" layer="1"/>
+<smd name="3" x="1.27" y="1.1" dx="1.397" dy="1.1938" layer="1"/>
+<smd name="4" x="-1.27" y="1.1" dx="1.397" dy="1.1938" layer="1"/>
+<text x="-2.54" y="1.905" size="0.4064" layer="25">&gt;NAME</text>
+<text x="-2.54" y="-2.54" size="0.4064" layer="27">&gt;VALUE</text>
+</package>
 </packages>
 <symbols>
 <symbol name="STM32F4_64PINS">
@@ -781,6 +808,22 @@ Regulator</text>
 <wire x1="2.54" y1="-2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
 <wire x1="2.54" y1="2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
 <text x="-2.54" y="5.08" size="1.27" layer="94">&gt;NAME</text>
+</symbol>
+<symbol name="CRYSTAL">
+<wire x1="-7.62" y1="0" x2="-5.08" y2="0" width="0.254" layer="94"/>
+<wire x1="-5.08" y1="2.54" x2="-5.08" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="5.08" y1="2.54" x2="5.08" y2="0" width="0.254" layer="94"/>
+<wire x1="5.08" y1="0" x2="5.08" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="-2.54" y1="-2.54" x2="2.54" y2="-2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="-2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
+<wire x1="2.54" y1="2.54" x2="-2.54" y2="2.54" width="0.254" layer="94"/>
+<pin name="P$1" x="-12.7" y="0" visible="off" length="middle"/>
+<pin name="P$2" x="12.7" y="0" visible="off" length="middle" rot="R180"/>
+<wire x1="5.08" y1="0" x2="7.62" y2="0" width="0.254" layer="94"/>
+<text x="-5.08" y="5.08" size="1.27" layer="94">&gt;NAME</text>
+<text x="-5.08" y="-5.08" size="1.27" layer="94">&gt;VALUE</text>
+<pin name="P$3" x="0" y="-12.7" visible="off" length="middle" rot="R90"/>
 </symbol>
 </symbols>
 <devicesets>
@@ -1125,6 +1168,33 @@ Regulator</text>
 </technologies>
 </device>
 <device name="M2" package="M2MOUNT">
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="CRYSTAL" uservalue="yes">
+<gates>
+<gate name="G$1" symbol="CRYSTAL" x="0" y="0"/>
+</gates>
+<devices>
+<device name="SMD5X3.2" package="CRYSTAL-OSC-SMD-5X3.2">
+<connects>
+<connect gate="G$1" pin="P$1" pad="1"/>
+<connect gate="G$1" pin="P$2" pad="3"/>
+<connect gate="G$1" pin="P$3" pad="2 4"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="ABM3B" package="ABM3B">
+<connects>
+<connect gate="G$1" pin="P$1" pad="1"/>
+<connect gate="G$1" pin="P$2" pad="3"/>
+<connect gate="G$1" pin="P$3" pad="2 4"/>
+</connects>
 <technologies>
 <technology name=""/>
 </technologies>
@@ -1544,82 +1614,6 @@ Regulator</text>
 <attribute name="URL" value="" constant="no"/>
 <attribute name="VOLTAGE" value="" constant="no"/>
 </technology>
-</technologies>
-</device>
-</devices>
-</deviceset>
-</devicesets>
-</library>
-<library name="gimbal">
-<packages>
-<package name="CRYSTAL-OSC-SMD-5X3.2">
-<circle x="-2.54" y="-1.524" radius="0.0284" width="0.127" layer="21"/>
-<circle x="-2.54" y="-1.524" radius="0.127" width="0.127" layer="21"/>
-<wire x1="-0.254" y1="1.778" x2="0.254" y2="1.778" width="0.2032" layer="21"/>
-<wire x1="2.54" y1="1.524" x2="2.54" y2="-1.524" width="0.2032" layer="21"/>
-<wire x1="0.254" y1="-1.778" x2="-0.254" y2="-1.778" width="0.2032" layer="21"/>
-<wire x1="-2.54" y1="1.524" x2="-2.54" y2="-1.016" width="0.2032" layer="21"/>
-<smd name="1" x="-1.27" y="-1.1" dx="1.397" dy="1.1938" layer="1"/>
-<smd name="2" x="1.27" y="-1.1" dx="1.397" dy="1.1938" layer="1"/>
-<smd name="3" x="1.27" y="1.1" dx="1.397" dy="1.1938" layer="1"/>
-<smd name="4" x="-1.27" y="1.1" dx="1.397" dy="1.1938" layer="1"/>
-<text x="-2.54" y="1.905" size="0.4064" layer="25">&gt;NAME</text>
-<text x="-2.54" y="-2.54" size="0.4064" layer="27">&gt;VALUE</text>
-</package>
-<package name="ABM3B">
-<smd name="1" x="-2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<smd name="2" x="2" y="-1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<smd name="3" x="2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<smd name="4" x="-2" y="1.2" dx="1.8" dy="1.2" layer="1" rot="R180"/>
-<wire x1="-3.235" y1="2.235" x2="-3.235" y2="-2.235" width="0.127" layer="21"/>
-<wire x1="-3.235" y1="-2.235" x2="3.235" y2="-2.235" width="0.127" layer="21"/>
-<wire x1="3.235" y1="-2.235" x2="3.235" y2="2.235" width="0.127" layer="21"/>
-<wire x1="3.235" y1="2.235" x2="-3.235" y2="2.235" width="0.127" layer="21"/>
-<text x="-2.5" y="2.735" size="0.8" layer="21" ratio="10">&gt;NAME</text>
-</package>
-</packages>
-<symbols>
-<symbol name="CRYSTAL">
-<wire x1="-7.62" y1="0" x2="-5.08" y2="0" width="0.254" layer="94"/>
-<wire x1="-5.08" y1="2.54" x2="-5.08" y2="-2.54" width="0.254" layer="94"/>
-<wire x1="5.08" y1="2.54" x2="5.08" y2="0" width="0.254" layer="94"/>
-<wire x1="5.08" y1="0" x2="5.08" y2="-2.54" width="0.254" layer="94"/>
-<wire x1="-2.54" y1="2.54" x2="-2.54" y2="-2.54" width="0.254" layer="94"/>
-<wire x1="-2.54" y1="-2.54" x2="2.54" y2="-2.54" width="0.254" layer="94"/>
-<wire x1="2.54" y1="-2.54" x2="2.54" y2="2.54" width="0.254" layer="94"/>
-<wire x1="2.54" y1="2.54" x2="-2.54" y2="2.54" width="0.254" layer="94"/>
-<pin name="P$1" x="-12.7" y="0" visible="off" length="middle"/>
-<pin name="P$2" x="12.7" y="0" visible="off" length="middle" rot="R180"/>
-<wire x1="5.08" y1="0" x2="7.62" y2="0" width="0.254" layer="94"/>
-<text x="-5.08" y="5.08" size="1.27" layer="94">&gt;NAME</text>
-<text x="-5.08" y="-5.08" size="1.27" layer="94">&gt;VALUE</text>
-<pin name="P$3" x="0" y="-12.7" visible="off" length="middle" rot="R90"/>
-</symbol>
-</symbols>
-<devicesets>
-<deviceset name="CRYSTAL" uservalue="yes">
-<gates>
-<gate name="G$1" symbol="CRYSTAL" x="0" y="0"/>
-</gates>
-<devices>
-<device name="SMD5X3.2" package="CRYSTAL-OSC-SMD-5X3.2">
-<connects>
-<connect gate="G$1" pin="P$1" pad="1"/>
-<connect gate="G$1" pin="P$2" pad="3"/>
-<connect gate="G$1" pin="P$3" pad="2 4"/>
-</connects>
-<technologies>
-<technology name=""/>
-</technologies>
-</device>
-<device name="ABM3B" package="ABM3B">
-<connects>
-<connect gate="G$1" pin="P$1" pad="1"/>
-<connect gate="G$1" pin="P$2" pad="3"/>
-<connect gate="G$1" pin="P$3" pad="2 4"/>
-</connects>
-<technologies>
-<technology name=""/>
 </technologies>
 </device>
 </devices>
@@ -7692,7 +7686,11 @@ Source: AVX .. aphvc.pdf</description>
 </class>
 </classes>
 <parts>
-<part name="U1" library="controller" deviceset="STM32F4R_64PIN" device=""/>
+<part name="U1" library="controller" deviceset="STM32F4R_64PIN" device="">
+<attribute name="MF" value="ST"/>
+<attribute name="MPN" value="STM32F446RET6"/>
+<attribute name="POPULATE" value="1"/>
+</part>
 <part name="+3V9" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
 <part name="+3V8" library="supply1" deviceset="+3V3" device=""/>
@@ -7700,41 +7698,48 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" value="MF-RES-0603-10"/>
 </part>
 <part name="C2" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C6" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C4" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
 <attribute name="HOUSEPART" value="1"/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C5" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C3" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C1" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="4.7uF">
-<attribute name="DPN" value="311-1455-1-ND"/>
-<attribute name="MPN" value="CC0603KRX5R6BB475"/>
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL10A475MP8NNNC"/>
 </part>
 <part name="GND1" library="supply1" deviceset="GND" device=""/>
 <part name="GND14" library="supply1" deviceset="GND" device=""/>
 <part name="C7" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="4.7uF">
-<attribute name="DPN" value="311-1455-1-ND"/>
-<attribute name="MPN" value="CC0603KRX5R6BB475"/>
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL10A475MP8NNNC"/>
 </part>
-<part name="X1" library="gimbal" deviceset="CRYSTAL" device="ABM3B" value="8.0MHz">
-<attribute name="DPN" value="535-9721-1-ND"/>
+<part name="X1" library="controller" deviceset="CRYSTAL" device="ABM3B" value="8.0MHz">
+<attribute name="MF" value="Abracon"/>
 <attribute name="MPN" value="ABM3B-8.000MHZ-10-1-U-T"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="GND17" library="supply1" deviceset="GND" device=""/>
 <part name="C8" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="10pF">
-<attribute name="MPN" value="MF-CAP-0603-10pF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-10pF"/>
 </part>
 <part name="C9" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="10pF">
-<attribute name="MPN" value="MF-CAP-0603-10pF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-10pF"/>
 </part>
 <part name="GND18" library="supply1" deviceset="GND" device=""/>
 <part name="R7" library="mfpassives" deviceset="RESISTOR" device="_0603" value="100k">
@@ -7746,77 +7751,142 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" value="ERJ-3EKF1002V"/>
 </part>
 <part name="GND6" library="supply1" deviceset="GND" device=""/>
-<part name="U3" library="controller" deviceset="AS5147" device=""/>
+<part name="U3" library="controller" deviceset="AS5147" device="">
+<attribute name="MF" value="AMS"/>
+<attribute name="MPN" value="AS5047P-ATSM"/>
+<attribute name="POPULATE" value="1"/>
+</part>
 <part name="+3V1" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND2" library="supply1" deviceset="GND" device=""/>
 <part name="C10" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
-<part name="Q1" library="controller" deviceset="TPN1R603PL" device=""/>
-<part name="Q2" library="controller" deviceset="TPN1R603PL" device=""/>
-<part name="Q3" library="controller" deviceset="TPN1R603PL" device=""/>
-<part name="Q4" library="controller" deviceset="TPN1R603PL" device=""/>
-<part name="Q5" library="controller" deviceset="TPN1R603PL" device=""/>
-<part name="Q6" library="controller" deviceset="TPN1R603PL" device=""/>
-<part name="U2" library="controller" deviceset="DRV8323RS" device=""/>
-<part name="U4" library="controller" deviceset="MAX13431E" device=""/>
+<part name="Q1" library="controller" deviceset="TPN1R603PL" device="">
+<attribute name="MF" value="Toshiba"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="Q2" library="controller" deviceset="TPN1R603PL" device="">
+<attribute name="MF" value="Toshiba"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="Q3" library="controller" deviceset="TPN1R603PL" device="">
+<attribute name="MF" value="Toshiba"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="Q4" library="controller" deviceset="TPN1R603PL" device="">
+<attribute name="MF" value="Toshiba"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="Q5" library="controller" deviceset="TPN1R603PL" device="">
+<attribute name="MF" value="Toshiba"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="Q6" library="controller" deviceset="TPN1R603PL" device="">
+<attribute name="MF" value="Toshiba"/>
+<attribute name="MPN" value="TPN1R603PL,L1Q"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="U2" library="controller" deviceset="DRV8323RS" device="">
+<attribute name="MF" value="TI"/>
+<attribute name="MPN" value="DRV8323RSRGZR"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="U4" library="controller" deviceset="MAX13431E" device="">
+<attribute name="MF" value="Maxim"/>
+<attribute name="MPN" value="MAX13431EETB+T"/>
+<attribute name="POPULATE" value="1"/>
+</part>
 <part name="GND4" library="supply1" deviceset="GND" device=""/>
 <part name="+3V2" library="supply1" deviceset="+3V3" device=""/>
 <part name="C11" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.0uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="RA" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
 <attribute name="MPN" value="HCS1206FT1L00"/>
+<attribute name="POPULATE" value="1"/>
 </part>
-<part name="SH1" library="shorts" deviceset="SHORT" device="T5"/>
-<part name="SH2" library="shorts" deviceset="SHORT" device="T5"/>
-<part name="SH3" library="shorts" deviceset="SHORT" device="T5"/>
+<part name="SH1" library="shorts" deviceset="SHORT" device="T5">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="SH2" library="shorts" deviceset="SHORT" device="T5">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="SH3" library="shorts" deviceset="SHORT" device="T5">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="P-1" library="supply1" deviceset="V-" device=""/>
 <part name="P+1" library="supply1" deviceset="V+" device=""/>
 <part name="P+2" library="supply1" deviceset="V+" device=""/>
 <part name="RB" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
 <attribute name="MPN" value="HCS1206FT1L00"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="RC" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
 <attribute name="MPN" value="HCS1206FT1L00"/>
+<attribute name="POPULATE" value="1"/>
 </part>
-<part name="C13" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<part name="C13" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X7R1H104K050BE"/>
 </part>
-<part name="A" library="controller" deviceset="PAD" device=""/>
-<part name="B" library="controller" deviceset="PAD" device=""/>
-<part name="C" library="controller" deviceset="PAD" device=""/>
-<part name="V-" library="controller" deviceset="PAD" device="12AWG_PAD"/>
-<part name="V+" library="controller" deviceset="PAD" device="12AWG_PAD"/>
+<part name="A" library="controller" deviceset="PAD" device="">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="B" library="controller" deviceset="PAD" device="">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="C" library="controller" deviceset="PAD" device="">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="V-" library="controller" deviceset="PAD" device="12AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="V+" library="controller" deviceset="PAD" device="12AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="C15" library="rcl" deviceset="C-US" device="C1206" value="15uF">
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="C14" library="rcl" deviceset="C-US" device="C1206" value="15uF">
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="C16" library="rcl" deviceset="C-US" device="C1206" value="15uF">
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="C17" library="rcl" deviceset="C-US" device="C1206" value="15uF">
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="C18" library="rcl" deviceset="C-US" device="C1206" value="15uF">
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="C19" library="rcl" deviceset="C-US" device="C1206" value="15uF">
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="P-2" library="supply1" deviceset="V-" device=""/>
 <part name="P-3" library="supply1" deviceset="V-" device=""/>
@@ -7824,8 +7894,8 @@ Source: AVX .. aphvc.pdf</description>
 <part name="P+3" library="supply1" deviceset="V+" device=""/>
 <part name="P-4" library="supply1" deviceset="V-" device=""/>
 <part name="R2" library="mfpassives" deviceset="RESISTOR" device="_0402" value="100k">
-<attribute name="DPN" value="P100KHCT-ND"/>
-<attribute name="MPN" value="ERJ-3EKF1003V"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-100K"/>
 </part>
 <part name="+3V3" library="supply1" deviceset="+3V3" device=""/>
 <part name="R3" library="mfpassives" deviceset="RESISTOR" device="_0603" value="33.2k 1%">
@@ -7837,79 +7907,127 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" value="P10.0KHCT-ND"/>
 </part>
 <part name="GND7" library="supply1" deviceset="GND" device=""/>
-<part name="C20" library="rcl" deviceset="C-US" device="C1206" value="10uF 16V"/>
-<part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X7R1H104K050BE"/>
 </part>
 <part name="L1" library="controller" deviceset="SRN4018-220M" device="">
 <attribute name="MPN" value="SRN4018-220M"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="D1" library="mfdiscretesemi" deviceset="DIODES" device="_SMA" technology="_B140" value="MF-DIO-SMA-B140"/>
-<part name="C22" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="47nF"/>
-<part name="C23" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
-<attribute name="MPN" value="MF-CAP-0603-1uF"/>
+<part name="C22" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="47nF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA2B3X5R1V473K050BB"/>
+</part>
+<part name="C23" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL05A105KL5NRNC"/>
 </part>
 <part name="C24" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
-<attribute name="MPN" value="MF-CAP-0603-1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF"/>
 </part>
 <part name="GND8" library="supply1" deviceset="GND" device=""/>
 <part name="+3V4" library="supply1" deviceset="+3V3" device=""/>
 <part name="C25" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
-<attribute name="MPN" value="MF-CAP-0603-1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF"/>
 </part>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
-<part name="SWD" library="controller" deviceset="JST-ZH6" device=""/>
-<part name="J2" library="controller" deviceset="JST-PH3" device="SMT_VERT" value="JST-PH3SMT_VERT"/>
-<part name="ABS" library="controller" deviceset="PAD4" device=""/>
+<part name="SWD" library="controller" deviceset="JST-ZH6" device="">
+<attribute name="MF" value="JST"/>
+<attribute name="MPN" value="S6B-ZR-SM4A-TF(LF)(SN)"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="J2" library="controller" deviceset="JST-PH3" device="SMT_VERT" value="JST-PH3SMT_VERT">
+<attribute name="MF" value="JST"/>
+<attribute name="MPN" value="B3B-PH-SM4-TB(LF)(SN)"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="ABS" library="controller" deviceset="PAD4" device="">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="GND10" library="supply1" deviceset="GND" device=""/>
 <part name="+3V5" library="supply1" deviceset="+3V3" device=""/>
-<part name="TEMP" library="controller" deviceset="PAD2" device=""/>
+<part name="TEMP" library="controller" deviceset="PAD2" device="">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="+3V6" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND11" library="supply1" deviceset="GND" device=""/>
 <part name="R5" library="mfpassives" deviceset="RESISTOR" device="_0402" value="10k">
-<attribute name="MPN" value="MF-RES-0603-10K"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-10K"/>
 </part>
 <part name="D2" library="mfleds" deviceset="LED_SINGLE" device="-0603-GREEN" value="MF-LED-0603-GREEN"/>
 <part name="D3" library="mfleds" deviceset="LED_SINGLE" device="-0603-RED" value="MF-LED-0603-RED"/>
 <part name="+3V7" library="supply1" deviceset="+3V3" device=""/>
 <part name="R6" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
-<attribute name="MPN" value="MF-RES-0603-220"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-220"/>
 </part>
 <part name="R9" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
-<attribute name="MPN" value="MF-RES-0603-220"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-220"/>
 </part>
-<part name="DBG" library="controller" deviceset="PAD4" device=""/>
+<part name="DBG" library="controller" deviceset="PAD4" device="">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="GND3" library="supply1" deviceset="GND" device=""/>
 <part name="+3V10" library="supply1" deviceset="+3V3" device=""/>
-<part name="J1" library="controller" deviceset="JST-PH3" device="SMT_VERT" value="JST-PH3SMT_VERT"/>
-<part name="U$1" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
-<part name="U$2" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
-<part name="U$3" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
-<part name="U$4" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2"/>
+<part name="J1" library="controller" deviceset="JST-PH3" device="SMT_VERT" value="JST-PH3SMT_VERT">
+<attribute name="MF" value="JST"/>
+<attribute name="MPN" value="B3B-PH-SM4-TB(LF)(SN)"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="U$1" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="U$2" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="U$3" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="U$4" library="controller" deviceset="MOUNT" device="M2" value="MOUNTM2">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="C26" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF">
-<attribute name="MPN" value="MF-CAP-0603-0.1uF"/>
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="C27" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
 <attribute name="HOUSEPART" value="1"/>
 <attribute name="MPN" value="MF-CAP-0402-1uF"/>
 </part>
 <part name="P+4" library="supply1" deviceset="V+" device=""/>
-<part name="SH4" library="shorts" deviceset="SHORT" device="BIG" value="SHORTBIG"/>
+<part name="SH4" library="shorts" deviceset="SHORT" device="BIG" value="SHORTBIG">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="P-5" library="supply1" deviceset="V-" device=""/>
 <part name="GND12" library="supply1" deviceset="GND" device=""/>
 <part name="P-6" library="supply1" deviceset="V-" device=""/>
 <part name="P-7" library="supply1" deviceset="V-" device=""/>
-<part name="C28" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
-<attribute name="MPN" value="MF-CAP-0402-1uF"/>
+<part name="C28" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
+<attribute name="MF" value="Samsung Electro-Mechanics"/>
+<attribute name="MPN" value="CL05A105KL5NRNC"/>
 </part>
 <part name="P-8" library="supply1" deviceset="V-" device=""/>
+<part name="C20" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-CAP-1206-10uF"/>
+</part>
 </parts>
 <sheets>
 <sheet>
 <plain>
 </plain>
 <instances>
-<instance part="U1" gate="G$1" x="91.44" y="45.72"/>
+<instance part="U1" gate="G$1" x="91.44" y="45.72">
+<attribute name="POPULATE" x="91.44" y="45.72" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="91.44" y="45.72" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="91.44" y="45.72" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="+3V9" gate="G$1" x="-27.94" y="99.06"/>
 <instance part="GND16" gate="1" x="-30.48" y="60.96"/>
 <instance part="+3V8" gate="G$1" x="58.42" y="132.08"/>
@@ -7932,18 +8050,19 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" x="48.26" y="116.84" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C1" gate="G$1" x="58.42" y="116.84">
-<attribute name="DPN" x="58.42" y="116.84" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="58.42" y="116.84" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="58.42" y="116.84" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="GND1" gate="1" x="58.42" y="99.06"/>
 <instance part="GND14" gate="1" x="142.24" y="106.68"/>
 <instance part="C7" gate="G$1" x="134.62" y="116.84">
-<attribute name="DPN" x="134.62" y="116.84" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="134.62" y="116.84" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="134.62" y="116.84" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="X1" gate="G$1" x="203.2" y="15.24">
-<attribute name="DPN" x="203.2" y="15.24" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="203.2" y="15.24" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="203.2" y="15.24" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="203.2" y="15.24" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="GND17" gate="1" x="203.2" y="-7.62"/>
 <instance part="C8" gate="G$1" x="182.88" y="7.62">
@@ -7962,7 +8081,11 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" x="-5.08" y="-203.2" size="1.778" layer="96" rot="R180" display="off"/>
 </instance>
 <instance part="GND6" gate="1" x="88.9" y="-45.72"/>
-<instance part="U3" gate="G$1" x="88.9" y="-129.54"/>
+<instance part="U3" gate="G$1" x="88.9" y="-129.54">
+<attribute name="POPULATE" x="88.9" y="-129.54" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="88.9" y="-129.54" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="88.9" y="-129.54" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="+3V1" gate="G$1" x="66.04" y="-114.3"/>
 <instance part="GND2" gate="1" x="86.36" y="-157.48"/>
 <instance part="C10" gate="G$1" x="66.04" y="-137.16">
@@ -7970,24 +8093,50 @@ Source: AVX .. aphvc.pdf</description>
 </instance>
 <instance part="Q1" gate="G$1" x="157.48" y="-228.6" smashed="yes">
 <attribute name="NAME" x="153.67" y="-226.06" size="1.778" layer="95"/>
+<attribute name="POPULATE" x="157.48" y="-228.6" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="157.48" y="-228.6" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="157.48" y="-228.6" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="Q2" gate="G$1" x="157.48" y="-254" smashed="yes">
 <attribute name="NAME" x="153.67" y="-248.92" size="1.778" layer="95"/>
+<attribute name="POPULATE" x="157.48" y="-254" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="157.48" y="-254" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="157.48" y="-254" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="Q3" gate="G$1" x="187.96" y="-228.6" smashed="yes">
 <attribute name="NAME" x="184.15" y="-226.06" size="1.778" layer="95"/>
+<attribute name="POPULATE" x="187.96" y="-228.6" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="187.96" y="-228.6" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="187.96" y="-228.6" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="Q4" gate="G$1" x="187.96" y="-254" smashed="yes">
 <attribute name="NAME" x="184.15" y="-251.46" size="1.778" layer="95"/>
+<attribute name="POPULATE" x="187.96" y="-254" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="187.96" y="-254" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="187.96" y="-254" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="Q5" gate="G$1" x="213.36" y="-228.6" smashed="yes">
 <attribute name="NAME" x="209.55" y="-226.06" size="1.778" layer="95"/>
+<attribute name="POPULATE" x="213.36" y="-228.6" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="213.36" y="-228.6" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="213.36" y="-228.6" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="Q6" gate="G$1" x="213.36" y="-254" smashed="yes">
 <attribute name="NAME" x="209.55" y="-251.46" size="1.778" layer="95"/>
+<attribute name="POPULATE" x="213.36" y="-254" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="213.36" y="-254" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="213.36" y="-254" size="1.778" layer="96" display="off"/>
 </instance>
-<instance part="U2" gate="G$1" x="78.74" y="-279.4"/>
-<instance part="U4" gate="G$1" x="88.9" y="-78.74"/>
+<instance part="U2" gate="G$1" x="78.74" y="-279.4">
+<attribute name="POPULATE" x="78.74" y="-279.4" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="78.74" y="-279.4" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="78.74" y="-279.4" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="U4" gate="G$1" x="88.9" y="-78.74">
+<attribute name="POPULATE" x="88.9" y="-78.74" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="88.9" y="-78.74" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="88.9" y="-78.74" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="GND4" gate="1" x="88.9" y="-101.6"/>
 <instance part="+3V2" gate="G$1" x="35.56" y="-60.96"/>
 <instance part="C11" gate="G$1" x="38.1" y="-83.82">
@@ -7999,52 +8148,78 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="RA" gate="G$1" x="160.02" y="-271.78" rot="R90">
 <attribute name="MF" x="160.02" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
 <attribute name="MPN" x="160.02" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="POPULATE" x="160.02" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
 </instance>
-<instance part="SH1" gate="G$1" x="154.94" y="-281.94"/>
-<instance part="SH2" gate="G$1" x="185.42" y="-281.94"/>
-<instance part="SH3" gate="G$1" x="210.82" y="-281.94"/>
+<instance part="SH1" gate="G$1" x="154.94" y="-281.94">
+<attribute name="POPULATE" x="154.94" y="-281.94" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="SH2" gate="G$1" x="185.42" y="-281.94">
+<attribute name="POPULATE" x="185.42" y="-281.94" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="SH3" gate="G$1" x="210.82" y="-281.94">
+<attribute name="POPULATE" x="210.82" y="-281.94" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="P-1" gate="1" x="177.8" y="-304.8"/>
 <instance part="P+1" gate="1" x="180.34" y="-193.04"/>
 <instance part="P+2" gate="1" x="-5.08" y="-175.26"/>
 <instance part="RB" gate="G$1" x="190.5" y="-271.78" rot="R90">
 <attribute name="MF" x="190.5" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
 <attribute name="MPN" x="190.5" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="POPULATE" x="190.5" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
 </instance>
 <instance part="RC" gate="G$1" x="215.9" y="-271.78" rot="R90">
 <attribute name="MF" x="215.9" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
 <attribute name="MPN" x="215.9" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="POPULATE" x="215.9" y="-271.78" size="1.778" layer="96" rot="R90" display="off"/>
 </instance>
 <instance part="C13" gate="G$1" x="30.48" y="-241.3">
 <attribute name="MPN" x="30.48" y="-241.3" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="30.48" y="-241.3" size="1.778" layer="96" display="off"/>
 </instance>
-<instance part="A" gate="G$1" x="170.18" y="-243.84"/>
-<instance part="B" gate="G$1" x="200.66" y="-243.84"/>
-<instance part="C" gate="G$1" x="226.06" y="-243.84"/>
-<instance part="V-" gate="G$1" x="187.96" y="-299.72"/>
-<instance part="V+" gate="G$1" x="190.5" y="-215.9"/>
+<instance part="A" gate="G$1" x="170.18" y="-243.84">
+<attribute name="POPULATE" x="170.18" y="-243.84" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="B" gate="G$1" x="200.66" y="-243.84">
+<attribute name="POPULATE" x="200.66" y="-243.84" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C" gate="G$1" x="226.06" y="-243.84">
+<attribute name="POPULATE" x="226.06" y="-243.84" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="V-" gate="G$1" x="187.96" y="-299.72">
+<attribute name="POPULATE" x="187.96" y="-299.72" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="V+" gate="G$1" x="190.5" y="-215.9">
+<attribute name="POPULATE" x="190.5" y="-215.9" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="C15" gate="G$1" x="271.78" y="-208.28">
 <attribute name="MF" x="271.78" y="-208.28" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="271.78" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="271.78" y="-208.28" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C14" gate="G$1" x="264.16" y="-208.28">
 <attribute name="MF" x="264.16" y="-208.28" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="264.16" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="264.16" y="-208.28" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C16" gate="G$1" x="256.54" y="-208.28">
 <attribute name="MF" x="256.54" y="-208.28" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="256.54" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="256.54" y="-208.28" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C17" gate="G$1" x="248.92" y="-208.28">
 <attribute name="MF" x="248.92" y="-208.28" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="248.92" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="248.92" y="-208.28" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C18" gate="G$1" x="241.3" y="-208.28">
 <attribute name="MF" x="241.3" y="-208.28" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="241.3" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="241.3" y="-208.28" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C19" gate="G$1" x="233.68" y="-208.28">
 <attribute name="MF" x="233.68" y="-208.28" size="1.778" layer="96" display="off"/>
 <attribute name="MPN" x="233.68" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="233.68" y="-208.28" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="P-2" gate="1" x="71.12" y="-353.06"/>
 <instance part="P-3" gate="1" x="30.48" y="-251.46"/>
@@ -8052,7 +8227,6 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="P+3" gate="1" x="25.4" y="-317.5"/>
 <instance part="P-4" gate="1" x="45.72" y="-340.36"/>
 <instance part="R2" gate="G$1" x="35.56" y="-325.12" rot="R270">
-<attribute name="DPN" x="35.56" y="-325.12" size="1.778" layer="96" rot="R270" display="off"/>
 <attribute name="MPN" x="35.56" y="-325.12" size="1.778" layer="96" rot="R270" display="off"/>
 </instance>
 <instance part="+3V3" gate="G$1" x="134.62" y="-312.42"/>
@@ -8065,18 +8239,22 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MF" x="134.62" y="-342.9" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="GND7" gate="1" x="144.78" y="-353.06"/>
-<instance part="C20" gate="G$1" x="144.78" y="-332.74"/>
 <instance part="C21" gate="G$1" x="109.22" y="-322.58">
 <attribute name="MPN" x="109.22" y="-322.58" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="109.22" y="-322.58" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="L1" gate="A" x="116.84" y="-325.12" smashed="yes">
 <attribute name="NAME" x="115.9256" y="-321.7672" size="3.4798" layer="95" ratio="10" rot="SR0"/>
 <attribute name="MPN" x="116.84" y="-325.12" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="116.84" y="-325.12" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="D1" gate="G$1" x="106.68" y="-332.74" rot="R90"/>
-<instance part="C22" gate="G$1" x="45.72" y="-238.76" rot="R90"/>
+<instance part="C22" gate="G$1" x="45.72" y="-238.76" rot="R90">
+<attribute name="MF" x="45.72" y="-238.76" size="1.778" layer="96" rot="R90" display="off"/>
+</instance>
 <instance part="C23" gate="G$1" x="38.1" y="-233.68" rot="R90">
 <attribute name="MPN" x="38.1" y="-233.68" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="MF" x="38.1" y="-233.68" size="1.778" layer="96" rot="R90" display="off"/>
 </instance>
 <instance part="C24" gate="G$1" x="43.18" y="-292.1" rot="R90">
 <attribute name="MPN" x="43.18" y="-292.1" size="1.778" layer="96" rot="R90" display="off"/>
@@ -8087,12 +8265,24 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" x="111.76" y="-236.22" size="1.778" layer="96" rot="R270" display="off"/>
 </instance>
 <instance part="GND9" gate="1" x="121.92" y="-238.76"/>
-<instance part="SWD" gate="A" x="-45.72" y="81.28"/>
-<instance part="J2" gate="A" x="129.54" y="-81.28" rot="MR0"/>
-<instance part="ABS" gate="A" x="86.36" y="-185.42" rot="MR0"/>
+<instance part="SWD" gate="A" x="-45.72" y="81.28">
+<attribute name="POPULATE" x="-45.72" y="81.28" size="1.778" layer="96" display="off"/>
+<attribute name="MPN" x="-45.72" y="81.28" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-45.72" y="81.28" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="J2" gate="A" x="129.54" y="-81.28" rot="MR0">
+<attribute name="POPULATE" x="129.54" y="-81.28" size="1.778" layer="96" rot="MR0" display="off"/>
+<attribute name="MPN" x="129.54" y="-81.28" size="1.778" layer="96" rot="MR0" display="off"/>
+<attribute name="MF" x="129.54" y="-81.28" size="1.778" layer="96" rot="MR0" display="off"/>
+</instance>
+<instance part="ABS" gate="A" x="86.36" y="-185.42" rot="MR0">
+<attribute name="POPULATE" x="86.36" y="-185.42" size="1.778" layer="96" rot="MR0" display="off"/>
+</instance>
 <instance part="GND10" gate="1" x="66.04" y="-200.66"/>
 <instance part="+3V5" gate="G$1" x="66.04" y="-172.72"/>
-<instance part="TEMP" gate="A" x="228.6" y="-129.54" rot="MR0"/>
+<instance part="TEMP" gate="A" x="228.6" y="-129.54" rot="MR0">
+<attribute name="POPULATE" x="228.6" y="-129.54" size="1.778" layer="96" rot="MR0" display="off"/>
+</instance>
 <instance part="+3V6" gate="G$1" x="215.9" y="-119.38"/>
 <instance part="GND11" gate="1" x="215.9" y="-154.94"/>
 <instance part="R5" gate="G$1" x="215.9" y="-144.78">
@@ -8107,14 +8297,28 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="R9" gate="G$1" x="208.28" y="-50.8">
 <attribute name="MPN" x="208.28" y="-50.8" size="1.778" layer="96" display="off"/>
 </instance>
-<instance part="DBG" gate="A" x="-2.54" y="-147.32"/>
+<instance part="DBG" gate="A" x="-2.54" y="-147.32">
+<attribute name="POPULATE" x="-2.54" y="-147.32" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="GND3" gate="1" x="7.62" y="-157.48"/>
 <instance part="+3V10" gate="G$1" x="10.16" y="-132.08"/>
-<instance part="J1" gate="A" x="147.32" y="-81.28" rot="MR0"/>
-<instance part="U$1" gate="G$1" x="10.16" y="165.1"/>
-<instance part="U$2" gate="G$1" x="25.4" y="165.1"/>
-<instance part="U$3" gate="G$1" x="38.1" y="165.1"/>
-<instance part="U$4" gate="G$1" x="53.34" y="165.1"/>
+<instance part="J1" gate="A" x="147.32" y="-81.28" rot="MR0">
+<attribute name="POPULATE" x="147.32" y="-81.28" size="1.778" layer="96" rot="MR0" display="off"/>
+<attribute name="MPN" x="147.32" y="-81.28" size="1.778" layer="96" rot="MR0" display="off"/>
+<attribute name="MF" x="147.32" y="-81.28" size="1.778" layer="96" rot="MR0" display="off"/>
+</instance>
+<instance part="U$1" gate="G$1" x="10.16" y="165.1">
+<attribute name="POPULATE" x="10.16" y="165.1" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="U$2" gate="G$1" x="25.4" y="165.1">
+<attribute name="POPULATE" x="25.4" y="165.1" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="U$3" gate="G$1" x="38.1" y="165.1">
+<attribute name="POPULATE" x="38.1" y="165.1" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="U$4" gate="G$1" x="53.34" y="165.1">
+<attribute name="POPULATE" x="53.34" y="165.1" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="C26" gate="G$1" x="17.78" y="116.84">
 <attribute name="MPN" x="17.78" y="116.84" size="1.778" layer="96" display="off"/>
 </instance>
@@ -8122,15 +8326,19 @@ Source: AVX .. aphvc.pdf</description>
 <attribute name="MPN" x="53.34" y="-185.42" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="P+4" gate="1" x="30.48" y="-226.06"/>
-<instance part="SH4" gate="G$1" x="78.74" y="-370.84"/>
+<instance part="SH4" gate="G$1" x="78.74" y="-370.84">
+<attribute name="POPULATE" x="78.74" y="-370.84" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="P-5" gate="1" x="71.12" y="-375.92"/>
 <instance part="GND12" gate="1" x="88.9" y="-375.92"/>
 <instance part="P-6" gate="1" x="106.68" y="-353.06"/>
 <instance part="P-7" gate="1" x="134.62" y="-353.06"/>
 <instance part="C28" gate="G$1" x="25.4" y="-332.74">
 <attribute name="MPN" x="25.4" y="-332.74" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="25.4" y="-332.74" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="P-8" gate="1" x="25.4" y="-340.36"/>
+<instance part="C20" gate="G$1" x="144.78" y="-335.28"/>
 </instances>
 <busses>
 </busses>
@@ -8227,14 +8435,14 @@ Source: AVX .. aphvc.pdf</description>
 <pinref part="R3" gate="G$1" pin="P$1"/>
 <pinref part="+3V3" gate="G$1" pin="+3V3"/>
 <wire x1="134.62" y1="-325.12" x2="134.62" y2="-320.04" width="0.1524" layer="91"/>
-<pinref part="C20" gate="G$1" pin="1"/>
 <wire x1="134.62" y1="-320.04" x2="134.62" y2="-314.96" width="0.1524" layer="91"/>
-<wire x1="144.78" y1="-330.2" x2="144.78" y2="-320.04" width="0.1524" layer="91"/>
+<wire x1="144.78" y1="-332.74" x2="144.78" y2="-320.04" width="0.1524" layer="91"/>
 <wire x1="144.78" y1="-320.04" x2="134.62" y2="-320.04" width="0.1524" layer="91"/>
 <junction x="134.62" y="-320.04"/>
 <pinref part="L1" gate="A" pin="1"/>
 <wire x1="132.08" y1="-325.12" x2="134.62" y2="-325.12" width="0.1524" layer="91"/>
 <junction x="134.62" y="-325.12"/>
+<pinref part="C20" gate="G$1" pin="P$1"/>
 </segment>
 <segment>
 <pinref part="C24" gate="G$1" pin="P$2"/>
@@ -8451,9 +8659,9 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="88.9" y1="-370.84" x2="81.28" y2="-370.84" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<pinref part="C20" gate="G$1" pin="2"/>
 <wire x1="144.78" y1="-350.52" x2="144.78" y2="-337.82" width="0.1524" layer="91"/>
 <pinref part="GND7" gate="1" pin="GND"/>
+<pinref part="C20" gate="G$1" pin="P$2"/>
 </segment>
 </net>
 <net name="N$24" class="0">
