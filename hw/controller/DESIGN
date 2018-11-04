@@ -1,0 +1,28 @@
+Design controller board
+ * LEDs
+   * status LEDs
+ * STM32F446
+ * DRV8323RS (includes buck regulator and SPI interface)
+   * buck inductor
+     * MF 22uF
+   * buck output cap
+     * MF 10uF
+   * buck input cap
+     * MF
+   * motor input caps
+     * TDK C3216X5R1V156M160AC
+ * 485 transceiver - MAX13431E
+ * FETs - Toshiba TPN1R603PL
+ * Current Shunt
+   * Stackpole Electronics Inc. HCS1206FT1L00 1mOhm 2W
+ * Connectors
+   * power in
+     * just plated holes
+   * BLDC out
+     * just plated holes
+   * as5047p (25krpm or as5047d only 14krpm) sensor
+   * rs485
+   * swd programming port
+     * JST-6 pin
+   * motor temperature sensor
+   * motor output absolute encoder / position sensor
