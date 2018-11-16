@@ -6,3 +6,5 @@
 *.pyc
 fw/BUILD/
 fw/.mbedignore
+
+/bazel-*
