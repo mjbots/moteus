@@ -1,5 +1,5 @@
-#build --compiler=gcc
-#test --compiler=gcc
+build --compiler=compiler
+test --compiler=compiler
 
 build --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
 test --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
@@ -15,3 +15,5 @@ test --experimental_dont_emit_static_libgcc
 
 build --strip never
 test --strip never
+
+test --test_output=errors
