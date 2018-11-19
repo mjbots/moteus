@@ -12,7 +12,7 @@
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
 #include "moteus/stm32f446_async_uart.h"
-// #include "stm32f446_bldc_foc.h"
+#include "moteus/stm32f446_bldc_foc.h"
 
 using namespace moteus;
 namespace micro = mjlib::micro;
@@ -65,25 +65,25 @@ int main(void) {
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(&pc);
   micro::CommandManager command_manager(&pool, &pc, &write_stream);
 
-  // Stm32F446BldcFoc::Options bldc_options;
-  // bldc_options.pwm1 = PA_0;
-  // bldc_options.pwm2 = PA_1;
-  // bldc_options.pwm3 = PA_2;
+  Stm32F446BldcFoc::Options bldc_options;
+  bldc_options.pwm1 = PA_0;
+  bldc_options.pwm2 = PA_1;
+  bldc_options.pwm3 = PA_2;
 
-  // bldc_options.current1 = PC_5;
-  // bldc_options.current2 = PB_0_ALT0;
-  // bldc_options.vsense = PC_1_ALT1;
+  bldc_options.current1 = PC_5;
+  bldc_options.current2 = PB_0_ALT0;
+  bldc_options.vsense = PC_1_ALT1;
 
-  // bldc_options.debug_out = PB_3;
+  bldc_options.debug_out = PB_3;
 
-  // Stm32F446BldcFoc bldc{bldc_options};
-  // Stm32F446BldcFoc::CommandData bldc_command;
-  // bldc_command.mode = Stm32F446BldcFoc::kPhasePwm;
-  // bldc_command.phase_a_millipercent = 2000;
-  // bldc_command.phase_b_millipercent = 3000;
-  // bldc_command.phase_c_millipercent = 4000;
+  Stm32F446BldcFoc bldc{&pool, bldc_options};
+  Stm32F446BldcFoc::CommandData bldc_command;
+  bldc_command.mode = Stm32F446BldcFoc::kPhasePwm;
+  bldc_command.phase_a_millipercent = 2000;
+  bldc_command.phase_b_millipercent = 3000;
+  bldc_command.phase_c_millipercent = 4000;
 
-  // bldc.Command(bldc_command);
+  bldc.Command(bldc_command);
 
   Emitter emitter(&led);
 

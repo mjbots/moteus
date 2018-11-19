@@ -27,6 +27,8 @@ mbed_binary(
         "irq_callback_table.cc",
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
+        "stm32f446_bldc_foc.h",
+        "stm32f446_bldc_foc.cc",
         "main.cc",
     ],
     deps = [
