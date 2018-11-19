@@ -29,6 +29,10 @@ mbed_binary(
         "stm32f446_async_uart.cc",
         "stm32f446_bldc_foc.h",
         "stm32f446_bldc_foc.cc",
+        "stm32_flash.h",
+        "stm32_flash.cc",
+        "system_info.h",
+        "system_info.cc",
         "main.cc",
     ],
     deps = [
@@ -37,7 +41,32 @@ mbed_binary(
         "//mjlib/micro:async_exclusive",
         "//mjlib/micro:async_stream",
         "//mjlib/micro:command_manager",
+        "//mjlib/micro:persistent_config",
         "//mjlib/micro:pool_ptr",
         "//mjlib/micro:static_function",
+        "//mjlib/micro:telemetry_manager",
     ],
+    linker_script = "stm32f466.ld",
+)
+
+genrule(
+    name = "bin",
+    srcs = ["moteus.elf"],
+    outs = [
+        "moteus.08000000.bin",
+        "moteus.08010000.bin",
+    ],
+    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $< $(location moteus.08010000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .isr_vector $< $(location moteus.08000000.bin)"),
+    output_to_bindir = True,
+)
+
+OCD = "openocd -f /usr/share/openocd/scripts/board/st_nucleo_f4.cfg -f /usr/share/openocd/scripts/interface/stlink-v2-1.cfg"
+
+genrule(
+    name = "flash",
+    tags = ["manual"],
+    srcs = ["moteus.08000000.bin", "moteus.08010000.bin"],
+    outs = ["flash.stamp"],
+    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )

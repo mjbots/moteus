@@ -24,19 +24,20 @@ load("//tools/workspace:default.bzl", "add_default_repositories")
 add_default_repositories()
 
 load("@com_github_mjbots_rules_mbed//:rules.bzl", mbed_register = "mbed_register")
-load("@com_github_mjbots_rules_mbed//tools/workspace/mbed:repository.bzl", "mbed_repository")
 
 mbed_register(
     config = {
-        "mbed_target": "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F411xE/TARGET_NUCLEO_F466ZE",
+        "mbed_target": "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
+        "mbed_config": {
+            "MBED_CONF_RTOS_MAIN_THREAD_STACK_SIZE": "16384",
+
+            # Start our code at sector 4, leaving sectors 0, 1, 2, and
+            # 3 for application data storage.
+            "MBED_APP_START": "0x8010000",
+            "MBED_APP_SIZE":  "0x0070000",
+        },
     }
 )
-
-mbed_repository(
-    name = "com_github_ARMmbed_mbed-os-nucleo411",
-    target = "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F411xE/TARGET_NUCLEO_F411RE",
-)
-
 
 load("@com_github_mjbots_bazel_deps//tools/workspace:default.bzl",
      bazel_deps_add = "add_default_repositories")
