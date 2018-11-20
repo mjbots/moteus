@@ -22,12 +22,15 @@
 #include "mjlib/base/tokenizer.h"
 #include "mjlib/base/visitor.h"
 
+#include "moteus/bldc_foc.h"
 #include "moteus/drv8323.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
 
 namespace moteus {
+constexpr float kPi = 3.14159265359f;
+
 class BoardDebug::Impl {
  public:
   Impl(micro::Pool* pool,
@@ -43,8 +46,24 @@ class BoardDebug::Impl {
                    options.cs = PA_4;
                    options.enable = PA_3;
                    options.fault = PC_4;
+                   options.hiz = PC_3;
                    return options;
-                 }()) {
+                 }()),
+        bldc_(pool, persistent_config, telemetry_manager,
+              []() {
+                 BldcFoc::Options options;
+                 options.pwm1 = PA_0;
+                 options.pwm2 = PA_1;
+                 options.pwm3 = PA_2;
+
+                 options.current1 = PC_5;
+                 options.current2 = PB_0_ALT0;
+                 options.vsense = PC_1_ALT1;
+
+                 options.debug_out = PB_3;
+
+                 return options;
+              }()) {
 
     command_manager->Register(
         "d", std::bind(&Impl::HandleCommand, this,
@@ -99,6 +118,43 @@ class BoardDebug::Impl {
       WriteOk(response);
       return;
     }
+    if (command == "motp") {
+      const auto value = tokenizer.next();
+
+      drv8323_.Power(!(value.empty() || value == "0"));
+      WriteOk(response);
+      return;
+    }
+
+    if (command == "pwm") {
+      const auto phase_str = tokenizer.next();
+      const auto magnitude_str = tokenizer.next();
+
+      if (phase_str.empty() || magnitude_str.empty()) {
+        WriteMessage(response, "missing phase or mag\r\n");
+        return;
+      }
+
+      const float phase = std::strtof(phase_str.data(), nullptr);
+      const float magnitude = std::strtof(magnitude_str.data(), nullptr);
+
+      BldcFoc::CommandData command;
+      command.mode = BldcFoc::kPhasePwm;
+
+      auto amount = [&](float offset) {
+        return (
+            (std::sin((phase + offset) * 2.0 * kPi) + 1.0f) *
+            5000.0f * magnitude);
+      };
+
+      command.phase_a_centipercent = amount(0.0);
+      command.phase_b_centipercent = amount(1.0f / 3.0f);
+      command.phase_c_centipercent = amount(2.0f / 3.0f);
+
+      bldc_.Command(command);
+      WriteOk(response);
+      return;
+    }
   }
 
   void WriteOk(const micro::CommandManager::Response& response) {
@@ -133,6 +189,7 @@ class BoardDebug::Impl {
   DigitalOut as5047_cs_{PB_12, 1};
 
   Drv8323 drv8323_;
+  BldcFoc bldc_;
 };
 
 BoardDebug::BoardDebug(micro::Pool* pool,

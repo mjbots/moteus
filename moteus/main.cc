@@ -27,7 +27,6 @@
 #include "mjlib/micro/telemetry_manager.h"
 #include "moteus/board_debug.h"
 #include "moteus/stm32f446_async_uart.h"
-#include "moteus/stm32f446_bldc_foc.h"
 #include "moteus/stm32_flash.h"
 #include "moteus/system_info.h"
 
@@ -72,26 +71,6 @@ int main(void) {
       &pool, &command_manager, &write_stream);
   Stm32Flash flash_interface;
   micro::PersistentConfig persistent_config(pool, command_manager, flash_interface);
-
-  Stm32F446BldcFoc::Options bldc_options;
-  bldc_options.pwm1 = PA_0;
-  bldc_options.pwm2 = PA_1;
-  bldc_options.pwm3 = PA_2;
-
-  bldc_options.current1 = PC_5;
-  bldc_options.current2 = PB_0_ALT0;
-  bldc_options.vsense = PC_1_ALT1;
-
-  bldc_options.debug_out = PB_3;
-
-  Stm32F446BldcFoc bldc{&pool, bldc_options};
-  Stm32F446BldcFoc::CommandData bldc_command;
-  bldc_command.mode = Stm32F446BldcFoc::kPhasePwm;
-  bldc_command.phase_a_millipercent = 2000;
-  bldc_command.phase_b_millipercent = 3000;
-  bldc_command.phase_c_millipercent = 4000;
-
-  bldc.Command(bldc_command);
 
   SystemInfo system_info(pool, telemetry_manager);
 

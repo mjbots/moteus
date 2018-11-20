@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32f446_bldc_foc.h"
+#include "bldc_foc.h"
+
+#include <functional>
 
 #include "mbed.h"
 #include "PeripheralPins.h"
@@ -20,10 +22,12 @@
 #include "mjlib/base/assert.h"
 
 #include "moteus/irq_callback_table.h"
+
 // TODO
 //
-//  * Enable/disable the DRV8323
 //  * Implement current controllers
+
+namespace micro = mjlib::micro;
 
 namespace moteus {
 
@@ -76,9 +80,11 @@ uint32_t FindSqr(PinName pin) {
 }
 }
 
-class Stm32F446BldcFoc::Impl {
+class BldcFoc::Impl {
  public:
-  Impl(const Options& options)
+  Impl(micro::PersistentConfig* persistent_config,
+       micro::TelemetryManager* telemetry_manager,
+       const Options& options)
       : options_(options),
         pwm1_(options.pwm1),
         pwm2_(options.pwm2),
@@ -87,6 +93,10 @@ class Stm32F446BldcFoc::Impl {
         current2_(options.current2),
         vsense_(options.vsense),
         debug_out_(options.debug_out) {
+
+    persistent_config->Register("bldc", &config_,
+                                std::bind(&Impl::UpdateConfig, this));
+    telemetry_manager->Register("bldc", &status_);
 
     MJ_ASSERT(!g_impl_);
     g_impl_ = this;
@@ -108,9 +118,13 @@ class Stm32F446BldcFoc::Impl {
         break;
       }
       case kPhasePwm: {
-        (*pwm1_ccr_) = static_cast<uint32_t>(data.phase_a_millipercent) * kPwmCounts / 10000;
-        (*pwm2_ccr_) = static_cast<uint32_t>(data.phase_b_millipercent) * kPwmCounts / 10000;
-        (*pwm3_ccr_) = static_cast<uint32_t>(data.phase_c_millipercent) * kPwmCounts / 10000;
+        (*pwm1_ccr_) = static_cast<uint32_t>(data.phase_a_centipercent) * kPwmCounts / 10000;
+        (*pwm2_ccr_) = static_cast<uint32_t>(data.phase_b_centipercent) * kPwmCounts / 10000;
+        (*pwm3_ccr_) = static_cast<uint32_t>(data.phase_c_centipercent) * kPwmCounts / 10000;
+
+        status_.phase_a_centipercent = data.phase_a_centipercent;
+        status_.phase_b_centipercent = data.phase_b_centipercent;
+        status_.phase_c_centipercent = data.phase_c_centipercent;
         break;
       }
       case kFoc: {
@@ -120,6 +134,9 @@ class Stm32F446BldcFoc::Impl {
   }
 
   Status status() const { return status_; }
+
+  void UpdateConfig() {
+  }
 
  private:
   void ConfigureTimer() {
@@ -258,7 +275,7 @@ class Stm32F446BldcFoc::Impl {
   }
 
   const Options options_;
-  const Config config_;
+  Config config_;
   TIM_TypeDef* timer_ = nullptr;
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;
@@ -288,16 +305,20 @@ class Stm32F446BldcFoc::Impl {
   static Impl* g_impl_;
 };
 
-Stm32F446BldcFoc::Impl* Stm32F446BldcFoc::Impl::g_impl_ = nullptr;
+BldcFoc::Impl* BldcFoc::Impl::g_impl_ = nullptr;
 
-Stm32F446BldcFoc::Stm32F446BldcFoc(mjlib::micro::Pool* pool, const Options& options) : impl_(pool, options) {}
-Stm32F446BldcFoc::~Stm32F446BldcFoc() {}
+BldcFoc::BldcFoc(micro::Pool* pool,
+                 micro::PersistentConfig* persistent_config,
+                 micro::TelemetryManager* telemetry_manager,
+                 const Options& options)
+    : impl_(pool, persistent_config, telemetry_manager, options) {}
+BldcFoc::~BldcFoc() {}
 
-void Stm32F446BldcFoc::Command(const CommandData& data) {
+void BldcFoc::Command(const CommandData& data) {
   impl_->Command(data);
 }
 
-Stm32F446BldcFoc::Status Stm32F446BldcFoc::status() const {
+BldcFoc::Status BldcFoc::status() const {
   return impl_->status();
 }
 

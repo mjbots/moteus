@@ -35,6 +35,7 @@ class Drv8323::Impl {
       : spi_(options.mosi, options.miso, options.sck),
         cs_(options.cs),
         enable_(options.enable, 0),
+        hiz_(options.hiz, 0),
         fault_(options.fault, PullUp) {
     // We need to enable the built-in pullup on the MISO pin, but
     // mbed's SPI class provides no mechanism to do that. :( Thus we
@@ -64,6 +65,10 @@ class Drv8323::Impl {
       }
       WriteConfig();
     }
+  }
+
+  void Power(bool value) {
+    hiz_.write(value ? 1 : 0);
   }
 
   void PollMillisecond() {
@@ -120,6 +125,7 @@ class Drv8323::Impl {
     s.vgs_lc = bit(1, 0);
 
     s.fault_line = fault_.read() == 0;
+    s.power = (hiz_.read() != 0);
 
     s.status_count++;
 
@@ -249,6 +255,7 @@ class Drv8323::Impl {
   SPI spi_;
   DigitalOut cs_;
   DigitalOut enable_;
+  DigitalOut hiz_;
   DigitalIn fault_;
 
   uint16_t loop_count_ = 0;
@@ -265,6 +272,7 @@ Drv8323::Drv8323(micro::Pool* pool,
 Drv8323::~Drv8323() {}
 
 void Drv8323::Enable(bool value) { impl_->Enable(value); }
+void Drv8323::Power(bool value) { impl_->Power(value); }
 void Drv8323::PollMillisecond() { impl_->PollMillisecond(); }
 const Drv8323::Status* Drv8323::status() const { return &impl_->status_; }
 

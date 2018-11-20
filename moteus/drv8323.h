@@ -34,6 +34,7 @@ class Drv8323 {
 
     PinName enable = NC;
     PinName fault = NC;
+    PinName hiz = NC;
   };
 
   Drv8323(mjlib::micro::Pool*,
@@ -45,6 +46,7 @@ class Drv8323 {
   // Turn on or off the driver.  When turning it on, all SPI
   // parameters are set from configuration.
   void Enable(bool);
+  void Power(bool);
 
   void PollMillisecond();
 
@@ -77,6 +79,9 @@ class Drv8323 {
 
     // Whether a fault was signaled over the hard-line.
     bool fault_line = false;
+
+    // Whether the motors are powered.
+    bool power = false;
 
     // Bitmask of configuration registers which could not be set.
     uint8_t fault_config = 0;
@@ -111,6 +116,7 @@ class Drv8323 {
       a->Visit(MJ_NVP(vgs_lc));
 
       a->Visit(MJ_NVP(fault_line));
+      a->Visit(MJ_NVP(power));
 
       a->Visit(MJ_NVP(fault_config));
       a->Visit(MJ_NVP(config_count));
@@ -167,7 +173,7 @@ class Drv8323 {
     bool dis_gdf = false;   // Gate drive fault is disabled
     bool otw_rep = false;   // OTW is reported on nFAULT
 
-    PwmMode pwm_mode = PwmMode::k6x;
+    PwmMode pwm_mode = PwmMode::k3x;
 
     bool pwm_1x_asynchronous = false;
     bool pwm_1x_dir = false;

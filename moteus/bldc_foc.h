@@ -18,13 +18,16 @@
 
 #include "PinNames.h"
 
+#include "mjlib/base/visitor.h"
+
+#include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/pool_ptr.h"
+#include "mjlib/micro/telemetry_manager.h"
 
 namespace moteus {
 
-/// Commands a BLDC motor.  Pin and peripheral assignments are
-/// hardcoded as: TBD
-class Stm32F446BldcFoc {
+/// Commands a BLDC motor.
+class BldcFoc {
  public:
   struct Options {
     // These three pins must be on the same timer, and one that
@@ -43,12 +46,21 @@ class Stm32F446BldcFoc {
     PinName debug_out = NC;
   };
 
-  Stm32F446BldcFoc(mjlib::micro::Pool*, const Options&);
-  ~Stm32F446BldcFoc();
+  BldcFoc(mjlib::micro::Pool*,
+          mjlib::micro::PersistentConfig*,
+          mjlib::micro::TelemetryManager*,
+          const Options&);
+  ~BldcFoc();
 
   struct Config {
     float i_scale_A = 0.02014f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(i_scale_A));
+      a->Visit(MJ_NVP(v_scale_V));
+    }
   };
 
   struct Status {
@@ -59,6 +71,25 @@ class Stm32F446BldcFoc {
     float cur1_A = 0.0;
     float cur2_A = 0.0;
     float bus_V = 0.0;
+
+    uint16_t phase_a_centipercent = 0;
+    uint16_t phase_b_centipercent = 0;
+    uint16_t phase_c_centipercent = 0;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(adc1_raw));
+      a->Visit(MJ_NVP(adc2_raw));
+      a->Visit(MJ_NVP(adc3_raw));
+
+      a->Visit(MJ_NVP(cur1_A));
+      a->Visit(MJ_NVP(cur2_A));
+      a->Visit(MJ_NVP(bus_V));
+
+      a->Visit(MJ_NVP(phase_a_centipercent));
+      a->Visit(MJ_NVP(phase_b_centipercent));
+      a->Visit(MJ_NVP(phase_c_centipercent));
+    }
   };
 
   enum Mode {
@@ -71,9 +102,9 @@ class Stm32F446BldcFoc {
     Mode mode = kDisabled;
 
     // For kPhasePwm mode.
-    uint16_t phase_a_millipercent = 0;  // 0 - 10000
-    uint16_t phase_b_millipercent = 0;  // 0 - 10000
-    uint16_t phase_c_millipercent = 0;  // 0 - 10000
+    uint16_t phase_a_centipercent = 0;  // 0 - 10000
+    uint16_t phase_b_centipercent = 0;  // 0 - 10000
+    uint16_t phase_c_centipercent = 0;  // 0 - 10000
 
     // For kFoc mode.
     int32_t i_d_mA = 0;
