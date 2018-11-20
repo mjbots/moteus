@@ -34,9 +34,19 @@ class BoardDebug::Impl {
                        std::placeholders::_1, std::placeholders::_2));
 
     data_update_ = telemetry_manager->Register("board_debug", &data_);
+
+    as5047_spi_.format(16, 1);
+    as5047_spi_.frequency(10000000);
   }
 
   void PollMillisecond() {
+    // NOTE: This seems to take around 7us (this is 28% of our full
+    // cycle period).  I think that if I didn't go through the HAL, I
+    // could get this down to something under 2us, which would be more
+    // reasonable.
+    as5047_cs_ = 0;
+    data_.as5047 = as5047_spi_.write(0xffff) & 0x3fff;
+    as5047_cs_ = 1;
   }
 
   void HandleCommand(const std::string_view& message,
@@ -77,11 +87,13 @@ class BoardDebug::Impl {
   struct Data {
     bool led1 = false;
     bool led2 = false;
+    uint16_t as5047 = 0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(led1));
       a->Visit(MJ_NVP(led2));
+      a->Visit(MJ_NVP(as5047));
     }
   };
 
@@ -90,6 +102,9 @@ class BoardDebug::Impl {
 
   DigitalOut led1_{PA_11, 1};
   DigitalOut led2_{PA_12, 1};
+
+  SPI as5047_spi_{PB_15, PB_14, PB_13};
+  DigitalOut as5047_cs_{PB_12, 1};
 };
 
 BoardDebug::BoardDebug(micro::Pool* pool,

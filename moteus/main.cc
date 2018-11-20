@@ -53,7 +53,7 @@ int main(void) {
   Stm32F446AsyncUart::Options pc_options;
   pc_options.tx = PC_10;
   pc_options.rx = PC_11;
-  pc_options.baud_rate = 9600;
+  pc_options.baud_rate = 115200;
   Stm32F446AsyncUart pc(&pool, &queue, pc_options);
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(&pc);
@@ -97,9 +97,9 @@ int main(void) {
     system_info.PollMillisecond();
     board_debug.PollMillisecond();
   };
-  ticker.attach_us(
+  ticker.attach_us(queue.event(
       Callback<void()>(
-          &ms_poll, &micro::StaticFunction<void()>::operator()), 1000);
+          &ms_poll, &micro::StaticFunction<void()>::operator())), 1000);
 
   queue.dispatch_forever();
 
