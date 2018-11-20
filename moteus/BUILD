@@ -21,6 +21,8 @@ mbed_binary(
     name = "moteus",
     srcs = [
         "assert.cc",
+        "board_debug.h",
+        "board_debug.cc",
         "error.h",
         "error.cc",
         "irq_callback_table.h",
@@ -61,7 +63,11 @@ genrule(
     output_to_bindir = True,
 )
 
-OCD = "openocd -f /usr/share/openocd/scripts/board/st_nucleo_f4.cfg -f /usr/share/openocd/scripts/interface/stlink-v2-1.cfg"
+OCD = (
+    "openocd " +
+    "-f /usr/share/openocd/scripts/interface/stlink-v2.cfg " +
+    "-f /usr/share/openocd/scripts/target/stm32f4x_stlink.cfg "
+)
 
 genrule(
     name = "flash",
