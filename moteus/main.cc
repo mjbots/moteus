@@ -95,8 +95,7 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
 
-  BoardDebug board_debug(&pool, &command_manager, &telemetry_manager);
-
+  BoardDebug board_debug(&pool, &persistent_config, &command_manager, &telemetry_manager);
 
   command_manager.AsyncStart();
   persistent_config.Load();

@@ -23,6 +23,8 @@ mbed_binary(
         "assert.cc",
         "board_debug.h",
         "board_debug.cc",
+        "drv8323.h",
+        "drv8323.cc",
         "error.h",
         "error.cc",
         "irq_callback_table.h",

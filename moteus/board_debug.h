@@ -15,6 +15,7 @@
 #pragma once
 
 #include "mjlib/micro/command_manager.h"
+#include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
@@ -24,6 +25,7 @@ namespace moteus {
 class BoardDebug {
  public:
   BoardDebug(mjlib::micro::Pool*,
+             mjlib::micro::PersistentConfig*,
              mjlib::micro::CommandManager*,
              mjlib::micro::TelemetryManager*);
   ~BoardDebug();
