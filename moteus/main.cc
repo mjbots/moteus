@@ -50,11 +50,21 @@ int main(void) {
   EventQueue queue(2048);
   micro::SizedPool<8192> pool;
 
-  Stm32F446AsyncUart::Options pc_options;
-  pc_options.tx = PC_10;
-  pc_options.rx = PC_11;
-  pc_options.baud_rate = 115200;
-  Stm32F446AsyncUart pc(&pool, &queue, pc_options);
+  Stm32F446AsyncUart pc(&pool, &queue, []() {
+      Stm32F446AsyncUart::Options pc_options;
+      pc_options.tx = PC_10;
+      pc_options.rx = PC_11;
+      pc_options.baud_rate = 115200;
+      return pc_options;
+    }());
+  Stm32F446AsyncUart rs485(&pool, &queue, []() {
+      Stm32F446AsyncUart::Options options;
+      options.tx = PA_9;
+      options.rx = PA_10;
+      options.baud_rate = 115200;
+      return options;
+    }());
+  DigitalOut rs485_enable{PA_8, 1};
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(&pc);
   micro::CommandManager command_manager(&pool, &pc, &write_stream);
@@ -97,9 +107,21 @@ int main(void) {
     system_info.PollMillisecond();
     board_debug.PollMillisecond();
   };
-  ticker.attach_us(queue.event(
-      Callback<void()>(
-          &ms_poll, &micro::StaticFunction<void()>::operator())), 1000);
+  ticker.attach_us(
+      queue.event(
+          Callback<void()>(
+              &ms_poll, &micro::StaticFunction<void()>::operator())),
+      1000);
+
+  Ticker rs485_ticker;
+  micro::StaticFunction<void()> rs485_emit = [&]() {
+    AsyncWrite(rs485, "485 test\r\n", [](mjlib::base::error_code) {});
+  };
+  rs485_ticker.attach_us(
+      queue.event(
+          Callback<void()>(
+              &rs485_emit, &micro::StaticFunction<void()>::operator())),
+      1000000);
 
   queue.dispatch_forever();
 
