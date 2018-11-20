@@ -48,7 +48,7 @@ mbed_binary(
         "//mjlib/micro:static_function",
         "//mjlib/micro:telemetry_manager",
     ],
-    linker_script = "stm32f466.ld",
+    linker_script = "stm32f446.ld",
 )
 
 genrule(
