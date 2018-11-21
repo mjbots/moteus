@@ -14,6 +14,7 @@
 
 #include "bldc_foc.h"
 
+#include <cmath>
 #include <functional>
 
 #include "mbed.h"
@@ -32,6 +33,8 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
+
+constexpr float kPi = 3.14159265359f;
 
 // mbed seems to configure the Timer clock input to 90MHz.  We want
 // 80kHz up/down rate for 40kHz freqency, so:
@@ -84,8 +87,10 @@ class BldcFoc::Impl {
  public:
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
+       PositionSensor* position_sensor,
        const Options& options)
       : options_(options),
+        position_sensor_(position_sensor),
         pwm1_(options.pwm1),
         pwm2_(options.pwm2),
         pwm3_(options.pwm3),
@@ -296,9 +301,16 @@ class BldcFoc::Impl {
       status_.adc2_raw = ADC2->DR;
       status_.adc3_raw = ADC3->DR;
 
+      status_.position_raw = position_sensor_->Sample();
+
+
       status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * config_.i_scale_A;
       status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * config_.i_scale_A;
       status_.bus_V = status_.adc3_raw * config_.v_scale_V;
+      status_.electrical_theta =
+          2.0 * kPi * ::fmodf(
+              (static_cast<float>(status_.position_raw) / 65536.0f *
+               (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
 
       debug_out_ = 0;
     }
@@ -308,6 +320,8 @@ class BldcFoc::Impl {
   }
 
   const Options options_;
+  PositionSensor* const position_sensor_;
+
   Config config_;
   TIM_TypeDef* timer_ = nullptr;
   ADC_TypeDef* const adc1_ = ADC1;
@@ -343,8 +357,10 @@ BldcFoc::Impl* BldcFoc::Impl::g_impl_ = nullptr;
 BldcFoc::BldcFoc(micro::Pool* pool,
                  micro::PersistentConfig* persistent_config,
                  micro::TelemetryManager* telemetry_manager,
+                 PositionSensor* position_sensor,
                  const Options& options)
-    : impl_(pool, persistent_config, telemetry_manager, options) {}
+    : impl_(pool,
+            persistent_config, telemetry_manager, position_sensor, options) {}
 BldcFoc::~BldcFoc() {}
 
 void BldcFoc::Command(const CommandData& data) {

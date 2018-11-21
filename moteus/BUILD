@@ -20,6 +20,7 @@ load("@com_github_ARMmbed_mbed-os//:rules.bzl", "mbed_binary")
 mbed_binary(
     name = "moteus",
     srcs = [
+        "as5047.h",
         "assert.cc",
         "bldc_foc.h",
         "bldc_foc.cc",
@@ -31,6 +32,7 @@ mbed_binary(
         "error.cc",
         "irq_callback_table.h",
         "irq_callback_table.cc",
+        "position_sensor.h",
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
         "stm32_flash.h",

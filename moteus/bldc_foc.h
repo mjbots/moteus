@@ -24,6 +24,8 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/position_sensor.h"
+
 namespace moteus {
 
 /// Commands a BLDC motor.
@@ -49,6 +51,7 @@ class BldcFoc {
   BldcFoc(mjlib::micro::Pool*,
           mjlib::micro::PersistentConfig*,
           mjlib::micro::TelemetryManager*,
+          PositionSensor*,
           const Options&);
   ~BldcFoc();
 
@@ -56,10 +59,15 @@ class BldcFoc {
     float i_scale_A = 0.02014f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
 
+    uint8_t motor_poles = 14;
+    float motor_offset = -0.1;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(i_scale_A));
       a->Visit(MJ_NVP(v_scale_V));
+      a->Visit(MJ_NVP(motor_poles));
+      a->Visit(MJ_NVP(motor_offset));
     }
   };
 
@@ -67,6 +75,7 @@ class BldcFoc {
     uint16_t adc1_raw = 0;
     uint16_t adc2_raw = 0;
     uint16_t adc3_raw = 0;
+    uint16_t position_raw = 0;
 
     uint16_t adc1_offset = 2048;
     uint16_t adc2_offset = 2048;
@@ -74,6 +83,8 @@ class BldcFoc {
     float cur1_A = 0.0;
     float cur2_A = 0.0;
     float bus_V = 0.0;
+
+    float electrical_theta = 0.0;
 
     uint16_t phase_a_centipercent = 0;
     uint16_t phase_b_centipercent = 0;
@@ -84,6 +95,7 @@ class BldcFoc {
       a->Visit(MJ_NVP(adc1_raw));
       a->Visit(MJ_NVP(adc2_raw));
       a->Visit(MJ_NVP(adc3_raw));
+      a->Visit(MJ_NVP(position_raw));
 
       a->Visit(MJ_NVP(adc1_offset));
       a->Visit(MJ_NVP(adc2_offset));
@@ -91,6 +103,7 @@ class BldcFoc {
       a->Visit(MJ_NVP(cur1_A));
       a->Visit(MJ_NVP(cur2_A));
       a->Visit(MJ_NVP(bus_V));
+      a->Visit(MJ_NVP(electrical_theta));
 
       a->Visit(MJ_NVP(phase_a_centipercent));
       a->Visit(MJ_NVP(phase_b_centipercent));
