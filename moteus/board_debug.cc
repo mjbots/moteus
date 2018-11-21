@@ -126,6 +126,12 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (command == "off") {
+      bldc_.ZeroOffset();
+      WriteOk(response);
+      return;
+    }
+
     if (command == "pwm") {
       const auto phase_str = tokenizer.next();
       const auto magnitude_str = tokenizer.next();
@@ -155,6 +161,8 @@ class BoardDebug::Impl {
       WriteOk(response);
       return;
     }
+
+    WriteMessage(response, "unknown command\r\n");
   }
 
   void WriteOk(const micro::CommandManager::Response& response) {

@@ -64,11 +64,27 @@ class Drv8323::Impl {
         wait_us(1000);
       }
       WriteConfig();
+      Calibrate();
     }
   }
 
   void Power(bool value) {
     hiz_.write(value ? 1 : 0);
+  }
+
+  uint16_t Read(int reg) {
+    cs_ = 0;
+    const uint16_t result = spi_.write(0x8000 | (reg << 11)) & 0x7ff;
+    cs_ = 1;
+    wait_us(1);
+    return result;
+  }
+
+  void Write(int reg, uint16_t value) {
+    cs_ = 0;
+    spi_.write((reg << 11) | (value & 0x7ff));
+    cs_ = 1;
+    wait_us(1);
   }
 
   void PollMillisecond() {
@@ -82,17 +98,9 @@ class Drv8323::Impl {
       return;
     }
 
-    const auto read_register = [&](int reg) {
-      cs_ = 0;
-      const uint16_t result = spi_.write(0x8000 | (reg << 11)) & 0x7ff;
-      cs_ = 1;
-      wait_us(1);
-      return result;
-    };
-
     const uint16_t status[2] = {
-      read_register(0),
-      read_register(1),
+      Read(0),
+      Read(1),
     };
 
     const auto bit = [&](int reg, int b) {
@@ -137,6 +145,22 @@ class Drv8323::Impl {
 
   void HandleConfigUpdate() {
     WriteConfig();
+  }
+
+  void Calibrate() {
+    // The offset calibration is done by temporarily setting the CAL
+    // bits to one.
+    const uint16_t old_reg6 = Read(6);
+
+    // None of the cal bits should be set already.
+    MJ_ASSERT((old_reg6 & 0x1c) == 0);
+
+    spi_.write((6 << 11) | (old_reg6 | 0x1c));
+
+    wait_us(200);
+
+    // Now unset the cal bits.
+    spi_.write((6 << 11) | old_reg6);
   }
 
   void WriteConfig() {
@@ -226,19 +250,13 @@ class Drv8323::Impl {
 
     // First set all the registers.
     for (int i = 2; i <= 6; i++) {
-      cs_ = 0;
-      spi_.write((i << 11) | regs[i]);
-      cs_ = 1;
-      wait_us(1);
+      Write(i, regs[i]);
     }
 
     // Then verify that all registers got the value we want.
     uint8_t fault_config = 0;
     for (int i = 2; i <= 6; i++) {
-      cs_ = 0;
-      const auto result = spi_.write(0x8000 | (i << 11)) & 0x7ff;
-      cs_ = 1;
-      wait_us(1);
+      const auto result = Read(i);
 
       if (result != regs[i]) {
         fault_config |= (1 << i);

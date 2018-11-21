@@ -204,7 +204,7 @@ class Drv8323 {
     bool vref_div = true;  // reference voltage is VREF / 2 (bi-directional)
     bool ls_ref = false;  // false = OCP for low side is measured SHx to SPx
                           // true = OCP is measured SHx to SNx
-    uint8_t csa_gain = 20;  // 5, 10, 20, 40 are options
+    uint8_t csa_gain = 40;  // 5, 10, 20, 40 are options
     bool dis_sen = false;  // if true, disable sense overcurrent fault
 
     uint16_t sen_lvl_mv = 1000;  // OCP level, (250, 500, 750, 1000)

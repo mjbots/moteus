@@ -68,6 +68,9 @@ class BldcFoc {
     uint16_t adc2_raw = 0;
     uint16_t adc3_raw = 0;
 
+    uint16_t adc1_offset = 2048;
+    uint16_t adc2_offset = 2048;
+
     float cur1_A = 0.0;
     float cur2_A = 0.0;
     float bus_V = 0.0;
@@ -81,6 +84,9 @@ class BldcFoc {
       a->Visit(MJ_NVP(adc1_raw));
       a->Visit(MJ_NVP(adc2_raw));
       a->Visit(MJ_NVP(adc3_raw));
+
+      a->Visit(MJ_NVP(adc1_offset));
+      a->Visit(MJ_NVP(adc2_offset));
 
       a->Visit(MJ_NVP(cur1_A));
       a->Visit(MJ_NVP(cur2_A));
@@ -112,6 +118,11 @@ class BldcFoc {
   };
 
   void Command(const CommandData&);
+
+  // Stop all switching, assume that all currents are 0, average
+  // readings from each of the current sensors to determine the actual
+  // zero offset.
+  void ZeroOffset();
 
   Status status() const;
 

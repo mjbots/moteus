@@ -133,6 +133,43 @@ class BldcFoc::Impl {
     }
   }
 
+  void ZeroOffset() {
+    (*pwm1_ccr_) = 0;
+    (*pwm2_ccr_) = 0;
+    (*pwm3_ccr_) = 0;
+
+    status_.phase_a_centipercent = 0;
+    status_.phase_b_centipercent = 0;
+    status_.phase_c_centipercent = 0;
+
+    wait_us(100);
+
+    // Now disable the timer for the duration of our sampling.
+    timer_->CR1 &= ~(TIM_CR1_CEN);
+
+    auto sample_adc = []() {
+      ADC1->CR2 |= ADC_CR2_SWSTART;
+
+      while ((ADC1->SR & ADC_SR_EOC) == 0);
+
+      return std::make_pair(ADC1->DR, ADC2->DR);
+    };
+
+    std::pair<uint32_t, uint32_t> total = { 0, 0 };
+    constexpr int kSampleCount = 256;
+    for (int i = 0; i < kSampleCount; i++) {
+      const auto this_sample = sample_adc();
+      total = {total.first + this_sample.first,
+               total.second + this_sample.second};
+    }
+
+    status_.adc1_offset = total.first / kSampleCount;
+    status_.adc2_offset = total.second / kSampleCount;
+
+    // Start the timer back up again.
+    timer_->CR1 |= TIM_CR1_CEN;
+  }
+
   Status status() const { return status_; }
 
   void UpdateConfig() {
@@ -177,12 +214,6 @@ class BldcFoc::Impl {
 
     timer_->PSC = 0; // No prescaler.
     timer_->ARR = kPwmCounts;
-
-    // Configure the first three outputs with positive polarity.
-    // timer_->CCER =
-    //     TIM_CCER_CC1E | TIM_CCER_CC1P |
-    //     TIM_CCER_CC2E | TIM_CCER_CC2P |
-    //     TIM_CCER_CC3E | TIM_CCER_CC3P;
 
     // NOTE: We don't use IrqCallbackTable here because we need the
     // absolute minimum latency possible.
@@ -251,9 +282,11 @@ class BldcFoc::Impl {
 
   // CALLED IN INTERRUPT CONTEXT.
   void HandleTimer() {
-    debug_out_ = 1;
 
-    if (timer_->SR & TIM_SR_UIF) {
+    if ((timer_->SR & TIM_SR_UIF) &&
+        (timer_->CR1 & TIM_CR1_DIR)) {
+      debug_out_ = 1;
+
       // Start conversion.
       ADC1->CR2 |= ADC_CR2_SWSTART;
 
@@ -263,15 +296,15 @@ class BldcFoc::Impl {
       status_.adc2_raw = ADC2->DR;
       status_.adc3_raw = ADC3->DR;
 
-      status_.cur1_A = status_.adc1_raw * config_.i_scale_A;
-      status_.cur2_A = status_.adc2_raw * config_.i_scale_A;
+      status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * config_.i_scale_A;
+      status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * config_.i_scale_A;
       status_.bus_V = status_.adc3_raw * config_.v_scale_V;
+
+      debug_out_ = 0;
     }
 
     // Reset the status register.
     timer_->SR = 0x00;
-
-    debug_out_ = 0;
   }
 
   const Options options_;
@@ -316,6 +349,10 @@ BldcFoc::~BldcFoc() {}
 
 void BldcFoc::Command(const CommandData& data) {
   impl_->Command(data);
+}
+
+void BldcFoc::ZeroOffset() {
+  impl_->ZeroOffset();
 }
 
 BldcFoc::Status BldcFoc::status() const {
