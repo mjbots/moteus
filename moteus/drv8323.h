@@ -180,23 +180,23 @@ class Drv8323 {
 
 
     // Gate Drive HS Register
-    uint16_t idrivep_hs_ma = 1000;
-    uint16_t idriven_hs_ma = 2000;
+    uint16_t idrivep_hs_ma = 50;
+    uint16_t idriven_hs_ma = 100;
 
 
     // Gate Drive LS Register
     bool cbc = true;  // Cycle-by cycle operation.
-    uint16_t tdrive_ns = 4000;  // peak gate-current drive time
-    uint16_t idrivep_ls_ma = 1000;
-    uint16_t idriven_ls_ma = 2000;
+    uint16_t tdrive_ns = 1000;  // peak gate-current drive time
+    uint16_t idrivep_ls_ma = 50;
+    uint16_t idriven_ls_ma = 100;
 
 
     // OCP Control Register
     bool tretry = false;  // false = 4ms, true = 50us
     uint16_t dead_time_ns = 100;
-    OcpMode ocp_mode = OcpMode::kAutomaticRetry;
+    OcpMode ocp_mode = OcpMode::kLatchedFault;
     uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
-    uint16_t vds_lvl_mv = 750;
+    uint16_t vds_lvl_mv = 130;
 
 
     // CSA Control Register
@@ -207,7 +207,7 @@ class Drv8323 {
     uint8_t csa_gain = 40;  // 5, 10, 20, 40 are options
     bool dis_sen = false;  // if true, disable sense overcurrent fault
 
-    uint16_t sen_lvl_mv = 1000;  // OCP level, (250, 500, 750, 1000)
+    uint16_t sen_lvl_mv = 250;  // OCP level, (250, 500, 750, 1000)
 
 
     template <typename Archive>
