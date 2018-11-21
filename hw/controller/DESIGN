@@ -1,3 +1,10 @@
+r1 errata
+ * would be nice to have a few debug through-holes
+  * gnd
+  * motor1
+ * drv8323 SDO could use an external pullup for faster rise time
+
+
 Design controller board
  * LEDs
    * status LEDs
