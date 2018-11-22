@@ -17,6 +17,14 @@
 package(default_visibility = ["//visibility:public"])
 load("@com_github_ARMmbed_mbed-os//:rules.bzl", "mbed_binary")
 
+cc_library(
+    name = "common",
+    hdrs = [
+        "foc.h",
+        "math.h",
+    ],
+)
+
 mbed_binary(
     name = "moteus",
     srcs = [
@@ -42,6 +50,7 @@ mbed_binary(
         "main.cc",
     ],
     deps = [
+        ":common",
         "//mjlib/base:assert",
         "//mjlib/base:system_error",
         "//mjlib/micro:async_exclusive",
@@ -79,4 +88,16 @@ genrule(
     srcs = ["moteus.08000000.bin", "moteus.08010000.bin"],
     outs = ["flash.stamp"],
     cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+)
+
+cc_test(
+    name = "test",
+    srcs = [
+        "test/foc_test.cc",
+        "test/test_main.cc",
+    ],
+    deps = [
+        ":common",
+        "@boost//:test",
+    ],
 )
