@@ -31,9 +31,23 @@ BOOST_AUTO_TEST_CASE(FocTest1) {
   BOOST_TEST(ct.x == 1.3333333333f);
   BOOST_TEST(ct.y == 0.0);
 
+  InverseClarkTransform ict(ct.x, ct.y);
+  BOOST_TEST(ict.a == 1.3333333333f);
+  BOOST_TEST(ict.b == -0.666666666666f);
+  BOOST_TEST(ict.c == -0.666666666666f);
+
   ParkTransform pt(sin_cos, ct.x, ct.y);
   BOOST_TEST(pt.d == dq.d);
   BOOST_TEST(pt.q == dq.q);
+
+  InverseParkTransform ipt(sin_cos, pt.d, pt.q);
+  BOOST_TEST(ipt.x == ct.x);
+  BOOST_TEST(ipt.y == ct.y);
+
+  InverseDqTransform idq(sin_cos, pt.d, pt.q);
+  BOOST_TEST(idq.a == ict.a);
+  BOOST_TEST(idq.b == ict.b);
+  BOOST_TEST(idq.c == ict.c);
 }
 
 BOOST_AUTO_TEST_CASE(FocTest2) {
@@ -47,7 +61,21 @@ BOOST_AUTO_TEST_CASE(FocTest2) {
   BOOST_TEST(ct.x == 1.333333333333f);
   BOOST_TEST(ct.y == 0.0f);
 
+  InverseClarkTransform ict(ct.x, ct.y);
+  BOOST_TEST(ict.a == 1.333333333333f);
+  BOOST_TEST(ict.b == -0.66666666666f);
+  BOOST_TEST(ict.c == -0.66666666666f);
+
   ParkTransform pt(sin_cos, ct.x, ct.y);
   BOOST_TEST(pt.d == dq.d);
   BOOST_TEST(pt.q == dq.q);
+
+  InverseParkTransform ipt(sin_cos, pt.d, pt.q);
+  BOOST_TEST(ipt.x == ct.x);
+  BOOST_TEST(ipt.y == ct.y);
+
+  InverseDqTransform idq(sin_cos, pt.d, pt.q);
+  BOOST_TEST(idq.a == ict.a);
+  BOOST_TEST(idq.b == ict.b);
+  BOOST_TEST(idq.c == ict.c);
 }

@@ -43,6 +43,17 @@ struct DqTransform {
   const float q;
 };
 
+struct InverseDqTransform {
+  InverseDqTransform(const SinCos& sc, float d, float q)
+      : a(sc.c * d - sc.s * q),
+        b((kSqrt3_4 * sc.s - 0.5f * sc.c) * d - (-kSqrt3_4 * sc.c - 0.5f * sc.s) * q),
+        c((-kSqrt3_4 * sc.s - 0.5f * sc.c) * d - (kSqrt3_4 * sc.c - 0.5f * sc.s) * q) {}
+
+  const float a;
+  const float b;
+  const float c;
+};
+
 struct ClarkTransform {
   ClarkTransform(float a, float b, float c)
       : x((2.0f * a - b  - c) * (1.0f / 3.0f)),
@@ -52,6 +63,17 @@ struct ClarkTransform {
   const float y;
 };
 
+struct InverseClarkTransform {
+  InverseClarkTransform(float x, float y)
+      : a(x),
+        b((-x + kSqrt3 * y) / 2.0f),
+        c((-x - kSqrt3 * y) / 2.0f) {}
+
+  const float a;
+  const float b;
+  const float c;
+};
+
 struct ParkTransform {
   ParkTransform(const SinCos& sc, float x, float y)
       : d(sc.c * x + sc.s * y),
@@ -59,6 +81,15 @@ struct ParkTransform {
 
   const float d;
   const float q;
+};
+
+struct InverseParkTransform {
+  InverseParkTransform(const SinCos& sc, float d, float q)
+      : x(sc.c * d - sc.s * q),
+        y(sc.c * q + sc.s * d) {}
+
+  const float x;
+  const float y;
 };
 
 }
