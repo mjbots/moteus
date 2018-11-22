@@ -23,6 +23,8 @@
 #include "mjlib/base/assert.h"
 
 #include "moteus/irq_callback_table.h"
+#include "moteus/foc.h"
+#include "moteus/math.h"
 
 // TODO
 //
@@ -33,8 +35,6 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
-
-constexpr float kPi = 3.14159265359f;
 
 // mbed seems to configure the Timer clock input to 90MHz.  We want
 // 80kHz up/down rate for 40kHz freqency, so:
@@ -311,6 +311,14 @@ class BldcFoc::Impl {
           2.0 * kPi * ::fmodf(
               (static_cast<float>(status_.position_raw) / 65536.0f *
                (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
+
+      SinCos sin_cos{status_.electrical_theta};
+      DqTransform dq{sin_cos,
+            status_.cur1_A,
+            status_.cur2_A,
+            0.0f - (status_.cur1_A + status_.cur2_A)};
+      status_.d_A = dq.d;
+      status_.q_A = dq.q;
 
       debug_out_ = 0;
     }

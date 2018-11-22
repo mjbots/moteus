@@ -86,6 +86,11 @@ class BldcFoc {
 
     float electrical_theta = 0.0;
 
+    float d_A = 0.0;
+    float q_A = 0.0;
+
+    // Commands.
+
     uint16_t phase_a_centipercent = 0;
     uint16_t phase_b_centipercent = 0;
     uint16_t phase_c_centipercent = 0;
@@ -104,6 +109,9 @@ class BldcFoc {
       a->Visit(MJ_NVP(cur2_A));
       a->Visit(MJ_NVP(bus_V));
       a->Visit(MJ_NVP(electrical_theta));
+
+      a->Visit(MJ_NVP(d_A));
+      a->Visit(MJ_NVP(q_A));
 
       a->Visit(MJ_NVP(phase_a_centipercent));
       a->Visit(MJ_NVP(phase_b_centipercent));
