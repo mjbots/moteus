@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 
 #include "moteus/math.h"
@@ -22,10 +23,21 @@ namespace moteus {
 
 // A helper to cache the result of sin and cos on a given quantity.
 struct SinCos {
-  SinCos(float theta) : s(std::sin(theta)), c(std::cos(theta)) {}
+  SinCos(float theta) {
+    while (theta < 0.0f) { theta += k2Pi; }
+    while (theta >= k2Pi) { theta -= k2Pi; }
 
-  const float s;
-  const float c;
+    int sin_index = std::max(0, std::min(511, static_cast<int>((512.0f / k2Pi) * theta)));
+    int cos_index = ((128 - sin_index) + 512) % 512;
+
+    s = table_[sin_index];
+    c = table_[cos_index];
+  }
+
+  float s;
+  float c;
+
+  static const float table_[512];
 };
 
 struct DqTransform {
@@ -33,11 +45,11 @@ struct DqTransform {
       : d((2.0f / 3.0f) *
           (a * sc.c +
            (kSqrt3_4 * sc.s - 0.5f * sc.c) * b +
-           (-kSqrt3_4 * sc.s - 0.5 * sc.c) * c)),
+           (-kSqrt3_4 * sc.s - 0.5f * sc.c) * c)),
         q((2.0f / 3.0f) *
           (-sc.s * a -
-           (-kSqrt3_4 * sc.c - 0.5 * sc.s) * b -
-           (kSqrt3_4 * sc.c - 0.5 * sc.s) * c)) {}
+           (-kSqrt3_4 * sc.c - 0.5f * sc.s) * b -
+           (kSqrt3_4 * sc.c - 0.5f * sc.s) * c)) {}
 
   const float d;
   const float q;

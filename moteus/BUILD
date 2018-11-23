@@ -23,6 +23,9 @@ cc_library(
         "foc.h",
         "math.h",
     ],
+    srcs = [
+        "foc.cc",
+    ],
 )
 
 mbed_binary(
