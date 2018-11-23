@@ -76,6 +76,8 @@ class BldcFoc {
     uint8_t motor_poles = 14;
     float motor_offset = -0.61;
 
+    float unwrapped_position_scale = 1.0f / 5.0f;
+
     // We use the same PID constants for D and Q current control
     // loops.
     mjlib::base::PID::Config pid_dq;
@@ -93,6 +95,7 @@ class BldcFoc {
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
+      a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(pid_dq));
     }
   };
@@ -106,14 +109,17 @@ class BldcFoc {
     uint16_t adc1_offset = 2048;
     uint16_t adc2_offset = 2048;
 
-    float cur1_A = 0.0;
-    float cur2_A = 0.0;
-    float bus_V = 0.0;
+    float cur1_A = 0.0f;
+    float cur2_A = 0.0f;
+    float bus_V = 0.0f;
 
-    float electrical_theta = 0.0;
+    float electrical_theta = 0.0f;
 
-    float d_A = 0.0;
-    float q_A = 0.0;
+    float d_A = 0.0f;
+    float q_A = 0.0f;
+
+    int32_t unwrapped_position_raw = 0;
+    float unwrapped_position = 0.0f;
 
     bool zero_applied = false;
 
@@ -137,6 +143,9 @@ class BldcFoc {
 
       a->Visit(MJ_NVP(d_A));
       a->Visit(MJ_NVP(q_A));
+
+      a->Visit(MJ_NVP(unwrapped_position_raw));
+      a->Visit(MJ_NVP(unwrapped_position));
 
       a->Visit(MJ_NVP(zero_applied));
 

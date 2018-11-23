@@ -322,12 +322,18 @@ class BldcFoc::Impl {
       // just eats cycles the rest of the code could be using.
 
       // Sample the position.
+      const uint16_t old_position_raw = status_.position_raw;
       status_.position_raw = position_sensor_->Sample();
 
       status_.electrical_theta =
           k2Pi * ::fmodf(
               (static_cast<float>(status_.position_raw) / 65536.0f *
                (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
+      status_.unwrapped_position_raw +=
+          static_cast<int16_t>(status_.position_raw - old_position_raw);
+      status_.unwrapped_position =
+          status_.unwrapped_position_raw * config_.unwrapped_position_scale *
+          (1.0f / 65536.0f);
 
       SinCos sin_cos{status_.electrical_theta};
 
