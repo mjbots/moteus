@@ -36,6 +36,14 @@ namespace moteus {
 
 namespace {
 
+float Limit(float a, float min, float max) {
+  if (a < min) { return min; }
+  if (a > max) { return max; }
+  return a;
+}
+
+constexpr float kRateHz = 40000.0;
+
 // mbed seems to configure the Timer clock input to 90MHz.  We want
 // 80kHz up/down rate for 40kHz freqency, so:
 constexpr uint32_t kPwmCounts = 90000000 / 80000;
@@ -101,7 +109,9 @@ class BldcFoc::Impl {
 
     persistent_config->Register("bldc", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
-    telemetry_manager->Register("bldc", &status_);
+    telemetry_manager->Register("bldc_stats", &status_);
+    telemetry_manager->Register("bldc_cmd", &telemetry_data_);
+    telemetry_manager->Register("bldc_control", &control_);
 
     MJ_ASSERT(!g_impl_);
     g_impl_ = this;
@@ -115,37 +125,31 @@ class BldcFoc::Impl {
   }
 
   void Command(const CommandData& data) {
-    data_ = data;
+    // We can't enter current mode if we haven't zeroed our offsets
+    // yet.
 
-    switch (data_.mode) {
-      case kDisabled: {
-        // TODO(jpieper)
-        break;
-      }
-      case kPhasePwm: {
-        (*pwm1_ccr_) = static_cast<uint32_t>(data.phase_a_centipercent) * kPwmCounts / 10000;
-        (*pwm2_ccr_) = static_cast<uint32_t>(data.phase_b_centipercent) * kPwmCounts / 10000;
-        (*pwm3_ccr_) = static_cast<uint32_t>(data.phase_c_centipercent) * kPwmCounts / 10000;
-
-        status_.phase_a_centipercent = data.phase_a_centipercent;
-        status_.phase_b_centipercent = data.phase_b_centipercent;
-        status_.phase_c_centipercent = data.phase_c_centipercent;
-        break;
-      }
-      case kFoc: {
-        break;
-      }
+    if (!status_.zero_applied && data.mode == kFoc) {
+      // TODO(jpieper): Flag this somehow in an error bit.
+      return;
     }
+
+    // Actually setting values will happen in the interrupt routine,
+    // so we need to update this atomically.
+    CommandData* next = next_data_;
+    *next = data;
+
+    telemetry_data_ = data;
+
+    std::swap(current_data_, next_data_);
   }
 
   void ZeroOffset() {
+    // We can only zero the offset if we are currently disabled.
+    if (current_data_->mode != kDisabled) { return; }
+
     (*pwm1_ccr_) = 0;
     (*pwm2_ccr_) = 0;
     (*pwm3_ccr_) = 0;
-
-    status_.phase_a_centipercent = 0;
-    status_.phase_b_centipercent = 0;
-    status_.phase_c_centipercent = 0;
 
     wait_us(100);
 
@@ -168,8 +172,18 @@ class BldcFoc::Impl {
                total.second + this_sample.second};
     }
 
-    status_.adc1_offset = total.first / kSampleCount;
-    status_.adc2_offset = total.second / kSampleCount;
+    // We require that the results be somewhat close to the expected
+    // value, to prevent doing a calibration when the driver is
+    // entirely off.
+    const uint16_t new_offset1 = total.first / kSampleCount;
+    const uint16_t new_offset2 = total.second / kSampleCount;
+
+    if (std::abs(static_cast<int>(new_offset1) - 2048) < 200 &&
+        std::abs(static_cast<int>(new_offset2) - 2048) < 200) {
+      status_.adc1_offset = new_offset1;
+      status_.adc2_offset = new_offset2;
+      status_.zero_applied = true;
+    }
 
     // Start the timer back up again.
     timer_->CR1 |= TIM_CR1_CEN;
@@ -224,7 +238,7 @@ class BldcFoc::Impl {
     // absolute minimum latency possible.
     const auto irqn = FindUpdateIrq(timer_);
     NVIC_SetVector(irqn, reinterpret_cast<uint32_t>(&Impl::GlobalInterrupt));
-    NVIC_SetPriority(irqn, 2);
+    NVIC_SetPriority(irqn, 0);
     NVIC_EnableIRQ(irqn);
 
     // Reinitialize the counter and update all registers.
@@ -282,11 +296,11 @@ class BldcFoc::Impl {
 
   // CALLED IN INTERRUPT CONTEXT.
   static void GlobalInterrupt() {
-    g_impl_->HandleTimer();
+    g_impl_->ISR_HandleTimer();
   }
 
   // CALLED IN INTERRUPT CONTEXT.
-  void HandleTimer() {
+  void ISR_HandleTimer() {
 
     if ((timer_->SR & TIM_SR_UIF) &&
         (timer_->CR1 & TIM_CR1_DIR)) {
@@ -301,30 +315,134 @@ class BldcFoc::Impl {
       status_.adc2_raw = ADC2->DR;
       status_.adc3_raw = ADC3->DR;
 
+      // We are now out of the most time critical portion of the ISR,
+      // although it is still all pretty time critical since it runs
+      // at 40kHz.  But time spent until now actually limits the
+      // maximum duty cycle we can achieve, whereas time spent below
+      // just eats cycles the rest of the code could be using.
+
+      // Sample the position.
       status_.position_raw = position_sensor_->Sample();
 
-
-      status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * config_.i_scale_A;
-      status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * config_.i_scale_A;
-      status_.bus_V = status_.adc3_raw * config_.v_scale_V;
       status_.electrical_theta =
-          2.0 * kPi * ::fmodf(
+          k2Pi * ::fmodf(
               (static_cast<float>(status_.position_raw) / 65536.0f *
                (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
 
       SinCos sin_cos{status_.electrical_theta};
-      DqTransform dq{sin_cos,
-            status_.cur1_A,
-            status_.cur2_A,
-            0.0f - (status_.cur1_A + status_.cur2_A)};
-      status_.d_A = dq.d;
-      status_.q_A = dq.q;
+
+      ISR_CalculateCurrentState(sin_cos);
+
+      ISR_DoControl(sin_cos);
 
       debug_out_ = 0;
     }
 
     // Reset the status register.
     timer_->SR = 0x00;
+  }
+
+  // This is called from the ISR.
+  void ISR_CalculateCurrentState(const SinCos& sin_cos) {
+    status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * config_.i_scale_A;
+    status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * config_.i_scale_A;
+    status_.bus_V = status_.adc3_raw * config_.v_scale_V;
+
+    DqTransform dq{sin_cos,
+          status_.cur1_A,
+          0.0f - (status_.cur1_A + status_.cur2_A),
+          status_.cur2_A
+          };
+    status_.d_A = dq.d;
+    status_.q_A = dq.q;
+  }
+
+  void ISR_DoControl(const SinCos& sin_cos) {
+    // current_data_ is volatile, so read it out now, and operate on
+    // the pointer for the rest of the routine.
+    CommandData* data = current_data_;
+
+    control_ = {};
+
+    if (data->mode != kFoc) {
+      // If we are not running PID controllers, keep their state
+      // zeroed out.
+      status_.pid_d = {};
+      status_.pid_q = {};
+    }
+
+    switch (data->mode) {
+      case kNumModes:  // fall-through
+      case kDisabled: {
+        *pwm1_ccr_ = 0;
+        *pwm2_ccr_ = 0;
+        *pwm3_ccr_ = 0;
+        break;
+      }
+      case kPwm: {
+        ISR_DoPwmControl(data->pwm);
+        break;
+      }
+      case kVoltage: {
+        ISR_DoVoltageControl(data->phase_v);
+        break;
+      }
+      case kVoltageFoc: {
+        ISR_DoVoltageFOC(data->theta, data->voltage);
+        break;
+      }
+      case kFoc: {
+        ISR_DoFOC(sin_cos, data->i_d_A, data->i_q_A);
+        break;
+      }
+    }
+  }
+
+  void ISR_DoPwmControl(const Vec3& pwm) {
+    control_.pwm.a = LimitPwm(pwm.a);
+    control_.pwm.b = LimitPwm(pwm.b);
+    control_.pwm.c = LimitPwm(pwm.c);
+
+    *pwm1_ccr_ = static_cast<uint16_t>(control_.pwm.a * kPwmCounts);
+    *pwm3_ccr_ = static_cast<uint16_t>(control_.pwm.b * kPwmCounts);
+    *pwm2_ccr_ = static_cast<uint16_t>(control_.pwm.c * kPwmCounts);
+  }
+
+  void ISR_DoVoltageControl(const Vec3& voltage) {
+    control_.voltage = voltage;
+
+    auto voltage_to_pwm = [this](float v) {
+      return 0.5f + 2.0f * v / status_.bus_V;
+    };
+
+    ISR_DoPwmControl(Vec3{
+        voltage_to_pwm(voltage.a),
+            voltage_to_pwm(voltage.b),
+            voltage_to_pwm(voltage.c)});
+  }
+
+  void ISR_DoVoltageFOC(float theta, float voltage) {
+    SinCos sc(theta);
+    InverseDqTransform idt(sc, 0, voltage);
+    ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
+  }
+
+  void ISR_DoFOC(const SinCos& sin_cos, float i_d_A, float i_q_A) {
+    control_.i_d_A = i_d_A;
+    control_.i_q_A = i_q_A;
+
+    const float d_V = pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
+    const float q_V = pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
+
+    InverseDqTransform idt(sin_cos, d_V, q_V);
+
+    ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
+  }
+
+  float LimitPwm(float in) {
+    // We can't go full duty cycle or we wouldn't have time to sample
+    // the current.
+    return Limit(in, 0.1f, 0.9f);
   }
 
   const Options options_;
@@ -353,9 +471,23 @@ class BldcFoc::Impl {
   // This is just for debugging.
   DigitalOut debug_out_;
 
-  CommandData data_;
+  CommandData data_buffers_[2] = {};
+
+  // CommandData has its data updated to the ISR by first writing the
+  // new command into (*next_data_) and then swapping it with
+  // current_data_.
+  CommandData* volatile current_data_{&data_buffers_[0]};
+  CommandData* volatile next_data_{&data_buffers_[1]};
+
+  // This copy of CommandData exists solely for telemetry, and should
+  // never be read by an ISR.
+  CommandData telemetry_data_;
 
   Status status_;
+  Control control_;
+
+  mjlib::base::PID pid_d_{&config_.pid_dq, &status_.pid_d};
+  mjlib::base::PID pid_q_{&config_.pid_dq, &status_.pid_q};
 
   static Impl* g_impl_;
 };

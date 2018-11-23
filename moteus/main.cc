@@ -79,29 +79,28 @@ int main(void) {
   command_manager.AsyncStart();
   persistent_config.Load();
 
-  Ticker ticker;
-  micro::StaticFunction<void()> ms_poll  =[&]() {
-    telemetry_manager.PollMillisecond();
-    system_info.PollMillisecond();
-    board_debug.PollMillisecond();
-  };
-  ticker.attach_us(
-      queue.event(
-          Callback<void()>(
-              &ms_poll, &micro::StaticFunction<void()>::operator())),
-      1000);
+  // I initially used a Ticker here to enqueue events at 1ms
+  // intervals.  However, it introduced jitter into the current
+  // sampling interrupt, and I couldn't figure out how to get the
+  // interrupt priorities right.  Thus for now we just poll to look
+  // for millisecond turnover.
+  Timer timer;
+  timer.start();
+  int old_time = timer.read_ms();
 
-  Ticker rs485_ticker;
-  micro::StaticFunction<void()> rs485_emit = [&]() {
-    AsyncWrite(rs485, "485 test\r\n", [](mjlib::base::error_code) {});
-  };
-  rs485_ticker.attach_us(
-      queue.event(
-          Callback<void()>(
-              &rs485_emit, &micro::StaticFunction<void()>::operator())),
-      1000000);
+  for (;;) {
+    queue.dispatch(0);
 
-  queue.dispatch_forever();
+    const int new_time = timer.read_ms();
+
+    if (new_time != old_time) {
+      telemetry_manager.PollMillisecond();
+      system_info.PollMillisecond();
+      board_debug.PollMillisecond();
+
+      old_time = new_time;
+    }
+  }
 
   return 0;
 }

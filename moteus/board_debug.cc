@@ -61,7 +61,7 @@ class BoardDebug::Impl {
                  options.current2 = PB_0_ALT0;
                  options.vsense = PC_1_ALT1;
 
-                 options.debug_out = PB_3;
+                 options.debug_out = PB_8;
 
                  return options;
               }()) {
@@ -135,17 +135,33 @@ class BoardDebug::Impl {
       const float magnitude = std::strtof(magnitude_str.data(), nullptr);
 
       BldcFoc::CommandData command;
-      command.mode = BldcFoc::kPhasePwm;
+      command.mode = BldcFoc::kVoltageFoc;
 
-      auto amount = [&](float offset) {
-        return (
-            (std::sin(phase + offset) + 1.0f) *
-            5000.0f * magnitude);
-      };
+      command.theta = phase;
+      command.voltage = magnitude;
 
-      command.phase_a_centipercent = amount(0.0);
-      command.phase_b_centipercent = amount(2 * kPi * 1.0f / 3.0f);
-      command.phase_c_centipercent = amount(2 * kPi * 2.0f / 3.0f);
+      bldc_.Command(command);
+      WriteOk(response);
+      return;
+    }
+
+    if (command == "dq") {
+      const auto d_str = tokenizer.next();
+      const auto q_str = tokenizer.next();
+
+      if (d_str.empty() || q_str.empty()) {
+        WriteMessage(response, "missing d/q current\r\n");
+        return;
+      }
+
+      const float d = std::strtof(d_str.data(), nullptr);
+      const float q = std::strtof(q_str.data(), nullptr);
+
+      BldcFoc::CommandData command;
+      command.mode = BldcFoc::kFoc;
+
+      command.i_d_A = d;
+      command.i_q_A = q;
 
       bldc_.Command(command);
       WriteOk(response);

@@ -55,6 +55,7 @@ mbed_binary(
     deps = [
         ":common",
         "//mjlib/base:assert",
+        "//mjlib/base:pid",
         "//mjlib/base:system_error",
         "//mjlib/micro:async_exclusive",
         "//mjlib/micro:async_stream",

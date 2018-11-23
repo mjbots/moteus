@@ -16,6 +16,7 @@
 
 namespace moteus {
 
+constexpr float k2Pi = 6.283185307179586f;
 constexpr float kPi = 3.141592653589793f;
 constexpr float kSqrt3_4 = 0.86602540378f;
 constexpr float kSqrt6 = 2.449489742783178f;

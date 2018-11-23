@@ -18,6 +18,7 @@
 
 #include "PinNames.h"
 
+#include "mjlib/base/pid.h"
 #include "mjlib/base/visitor.h"
 
 #include "mjlib/micro/persistent_config.h"
@@ -55,12 +56,36 @@ class BldcFoc {
           const Options&);
   ~BldcFoc();
 
+  struct Vec3 {
+    float a = 0.0f;
+    float b = 0.0f;
+    float c = 0.0f;
+
+    template <typename Archive>
+    void Serialize(Archive* ar) {
+      ar->Visit(MJ_NVP(a));
+      ar->Visit(MJ_NVP(b));
+      ar->Visit(MJ_NVP(c));
+    }
+  };
+
   struct Config {
     float i_scale_A = 0.02014f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
 
     uint8_t motor_poles = 14;
-    float motor_offset = -0.1;
+    float motor_offset = -0.61;
+
+    // We use the same PID constants for D and Q current control
+    // loops.
+    mjlib::base::PID::Config pid_dq;
+
+    Config() {
+      pid_dq.kp = 0.01f;
+      pid_dq.ki = 30.0f;
+      pid_dq.ilimit = 20.0f;
+      pid_dq.sign = -1;
+    }
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -68,6 +93,7 @@ class BldcFoc {
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
+      a->Visit(MJ_NVP(pid_dq));
     }
   };
 
@@ -89,11 +115,10 @@ class BldcFoc {
     float d_A = 0.0;
     float q_A = 0.0;
 
-    // Commands.
+    bool zero_applied = false;
 
-    uint16_t phase_a_centipercent = 0;
-    uint16_t phase_b_centipercent = 0;
-    uint16_t phase_c_centipercent = 0;
+    mjlib::base::PID::State pid_d;
+    mjlib::base::PID::State pid_q;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -113,29 +138,80 @@ class BldcFoc {
       a->Visit(MJ_NVP(d_A));
       a->Visit(MJ_NVP(q_A));
 
-      a->Visit(MJ_NVP(phase_a_centipercent));
-      a->Visit(MJ_NVP(phase_b_centipercent));
-      a->Visit(MJ_NVP(phase_c_centipercent));
+      a->Visit(MJ_NVP(zero_applied));
+
+      a->Visit(MJ_NVP(pid_d));
+      a->Visit(MJ_NVP(pid_q));
+    }
+  };
+
+  // Intermediate control outputs.
+  struct Control {
+    Vec3 pwm;
+    Vec3 voltage;
+
+    float i_d_A = 0.0f;
+    float i_q_A = 0.0f;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(pwm));
+      a->Visit(MJ_NVP(voltage));
+      a->Visit(MJ_NVP(i_d_A));
+      a->Visit(MJ_NVP(i_q_A));
     }
   };
 
   enum Mode {
     kDisabled,
-    kPhasePwm,
-    kFoc,
+    kPwm,  // Directly control the PWM of all 3 phases.
+    kVoltage,  // Command the voltage of all three phases
+    kVoltageFoc,  // Command phase and voltage
+    kFoc,  // Command d and q current
+    kNumModes,
   };
+
+  static std::array<std::pair<Mode, const char*>, kNumModes> ModeMapper() {
+    return { {
+        { kDisabled, "disabled" },
+        { kPwm, "pwm" },
+        { kVoltage, "voltage" },
+        { kVoltageFoc, "voltage_foc" },
+        { kFoc, "foc" },
+      }};
+  }
 
   struct CommandData {
     Mode mode = kDisabled;
 
-    // For kPhasePwm mode.
-    uint16_t phase_a_centipercent = 0;  // 0 - 10000
-    uint16_t phase_b_centipercent = 0;  // 0 - 10000
-    uint16_t phase_c_centipercent = 0;  // 0 - 10000
+    // For kPwm mode.
+    Vec3 pwm;  // 0-1.0
+
+    // For kVoltage mode
+    Vec3 phase_v;
+
+    // For kVoltageFoc
+    float theta = 0.0f;
+    float voltage = 0.0f;
 
     // For kFoc mode.
-    int32_t i_d_mA = 0;
-    int32_t i_q_mA = 0;
+    float i_d_A = 0.0f;
+    float i_q_A = 0.0f;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_ENUM(mode, ModeMapper));
+
+      a->Visit(MJ_NVP(pwm));
+
+      a->Visit(MJ_NVP(phase_v));
+
+      a->Visit(MJ_NVP(theta));
+      a->Visit(MJ_NVP(voltage));
+
+      a->Visit(MJ_NVP(i_d_A));
+      a->Visit(MJ_NVP(i_q_A));
+    }
   };
 
   void Command(const CommandData&);
