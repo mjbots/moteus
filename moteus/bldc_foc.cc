@@ -128,7 +128,7 @@ class BldcFoc::Impl {
     // We can't enter current mode if we haven't zeroed our offsets
     // yet.
 
-    if (!status_.zero_applied && data.mode == kFoc) {
+    if (!status_.zero_applied && (data.mode == kFoc || data.mode == kPosition)) {
       // TODO(jpieper): Flag this somehow in an error bit.
       return;
     }
@@ -370,7 +370,7 @@ class BldcFoc::Impl {
 
     control_ = {};
 
-    if (data->mode != kFoc) {
+    if (data->mode != kFoc && data->mode != kPosition) {
       // If we are not running PID controllers, keep their state
       // zeroed out.
       status_.pid_d = {};
@@ -399,6 +399,11 @@ class BldcFoc::Impl {
       }
       case kFoc: {
         ISR_DoFOC(sin_cos, data->i_d_A, data->i_q_A);
+        break;
+      }
+      case kPosition: {
+        ISR_DoPosition(sin_cos, data->position,
+                       data->velocity, data->max_current);
         break;
       }
     }
@@ -443,6 +448,18 @@ class BldcFoc::Impl {
     InverseDqTransform idt(sin_cos, d_V, q_V);
 
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
+  }
+
+  void ISR_DoPosition(const SinCos& sin_cos, float position, float velocity, float max_current) {
+    const float measured_velocity = 0.0f;  // TODO(jpieper)
+
+    const float unlimited_d_A =
+        pid_position_.Apply(status_.unwrapped_position, position,
+                            measured_velocity, velocity,
+                            kRateHz);
+    const float d_A = Limit(unlimited_d_A, -max_current, max_current);
+
+    ISR_DoFOC(sin_cos, d_A, 0.0f);
   }
 
   float LimitPwm(float in) {
@@ -494,6 +511,7 @@ class BldcFoc::Impl {
 
   mjlib::base::PID pid_d_{&config_.pid_dq, &status_.pid_d};
   mjlib::base::PID pid_q_{&config_.pid_dq, &status_.pid_q};
+  mjlib::base::PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   static Impl* g_impl_;
 };

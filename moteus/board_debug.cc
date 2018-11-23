@@ -168,6 +168,34 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (command == "pos") {
+      const auto pos_str = tokenizer.next();
+      const auto vel_str = tokenizer.next();
+      const auto max_i_str = tokenizer.next();
+
+      if (pos_str.empty() ||
+          vel_str.empty() ||
+          max_i_str.empty()) {
+        WriteMessage(response, "missing p/v/i\r\n");
+        return;
+      }
+
+      const float pos = std::strtof(pos_str.data(), nullptr);
+      const float vel = std::strtof(vel_str.data(), nullptr);
+      const float max_i = std::strtof(max_i_str.data(), nullptr);
+
+      BldcFoc::CommandData command;
+      command.mode = BldcFoc::kPosition;
+
+      command.position = pos;
+      command.velocity = vel;
+      command.max_current = max_i;
+
+      bldc_.Command(command);
+      WriteOk(response);
+      return;
+    }
+
     WriteMessage(response, "unknown command\r\n");
   }
 

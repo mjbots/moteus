@@ -81,12 +81,18 @@ class BldcFoc {
     // We use the same PID constants for D and Q current control
     // loops.
     mjlib::base::PID::Config pid_dq;
+    mjlib::base::PID::Config pid_position;
 
     Config() {
       pid_dq.kp = 0.01f;
       pid_dq.ki = 30.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
+
+      pid_position.kp = 10.0;
+      pid_position.ki = 0.01;
+      pid_position.ilimit = 1.0;
+      pid_position.kd = 0.1;
     }
 
     template <typename Archive>
@@ -97,6 +103,7 @@ class BldcFoc {
       a->Visit(MJ_NVP(motor_offset));
       a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(pid_dq));
+      a->Visit(MJ_NVP(pid_position));
     }
   };
 
@@ -125,6 +132,7 @@ class BldcFoc {
 
     mjlib::base::PID::State pid_d;
     mjlib::base::PID::State pid_q;
+    mjlib::base::PID::State pid_position;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -151,6 +159,7 @@ class BldcFoc {
 
       a->Visit(MJ_NVP(pid_d));
       a->Visit(MJ_NVP(pid_q));
+      a->Visit(MJ_NVP(pid_position));
     }
   };
 
@@ -177,6 +186,7 @@ class BldcFoc {
     kVoltage,  // Command the voltage of all three phases
     kVoltageFoc,  // Command phase and voltage
     kFoc,  // Command d and q current
+    kPosition,
     kNumModes,
   };
 
@@ -187,6 +197,7 @@ class BldcFoc {
         { kVoltage, "voltage" },
         { kVoltageFoc, "voltage_foc" },
         { kFoc, "foc" },
+        { kPosition, "position" },
       }};
   }
 
@@ -207,6 +218,11 @@ class BldcFoc {
     float i_d_A = 0.0f;
     float i_q_A = 0.0f;
 
+    // For kPosition mode
+    float position = 0.0f;  // kNaN means start at the current position.
+    float velocity = 0.0f;
+    float max_current = 0.0f;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_ENUM(mode, ModeMapper));
@@ -220,6 +236,10 @@ class BldcFoc {
 
       a->Visit(MJ_NVP(i_d_A));
       a->Visit(MJ_NVP(i_q_A));
+
+      a->Visit(MJ_NVP(position));
+      a->Visit(MJ_NVP(velocity));
+      a->Visit(MJ_NVP(max_current));
     }
   };
 
