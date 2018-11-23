@@ -98,6 +98,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
           this->HandleTransmit();
         });
       NVIC_SetVector(tx_dma_.irq, reinterpret_cast<uint32_t>(tx_callback_.irq_function));
+      HAL_NVIC_SetPriority(tx_dma_.irq, 5, 0);
       NVIC_EnableIRQ(tx_dma_.irq);
     }
 
@@ -116,6 +117,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
           this->HandleReceive();
         });
       NVIC_SetVector(rx_dma_.irq, reinterpret_cast<uint32_t>(rx_callback_.irq_function));
+      HAL_NVIC_SetPriority(rx_dma_.irq, 5, 0);
       NVIC_EnableIRQ(rx_dma_.irq);
 
       // Notify when there are idle times on the bus.
@@ -125,6 +127,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
           this->HandleUart();
         });
       NVIC_SetVector(uart_rx_irq_, reinterpret_cast<uint32_t>(uart_callback_.irq_function));
+      HAL_NVIC_SetPriority(uart_rx_irq_, 5, 0);
       NVIC_EnableIRQ(uart_rx_irq_);
 
       // We run our receiver continuously in circular buffer mode.
