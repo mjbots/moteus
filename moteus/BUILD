@@ -57,6 +57,7 @@ mbed_binary(
         "//mjlib/base:assert",
         "//mjlib/base:pid",
         "//mjlib/base:system_error",
+        "//mjlib/base:windowed_average",
         "//mjlib/micro:async_exclusive",
         "//mjlib/micro:async_stream",
         "//mjlib/micro:command_manager",

@@ -89,10 +89,10 @@ class BldcFoc {
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
 
-      pid_position.kp = 10.0;
-      pid_position.ki = 0.01;
-      pid_position.ilimit = 1.0;
-      pid_position.kd = 0.1;
+      pid_position.kp = 30.0f;
+      pid_position.ki = 100.0f;
+      pid_position.ilimit = 0.1f;
+      pid_position.kd = 1.5f;
     }
 
     template <typename Archive>
@@ -127,6 +127,7 @@ class BldcFoc {
 
     int32_t unwrapped_position_raw = 0;
     float unwrapped_position = 0.0f;
+    float velocity = 0.0f;
 
     bool zero_applied = false;
 
@@ -154,6 +155,7 @@ class BldcFoc {
 
       a->Visit(MJ_NVP(unwrapped_position_raw));
       a->Visit(MJ_NVP(unwrapped_position));
+      a->Visit(MJ_NVP(velocity));
 
       a->Visit(MJ_NVP(zero_applied));
 

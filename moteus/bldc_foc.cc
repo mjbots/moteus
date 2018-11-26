@@ -21,6 +21,7 @@
 #include "PeripheralPins.h"
 
 #include "mjlib/base/assert.h"
+#include "mjlib/base/windowed_average.h"
 
 #include "moteus/irq_callback_table.h"
 #include "moteus/foc.h"
@@ -329,8 +330,13 @@ class BldcFoc::Impl {
           k2Pi * ::fmodf(
               (static_cast<float>(status_.position_raw) / 65536.0f *
                (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
-      status_.unwrapped_position_raw +=
+      const int16_t delta_position =
           static_cast<int16_t>(status_.position_raw - old_position_raw);
+      status_.unwrapped_position_raw += delta_position;
+      velocity_filter_.Add(delta_position * config_.unwrapped_position_scale *
+                           (1.0f / 65536.0f) * kRateHz);
+      status_.velocity = velocity_filter_.average();
+
       status_.unwrapped_position =
           status_.unwrapped_position_raw * config_.unwrapped_position_scale *
           (1.0f / 65536.0f);
@@ -451,7 +457,7 @@ class BldcFoc::Impl {
   }
 
   void ISR_DoPosition(const SinCos& sin_cos, float position, float velocity, float max_current) {
-    const float measured_velocity = 0.0f;  // TODO(jpieper)
+    const float measured_velocity = status_.velocity;
 
     const float unlimited_d_A =
         pid_position_.Apply(status_.unwrapped_position, position,
@@ -506,6 +512,7 @@ class BldcFoc::Impl {
   // never be read by an ISR.
   CommandData telemetry_data_;
 
+  mjlib::base::WindowedAverage<float, 32> velocity_filter_;
   Status status_;
   Control control_;
 
