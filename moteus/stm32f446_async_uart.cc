@@ -48,7 +48,9 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
  public:
   Impl(events::EventQueue* event_queue, const Options& options)
       : RawSerial(options.tx, options.rx, options.baud_rate),
-        event_queue_(event_queue) {
+        event_queue_(event_queue),
+        options_(options),
+        dir_(options.dir, 0) {
     // Our receive buffer requires that all unprocessed words be
     // 0xffff.
     for (auto& value : rx_buffer_) { value = 0xffff; }
@@ -159,6 +161,11 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
                       const micro::SizeCallback& callback) {
     MJ_ASSERT(!current_write_callback_.valid());
 
+    if (dir_.is_connected()) {
+      dir_.write(1);
+      wait_us(options_.enable_delay_us);
+    }
+
     current_write_callback_ = callback;
     tx_size_ = data.size();
 
@@ -210,6 +217,11 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
     const int id = event_queue_->call(current_write_callback_, error_code, amount_sent);
     MJ_ASSERT(id != 0);
     current_write_callback_ = {};
+
+    if (dir_.is_connected()) {
+      wait_us(options_.disable_delay_us);
+      dir_.write(0);
+    }
   }
 
   // INVOKED FROM INTERRUPT CONTEXT
@@ -377,6 +389,8 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
 #undef MAKE_UART
 
   events::EventQueue* const event_queue_;
+  const Options options_;
+  DigitalOut dir_;
   USART_TypeDef* uart_ = nullptr;
   IRQn_Type uart_rx_irq_ = {};
 

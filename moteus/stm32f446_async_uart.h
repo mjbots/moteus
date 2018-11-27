@@ -28,6 +28,16 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
   struct Options {
     PinName tx = NC;
     PinName rx = NC;
+
+    // If non-NC, will be set to 1 while transmitting and left at 0
+    // otherwise.  Useful for half-duplex RS-485 connections.
+    PinName dir = NC;
+
+    // If 'dir' is set, and we are enabling, wait this long after
+    // enabling before beginning transmission.
+    uint8_t enable_delay_us = 0;
+    uint8_t disable_delay_us = 0;
+
     int baud_rate = 115200;
   };
 

@@ -60,10 +60,12 @@ int main(void) {
       Stm32F446AsyncUart::Options options;
       options.tx = PA_9;
       options.rx = PA_10;
-      options.baud_rate = 115200;
+      options.dir = PA_8;
+      options.enable_delay_us = 1;
+      options.disable_delay_us = 2;
+      options.baud_rate = 3000000;
       return options;
     }());
-  DigitalOut rs485_enable{PA_8, 1};
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(&pc);
   micro::CommandManager command_manager(&pool, &pc, &write_stream);
@@ -97,6 +99,8 @@ int main(void) {
       telemetry_manager.PollMillisecond();
       system_info.PollMillisecond();
       board_debug.PollMillisecond();
+
+      AsyncWrite(rs485, "1234223432344234 485 test\r\n", [](mjlib::base::error_code) {});
 
       old_time = new_time;
     }
