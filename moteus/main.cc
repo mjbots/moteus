@@ -23,6 +23,7 @@
 #include "mjlib/micro/async_exclusive.h"
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
+#include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/telemetry_manager.h"
 #include "moteus/board_debug.h"
@@ -67,8 +68,12 @@ int main(void) {
       return options;
     }());
 
-  micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(&pc);
-  micro::CommandManager command_manager(&pool, &pc, &write_stream);
+  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, nullptr, {});
+
+  micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
+
+  micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(serial);
+  micro::CommandManager command_manager(&pool, serial, &write_stream);
   micro::TelemetryManager telemetry_manager(
       &pool, &command_manager, &write_stream);
   Stm32Flash flash_interface;
@@ -80,6 +85,7 @@ int main(void) {
 
   command_manager.AsyncStart();
   persistent_config.Load();
+  multiplex_protocol.Start();
 
   // I initially used a Ticker here to enqueue events at 1ms
   // intervals.  However, it introduced jitter into the current
@@ -100,10 +106,9 @@ int main(void) {
       system_info.PollMillisecond();
       board_debug.PollMillisecond();
 
-      AsyncWrite(rs485, "1234223432344234 485 test\r\n", [](mjlib::base::error_code) {});
-
       old_time = new_time;
     }
+    SystemInfo::idle_count++;
   }
 
   return 0;

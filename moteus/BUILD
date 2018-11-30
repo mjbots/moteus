@@ -61,6 +61,7 @@ mbed_binary(
         "//mjlib/micro:async_exclusive",
         "//mjlib/micro:async_stream",
         "//mjlib/micro:command_manager",
+        "//mjlib/micro:multiplex_protocol",
         "//mjlib/micro:persistent_config",
         "//mjlib/micro:pool_ptr",
         "//mjlib/micro:static_function",
