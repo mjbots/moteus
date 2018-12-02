@@ -83,6 +83,8 @@ int main(void) {
 
   BoardDebug board_debug(&pool, &persistent_config, &command_manager, &telemetry_manager);
 
+  persistent_config.Register("id", multiplex_protocol.config(), [](){});
+
   command_manager.AsyncStart();
   persistent_config.Load();
   multiplex_protocol.Start();
