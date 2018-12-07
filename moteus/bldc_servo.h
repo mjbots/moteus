@@ -25,6 +25,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/error.h"
 #include "moteus/motor_driver.h"
 #include "moteus/position_sensor.h"
 
@@ -57,6 +58,8 @@ class BldcServo {
             MotorDriver*,
             const Options&);
   ~BldcServo();
+
+  void PollMillisecond();
 
   struct Vec3 {
     float a = 0.0f;
@@ -109,7 +112,72 @@ class BldcServo {
     }
   };
 
+  enum Mode {
+    // In this mode, the entire motor driver will be disabled.
+    //
+    // When exiting this state, the current offset will be
+    // recalibrated.
+    kStopped,
+
+    // This stage cannot be commanded directly, but will be entered
+    // upon any fault.  Here, the motor driver remains enabled, but
+    // the output stage power is removed.  The only valid transition
+    // from this state is to kStopped.
+    kFault,
+
+    // This mode may not be commanded directly.  It is used when
+    // transitioning from kStopped to another mode.
+    kEnabling,
+
+    // This mode may not be commanded directly, but is used when
+    // transitioning from kStopped to another mode.
+    kCalibrating,
+
+    // This mode may not be commanded directly, but is used when
+    // transitioning from kStopped to another mode.
+    kCalibrationComplete,
+
+    // Directly control the PWM of all 3 phases.
+    kPwm,
+
+    // Control the voltage of all three phases
+    kVoltage,
+
+    // Control the phase and voltage magnitude
+    kVoltageFoc,
+
+    // Control d and q current
+    kCurrent,
+
+    // Control absolute position
+    kPosition,
+
+    kNumModes,
+  };
+
+  static std::array<std::pair<Mode, const char*>, kNumModes> ModeMapper() {
+    return { {
+        { kStopped, "stopped" },
+        { kFault, "fault" },
+        { kEnabling, "enabling" },
+        { kCalibrating, "calibrating" },
+        { kCalibrationComplete, "calib_complete" },
+        { kPwm, "pwm" },
+        { kVoltage, "voltage" },
+        { kVoltageFoc, "voltage_foc" },
+        { kCurrent, "current" },
+        { kPosition, "position" },
+      }};
+  }
+
+  static std::array<std::pair<errc, const char*>, 0> FaultMapper() {
+    return {{}};
+  }
+
   struct Status {
+    Mode mode = kStopped;
+    errc fault = errc::kSuccess;
+
     uint16_t adc1_raw = 0;
     uint16_t adc2_raw = 0;
     uint16_t adc3_raw = 0;
@@ -131,14 +199,15 @@ class BldcServo {
     float unwrapped_position = 0.0f;
     float velocity = 0.0f;
 
-    bool zero_applied = false;
-
     mjlib::base::PID::State pid_d;
     mjlib::base::PID::State pid_q;
     mjlib::base::PID::State pid_position;
 
     template <typename Archive>
     void Serialize(Archive* a) {
+      a->Visit(MJ_ENUM(mode, ModeMapper));
+      a->Visit(MJ_ENUM(fault, FaultMapper));
+
       a->Visit(MJ_NVP(adc1_raw));
       a->Visit(MJ_NVP(adc2_raw));
       a->Visit(MJ_NVP(adc3_raw));
@@ -158,8 +227,6 @@ class BldcServo {
       a->Visit(MJ_NVP(unwrapped_position_raw));
       a->Visit(MJ_NVP(unwrapped_position));
       a->Visit(MJ_NVP(velocity));
-
-      a->Visit(MJ_NVP(zero_applied));
 
       a->Visit(MJ_NVP(pid_d));
       a->Visit(MJ_NVP(pid_q));
@@ -184,29 +251,8 @@ class BldcServo {
     }
   };
 
-  enum Mode {
-    kDisabled,
-    kPwm,  // Directly control the PWM of all 3 phases.
-    kVoltage,  // Command the voltage of all three phases
-    kVoltageFoc,  // Command phase and voltage
-    kFoc,  // Command d and q current
-    kPosition,
-    kNumModes,
-  };
-
-  static std::array<std::pair<Mode, const char*>, kNumModes> ModeMapper() {
-    return { {
-        { kDisabled, "disabled" },
-        { kPwm, "pwm" },
-        { kVoltage, "voltage" },
-        { kVoltageFoc, "voltage_foc" },
-        { kFoc, "foc" },
-        { kPosition, "position" },
-      }};
-  }
-
   struct CommandData {
-    Mode mode = kDisabled;
+    Mode mode = kStopped;
 
     // For kPwm mode.
     Vec3 pwm;  // 0-1.0
@@ -248,11 +294,6 @@ class BldcServo {
   };
 
   void Command(const CommandData&);
-
-  // Stop all switching, assume that all currents are 0, average
-  // readings from each of the current sensors to determine the actual
-  // zero offset.
-  void ZeroOffset();
 
   Status status() const;
 

@@ -75,6 +75,7 @@ class BoardDebug::Impl {
 
   void PollMillisecond() {
     drv8323_.PollMillisecond();
+    bldc_.PollMillisecond();
   }
 
   void HandleCommand(const std::string_view& message,
@@ -101,23 +102,12 @@ class BoardDebug::Impl {
       data_update_();
       return;
     }
-    if (command == "mote") {
-      const auto value = tokenizer.next();
 
-      drv8323_.Enable(!(value.empty() || value == "0"));
-      WriteOk(response);
-      return;
-    }
-    if (command == "motp") {
-      const auto value = tokenizer.next();
+    if (command == "stop") {
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kStopped;
 
-      drv8323_.Power(!(value.empty() || value == "0"));
-      WriteOk(response);
-      return;
-    }
-
-    if (command == "off") {
-      bldc_.ZeroOffset();
+      bldc_.Command(command);
       WriteOk(response);
       return;
     }
@@ -158,7 +148,7 @@ class BoardDebug::Impl {
       const float q = std::strtof(q_str.data(), nullptr);
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kFoc;
+      command.mode = BldcServo::kCurrent;
 
       command.i_d_A = d;
       command.i_q_A = q;

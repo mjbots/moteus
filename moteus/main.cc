@@ -48,7 +48,7 @@ int main(void) {
   rtos_attach_idle_hook(&new_idle_loop);
 
   EventQueue queue(2048);
-  micro::SizedPool<8192> pool;
+  micro::SizedPool<12288> pool;
 
   Stm32F446AsyncUart pc(&pool, &queue, []() {
       Stm32F446AsyncUart::Options pc_options;

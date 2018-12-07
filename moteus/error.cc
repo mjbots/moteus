@@ -21,12 +21,15 @@ struct MoteusErrorCategory : mjlib::base::error_category {
   const char* name() const noexcept override { return "moteus"; }
   std::string_view message(int condition) const override {
     switch (static_cast<errc>(condition)) {
+      case errc::kSuccess: return "success";
       case errc::kDmaStreamTransferError: return "dma stream transfer error";
       case errc::kDmaStreamFifoError: return "dma stream fifo error";
       case errc::kUartOverrunError: return "uart overrun error";
       case errc::kUartFramingError: return "uart framing error";
       case errc::kUartNoiseError: return "uart noise error";
       case errc::kUartBufferOverrunError: return "uart buffer overrun";
+      case errc::kCalibrationFault: return "calibration fault";
+      case errc::kMotorDriverFault: return "motor driver fault";
     }
     return "unknown";
   }

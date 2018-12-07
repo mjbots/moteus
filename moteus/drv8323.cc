@@ -93,6 +93,12 @@ class Drv8323::Impl {
 
     loop_count_ = 0;
 
+    auto& s = status_;
+
+    s.fault_line = fault_.read() == 0;
+    s.power = (hiz_.read() != 0);
+    s.enabled = (enable_.read() != 0);
+
     if (enable_.read() == 0) {
       // If we are not enabled, then we can not communicate over SPI.
       return;
@@ -107,7 +113,6 @@ class Drv8323::Impl {
       return (status[reg] & (1 << b)) != 0;
     };
 
-    auto& s = status_;
     s.fault = bit(0, 10);
     s.vds_ocp = bit(0, 9);
     s.gdf = bit(0, 8);
@@ -131,9 +136,6 @@ class Drv8323::Impl {
     s.vgs_lb = bit(1, 2);
     s.vgs_hc = bit(1, 1);
     s.vgs_lc = bit(1, 0);
-
-    s.fault_line = fault_.read() == 0;
-    s.power = (hiz_.read() != 0);
 
     s.status_count++;
 

@@ -21,12 +21,17 @@
 namespace moteus {
 
 enum class errc {
+  kSuccess = 0,
+
   kDmaStreamTransferError = 1,
   kDmaStreamFifoError,
   kUartOverrunError,
   kUartFramingError,
   kUartNoiseError,
   kUartBufferOverrunError,
+
+  kCalibrationFault,
+  kMotorDriverFault,
 };
 
 mjlib::base::error_code make_error_code(errc);
