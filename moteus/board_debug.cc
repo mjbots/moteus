@@ -50,7 +50,7 @@ class BoardDebug::Impl {
                    options.hiz = PC_3;
                    return options;
                  }()),
-        bldc_(pool, persistent_config, telemetry_manager, &as5047_,
+        bldc_(pool, persistent_config, telemetry_manager, &as5047_, &drv8323_,
               []() {
                  BldcServo::Options options;
                  options.pwm1 = PA_0;

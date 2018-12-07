@@ -22,9 +22,11 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/motor_driver.h"
+
 namespace moteus {
 
-class Drv8323 {
+class Drv8323 : public MotorDriver {
  public:
   struct Options {
     PinName mosi = NC;
@@ -45,8 +47,9 @@ class Drv8323 {
 
   // Turn on or off the driver.  When turning it on, all SPI
   // parameters are set from configuration.
-  void Enable(bool);
-  void Power(bool);
+  void Enable(bool) override;
+  void Power(bool) override;
+  bool fault() override;
 
   void PollMillisecond();
 

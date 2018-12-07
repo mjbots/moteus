@@ -93,9 +93,11 @@ class BldcServo::Impl {
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
        PositionSensor* position_sensor,
+       MotorDriver* motor_driver,
        const Options& options)
       : options_(options),
         position_sensor_(position_sensor),
+        motor_driver_(motor_driver),
         pwm1_(options.pwm1),
         pwm2_(options.pwm2),
         pwm3_(options.pwm3),
@@ -472,6 +474,7 @@ class BldcServo::Impl {
 
   const Options options_;
   PositionSensor* const position_sensor_;
+  MotorDriver* const motor_driver_;
 
   Config config_;
   TIM_TypeDef* timer_ = nullptr;
@@ -525,9 +528,12 @@ BldcServo::BldcServo(micro::Pool* pool,
                      micro::PersistentConfig* persistent_config,
                      micro::TelemetryManager* telemetry_manager,
                      PositionSensor* position_sensor,
+                     MotorDriver* motor_driver,
                      const Options& options)
     : impl_(pool,
-            persistent_config, telemetry_manager, position_sensor, options) {}
+            persistent_config, telemetry_manager,
+            position_sensor, motor_driver,
+            options) {}
 BldcServo::~BldcServo() {}
 
 void BldcServo::Command(const CommandData& data) {

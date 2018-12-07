@@ -25,6 +25,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/motor_driver.h"
 #include "moteus/position_sensor.h"
 
 namespace moteus {
@@ -53,6 +54,7 @@ class BldcServo {
             mjlib::micro::PersistentConfig*,
             mjlib::micro::TelemetryManager*,
             PositionSensor*,
+            MotorDriver*,
             const Options&);
   ~BldcServo();
 

@@ -43,6 +43,7 @@ mbed_binary(
         "error.cc",
         "irq_callback_table.h",
         "irq_callback_table.cc",
+        "motor_driver.h",
         "position_sensor.h",
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
