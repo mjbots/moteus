@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "bldc_foc.h"
+#include "bldc_servo.h"
 
 #include <cmath>
 #include <functional>
@@ -26,10 +26,6 @@
 #include "moteus/irq_callback_table.h"
 #include "moteus/foc.h"
 #include "moteus/math.h"
-
-// TODO
-//
-//  * Implement current controllers
 
 namespace micro = mjlib::micro;
 
@@ -92,7 +88,7 @@ uint32_t FindSqr(PinName pin) {
 }
 }
 
-class BldcFoc::Impl {
+class BldcServo::Impl {
  public:
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
@@ -108,11 +104,11 @@ class BldcFoc::Impl {
         vsense_(options.vsense),
         debug_out_(options.debug_out) {
 
-    persistent_config->Register("bldc", &config_,
+    persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
-    telemetry_manager->Register("bldc_stats", &status_);
-    telemetry_manager->Register("bldc_cmd", &telemetry_data_);
-    telemetry_manager->Register("bldc_control", &control_);
+    telemetry_manager->Register("servo_stats", &status_);
+    telemetry_manager->Register("servo_cmd", &telemetry_data_);
+    telemetry_manager->Register("servo_control", &control_);
 
     MJ_ASSERT(!g_impl_);
     g_impl_ = this;
@@ -523,26 +519,26 @@ class BldcFoc::Impl {
   static Impl* g_impl_;
 };
 
-BldcFoc::Impl* BldcFoc::Impl::g_impl_ = nullptr;
+BldcServo::Impl* BldcServo::Impl::g_impl_ = nullptr;
 
-BldcFoc::BldcFoc(micro::Pool* pool,
-                 micro::PersistentConfig* persistent_config,
-                 micro::TelemetryManager* telemetry_manager,
-                 PositionSensor* position_sensor,
-                 const Options& options)
+BldcServo::BldcServo(micro::Pool* pool,
+                     micro::PersistentConfig* persistent_config,
+                     micro::TelemetryManager* telemetry_manager,
+                     PositionSensor* position_sensor,
+                     const Options& options)
     : impl_(pool,
             persistent_config, telemetry_manager, position_sensor, options) {}
-BldcFoc::~BldcFoc() {}
+BldcServo::~BldcServo() {}
 
-void BldcFoc::Command(const CommandData& data) {
+void BldcServo::Command(const CommandData& data) {
   impl_->Command(data);
 }
 
-void BldcFoc::ZeroOffset() {
+void BldcServo::ZeroOffset() {
   impl_->ZeroOffset();
 }
 
-BldcFoc::Status BldcFoc::status() const {
+BldcServo::Status BldcServo::status() const {
   return impl_->status();
 }
 

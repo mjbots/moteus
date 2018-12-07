@@ -29,8 +29,8 @@
 
 namespace moteus {
 
-/// Commands a BLDC motor.
-class BldcFoc {
+/// Implements a closed loop servo around a brushless DC motor.
+class BldcServo {
  public:
   struct Options {
     // These three pins must be on the same timer, and one that
@@ -49,12 +49,12 @@ class BldcFoc {
     PinName debug_out = NC;
   };
 
-  BldcFoc(mjlib::micro::Pool*,
-          mjlib::micro::PersistentConfig*,
-          mjlib::micro::TelemetryManager*,
-          PositionSensor*,
-          const Options&);
-  ~BldcFoc();
+  BldcServo(mjlib::micro::Pool*,
+            mjlib::micro::PersistentConfig*,
+            mjlib::micro::TelemetryManager*,
+            PositionSensor*,
+            const Options&);
+  ~BldcServo();
 
   struct Vec3 {
     float a = 0.0f;

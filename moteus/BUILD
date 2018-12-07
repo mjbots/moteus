@@ -33,8 +33,8 @@ mbed_binary(
     srcs = [
         "as5047.h",
         "assert.cc",
-        "bldc_foc.h",
-        "bldc_foc.cc",
+        "bldc_servo.h",
+        "bldc_servo.cc",
         "board_debug.h",
         "board_debug.cc",
         "drv8323.h",

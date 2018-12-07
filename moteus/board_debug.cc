@@ -23,7 +23,7 @@
 #include "mjlib/base/visitor.h"
 
 #include "moteus/as5047.h"
-#include "moteus/bldc_foc.h"
+#include "moteus/bldc_servo.h"
 #include "moteus/drv8323.h"
 
 namespace base = mjlib::base;
@@ -52,7 +52,7 @@ class BoardDebug::Impl {
                  }()),
         bldc_(pool, persistent_config, telemetry_manager, &as5047_,
               []() {
-                 BldcFoc::Options options;
+                 BldcServo::Options options;
                  options.pwm1 = PA_0;
                  options.pwm2 = PA_1;
                  options.pwm3 = PA_2;
@@ -134,8 +134,8 @@ class BoardDebug::Impl {
       const float phase = std::strtof(phase_str.data(), nullptr);
       const float magnitude = std::strtof(magnitude_str.data(), nullptr);
 
-      BldcFoc::CommandData command;
-      command.mode = BldcFoc::kVoltageFoc;
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kVoltageFoc;
 
       command.theta = phase;
       command.voltage = magnitude;
@@ -157,8 +157,8 @@ class BoardDebug::Impl {
       const float d = std::strtof(d_str.data(), nullptr);
       const float q = std::strtof(q_str.data(), nullptr);
 
-      BldcFoc::CommandData command;
-      command.mode = BldcFoc::kFoc;
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kFoc;
 
       command.i_d_A = d;
       command.i_q_A = q;
@@ -184,8 +184,8 @@ class BoardDebug::Impl {
       const float vel = std::strtof(vel_str.data(), nullptr);
       const float max_i = std::strtof(max_i_str.data(), nullptr);
 
-      BldcFoc::CommandData command;
-      command.mode = BldcFoc::kPosition;
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kPosition;
 
       command.position = pos;
       command.velocity = vel;
@@ -235,7 +235,7 @@ class BoardDebug::Impl {
     }()};
 
   Drv8323 drv8323_;
-  BldcFoc bldc_;
+  BldcServo bldc_;
 };
 
 BoardDebug::BoardDebug(micro::Pool* pool,
