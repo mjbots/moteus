@@ -43,6 +43,7 @@ mbed_binary(
         "error.cc",
         "hardfault.s",
         "hardfault_handler.c",
+        "hw.h",
         "irq_callback_table.h",
         "irq_callback_table.cc",
         "motor_driver.h",
