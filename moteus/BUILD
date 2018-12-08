@@ -41,6 +41,8 @@ mbed_binary(
         "drv8323.cc",
         "error.h",
         "error.cc",
+        "hardfault.s",
+        "hardfault_handler.c",
         "irq_callback_table.h",
         "irq_callback_table.cc",
         "motor_driver.h",
