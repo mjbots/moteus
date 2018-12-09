@@ -20,11 +20,15 @@ load("@com_github_ARMmbed_mbed-os//:rules.bzl", "mbed_binary")
 cc_library(
     name = "common",
     hdrs = [
+        "atomic_event_queue.h",
         "foc.h",
         "math.h",
     ],
     srcs = [
         "foc.cc",
+    ],
+    deps = [
+        "//mjlib/micro:static_function",
     ],
 )
 
@@ -103,6 +107,7 @@ genrule(
 cc_test(
     name = "test",
     srcs = [
+        "test/atomic_event_queue_test.cc",
         "test/foc_test.cc",
         "test/test_main.cc",
     ],
