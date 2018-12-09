@@ -214,6 +214,10 @@ class BoardDebug::Impl {
       for (;;) {}
     }
 
+    if (command == "reset") {
+      NVIC_SystemReset();
+    }
+
     WriteMessage(response, "unknown command\r\n");
   }
 
