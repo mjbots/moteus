@@ -86,6 +86,9 @@ class BldcServo {
 
     float unwrapped_position_scale = 1.0f / 5.0f;
 
+    uint16_t adc_cycles = 15;  // 3, 15, 28, 56, 84, 112, 144, 480
+    uint16_t adc_sample_count = 1;
+
     // We use the same PID constants for D and Q current control
     // loops.
     mjlib::base::PID::Config pid_dq;
@@ -110,6 +113,8 @@ class BldcServo {
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
       a->Visit(MJ_NVP(unwrapped_position_scale));
+      a->Visit(MJ_NVP(adc_cycles));
+      a->Visit(MJ_NVP(adc_sample_count));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
     }

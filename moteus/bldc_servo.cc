@@ -42,6 +42,18 @@ float Limit(float a, float min, float max) {
   return a;
 }
 
+template <typename Array>
+int MapConfig(const Array& array, int value) {
+  static_assert(sizeof(array) > 0);
+  int result = 0;
+  for (const auto& item : array) {
+    if (value <= item) { return result; }
+    result++;
+  }
+  // Never return past the end.
+  return result - 1;
+}
+
 constexpr float kRateHz = 40000.0;
 constexpr int kCalibrateCount = 256;
 
@@ -218,7 +230,7 @@ class BldcServo::Impl {
     // absolute minimum latency possible.
     const auto irqn = FindUpdateIrq(timer_);
     NVIC_SetVector(irqn, reinterpret_cast<uint32_t>(&Impl::GlobalInterrupt));
-    NVIC_SetPriority(irqn, 0);
+    HAL_NVIC_SetPriority(irqn, 0, 0);
     NVIC_EnableIRQ(irqn);
 
     // Reinitialize the counter and update all registers.
@@ -254,24 +266,28 @@ class BldcServo::Impl {
     MJ_ASSERT(reinterpret_cast<uint32_t>(ADC3) ==
                 pinmap_peripheral(options_.vsense, PinMap_ADC));
 
-    // Set sample times to 15 cycles across the board
-    constexpr uint32_t kCycles = 0x1;  // 15 cycles
-    constexpr uint32_t kAll15Cycles =
-        (kCycles << 0) |
-        (kCycles << 3) |
-        (kCycles << 6) |
-        (kCycles << 9) |
-        (kCycles << 12) |
-        (kCycles << 15) |
-        (kCycles << 18) |
-        (kCycles << 21) |
-        (kCycles << 24);
-    ADC1->SMPR1 = kAll15Cycles;
-    ADC1->SMPR2 = kAll15Cycles;
-    ADC2->SMPR1 = kAll15Cycles;
-    ADC2->SMPR2 = kAll15Cycles;
-    ADC3->SMPR1 = kAll15Cycles;
-    ADC3->SMPR2 = kAll15Cycles;
+    constexpr uint16_t kCycleMap[] = {
+      3, 15, 28, 56, 84, 112, 144, 480,
+    };
+
+    // Set sample times to the same thing across the board
+    const uint32_t cycles = MapConfig(kCycleMap, config_.adc_cycles);
+    const uint32_t all_cycles =
+        (cycles << 0) |
+        (cycles << 3) |
+        (cycles << 6) |
+        (cycles << 9) |
+        (cycles << 12) |
+        (cycles << 15) |
+        (cycles << 18) |
+        (cycles << 21) |
+        (cycles << 24);
+    ADC1->SMPR1 = all_cycles;
+    ADC1->SMPR2 = all_cycles;
+    ADC2->SMPR1 = all_cycles;
+    ADC2->SMPR2 = all_cycles;
+    ADC3->SMPR1 = all_cycles;
+    ADC3->SMPR2 = all_cycles;
   }
 
   // CALLED IN INTERRUPT CONTEXT.
@@ -304,19 +320,28 @@ class BldcServo::Impl {
     ISR_DoControl(sin_cos);
 
     ISR_MaybeEmitDebug();
-
-    debug_out_ = 0;
   }
 
   void ISR_DoSense() {
-    // Start conversion.
-    ADC1->CR2 |= ADC_CR2_SWSTART;
+    uint32_t adc1 = 0;
+    uint32_t adc2 = 0;
+    uint32_t adc3 = 0;
 
-    while ((ADC1->SR & ADC_SR_EOC) == 0);
+    for (uint16_t i = 0; i < config_.adc_sample_count; i++) {
+      // Start conversion.
+      ADC1->CR2 |= ADC_CR2_SWSTART;
 
-    status_.adc1_raw = ADC1->DR;
-    status_.adc2_raw = ADC2->DR;
-    status_.adc3_raw = ADC3->DR;
+      while ((ADC1->SR & ADC_SR_EOC) == 0);
+      adc1 += ADC1->DR;
+      adc2 += ADC2->DR;
+      adc3 += ADC3->DR;
+    }
+
+    debug_out_ = 0;
+
+    status_.adc1_raw = adc1 / config_.adc_sample_count;
+    status_.adc2_raw = adc2 / config_.adc_sample_count;
+    status_.adc3_raw = adc3 / config_.adc_sample_count;
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -348,8 +373,8 @@ class BldcServo::Impl {
     if (debug_uart_ == nullptr) { return; }
 
     debug_buf_[0] = 0x5a;
-    debug_buf_[1] = static_cast<int8_t>(control_.i_q_A * 10.0f);
-    int16_t measured_i_q = static_cast<int16_t>(status_.q_A * 1000.0f);
+    debug_buf_[1] = static_cast<int8_t>(control_.i_q_A * 2.0f);
+    int16_t measured_i_q = static_cast<int16_t>(status_.q_A * 500.0f);
     std::memcpy(&debug_buf_[2], &measured_i_q, sizeof(measured_i_q));
 
     *debug_uart_dma_tx_.status_clear |= debug_uart_dma_tx_.all_status();
