@@ -32,6 +32,12 @@ namespace micro = mjlib::micro;
 namespace moteus {
 constexpr float kPi = 3.14159265359f;
 
+namespace {
+void recurse(int count, micro::StaticFunction<void(int)> callback) {
+  callback(count - 1);
+}
+}
+
 class BoardDebug::Impl {
  public:
   Impl(micro::Pool* pool,
@@ -186,7 +192,31 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (command == "die") {
+      mbed_die();
+    }
+
+    if (command == "assert") {
+      MJ_ASSERT(false);
+    }
+
+    if (command == "stack") {
+      volatile int* ptr = {};
+      *ptr = 45;
+      Recurse(10000);
+      WriteOk(response);
+      return;
+    }
+
+    if (command == "loop") {
+      for (;;) {}
+    }
+
     WriteMessage(response, "unknown command\r\n");
+  }
+
+  void Recurse(int count) {
+    recurse(count, [this](int value) { this->Recurse(value - 1); });
   }
 
   void WriteOk(const micro::CommandManager::Response& response) {
