@@ -29,7 +29,7 @@ mbed_register(
     config = {
         "mbed_target": "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
         "mbed_config": {
-            "MBED_CONF_RTOS_MAIN_THREAD_STACK_SIZE": "32768",
+            "MBED_CONF_RTOS_PRESENT": "0",
 
             # Start our code at sector 4, leaving sectors 0, 1, 2, and
             # 3 for application data storage.

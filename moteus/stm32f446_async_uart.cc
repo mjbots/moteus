@@ -21,6 +21,7 @@
 
 #include "mjlib/base/assert.h"
 
+#include "moteus/atomic_event_queue.h"
 #include "moteus/error.h"
 #include "moteus/irq_callback_table.h"
 
@@ -46,9 +47,8 @@ IRQn_Type FindUartRxIrq(USART_TypeDef* uart) {
 
 class Stm32F446AsyncUart::Impl : public RawSerial {
  public:
-  Impl(events::EventQueue* event_queue, const Options& options)
+  Impl(const Options& options)
       : RawSerial(options.tx, options.rx, options.baud_rate),
-        event_queue_(event_queue),
         options_(options),
         dir_(options.dir, 0) {
     // Our receive buffer requires that all unprocessed words be
@@ -207,22 +207,24 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
       MJ_ASSERT(false);
     }
 
-    const int id = event_queue_->call(this, &Impl::EventHandleTransmit, error_code, amount_sent);
-    MJ_ASSERT(id != 0);
+    event_queue_.Queue([this, error_code, amount_sent]() {
+        this->EventHandleTransmit(error_code, amount_sent);
+      });
 
     // TODO(jpieper): Verify that USART_CR3_DMAT gets cleared here on
     // its own even if we send back to back quickly.
   }
 
   void EventHandleTransmit(base::error_code error_code, ssize_t amount_sent) {
-    const int id = event_queue_->call(current_write_callback_, error_code, amount_sent);
-    MJ_ASSERT(id != 0);
+    auto copy = current_write_callback_;
     current_write_callback_ = {};
 
     if (dir_.is_connected()) {
       wait_us(options_.disable_delay_us);
       dir_.write(0);
     }
+
+    copy(error_code, amount_sent);
   }
 
   // INVOKED FROM INTERRUPT CONTEXT
@@ -261,8 +263,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
       MJ_ASSERT(false);
     }
 
-    const int id = event_queue_->call(this, &Impl::EventProcessData);
-    MJ_ASSERT(id != 0);
+    event_queue_.Queue([this]() { this->EventProcessData(); });
   }
 
   // INVOKED FROM INTERRUPT CONTEXT
@@ -274,8 +275,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
       tmp = uart_->DR;
       (void)tmp;
 
-      const int id = event_queue_->call(this, &Impl::EventProcessData);
-      MJ_ASSERT(id != 0);
+      event_queue_.Queue([this]() { this->EventProcessData(); });
     }
   }
 
@@ -314,13 +314,17 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
       rx_buffer_[rx_buffer_pos_] = 0xffff;
     }
 
-    const int id = event_queue_->call(current_read_callback_,
-                                      pending_rx_error_, bytes_read);
-    MJ_ASSERT(id != 0);
+    MJ_ASSERT(current_read_callback_.valid());
+    {
+      auto copy = current_read_callback_;
+      auto rx_error = pending_rx_error_;
 
-    pending_rx_error_ = {};
-    current_read_callback_ = {};
-    current_read_data_ = {};
+      current_read_callback_ = {};
+      current_read_data_ = {};
+      pending_rx_error_ = {};
+
+      copy(rx_error, bytes_read);
+    }
 
     // If our DMA stream was disabled for some reason, start over
     // again.
@@ -333,7 +337,6 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
     }
   }
 
-  events::EventQueue* const event_queue_;
   const Options options_;
   DigitalOut dir_;
   USART_TypeDef* uart_ = nullptr;
@@ -350,6 +353,8 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
   base::string_span current_read_data_;
   base::error_code pending_rx_error_;
 
+  AtomicEventQueue<4> event_queue_;
+
   micro::SizeCallback current_write_callback_;
   ssize_t tx_size_ = 0;
 
@@ -362,9 +367,8 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
 };
 
 Stm32F446AsyncUart::Stm32F446AsyncUart(micro::Pool* pool,
-                                       events::EventQueue* event_queue,
                                        const Options& options)
-    : impl_(pool, event_queue, options) {}
+    : impl_(pool, options) {}
 Stm32F446AsyncUart::~Stm32F446AsyncUart() {}
 
 void Stm32F446AsyncUart::AsyncReadSome(const base::string_span& data,
@@ -375,6 +379,10 @@ void Stm32F446AsyncUart::AsyncReadSome(const base::string_span& data,
 void Stm32F446AsyncUart::AsyncWriteSome(const string_view& data,
                                         const micro::SizeCallback& callback) {
   impl_->AsyncWriteSome(data, callback);
+}
+
+void Stm32F446AsyncUart::Poll() {
+  impl_->event_queue_.Poll();
 }
 
 #define MAKE_UART(DmaNumber, StreamNumber, ChannelNumber, StatusRegister) \

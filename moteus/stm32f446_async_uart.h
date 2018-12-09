@@ -16,7 +16,6 @@
 
 #include "mbed.h"
 
-#include "EventQueue.h"
 #include "PinNames.h"
 
 #include "mjlib/micro/async_stream.h"
@@ -43,10 +42,7 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
     int baud_rate = 115200;
   };
 
-  /// @param event_queue - All callbacks will be invoked from this, it
-  /// is aliased internally and must live as long as the instance.
   Stm32F446AsyncUart(mjlib::micro::Pool* pool,
-                     events::EventQueue* event_queue,
                      const Options&);
   ~Stm32F446AsyncUart() override;
 
@@ -54,6 +50,9 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
                      const mjlib::micro::SizeCallback&) override;
   void AsyncWriteSome(const std::string_view&,
                       const mjlib::micro::SizeCallback&) override;
+
+  // Call frequently.
+  void Poll();
 
   // The following helper functions are exposed for modules which want
   // to operate on serial ports in DMA mode, but don't necessarily

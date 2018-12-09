@@ -17,8 +17,6 @@
 #include <functional>
 
 #include "mbed.h"
-#include "mbed_events.h"
-#include "rtos_idle.h"
 
 #include "mjlib/micro/async_exclusive.h"
 #include "mjlib/micro/async_stream.h"
@@ -26,7 +24,9 @@
 #include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/telemetry_manager.h"
+
 #include "moteus/board_debug.h"
+#include "moteus/millisecond_timer.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_flash.h"
 #include "moteus/system_info.h"
@@ -34,23 +34,10 @@
 using namespace moteus;
 namespace micro = mjlib::micro;
 
-namespace {
-void new_idle_loop() {
-  for (;;) {
-    SystemInfo::idle_count++;
-  }
-}
-}
-
 int main(void) {
-  // We want no sleep modes at all for highest timing resolution
-  // w.r.t. interrupts.
-  rtos_attach_idle_hook(&new_idle_loop);
-
-  EventQueue queue(2048);
   micro::SizedPool<12288> pool;
 
-  Stm32F446AsyncUart rs485(&pool, &queue, []() {
+  Stm32F446AsyncUart rs485(&pool, []() {
       Stm32F446AsyncUart::Options options;
       options.tx = PA_9;
       options.rx = PA_10;
@@ -87,14 +74,14 @@ int main(void) {
   // sampling interrupt, and I couldn't figure out how to get the
   // interrupt priorities right.  Thus for now we just poll to look
   // for millisecond turnover.
-  Timer timer;
-  timer.start();
-  int old_time = timer.read_ms();
+  MillisecondTimer timer;
+
+  auto old_time = timer.read_ms();
 
   for (;;) {
-    queue.dispatch(0);
+    rs485.Poll();
 
-    const int new_time = timer.read_ms();
+    const auto new_time = timer.read_ms();
 
     if (new_time != old_time) {
       telemetry_manager.PollMillisecond();
