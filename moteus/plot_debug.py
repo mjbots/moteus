@@ -16,6 +16,7 @@
 
 '''Plot debug binary data emitted from the moteus controller.'''
 
+import numpy
 import pylab
 import struct
 import sys
@@ -39,10 +40,13 @@ def main():
         offset += 4
 
         timestamps.append(ts)
-        command.append(s1 / 10.0)
-        measured.append(s2 / 1000.0)
+        command.append(s1 / 2.0)
+        measured.append(s2 / 500.0)
 
-        ts += 1/40000.0
+        ts += 1 / 40000.0
+
+    print("mean:", numpy.mean(measured))
+    print("stddev:", numpy.std(measured))
 
     pylab.plot(timestamps, command, label="command")
     pylab.plot(timestamps, measured, label="measured")
