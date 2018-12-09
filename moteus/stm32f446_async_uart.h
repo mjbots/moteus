@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "mbed.h"
+
 #include "EventQueue.h"
 #include "PinNames.h"
 
@@ -52,6 +54,37 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
                      const mjlib::micro::SizeCallback&) override;
   void AsyncWriteSome(const std::string_view&,
                       const mjlib::micro::SizeCallback&) override;
+
+  // The following helper functions are exposed for modules which want
+  // to operate on serial ports in DMA mode, but don't necessarily
+  // want to use interrupts or the callback abstraction.
+  struct Dma {
+    DMA_Stream_TypeDef* stream;
+    uint32_t channel;
+    volatile uint32_t* status_clear;
+    volatile uint32_t* status_register;
+    uint32_t status_tcif;
+    uint32_t status_htif;
+    uint32_t status_teif;
+    uint32_t status_dmeif;
+    uint32_t status_feif;
+    IRQn_Type irq;
+
+    uint32_t all_status() const {
+      return status_tcif |
+        status_htif |
+        status_teif |
+        status_dmeif |
+        status_feif;
+    }
+  };
+
+  struct DmaPair {
+    Dma tx;
+    Dma rx;
+  };
+
+  static DmaPair MakeDma(UARTName uart);
 
  private:
   class Impl;

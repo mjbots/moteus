@@ -25,6 +25,7 @@
 #include "moteus/as5047.h"
 #include "moteus/bldc_servo.h"
 #include "moteus/drv8323.h"
+#include "moteus/hw.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
@@ -51,9 +52,9 @@ class BoardDebug::Impl {
                    options.miso = PA_6;
                    options.sck = PA_5;
                    options.cs = PA_4;
-                   options.enable = PA_3;
+                   options.enable = DRV8323_ENABLE;
                    options.fault = PC_4;
-                   options.hiz = PC_3;
+                   options.hiz = DRV8323_HIZ;
                    return options;
                  }()),
         bldc_(pool, persistent_config, telemetry_manager, &as5047_, &drv8323_,
@@ -68,6 +69,7 @@ class BoardDebug::Impl {
                  options.vsense = PC_1_ALT1;
 
                  options.debug_out = PB_8;
+                 options.debug_uart_out = PC_10;
 
                  return options;
               }()) {
@@ -242,8 +244,8 @@ class BoardDebug::Impl {
   Data data_;
   micro::StaticFunction<void()> data_update_;
 
-  DigitalOut led1_{PA_11, 1};
-  DigitalOut led2_{PA_12, 1};
+  DigitalOut led1_{DEBUG_LED1, 1};
+  DigitalOut led2_{DEBUG_LED2, 1};
 
   AS5047 as5047_{[]() {
       AS5047::Options options;

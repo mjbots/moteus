@@ -49,6 +49,9 @@ class BldcServo {
     PinName vtemp = NC;
 
     PinName debug_out = NC;
+
+    // If set, a constant telemetry stream will be emitted at 40kHz.
+    PinName debug_uart_out = NC;
   };
 
   BldcServo(mjlib::micro::Pool*,
@@ -89,8 +92,8 @@ class BldcServo {
     mjlib::base::PID::Config pid_position;
 
     Config() {
-      pid_dq.kp = 0.01f;
-      pid_dq.ki = 30.0f;
+      pid_dq.kp = 0.1f;
+      pid_dq.ki = 120.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
 

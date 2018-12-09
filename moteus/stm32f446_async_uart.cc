@@ -73,8 +73,9 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
     // use when there are multiple options.  Perhaps later, the
     // Options we get passed in could provide a requirement if
     // necessary.
-    std::tie(tx_dma_, rx_dma_) =
-        MakeDma(static_cast<UARTName>(reinterpret_cast<int>(uart_)));
+    auto dma_pair = MakeDma(static_cast<UARTName>(reinterpret_cast<int>(uart_)));
+    tx_dma_ = dma_pair.tx;
+    rx_dma_ = dma_pair.rx;
 
     // Roughly follow the procedure laid out in AN4031: Using the
     // STM32F2, STM32F4, and STM32F7 Series DMA Controller, section
@@ -332,62 +333,6 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
     }
   }
 
-  struct Dma {
-    DMA_Stream_TypeDef* stream;
-    uint32_t channel;
-    volatile uint32_t* status_clear;
-    volatile uint32_t* status_register;
-    uint32_t status_tcif;
-    uint32_t status_htif;
-    uint32_t status_teif;
-    uint32_t status_dmeif;
-    uint32_t status_feif;
-    IRQn_Type irq;
-
-    uint32_t all_status() const {
-      return status_tcif |
-        status_htif |
-        status_teif |
-        status_dmeif |
-        status_feif;
-    }
-  };
-
-#define MAKE_UART(DmaNumber, StreamNumber, ChannelNumber, StatusRegister) \
-  Dma {                                                                 \
-    DmaNumber ## _Stream ## StreamNumber,                               \
-        (ChannelNumber) << DMA_SxCR_CHSEL_Pos,                          \
-        & ( DmaNumber -> StatusRegister ## FCR ),                       \
-        & ( DmaNumber -> StatusRegister ## SR ),                        \
-        DMA_ ## StatusRegister ## SR_TCIF ## StreamNumber,                \
-        DMA_ ## StatusRegister ## SR_HTIF ## StreamNumber,                \
-        DMA_ ## StatusRegister ## SR_TEIF ## StreamNumber,                \
-        DMA_ ## StatusRegister ## SR_DMEIF ## StreamNumber,               \
-        DMA_ ## StatusRegister ## SR_FEIF ## StreamNumber,                \
-        DmaNumber ## _Stream ## StreamNumber ## _IRQn,                  \
-        }
-
-  std::pair<Dma, Dma> MakeDma(UARTName uart) {
-    switch (uart) {
-      case UART_1:
-        return { MAKE_UART(DMA2, 7, 4, HI), MAKE_UART(DMA2, 2, 4, LI), };
-      case UART_2:
-        return { MAKE_UART(DMA1, 6, 4, HI), MAKE_UART(DMA1, 5, 4, HI), };
-      case UART_3:
-        return { MAKE_UART(DMA1, 3, 4, LI), MAKE_UART(DMA1, 1, 4, LI), };
-      case UART_4:
-        return { MAKE_UART(DMA1, 4, 4, HI), MAKE_UART(DMA1, 2, 4, LI), };
-      case UART_5:
-        return { MAKE_UART(DMA1, 7, 4, HI), MAKE_UART(DMA1, 0, 4, LI), };
-      case UART_6:
-        return { MAKE_UART(DMA2, 6, 5, HI), MAKE_UART(DMA2, 1, 5, LI), };
-    }
-    MJ_ASSERT(false);
-    return {};
-  }
-
-#undef MAKE_UART
-
   events::EventQueue* const event_queue_;
   const Options options_;
   DigitalOut dir_;
@@ -431,5 +376,40 @@ void Stm32F446AsyncUart::AsyncWriteSome(const string_view& data,
                                         const micro::SizeCallback& callback) {
   impl_->AsyncWriteSome(data, callback);
 }
+
+#define MAKE_UART(DmaNumber, StreamNumber, ChannelNumber, StatusRegister) \
+  Stm32F446AsyncUart::Dma {                                             \
+    DmaNumber ## _Stream ## StreamNumber,                               \
+        (ChannelNumber) << DMA_SxCR_CHSEL_Pos,                          \
+        & ( DmaNumber -> StatusRegister ## FCR ),                       \
+        & ( DmaNumber -> StatusRegister ## SR ),                        \
+        DMA_ ## StatusRegister ## SR_TCIF ## StreamNumber,                \
+        DMA_ ## StatusRegister ## SR_HTIF ## StreamNumber,                \
+        DMA_ ## StatusRegister ## SR_TEIF ## StreamNumber,                \
+        DMA_ ## StatusRegister ## SR_DMEIF ## StreamNumber,               \
+        DMA_ ## StatusRegister ## SR_FEIF ## StreamNumber,                \
+        DmaNumber ## _Stream ## StreamNumber ## _IRQn,                  \
+        }
+
+Stm32F446AsyncUart::DmaPair Stm32F446AsyncUart::MakeDma(UARTName uart) {
+  switch (uart) {
+    case UART_1:
+      return { MAKE_UART(DMA2, 7, 4, HI), MAKE_UART(DMA2, 2, 4, LI), };
+    case UART_2:
+      return { MAKE_UART(DMA1, 6, 4, HI), MAKE_UART(DMA1, 5, 4, HI), };
+    case UART_3:
+      return { MAKE_UART(DMA1, 3, 4, LI), MAKE_UART(DMA1, 1, 4, LI), };
+    case UART_4:
+      return { MAKE_UART(DMA1, 4, 4, HI), MAKE_UART(DMA1, 2, 4, LI), };
+    case UART_5:
+      return { MAKE_UART(DMA1, 7, 4, HI), MAKE_UART(DMA1, 0, 4, LI), };
+    case UART_6:
+      return { MAKE_UART(DMA2, 6, 5, HI), MAKE_UART(DMA2, 1, 5, LI), };
+  }
+  MJ_ASSERT(false);
+  return {};
+}
+
+#undef MAKE_UART
 
 }

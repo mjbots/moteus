@@ -50,13 +50,6 @@ int main(void) {
   EventQueue queue(2048);
   micro::SizedPool<12288> pool;
 
-  Stm32F446AsyncUart pc(&pool, &queue, []() {
-      Stm32F446AsyncUart::Options pc_options;
-      pc_options.tx = PC_10;
-      pc_options.rx = PC_11;
-      pc_options.baud_rate = 115200;
-      return pc_options;
-    }());
   Stm32F446AsyncUart rs485(&pool, &queue, []() {
       Stm32F446AsyncUart::Options options;
       options.tx = PA_9;
