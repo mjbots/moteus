@@ -674,10 +674,14 @@ class BldcServo::Impl {
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
 
-    const float d_V = pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
-    const float q_V = pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
+    control_.d_V =
+        (config_.feedforward_scale * i_d_A * config_.motor_resistance) +
+        pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
+    control_.q_V =
+        (config_.feedforward_scale * i_q_A * config_.motor_resistance) +
+        pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
-    InverseDqTransform idt(sin_cos, d_V, q_V);
+    InverseDqTransform idt(sin_cos, control_.d_V, control_.q_V);
 
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }

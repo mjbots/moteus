@@ -82,7 +82,10 @@ class BldcServo {
     float v_scale_V = 0.00884f;  // V per A/D count
 
     uint8_t motor_poles = 14;
-    float motor_offset = -0.61;
+    float motor_offset = -0.61f;
+
+    float motor_resistance = 0.030f;
+    float feedforward_scale = 1.0f;
 
     float unwrapped_position_scale = 1.0f / 5.0f;
 
@@ -95,15 +98,15 @@ class BldcServo {
     mjlib::base::PID::Config pid_position;
 
     Config() {
-      pid_dq.kp = 0.1f;
-      pid_dq.ki = 120.0f;
+      pid_dq.kp = 0.01f;
+      pid_dq.ki = 5.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
 
-      pid_position.kp = 30.0f;
+      pid_position.kp = 120.0f;
       pid_position.ki = 100.0f;
       pid_position.ilimit = 0.1f;
-      pid_position.kd = 1.5f;
+      pid_position.kd = 4.5f;
     }
 
     template <typename Archive>
@@ -112,6 +115,8 @@ class BldcServo {
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
+      a->Visit(MJ_NVP(motor_resistance));
+      a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(adc_cycles));
       a->Visit(MJ_NVP(adc_sample_count));
@@ -247,6 +252,9 @@ class BldcServo {
     Vec3 pwm;
     Vec3 voltage;
 
+    float d_V = 0.0f;
+    float q_V = 0.0f;
+
     float i_d_A = 0.0f;
     float i_q_A = 0.0f;
 
@@ -254,6 +262,8 @@ class BldcServo {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(pwm));
       a->Visit(MJ_NVP(voltage));
+      a->Visit(MJ_NVP(d_V));
+      a->Visit(MJ_NVP(q_V));
       a->Visit(MJ_NVP(i_d_A));
       a->Visit(MJ_NVP(i_q_A));
     }
