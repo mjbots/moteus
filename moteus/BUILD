@@ -50,6 +50,7 @@ mbed_binary(
         "hw.h",
         "irq_callback_table.h",
         "irq_callback_table.cc",
+        "millisecond_timer.h",
         "motor_driver.h",
         "position_sensor.h",
         "stm32f446_async_uart.h",
