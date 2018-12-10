@@ -353,7 +353,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
   base::string_span current_read_data_;
   base::error_code pending_rx_error_;
 
-  AtomicEventQueue<4> event_queue_;
+  AtomicEventQueue<16> event_queue_;
 
   micro::SizeCallback current_write_callback_;
   ssize_t tx_size_ = 0;
