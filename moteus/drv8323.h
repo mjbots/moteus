@@ -205,7 +205,7 @@ class Drv8323 : public MotorDriver {
     uint16_t dead_time_ns = 100;
     OcpMode ocp_mode = OcpMode::kLatchedFault;
     uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
-    uint16_t vds_lvl_mv = 130;
+    uint16_t vds_lvl_mv = 260;
 
 
     // CSA Control Register
@@ -213,10 +213,10 @@ class Drv8323 : public MotorDriver {
     bool vref_div = true;  // reference voltage is VREF / 2 (bi-directional)
     bool ls_ref = false;  // false = OCP for low side is measured SHx to SPx
                           // true = OCP is measured SHx to SNx
-    uint8_t csa_gain = 40;  // 5, 10, 20, 40 are options
+    uint8_t csa_gain = 20;  // 5, 10, 20, 40 are options
     bool dis_sen = false;  // if true, disable sense overcurrent fault
 
-    uint16_t sen_lvl_mv = 250;  // OCP level, (250, 500, 750, 1000)
+    uint16_t sen_lvl_mv = 500;  // OCP level, (250, 500, 750, 1000)
 
 
     template <typename Archive>

@@ -78,7 +78,7 @@ class BldcServo {
   };
 
   struct Config {
-    float i_scale_A = 0.02014f;  // Amps per A/D LSB
+    float i_scale_A = 0.04028f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
 
     uint8_t motor_poles = 14;
