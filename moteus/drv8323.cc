@@ -293,7 +293,9 @@ Drv8323::~Drv8323() {}
 
 void Drv8323::Enable(bool value) { impl_->Enable(value); }
 void Drv8323::Power(bool value) { impl_->Power(value); }
-bool Drv8323::fault() { return impl_->fault_.read() == 0; }
+bool Drv8323::fault() {
+  return (impl_->enable_.read() != 0) && (impl_->fault_.read() == 0);
+}
 void Drv8323::PollMillisecond() { impl_->PollMillisecond(); }
 const Drv8323::Status* Drv8323::status() const { return &impl_->status_; }
 
