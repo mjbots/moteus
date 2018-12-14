@@ -402,12 +402,6 @@ class BldcServo::Impl {
   }
 
   void ISR_MaybeChangeMode(CommandData* data) {
-    if (motor_driver_->fault()) {
-      status_.mode = kFault;
-      status_.fault = errc::kMotorDriverFault;
-      return;
-    }
-
     // We are requesting a different mode than we are in now.  Do our
     // best to advance if possible.
     switch (data->mode) {
@@ -553,6 +547,12 @@ class BldcServo::Impl {
     // See if we need to update our current mode.
     if (data->mode != status_.mode) {
       ISR_MaybeChangeMode(data);
+
+      if (motor_driver_->fault() && status_.mode != kStopped) {
+        status_.mode = kFault;
+        status_.fault = errc::kMotorDriverFault;
+        return;
+      }
     }
 
     // Ensure unused PID controllers have zerod state.
