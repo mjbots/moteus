@@ -99,14 +99,14 @@ class BldcServo {
 
     Config() {
       pid_dq.kp = 0.01f;
-      pid_dq.ki = 5.0f;
+      pid_dq.ki = 30.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
 
-      pid_position.kp = 120.0f;
+      pid_position.kp = 450.0f;
       pid_position.ki = 100.0f;
       pid_position.ilimit = 0.1f;
-      pid_position.kd = 4.5f;
+      pid_position.kd = 9.0f;
     }
 
     template <typename Archive>
@@ -291,6 +291,9 @@ class BldcServo {
     float velocity = 0.0f;
     float max_current = 0.0f;
 
+    // If set, then force the position to be the given value.
+    std::optional<float> set_position;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_ENUM(mode, ModeMapper));
@@ -308,6 +311,8 @@ class BldcServo {
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(velocity));
       a->Visit(MJ_NVP(max_current));
+
+      a->Visit(MJ_NVP(set_position));
     }
   };
 

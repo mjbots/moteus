@@ -194,6 +194,25 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (command == "index") {
+      const auto pos_value = tokenizer.next();
+      if (pos_value.empty()) {
+        WriteMessage(response, "missing index value\r\n");
+        return;
+      }
+
+      const float index_value = std::strtof(pos_value.data(), nullptr);
+
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kStopped;
+
+      command.set_position = index_value;
+
+      bldc_.Command(command);
+      WriteOk(response);
+      return;
+    }
+
     if (command == "die") {
       mbed_die();
     }

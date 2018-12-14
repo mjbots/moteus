@@ -359,6 +359,7 @@ class BldcServo::Impl {
              (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
     const int16_t delta_position =
         static_cast<int16_t>(status_.position_raw - old_position_raw);
+
     status_.unwrapped_position_raw += delta_position;
     velocity_filter_.Add(delta_position * config_.unwrapped_position_scale *
                          (1.0f / 65536.0f) * kRateHz);
@@ -373,8 +374,8 @@ class BldcServo::Impl {
     if (debug_uart_ == nullptr) { return; }
 
     debug_buf_[0] = 0x5a;
-    debug_buf_[1] = static_cast<int8_t>(control_.i_q_A * 2.0f);
-    int16_t measured_i_q = static_cast<int16_t>(status_.q_A * 500.0f);
+    debug_buf_[1] = static_cast<int8_t>(control_.i_d_A * 2.0f);
+    int16_t measured_i_q = static_cast<int16_t>(status_.d_A * 500.0f);
     std::memcpy(&debug_buf_[2], &measured_i_q, sizeof(measured_i_q));
 
     *debug_uart_dma_tx_.status_clear |= debug_uart_dma_tx_.all_status();
@@ -542,6 +543,12 @@ class BldcServo::Impl {
     CommandData* data = current_data_;
 
     control_ = {};
+
+    if (data->set_position) {
+      status_.unwrapped_position_raw =
+          static_cast<int32_t>(*data->set_position * 65536.0f);
+      data->set_position = {};
+    }
 
     // See if we need to update our current mode.
     if (data->mode != status_.mode) {
