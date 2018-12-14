@@ -9,6 +9,8 @@ r1 errata
  * switch ABS pads to be through holes for easier soldering
  * switch SWD connector to be vertical and just expose on the back
  * add onboard FET temperature sensor
+ * an additional unpopulated serial port for debugging
+ * have silks give pinout of RS485 connector
 
 
 Design controller board
