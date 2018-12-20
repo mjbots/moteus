@@ -1,11 +1,4 @@
 r1 errata
- * would be nice to have a few debug through-holes
-  * gnd
-  * motor1
-  * motor terminals
-  * a DAC output
- * drv8323 SDO could use an external pullup for faster rise time
-
 
 r2 DONE
  * ABS connector are now holes
@@ -13,6 +6,13 @@ r2 DONE
  * debug switched to RS422 and vertical ZH connector
  * have silks give pinout of RS485 connector
  * add onboard FET temperature sensor
+ * Debug pins
+  * a DAC output
+  * motor1
+  * pins for addition serial port
+  * CUR1 (amplified)
+  * gnd
+  * motor terminals
 
 
 Design controller board
