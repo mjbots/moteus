@@ -30,6 +30,7 @@ struct MoteusErrorCategory : mjlib::base::error_category {
       case errc::kUartBufferOverrunError: return "uart buffer overrun";
       case errc::kCalibrationFault: return "calibration fault";
       case errc::kMotorDriverFault: return "motor driver fault";
+      case errc::kOverVoltage: return "over voltage";
     }
     return "unknown";
   }

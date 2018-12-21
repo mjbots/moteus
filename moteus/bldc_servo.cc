@@ -548,10 +548,17 @@ class BldcServo::Impl {
     if (data->mode != status_.mode) {
       ISR_MaybeChangeMode(data);
 
-      if (motor_driver_->fault() && status_.mode != kStopped) {
-        status_.mode = kFault;
-        status_.fault = errc::kMotorDriverFault;
-        return;
+      if (status_.mode != kStopped) {
+        if (motor_driver_->fault()) {
+          status_.mode = kFault;
+          status_.fault = errc::kMotorDriverFault;
+          return;
+        }
+        if (status_.bus_V > config_.max_voltage) {
+          status_.mode = kFault;
+          status_.fault = errc::kOverVoltage;
+          return;
+        }
       }
     }
 

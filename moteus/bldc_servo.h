@@ -81,6 +81,8 @@ class BldcServo {
     float i_scale_A = 0.04028f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
 
+    float max_voltage = 20.0f;
+
     uint8_t motor_poles = 14;
     float motor_offset = -0.61f;
 
@@ -113,6 +115,7 @@ class BldcServo {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(i_scale_A));
       a->Visit(MJ_NVP(v_scale_V));
+      a->Visit(MJ_NVP(max_voltage));
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
       a->Visit(MJ_NVP(motor_resistance));
