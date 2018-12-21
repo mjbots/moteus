@@ -1,5 +1,3 @@
-r1 errata
-
 r2 DONE
  * ABS connector are now holes
  * SWD connector is vertical
@@ -13,6 +11,9 @@ r2 DONE
   * CUR1 (amplified)
   * gnd
   * motor terminals
+  * Added PC13,14,15 as HW version pins
+
+unprocessed r1 errata
 
 
 Design controller board

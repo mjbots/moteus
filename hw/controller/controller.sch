@@ -5964,10 +5964,12 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="DA" library="controller" deviceset="PAD" device="24AWG_PAD"/>
 <part name="DB" library="controller" deviceset="PAD" device="24AWG_PAD"/>
 <part name="DC" library="controller" deviceset="PAD" device="24AWG_PAD"/>
+<part name="GND19" library="supply1" deviceset="GND" device=""/>
 </parts>
 <sheets>
 <sheet>
 <plain>
+<text x="177.8" y="38.1" size="1.778" layer="91">HW v2 110 (PC15/14/13)</text>
 </plain>
 <instances>
 <instance part="U1" gate="G$1" x="91.44" y="45.72">
@@ -6335,6 +6337,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <instance part="DA" gate="G$1" x="152.4" y="-243.84" rot="R180"/>
 <instance part="DB" gate="G$1" x="182.88" y="-243.84" rot="R180"/>
 <instance part="DC" gate="G$1" x="208.28" y="-243.84" rot="R180"/>
+<instance part="GND19" gate="1" x="175.26" y="25.4"/>
 </instances>
 <busses>
 </busses>
@@ -6734,6 +6737,12 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="213.36" y1="-327.66" x2="228.6" y2="-327.66" width="0.1524" layer="91"/>
 <wire x1="228.6" y1="-327.66" x2="228.6" y2="-322.58" width="0.1524" layer="91"/>
 <junction x="213.36" y="-327.66"/>
+</segment>
+<segment>
+<pinref part="U1" gate="G$1" pin="PC13"/>
+<wire x1="167.64" y1="40.64" x2="175.26" y2="40.64" width="0.1524" layer="91"/>
+<pinref part="GND19" gate="1" pin="GND"/>
+<wire x1="175.26" y1="40.64" x2="175.26" y2="27.94" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$24" class="0">
