@@ -24,6 +24,7 @@
 #include "moteus/atomic_event_queue.h"
 #include "moteus/error.h"
 #include "moteus/irq_callback_table.h"
+#include "moteus/stm32_serial.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
@@ -45,11 +46,17 @@ IRQn_Type FindUartRxIrq(USART_TypeDef* uart) {
 }
 }
 
-class Stm32F446AsyncUart::Impl : public RawSerial {
+class Stm32F446AsyncUart::Impl {
  public:
   Impl(const Options& options)
-      : RawSerial(options.tx, options.rx, options.baud_rate),
-        options_(options),
+      : options_(options),
+        stm32_serial_([&options]() {
+            Stm32Serial::Options s_options;
+            s_options.rx = options.rx;
+            s_options.tx = options.tx;
+            s_options.baud_rate = options.baud_rate;
+            return s_options;
+          }()),
         dir_(options.dir, 0) {
     // Our receive buffer requires that all unprocessed words be
     // 0xffff.
@@ -59,13 +66,8 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
     __HAL_RCC_DMA1_CLK_ENABLE();
     __HAL_RCC_DMA2_CLK_ENABLE();
 
-    uart_ = [&]() {
-      const auto uart_tx = static_cast<UARTName>(
-          pinmap_peripheral(options.tx, PinMap_UART_TX));
-      const auto uart_rx = static_cast<UARTName>(
-        pinmap_peripheral(options.rx, PinMap_UART_RX));
-      return reinterpret_cast<USART_TypeDef*>(pinmap_merge(uart_tx, uart_rx));
-    }();
+    uart_ = stm32_serial_.uart();
+
     MJ_ASSERT(uart_ != nullptr);
     uart_rx_irq_ = FindUartRxIrq(uart_);
 
@@ -338,6 +340,7 @@ class Stm32F446AsyncUart::Impl : public RawSerial {
   }
 
   const Options options_;
+  Stm32Serial stm32_serial_;
   DigitalOut dir_;
   USART_TypeDef* uart_ = nullptr;
   IRQn_Type uart_rx_irq_ = {};

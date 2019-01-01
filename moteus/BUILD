@@ -57,6 +57,8 @@ mbed_binary(
         "stm32f446_async_uart.cc",
         "stm32_flash.h",
         "stm32_flash.cc",
+        "stm32_serial.h",
+        "stm32_serial.cc",
         "system_info.h",
         "system_info.cc",
         "main.cc",

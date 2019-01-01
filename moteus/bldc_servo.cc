@@ -29,6 +29,7 @@
 #include "moteus/foc.h"
 #include "moteus/math.h"
 #include "moteus/stm32f446_async_uart.h"
+#include "moteus/stm32_serial.h"
 
 namespace micro = mjlib::micro;
 
@@ -121,7 +122,12 @@ class BldcServo::Impl {
         current2_(options.current2),
         vsense_(options.vsense),
         debug_out_(options.debug_out),
-        debug_serial_(options.debug_uart_out, NC, 2000000) {
+        debug_serial_([&]() {
+            Stm32Serial::Options d_options;
+            d_options.tx = options.debug_uart_out;
+            d_options.baud_rate = 5000000;
+            return d_options;
+          }()) {
 
     persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
@@ -769,7 +775,7 @@ class BldcServo::Impl {
   mjlib::base::PID pid_q_{&config_.pid_dq, &status_.pid_q};
   mjlib::base::PID pid_position_{&config_.pid_position, &status_.pid_position};
 
-  RawSerial debug_serial_;
+  Stm32Serial debug_serial_;
   USART_TypeDef* debug_uart_ = nullptr;
   Stm32F446AsyncUart::Dma debug_uart_dma_tx_;
   char debug_buf_[4] = {};
