@@ -16,41 +16,67 @@
 
 '''Plot debug binary data emitted from the moteus controller.'''
 
+import collections
+import math
 import numpy
 import pylab
 import struct
 import sys
 
+DATA_FORMAT = struct.Struct('<bbhhhh')
+DATA_NT = collections.namedtuple(
+    'Data',
+    ['etheta',
+     'command_d_A', 'measured_d_A',
+     'pid_d_p', 'pid_d_i', 'control_d_V'])
+
 def main():
     data = open(sys.argv[1], "rb").read()
 
-    command = []
-    measured = []
     timestamps = []
+    sampled = []
 
     offset = 0
     ts = 0
-    while offset + 4 < len(data):
+    while offset + DATA_FORMAT.size < len(data):
         if data[offset] != 0x5a:
             offset += 1
             continue
 
-        s1, s2 = struct.unpack('<bh', data[offset+1:offset+4])
+        raw_data = DATA_NT._make(DATA_FORMAT.unpack(
+            data[offset + 1:offset + 1 + DATA_FORMAT.size]))
+        scaled_data = DATA_NT(
+            etheta = raw_data.etheta / 255.0 * (2.0 * math.pi),
+            command_d_A = raw_data.command_d_A / 2.0,
+            measured_d_A = raw_data.measured_d_A / 500.0,
+            pid_d_p = raw_data.pid_d_p / 32767.0 * 12.0,
+            pid_d_i = raw_data.pid_d_i / 32767.0 * 12.0,
+            control_d_V = raw_data.control_d_V / 32767.0 * 12.0,
+        )
 
-        offset += 4
+        offset += DATA_FORMAT.size
 
         timestamps.append(ts)
-        command.append(s1 / 2.0)
-        measured.append(s2 / 500.0)
+        sampled.append(scaled_data)
 
         ts += 1 / 40000.0
 
-    print("mean:", numpy.mean(measured))
-    print("stddev:", numpy.std(measured))
+    fig, ax1 = pylab.subplots()
 
-    pylab.plot(timestamps, command, label="command")
-    pylab.plot(timestamps, measured, label="measured")
+    ax1.plot(timestamps, [x.command_d_A for x in sampled], label="command")
+    ax1.plot(timestamps, [x.measured_d_A for x in sampled], label="measured")
 
+    ax2 = ax1.twinx()
+
+    ax2.plot(timestamps, [x.etheta for x in sampled], label="etheta")
+
+    ax3 = ax1.twinx()
+    ax3.plot(timestamps, [x.pid_d_p for x in sampled], label='pid.p')
+    ax3.plot(timestamps, [x.pid_d_i for x in sampled], label='pid.i')
+    ax3.plot(timestamps, [x.control_d_V for x in sampled], label='cmd')
+
+
+    pylab.legend()
     pylab.show()
 
 

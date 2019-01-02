@@ -380,12 +380,19 @@ class BldcServo::Impl {
     if (debug_uart_ == nullptr) { return; }
 
     debug_buf_[0] = 0x5a;
-    debug_buf_[1] = static_cast<int8_t>(control_.i_d_A * 2.0f);
-    int16_t measured_i_q = static_cast<int16_t>(status_.d_A * 500.0f);
-    std::memcpy(&debug_buf_[2], &measured_i_q, sizeof(measured_i_q));
+    debug_buf_[1] = static_cast<uint8_t>(255.0f * status_.electrical_theta / k2Pi);
+    debug_buf_[2] = static_cast<int8_t>(control_.i_d_A * 2.0f);
+    int16_t measured_d_a = static_cast<int16_t>(status_.d_A * 500.0f);
+    std::memcpy(&debug_buf_[3], &measured_d_a, sizeof(measured_d_a));
+    int16_t measured_pid_d_p = 32767.0f * status_.pid_d.p / 12.0f;
+    std::memcpy(&debug_buf_[5], &measured_pid_d_p, sizeof(measured_pid_d_p));
+    int16_t measured_pid_d_i = 32767.0f * status_.pid_d.integral / 12.0f;
+    std::memcpy(&debug_buf_[7], &measured_pid_d_i, sizeof(measured_pid_d_i));
+    int16_t control_d_V = 32767.0f * control_.d_V / 12.0f;
+    std::memcpy(&debug_buf_[9], &control_d_V, sizeof(control_d_V));
 
     *debug_uart_dma_tx_.status_clear |= debug_uart_dma_tx_.all_status();
-    debug_uart_dma_tx_.stream->NDTR = 4;
+    debug_uart_dma_tx_.stream->NDTR = sizeof(debug_buf_);
     debug_uart_dma_tx_.stream->M0AR = reinterpret_cast<uint32_t>(&debug_buf_);
     debug_uart_dma_tx_.stream->CR |= DMA_SxCR_EN;
 
@@ -778,7 +785,7 @@ class BldcServo::Impl {
   Stm32Serial debug_serial_;
   USART_TypeDef* debug_uart_ = nullptr;
   Stm32F446AsyncUart::Dma debug_uart_dma_tx_;
-  char debug_buf_[4] = {};
+  char debug_buf_[11] = {};
 
   static Impl* g_impl_;
 };
