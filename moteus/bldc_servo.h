@@ -87,6 +87,10 @@ class BldcServo {
     float motor_offset = -0.61f;
 
     float motor_resistance = 0.030f;
+
+    // Hz is mechanical (after gearbox), not electrical
+    float motor_v_per_hz = 0.15f;
+
     float feedforward_scale = 1.0f;
 
     float unwrapped_position_scale = 1.0f / 5.0f;
@@ -100,7 +104,7 @@ class BldcServo {
     mjlib::base::PID::Config pid_position;
 
     Config() {
-      pid_dq.kp = 0.01f;
+      pid_dq.kp = 0.03f;
       pid_dq.ki = 30.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
@@ -119,6 +123,7 @@ class BldcServo {
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
       a->Visit(MJ_NVP(motor_resistance));
+      a->Visit(MJ_NVP(motor_v_per_hz));
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(adc_cycles));

@@ -23,12 +23,13 @@ import pylab
 import struct
 import sys
 
-DATA_FORMAT = struct.Struct('<bbhhhh')
+DATA_FORMAT = struct.Struct('<bbhhhhb')
 DATA_NT = collections.namedtuple(
     'Data',
     ['etheta',
      'command_d_A', 'measured_d_A',
-     'pid_d_p', 'pid_d_i', 'control_d_V'])
+     'pid_d_p', 'pid_d_i', 'control_d_V',
+     'velocity'])
 
 def main():
     data = open(sys.argv[1], "rb").read()
@@ -52,9 +53,10 @@ def main():
             pid_d_p = raw_data.pid_d_p / 32767.0 * 12.0,
             pid_d_i = raw_data.pid_d_i / 32767.0 * 12.0,
             control_d_V = raw_data.control_d_V / 32767.0 * 12.0,
+            velocity = raw_data.velocity / 127.0 * 10.0,
         )
 
-        offset += DATA_FORMAT.size
+        offset += 1 + DATA_FORMAT.size
 
         timestamps.append(ts)
         sampled.append(scaled_data)
@@ -63,20 +65,23 @@ def main():
 
     fig, ax1 = pylab.subplots()
 
-    ax1.plot(timestamps, [x.command_d_A for x in sampled], label="command")
-    ax1.plot(timestamps, [x.measured_d_A for x in sampled], label="measured")
+    ax1.plot(timestamps, [x.command_d_A for x in sampled], 'r', label="command")
+    ax1.plot(timestamps, [x.measured_d_A for x in sampled], 'y', label="measured")
+    ax1.legend(loc='upper left')
 
     ax2 = ax1.twinx()
 
-    ax2.plot(timestamps, [x.etheta for x in sampled], label="etheta")
+    ax2.plot(timestamps, [x.etheta for x in sampled], 'blue', label="etheta")
+    ax2.plot(timestamps, [x.velocity for x in sampled], 'black', label='velocity')
+    ax2.legend(loc='upper right')
 
     ax3 = ax1.twinx()
     ax3.plot(timestamps, [x.pid_d_p for x in sampled], label='pid.p')
     ax3.plot(timestamps, [x.pid_d_i for x in sampled], label='pid.i')
     ax3.plot(timestamps, [x.control_d_V for x in sampled], label='cmd')
+    ax3.legend(loc='lower right')
 
 
-    pylab.legend()
     pylab.show()
 
 

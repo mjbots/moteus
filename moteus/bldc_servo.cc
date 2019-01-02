@@ -58,6 +58,10 @@ int MapConfig(const Array& array, int value) {
 constexpr float kRateHz = 40000.0;
 constexpr int kCalibrateCount = 256;
 
+// The maximum amount the absolute encoder can change in one cycle
+// without triggering a fault.  Measured relative to 32767
+constexpr int16_t kMaxPositionDelta = 1000;
+
 // mbed seems to configure the Timer clock input to 90MHz.  We want
 // 80kHz up/down rate for 40kHz freqency, so:
 constexpr uint32_t kPwmCounts = 90000000 / 80000;
@@ -365,6 +369,12 @@ class BldcServo::Impl {
              (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
     const int16_t delta_position =
         static_cast<int16_t>(status_.position_raw - old_position_raw);
+    if (status_.mode != kStopped &&
+        std::abs(delta_position) > kMaxPositionDelta) {
+      // We probably had an error when reading the position.  We must fault.
+      status_.mode = kFault;
+      status_.fault = errc::kEncoderFault;
+    }
 
     status_.unwrapped_position_raw += delta_position;
     velocity_filter_.Add(delta_position * config_.unwrapped_position_scale *
@@ -390,6 +400,8 @@ class BldcServo::Impl {
     std::memcpy(&debug_buf_[7], &measured_pid_d_i, sizeof(measured_pid_d_i));
     int16_t control_d_V = 32767.0f * control_.d_V / 12.0f;
     std::memcpy(&debug_buf_[9], &control_d_V, sizeof(control_d_V));
+
+    debug_buf_[11] = static_cast<int8_t>(127.0f * status_.velocity / 10.0f);
 
     *debug_uart_dma_tx_.status_clear |= debug_uart_dma_tx_.all_status();
     debug_uart_dma_tx_.stream->NDTR = sizeof(debug_buf_);
@@ -702,7 +714,9 @@ class BldcServo::Impl {
     control_.i_q_A = i_q_A;
 
     control_.d_V =
-        (config_.feedforward_scale * i_d_A * config_.motor_resistance) +
+        (config_.feedforward_scale * (
+            i_d_A * config_.motor_resistance -
+            status_.velocity * config_.motor_v_per_hz)) +
         pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
     control_.q_V =
         (config_.feedforward_scale * i_q_A * config_.motor_resistance) +
@@ -721,6 +735,7 @@ class BldcServo::Impl {
                             measured_velocity, velocity,
                             kRateHz);
     const float d_A = Limit(unlimited_d_A, -max_current, max_current);
+    MJ_ASSERT(std::abs(d_A) <= max_current);
 
     ISR_DoCurrent(sin_cos, d_A, 0.0f);
   }
@@ -785,7 +800,7 @@ class BldcServo::Impl {
   Stm32Serial debug_serial_;
   USART_TypeDef* debug_uart_ = nullptr;
   Stm32F446AsyncUart::Dma debug_uart_dma_tx_;
-  char debug_buf_[11] = {};
+  char debug_buf_[12] = {};
 
   static Impl* g_impl_;
 };
