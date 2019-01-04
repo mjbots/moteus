@@ -64,6 +64,7 @@ def main():
         ts += 1 / 40000.0
 
     fig, ax1 = pylab.subplots()
+    pylab.margins(xmargin=0.2)
 
     ax1.plot(timestamps, [x.command_d_A for x in sampled], 'r', label="command")
     ax1.plot(timestamps, [x.measured_d_A for x in sampled], 'y', label="measured")
@@ -76,6 +77,7 @@ def main():
     ax2.legend(loc='upper right')
 
     ax3 = ax1.twinx()
+    ax3.spines['right'].set_position(('outward', 30))
     ax3.plot(timestamps, [x.pid_d_p for x in sampled], label='pid.p')
     ax3.plot(timestamps, [x.pid_d_i for x in sampled], label='pid.i')
     ax3.plot(timestamps, [x.control_d_V for x in sampled], label='cmd')
