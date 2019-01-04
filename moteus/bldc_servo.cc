@@ -14,6 +14,7 @@
 
 #include "bldc_servo.h"
 
+#include <atomic>
 #include <cmath>
 #include <functional>
 
@@ -133,6 +134,8 @@ class BldcServo::Impl {
             return d_options;
           }()) {
 
+    clock_.store(0);
+
     persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
     telemetry_manager->Register("servo_stats", &status_);
@@ -194,6 +197,10 @@ class BldcServo::Impl {
       motor_driver_->Enable(true);
       *mode_volatile = kCalibrating;
     }
+  }
+
+  uint32_t clock() const {
+    return clock_.load();
   }
 
  private:
@@ -319,6 +326,7 @@ class BldcServo::Impl {
 
   void ISR_DoTimer() {
     debug_out_ = 1;
+    clock_++;
 
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
@@ -802,6 +810,8 @@ class BldcServo::Impl {
   Stm32F446AsyncUart::Dma debug_uart_dma_tx_;
   char debug_buf_[12] = {};
 
+  std::atomic<uint32_t> clock_;
+
   static Impl* g_impl_;
 };
 
@@ -829,6 +839,10 @@ void BldcServo::Command(const CommandData& data) {
 
 BldcServo::Status BldcServo::status() const {
   return impl_->status();
+}
+
+uint32_t BldcServo::clock() const {
+  return impl_->clock();
 }
 
 }

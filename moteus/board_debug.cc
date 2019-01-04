@@ -213,6 +213,14 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (command == "clk") {
+      const uint32_t clock = bldc_.clock();
+      ::snprintf(out_message_, sizeof(out_message_),
+                 "%lu\r\n", clock);
+      WriteMessage(response, out_message_);
+      return;
+    }
+
     if (command == "die") {
       mbed_die();
     }
@@ -281,6 +289,7 @@ class BoardDebug::Impl {
 
   Drv8323 drv8323_;
   BldcServo bldc_;
+  char out_message_[16] = {};
 };
 
 BoardDebug::BoardDebug(micro::Pool* pool,
