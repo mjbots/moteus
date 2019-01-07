@@ -183,6 +183,31 @@ class BoardDebug::Impl {
       const float max_i = std::strtof(max_i_str.data(), nullptr);
 
       BldcServo::CommandData command;
+
+      while (tokenizer.remaining().size()) {
+        const auto token = tokenizer.next();
+        // We accept optional arguments, each prefixed by a single
+        // character.
+        if (token.size() < 1) { continue; }
+        const char option = token[0];
+        const float value = std::strtof(&token[1], nullptr);
+
+        switch (option) {
+          case 'p': {
+            command.kp_scale = value;
+            break;
+          }
+          case 'd': {
+            command.kd_scale = value;
+            break;
+          }
+          default: {
+            WriteMessage(response, "unknown option\r\n");
+            return;
+          }
+        }
+      }
+
       command.mode = BldcServo::kPosition;
 
       command.position = pos;

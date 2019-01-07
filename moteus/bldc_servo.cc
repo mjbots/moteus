@@ -561,6 +561,7 @@ class BldcServo::Impl {
 
     if (!position_pid_active) {
       status_.pid_position = {};
+      status_.control_position = std::numeric_limits<float>::quiet_NaN();
     }
   }
 
@@ -639,8 +640,7 @@ class BldcServo::Impl {
         break;
       }
       case kPosition: {
-        ISR_DoPosition(sin_cos, data->position,
-                       data->velocity, data->max_current);
+        ISR_DoPosition(sin_cos, data);
         break;
       }
     }
@@ -735,13 +735,38 @@ class BldcServo::Impl {
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoPosition(const SinCos& sin_cos, float position, float velocity, float max_current) {
+  void ISR_DoPosition(const SinCos& sin_cos, CommandData* data) {
+    if (!std::isnan(data->position)) {
+      status_.control_position = data->position;
+      data->position = std::numeric_limits<float>::quiet_NaN();
+    } else if (std::isnan(status_.control_position)) {
+      status_.control_position = status_.unwrapped_position;
+    }
+
+    auto velocity_command = data->velocity;
+
+    const auto old_position = status_.control_position;
+    status_.control_position =
+        Limit(status_.control_position + data->velocity / kRateHz,
+              config_.position_min, config_.position_max);
+    if (status_.control_position == old_position) {
+      // We have hit our limit.  Assume a velocity of 0.
+      velocity_command = 0.0f;
+    }
+
     const float measured_velocity = status_.velocity;
 
+    mjlib::base::PID::ApplyOptions apply_options;
+    apply_options.kp_scale = data->kp_scale;
+    apply_options.kd_scale = data->kd_scale;
+
     const float unlimited_d_A =
-        pid_position_.Apply(status_.unwrapped_position, position,
-                            measured_velocity, velocity,
-                            kRateHz);
+        pid_position_.Apply(status_.unwrapped_position,
+                            status_.control_position,
+                            measured_velocity, velocity_command,
+                            kRateHz,
+                            apply_options);
+    const float max_current = data->max_current;
     const float d_A = Limit(unlimited_d_A, -max_current, max_current);
     MJ_ASSERT(std::abs(d_A) <= max_current);
 

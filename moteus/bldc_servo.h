@@ -103,6 +103,9 @@ class BldcServo {
     mjlib::base::PID::Config pid_dq;
     mjlib::base::PID::Config pid_position;
 
+    float position_min = -0.01f;
+    float position_max = 0.01f;
+
     Config() {
       pid_dq.kp = 0.03f;
       pid_dq.ki = 30.0f;
@@ -111,7 +114,7 @@ class BldcServo {
 
       pid_position.kp = 450.0f;
       pid_position.ki = 100.0f;
-      pid_position.ilimit = 0.1f;
+      pid_position.ilimit = 0.0f;
       pid_position.kd = 9.0f;
     }
 
@@ -130,6 +133,8 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_sample_count));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
+      a->Visit(MJ_NVP(position_min));
+      a->Visit(MJ_NVP(position_max));
     }
   };
 
@@ -224,6 +229,8 @@ class BldcServo {
     mjlib::base::PID::State pid_q;
     mjlib::base::PID::State pid_position;
 
+    float control_position = std::numeric_limits<float>::quiet_NaN();
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_ENUM(mode, ModeMapper));
@@ -252,6 +259,8 @@ class BldcServo {
       a->Visit(MJ_NVP(pid_d));
       a->Visit(MJ_NVP(pid_q));
       a->Visit(MJ_NVP(pid_position));
+
+      a->Visit(MJ_NVP(control_position));
     }
   };
 
@@ -297,7 +306,11 @@ class BldcServo {
     // For kPosition mode
     float position = 0.0f;  // kNaN means start at the current position.
     float velocity = 0.0f;
+
     float max_current = 0.0f;
+
+    float kp_scale = 1.0f;
+    float kd_scale = 1.0f;
 
     // If set, then force the position to be the given value.
     std::optional<float> set_position;
@@ -319,6 +332,8 @@ class BldcServo {
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(velocity));
       a->Visit(MJ_NVP(max_current));
+      a->Visit(MJ_NVP(kp_scale));
+      a->Visit(MJ_NVP(kd_scale));
 
       a->Visit(MJ_NVP(set_position));
     }
