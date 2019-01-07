@@ -226,7 +226,11 @@ class Stm32F446AsyncUart::Impl {
       dir_.write(0);
     }
 
-    copy(error_code, amount_sent);
+    if (copy.valid()) {
+      // This would only happen if we got an unexpected interrupt, but
+      // there is no real reason to abort in that case.
+      copy(error_code, amount_sent);
+    }
   }
 
   // INVOKED FROM INTERRUPT CONTEXT
@@ -364,7 +368,7 @@ class Stm32F446AsyncUart::Impl {
   // This buffer serves as a place to store things in between calls to
   // AsyncReadSome so that there is minimal chance of data loss even
   // at high data rates.
-  static constexpr int kRxBufferSize = 64;
+  static constexpr int kRxBufferSize = 128;
   volatile uint16_t rx_buffer_[kRxBufferSize] = {};
   uint16_t rx_buffer_pos_ = 0;
 };
