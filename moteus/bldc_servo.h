@@ -105,6 +105,7 @@ class BldcServo {
 
     float position_min = -0.01f;
     float position_max = 0.01f;
+    float max_ms_i_err = 2.0f;
 
     Config() {
       pid_dq.kp = 0.03f;
@@ -135,6 +136,7 @@ class BldcServo {
       a->Visit(MJ_NVP(pid_position));
       a->Visit(MJ_NVP(position_min));
       a->Visit(MJ_NVP(position_max));
+      a->Visit(MJ_NVP(max_ms_i_err));
     }
   };
 

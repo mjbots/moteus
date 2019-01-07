@@ -32,6 +32,7 @@ struct MoteusErrorCategory : mjlib::base::error_category {
       case errc::kMotorDriverFault: return "motor driver fault";
       case errc::kOverVoltage: return "over voltage";
       case errc::kEncoderFault: return "encoder fault";
+      case errc::kCurrentControlFault: return "current control fault";
     }
     return "unknown";
   }

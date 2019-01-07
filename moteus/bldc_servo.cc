@@ -730,6 +730,14 @@ class BldcServo::Impl {
         (config_.feedforward_scale * i_q_A * config_.motor_resistance) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
+    if (status_.pid_d.ms_error > config_.max_ms_i_err ||
+        status_.pid_q.ms_error > config_.max_ms_i_err) {
+      status_.mode = kFault;
+      status_.fault = errc::kCurrentControlFault;
+      ISR_DoFault();
+      return;
+    }
+
     InverseDqTransform idt(sin_cos, control_.d_V, control_.q_V);
 
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
