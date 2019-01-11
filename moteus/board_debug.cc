@@ -48,12 +48,12 @@ class BoardDebug::Impl {
       : drv8323_(pool, persistent_config, telemetry_manager,
                  []() {
                    Drv8323::Options options;
-                   options.mosi = PA_7;
-                   options.miso = PA_6;
-                   options.sck = PA_5;
-                   options.cs = PA_4;
+                   options.mosi = DRV8323_MOSI;
+                   options.miso = DRV8323_MISO;
+                   options.sck = DRV8323_SCK;
+                   options.cs = DRV8323_CS;
                    options.enable = DRV8323_ENABLE;
-                   options.fault = PC_4;
+                   options.fault = DRV8323_FAULT;
                    options.hiz = DRV8323_HIZ;
                    return options;
                  }()),

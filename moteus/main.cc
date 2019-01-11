@@ -26,6 +26,7 @@
 #include "mjlib/micro/telemetry_manager.h"
 
 #include "moteus/board_debug.h"
+#include "moteus/hw.h"
 #include "moteus/millisecond_timer.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_flash.h"
@@ -35,6 +36,16 @@ using namespace moteus;
 namespace micro = mjlib::micro;
 
 int main(void) {
+  DigitalIn hwrev0(HWREV_PIN0, PullUp);
+  DigitalIn hwrev1(HWREV_PIN1, PullUp);
+  DigitalIn hwrev2(HWREV_PIN2, PullUp);
+
+  const uint8_t this_hw_rev =
+      0x07 & (~(hwrev0.read() |
+                (hwrev1.read() << 1) |
+                (hwrev2.read() << 2)));
+  MJ_ASSERT(this_hw_rev == MOTEUS_HW_REV);
+
   micro::SizedPool<12288> pool;
 
   Stm32F446AsyncUart rs485(&pool, []() {
