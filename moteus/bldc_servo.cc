@@ -138,6 +138,8 @@ class BldcServo::Impl {
 
     persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
+    persistent_config->Register("servopos", &position_config_,
+                                std::bind(&Impl::UpdateConfig, this));
     telemetry_manager->Register("servo_stats", &status_);
     telemetry_manager->Register("servo_cmd", &telemetry_data_);
     telemetry_manager->Register("servo_control", &control_);
@@ -749,7 +751,8 @@ class BldcServo::Impl {
     const auto old_position = status_.control_position;
     status_.control_position =
         Limit(status_.control_position + data->velocity / kRateHz,
-              config_.position_min, config_.position_max);
+              position_config_.position_min,
+              position_config_.position_max);
     if (status_.control_position == old_position) {
       // We have hit our limit.  Assume a velocity of 0.
       velocity_command = 0.0f;
@@ -785,6 +788,7 @@ class BldcServo::Impl {
   MotorDriver* const motor_driver_;
 
   Config config_;
+  PositionConfig position_config_;
   TIM_TypeDef* timer_ = nullptr;
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;

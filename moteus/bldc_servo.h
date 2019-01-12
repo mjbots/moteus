@@ -103,9 +103,6 @@ class BldcServo {
     mjlib::base::PID::Config pid_dq;
     mjlib::base::PID::Config pid_position;
 
-    float position_min = -0.01f;
-    float position_max = 0.01f;
-
     Config() {
       pid_dq.kp = 0.03f;
       pid_dq.ki = 30.0f;
@@ -133,6 +130,18 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_sample_count));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
+    }
+  };
+
+  // This will commonly be different across every device, so it is
+  // separate to minimize resets due to schemas changing during
+  // development.
+  struct PositionConfig {
+    float position_min = -0.01f;
+    float position_max = 0.01f;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
       a->Visit(MJ_NVP(position_min));
       a->Visit(MJ_NVP(position_max));
     }
