@@ -45,8 +45,8 @@ class BldcServo {
     PinName current2 = NC;  // Must be sampled from ADC2
 
     PinName current3 = NC;
-    PinName vsense = NC;  // Must be sampled from ADC3.
-    PinName vtemp = NC;
+    PinName vsense = NC;  // Must be sampled from ADC3
+    PinName tsense = NC;  // Must be sampled from ADC3
 
     PinName debug_out = NC;
 
@@ -218,6 +218,7 @@ class BldcServo {
     uint16_t adc2_raw = 0;
     uint16_t adc3_raw = 0;
     uint16_t position_raw = 0;
+    uint16_t fet_temp_raw = 0;
 
     uint16_t adc1_offset = 2048;
     uint16_t adc2_offset = 2048;
@@ -225,6 +226,7 @@ class BldcServo {
     float cur1_A = 0.0f;
     float cur2_A = 0.0f;
     float bus_V = 0.0f;
+    float fet_temp_C = 0.0f;
 
     float electrical_theta = 0.0f;
 
@@ -250,6 +252,7 @@ class BldcServo {
       a->Visit(MJ_NVP(adc2_raw));
       a->Visit(MJ_NVP(adc3_raw));
       a->Visit(MJ_NVP(position_raw));
+      a->Visit(MJ_NVP(fet_temp_raw));
 
       a->Visit(MJ_NVP(adc1_offset));
       a->Visit(MJ_NVP(adc2_offset));
@@ -257,6 +260,7 @@ class BldcServo {
       a->Visit(MJ_NVP(cur1_A));
       a->Visit(MJ_NVP(cur2_A));
       a->Visit(MJ_NVP(bus_V));
+      a->Visit(MJ_NVP(fet_temp_C));
       a->Visit(MJ_NVP(electrical_theta));
 
       a->Visit(MJ_NVP(d_A));

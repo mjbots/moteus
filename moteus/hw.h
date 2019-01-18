@@ -44,3 +44,11 @@
 #define HWREV_PIN0 PC_13
 #define HWREV_PIN1 PC_14
 #define HWREV_PIN2 PC_15
+
+#define MOTEUS_VSENSE PC_1_ALT1
+
+#if MOTEUS_HW_REV == 0
+#define MOTEUS_TSENSE NC
+#elif MOTEUS_HW_REV >= 1
+#define MOTEUS_TSENSE PC_2_ALT1
+#endif

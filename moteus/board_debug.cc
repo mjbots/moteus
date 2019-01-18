@@ -66,7 +66,8 @@ class BoardDebug::Impl {
 
                  options.current1 = PC_5;
                  options.current2 = PB_0_ALT0;
-                 options.vsense = PC_1_ALT1;
+                 options.vsense = MOTEUS_VSENSE;
+                 options.tsense = MOTEUS_TSENSE;
 
                  options.debug_out = PB_8;
                  options.debug_uart_out = PC_10;

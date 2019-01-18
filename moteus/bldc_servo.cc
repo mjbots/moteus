@@ -41,6 +41,42 @@ namespace {
 
 using mjlib::base::Limit;
 
+// From make_thermistor_table.py
+constexpr float g_thermistor_lookup[] = {
+  -74.17f, // 0
+  -11.36f, // 128
+  1.53f, // 256
+  9.97f, // 384
+  16.51f, // 512
+  21.98f, // 640
+  26.79f, // 768
+  31.15f, // 896
+  35.19f, // 1024
+  39.00f, // 1152
+  42.65f, // 1280
+  46.18f, // 1408
+  49.64f, // 1536
+  53.05f, // 1664
+  56.45f, // 1792
+  59.87f, // 1920
+  63.33f, // 2048
+  66.87f, // 2176
+  70.51f, // 2304
+  74.29f, // 2432
+  78.25f, // 2560
+  82.44f, // 2688
+  86.92f, // 2816
+  91.78f, // 2944
+  97.13f, // 3072
+  103.13f, // 3200
+  110.01f, // 3328
+  118.16f, // 3456
+  128.23f, // 3584
+  141.49f, // 3712
+  161.02f, // 3840
+  197.66f, // 3968
+};
+
 template <typename Array>
 int MapConfig(const Array& array, int value) {
   static_assert(sizeof(array) > 0);
@@ -123,6 +159,9 @@ class BldcServo::Impl {
         current1_(options.current1),
         current2_(options.current2),
         vsense_(options.vsense),
+        vsense_sqr_(FindSqr(options.vsense)),
+        tsense_(options.tsense),
+        tsense_sqr_(FindSqr(options.tsense)),
         debug_out_(options.debug_out),
         debug_serial_([&]() {
             Stm32Serial::Options d_options;
@@ -270,10 +309,10 @@ class BldcServo::Impl {
     ADC3->CR2 = ADC_CR2_ADON;
 
     // We rely on the AnalogIn members to configure the pins as
-    // inputs, however they won't
+    // inputs.
     ADC1->SQR3 = FindSqr(options_.current1);
     ADC2->SQR3 = FindSqr(options_.current2);
-    ADC3->SQR3 = FindSqr(options_.vsense);
+    ADC3->SQR3 = vsense_sqr_;
 
     MJ_ASSERT(reinterpret_cast<uint32_t>(ADC1) ==
                 pinmap_peripheral(options_.current1, PinMap_ADC));
@@ -344,6 +383,8 @@ class BldcServo::Impl {
     uint32_t adc2 = 0;
     uint32_t adc3 = 0;
 
+    ADC3->SQR3 = vsense_sqr_;
+
     for (uint16_t i = 0; i < config_.adc_sample_count; i++) {
       // Start conversion.
       ADC1->CR2 |= ADC_CR2_SWSTART;
@@ -354,21 +395,50 @@ class BldcServo::Impl {
       adc3 += ADC3->DR;
     }
 
-    debug_out_ = 0;
-
-    status_.adc1_raw = adc1 / config_.adc_sample_count;
-    status_.adc2_raw = adc2 / config_.adc_sample_count;
-    status_.adc3_raw = adc3 / config_.adc_sample_count;
-
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
     // at 40kHz.  But time spent until now actually limits the
     // maximum duty cycle we can achieve, whereas time spent below
     // just eats cycles the rest of the code could be using.
 
+    debug_out_ = 0;
+
+    // Start sampling the temperature.
+    ADC3->SQR3 = tsense_sqr_;
+    ADC3->CR2 |= ADC_CR2_SWSTART;
+
+    status_.adc1_raw = adc1 / config_.adc_sample_count;
+    status_.adc2_raw = adc2 / config_.adc_sample_count;
+    status_.adc3_raw = adc3 / config_.adc_sample_count;
+
+
     // Sample the position.
     const uint16_t old_position_raw = status_.position_raw;
     status_.position_raw = position_sensor_->Sample();
+
+    // The temperature sensing should be done by now, but just double
+    // check.
+    while ((ADC3->SR & ADC_SR_EOC) == 0);
+    status_.fet_temp_raw = ADC3->DR;
+
+
+    {
+      constexpr int adc_max = 4096;
+      constexpr size_t size_thermistor_table =
+          sizeof(g_thermistor_lookup) / sizeof(*g_thermistor_lookup);
+      size_t offset = std::max<size_t>(
+          1, std::min<size_t>(
+              size_thermistor_table - 2,
+              status_.fet_temp_raw * size_thermistor_table / adc_max));
+      const int16_t this_value = offset * adc_max / size_thermistor_table;
+      const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
+      const float temp1 = g_thermistor_lookup[offset];
+      const float temp2 = g_thermistor_lookup[offset + 1];
+      status_.fet_temp_C = temp1 +
+          (temp2 - temp1) *
+          static_cast<float>(status_.fet_temp_raw - this_value) /
+          static_cast<float>(next_value - this_value);
+    }
 
     status_.electrical_theta =
         k2Pi * ::fmodf(
@@ -809,6 +879,9 @@ class BldcServo::Impl {
   AnalogIn current1_;
   AnalogIn current2_;
   AnalogIn vsense_;
+  uint32_t vsense_sqr_ = {};
+  AnalogIn tsense_;
+  uint32_t tsense_sqr_ = {};
 
   // This is just for debugging.
   DigitalOut debug_out_;
