@@ -23,13 +23,13 @@ import pylab
 import struct
 import sys
 
-DATA_FORMAT = struct.Struct('<bbhhhhb')
+DATA_FORMAT = struct.Struct('<bbhhhhbb')
 DATA_NT = collections.namedtuple(
     'Data',
     ['etheta',
      'command_d_A', 'measured_d_A',
      'pid_d_p', 'pid_d_i', 'control_d_V',
-     'velocity'])
+     'velocity', 'bus_V'])
 
 def main():
     data = open(sys.argv[1], "rb").read()
@@ -54,6 +54,7 @@ def main():
             pid_d_i = raw_data.pid_d_i / 32767.0 * 12.0,
             control_d_V = raw_data.control_d_V / 32767.0 * 12.0,
             velocity = raw_data.velocity / 127.0 * 10.0,
+            bus_V = raw_data.bus_V / 127.0 * 24.0,
         )
 
         offset += 1 + DATA_FORMAT.size
@@ -68,6 +69,7 @@ def main():
 
     ax1.plot(timestamps, [x.command_d_A for x in sampled], 'r', label="command")
     ax1.plot(timestamps, [x.measured_d_A for x in sampled], 'y', label="measured")
+    ax1.plot(timestamps, [x.bus_V for x in sampled], 'gray', label='bus_V')
     ax1.legend(loc='upper left')
 
     ax2 = ax1.twinx()

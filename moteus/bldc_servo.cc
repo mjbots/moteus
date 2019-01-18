@@ -166,7 +166,7 @@ class BldcServo::Impl {
         debug_serial_([&]() {
             Stm32Serial::Options d_options;
             d_options.tx = options.debug_uart_out;
-            d_options.baud_rate = 5000000;
+            d_options.baud_rate = 5450000;
             return d_options;
           }()) {
 
@@ -479,6 +479,7 @@ class BldcServo::Impl {
     std::memcpy(&debug_buf_[9], &control_d_V, sizeof(control_d_V));
 
     debug_buf_[11] = static_cast<int8_t>(127.0f * status_.velocity / 10.0f);
+    debug_buf_[12] = static_cast<int8_t>(127.0f * status_.bus_V / 24.0f);
 
     *debug_uart_dma_tx_.status_clear |= debug_uart_dma_tx_.all_status();
     debug_uart_dma_tx_.stream->NDTR = sizeof(debug_buf_);
@@ -493,6 +494,13 @@ class BldcServo::Impl {
     status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * config_.i_scale_A;
     status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * config_.i_scale_A;
     status_.bus_V = status_.adc3_raw * config_.v_scale_V;
+    if (!std::isfinite(status_.filt_bus_V)) {
+      status_.filt_bus_V = status_.bus_V;
+    } else {
+      constexpr float alpha = 1.0 / (kRateHz * 0.5f); // 0.5s
+      status_.filt_bus_V =
+          alpha * status_.bus_V + (1.0f - alpha) * status_.filt_bus_V;
+    }
 
     DqTransform dq{sin_cos,
           status_.cur1_A,
@@ -777,7 +785,7 @@ class BldcServo::Impl {
     control_.voltage = voltage;
 
     auto voltage_to_pwm = [this](float v) {
-      return 0.5f + 2.0f * v / status_.bus_V;
+      return 0.5f + 2.0f * v / status_.filt_bus_V;
     };
 
     ISR_DoPwmControl(Vec3{
@@ -913,7 +921,7 @@ class BldcServo::Impl {
   Stm32Serial debug_serial_;
   USART_TypeDef* debug_uart_ = nullptr;
   Stm32F446AsyncUart::Dma debug_uart_dma_tx_;
-  char debug_buf_[12] = {};
+  char debug_buf_[13] = {};
 
   std::atomic<uint32_t> clock_;
 

@@ -104,7 +104,7 @@ class BldcServo {
     mjlib::base::PID::Config pid_position;
 
     Config() {
-      pid_dq.kp = 0.03f;
+      pid_dq.kp = 0.1f;
       pid_dq.ki = 30.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1;
@@ -226,6 +226,7 @@ class BldcServo {
     float cur1_A = 0.0f;
     float cur2_A = 0.0f;
     float bus_V = 0.0f;
+    float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
     float fet_temp_C = 0.0f;
 
     float electrical_theta = 0.0f;
@@ -260,6 +261,7 @@ class BldcServo {
       a->Visit(MJ_NVP(cur1_A));
       a->Visit(MJ_NVP(cur2_A));
       a->Visit(MJ_NVP(bus_V));
+      a->Visit(MJ_NVP(filt_bus_V));
       a->Visit(MJ_NVP(fet_temp_C));
       a->Visit(MJ_NVP(electrical_theta));
 
