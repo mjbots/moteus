@@ -24,6 +24,7 @@
 #include "PeripheralPins.h"
 
 #include "mjlib/base/assert.h"
+#include "mjlib/base/limit.h"
 #include "mjlib/base/windowed_average.h"
 
 #include "moteus/irq_callback_table.h"
@@ -38,11 +39,7 @@ namespace moteus {
 
 namespace {
 
-float Limit(float a, float min, float max) {
-  if (a < min) { return min; }
-  if (a > max) { return max; }
-  return a;
-}
+using mjlib::base::Limit;
 
 template <typename Array>
 int MapConfig(const Array& array, int value) {
@@ -401,7 +398,7 @@ class BldcServo::Impl {
 
     debug_buf_[0] = 0x5a;
     debug_buf_[1] = static_cast<uint8_t>(255.0f * status_.electrical_theta / k2Pi);
-    debug_buf_[2] = static_cast<int8_t>(control_.i_d_A * 2.0f);
+    debug_buf_[2] = static_cast<int8_t>(status_.pid_d.desired * 2.0f);
     int16_t measured_d_a = static_cast<int16_t>(status_.d_A * 500.0f);
     std::memcpy(&debug_buf_[3], &measured_d_a, sizeof(measured_d_a));
     int16_t measured_pid_d_p = 32767.0f * status_.pid_d.p / 12.0f;
@@ -540,6 +537,11 @@ class BldcServo::Impl {
     if (!current_pid_active) {
       status_.pid_d = {};
       status_.pid_q = {};
+
+      // We always want to start from 0 current when initiating
+      // current control of some form.
+      status_.pid_d.desired = 0.0f;
+      status_.pid_q.desired = 0.0f;
     }
 
     const bool position_pid_active = [&]() {
