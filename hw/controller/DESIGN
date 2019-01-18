@@ -1,6 +1,7 @@
 r2 ERRATA
  * footprint for 6pin ZH vertical doesn't have trailing pins long
    enough, needs to be about 1mm longer
+ * have a 0603 and a 0402 220ohm resistor!
 
 r2 DONE
  * ABS connector are now holes
