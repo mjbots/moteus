@@ -411,10 +411,12 @@ class BldcServo::Impl {
     status_.adc2_raw = adc2 / config_.adc_sample_count;
     status_.adc3_raw = adc3 / config_.adc_sample_count;
 
-
     // Sample the position.
     const uint16_t old_position_raw = status_.position_raw;
     status_.position_raw = position_sensor_->Sample();
+    if (config_.invert) {
+      status_.position_raw = 65535 - status_.position_raw;
+    }
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -774,9 +776,13 @@ class BldcServo::Impl {
     control_.pwm.b = LimitPwm(pwm.b);
     control_.pwm.c = LimitPwm(pwm.c);
 
-    *pwm1_ccr_ = static_cast<uint16_t>(control_.pwm.a * kPwmCounts);
-    *pwm3_ccr_ = static_cast<uint16_t>(control_.pwm.b * kPwmCounts);
-    *pwm2_ccr_ = static_cast<uint16_t>(control_.pwm.c * kPwmCounts);
+    const uint16_t pwm1 = static_cast<uint16_t>(control_.pwm.a * kPwmCounts);
+    const uint16_t pwm2 = static_cast<uint16_t>(control_.pwm.b * kPwmCounts);
+    const uint16_t pwm3 = static_cast<uint16_t>(control_.pwm.c * kPwmCounts);
+
+    *pwm1_ccr_ = pwm1;
+    *pwm2_ccr_ = pwm3;
+    *pwm3_ccr_ = pwm2;
 
     motor_driver_->Power(true);
   }

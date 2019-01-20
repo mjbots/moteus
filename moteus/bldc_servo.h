@@ -83,6 +83,7 @@ class BldcServo {
 
     float max_voltage = 20.0f;
 
+    uint8_t invert = 0;
     uint8_t motor_poles = 14;
     float motor_offset = -0.61f;
 
@@ -121,6 +122,7 @@ class BldcServo {
       a->Visit(MJ_NVP(i_scale_A));
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(max_voltage));
+      a->Visit(MJ_NVP(invert));
       a->Visit(MJ_NVP(motor_poles));
       a->Visit(MJ_NVP(motor_offset));
       a->Visit(MJ_NVP(motor_resistance));
