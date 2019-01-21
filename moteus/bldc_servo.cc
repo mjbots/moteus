@@ -913,7 +913,7 @@ class BldcServo::Impl {
   CommandData telemetry_data_;
 
   // These values should only be modified from within the ISR.
-  mjlib::base::WindowedAverage<float, 32> velocity_filter_;
+  mjlib::base::WindowedAverage<float, 128> velocity_filter_;
   Status status_;
   Control control_;
   uint32_t calibrate_adc1_ = 0;
