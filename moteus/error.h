@@ -34,6 +34,7 @@ enum class errc {
   kMotorDriverFault,
   kOverVoltage,
   kEncoderFault,
+  kMotorNotConfigured,
 };
 
 mjlib::base::error_code make_error_code(errc);

@@ -77,27 +77,43 @@ class BldcServo {
     }
   };
 
+  struct Motor {
+    uint8_t poles = 0;  // 14
+    uint8_t invert = 0;
+    float resistance_ohm = 0.0f;  // 0.030
+
+    // Hz is electrical
+    float v_per_hz = 0.0f;  // 0.15f / 5.0f;
+
+    float unwrapped_position_scale = 1.0f / 5.0f;
+
+    // Electrical phase offset in radians as a function of encoder
+    // position.
+    std::array<float, 64> offset = {};
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(poles));
+      a->Visit(MJ_NVP(invert));
+      a->Visit(MJ_NVP(resistance_ohm));
+      a->Visit(MJ_NVP(v_per_hz));
+      a->Visit(MJ_NVP(unwrapped_position_scale));
+      a->Visit(MJ_NVP(offset));
+    }
+  };
+
   struct Config {
     float i_scale_A = 0.04028f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
 
     float max_voltage = 20.0f;
 
-    uint8_t invert = 0;
-    uint8_t motor_poles = 14;
-    float motor_offset = -0.61f;
-
-    float motor_resistance = 0.030f;
-
-    // Hz is mechanical (after gearbox), not electrical
-    float motor_v_per_hz = 0.15f;
-
     float feedforward_scale = 1.0f;
-
-    float unwrapped_position_scale = 1.0f / 5.0f;
 
     uint16_t adc_cycles = 15;  // 3, 15, 28, 56, 84, 112, 144, 480
     uint16_t adc_sample_count = 1;
+
+    float vel_filter_s = 0.002f;
 
     // We use the same PID constants for D and Q current control
     // loops.
@@ -122,15 +138,10 @@ class BldcServo {
       a->Visit(MJ_NVP(i_scale_A));
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(max_voltage));
-      a->Visit(MJ_NVP(invert));
-      a->Visit(MJ_NVP(motor_poles));
-      a->Visit(MJ_NVP(motor_offset));
-      a->Visit(MJ_NVP(motor_resistance));
-      a->Visit(MJ_NVP(motor_v_per_hz));
       a->Visit(MJ_NVP(feedforward_scale));
-      a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(adc_cycles));
       a->Visit(MJ_NVP(adc_sample_count));
+      a->Visit(MJ_NVP(vel_filter_s));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
     }
@@ -229,6 +240,7 @@ class BldcServo {
     float cur2_A = 0.0f;
     float bus_V = 0.0f;
     float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
+    uint16_t position = 0;
     float fet_temp_C = 0.0f;
 
     float electrical_theta = 0.0f;
@@ -264,6 +276,7 @@ class BldcServo {
       a->Visit(MJ_NVP(cur2_A));
       a->Visit(MJ_NVP(bus_V));
       a->Visit(MJ_NVP(filt_bus_V));
+      a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(fet_temp_C));
       a->Visit(MJ_NVP(electrical_theta));
 
@@ -360,6 +373,8 @@ class BldcServo {
   void Command(const CommandData&);
 
   Status status() const;
+  const Config& config() const;
+  const Motor& motor() const;
 
   /// Return a clock which increments with every control cycle.
   uint32_t clock() const;

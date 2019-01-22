@@ -32,6 +32,7 @@ namespace micro = mjlib::micro;
 
 namespace moteus {
 constexpr float kPi = 3.14159265359f;
+constexpr float kCalibrationStep = 0.002;
 
 namespace {
 void recurse(int count, micro::StaticFunction<void(int)> callback) {
@@ -85,6 +86,74 @@ class BoardDebug::Impl {
   void PollMillisecond() {
     drv8323_.PollMillisecond();
     bldc_.PollMillisecond();
+
+    if (motor_cal_mode_ != kNoMotorCal) {
+      DoCalibration();
+    }
+  }
+
+  void DoCalibration() {
+    const int kStep = 65536 / 1000;  // 1 electrical phase per second
+    const uint16_t position_raw = bldc_.status().position_raw;
+    const int32_t delta =
+        static_cast<int16_t>(position_raw - cal_old_position_raw_);
+    cal_old_position_raw_ = position_raw;
+    cal_position_delta_ += delta;
+    cal_phase_ += ((motor_cal_mode_ == kPhaseUp) ? 1 : -1) * kStep;
+    const bool phase_complete = std::abs(cal_position_delta_) > 65536;
+    cal_count_++;
+
+    switch (motor_cal_mode_) {
+      case kPhaseUp: {
+        if (phase_complete) {
+          motor_cal_mode_ = kPhaseDown;
+          cal_position_delta_ = 0;
+        }
+        break;
+      }
+      case kPhaseDown: {
+        if (phase_complete) {
+          // Try to write out our final message.
+          if (write_outstanding_) { return; }
+
+
+          WriteMessage(cal_response_, "CAL done\r\n");
+          cal_response_ = {};
+          motor_cal_mode_ = kNoMotorCal;
+
+          BldcServo::CommandData command;
+          command.mode = BldcServo::kStopped;
+
+          bldc_.Command(command);
+
+          return;
+        }
+        break;
+      }
+      case kNoMotorCal: {
+        MJ_ASSERT(false);
+        break;
+      }
+    }
+
+    if (cal_count_ % 20 == 0 && !write_outstanding_) {
+      ::snprintf(out_message_, sizeof(out_message_),
+                 "%d %d %d\r\n",
+                 motor_cal_mode_,
+                 cal_phase_,
+                 bldc_.status().position_raw);
+      write_outstanding_ = true;
+      AsyncWrite(*cal_response_.stream, out_message_, [this](auto) {
+          write_outstanding_ = false;
+        });
+    }
+
+    BldcServo::CommandData command;
+    command.mode = BldcServo::kVoltageFoc;
+
+    command.theta = (cal_phase_ / 65536.0f) * 2.0f * kPi;
+    command.voltage = cal_magnitude_;
+    bldc_.Command(command);
   }
 
   void HandleCommand(const std::string_view& message,
@@ -141,6 +210,31 @@ class BoardDebug::Impl {
 
       bldc_.Command(command);
       WriteOk(response);
+      return;
+    }
+
+    if (command == "cal") {
+      const auto magnitude_str = tokenizer.next();
+
+      if (magnitude_str.empty()) {
+        WriteMessage(response, "missing mag\r\n");
+        return;
+      }
+
+      cal_response_ = response;
+      motor_cal_mode_ = kPhaseUp;
+      cal_phase_ = 0.;
+      cal_count_ = 0;
+      cal_old_position_raw_ = bldc_.status().position_raw;
+      cal_position_delta_ = 0;
+
+      cal_magnitude_ = std::strtof(magnitude_str.data(), nullptr);
+
+      write_outstanding_ = true;
+      AsyncWrite(*cal_response_.stream, "CAL start\r\n", [this](auto) {
+          write_outstanding_ = false;
+        });
+
       return;
     }
 
@@ -316,6 +410,20 @@ class BoardDebug::Impl {
   Drv8323 drv8323_;
   BldcServo bldc_;
   char out_message_[16] = {};
+
+  micro::CommandManager::Response cal_response_;
+  enum MotorCalMode {
+    kNoMotorCal,
+    kPhaseUp,
+    kPhaseDown,
+  };
+  MotorCalMode motor_cal_mode_ = kNoMotorCal;
+  uint16_t cal_phase_ = 0;
+  uint32_t cal_count_ = 0;
+  uint16_t cal_old_position_raw_ = 0;
+  int32_t cal_position_delta_ = 0;
+  float cal_magnitude_ = 0.0f;
+  bool write_outstanding_ = false;
 };
 
 BoardDebug::BoardDebug(micro::Pool* pool,

@@ -172,6 +172,8 @@ class BldcServo::Impl {
 
     clock_.store(0);
 
+    persistent_config->Register("motor", &motor_,
+                                std::bind(&Impl::UpdateConfig, this));
     persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
     persistent_config->Register("servopos", &position_config_,
@@ -224,6 +226,10 @@ class BldcServo::Impl {
   }
 
   Status status() const { return status_; }
+
+  const Config& config() const { return config_; }
+
+  const Motor& motor() const { return motor_; }
 
   void UpdateConfig() {
   }
@@ -412,11 +418,10 @@ class BldcServo::Impl {
     status_.adc3_raw = adc3 / config_.adc_sample_count;
 
     // Sample the position.
-    const uint16_t old_position_raw = status_.position_raw;
+    const uint16_t old_position = status_.position;
     status_.position_raw = position_sensor_->Sample();
-    if (config_.invert) {
-      status_.position_raw = 65535 - status_.position_raw;
-    }
+    status_.position =
+        motor_.invert ? (65535 - status_.position_raw) : status_.position_raw;
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -442,12 +447,19 @@ class BldcServo::Impl {
           static_cast<float>(next_value - this_value);
     }
 
+    const int offset_size = motor_.offset.size();
+    const int offset_index = status_.position * offset_size / 65536;
+    MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
+
     status_.electrical_theta =
-        k2Pi * ::fmodf(
-            (static_cast<float>(status_.position_raw) / 65536.0f *
-             (config_.motor_poles / 2.0f)) - config_.motor_offset, 1.0f);
+        ::fmodf(
+            k2Pi * (static_cast<float>(status_.position) / 65536.0f *
+                    (motor_.poles / 2.0f)) +
+            motor_.offset[offset_index],
+            k2Pi);
+
     const int16_t delta_position =
-        static_cast<int16_t>(status_.position_raw - old_position_raw);
+        static_cast<int16_t>(status_.position - old_position);
     if (status_.mode != kStopped &&
         std::abs(delta_position) > kMaxPositionDelta) {
       // We probably had an error when reading the position.  We must fault.
@@ -456,12 +468,15 @@ class BldcServo::Impl {
     }
 
     status_.unwrapped_position_raw += delta_position;
-    velocity_filter_.Add(delta_position * config_.unwrapped_position_scale *
-                         (1.0f / 65536.0f) * kRateHz);
-    status_.velocity = velocity_filter_.average();
+    {
+      const float vel_alpha = 1.0f / (config_.vel_filter_s * kRateHz);
+      const float this_vel = delta_position * motor_.unwrapped_position_scale * (1.0f / 65536.0f) * kRateHz;
+
+      status_.velocity = vel_alpha * this_vel + (1.0f - vel_alpha) * status_.velocity;
+    }
 
     status_.unwrapped_position =
-        status_.unwrapped_position_raw * config_.unwrapped_position_scale *
+        status_.unwrapped_position_raw * motor_.unwrapped_position_scale *
         (1.0f / 65536.0f);
   }
 
@@ -807,16 +822,24 @@ class BldcServo::Impl {
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A) {
+    if (motor_.poles == 0) {
+      // We aren't configured yet.
+      status_.mode = kFault;
+      status_.fault = errc::kMotorNotConfigured;
+      return;
+    }
+
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
 
     control_.d_V =
         (config_.feedforward_scale * (
-            i_d_A * config_.motor_resistance -
-            status_.velocity * config_.motor_v_per_hz)) +
+            i_d_A * motor_.resistance_ohm -
+            status_.velocity * motor_.v_per_hz /
+            motor_.unwrapped_position_scale)) +
         pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
     control_.q_V =
-        (config_.feedforward_scale * i_q_A * config_.motor_resistance) +
+        (config_.feedforward_scale * i_q_A * motor_.resistance_ohm) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
     InverseDqTransform idt(sin_cos, control_.d_V, control_.q_V);
@@ -873,6 +896,7 @@ class BldcServo::Impl {
   PositionSensor* const position_sensor_;
   MotorDriver* const motor_driver_;
 
+  Motor motor_;
   Config config_;
   PositionConfig position_config_;
   TIM_TypeDef* timer_ = nullptr;
@@ -913,7 +937,7 @@ class BldcServo::Impl {
   CommandData telemetry_data_;
 
   // These values should only be modified from within the ISR.
-  mjlib::base::WindowedAverage<float, 128> velocity_filter_;
+  // mjlib::base::WindowedAverage<float, 128> velocity_filter_;
   Status status_;
   Control control_;
   uint32_t calibrate_adc1_ = 0;
@@ -958,6 +982,14 @@ void BldcServo::Command(const CommandData& data) {
 
 BldcServo::Status BldcServo::status() const {
   return impl_->status();
+}
+
+const BldcServo::Config& BldcServo::config() const {
+  return impl_->config();
+}
+
+const BldcServo::Motor& BldcServo::motor() const {
+  return impl_->motor();
 }
 
 uint32_t BldcServo::clock() const {
