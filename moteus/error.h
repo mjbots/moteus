@@ -24,17 +24,17 @@ enum class errc {
   kSuccess = 0,
 
   kDmaStreamTransferError = 1,
-  kDmaStreamFifoError,
-  kUartOverrunError,
-  kUartFramingError,
-  kUartNoiseError,
-  kUartBufferOverrunError,
+  kDmaStreamFifoError = 2,
+  kUartOverrunError = 3,
+  kUartFramingError = 4,
+  kUartNoiseError = 5,
+  kUartBufferOverrunError = 6,
 
-  kCalibrationFault,
-  kMotorDriverFault,
-  kOverVoltage,
-  kEncoderFault,
-  kMotorNotConfigured,
+  kCalibrationFault = 7,
+  kMotorDriverFault = 8,
+  kOverVoltage = 9,
+  kEncoderFault = 10,
+  kMotorNotConfigured = 11,
 };
 
 mjlib::base::error_code make_error_code(errc);
