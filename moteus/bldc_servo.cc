@@ -817,7 +817,7 @@ class BldcServo::Impl {
 
   void ISR_DoVoltageFOC(float theta, float voltage) {
     SinCos sc(theta);
-    InverseDqTransform idt(sc, 0, voltage);
+    InverseDqTransform idt(sc, voltage, 0);
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
@@ -833,13 +833,13 @@ class BldcServo::Impl {
     control_.i_q_A = i_q_A;
 
     control_.d_V =
-        (config_.feedforward_scale * (
-            i_d_A * motor_.resistance_ohm -
-            status_.velocity * motor_.v_per_hz /
-            motor_.unwrapped_position_scale)) +
+        (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
         pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
     control_.q_V =
-        (config_.feedforward_scale * i_q_A * motor_.resistance_ohm) +
+        (config_.feedforward_scale * (
+            i_q_A * motor_.resistance_ohm -
+            status_.velocity * motor_.v_per_hz /
+            motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
     InverseDqTransform idt(sin_cos, control_.d_V, control_.q_V);
@@ -873,17 +873,17 @@ class BldcServo::Impl {
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
 
-    const float unlimited_d_A =
+    const float unlimited_q_A =
         pid_position_.Apply(status_.unwrapped_position,
                             status_.control_position,
                             measured_velocity, velocity_command,
                             kRateHz,
                             apply_options);
     const float max_current = data->max_current;
-    const float d_A = Limit(unlimited_d_A, -max_current, max_current);
-    MJ_ASSERT(std::abs(d_A) <= max_current);
+    const float q_A = Limit(unlimited_q_A, -max_current, max_current);
+    MJ_ASSERT(std::abs(q_A) <= max_current);
 
-    ISR_DoCurrent(sin_cos, d_A, 0.0f);
+    ISR_DoCurrent(sin_cos, 0.0f, q_A);
   }
 
   float LimitPwm(float in) {
