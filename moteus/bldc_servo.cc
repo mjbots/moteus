@@ -141,6 +141,11 @@ uint32_t FindSqr(PinName pin) {
   const auto channel = STM_PIN_CHANNEL(function);
   return channel;
 }
+
+float WrapZeroToTwoPi(float x) {
+  const float mod = ::fmodf(x, k2Pi);
+  return (mod >= 0.0f) ? mod : (mod + k2Pi);
+}
 }
 
 class BldcServo::Impl {
@@ -452,11 +457,10 @@ class BldcServo::Impl {
     MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
 
     status_.electrical_theta =
-        ::fmodf(
+        WrapZeroToTwoPi(
             k2Pi * (static_cast<float>(status_.position) / 65536.0f *
                     (motor_.poles / 2.0f)) +
-            motor_.offset[offset_index],
-            k2Pi);
+            motor_.offset[offset_index]);
 
     const int16_t delta_position =
         static_cast<int16_t>(status_.position - old_position);
@@ -485,15 +489,15 @@ class BldcServo::Impl {
 
     debug_buf_[0] = 0x5a;
     debug_buf_[1] = static_cast<uint8_t>(255.0f * status_.electrical_theta / k2Pi);
-    debug_buf_[2] = static_cast<int8_t>(status_.pid_d.desired * 2.0f);
-    int16_t measured_d_a = static_cast<int16_t>(status_.d_A * 500.0f);
-    std::memcpy(&debug_buf_[3], &measured_d_a, sizeof(measured_d_a));
-    int16_t measured_pid_d_p = 32767.0f * status_.pid_d.p / 12.0f;
-    std::memcpy(&debug_buf_[5], &measured_pid_d_p, sizeof(measured_pid_d_p));
-    int16_t measured_pid_d_i = 32767.0f * status_.pid_d.integral / 12.0f;
-    std::memcpy(&debug_buf_[7], &measured_pid_d_i, sizeof(measured_pid_d_i));
-    int16_t control_d_V = 32767.0f * control_.d_V / 12.0f;
-    std::memcpy(&debug_buf_[9], &control_d_V, sizeof(control_d_V));
+    debug_buf_[2] = static_cast<int8_t>(status_.pid_q.desired * 2.0f);
+    int16_t measured_q_a = static_cast<int16_t>(status_.q_A * 500.0f);
+    std::memcpy(&debug_buf_[3], &measured_q_a, sizeof(measured_q_a));
+    int16_t measured_pid_q_p = 32767.0f * status_.pid_q.p / 12.0f;
+    std::memcpy(&debug_buf_[5], &measured_pid_q_p, sizeof(measured_pid_q_p));
+    int16_t measured_pid_q_i = 32767.0f * status_.pid_q.integral / 12.0f;
+    std::memcpy(&debug_buf_[7], &measured_pid_q_i, sizeof(measured_pid_q_i));
+    int16_t control_q_V = 32767.0f * control_.q_V / 12.0f;
+    std::memcpy(&debug_buf_[9], &control_q_V, sizeof(control_q_V));
 
     debug_buf_[11] = static_cast<int8_t>(127.0f * status_.velocity / 10.0f);
     debug_buf_[12] = static_cast<int8_t>(127.0f * status_.bus_V / 24.0f);

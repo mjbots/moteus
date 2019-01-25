@@ -124,13 +124,14 @@ class BldcServo {
       pid_dq.kp = 0.1f;
       pid_dq.ki = 30.0f;
       pid_dq.ilimit = 20.0f;
-      pid_dq.sign = -1;
+      pid_dq.sign = -1.0f;
       pid_dq.max_desired_rate = 30000.0f;
 
       pid_position.kp = 450.0f;
       pid_position.ki = 100.0f;
       pid_position.ilimit = 0.0f;
       pid_position.kd = 9.0f;
+      pid_position.sign = -1.0f;
     }
 
     template <typename Archive>
