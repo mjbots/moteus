@@ -105,7 +105,7 @@ def perform_calibration(data):
     if abs(abs(total_delta) - 65536) > 5000:
         return _make_error("phase_up did not traverse sufficient encoder distance")
 
-    result = {}
+    result = {'invert': False}
 
     # Figure out inversion.
 
