@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@
 #define MOTEUS_VSENSE PC_1_ALT1
 
 #if MOTEUS_HW_REV == 0
-#define MOTEUS_TSENSE NC
+#define MOTEUS_TSENSE PC_0_ALT1
 #elif MOTEUS_HW_REV >= 1
 #define MOTEUS_TSENSE PC_2_ALT1
 #endif
