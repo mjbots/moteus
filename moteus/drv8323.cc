@@ -65,6 +65,8 @@ class Drv8323::Impl {
       }
       WriteConfig();
       Calibrate();
+    } else {
+      status_.fault_config = 0;
     }
   }
 
