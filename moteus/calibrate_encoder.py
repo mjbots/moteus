@@ -198,6 +198,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--poles', type=float, default=24, help='number of poles')
     parser.add_argument('file', help='input file')
+    parser.add_argument('-o', '--output', default='-',
+                        help='file with output configuration')
 
     args = parser.parse_args()
 
@@ -208,11 +210,15 @@ def main():
     print(calibration)
 
     # Now print out the commands necessary to install this config.
-    print()
-    print('conf set motor.poles {}'.format(calibration['poles']))
-    print('conf set motor.invert {}'.format(1 if calibration['invert'] else 0))
+    stream = open(args.output, 'w') if args.output != '-' else sys.stdout
+
+    print('conf set motor.poles {}'.format(calibration['poles']), file=stream)
+    print('conf set motor.invert {}'.format(1 if calibration['invert'] else 0),
+          file=stream)
     for index, value in enumerate(calibration['offset']):
-        print('conf set motor.offset.{} {}'.format(index, value))
+        print('conf set motor.offset.{} {}'.format(index, value), file=stream)
+
+    print('conf write', file=stream)
 
 if __name__ == '__main__':
     main()
