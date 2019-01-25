@@ -4,6 +4,9 @@ test --compiler=compiler
 build --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
 test --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
 
+build --python_top=//:system_python3
+test --python_top=//:system_python3
+
 # build --auto_cpu_environment_group=@com_github_mjbots_rules_mbed//tools:cpus
 # test --auto_cpu_environment_group=@com_github_mjbots_rules_mbed//tools:cpus
 

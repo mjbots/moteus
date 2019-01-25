@@ -22,6 +22,13 @@ test_suite(
         "//mjlib/base:test",
         "//mjlib/telemetry:test",
         "//mjlib/micro:test",
+        "//mjlib/micro:py_test",
         "//moteus:test",
     ],
+)
+
+py_runtime(
+    name = "system_python3",
+    files = [],
+    interpreter_path = "/usr/bin/python3",
 )
