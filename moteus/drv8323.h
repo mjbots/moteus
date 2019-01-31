@@ -22,6 +22,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/millisecond_timer.h"
 #include "moteus/motor_driver.h"
 
 namespace moteus {
@@ -42,6 +43,7 @@ class Drv8323 : public MotorDriver {
   Drv8323(mjlib::micro::Pool*,
           mjlib::micro::PersistentConfig* persistent_config,
           mjlib::micro::TelemetryManager* telemetry_manager,
+          MillisecondTimer* timer,
           const Options&);
   ~Drv8323();
 

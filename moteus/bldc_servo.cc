@@ -90,7 +90,7 @@ int MapConfig(const Array& array, int value) {
 }
 
 constexpr int kIntRateHz = 40000;
-constexpr int kPwmRateHz = 40000;
+constexpr int kPwmRateHz = 80000;
 static_assert(kPwmRateHz % kIntRateHz == 0);
 
 constexpr float kRateHz = kIntRateHz;
@@ -153,6 +153,9 @@ float WrapZeroToTwoPi(float x) {
   const float mod = ::fmodf(x, k2Pi);
   return (mod >= 0.0f) ? mod : (mod + k2Pi);
 }
+
+volatile uint32_t* const g_adc1_cr2 = &ADC1->CR2;
+volatile uint32_t* const g_control_timer_sr = &TIM3->SR;
 
 /// Read a digital input, but without configuring it in any way.
 class DigitalMonitor {
@@ -304,6 +307,8 @@ class BldcServo::Impl {
                 pwm1_timer == pwm2_timer &&
                 pwm2_timer == pwm3_timer);
     timer_ = reinterpret_cast<TIM_TypeDef*>(pwm1_timer);
+    timer_sr_ = &timer_->SR;
+    timer_cr1_ = &timer_->CR1;
 
 
     pwm1_ccr_ = FindCcr(timer_, options_.pwm1);
@@ -355,6 +360,7 @@ class BldcServo::Impl {
     control_timer_->ARR = kControlCounts;
     control_timer_->EGR |= TIM_EGR_UG;
     control_timer_->CR1 |= TIM_CR1_CEN;
+    MJ_ASSERT(g_control_timer_sr == &control_timer_->SR);
   }
 
   void ConfigureADC() {
@@ -413,10 +419,13 @@ class BldcServo::Impl {
   }
 
   // CALLED IN INTERRUPT CONTEXT.
-  void ISR_HandleTimer() {
-
-    if ((timer_->SR & TIM_SR_UIF) &&
-        (timer_->CR1 & TIM_CR1_DIR)) {
+  void ISR_HandleTimer() __attribute__((always_inline)) {
+    // From here, until when we finish sampling the ADC has a critical
+    // speed requirement.  Any extra cycles will result in a lower
+    // maximal duty cycle of the controller.  Thus there are lots of
+    // micro-optimizations to try and speed things up by little bits.
+    if ((*timer_sr_ & TIM_SR_UIF) &&
+        (*timer_cr1_ & TIM_CR1_DIR)) {
       ISR_DoTimer();
     }
 
@@ -424,12 +433,13 @@ class BldcServo::Impl {
     timer_->SR = 0x00;
   }
 
-  void ISR_DoTimer() {
-    clock_++;
-    if ((control_timer_->SR & TIM_SR_UIF) == 0) {
+  void ISR_DoTimer() __attribute__((always_inline)) {
+    // We start our conversion here so that it can work while we get
+    // ready.
+    *g_adc1_cr2 |= ADC_CR2_SWSTART;
+
+    if ((*g_control_timer_sr & TIM_SR_UIF) == 0) {
       return;
-    } else {
-      control_timer_->SR |= TIM_SR_UIF;
     }
 
     debug_out_ = 1;
@@ -438,30 +448,22 @@ class BldcServo::Impl {
     // position sensors.
     ISR_DoSense();
 
+    // This should logically be done right after checking SR above,
+    // but we delay it until after DoSense to avoid the critical path.
+    *g_control_timer_sr |= TIM_SR_UIF;
+
     SinCos sin_cos{status_.electrical_theta};
 
     ISR_CalculateCurrentState(sin_cos);
     ISR_DoControl(sin_cos);
 
     ISR_MaybeEmitDebug();
+    clock_++;
   }
 
-  void ISR_DoSense() {
-    uint32_t adc1 = 0;
-    uint32_t adc2 = 0;
-    uint32_t adc3 = 0;
-
-    ADC3->SQR3 = vsense_sqr_;
-
-    for (uint16_t i = 0; i < config_.adc_sample_count; i++) {
-      // Start conversion.
-      ADC1->CR2 |= ADC_CR2_SWSTART;
-
-      while ((ADC1->SR & ADC_SR_EOC) == 0);
-      adc1 += ADC1->DR;
-      adc2 += ADC2->DR;
-      adc3 += ADC3->DR;
-    }
+  void ISR_DoSense() __attribute__((always_inline)) {
+    // Wait for conversion to complete.
+    while ((ADC1->SR & ADC_SR_EOC) == 0);
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -481,14 +483,17 @@ class BldcServo::Impl {
       status_.fault = errc::kPwmCycleOverrun;
     }
 
+    uint32_t adc1 = ADC1->DR;
+    uint32_t adc2 = ADC2->DR;
+    uint32_t adc3 = ADC3->DR;
 
     // Start sampling the temperature.
     ADC3->SQR3 = tsense_sqr_;
     ADC3->CR2 |= ADC_CR2_SWSTART;
 
-    status_.adc1_raw = adc1 / config_.adc_sample_count;
-    status_.adc2_raw = adc2 / config_.adc_sample_count;
-    status_.adc3_raw = adc3 / config_.adc_sample_count;
+    status_.adc1_raw = adc1;
+    status_.adc2_raw = adc2;
+    status_.adc3_raw = adc3;
 
     // Sample the position.
     const uint16_t old_position = status_.position;
@@ -501,6 +506,8 @@ class BldcServo::Impl {
     while ((ADC3->SR & ADC_SR_EOC) == 0);
     status_.fet_temp_raw = ADC3->DR;
 
+    // Set ADC3 back to the sense resistor.
+    ADC3->SQR3 = vsense_sqr_;
 
     {
       constexpr int adc_max = 4096;
@@ -972,6 +979,8 @@ class BldcServo::Impl {
   Config config_;
   PositionConfig position_config_;
   TIM_TypeDef* timer_ = nullptr;
+  volatile uint32_t* timer_sr_ = nullptr;
+  volatile uint32_t* timer_cr1_ = nullptr;
   TIM_TypeDef* control_timer_ = nullptr;
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;

@@ -31,8 +31,10 @@ class Drv8323::Impl {
  public:
   Impl(micro::PersistentConfig* config,
        micro::TelemetryManager* telemetry_manager,
+       MillisecondTimer* timer,
        const Options& options)
-      : spi_(options.mosi, options.miso, options.sck),
+      : timer_(timer),
+        spi_(options.mosi, options.miso, options.sck),
         cs_(options.cs),
         enable_(options.enable, 0),
         hiz_(options.hiz, 0),
@@ -61,7 +63,7 @@ class Drv8323::Impl {
       if (!old_enable) {
         // We need to wait 1ms before the chip will be ready to
         // operate when first enabled.
-        wait_us(1000);
+        timer_->wait_us(1000);
       }
       WriteConfig();
       Calibrate();
@@ -78,7 +80,7 @@ class Drv8323::Impl {
     cs_ = 0;
     const uint16_t result = spi_.write(0x8000 | (reg << 11)) & 0x7ff;
     cs_ = 1;
-    wait_us(1);
+    timer_->wait_us(1);
     return result;
   }
 
@@ -86,7 +88,7 @@ class Drv8323::Impl {
     cs_ = 0;
     spi_.write((reg << 11) | (value & 0x7ff));
     cs_ = 1;
-    wait_us(1);
+    timer_->wait_us(1);
   }
 
   void PollMillisecond() {
@@ -161,7 +163,7 @@ class Drv8323::Impl {
 
     spi_.write((6 << 11) | (old_reg6 | 0x1c));
 
-    wait_us(200);
+    timer_->wait_us(200);
 
     // Now unset the cal bits.
     spi_.write((6 << 11) | old_reg6);
@@ -271,6 +273,8 @@ class Drv8323::Impl {
     status_.config_count++;
   }
 
+  MillisecondTimer* const timer_;
+
   Status status_;
   Config config_;
 
@@ -288,8 +292,9 @@ class Drv8323::Impl {
 Drv8323::Drv8323(micro::Pool* pool,
                  micro::PersistentConfig* persistent_config,
                  micro::TelemetryManager* telemetry_manager,
+                 MillisecondTimer* timer,
                  const Options& options)
-    : impl_(pool, persistent_config, telemetry_manager, options) {}
+    : impl_(pool, persistent_config, telemetry_manager, timer, options) {}
 
 Drv8323::~Drv8323() {}
 

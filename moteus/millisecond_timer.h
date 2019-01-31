@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
 #include "mbed.h"
 
 namespace moteus {
@@ -34,6 +36,27 @@ class MillisecondTimer {
 
   uint32_t read_ms() {
     return TIM5->CNT / 1000;
+  }
+
+  uint32_t read_us() {
+    return TIM5->CNT;
+  }
+
+  void wait_ms(uint32_t delay_ms) {
+    wait_us(delay_ms * 1000);
+  }
+
+  void wait_us(uint32_t delay_us) {
+    uint32_t current = TIM5->CNT;
+    uint32_t elapsed = 0;
+    while (true) {
+      const uint32_t next = TIM5->CNT;
+      elapsed += next - current;
+      // We check delay_us + 1 since we don't know where in the
+      // current microsecond we started.
+      if (elapsed >= (delay_us + 1)) { return; }
+      current = next;
+    }
   }
 
  private:

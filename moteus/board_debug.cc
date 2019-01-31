@@ -45,8 +45,9 @@ class BoardDebug::Impl {
   Impl(micro::Pool* pool,
        micro::PersistentConfig* persistent_config,
        micro::CommandManager* command_manager,
-       micro::TelemetryManager* telemetry_manager)
-      : drv8323_(pool, persistent_config, telemetry_manager,
+       micro::TelemetryManager* telemetry_manager,
+       MillisecondTimer* timer)
+      : drv8323_(pool, persistent_config, telemetry_manager, timer,
                  []() {
                    Drv8323::Options options;
                    options.mosi = DRV8323_MOSI;
@@ -429,8 +430,10 @@ class BoardDebug::Impl {
 BoardDebug::BoardDebug(micro::Pool* pool,
                        micro::PersistentConfig* persistent_config,
                        micro::CommandManager* command_manager,
-                       micro::TelemetryManager* telemetry_manager)
-    : impl_(pool, pool, persistent_config, command_manager, telemetry_manager) {}
+                       micro::TelemetryManager* telemetry_manager,
+                       MillisecondTimer* timer)
+    : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
+            timer) {}
 
 BoardDebug::~BoardDebug() {}
 

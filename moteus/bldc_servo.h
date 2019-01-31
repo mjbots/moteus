@@ -111,7 +111,6 @@ class BldcServo {
     float feedforward_scale = 1.0f;
 
     uint16_t adc_cycles = 15;  // 3, 15, 28, 56, 84, 112, 144, 480
-    uint16_t adc_sample_count = 1;
 
     float vel_filter_s = 0.002f;
 
@@ -141,7 +140,6 @@ class BldcServo {
       a->Visit(MJ_NVP(max_voltage));
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(adc_cycles));
-      a->Visit(MJ_NVP(adc_sample_count));
       a->Visit(MJ_NVP(vel_filter_s));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));

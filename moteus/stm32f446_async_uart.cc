@@ -48,8 +48,9 @@ IRQn_Type FindUartRxIrq(USART_TypeDef* uart) {
 
 class Stm32F446AsyncUart::Impl {
  public:
-  Impl(const Options& options)
-      : options_(options),
+  Impl(MillisecondTimer* timer, const Options& options)
+      : timer_(timer),
+        options_(options),
         stm32_serial_([&options]() {
             Stm32Serial::Options s_options;
             s_options.rx = options.rx;
@@ -166,7 +167,7 @@ class Stm32F446AsyncUart::Impl {
 
     if (dir_.is_connected()) {
       dir_.write(1);
-      wait_us(options_.enable_delay_us);
+      timer_->wait_us(options_.enable_delay_us);
     }
 
     current_write_callback_ = callback;
@@ -222,7 +223,7 @@ class Stm32F446AsyncUart::Impl {
     current_write_callback_ = {};
 
     if (dir_.is_connected()) {
-      wait_us(options_.disable_delay_us);
+      timer_->wait_us(options_.disable_delay_us);
       dir_.write(0);
     }
 
@@ -343,6 +344,7 @@ class Stm32F446AsyncUart::Impl {
     }
   }
 
+  MillisecondTimer* const timer_;
   const Options options_;
   Stm32Serial stm32_serial_;
   DigitalOut dir_;
@@ -374,8 +376,9 @@ class Stm32F446AsyncUart::Impl {
 };
 
 Stm32F446AsyncUart::Stm32F446AsyncUart(micro::Pool* pool,
+                                       MillisecondTimer* timer,
                                        const Options& options)
-    : impl_(pool, options) {}
+    : impl_(pool, timer, options) {}
 Stm32F446AsyncUart::~Stm32F446AsyncUart() {}
 
 void Stm32F446AsyncUart::AsyncReadSome(const base::string_span& data,

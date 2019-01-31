@@ -46,9 +46,16 @@ int main(void) {
                 (hwrev2.read() << 2)));
   MJ_ASSERT(this_hw_rev == MOTEUS_HW_REV);
 
+  // I initially used a Ticker here to enqueue events at 1ms
+  // intervals.  However, it introduced jitter into the current
+  // sampling interrupt, and I couldn't figure out how to get the
+  // interrupt priorities right.  Thus for now we just poll to look
+  // for millisecond turnover.
+  MillisecondTimer timer;
+
   micro::SizedPool<12288> pool;
 
-  Stm32F446AsyncUart rs485(&pool, []() {
+  Stm32F446AsyncUart rs485(&pool, &timer, []() {
       Stm32F446AsyncUart::Options options;
       options.tx = PA_9;
       options.rx = PA_10;
@@ -72,20 +79,13 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
 
-  BoardDebug board_debug(&pool, &persistent_config, &command_manager, &telemetry_manager);
+  BoardDebug board_debug(&pool, &persistent_config, &command_manager, &telemetry_manager, &timer);
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
   command_manager.AsyncStart();
   persistent_config.Load();
   multiplex_protocol.Start();
-
-  // I initially used a Ticker here to enqueue events at 1ms
-  // intervals.  However, it introduced jitter into the current
-  // sampling interrupt, and I couldn't figure out how to get the
-  // interrupt priorities right.  Thus for now we just poll to look
-  // for millisecond turnover.
-  MillisecondTimer timer;
 
   auto old_time = timer.read_ms();
 

@@ -19,6 +19,8 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/millisecond_timer.h"
+
 namespace moteus {
 
 /// Utilities for bringing up the controller board.
@@ -27,7 +29,8 @@ class BoardDebug {
   BoardDebug(mjlib::micro::Pool*,
              mjlib::micro::PersistentConfig*,
              mjlib::micro::CommandManager*,
-             mjlib::micro::TelemetryManager*);
+             mjlib::micro::TelemetryManager*,
+             MillisecondTimer*);
   ~BoardDebug();
 
   void PollMillisecond();

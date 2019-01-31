@@ -21,6 +21,8 @@
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/pool_ptr.h"
 
+#include "moteus/millisecond_timer.h"
+
 namespace moteus {
 
 /// Presents a single USART on the STM32F446 as an AsyncStream.
@@ -43,6 +45,7 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
   };
 
   Stm32F446AsyncUart(mjlib::micro::Pool* pool,
+                     MillisecondTimer* timer,
                      const Options&);
   ~Stm32F446AsyncUart() override;
 
