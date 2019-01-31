@@ -35,6 +35,7 @@ enum class errc {
   kOverVoltage = 9,
   kEncoderFault = 10,
   kMotorNotConfigured = 11,
+  kPwmCycleOverrun = 12,
 };
 
 mjlib::base::error_code make_error_code(errc);

@@ -33,6 +33,7 @@ struct MoteusErrorCategory : mjlib::base::error_category {
       case errc::kOverVoltage: return "over voltage";
       case errc::kEncoderFault: return "encoder fault";
       case errc::kMotorNotConfigured: return "motor not configured";
+      case errc::kPwmCycleOverrun: return "pwm cycle overrun";
     }
     return "unknown";
   }

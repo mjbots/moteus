@@ -89,7 +89,12 @@ int MapConfig(const Array& array, int value) {
   return result - 1;
 }
 
-constexpr float kRateHz = 40000.0;
+constexpr int kIntRateHz = 40000;
+constexpr int kPwmRateHz = 40000;
+static_assert(kPwmRateHz % kIntRateHz == 0);
+
+constexpr float kRateHz = kIntRateHz;
+
 constexpr int kCalibrateCount = 256;
 
 // The maximum amount the absolute encoder can change in one cycle
@@ -98,7 +103,9 @@ constexpr int16_t kMaxPositionDelta = 1000;
 
 // mbed seems to configure the Timer clock input to 90MHz.  We want
 // 80kHz up/down rate for 40kHz freqency, so:
-constexpr uint32_t kPwmCounts = 90000000 / 80000;
+constexpr uint32_t kTimerClock = 90000000;
+constexpr uint32_t kPwmCounts = kTimerClock / (2 * kPwmRateHz);
+constexpr uint32_t kControlCounts = kTimerClock / (2 * kIntRateHz);
 
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
   if (timer == TIM1) {
@@ -146,6 +153,36 @@ float WrapZeroToTwoPi(float x) {
   const float mod = ::fmodf(x, k2Pi);
   return (mod >= 0.0f) ? mod : (mod + k2Pi);
 }
+
+/// Read a digital input, but without configuring it in any way.
+class DigitalMonitor {
+ public:
+  DigitalMonitor(PinName pin) {
+    const uint32_t port_index = STM_PORT(pin);
+    GPIO_TypeDef* gpio = reinterpret_cast<GPIO_TypeDef*>([&]() {
+      switch (port_index) {
+        case PortA: return GPIOA_BASE;
+        case PortB: return GPIOB_BASE;
+        case PortC: return GPIOC_BASE;
+        case PortD: return GPIOD_BASE;
+        case PortE: return GPIOE_BASE;
+        case PortF: return GPIOF_BASE;
+      }
+      MJ_ASSERT(false);
+      return GPIOA_BASE;
+      }());
+    reg_in_ = &gpio->IDR;
+    mask_ = static_cast<uint32_t>(1 << (static_cast<uint32_t>(pin) & 0xf));
+  }
+
+  bool read() {
+    return (*reg_in_ & mask_) != 0;
+  }
+
+ private:
+  volatile uint32_t* reg_in_ = nullptr;
+  uint32_t mask_ = 0;
+};
 }
 
 class BldcServo::Impl {
@@ -161,6 +198,9 @@ class BldcServo::Impl {
         pwm1_(options.pwm1),
         pwm2_(options.pwm2),
         pwm3_(options.pwm3),
+        monitor1_(options.pwm1),
+        monitor2_(options.pwm2),
+        monitor3_(options.pwm3),
         current1_(options.current1),
         current2_(options.current2),
         vsense_(options.vsense),
@@ -191,7 +231,8 @@ class BldcServo::Impl {
     g_impl_ = this;
 
     ConfigureADC();
-    ConfigureTimer();
+    ConfigurePwmTimer();
+    ConfigureControlTimer();
 
     if (options_.debug_uart_out != NC) {
       const auto uart = pinmap_peripheral(
@@ -253,7 +294,7 @@ class BldcServo::Impl {
   }
 
  private:
-  void ConfigureTimer() {
+  void ConfigurePwmTimer() {
     const auto pwm1_timer = pinmap_peripheral(options_.pwm1, PinMap_PWM);
     const auto pwm2_timer = pinmap_peripheral(options_.pwm2, PinMap_PWM);
     const auto pwm3_timer = pinmap_peripheral(options_.pwm3, PinMap_PWM);
@@ -304,6 +345,16 @@ class BldcServo::Impl {
 
     // Finally, enable the timer.
     timer_->CR1 |= TIM_CR1_CEN;
+  }
+
+  void ConfigureControlTimer() {
+    __HAL_RCC_TIM3_CLK_ENABLE();
+    control_timer_ = TIM3;
+    control_timer_->CR1 = TIM_CR1_ARPE;
+    control_timer_->PSC = 0;  // No prescaler.
+    control_timer_->ARR = kControlCounts;
+    control_timer_->EGR |= TIM_EGR_UG;
+    control_timer_->CR1 |= TIM_CR1_CEN;
   }
 
   void ConfigureADC() {
@@ -374,8 +425,14 @@ class BldcServo::Impl {
   }
 
   void ISR_DoTimer() {
-    debug_out_ = 1;
     clock_++;
+    if ((control_timer_->SR & TIM_SR_UIF) == 0) {
+      return;
+    } else {
+      control_timer_->SR |= TIM_SR_UIF;
+    }
+
+    debug_out_ = 1;
 
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
@@ -413,6 +470,17 @@ class BldcServo::Impl {
     // just eats cycles the rest of the code could be using.
 
     debug_out_ = 0;
+
+    // Check to see if any motor outputs are now high.  If so, fault,
+    // because we have exceeded the maximum duty cycle we can achieve
+    // while still sampling current correctly.
+    if (monitor1_.read() ||
+        monitor2_.read() ||
+        monitor3_.read()) {
+      status_.mode = kFault;
+      status_.fault = errc::kPwmCycleOverrun;
+    }
+
 
     // Start sampling the temperature.
     ADC3->SQR3 = tsense_sqr_;
@@ -904,6 +972,7 @@ class BldcServo::Impl {
   Config config_;
   PositionConfig position_config_;
   TIM_TypeDef* timer_ = nullptr;
+  TIM_TypeDef* control_timer_ = nullptr;
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;
   ADC_TypeDef* const adc3_ = ADC3;
@@ -913,6 +982,10 @@ class BldcServo::Impl {
   PwmOut pwm1_;
   PwmOut pwm2_;
   PwmOut pwm3_;
+
+  DigitalMonitor monitor1_;
+  DigitalMonitor monitor2_;
+  DigitalMonitor monitor3_;
 
   volatile uint32_t* pwm1_ccr_ = nullptr;
   volatile uint32_t* pwm2_ccr_ = nullptr;
