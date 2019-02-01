@@ -89,8 +89,8 @@ int MapConfig(const Array& array, int value) {
   return result - 1;
 }
 
-constexpr int kIntRateHz = 40000;
-constexpr int kPwmRateHz = 80000;
+constexpr int kIntRateHz = 30000;
+constexpr int kPwmRateHz = 60000;
 static_assert(kPwmRateHz % kIntRateHz == 0);
 
 constexpr float kRateHz = kIntRateHz;
@@ -476,9 +476,10 @@ class BldcServo::Impl {
     // Check to see if any motor outputs are now high.  If so, fault,
     // because we have exceeded the maximum duty cycle we can achieve
     // while still sampling current correctly.
-    if (monitor1_.read() ||
-        monitor2_.read() ||
-        monitor3_.read()) {
+    if (status_.mode != kFault &&
+        (monitor1_.read() ||
+         monitor2_.read() ||
+         monitor3_.read())) {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
     }
@@ -539,7 +540,7 @@ class BldcServo::Impl {
 
     const int16_t delta_position =
         static_cast<int16_t>(status_.position - old_position);
-    if (status_.mode != kStopped &&
+    if ((status_.mode != kStopped && status_.mode != kFault) &&
         std::abs(delta_position) > kMaxPositionDelta) {
       // We probably had an error when reading the position.  We must fault.
       status_.mode = kFault;
@@ -762,7 +763,7 @@ class BldcServo::Impl {
     }
 
     // Handle our persistent fault conditions.
-    if (status_.mode != kStopped) {
+    if (status_.mode != kStopped && status_.mode != kFault) {
       if (motor_driver_->fault()) {
         status_.mode = kFault;
         status_.fault = errc::kMotorDriverFault;
