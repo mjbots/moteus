@@ -83,8 +83,10 @@ int main(void) {
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
-  command_manager.AsyncStart();
   persistent_config.Load();
+
+  board_debug.Start();
+  command_manager.AsyncStart();
   multiplex_protocol.Start();
 
   auto old_time = timer.read_ms();

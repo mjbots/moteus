@@ -91,6 +91,9 @@ class BldcServo {
     // position.
     std::array<float, 64> offset = {};
 
+    // After applying inversion, add this value to the position.
+    uint16_t position_offset = 0;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(poles));
@@ -99,6 +102,7 @@ class BldcServo {
       a->Visit(MJ_NVP(v_per_hz));
       a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(offset));
+      a->Visit(MJ_NVP(position_offset));
     }
   };
 
@@ -256,6 +260,7 @@ class BldcServo {
     mjlib::base::PID::State pid_position;
 
     float control_position = std::numeric_limits<float>::quiet_NaN();
+    bool position_set = false;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -291,6 +296,7 @@ class BldcServo {
       a->Visit(MJ_NVP(pid_position));
 
       a->Visit(MJ_NVP(control_position));
+      a->Visit(MJ_NVP(position_set));
     }
   };
 
@@ -369,6 +375,7 @@ class BldcServo {
     }
   };
 
+  void Start();
   void Command(const CommandData&);
 
   Status status() const;

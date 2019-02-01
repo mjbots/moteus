@@ -232,14 +232,16 @@ class BldcServo::Impl {
 
     MJ_ASSERT(!g_impl_);
     g_impl_ = this;
+  }
 
+  void Start() {
     ConfigureADC();
     ConfigurePwmTimer();
     ConfigureControlTimer();
 
     if (options_.debug_uart_out != NC) {
       const auto uart = pinmap_peripheral(
-          options.debug_uart_out, PinMap_UART_TX);
+          options_.debug_uart_out, PinMap_UART_TX);
       debug_uart_ = reinterpret_cast<USART_TypeDef*>(uart);
       auto dma_pair = Stm32F446AsyncUart::MakeDma(
           static_cast<UARTName>(uart));
@@ -435,7 +437,9 @@ class BldcServo::Impl {
 
   void ISR_DoTimer() __attribute__((always_inline)) {
     // We start our conversion here so that it can work while we get
-    // ready.
+    // ready.  This means we will throw away the result if our control
+    // timer says it isn't our turn yet, but that is a relatively
+    // minor waste.
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 
     if ((*g_control_timer_sr & TIM_SR_UIF) == 0) {
@@ -500,7 +504,7 @@ class BldcServo::Impl {
     const uint16_t old_position = status_.position;
     status_.position_raw = position_sensor_->Sample();
     status_.position =
-        motor_.invert ? (65535 - status_.position_raw) : status_.position_raw;
+        (motor_.invert ? (65535 - status_.position_raw) : status_.position_raw);
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -547,7 +551,16 @@ class BldcServo::Impl {
       status_.fault = errc::kEncoderFault;
     }
 
-    status_.unwrapped_position_raw += delta_position;
+    // While we are in the first calibrating state, our unwrapped
+    // position is forced to be within one rotation of 0.
+    if (!status_.position_set) {
+      status_.unwrapped_position_raw = static_cast<int16_t>(
+          status_.position + motor_.position_offset);
+      status_.position_set = true;
+    } else {
+      status_.unwrapped_position_raw += delta_position;
+    }
+
     {
       const float vel_alpha = 1.0f / (config_.vel_filter_s * kRateHz);
       const float this_vel = delta_position * motor_.unwrapped_position_scale * (1.0f / 65536.0f) * kRateHz;
@@ -1058,6 +1071,10 @@ BldcServo::BldcServo(micro::Pool* pool,
             position_sensor, motor_driver,
             options) {}
 BldcServo::~BldcServo() {}
+
+void BldcServo::Start() {
+  impl_->Start();
+}
 
 void BldcServo::PollMillisecond() {
   impl_->PollMillisecond();

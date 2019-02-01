@@ -84,6 +84,10 @@ class BoardDebug::Impl {
     data_update_ = telemetry_manager->Register("board_debug", &data_);
   }
 
+  void Start() {
+    bldc_.Start();
+  }
+
   void PollMillisecond() {
     drv8323_.PollMillisecond();
     bldc_.PollMillisecond();
@@ -437,6 +441,7 @@ BoardDebug::BoardDebug(micro::Pool* pool,
 
 BoardDebug::~BoardDebug() {}
 
+void BoardDebug::Start() { impl_->Start(); }
 void BoardDebug::PollMillisecond() { impl_->PollMillisecond(); }
 
 }

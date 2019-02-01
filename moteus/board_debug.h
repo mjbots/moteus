@@ -33,6 +33,7 @@ class BoardDebug {
              MillisecondTimer*);
   ~BoardDebug();
 
+  void Start();
   void PollMillisecond();
 
  private:
