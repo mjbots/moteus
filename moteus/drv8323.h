@@ -191,15 +191,15 @@ class Drv8323 : public MotorDriver {
 
 
     // Gate Drive HS Register
-    uint16_t idrivep_hs_ma = 60;
-    uint16_t idriven_hs_ma = 120;
+    uint16_t idrivep_hs_ma = 120;
+    uint16_t idriven_hs_ma = 240;
 
 
     // Gate Drive LS Register
     bool cbc = true;  // Cycle-by cycle operation.
     uint16_t tdrive_ns = 1000;  // peak gate-current drive time
-    uint16_t idrivep_ls_ma = 60;
-    uint16_t idriven_ls_ma = 120;
+    uint16_t idrivep_ls_ma = 120;
+    uint16_t idriven_ls_ma = 240;
 
 
     // OCP Control Register
