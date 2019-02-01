@@ -4,7 +4,8 @@ r2 ERRATA
  * have a 0603 and a 0402 220ohm resistor!
  * Output capacitors are 80% derated at 12V!  Need to select something
    that has a higher effective capacitance at the intended input
-   voltage and likely put more of them on the board
+   voltage and put more of them on the board, at least 12 total from
+   the current 6.
    *  Maybe CGA5L1X7R1V106K160AC which is 5.84uF at 12.5v?, 4.18uF at 18V
      * the r2 board has C3216X5R1V226M160AC which is 4.9uF at 12.5, 3.3uF at 18V
      * the r1 board has C3216X5R1V156M160AC which is 3.9uF at 12.5, 2.6uF at 18V
