@@ -2337,7 +2337,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="HOUSEPART" value="" x="11.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="11.7" y="40.2" size="1.778" layer="27" display="off"/>
 <attribute name="URL" x="11.7" y="40.2" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="10.8" y="40.8" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="11.3" y="40.8" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="MF" value="Panasonic" x="11.7" y="40.2" size="1.778" layer="27" display="off"/>
 </element>
 <element name="D2" library="mfleds" package="LED0603" value="MF-LED-0603-RED" x="30.2" y="30.8" smashed="yes">
@@ -2589,7 +2589,7 @@ This DRC check is for 4-Layer Standard Capability boards to be manufactured thro
 <attribute name="MF" value="Panasonic" x="36.7" y="8.4" size="0.8" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="36.7" y="8.4" size="0.8" layer="27" rot="R90" display="off"/>
 <attribute name="WATTAGE" value="" x="36.7" y="8.4" size="0.8" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="36.9" y="9.8" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="36.4" y="9.6" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
 <element name="C32" library="mfpassives" package="C0402" value="0.1uF 50V" x="38.1" y="8.4" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="38.1" y="8.4" size="0.8" layer="27" rot="R90" display="off"/>

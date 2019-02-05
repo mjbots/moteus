@@ -1,12 +1,12 @@
 TODO
- * Verify that vert ZH connector fits on printout
 
-r2 DONE
+r3 DONE
  * Updated revision to r3
  * made all 220 ohm resistors be 0402
  * Extended length of ZH pins by 1mm
  * Switched all the 15/22uF caps to the X7R 10uF one
  * Re-arranged all silks
+ * Verified that vert ZH connector fits on printout
 
 r2 ERRATA
  * footprint for 6pin ZH vertical doesn't have trailing pins long
