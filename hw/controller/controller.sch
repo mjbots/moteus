@@ -527,9 +527,9 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-5.5" y1="2.26" x2="5.5" y2="2.26" width="0.05" layer="39"/>
 <wire x1="5.5" y1="2.26" x2="5.5" y2="-3.04" width="0.05" layer="39"/>
 <wire x1="5.5" y1="-3.04" x2="4.7" y2="-3.04" width="0.05" layer="39"/>
-<wire x1="4.7" y1="-3.04" x2="4.7" y2="-3.74" width="0.05" layer="39"/>
-<wire x1="4.7" y1="-3.74" x2="-4.7" y2="-3.74" width="0.05" layer="39"/>
-<wire x1="-4.7" y1="-3.74" x2="-4.7" y2="-3.04" width="0.05" layer="39"/>
+<wire x1="4.7" y1="-3.04" x2="4.7" y2="-4.24" width="0.05" layer="39"/>
+<wire x1="4.7" y1="-4.24" x2="-4.7" y2="-4.24" width="0.05" layer="39"/>
+<wire x1="-4.7" y1="-4.24" x2="-4.7" y2="-3.04" width="0.05" layer="39"/>
 <wire x1="-4.7" y1="-3.04" x2="-5.5" y2="-3.04" width="0.05" layer="39"/>
 <wire x1="-5.5" y1="-3.04" x2="-5.5" y2="2.26" width="0.05" layer="39"/>
 <text x="-6.867259375" y="-3.0409875" size="1.2725" layer="25" rot="R90">&gt;NAME</text>
@@ -541,14 +541,14 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-4.975" y1="-2.79" x2="-2.05" y2="-2.79" width="0.127" layer="21"/>
 <wire x1="4.975" y1="-2.79" x2="4.975" y2="-2.09" width="0.127" layer="21"/>
 <wire x1="4.975" y1="-2.79" x2="3.55" y2="-2.79" width="0.127" layer="21"/>
-<smd name="4" x="0.75" y="-1.5" dx="0.7" dy="3.2" layer="1"/>
-<smd name="5" x="2.25" y="-1.5" dx="0.7" dy="3.2" layer="1"/>
-<smd name="3" x="-0.75" y="-1.5" dx="0.7" dy="3.2" layer="1"/>
+<smd name="4" x="0.75" y="-2" dx="0.7" dy="4.2" layer="1"/>
+<smd name="5" x="2.25" y="-2" dx="0.7" dy="4.2" layer="1"/>
+<smd name="3" x="-0.75" y="-2" dx="0.7" dy="4.2" layer="1"/>
 <smd name="P1" x="-5.8" y="-0.29" dx="1.5" dy="2.3" layer="1"/>
 <smd name="P2" x="5.8" y="-0.29" dx="1.5" dy="2.3" layer="1"/>
-<smd name="6" x="3.75" y="-1.5" dx="0.7" dy="3.2" layer="1"/>
-<smd name="2" x="-2.25" y="-1.5" dx="0.7" dy="3.2" layer="1"/>
-<smd name="1" x="-3.75" y="-1.5" dx="0.7" dy="3.2" layer="1"/>
+<smd name="6" x="3.75" y="-2" dx="0.7" dy="4.2" layer="1"/>
+<smd name="2" x="-2.25" y="-2" dx="0.7" dy="4.2" layer="1"/>
+<smd name="1" x="-3.75" y="-2" dx="0.7" dy="4.2" layer="1"/>
 </package>
 <package name="21-0137I_T1433-1">
 <smd name="1" x="-1.4986" y="1.2" dx="0.7112" dy="0.254" layer="1"/>
@@ -5603,9 +5603,9 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="+3V9" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
 <part name="+3V8" library="supply1" deviceset="+3V3" device=""/>
-<part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0603" value="220">
+<part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
 <attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-RES-0603-220"/>
+<attribute name="MPN" value="MF-RES-0402-220"/>
 </part>
 <part name="C2" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
@@ -5880,33 +5880,33 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="CL05A105KL5NRNC"/>
 </part>
 <part name="P-8" library="supply1" deviceset="V-" device=""/>
-<part name="C20" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C20" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
-<part name="C14" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C14" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
-<part name="C15" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C15" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
-<part name="C16" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C16" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
-<part name="C17" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C17" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
-<part name="C18" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C18" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
-<part name="C19" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="15uF">
+<part name="C19" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X5R1V156M160AC"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
 </part>
 <part name="R11" library="mfpassives" deviceset="RESISTOR" device="_0402" value="33k 1%">
 <attribute name="MF" value="Panasonic"/>
@@ -5965,11 +5965,35 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="DB" library="controller" deviceset="PAD" device="24AWG_PAD"/>
 <part name="DC" library="controller" deviceset="PAD" device="24AWG_PAD"/>
 <part name="GND19" library="supply1" deviceset="GND" device=""/>
+<part name="C33" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
+</part>
+<part name="C34" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
+</part>
+<part name="C35" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
+</part>
+<part name="C36" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
+</part>
+<part name="C37" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
+</part>
+<part name="C38" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="CGA5L1X7R1V106K160AC"/>
+</part>
 </parts>
 <sheets>
 <sheet>
 <plain>
-<text x="177.8" y="38.1" size="1.778" layer="91">HW v2 110 (PC15/14/13)</text>
+<text x="177.8" y="38.1" size="1.778" layer="91">HW v3 101 (PC15/14/13)</text>
 </plain>
 <instances>
 <instance part="U1" gate="G$1" x="91.44" y="45.72">
@@ -6338,6 +6362,24 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <instance part="DB" gate="G$1" x="182.88" y="-243.84" rot="R180"/>
 <instance part="DC" gate="G$1" x="208.28" y="-243.84" rot="R180"/>
 <instance part="GND19" gate="1" x="175.26" y="25.4"/>
+<instance part="C33" gate="G$1" x="284.48" y="-210.82">
+<attribute name="MF" x="284.48" y="-210.82" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C34" gate="G$1" x="292.1" y="-210.82">
+<attribute name="MF" x="292.1" y="-210.82" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C35" gate="G$1" x="299.72" y="-210.82">
+<attribute name="MF" x="299.72" y="-210.82" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C36" gate="G$1" x="307.34" y="-210.82">
+<attribute name="MF" x="307.34" y="-210.82" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C37" gate="G$1" x="314.96" y="-210.82">
+<attribute name="MF" x="314.96" y="-210.82" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="C38" gate="G$1" x="322.58" y="-210.82">
+<attribute name="MF" x="322.58" y="-210.82" size="1.778" layer="96" display="off"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -6739,10 +6781,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <junction x="213.36" y="-327.66"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PC13"/>
-<wire x1="167.64" y1="40.64" x2="175.26" y2="40.64" width="0.1524" layer="91"/>
 <pinref part="GND19" gate="1" pin="GND"/>
-<wire x1="175.26" y1="40.64" x2="175.26" y2="27.94" width="0.1524" layer="91"/>
+<pinref part="U1" gate="G$1" pin="PC14"/>
+<wire x1="175.26" y1="38.1" x2="175.26" y2="27.94" width="0.1524" layer="91"/>
+<wire x1="167.64" y1="38.1" x2="175.26" y2="38.1" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="N$24" class="0">
@@ -7141,6 +7183,30 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <pinref part="C17" gate="G$1" pin="P$1"/>
 <pinref part="C18" gate="G$1" pin="P$1"/>
 <pinref part="C19" gate="G$1" pin="P$1"/>
+<pinref part="C33" gate="G$1" pin="P$1"/>
+<wire x1="271.78" y1="-200.66" x2="284.48" y2="-200.66" width="0.1524" layer="91"/>
+<wire x1="284.48" y1="-200.66" x2="284.48" y2="-208.28" width="0.1524" layer="91"/>
+<junction x="271.78" y="-200.66"/>
+<pinref part="C34" gate="G$1" pin="P$1"/>
+<wire x1="284.48" y1="-200.66" x2="292.1" y2="-200.66" width="0.1524" layer="91"/>
+<wire x1="292.1" y1="-200.66" x2="292.1" y2="-208.28" width="0.1524" layer="91"/>
+<junction x="284.48" y="-200.66"/>
+<pinref part="C35" gate="G$1" pin="P$1"/>
+<wire x1="292.1" y1="-200.66" x2="299.72" y2="-200.66" width="0.1524" layer="91"/>
+<wire x1="299.72" y1="-200.66" x2="299.72" y2="-208.28" width="0.1524" layer="91"/>
+<junction x="292.1" y="-200.66"/>
+<pinref part="C36" gate="G$1" pin="P$1"/>
+<wire x1="299.72" y1="-200.66" x2="307.34" y2="-200.66" width="0.1524" layer="91"/>
+<wire x1="307.34" y1="-200.66" x2="307.34" y2="-208.28" width="0.1524" layer="91"/>
+<junction x="299.72" y="-200.66"/>
+<pinref part="C37" gate="G$1" pin="P$1"/>
+<wire x1="307.34" y1="-200.66" x2="314.96" y2="-200.66" width="0.1524" layer="91"/>
+<wire x1="314.96" y1="-200.66" x2="314.96" y2="-208.28" width="0.1524" layer="91"/>
+<junction x="307.34" y="-200.66"/>
+<pinref part="C38" gate="G$1" pin="P$1"/>
+<wire x1="314.96" y1="-200.66" x2="322.58" y2="-200.66" width="0.1524" layer="91"/>
+<wire x1="322.58" y1="-200.66" x2="322.58" y2="-208.28" width="0.1524" layer="91"/>
+<junction x="314.96" y="-200.66"/>
 </segment>
 <segment>
 <pinref part="U2" gate="G$1" pin="VIN"/>
@@ -7451,6 +7517,30 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <pinref part="C17" gate="G$1" pin="P$2"/>
 <pinref part="C18" gate="G$1" pin="P$2"/>
 <pinref part="C19" gate="G$1" pin="P$2"/>
+<pinref part="C33" gate="G$1" pin="P$2"/>
+<wire x1="271.78" y1="-218.44" x2="284.48" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="284.48" y1="-218.44" x2="284.48" y2="-213.36" width="0.1524" layer="91"/>
+<junction x="271.78" y="-218.44"/>
+<pinref part="C34" gate="G$1" pin="P$2"/>
+<wire x1="284.48" y1="-218.44" x2="292.1" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="292.1" y1="-218.44" x2="292.1" y2="-213.36" width="0.1524" layer="91"/>
+<junction x="284.48" y="-218.44"/>
+<pinref part="C35" gate="G$1" pin="P$2"/>
+<wire x1="292.1" y1="-218.44" x2="299.72" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="299.72" y1="-218.44" x2="299.72" y2="-213.36" width="0.1524" layer="91"/>
+<junction x="292.1" y="-218.44"/>
+<pinref part="C36" gate="G$1" pin="P$2"/>
+<wire x1="299.72" y1="-218.44" x2="307.34" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="307.34" y1="-218.44" x2="307.34" y2="-213.36" width="0.1524" layer="91"/>
+<junction x="299.72" y="-218.44"/>
+<pinref part="C37" gate="G$1" pin="P$2"/>
+<wire x1="307.34" y1="-218.44" x2="314.96" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="314.96" y1="-218.44" x2="314.96" y2="-213.36" width="0.1524" layer="91"/>
+<junction x="307.34" y="-218.44"/>
+<pinref part="C38" gate="G$1" pin="P$2"/>
+<wire x1="314.96" y1="-218.44" x2="322.58" y2="-218.44" width="0.1524" layer="91"/>
+<wire x1="322.58" y1="-218.44" x2="322.58" y2="-213.36" width="0.1524" layer="91"/>
+<junction x="314.96" y="-218.44"/>
 </segment>
 <segment>
 <pinref part="U2" gate="G$1" pin="PAD"/>
