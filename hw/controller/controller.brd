@@ -264,11 +264,11 @@
 <smd name="64" x="-3.75" y="5.75" dx="1.2" dy="0.3" layer="1" rot="R270"/>
 <text x="-2.8" y="-1.625" size="0.8128" layer="25">&gt;NAME</text>
 <text x="-2.85" y="2.5" size="0.8128" layer="27">&gt;VALUE</text>
-<wire x1="5" y1="5" x2="-4.05" y2="5" width="0.2" layer="51"/>
-<wire x1="-4.05" y1="5" x2="-5" y2="4" width="0.2" layer="51"/>
-<wire x1="-5" y1="4" x2="-5" y2="-5" width="0.2" layer="51"/>
-<wire x1="-5" y1="-5" x2="5" y2="-5" width="0.2" layer="51"/>
-<wire x1="5" y1="-5" x2="5" y2="5" width="0.2" layer="51"/>
+<wire x1="5" y1="5" x2="-4.05" y2="5" width="0.2" layer="21"/>
+<wire x1="-4.05" y1="5" x2="-5" y2="4" width="0.2" layer="21"/>
+<wire x1="-5" y1="4" x2="-5" y2="-5" width="0.2" layer="21"/>
+<wire x1="-5" y1="-5" x2="5" y2="-5" width="0.2" layer="21"/>
+<wire x1="5" y1="-5" x2="5" y2="5" width="0.2" layer="21"/>
 </package>
 <package name="TSSOP14">
 <description>&lt;b&gt;Thin Shrink Small Outline Plastic 14&lt;/b&gt;&lt;p&gt;

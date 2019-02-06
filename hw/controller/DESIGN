@@ -1,4 +1,9 @@
 TODO
+r4 DONE
+ * STM32F4 silkscreen had placement silk actually put on placement layer
+
+r3 ERRATA
+ * placement silkscreen for STM32F4 isn't on an exported layer
 
 r3 DONE
  * Updated revision to r3
