@@ -93,6 +93,14 @@ constexpr int kIntRateHz = 30000;
 constexpr int kPwmRateHz = 60000;
 static_assert(kPwmRateHz % kIntRateHz == 0);
 
+// This is used to determine the maximum allowable PWM value so that
+// the current sampling is guaranteed to occur while the FETs are
+// still low.  It was calibrated using the scope and trial and error.
+constexpr float kCurrentSampleTime = 1.1e-6f;
+
+constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
+constexpr float kMaxPwm = 1.0f - kMinPwm;
+
 constexpr float kRateHz = kIntRateHz;
 
 constexpr int kCalibrateCount = 256;
@@ -101,11 +109,14 @@ constexpr int kCalibrateCount = 256;
 // without triggering a fault.  Measured relative to 32767
 constexpr int16_t kMaxPositionDelta = 1000;
 
-// mbed seems to configure the Timer clock input to 90MHz.  We want
-// 80kHz up/down rate for 40kHz freqency, so:
+// mbed configures the Timer clock input to 90MHz.  For any given pwm
+// frequency, we want double the actual frequency since we have an up
+// down counter.
 constexpr uint32_t kTimerClock = 90000000;
 constexpr uint32_t kPwmCounts = kTimerClock / (2 * kPwmRateHz);
-constexpr uint32_t kControlCounts = kTimerClock / (2 * kIntRateHz);
+
+// However, the control counter we want at the actual frequency.
+constexpr uint32_t kControlCounts = kTimerClock / (kIntRateHz);
 
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
   if (timer == TIM1) {
@@ -454,7 +465,7 @@ class BldcServo::Impl {
 
     // This should logically be done right after checking SR above,
     // but we delay it until after DoSense to avoid the critical path.
-    *g_control_timer_sr |= TIM_SR_UIF;
+    *g_control_timer_sr = 0x00;
 
     SinCos sin_cos{status_.electrical_theta};
 
@@ -909,8 +920,9 @@ class BldcServo::Impl {
   }
 
   void ISR_DoVoltageFOC(float theta, float voltage) {
+    float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
     SinCos sc(theta);
-    InverseDqTransform idt(sc, voltage, 0);
+    InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
@@ -935,7 +947,11 @@ class BldcServo::Impl {
             motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
-    InverseDqTransform idt(sin_cos, control_.d_V, control_.q_V);
+    float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
+    auto limit_v = [&](float in) {
+      return Limit(in, -max_voltage, max_voltage);
+    };
+    InverseDqTransform idt(sin_cos, limit_v(control_.d_V), limit_v(control_.q_V));
 
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
@@ -982,7 +998,7 @@ class BldcServo::Impl {
   float LimitPwm(float in) {
     // We can't go full duty cycle or we wouldn't have time to sample
     // the current.
-    return Limit(in, 0.1f, 0.9f);
+    return Limit(in, kMinPwm, kMaxPwm);
   }
 
   const Options options_;
