@@ -798,6 +798,11 @@ class BldcServo::Impl {
         status_.fault = errc::kOverVoltage;
         return;
       }
+      if (status_.fet_temp_C > config_.max_temperature) {
+        status_.mode = kFault;
+        status_.fault = errc::kOverTemperature;
+        return;
+      }
     }
 
     // Ensure unused PID controllers have zerod state.

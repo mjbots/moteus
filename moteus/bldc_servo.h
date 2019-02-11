@@ -111,6 +111,7 @@ class BldcServo {
     float v_scale_V = 0.00884f;  // V per A/D count
 
     float max_voltage = 20.0f;
+    float max_temperature = 75.0f;
 
     float feedforward_scale = 1.0f;
 
@@ -142,6 +143,7 @@ class BldcServo {
       a->Visit(MJ_NVP(i_scale_A));
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(max_voltage));
+      a->Visit(MJ_NVP(max_temperature));
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(adc_cycles));
       a->Visit(MJ_NVP(vel_filter_s));
