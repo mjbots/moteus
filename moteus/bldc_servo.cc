@@ -41,6 +41,11 @@ namespace {
 
 using mjlib::base::Limit;
 
+float Threshold(float value, float lower, float upper) {
+  if (value > lower && value < upper) { return 0.0f; }
+  return value;
+}
+
 // From make_thermistor_table.py
 constexpr float g_thermistor_lookup[] = {
   -74.17f, // 0
@@ -985,7 +990,9 @@ class BldcServo::Impl {
       velocity_command = 0.0f;
     }
 
-    const float measured_velocity = status_.velocity;
+    const float measured_velocity = Threshold(
+        status_.velocity, -config_.velocity_threshold,
+        config_.velocity_threshold);
 
     mjlib::base::PID::ApplyOptions apply_options;
     apply_options.kp_scale = data->kp_scale;
