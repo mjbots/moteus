@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -525,6 +525,9 @@ class BldcServo::Impl {
     // Set ADC3 back to the sense resistor.
     ADC3->SQR3 = vsense_sqr_;
 
+    // Kick off a conversion just to get the FET temp out of the system.
+    ADC3->CR2 |= ADC_CR2_SWSTART;
+
     {
       constexpr int adc_max = 4096;
       constexpr size_t size_thermistor_table =
@@ -573,10 +576,11 @@ class BldcServo::Impl {
     }
 
     {
-      const float vel_alpha = 1.0f / (config_.vel_filter_s * kRateHz);
-      const float this_vel = delta_position * motor_.unwrapped_position_scale * (1.0f / 65536.0f) * kRateHz;
-
-      status_.velocity = vel_alpha * this_vel + (1.0f - vel_alpha) * status_.velocity;
+      velocity_filter_.Add(delta_position * 256);
+      constexpr float velocity_scale = 1.0f / (256.0f * 65536.0f);
+      status_.velocity =
+          static_cast<float>(velocity_filter_.average()) *
+          motor_.unwrapped_position_scale * velocity_scale * kRateHz;
     }
 
     status_.unwrapped_position =
@@ -1058,7 +1062,7 @@ class BldcServo::Impl {
   CommandData telemetry_data_;
 
   // These values should only be modified from within the ISR.
-  // mjlib::base::WindowedAverage<float, 128> velocity_filter_;
+  mjlib::base::WindowedAverage<int16_t, 128> velocity_filter_;
   Status status_;
   Control control_;
   uint32_t calibrate_adc1_ = 0;

@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -110,14 +110,12 @@ class BldcServo {
     float i_scale_A = 0.04028f;  // Amps per A/D LSB
     float v_scale_V = 0.00884f;  // V per A/D count
 
-    float max_voltage = 20.0f;
+    float max_voltage = 22.0f;
     float max_temperature = 75.0f;
 
     float feedforward_scale = 1.0f;
 
     uint16_t adc_cycles = 15;  // 3, 15, 28, 56, 84, 112, 144, 480
-
-    float vel_filter_s = 0.002f;
 
     // We use the same PID constants for D and Q current control
     // loops.
@@ -146,7 +144,6 @@ class BldcServo {
       a->Visit(MJ_NVP(max_temperature));
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(adc_cycles));
-      a->Visit(MJ_NVP(vel_filter_s));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
     }
