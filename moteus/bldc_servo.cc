@@ -29,6 +29,7 @@
 
 #include "moteus/irq_callback_table.h"
 #include "moteus/foc.h"
+#include "moteus/hw.h"
 #include "moteus/math.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_serial.h"
@@ -621,8 +622,10 @@ class BldcServo::Impl {
 
   // This is called from the ISR.
   void ISR_CalculateCurrentState(const SinCos& sin_cos) {
-    status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * config_.i_scale_A;
-    status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * config_.i_scale_A;
+    const float adc_scale =
+        3.3f / (4096.0f * MOTEUS_CURRENT_SENSE_OHM * config_.i_gain);
+    status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * adc_scale;
+    status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale;
     status_.bus_V = status_.adc3_raw * config_.v_scale_V;
     if (!std::isfinite(status_.filt_bus_V)) {
       status_.filt_bus_V = status_.bus_V;

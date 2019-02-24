@@ -107,7 +107,7 @@ class BldcServo {
   };
 
   struct Config {
-    float i_scale_A = 0.04028f;  // Amps per A/D LSB
+    float i_gain = 20.0f;  // should match csa_gain from drv8323
     float v_scale_V = 0.00884f;  // V per A/D count
 
     float max_voltage = 22.0f;
@@ -139,7 +139,7 @@ class BldcServo {
 
     template <typename Archive>
     void Serialize(Archive* a) {
-      a->Visit(MJ_NVP(i_scale_A));
+      a->Visit(MJ_NVP(i_gain));
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(max_voltage));
       a->Visit(MJ_NVP(max_temperature));

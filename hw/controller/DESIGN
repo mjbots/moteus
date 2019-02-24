@@ -12,6 +12,7 @@ r3 DONE
  * Switched all the 15/22uF caps to the X7R 10uF one
  * Re-arranged all silks
  * Verified that vert ZH connector fits on printout
+ * Switched current sense to 0.500 milliohm from 1 milliohm
 
 r2 ERRATA
  * footprint for 6pin ZH vertical doesn't have trailing pins long

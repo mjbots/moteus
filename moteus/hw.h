@@ -17,10 +17,13 @@
 // r1 silk
 // #define MOTEUS_HW_REV 0
 
+// r2 silk
+// #define MOTEUS_HW_REV 1
+
 // The most recent version of the HW.
 #ifndef MOTEUS_HW_REV
-// r2 silk
-#define MOTEUS_HW_REV 1
+// r3 silk
+#define MOTEUS_HW_REV 2
 #endif
 
 #define DRV8323_ENABLE PA_3
@@ -51,4 +54,10 @@
 #define MOTEUS_TSENSE PC_0_ALT1
 #elif MOTEUS_HW_REV >= 1
 #define MOTEUS_TSENSE PC_2_ALT1
+#endif
+
+#if MOTEUS_HW_REV <= 1
+#define MOTEUS_CURRENT_SENSE_OHM 0.001f
+#elif MOTEUS_HW_REV >= 2
+#define MOTEUS_CURRENT_SENSE_OHM 0.0005f
 #endif
