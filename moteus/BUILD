@@ -119,3 +119,12 @@ cc_test(
         "@boost//:test",
     ],
 )
+
+py_binary(
+    name = "jump_test",
+    srcs = ["jump_test.py"],
+    deps = [
+        "//mjlib/micro:py_multiplex_protocol",
+        "//mjlib/micro:aioserial",
+    ],
+)
