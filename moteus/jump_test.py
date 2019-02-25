@@ -19,6 +19,8 @@
 import argparse
 import asyncio
 import collections
+import csv
+import datetime
 import enum
 import struct
 import time
@@ -69,7 +71,7 @@ class ServoSet:
         self.channels = {
             key: mp.MultiplexClient(
                 self.manager,
-                timeout=0.04,
+                timeout=0.02,
                 destination_id=key,
                 channel=1)
             for key in ids
@@ -81,7 +83,11 @@ class ServoSet:
         channel.write(b"tel get servo_stats\n")
         await channel.drain()
 
-        line = (await read_response(channel)).strip()
+        while True:
+            line = (await read_response(channel)).strip()
+            if line.startswith(b"emit servo_stats"):
+                break
+
         size_str = await channel.read(4)  # size
         size, = struct.unpack('<i', size_str)
         data = await channel.read(size)
@@ -104,7 +110,11 @@ class ServoSet:
             for key in still_left:
                 try:
                     this_result = await asyncio.wait_for(
-                        read_response(self.channels[key]), 0.06)
+                        read_response(self.channels[key]), 0.05)
+                    if not this_result.startswith(b"OK"):
+                        # We must have gotten a response for some
+                        # previous message.  Just try again.
+                        continue
                     results[key] = this_result
                     remaining.remove(key)
                 except asyncio.TimeoutError:
@@ -132,9 +142,35 @@ async def main():
                         help='serial device')
     parser.add_argument('-b', '--baud', type=int, default=3000000,
                         help='baud rate')
+    parser.add_argument('-o', '--output', default='/tmp')
     parser.add_argument('--really-run', action='store_true')
 
     args = parser.parse_args()
+
+    output_filename = '{}/jump-{}.csv'.format(
+        args.output, datetime.datetime.now().isoformat())
+    fields = [
+        'time',
+        'state',
+        '1_mode',
+        '1_position',
+        '1_velocity',
+        '1_current',
+        '1_temp_C',
+        '2_mode',
+        '2_position',
+        '2_velocity',
+        '2_current',
+        '2_temp_C',
+        '3_mode',
+        '3_position',
+        '3_velocity',
+        '3_current',
+        '3_temp_C',
+    ]
+
+    output = csv.DictWriter(open(output_filename, 'w'), fields)
+    output.writeheader()
 
     serial = aioserial.AioSerial(port=args.device, baudrate=args.baud)
     # Empty out anything still on the bus.
@@ -161,13 +197,37 @@ async def main():
                     # We retry infinitely.
                     pass
 
-        print('{:.6f} {}'.format(time.time(), state))
+        now = time.time()
+        print('{:.6f} {}'.format(now, state))
         for id in [1, 2, 3]:
             print(' {}: {:3d} p {:7.4f}  v {:7.3f}  i {:5.1f}  t {:2.0f}'.format(
                 id, data[id].mode,
                 data[id].unwrapped_position, data[id].velocity,
                 data[id].q_A, data[id].fet_temp_C))
         print()
+
+        csv_data = {
+            'time': now,
+            'state': str(state),
+            '1_mode': data[1].mode,
+            '1_position': data[1].position,
+            '1_velocity': data[1].velocity,
+            '1_current': data[1].q_A,
+            '1_temp_C': data[1].fet_temp_C,
+
+            '2_mode': data[2].mode,
+            '2_position': data[2].position,
+            '2_velocity': data[2].velocity,
+            '2_current': data[2].q_A,
+            '2_temp_C': data[2].fet_temp_C,
+
+            '3_mode': data[3].mode,
+            '3_position': data[3].position,
+            '3_velocity': data[3].velocity,
+            '3_current': data[3].q_A,
+            '3_temp_C': data[3].fet_temp_C,
+        }
+        output.writerow(csv_data)
 
         for key, value in data.items():
             if value.mode == 1:
@@ -181,7 +241,7 @@ async def main():
                 await servo_set.command({
                     1: 'd pos {} 0 15\n'.format(FEMUR_START).encode('utf8'),
                     2: 'd pos {} 0 15\n'.format(TIBIA_START).encode('utf8'),
-                    3: b'd pos -0.005 0 40\n',
+                    3: b'd pos 0 0 40\n',
                 })
 
             state = State.WAIT_FOR_INIT
@@ -211,8 +271,8 @@ async def main():
                 # Start the jump.
                 if args.really_run:
                     await servo_set.command({
-                        1: b'd pos nan -9 30\n',
-                        2: b'd pos nan 9 25\n',
+                        1: b'd pos nan -9 20\n',
+                        2: b'd pos nan 9 20\n',
                     })
                 state = State.JUMPING
         elif state == State.FALLING:
@@ -228,14 +288,20 @@ async def main():
             # Wait for servos to be roughly in position and the
             # current to be mostly stabilized.
             in_position = (
-                abs(data[1].unwrapped_position - FEMUR_START) < 0.01 and
-                abs(data[2].unwrapped_position - TIBIA_START) < 0.01 and
-                abs(data[1].q_A) < 5 and
-                abs(data[2].q_A) < 5)
+                (abs(data[1].unwrapped_position - FEMUR_START) < 0.01 and
+                 abs(data[2].unwrapped_position - TIBIA_START) < 0.01 and
+                 abs(data[1].q_A) < 5 and
+                 abs(data[2].q_A) < 5) or
+                (abs(data[1].velocity) < 0.1 and
+                 abs(data[2].velocity) < 0.1))
 
             if in_position:
-                # We don't have to do anything here but wait for the
-                # landing event.
+                # Switch to possibly different current commands for our landing.
+                if args.really_run:
+                    await servo_set.command({
+                        1: 'd pos {} 0 20\n'.format(FEMUR_START).encode('latin1'),
+                        2: 'd pos {} 0 20\n'.format(TIBIA_START).encode('latin1'),
+                    })
                 state = State.FALLING
 
         elif state == State.JUMPING:
@@ -247,8 +313,8 @@ async def main():
                 # Start our retract.
                 if args.really_run:
                     await servo_set.command({
-                        1: 'd pos {} 0 25\n'.format(FEMUR_START).encode('latin1'),
-                        2: 'd pos {} 0 25\n'.format(TIBIA_START).encode('latin1'),
+                        1: 'd pos {} 0 30\n'.format(FEMUR_START).encode('latin1'),
+                        2: 'd pos {} 0 30\n'.format(TIBIA_START).encode('latin1'),
                     })
                 state = State.RETRACTING
 
