@@ -5722,9 +5722,9 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value="Samsung Electro-Mechanics"/>
 <attribute name="MPN" value="CL05A105KL5NRNC"/>
 </part>
-<part name="RA" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
+<part name="RA" library="rcl" deviceset="R-US_" device="M1206" value="0.5mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
-<attribute name="MPN" value="HCS1206FT1L00"/>
+<attribute name="MPN" value="HCS1206FTL500"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="SH1" library="shorts" deviceset="SHORT" device="T5">
@@ -5739,14 +5739,14 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="P-1" library="supply1" deviceset="V-" device=""/>
 <part name="P+1" library="supply1" deviceset="V+" device=""/>
 <part name="P+2" library="supply1" deviceset="V+" device=""/>
-<part name="RB" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
+<part name="RB" library="rcl" deviceset="R-US_" device="M1206" value="0.5mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
-<attribute name="MPN" value="HCS1206FT1L00"/>
+<attribute name="MPN" value="HCS1206FTL500"/>
 <attribute name="POPULATE" value="1"/>
 </part>
-<part name="RC" library="rcl" deviceset="R-US_" device="M1206" value="1mOhm 1% 2W">
+<part name="RC" library="rcl" deviceset="R-US_" device="M1206" value="0.5mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
-<attribute name="MPN" value="HCS1206FT1L00"/>
+<attribute name="MPN" value="HCS1206FTL500"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="C13" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
