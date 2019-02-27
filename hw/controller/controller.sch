@@ -5609,23 +5609,23 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="C2" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="C6" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="C4" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="C5" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="C3" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="C1" library="mfpassives" deviceset="CAPACITOR_NP" device="_0603" value="4.7uF">
 <attribute name="MF" value="Samsung Electro-Mechanics"/>
@@ -5670,7 +5670,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="GND2" library="supply1" deviceset="GND" device=""/>
 <part name="C10" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="Q1" library="controller" deviceset="TPN1R603PL" device="">
 <attribute name="MF" value="Toshiba"/>
@@ -5716,11 +5716,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="+3V2" library="supply1" deviceset="+3V3" device=""/>
 <part name="C11" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
-<part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C12" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="RA" library="rcl" deviceset="R-US_" device="M1206" value="0.5mOhm 1% 2W">
 <attribute name="MF" value="Stackpole Electronics"/>
@@ -5751,7 +5751,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="C13" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="A" library="controller" deviceset="PAD" device="">
 <attribute name="POPULATE" value="0"/>
@@ -5785,7 +5785,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="GND7" library="supply1" deviceset="GND" device=""/>
 <part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="L1" library="controller" deviceset="SRN4018-220M" device="">
 <attribute name="MPN" value="SRN4018-220M"/>
@@ -5794,21 +5794,21 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="D1" library="mfdiscretesemi" deviceset="DIODES" device="_SMA" technology="_B140" value="MF-DIO-SMA-B140"/>
 <part name="C22" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
-<part name="C23" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C23" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
-<part name="C24" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C24" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="GND8" library="supply1" deviceset="GND" device=""/>
 <part name="+3V4" library="supply1" deviceset="+3V3" device=""/>
-<part name="C25" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C25" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
 <part name="SWD" library="controller" deviceset="JST-ZH6" device="SMT_VERT" value="JST-ZH6SMT_VERT">
@@ -5861,11 +5861,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="C26" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
-<part name="C27" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C27" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="P+4" library="supply1" deviceset="V+" device=""/>
 <part name="SH4" library="shorts" deviceset="SHORT" device="BIG" value="SHORTBIG">
@@ -5875,9 +5875,9 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="GND12" library="supply1" deviceset="GND" device=""/>
 <part name="P-6" library="supply1" deviceset="V-" device=""/>
 <part name="P-7" library="supply1" deviceset="V-" device=""/>
-<part name="C28" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C28" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="P-8" library="supply1" deviceset="V-" device=""/>
 <part name="C20" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
@@ -5912,9 +5912,9 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value="Panasonic"/>
 <attribute name="MPN" value="ERJ-2RKF3302X"/>
 </part>
-<part name="C29" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C29" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="ABS_3V" library="controller" deviceset="PAD" device="24AWG_PAD"/>
 <part name="ABS_SDA" library="controller" deviceset="PAD" device="24AWG_PAD"/>
@@ -5932,13 +5932,13 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="B6B-ZR-SM4-TF(LF)(SN)"/>
 <attribute name="POPULATE" value="1"/>
 </part>
-<part name="C30" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF 35V">
-<attribute name="MF" value="Samsung Electro-Mechanics"/>
-<attribute name="MPN" value="CL05A105KL5NRNC"/>
+<part name="C30" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1.5uF 35V">
+<attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C1005X5R1V155M050BC"/>
 </part>
 <part name="C31" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="R12" library="mfpassives" deviceset="RESISTOR" device="_0402" value="47k NTC">
 <attribute name="MF" value="Murata"/>
@@ -5952,7 +5952,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="+3V12" library="supply1" deviceset="+3V3" device=""/>
 <part name="C32" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C1005X7R1H104K050BE"/>
+<attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
 <part name="DAC1" library="controller" deviceset="PAD" device="24AWG_PAD"/>
 <part name="M3" library="controller" deviceset="PAD" device="24AWG_PAD"/>
