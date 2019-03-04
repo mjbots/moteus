@@ -10,6 +10,12 @@ designs for moderately high power electronics.  It has not yet burned
 down my (or anyone's that I know of) house, but there are no
 guarantees.
 
+# LICENSE #
+
+All files contained in this repository, unless otherwise noted, may be
+licensed under an Apache 2.0 License:
+https://www.apache.org/licenses/LICENSE-2.0
+
 # Setup of an individual actuator #
 
 ## Building and flashing the moteus firmware ##
