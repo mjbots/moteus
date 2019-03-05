@@ -153,6 +153,9 @@ def calculate_winding_resistance(voltages, currents):
 async def do_calibrate(client, args):
     print('This will move the motor, ensure it can spin freely!')
 
+    await write_command(client, b'conf get motor.unwrapped_position_scale')
+    unwrapped_position_scale = float((await read_response(client)).strip())
+
     # We have 3 things to calibrate.
     #  1) the encoder to phase mapping
     #  2) the winding resistance
@@ -197,8 +200,6 @@ async def do_calibrate(client, args):
         calibration['poles']).encode('utf8'))
     await command(client, 'conf set motor.invert {}'.format(
         1 if calibration['invert'] else 0).encode('utf8'))
-    await command(client, 'conf set servo.pid_position.sign {}'.format(
-        -1 if calibration['invert'] else 1).encode('utf8'))
     for index, value in enumerate(calibration['offset']):
         await command(client, 'conf set motor.offset.{} {}'.format(
             index, value).encode('utf8'))
@@ -218,6 +219,8 @@ async def do_calibrate(client, args):
 
     # And now the kV rating.
     speed = 2.0
+    await command(client, b'conf set servopos.position_min -10000')
+    await command(client, b'conf set servopos.position_max 10000')
     await command(client, b'conf set motor.v_per_hz 0')
     await command(client, b'd index 0')
     await command(client, 'd pos nan {} 5'.format(speed).encode('utf8'))
@@ -231,12 +234,14 @@ async def do_calibrate(client, args):
         return float(servo_control['servo_control.q_V'])
 
     q_Vs = [await read_q_v() for i in range(10)]
-    v_per_hz = sum(q_Vs) / len(q_Vs) / speed
+    v_per_hz = unwrapped_position_scale * sum(q_Vs) / len(q_Vs) / speed
 
     await command(client, b'd stop')
     await asyncio.sleep(0.5)
 
     await command(client, 'conf set motor.v_per_hz {}'.format(v_per_hz).encode('utf8'))
+    await command(client, b'conf set servopos.position_min -0.01')
+    await command(client, b'conf set servopos.position_max 0.01')
 
     # Finally, write all this configuration to the device.
     await command(client, b'conf write')
