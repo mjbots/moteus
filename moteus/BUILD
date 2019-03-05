@@ -120,10 +120,25 @@ cc_test(
     ],
 )
 
+py_library(
+    name = "calibrate_encoder",
+    srcs = ["calibrate_encoder.py"],
+)
+
 py_binary(
     name = "jump_test",
     srcs = ["jump_test.py"],
     deps = [
+        "//mjlib/micro:py_multiplex_protocol",
+        "//mjlib/micro:aioserial",
+    ],
+)
+
+py_binary(
+    name = "moteus_tool",
+    srcs = ["moteus_tool.py"],
+    deps = [
+        ":calibrate_encoder",
         "//mjlib/micro:py_multiplex_protocol",
         "//mjlib/micro:aioserial",
     ],
