@@ -87,7 +87,7 @@ def _make_error(message):
     return result
 
 
-def perform_calibration(data):
+def perform_calibration(data, show_plots=False):
     # Things we need to figure out from this data:
     #  * whether it is inverted or not
     #  * number of poles
@@ -142,6 +142,12 @@ def perform_calibration(data):
     phase_up_inverted = list(sorted([(b, a) for a, b in phase_up]))
     phase_down_inverted = list(sorted([(b, a) for a, b in reversed(phase_down)]))
 
+    offset = phase_down_inverted[0][1] - phase_up_inverted[0][1]
+    if abs(offset) > 32767:
+        # We need to shift it so that they start from the same place.
+        change = -65536 * round(offset / 65536)
+        phase_down_inverted = [(a, b + change) for a, b in phase_down_inverted]
+
     interp_x = numpy.linspace(0, 65535, 10000)
     phase_up_encoder = numpy.array([x[0] for x in phase_up_inverted])
     phase_up_phase = numpy.unwrap((2.0 * numpy.pi / 65536.0) *
@@ -173,7 +179,7 @@ def perform_calibration(data):
 
     result['offset'] = list(offset_y)
 
-    if True:
+    if show_plots:
         ax = pyplot.subplot(211)
         ax.plot(phase_up_encoder, phase_up_phase,
                     label='phase_up')
@@ -206,7 +212,7 @@ def main():
     with open(args.file, 'r') as fd:
         data = read_file(fd)
 
-    calibration = perform_calibration(data)
+    calibration = perform_calibration(data, show_plots=True)
     print(calibration)
 
     # Now print out the commands necessary to install this config.
