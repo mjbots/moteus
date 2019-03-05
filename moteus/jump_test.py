@@ -44,8 +44,10 @@ SERVO_STATS_NC = collections.namedtuple('servo_stats', '''mode errc
      unwrapped_position
      velocity''')
 
-FEMUR_START = 0.09
-TIBIA_START = -0.11
+FEMUR_START = 0.12
+TIBIA_START = -0.16
+JUMP_CURRENT = 45
+RETRACT_CURRENT = 30
 
 async def readline(stream):
     result = bytearray()
@@ -271,8 +273,8 @@ async def main():
                 # Start the jump.
                 if args.really_run:
                     await servo_set.command({
-                        1: b'd pos nan -9 20\n',
-                        2: b'd pos nan 9 20\n',
+                        1: 'd pos nan -9 {}\n'.format(JUMP_CURRENT).encode('latin1'),
+                        2: 'd pos nan 9 {}\n'.format(JUMP_CURRENT).encode('latin1'),
                     })
                 state = State.JUMPING
         elif state == State.FALLING:
@@ -299,8 +301,10 @@ async def main():
                 # Switch to possibly different current commands for our landing.
                 if args.really_run:
                     await servo_set.command({
-                        1: 'd pos {} 0 20\n'.format(FEMUR_START).encode('latin1'),
-                        2: 'd pos {} 0 20\n'.format(TIBIA_START).encode('latin1'),
+                        1: 'd pos {} 0 {}\n'.format(
+                            FEMUR_START, JUMP_CURRENT).encode('latin1'),
+                        2: 'd pos {} 0 {}\n'.format(
+                            TIBIA_START, JUMP_CURRENT).encode('latin1'),
                     })
                 state = State.FALLING
 
@@ -313,8 +317,10 @@ async def main():
                 # Start our retract.
                 if args.really_run:
                     await servo_set.command({
-                        1: 'd pos {} 0 30\n'.format(FEMUR_START).encode('latin1'),
-                        2: 'd pos {} 0 30\n'.format(TIBIA_START).encode('latin1'),
+                        1: 'd pos {} 0 {}\n'.format(
+                            FEMUR_START, RETRACT_CURRENT).encode('latin1'),
+                        2: 'd pos {} 0 {}\n'.format(
+                            TIBIA_START, RETRACT_CURRENT).encode('latin1'),
                     })
                 state = State.RETRACTING
 
