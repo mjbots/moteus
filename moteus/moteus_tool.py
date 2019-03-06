@@ -48,6 +48,8 @@ async def readline(stream):
         char = await stream.read(1)
         if char == b'\r' or char == b'\n':
             if len(result):
+                if G_VERBOSE:
+                    print(' -- read:', result)
                 return result
         else:
             result += char
@@ -71,7 +73,7 @@ async def read_ok(stream):
     while True:
         line = await read_response(stream)
         if G_VERBOSE:
-            print(' -- waiting_ok:', line)
+            print(' -- waiting_ok')
         if line.startswith(b'OK'):
             return result
         result.append(line)
