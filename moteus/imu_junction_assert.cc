@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include "hal/gpio_api.h"
 
-#include "moteus/hw.h"
+#include "moteus/imu_junction_hw.h"
 
 namespace mjlib {
 namespace base {
@@ -31,17 +31,6 @@ void assertion_failed(const char* expression, const char* filename, int line) {
 
 extern "C" {
 void mbed_die(void) {
-  // We want to ensure the motor controller is disabled and flash an
-  // LED which exists.
-  gpio_t power;
-  gpio_init_out(&power, DRV8323_HIZ);
-  gpio_write(&power, 0);
-
-  // Also, disable the DRV8323 entirely, because, hey, why not.
-  gpio_t enable;
-  gpio_init_out(&enable, DRV8323_ENABLE);
-  gpio_write(&enable, 0);
-
   gpio_t led;
   gpio_init_out(&led, DEBUG_LED1);
 

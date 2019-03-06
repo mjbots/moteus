@@ -29,8 +29,8 @@
 
 #include "moteus/irq_callback_table.h"
 #include "moteus/foc.h"
-#include "moteus/hw.h"
 #include "moteus/math.h"
+#include "moteus/moteus_hw.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_serial.h"
 

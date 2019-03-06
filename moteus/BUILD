@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,10 +33,48 @@ cc_library(
 )
 
 mbed_binary(
+    name = "imu_junction",
+    srcs = [
+        "imu_junction_assert.cc",
+        "error.h",
+        "error.cc",
+        "hardfault.s",
+        "imu_junction_hardfault_handler.c",
+        "imu_junction_hw.h",
+        "irq_callback_table.h",
+        "irq_callback_table.cc",
+        "millisecond_timer.h",
+        "stm32f446_async_uart.h",
+        "stm32f446_async_uart.cc",
+        "stm32_flash.h",
+        "stm32_flash.cc",
+        "stm32_serial.h",
+        "stm32_serial.cc",
+        "system_info.h",
+        "system_info.cc",
+        "imu_junction.cc",
+    ],
+    deps = [
+        ":common",
+        "//mjlib/base:assert",
+        "//mjlib/base:system_error",
+        "//mjlib/micro:async_exclusive",
+        "//mjlib/micro:async_stream",
+        "//mjlib/micro:command_manager",
+        "//mjlib/micro:multiplex_protocol",
+        "//mjlib/micro:persistent_config",
+        "//mjlib/micro:pool_ptr",
+        "//mjlib/micro:static_function",
+        "//mjlib/micro:telemetry_manager",
+    ],
+    linker_script = "stm32f446.ld",
+)
+
+mbed_binary(
     name = "moteus",
     srcs = [
         "as5047.h",
-        "assert.cc",
+        "moteus_assert.cc",
         "bldc_servo.h",
         "bldc_servo.cc",
         "board_debug.h",
@@ -46,8 +84,8 @@ mbed_binary(
         "error.h",
         "error.cc",
         "hardfault.s",
-        "hardfault_handler.c",
-        "hw.h",
+        "moteus_hardfault_handler.c",
+        "moteus_hw.h",
         "irq_callback_table.h",
         "irq_callback_table.cc",
         "millisecond_timer.h",
@@ -61,7 +99,7 @@ mbed_binary(
         "stm32_serial.cc",
         "system_info.h",
         "system_info.cc",
-        "main.cc",
+        "moteus.cc",
     ],
     deps = [
         ":common",
@@ -105,6 +143,26 @@ genrule(
     srcs = ["moteus.08000000.bin", "moteus.08010000.bin"],
     outs = ["flash.stamp"],
     cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+)
+
+genrule(
+    name = "imu_junction_bin",
+    srcs = ["imu_junction.elf"],
+    outs = [
+        "imu_junction.08000000.bin",
+        "imu_junction.08010000.bin",
+    ],
+    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $< $(location imu_junction.08010000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .isr_vector $< $(location imu_junction.08000000.bin)"),
+    output_to_bindir = True,
+)
+
+genrule(
+    name = "imu_junction_flash",
+    tags = ["manual"],
+    srcs = ["imu_junction.08000000.bin", "imu_junction.08010000.bin"],
+    outs = ["imu_junction_flash.stamp"],
+    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location imu_junction.08000000.bin) verify 0x8000000; program $(location imu_junction.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
 cc_test(

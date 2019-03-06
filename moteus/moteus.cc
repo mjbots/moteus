@@ -26,8 +26,8 @@
 #include "mjlib/micro/telemetry_manager.h"
 
 #include "moteus/board_debug.h"
-#include "moteus/hw.h"
 #include "moteus/millisecond_timer.h"
+#include "moteus/moteus_hw.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_flash.h"
 #include "moteus/system_info.h"

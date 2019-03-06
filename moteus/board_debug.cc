@@ -25,7 +25,7 @@
 #include "moteus/as5047.h"
 #include "moteus/bldc_servo.h"
 #include "moteus/drv8323.h"
-#include "moteus/hw.h"
+#include "moteus/moteus_hw.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
