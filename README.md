@@ -34,18 +34,17 @@ moteus/flash.sh
 
 ## Initial configuration ##
 
-You will want to use `tview.py` to configure an RS485 id, and to
-configure the motor resistance and volts/Hz.
-
-## Calibrating the encoder ##
-
-Using `tview.py` from the mjmech, repository, issue a `d cal 0.3`
-command.  Copy the output to a text file, then execute:
+First, build the configuration tool:
 
 ```
-./tools/bazel test //:host
-./moteus/calibrate_encoder /path/to/cal.txt -o /tmp/path/to/result.txt
-./bazel-bin/mjlib/micro/conf_write -d /dev/ttyUSB0 /tmp/path/to/result.txt -t N
+tools/bazel test //moteus:moteus_tool
+```
+
+Next, calibrate the encoder.  IMPORTANT: The servo must be able to
+spin freely to complete this calibration.
+
+```
+./bazel-bin/moteus/moteus_tool --target 1 --calibrate -v
 ```
 
 Test the calibration by commanding a low current position in tview:
