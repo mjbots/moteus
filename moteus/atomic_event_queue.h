@@ -40,6 +40,8 @@ class AtomicEventQueue {
 
         const int should_be_1 = entry.state.fetch_add(1);
         MJ_ASSERT(should_be_1 == 1);
+
+        count_++;
         return;
       }
     }
@@ -51,6 +53,9 @@ class AtomicEventQueue {
   // Run any queued events.  This may be called from any thread
   // context.
   void Poll() {
+    if (count_.load() == 0) {
+      return;
+    }
     for (auto& entry: entries_) {
       const int current = entry.state.load();
       if (current == 2) {
@@ -67,6 +72,8 @@ class AtomicEventQueue {
         MJ_ASSERT(should_be_3 == 3);
 
         copy();
+
+        count_--;
       }
     }
   }
@@ -77,6 +84,10 @@ class AtomicEventQueue {
     mjlib::micro::StaticFunction<void()> function;
   };
   std::array<Entry, Size> entries_;
+
+  // The total number of set entries.  This is used as an optimization
+  // for polling.
+  std::atomic<int> count_ = 0;
 };
 
 }
