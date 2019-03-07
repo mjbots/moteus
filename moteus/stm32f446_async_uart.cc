@@ -123,7 +123,7 @@ class Stm32F446AsyncUart::Impl {
           (0x1 << DMA_SxCR_MSIZE_Pos) |  // 16-bit memory
           (0x1 << DMA_SxCR_PSIZE_Pos) |  // 16-bit peripheral
           DMA_SxCR_CIRC |
-          DMA_SxCR_TCIE | DMA_SxCR_TEIE;
+          DMA_SxCR_TCIE | DMA_SxCR_HTIE | DMA_SxCR_TEIE;
 
       rx_callback_ = IrqCallbackTable::MakeFunction([this]() {
           this->HandleReceive();
@@ -171,7 +171,7 @@ class Stm32F446AsyncUart::Impl {
                       const micro::SizeCallback& callback) {
     MJ_ASSERT(!current_write_callback_.valid());
 
-    if (dir_.is_connected()) {
+    if (dir_.is_connected() && dir_.read() == 0) {
       dir_.write(1);
       timer_->wait_us(options_.enable_delay_us);
     }
@@ -228,15 +228,17 @@ class Stm32F446AsyncUart::Impl {
     auto copy = current_write_callback_;
     current_write_callback_ = {};
 
-    if (dir_.is_connected()) {
-      timer_->wait_us(options_.disable_delay_us);
-      dir_.write(0);
+    // The copy could be invalid if we got an unexpected interrupt,
+    // but there is no real reason to abort in that case, so just only
+    // call it if is valid.
+    if (copy.valid()) {
+      copy(error_code, amount_sent);
     }
 
-    if (copy.valid()) {
-      // This would only happen if we got an unexpected interrupt, but
-      // there is no real reason to abort in that case.
-      copy(error_code, amount_sent);
+    // If that didn't start off another write, then disable our direction.
+    if (dir_.is_connected() && !current_write_callback_.valid()) {
+      timer_->wait_us(options_.disable_delay_us);
+      dir_.write(0);
     }
   }
 
@@ -272,6 +274,12 @@ class Stm32F446AsyncUart::Impl {
       pending_rx_error_ = errc::kDmaStreamFifoError;
     } else if (*rx_dma_.status_register & rx_dma_.status_tcif) {
       *rx_dma_.status_clear |= rx_dma_.status_tcif;
+    } else if (*rx_dma_.status_register & rx_dma_.status_htif) {
+      // We are halfway through a transfer, which in practice just
+      // means we're at a random point in whatever thing we're
+      // reading.  Use this as an opportune time to report some
+      // fractional results so as to minimize latency for bulk reads.
+      *rx_dma_.status_clear |= rx_dma_.status_htif;
     } else {
       MJ_ASSERT(false);
     }
