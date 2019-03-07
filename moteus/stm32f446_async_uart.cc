@@ -48,7 +48,7 @@ IRQn_Type FindUartRxIrq(USART_TypeDef* uart) {
 
 class Stm32F446AsyncUart::Impl {
  public:
-  Impl(MillisecondTimer* timer, const Options& options)
+  Impl(micro::Pool* pool, MillisecondTimer* timer, const Options& options)
       : timer_(timer),
         options_(options),
         stm32_serial_([&options]() {
@@ -59,9 +59,15 @@ class Stm32F446AsyncUart::Impl {
             return s_options;
           }()),
         dir_(options.dir, 0) {
+    rx_buffer_ = reinterpret_cast<volatile uint16_t*>(
+        pool->Allocate(options.rx_buffer_size * sizeof(*rx_buffer_),
+                       sizeof(*rx_buffer_)));
+
     // Our receive buffer requires that all unprocessed words be
     // 0xffff.
-    for (auto& value : rx_buffer_) { value = 0xffff; }
+    for (size_t i = 0; i < options_.rx_buffer_size; i++) {
+      rx_buffer_[i] = 0xffff;
+    }
 
     // Just in case no one else has done it yet.
     __HAL_RCC_DMA1_CLK_ENABLE();
@@ -140,7 +146,7 @@ class Stm32F446AsyncUart::Impl {
       rx_dma_.stream->M0AR = reinterpret_cast<uint32_t>(rx_buffer_);
 
       *rx_dma_.status_clear |= rx_dma_.all_status();
-      rx_dma_.stream->NDTR = kRxBufferSize;
+      rx_dma_.stream->NDTR = options_.rx_buffer_size;
       rx_dma_.stream->CR |= DMA_SxCR_EN;
 
       uart_->CR3 |= USART_CR3_DMAR;
@@ -297,7 +303,8 @@ class Stm32F446AsyncUart::Impl {
       return;
     }
 
-    const uint16_t last_pos = (rx_buffer_pos_ + (kRxBufferSize - 1)) % kRxBufferSize;
+    const uint16_t last_pos = (
+        rx_buffer_pos_ + (options_.rx_buffer_size - 1)) % options_.rx_buffer_size;
     if (rx_buffer_[last_pos] != 0xffff) {
       pending_rx_error_ = errc::kUartBufferOverrunError;
       // We have lost synchronization with wherever the DMA controller
@@ -316,7 +323,7 @@ class Stm32F446AsyncUart::Impl {
     ssize_t bytes_read = 0;
     for (;
          bytes_read < current_read_data_.size() && rx_buffer_[rx_buffer_pos_] != 0xffffu;
-         bytes_read++, (rx_buffer_pos_ = (rx_buffer_pos_ + 1) % kRxBufferSize)) {
+         bytes_read++, (rx_buffer_pos_ = (rx_buffer_pos_ + 1) % options_.rx_buffer_size)) {
       current_read_data_.data()[bytes_read] = rx_buffer_[rx_buffer_pos_] & 0xff;
       rx_buffer_[rx_buffer_pos_] = 0xffff;
     }
@@ -336,7 +343,9 @@ class Stm32F446AsyncUart::Impl {
     // If our DMA stream was disabled for some reason, start over
     // again.
     if ((rx_dma_.stream->CR & DMA_SxCR_EN) == 0) {
-      for (auto& value : rx_buffer_) { value = 0xffff; }
+      for (size_t i = 0; i < options_.rx_buffer_size; i++) {
+        rx_buffer_[i] = 0xffff;
+      }
       rx_buffer_pos_ = 0;
 
       rx_dma_.stream->CR |= DMA_SxCR_EN;
@@ -370,15 +379,14 @@ class Stm32F446AsyncUart::Impl {
   // This buffer serves as a place to store things in between calls to
   // AsyncReadSome so that there is minimal chance of data loss even
   // at high data rates.
-  static constexpr int kRxBufferSize = 128;
-  volatile uint16_t rx_buffer_[kRxBufferSize] = {};
+  volatile uint16_t* rx_buffer_ = nullptr;
   uint16_t rx_buffer_pos_ = 0;
 };
 
 Stm32F446AsyncUart::Stm32F446AsyncUart(micro::Pool* pool,
                                        MillisecondTimer* timer,
                                        const Options& options)
-    : impl_(pool, timer, options) {}
+    : impl_(pool, pool, timer, options) {}
 Stm32F446AsyncUart::~Stm32F446AsyncUart() {}
 
 void Stm32F446AsyncUart::AsyncReadSome(const base::string_span& data,

@@ -42,6 +42,8 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
     uint8_t disable_delay_us = 0;
 
     int baud_rate = 115200;
+
+    size_t rx_buffer_size = 128u;
   };
 
   Stm32F446AsyncUart(mjlib::micro::Pool* pool,
