@@ -34,6 +34,154 @@
 using namespace moteus;
 namespace micro = mjlib::micro;
 
+template <size_t Size>
+class Bridge {
+ public:
+  struct Slave {
+    Bridge* parent = nullptr;
+    micro::AsyncStream* stream = nullptr;
+    char buffer[256] = {};
+    bool write_outstanding = false;
+  };
+
+  Bridge(micro::TelemetryManager* telemetry_manager,
+         micro::MultiplexProtocolServer* master,
+         std::array<micro::AsyncStream*, Size> slaves)
+      : master_(master) {
+    telemetry_manager->Register("bridge", &data_);
+
+    for (size_t i = 0; i < Size; i++) {
+      slaves_[i].parent = this;
+      slaves_[i].stream = slaves[i];
+    }
+  }
+
+  void Start() {
+    StartMasterRead();
+    for (auto& slave : slaves_) {
+      StartSlaveRead(&slave);
+    }
+  }
+
+ private:
+  void StartMasterRead() {
+    master_->AsyncReadUnknown(
+        master_buffer_, std::bind(&Bridge::HandleMasterRead, this,
+                                  std::placeholders::_1, std::placeholders::_2));
+  }
+
+  void HandleMasterRead(const mjlib::base::error_code& ec, size_t size) {
+    MJ_ASSERT(!ec);
+
+    data_.master.rx++;
+
+    // Write this out to each of our slaves.
+    for (auto& slave : slaves_) {
+      MJ_ASSERT(!slave.write_outstanding);
+      slave.write_outstanding = true;
+
+      AsyncWrite(
+          *slave.stream,
+          std::string_view(master_buffer_, size),
+          std::bind(&Bridge::StaticHandleSlaveWrite,
+                    std::placeholders::_1, &slave));
+    }
+  }
+
+  static void StaticHandleSlaveWrite(const mjlib::base::error_code& ec,
+                                     Slave* slave) {
+    MJ_ASSERT(!ec);
+    slave->parent->HandleSlaveWrite(slave);
+  }
+
+  void HandleSlaveWrite(Slave* slave) {
+    MJ_ASSERT(slave->write_outstanding);
+    slave->write_outstanding = false;
+
+    const size_t slave_index = slave - &slaves_[0];
+    data_.slaves[slave_index].tx++;
+
+    // If all slave writes are done, then start reading from the
+    // master again.
+    const bool all_done = [&]() {
+      for (size_t i = 0; i < Size; i++) {
+        if (slaves_[i].write_outstanding) { return false; }
+      }
+      return true;
+    }();
+
+    if (all_done) {
+      StartMasterRead();
+    }
+  }
+
+  void StartSlaveRead(Slave* slave) {
+    slave->stream->AsyncReadSome(
+        slave->buffer,
+        std::bind(
+            &Bridge::StaticHandleSlaveRead,
+            std::placeholders::_1, std::placeholders::_2,
+            slave));
+  }
+
+  static void StaticHandleSlaveRead(
+      const mjlib::base::error_code& ec, size_t size,
+      Slave* slave) {
+    slave->parent->HandleSlaveRead(ec, size, slave);
+  }
+
+  void HandleSlaveRead(const mjlib::base::error_code& ec, size_t size,
+                       Slave* slave) {
+    MJ_ASSERT(!ec);
+
+    const size_t slave_index = slave - &slaves_[0];
+    data_.slaves[slave_index].rx++;
+
+    master_->AsyncWriteRaw(
+        std::string_view(slave->buffer, size),
+        std::bind(&Bridge::StaticHandleMasterWrite,
+                  std::placeholders::_1, slave));
+  }
+
+  static void StaticHandleMasterWrite(
+      const mjlib::base::error_code& ec, Slave* slave) {
+    MJ_ASSERT(!ec);
+
+    slave->parent->data_.master.tx++;
+    slave->parent->StartSlaveRead(slave);
+  }
+
+
+  micro::MultiplexProtocolServer* const master_;
+  char master_buffer_[256] = {};
+
+  std::array<Slave, Size> slaves_;
+
+  struct EndpointStats {
+    int32_t tx = 0;
+    int32_t rx = 0;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(tx));
+      a->Visit(MJ_NVP(rx));
+    }
+  };
+
+  struct Data {
+    EndpointStats master;
+    std::array<EndpointStats, Size> slaves;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(master));
+      a->Visit(MJ_NVP(slaves));
+    }
+  };
+
+  Data data_;
+};
+
 int main(void) {
   MillisecondTimer timer;
 
@@ -47,10 +195,39 @@ int main(void) {
       options.enable_delay_us = 1;
       options.disable_delay_us = 2;
       options.baud_rate = 3000000;
+      options.rx_buffer_size = 256;
       return options;
     }());
 
-  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, nullptr, {});
+  Stm32F446AsyncUart slave1(&pool, &timer, []() {
+      Stm32F446AsyncUart::Options options;
+      options.tx = PA_2;
+      options.rx = PA_3;
+      options.dir = PA_1;
+      options.enable_delay_us = 1;
+      options.disable_delay_us = 2;
+      options.baud_rate = 3000000;
+      options.rx_buffer_size = 256;
+      return options;
+    }());
+
+  Stm32F446AsyncUart slave2(&pool, &timer, []() {
+      Stm32F446AsyncUart::Options options;
+      options.tx = PC_6;
+      options.rx = PC_7;
+      options.dir = PC_8;
+      options.enable_delay_us = 1;
+      options.disable_delay_us = 2;
+      options.baud_rate = 3000000;
+      options.rx_buffer_size = 256;
+      return options;
+    }());
+
+  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, nullptr, []() {
+      micro::MultiplexProtocolServer::Options options;
+      options.default_id = 64;
+      return options;
+    }());
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
@@ -63,17 +240,22 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
 
+  Bridge<2> bridge(&telemetry_manager, &multiplex_protocol, {&slave1, &slave2});
+
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
   persistent_config.Load();
 
   command_manager.AsyncStart();
   multiplex_protocol.Start();
+  bridge.Start();
 
   auto old_time = timer.read_ms();
 
   for (;;) {
     rs485.Poll();
+    slave1.Poll();
+    slave2.Poll();
 
     const auto new_time = timer.read_ms();
 
