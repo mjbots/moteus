@@ -22,3 +22,13 @@
 
 #define DEBUG_LED1 PB_12
 #define DEBUG_LED2 PB_13
+
+
+#define IMU_MOSI PB_5
+#define IMU_MISO PB_4
+#define IMU_SCK PB_3
+
+#define IMU_ACCEL_CS PB_6
+#define IMU_GYRO_CS PB_7
+#define IMU_ACCEL_INT PC_14
+#define IMU_GYRO_INT PC_13

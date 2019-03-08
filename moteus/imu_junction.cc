@@ -35,6 +35,113 @@
 using namespace moteus;
 namespace micro = mjlib::micro;
 
+class Debug {
+ public:
+  Debug(MillisecondTimer* timer, micro::TelemetryManager* telemetry_manager)
+      : timer_(timer) {
+    telemetry_manager->Register("imu_dbg", &data_);
+    spi_.format(8);
+    spi_.frequency(5000000);
+  }
+
+  void Start() {
+    // First switch the accelerometer into SPI mode.
+
+    auto write_accel = [&](uint8_t reg, uint8_t val) {
+      imu_accel_cs_.write(0);
+      spi_.write(reg);
+      spi_.write(val);
+      imu_accel_cs_.write(1);
+      timer_->wait_us(10);
+    };
+
+    write_accel(0x00, 0x00);  // dummy to switch to SPI mode
+    write_accel(0x7d, 0x04);  // ACC_PWR_CTRL - on
+    write_accel(0x53, 0x08);  // INT1_IO_CONF - INT1 as output
+    write_accel(0x58, 0x04);  // INT1_INT2_DATA_MAP - drd -> int1
+
+    auto write_gyro = [&](uint8_t reg, uint8_t val) {
+      imu_gyro_cs_.write(0);
+      spi_.write(reg);
+      spi_.write(val);
+      imu_gyro_cs_.write(1);
+      timer_->wait_us(10);
+    };
+
+    write_gyro(0x15, 0x80);  // GYRO_INT_CTRL - enable interrupts
+    write_gyro(0x16, 0x00);  // push pull active high
+    write_gyro(0x18, 0x01);  // data ready mapped to int3
+  }
+
+  void PollMillisecond() {
+    count_++;
+    if (count_ % 10 != 0) { return; }
+
+    data_.accel_int = imu_accel_int_.read();
+    data_.gyro_int = imu_gyro_int_.read();
+
+    imu_accel_cs_.write(0);
+    uint8_t buf[6] = {};
+    spi_.write(0x80 | 0x12);  // ACC_X_LSB
+    // Read the dummy byte.
+    spi_.write(0x00);
+    for (auto& value : buf) {
+      value = static_cast<uint8_t>(spi_.write(0));
+    }
+    imu_accel_cs_.write(1);
+
+    data_.accelx = static_cast<int16_t>(buf[1] * 256 + buf[0]);
+    data_.accely = static_cast<int16_t>(buf[3] * 256 + buf[2]);
+    data_.accelz = static_cast<int16_t>(buf[5] * 256 + buf[4]);
+
+    imu_gyro_cs_.write(0);
+    spi_.write(0x80 | 0x02);  // RATE_X_LSB
+    for (auto& value : buf) {
+      value = static_cast<uint8_t>(spi_.write(0));
+    }
+    imu_gyro_cs_.write(1);
+
+    data_.gyrox = static_cast<int16_t>(buf[1] * 256 + buf[0]);
+    data_.gyroy = static_cast<int16_t>(buf[3] * 256 + buf[2]);
+    data_.gyroz = static_cast<int16_t>(buf[5] * 256 + buf[4]);
+  }
+
+  struct Data {
+    int16_t accelx = 0;
+    int16_t accely = 0;
+    int16_t accelz = 0;
+
+    int16_t gyrox = 0;
+    int16_t gyroy = 0;
+    int16_t gyroz = 0;
+
+    uint8_t accel_int = 0;
+    uint8_t gyro_int = 0;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(accelx));
+      a->Visit(MJ_NVP(accely));
+      a->Visit(MJ_NVP(accelz));
+      a->Visit(MJ_NVP(gyrox));
+      a->Visit(MJ_NVP(gyroy));
+      a->Visit(MJ_NVP(gyroz));
+      a->Visit(MJ_NVP(accel_int));
+      a->Visit(MJ_NVP(gyro_int));
+    }
+  };
+
+  MillisecondTimer* const timer_;
+  SPI spi_{IMU_MOSI, IMU_MISO, IMU_SCK};
+  DigitalOut imu_accel_cs_{IMU_ACCEL_CS, 1};
+  DigitalOut imu_gyro_cs_{IMU_GYRO_CS, 1};
+  DigitalIn imu_accel_int_{IMU_ACCEL_INT, PullNone};
+  DigitalIn imu_gyro_int_{IMU_GYRO_INT, PullNone};
+
+  uint16_t count_ = 0;
+  Data data_;
+};
+
 int main(void) {
   MillisecondTimer timer;
 
@@ -94,6 +201,7 @@ int main(void) {
   SystemInfo system_info(pool, telemetry_manager);
 
   Bridge<2> bridge(&telemetry_manager, &multiplex_protocol, &slave1, &slave2);
+  Debug debug(&timer, &telemetry_manager);
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
@@ -102,6 +210,7 @@ int main(void) {
   command_manager.AsyncStart();
   multiplex_protocol.Start();
   bridge.Start();
+  debug.Start();
 
   auto old_time = timer.read_ms();
 
@@ -115,6 +224,7 @@ int main(void) {
     if (new_time != old_time) {
       telemetry_manager.PollMillisecond();
       system_info.PollMillisecond();
+      debug.PollMillisecond();
 
       old_time = new_time;
     }
