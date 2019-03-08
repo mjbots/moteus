@@ -45,25 +45,50 @@ class Debug {
   }
 
   void Start() {
-    // First switch the accelerometer into SPI mode.
+    timer_->wait_us(1000);
+
+    auto read_accel = [&](uint8_t reg) {
+      imu_accel_cs_.write(0);
+      spi_.write(reg);
+      spi_.write(0);
+      uint8_t result = spi_.write(0);
+      imu_accel_cs_.write(1);
+      return result;
+   };
 
     auto write_accel = [&](uint8_t reg, uint8_t val) {
       imu_accel_cs_.write(0);
+      timer_->wait_us(1);
       spi_.write(reg);
       spi_.write(val);
+      timer_->wait_us(1);
       imu_accel_cs_.write(1);
       timer_->wait_us(10);
     };
 
-    write_accel(0x00, 0x00);  // dummy to switch to SPI mode
+    // First switch the accelerometer into SPI mode by making a dummy
+    // transaction.
+    read_accel(0x00);
+
+    // Power on the sensor.
     write_accel(0x7d, 0x04);  // ACC_PWR_CTRL - on
+
+    // Wait long enough for it to power up.
+    timer_->wait_us(50000);
+
+    // Get the chip id.
+    data_.accel_id = read_accel(0x00);
+
+    // And configure interrupts.
     write_accel(0x53, 0x08);  // INT1_IO_CONF - INT1 as output
     write_accel(0x58, 0x04);  // INT1_INT2_DATA_MAP - drd -> int1
 
     auto write_gyro = [&](uint8_t reg, uint8_t val) {
       imu_gyro_cs_.write(0);
+      timer_->wait_us(1);
       spi_.write(reg);
       spi_.write(val);
+      timer_->wait_us(1);
       imu_gyro_cs_.write(1);
       timer_->wait_us(10);
     };
@@ -107,6 +132,7 @@ class Debug {
   }
 
   struct Data {
+    uint8_t accel_id = 0;
     int16_t accelx = 0;
     int16_t accely = 0;
     int16_t accelz = 0;
@@ -120,6 +146,7 @@ class Debug {
 
     template <typename Archive>
     void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(accel_id));
       a->Visit(MJ_NVP(accelx));
       a->Visit(MJ_NVP(accely));
       a->Visit(MJ_NVP(accelz));
