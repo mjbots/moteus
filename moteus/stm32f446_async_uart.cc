@@ -171,9 +171,11 @@ class Stm32F446AsyncUart::Impl {
                       const micro::SizeCallback& callback) {
     MJ_ASSERT(!current_write_callback_.valid());
 
-    if (dir_.is_connected() && dir_.read() == 0) {
+    if (dir_.is_connected()) {
       dir_.write(1);
-      timer_->wait_us(options_.enable_delay_us);
+      if (options_.enable_delay_us) {
+        timer_->wait_us(options_.enable_delay_us);
+      }
     }
 
     current_write_callback_ = callback;
@@ -217,6 +219,13 @@ class Stm32F446AsyncUart::Impl {
     }
 
     event_queue_.Queue([this, error_code, amount_sent]() {
+        if (dir_.is_connected()) {
+          if (options_.disable_delay_us) {
+            timer_->wait_us(options_.disable_delay_us);
+          }
+          dir_.write(0);
+        }
+
         this->EventHandleTransmit(error_code, amount_sent);
       });
 
@@ -233,12 +242,6 @@ class Stm32F446AsyncUart::Impl {
     // call it if is valid.
     if (copy.valid()) {
       copy(error_code, amount_sent);
-    }
-
-    // If that didn't start off another write, then disable our direction.
-    if (dir_.is_connected() && !current_write_callback_.valid()) {
-      timer_->wait_us(options_.disable_delay_us);
-      dir_.write(0);
     }
   }
 

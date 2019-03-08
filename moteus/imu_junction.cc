@@ -179,8 +179,6 @@ int main(void) {
       options.tx = PC_10;
       options.rx = PC_11;
       options.dir = PC_12;
-      options.enable_delay_us = 1;
-      options.disable_delay_us = 2;
       options.baud_rate = 3000000;
       options.rx_buffer_size = 256;
       return options;
@@ -191,8 +189,6 @@ int main(void) {
       options.tx = PA_2;
       options.rx = PA_3;
       options.dir = PA_1;
-      options.enable_delay_us = 1;
-      options.disable_delay_us = 2;
       options.baud_rate = 3000000;
       options.rx_buffer_size = 256;
       return options;
@@ -203,8 +199,6 @@ int main(void) {
       options.tx = PC_6;
       options.rx = PC_7;
       options.dir = PC_8;
-      options.enable_delay_us = 1;
-      options.disable_delay_us = 2;
       options.baud_rate = 3000000;
       options.rx_buffer_size = 256;
       return options;

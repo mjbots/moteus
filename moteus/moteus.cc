@@ -60,8 +60,6 @@ int main(void) {
       options.tx = PA_9;
       options.rx = PA_10;
       options.dir = PA_8;
-      options.enable_delay_us = 1;
-      options.disable_delay_us = 2;
       options.baud_rate = 3000000;
       return options;
     }());

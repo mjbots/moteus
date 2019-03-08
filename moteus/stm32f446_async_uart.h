@@ -39,7 +39,7 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
     // If 'dir' is set, and we are enabling, wait this long after
     // enabling before beginning transmission.
     uint8_t enable_delay_us = 0;
-    uint8_t disable_delay_us = 0;
+    uint8_t disable_delay_us = 1;
 
     int baud_rate = 115200;
 

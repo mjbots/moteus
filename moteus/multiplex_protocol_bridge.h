@@ -113,7 +113,7 @@ class Bridge {
     const size_t slave_index = slave - &slaves_[0];
     data_.slaves[slave_index].rx++;
 
-    master_->AsyncWriteRaw(
+    master_writer_.AsyncWrite(
         std::string_view(slave->buffer, size),
         std::bind(&Bridge::StaticHandleMasterWrite,
                   std::placeholders::_1, slave));
@@ -130,6 +130,7 @@ class Bridge {
 
   mjlib::micro::MultiplexProtocolServer* const master_;
   char master_buffer_[256] = {};
+  StreamWriter<256> master_writer_{master_->raw_write_stream()};
 
   std::array<Slave, Size> slaves_;
 
