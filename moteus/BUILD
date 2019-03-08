@@ -44,6 +44,7 @@ mbed_binary(
         "irq_callback_table.h",
         "irq_callback_table.cc",
         "millisecond_timer.h",
+        "multiplex_protocol_bridge.h",
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
         "stm32_flash.h",
