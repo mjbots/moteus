@@ -50,6 +50,7 @@ mbed_binary(
         "stm32_flash.cc",
         "stm32_serial.h",
         "stm32_serial.cc",
+        "stream_writer.h",
         "system_info.h",
         "system_info.cc",
         "imu_junction.cc",
@@ -197,6 +198,15 @@ py_binary(
     srcs = ["moteus_tool.py"],
     deps = [
         ":calibrate_encoder",
+        "//mjlib/micro:py_multiplex_protocol",
+        "//mjlib/micro:aioserial",
+    ],
+)
+
+py_binary(
+    name = "bridge_test",
+    srcs = ["bridge_test.py"],
+    deps = [
         "//mjlib/micro:py_multiplex_protocol",
         "//mjlib/micro:aioserial",
     ],

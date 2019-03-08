@@ -29,6 +29,7 @@
 #include "moteus/millisecond_timer.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_flash.h"
+#include "moteus/stream_writer.h"
 #include "moteus/system_info.h"
 
 using namespace moteus;
@@ -39,21 +40,24 @@ class Bridge {
  public:
   struct Slave {
     Bridge* parent = nullptr;
-    micro::AsyncStream* stream = nullptr;
+    micro::AsyncStream* const stream;
+    StreamWriter<256> writer{stream};
     char buffer[256] = {};
-    bool write_outstanding = false;
+
+    Slave(micro::AsyncStream* stream_in)
+        : stream(stream_in) {}
   };
 
+  template <typename ... Args>
   Bridge(micro::TelemetryManager* telemetry_manager,
          micro::MultiplexProtocolServer* master,
-         std::array<micro::AsyncStream*, Size> slaves)
-      : master_(master) {
-    telemetry_manager->Register("bridge", &data_);
-
-    for (size_t i = 0; i < Size; i++) {
-      slaves_[i].parent = this;
-      slaves_[i].stream = slaves[i];
+         Args&&... slaves)
+      : master_(master),
+        slaves_{{slaves...}} {
+    for (auto& item : slaves_) {
+      item.parent = this;
     }
+    telemetry_manager->Register("bridge", &data_);
   }
 
   void Start() {
@@ -77,15 +81,13 @@ class Bridge {
 
     // Write this out to each of our slaves.
     for (auto& slave : slaves_) {
-      MJ_ASSERT(!slave.write_outstanding);
-      slave.write_outstanding = true;
-
-      AsyncWrite(
-          *slave.stream,
+      slave.writer.AsyncWrite(
           std::string_view(master_buffer_, size),
           std::bind(&Bridge::StaticHandleSlaveWrite,
                     std::placeholders::_1, &slave));
     }
+
+    StartMasterRead();
   }
 
   static void StaticHandleSlaveWrite(const mjlib::base::error_code& ec,
@@ -95,24 +97,8 @@ class Bridge {
   }
 
   void HandleSlaveWrite(Slave* slave) {
-    MJ_ASSERT(slave->write_outstanding);
-    slave->write_outstanding = false;
-
     const size_t slave_index = slave - &slaves_[0];
     data_.slaves[slave_index].tx++;
-
-    // If all slave writes are done, then start reading from the
-    // master again.
-    const bool all_done = [&]() {
-      for (size_t i = 0; i < Size; i++) {
-        if (slaves_[i].write_outstanding) { return false; }
-      }
-      return true;
-    }();
-
-    if (all_done) {
-      StartMasterRead();
-    }
   }
 
   void StartSlaveRead(Slave* slave) {
@@ -240,7 +226,7 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
 
-  Bridge<2> bridge(&telemetry_manager, &multiplex_protocol, {&slave1, &slave2});
+  Bridge<2> bridge(&telemetry_manager, &multiplex_protocol, &slave1, &slave2);
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
