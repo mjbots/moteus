@@ -414,7 +414,7 @@ class BoardDebug::Impl {
 
   Drv8323 drv8323_;
   BldcServo bldc_;
-  char out_message_[16] = {};
+  char out_message_[20] = {};
 
   micro::CommandManager::Response cal_response_;
   enum MotorCalMode {
