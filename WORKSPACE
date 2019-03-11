@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,8 +16,8 @@
 
 workspace(name = "com_github_mjbots_moteus")
 
-BAZEL_VERSION = "0.19.0"
-BAZEL_VERSION_SHA = "001371df816005e907670f483f810ee935176bdc811a5ffa2314c59766b68ec4"
+BAZEL_VERSION = "0.23.2"
+BAZEL_VERSION_SHA = "080626af0468e55dcbefb9801da3cdb39e29dfb2b5639f79dba67b95213412c4"
 
 load("//tools/workspace:default.bzl", "add_default_repositories")
 

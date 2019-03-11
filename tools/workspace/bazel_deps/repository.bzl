@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,6 @@ def bazel_deps_repository(name):
     github_archive(
         name = name,
         repo = "mjbots/bazel_deps",
-        commit = "350e267e7f4bebc00c1d249ac9b1e56dcfb294cc",
-        sha256 = "b66c464c4e2bc327f0006fa9b27ec1cd04c4d3fdc23af4393efed8e5d9a37246",
+        commit = "06b595fd79d1f6dd85a399e61b3f8ae97c859194",
+        sha256 = "1889b2298804ea2f678e58f5f681802a8883943338521af4b3ebfb72155b0769",
     )
