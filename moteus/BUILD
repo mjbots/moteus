@@ -212,3 +212,26 @@ py_binary(
         "//mjlib/micro:aioserial",
     ],
 )
+
+# A dummy target so that running all host tests will result in all our
+# host binaries being built.
+py_test(
+    name = "dummy_host_test",
+    srcs = [
+        "test/dummy_host_test.py",
+    ],
+    deps = [
+        "jump_test",
+        "moteus_tool",
+        "bridge_test",
+    ],
+)
+
+
+test_suite(
+    name = "host",
+    tests = [
+        "test",
+        "dummy_host_test",
+    ],
+)
