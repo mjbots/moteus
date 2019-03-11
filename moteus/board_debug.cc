@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,40 +43,10 @@ void recurse(int count, micro::StaticFunction<void(int)> callback) {
 class BoardDebug::Impl {
  public:
   Impl(micro::Pool* pool,
-       micro::PersistentConfig* persistent_config,
        micro::CommandManager* command_manager,
        micro::TelemetryManager* telemetry_manager,
-       MillisecondTimer* timer)
-      : drv8323_(pool, persistent_config, telemetry_manager, timer,
-                 []() {
-                   Drv8323::Options options;
-                   options.mosi = DRV8323_MOSI;
-                   options.miso = DRV8323_MISO;
-                   options.sck = DRV8323_SCK;
-                   options.cs = DRV8323_CS;
-                   options.enable = DRV8323_ENABLE;
-                   options.fault = DRV8323_FAULT;
-                   options.hiz = DRV8323_HIZ;
-                   return options;
-                 }()),
-        bldc_(pool, persistent_config, telemetry_manager, &as5047_, &drv8323_,
-              []() {
-                 BldcServo::Options options;
-                 options.pwm1 = PA_0;
-                 options.pwm2 = PA_1;
-                 options.pwm3 = PA_2;
-
-                 options.current1 = PC_5;
-                 options.current2 = PB_0_ALT0;
-                 options.vsense = MOTEUS_VSENSE;
-                 options.tsense = MOTEUS_TSENSE;
-
-                 options.debug_out = PB_8;
-                 options.debug_uart_out = PC_10;
-
-                 return options;
-              }()) {
-
+       BldcServo* bldc_servo)
+      : bldc_(bldc_servo) {
     command_manager->Register(
         "d", std::bind(&Impl::HandleCommand, this,
                        std::placeholders::_1, std::placeholders::_2));
@@ -84,14 +54,7 @@ class BoardDebug::Impl {
     data_update_ = telemetry_manager->Register("board_debug", &data_);
   }
 
-  void Start() {
-    bldc_.Start();
-  }
-
   void PollMillisecond() {
-    drv8323_.PollMillisecond();
-    bldc_.PollMillisecond();
-
     if (motor_cal_mode_ != kNoMotorCal) {
       DoCalibration();
     }
@@ -99,7 +62,7 @@ class BoardDebug::Impl {
 
   void DoCalibration() {
     const int kStep = 65536 / 1000;  // 1 electrical phase per second
-    const uint16_t position_raw = bldc_.status().position_raw;
+    const uint16_t position_raw = bldc_->status().position_raw;
     const int32_t delta =
         static_cast<int16_t>(position_raw - cal_old_position_raw_);
     cal_old_position_raw_ = position_raw;
@@ -129,7 +92,7 @@ class BoardDebug::Impl {
           BldcServo::CommandData command;
           command.mode = BldcServo::kStopped;
 
-          bldc_.Command(command);
+          bldc_->Command(command);
 
           return;
         }
@@ -146,7 +109,7 @@ class BoardDebug::Impl {
                  "%d %d %d\r\n",
                  motor_cal_mode_,
                  cal_phase_,
-                 bldc_.status().position_raw);
+                 bldc_->status().position_raw);
       write_outstanding_ = true;
       AsyncWrite(*cal_response_.stream, out_message_, [this](auto) {
           write_outstanding_ = false;
@@ -158,7 +121,7 @@ class BoardDebug::Impl {
 
     command.theta = (cal_phase_ / 65536.0f) * 2.0f * kPi;
     command.voltage = cal_magnitude_;
-    bldc_.Command(command);
+    bldc_->Command(command);
   }
 
   void HandleCommand(const std::string_view& message,
@@ -190,7 +153,7 @@ class BoardDebug::Impl {
       BldcServo::CommandData command;
       command.mode = BldcServo::kStopped;
 
-      bldc_.Command(command);
+      bldc_->Command(command);
       WriteOk(response);
       return;
     }
@@ -213,7 +176,7 @@ class BoardDebug::Impl {
       command.theta = phase;
       command.voltage = magnitude;
 
-      bldc_.Command(command);
+      bldc_->Command(command);
       WriteOk(response);
       return;
     }
@@ -230,7 +193,7 @@ class BoardDebug::Impl {
       motor_cal_mode_ = kPhaseUp;
       cal_phase_ = 0.;
       cal_count_ = 0;
-      cal_old_position_raw_ = bldc_.status().position_raw;
+      cal_old_position_raw_ = bldc_->status().position_raw;
       cal_position_delta_ = 0;
 
       cal_magnitude_ = std::strtof(magnitude_str.data(), nullptr);
@@ -261,7 +224,7 @@ class BoardDebug::Impl {
       command.i_d_A = d;
       command.i_q_A = q;
 
-      bldc_.Command(command);
+      bldc_->Command(command);
       WriteOk(response);
       return;
     }
@@ -314,7 +277,7 @@ class BoardDebug::Impl {
       command.velocity = vel;
       command.max_current = max_i;
 
-      bldc_.Command(command);
+      bldc_->Command(command);
       WriteOk(response);
       return;
     }
@@ -333,13 +296,13 @@ class BoardDebug::Impl {
 
       command.set_position = index_value;
 
-      bldc_.Command(command);
+      bldc_->Command(command);
       WriteOk(response);
       return;
     }
 
     if (command == "clk") {
-      const uint32_t clock = bldc_.clock();
+      const uint32_t clock = bldc_->clock();
       ::snprintf(out_message_, sizeof(out_message_),
                  "%lu\r\n", clock);
       WriteMessage(response, out_message_);
@@ -403,17 +366,8 @@ class BoardDebug::Impl {
   DigitalOut led1_{DEBUG_LED1, 1};
   DigitalOut led2_{DEBUG_LED2, 1};
 
-  AS5047 as5047_{[]() {
-      AS5047::Options options;
-      options.mosi = PB_15;
-      options.miso = PB_14;
-      options.sck = PB_13;
-      options.cs = PB_12;
-      return options;
-    }()};
+  BldcServo* const bldc_;
 
-  Drv8323 drv8323_;
-  BldcServo bldc_;
   char out_message_[20] = {};
 
   micro::CommandManager::Response cal_response_;
@@ -432,16 +386,13 @@ class BoardDebug::Impl {
 };
 
 BoardDebug::BoardDebug(micro::Pool* pool,
-                       micro::PersistentConfig* persistent_config,
                        micro::CommandManager* command_manager,
                        micro::TelemetryManager* telemetry_manager,
-                       MillisecondTimer* timer)
-    : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
-            timer) {}
+                       BldcServo* bldc_servo)
+    : impl_(pool, pool, command_manager, telemetry_manager, bldc_servo) {}
 
 BoardDebug::~BoardDebug() {}
 
-void BoardDebug::Start() { impl_->Start(); }
 void BoardDebug::PollMillisecond() { impl_->PollMillisecond(); }
 
 }

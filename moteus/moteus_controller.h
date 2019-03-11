@@ -14,28 +14,34 @@
 
 #pragma once
 
-#include "mjlib/micro/command_manager.h"
 #include "mjlib/micro/pool_ptr.h"
-#include "mjlib/micro/telemetry_manager.h"
 
+#include "moteus/as5047.h"
 #include "moteus/bldc_servo.h"
+#include "moteus/drv8323.h"
+#include "moteus/millisecond_timer.h"
 
 namespace moteus {
 
-/// Utilities for bringing up the controller board.
-class BoardDebug {
+/// Glues together the various pieces of hardware that make a moteus
+/// controller board.
+class MoteusController {
  public:
-  BoardDebug(mjlib::micro::Pool*,
-             mjlib::micro::CommandManager*,
-             mjlib::micro::TelemetryManager*,
-             BldcServo* bldc_servo);
-  ~BoardDebug();
+  MoteusController(mjlib::micro::Pool*,
+                   mjlib::micro::PersistentConfig* config,
+                   mjlib::micro::TelemetryManager* telemetry_manager,
+                   MillisecondTimer*);
+  ~MoteusController();
 
+  void Start();
   void PollMillisecond();
+
+  AS5047* as5047();
+  Drv8323* drv8323();
+  BldcServo* bldc_servo();
 
  private:
   class Impl;
   mjlib::micro::PoolPtr<Impl> impl_;
 };
-
 }

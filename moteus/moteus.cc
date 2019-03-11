@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 
 #include "moteus/board_debug.h"
 #include "moteus/millisecond_timer.h"
+#include "moteus/moteus_controller.h"
 #include "moteus/moteus_hw.h"
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_flash.h"
@@ -77,13 +78,18 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
 
-  BoardDebug board_debug(&pool, &persistent_config, &command_manager, &telemetry_manager, &timer);
+  MoteusController moteus_controller(
+      &pool, &persistent_config, &telemetry_manager, &timer);
+
+  BoardDebug board_debug(
+      &pool, &command_manager, &telemetry_manager,
+      moteus_controller.bldc_servo());
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
   persistent_config.Load();
 
-  board_debug.Start();
+  moteus_controller.Start();
   command_manager.AsyncStart();
   multiplex_protocol.Start();
 
@@ -97,6 +103,7 @@ int main(void) {
     if (new_time != old_time) {
       telemetry_manager.PollMillisecond();
       system_info.PollMillisecond();
+      moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
 
       old_time = new_time;
@@ -105,4 +112,10 @@ int main(void) {
   }
 
   return 0;
+}
+
+extern "C" {
+  void abort() {
+    mbed_die();
+  }
 }

@@ -86,6 +86,8 @@ mbed_binary(
         "error.h",
         "error.cc",
         "hardfault.s",
+        "moteus_controller.h",
+        "moteus_controller.cc",
         "moteus_hardfault_handler.c",
         "moteus_hw.h",
         "irq_callback_table.h",
