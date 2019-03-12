@@ -97,6 +97,7 @@ int main(void) {
 
   for (;;) {
     rs485.Poll();
+    moteus_controller.Poll();
 
     const auto new_time = timer.read_ms();
 
@@ -108,6 +109,7 @@ int main(void) {
 
       old_time = new_time;
     }
+
     SystemInfo::idle_count++;
   }
 

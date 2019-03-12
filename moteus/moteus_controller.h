@@ -35,6 +35,7 @@ class MoteusController {
   ~MoteusController();
 
   void Start();
+  void Poll();
   void PollMillisecond();
 
   AS5047* as5047();
