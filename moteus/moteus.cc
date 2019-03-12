@@ -65,7 +65,7 @@ int main(void) {
       return options;
     }());
 
-  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, nullptr, {});
+  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, {});
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
@@ -91,7 +91,7 @@ int main(void) {
 
   moteus_controller.Start();
   command_manager.AsyncStart();
-  multiplex_protocol.Start();
+  multiplex_protocol.Start(moteus_controller.multiplex_server());
 
   auto old_time = timer.read_ms();
 

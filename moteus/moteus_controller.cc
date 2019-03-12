@@ -20,7 +20,7 @@ namespace micro = mjlib::micro;
 
 namespace moteus {
 
-class MoteusController::Impl {
+class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
  public:
   Impl(micro::Pool* pool,
        micro::PersistentConfig* persistent_config,
@@ -71,6 +71,16 @@ class MoteusController::Impl {
     bldc_.PollMillisecond();
   }
 
+  uint32_t Write(micro::MultiplexProtocol::Register,
+                 const micro::MultiplexProtocol::Value&) override {
+    return 0;
+  }
+
+  micro::MultiplexProtocol::ReadResult Read(
+      micro::MultiplexProtocol::Register, size_t) const override {
+    return {};
+  }
+
   AS5047 as5047_;
   Drv8323 drv8323_;
   BldcServo bldc_;
@@ -102,6 +112,10 @@ Drv8323* MoteusController::drv8323() {
 
 BldcServo* MoteusController::bldc_servo() {
   return &impl_->bldc_;
+}
+
+micro::MultiplexProtocolServer::Server* MoteusController::multiplex_server() {
+  return impl_.get();
 }
 
 }

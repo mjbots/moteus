@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/pool_ptr.h"
 
 #include "moteus/as5047.h"
@@ -39,6 +40,8 @@ class MoteusController {
   AS5047* as5047();
   Drv8323* drv8323();
   BldcServo* bldc_servo();
+
+  mjlib::micro::MultiplexProtocolServer::Server* multiplex_server();
 
  private:
   class Impl;
