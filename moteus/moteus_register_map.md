@@ -5,6 +5,12 @@ RS485 communications.  Each register may be optionally accessed as
 multiple types, depending upon how much precision is necessary.  Not
 all registers support all types.
 
+Writing to registers that affects the current control state will only
+take effect if the 0x000 register is written within the same frame.
+The 0x000 register should be listed first in the set of registers
+written, as when it changes value, all other commands are reset to
+their default.
+
 ## Integral Mappings ##
 
 For registers which are accessible in integral types, unless otherwise

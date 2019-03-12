@@ -16,6 +16,7 @@
 
 #include "mjlib/base/limit.h"
 
+#include "moteus/math.h"
 #include "moteus/moteus_hw.h"
 
 namespace micro = mjlib::micro;
@@ -40,11 +41,121 @@ Value IntMapping(T value, size_t type) {
 
 template <typename T>
 Value ScaleSaturate(float value, float scale) {
+  if (!std::isfinite(value)) {
+    return std::numeric_limits<T>::min();
+  }
+
   const float scaled = value / scale;
   const auto max = std::numeric_limits<T>::max();
   // We purposefully limit to +- max, rather than to min.  The minimum
-  // value for our two's complement types is reserved.
+  // value for our two's complement types is reserved for NaN.
   return Limit<T>(static_cast<T>(scaled), -max, max);
+}
+
+Value ScaleMapping(float value,
+                   float int8_scale, float int16_scale, float int32_scale,
+                   size_t type) {
+  switch (type) {
+    case 0: return ScaleSaturate<int8_t>(value, int8_scale);
+    case 1: return ScaleSaturate<int16_t>(value, int16_scale);
+    case 2: return ScaleSaturate<int32_t>(value, int32_scale);
+    case 3: return Value(value);
+  }
+  MJ_ASSERT(false);
+  return Value(static_cast<int8_t>(0));
+}
+
+Value ScalePosition(float value, size_t type) {
+  return ScaleMapping(value, 0.01f, 0.001f, 0.00001f, type);
+}
+
+Value ScaleVelocity(float value, size_t type) {
+  return ScaleMapping(value, 0.1f, 0.001f, 0.00001f, type);
+}
+
+Value ScaleTemperature(float value, size_t type) {
+  return ScaleMapping(value, 1.0f, 0.1f, 0.001f, type);
+}
+
+Value ScalePwm(float value, size_t type) {
+  return ScaleMapping(value, 1.0f / 127.0f, 1.0f / 32767.0f,
+                      1.0f / 2147483647.0f,
+                      type);
+}
+
+Value ScaleCurrent(float value, size_t type) {
+  // For now, current and temperature have identical scaling.
+  return ScaleTemperature(value, type);
+}
+
+Value ScaleVoltage(float value, size_t type) {
+  // For now, voltage and current have identical scaling.
+  return ScaleCurrent(value, type);
+}
+
+int8_t ReadIntMapping(Value value) {
+  return std::visit([](auto a) {
+      return static_cast<int8_t>(a);
+    }, value);
+}
+
+struct ValueScaler {
+  float int8_scale;
+  float int16_scale;
+  float int32_scale;
+
+  float operator()(int8_t value) const {
+    if (value == std::numeric_limits<int8_t>::min()) {
+      return std::numeric_limits<float>::quiet_NaN();
+    }
+    return value * int8_scale;
+  }
+
+  float operator()(int16_t value) const {
+    if (value == std::numeric_limits<int16_t>::min()) {
+      return std::numeric_limits<float>::quiet_NaN();
+    }
+    return value * int16_scale;
+  }
+
+  float operator()(int32_t value) const {
+    if (value == std::numeric_limits<int32_t>::min()) {
+      return std::numeric_limits<float>::quiet_NaN();
+    }
+    return value * int32_scale;
+  }
+
+  float operator()(float value) const {
+    return value;
+  }
+};
+
+float ReadScaleMapping(Value value,
+                       float int8_scale,
+                       float int16_scale,
+                       float int32_scale) {
+  return std::visit(ValueScaler{int8_scale, int16_scale, int32_scale}, value);
+}
+
+float ReadPwm(Value value) {
+  return ReadScaleMapping(value, 1.0f / 127.0f, 1.0f / 32767.0f,
+                          1.0f / 2147483647.0f);
+}
+
+float ReadVoltage(Value value) {
+  return ReadScaleMapping(value, 1.0f, 0.1f, 0.001f);
+}
+
+float ReadPosition(Value value) {
+  return ReadScaleMapping(value, 0.01f, 0.001f, 0.00001f);
+}
+
+float ReadVelocity(Value value) {
+  return ReadScaleMapping(value, 0.1f, 0.001f, 0.00001f);
+}
+
+float ReadCurrent(Value value) {
+  return ReadScaleMapping(value, 1.0f, 0.1f, 0.001f);
 }
 
 enum class Register {
@@ -172,6 +283,11 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
   }
 
   void Poll() {
+    // Check to see if we have a command to send out.
+    if (command_valid_) {
+      command_valid_ = false;
+      bldc_.Command(command_);
+    }
   }
 
   void PollMillisecond() {
@@ -179,9 +295,110 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
     bldc_.PollMillisecond();
   }
 
-  uint32_t Write(micro::MultiplexProtocol::Register,
-                 const micro::MultiplexProtocol::Value&) override {
-    return 0;
+  uint32_t Write(micro::MultiplexProtocol::Register reg,
+                 const micro::MultiplexProtocol::Value& value) override {
+    switch (static_cast<Register>(reg)) {
+      case Register::kMode: {
+        command_valid_ = true;
+        const auto new_mode_int = ReadIntMapping(value);
+        if (new_mode_int > static_cast<int8_t>(BldcServo::Mode::kNumModes)) {
+          return 3;
+        }
+        const auto new_mode = static_cast<BldcServo::Mode>(new_mode_int);
+        if (new_mode != command_.mode) {
+          command_ = {};
+        }
+        command_.mode = new_mode;
+        return 0;
+      }
+
+      case Register::kPwmPhaseA: {
+        command_.pwm.a = ReadPwm(value);
+        return 0;
+      }
+      case Register::kPwmPhaseB: {
+        command_.pwm.b = ReadPwm(value);
+        return 0;
+      }
+      case Register::kPwmPhaseC: {
+        command_.pwm.c = ReadPwm(value);
+        return 0;
+      }
+      case Register::kVoltagePhaseA: {
+        command_.phase_v.a = ReadVoltage(value);
+        return 0;
+      }
+      case Register::kVoltagePhaseB: {
+        command_.phase_v.b = ReadVoltage(value);
+        return 0;
+      }
+      case Register::kVoltagePhaseC: {
+        command_.phase_v.c = ReadVoltage(value);
+        return 0;
+      }
+      case Register::kVFocTheta: {
+        command_.theta = ReadPwm(value) * kPi;
+        return 0;
+      }
+      case Register::kVFocVoltage: {
+        command_.voltage = ReadVoltage(value);
+        return 0;
+      }
+      case Register::kCommandQCurrent: {
+        command_.i_q_A = ReadCurrent(value);
+        return 0;
+      }
+      case Register::kCommandDCurrent: {
+        command_.i_d_A = ReadCurrent(value);
+        return 0;
+      }
+      case Register::kCommandPosition: {
+        command_.position = ReadPosition(value);
+        return 0;
+      }
+      case Register::kCommandVelocity: {
+        command_.velocity = ReadVelocity(value);
+        return 0;
+      }
+      case Register::kCommandPositionMaxCurrent: {
+        command_.max_current = ReadCurrent(value);
+        return 0;
+      }
+      case Register::kCommandStopPosition: {
+        command_.stop_position = ReadCurrent(value);
+        return 0;
+      }
+      case Register::kCommandFeedforwardCurrent: {
+        command_.feedforward_A = ReadCurrent(value);
+        return 0;
+      }
+      case Register::kCommandKpScale: {
+        command_.kp_scale = ReadPwm(value);
+        return 0;
+      }
+      case Register::kCommandKdScale: {
+        command_.kd_scale = ReadPwm(value);
+        return 0;
+      }
+
+      case Register::kPosition:
+      case Register::kVelocity:
+      case Register::kTemperature:
+      case Register::kQCurrent:
+      case Register::kDCurrent:
+      case Register::kVoltage:
+      case Register::kFault:
+      case Register::kModelNumber:
+      case Register::kSerialNumber:
+      case Register::kRegisterMapVersion:
+      case Register::kMultiplexId: {
+        // Not writeable
+        return 2;
+      }
+    }
+
+    // If we got here, then we had an unknown register.
+    return 1;
   }
 
   micro::MultiplexProtocol::ReadResult Read(
@@ -192,50 +409,77 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
         return IntMapping(static_cast<int8_t>(bldc_.status().mode), type);
       }
       case Register::kPosition: {
-        const auto position = bldc_.status().unwrapped_position;
-        switch (type) {
-          case 0: return ScaleSaturate<int8_t>(position, 0.01f);
-          case 1: return ScaleSaturate<int16_t>(position, 0.001f);
-          case 2: return ScaleSaturate<int32_t>(position, 0.00001f);
-          case 3: return Value(position);
-        }
-        MJ_ASSERT(false);
-        return Value(static_cast<int8_t>(0));
+        return ScalePosition(bldc_.status().unwrapped_position, type);
       }
       case Register::kVelocity: {
-        const auto velocity = bldc_.status().velocity;
-        switch (type) {
-          case 0: return ScaleSaturate<int8_t>(velocity, 0.1f);
-          case 1: return ScaleSaturate<int16_t>(velocity, 0.001f);
-          case 2: return ScaleSaturate<int32_t>(velocity, 0.00001f);
-          case 3: return Value(velocity);
-        }
-        MJ_ASSERT(false);
-        return Value(static_cast<int8_t>(0));
+        return ScaleVelocity(bldc_.status().velocity, type);
       }
-      case Register::kTemperature:
-      case Register::kQCurrent:
-      case Register::kDCurrent:
-      case Register::kVoltage:
-      case Register::kFault:
-      case Register::kPwmPhaseA:
-      case Register::kPwmPhaseB:
-      case Register::kPwmPhaseC:
-      case Register::kVoltagePhaseA:
-      case Register::kVoltagePhaseB:
-      case Register::kVoltagePhaseC:
-      case Register::kVFocTheta:
-      case Register::kVFocVoltage:
-      case Register::kCommandQCurrent:
-      case Register::kCommandDCurrent:
-      case Register::kCommandPosition:
-      case Register::kCommandVelocity:
-      case Register::kCommandPositionMaxCurrent:
-      case Register::kCommandStopPosition:
-      case Register::kCommandFeedforwardCurrent:
-      case Register::kCommandKpScale:
+      case Register::kTemperature: {
+        return ScaleTemperature(bldc_.status().fet_temp_C, type);
+      }
+      case Register::kQCurrent: {
+        return ScaleCurrent(bldc_.status().q_A, type);
+      }
+      case Register::kDCurrent: {
+        return ScaleCurrent(bldc_.status().d_A, type);
+      }
+      case Register::kVoltage: {
+        return ScaleVoltage(bldc_.status().bus_V, type);
+      }
+      case Register::kFault: {
+        return IntMapping(bldc_.status().fault, type);
+      }
+
+      case Register::kPwmPhaseA: {
+        return ScalePwm(command_.pwm.a, type);
+      }
+      case Register::kPwmPhaseB: {
+        return ScalePwm(command_.pwm.b, type);
+      }
+      case Register::kPwmPhaseC: {
+        return ScalePwm(command_.pwm.c, type);
+      }
+      case Register::kVoltagePhaseA: {
+        return ScaleVoltage(command_.phase_v.a, type);
+      }
+      case Register::kVoltagePhaseB: {
+        return ScaleVoltage(command_.phase_v.b, type);
+      }
+      case Register::kVoltagePhaseC: {
+        return ScaleVoltage(command_.phase_v.c, type);
+      }
+      case Register::kVFocTheta: {
+        return ScalePwm(command_.theta / kPi, type);
+      }
+      case Register::kVFocVoltage: {
+        return ScaleVoltage(command_.voltage, type);
+      }
+      case Register::kCommandQCurrent: {
+        return ScaleCurrent(command_.i_q_A, type);
+      }
+      case Register::kCommandDCurrent: {
+        return ScaleCurrent(command_.i_d_A, type);
+      }
+      case Register::kCommandPosition: {
+        return ScalePosition(command_.position, type);
+      }
+      case Register::kCommandVelocity: {
+        return ScaleVelocity(command_.velocity, type);
+      }
+      case Register::kCommandPositionMaxCurrent: {
+        return ScaleCurrent(command_.max_current, type);
+      }
+      case Register::kCommandStopPosition: {
+        return ScalePosition(command_.stop_position, type);
+      }
+      case Register::kCommandFeedforwardCurrent: {
+        return ScaleCurrent(command_.feedforward_A, type);
+      }
+      case Register::kCommandKpScale: {
+        return ScalePwm(command_.kp_scale, type);
+      }
       case Register::kCommandKdScale: {
-        break;
+        return ScalePwm(command_.kd_scale, type);
       }
 
       case Register::kModelNumber: {
@@ -258,6 +502,9 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
   AS5047 as5047_;
   Drv8323 drv8323_;
   BldcServo bldc_;
+
+  bool command_valid_ = false;
+  BldcServo::CommandData command_;
 };
 
 MoteusController::MoteusController(micro::Pool* pool,

@@ -262,6 +262,27 @@ async def _register_query(client, registers, reg_type):
     return await client.register_query(request)
 
 
+async def _write_registers(client, registers, reg_type):
+    request = mp.RegisterRequest()
+
+    def _parse_value(text):
+        if reg_type == 3:
+            return float(text)
+        return int(text)
+
+    for item in registers:
+        assert '=' in item
+        reg, values = item.split('=')
+        if ',' in values:
+            request.write_multiple(
+                int(reg), [mp.RegisterValue(_parse_value(x), reg_type)
+                           for x in values.split(',')])
+        else:
+            request.write_single(
+                int(reg), mp.RegisterValue(_parse_value(values), reg_type))
+    return await client.register_write(request)
+
+
 async def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -301,13 +322,25 @@ async def main():
         help='read the given registers as int8s')
     group.add_argument(
         '--read-int16', action='append', type=str,
-        help='read the given registers as int16s')
+        help='read registers as int16s')
     group.add_argument(
         '--read-int32', action='append', type=str,
-        help='read the given registers as int32s')
+        help='read registers as int32s')
     group.add_argument(
         '--read-float', action='append', type=str,
-        help='read the given registers as floats')
+        help='read registers as floats')
+    group.add_argument(
+        '--write-int8', action='append', type=str,
+        help='write registers as int8')
+    group.add_argument(
+        '--write-int16', action='append', type=str,
+        help='write registers as int16')
+    group.add_argument(
+        '--write-int32', action='append', type=str,
+        help='write_registers as int32')
+    group.add_argument(
+        '--write-float', action='append', type=str,
+        help='write_registers as float')
 
     args = parser.parse_args()
 
@@ -378,6 +411,18 @@ async def main():
 
         if args.read_float:
             print(await _register_query(client, args.read_float, 3))
+
+        if args.write_int8:
+            await _write_registers(client, args.write_int8, 0)
+
+        if args.write_int16:
+            await _write_registers(client, args.write_int16, 1)
+
+        if args.write_int32:
+            await _write_registers(client, args.write_int32, 2)
+
+        if args.write_float:
+            await _write_registers(client, args.write_float, 3)
 
 
 if __name__ == '__main__':

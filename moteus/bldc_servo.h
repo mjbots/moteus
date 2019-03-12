@@ -170,40 +170,40 @@ class BldcServo {
     //
     // When exiting this state, the current offset will be
     // recalibrated.
-    kStopped,
+    kStopped = 0,
 
     // This stage cannot be commanded directly, but will be entered
     // upon any fault.  Here, the motor driver remains enabled, but
     // the output stage power is removed.  The only valid transition
     // from this state is to kStopped.
-    kFault,
+    kFault = 1,
 
     // This mode may not be commanded directly.  It is used when
     // transitioning from kStopped to another mode.
-    kEnabling,
+    kEnabling = 2,
 
     // This mode may not be commanded directly, but is used when
     // transitioning from kStopped to another mode.
-    kCalibrating,
+    kCalibrating = 3,
 
     // This mode may not be commanded directly, but is used when
     // transitioning from kStopped to another mode.
-    kCalibrationComplete,
+    kCalibrationComplete = 4,
 
     // Directly control the PWM of all 3 phases.
-    kPwm,
+    kPwm = 5,
 
     // Control the voltage of all three phases
-    kVoltage,
+    kVoltage = 6,
 
     // Control the phase and voltage magnitude
-    kVoltageFoc,
+    kVoltageFoc = 7,
 
     // Control d and q current
-    kCurrent,
+    kCurrent = 8,
 
     // Control absolute position
-    kPosition,
+    kPosition = 9,
 
     kNumModes,
   };
@@ -344,7 +344,9 @@ class BldcServo {
     float position = 0.0f;  // kNaN means start at the current position.
     float velocity = 0.0f;
 
-    float max_current = 0.0f;
+    float max_current = 5.0f;
+    float stop_position = std::numeric_limits<float>::quiet_NaN();
+    float feedforward_A = 0.0f;
 
     float kp_scale = 1.0f;
     float kd_scale = 1.0f;
@@ -369,6 +371,8 @@ class BldcServo {
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(velocity));
       a->Visit(MJ_NVP(max_current));
+      a->Visit(MJ_NVP(stop_position));
+      a->Visit(MJ_NVP(feedforward_A));
       a->Visit(MJ_NVP(kp_scale));
       a->Visit(MJ_NVP(kd_scale));
 
