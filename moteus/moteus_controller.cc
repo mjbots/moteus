@@ -40,7 +40,7 @@ Value IntMapping(T value, size_t type) {
 
 template <typename T>
 Value ScaleSaturate(float value, float scale) {
-  const float scaled = value * scale;
+  const float scaled = value / scale;
   const auto max = std::numeric_limits<T>::max();
   // We purposefully limit to +- max, rather than to min.  The minimum
   // value for our two's complement types is reserved.
@@ -197,7 +197,7 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
           case 0: return ScaleSaturate<int8_t>(position, 0.01f);
           case 1: return ScaleSaturate<int16_t>(position, 0.001f);
           case 2: return ScaleSaturate<int32_t>(position, 0.00001f);
-          case 3: return position;
+          case 3: return Value(position);
         }
         MJ_ASSERT(false);
         return Value(static_cast<int8_t>(0));

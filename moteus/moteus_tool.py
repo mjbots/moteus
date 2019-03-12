@@ -262,6 +262,9 @@ async def main():
         help='serial device')
     parser.add_argument(
         '-b', '--baud', type=int, default=3000000, help='baud rate')
+    parser.add_argument(
+        '--skip-stop', action='store_true',
+        help='omit initial "tel stop"')
     parser.add_argument('-v', '--verbose', action='store_true')
 
     parser.add_argument('--show-plots', action='store_true',
@@ -282,6 +285,18 @@ async def main():
     group.add_argument(
         '--calibrate', action='store_true',
         help='calibrate the motor, requires full freedom of motion')
+    group.add_argument(
+        '--read-int8', action='append', type=int,
+        help='read the given registers as int8s')
+    group.add_argument(
+        '--read-int16', action='append', type=int,
+        help='read the given registers as int16s')
+    group.add_argument(
+        '--read-int32', action='append', type=int,
+        help='read the given registers as int32s')
+    group.add_argument(
+        '--read-float', action='append', type=int,
+        help='read the given registers as floats')
 
     args = parser.parse_args()
 
@@ -319,11 +334,12 @@ async def main():
 
         # Read anything that might have been sitting on the channel
         # first.
-        try:
-            await write_command(client, b'tel stop')
-            _ = await(asyncio.wait_for(readbytes(client), 0.2))
-        except asyncio.TimeoutError:
-            pass
+        if not args.skip_stop:
+            try:
+                await write_command(client, b'tel stop')
+                _ = await(asyncio.wait_for(readbytes(client), 0.2))
+            except asyncio.TimeoutError:
+                pass
 
         if args.stop:
             await command(client, b'd stop')
@@ -339,6 +355,32 @@ async def main():
 
         if args.calibrate:
             await do_calibrate(client, args)
+
+        if args.read_int8:
+            request = mp.RegisterRequest()
+            for reg in args.read_int8:
+                request.read_single(reg, 0)
+            print(await client.register_query(request))
+
+        if args.read_int16:
+            request = mp.RegisterRequest()
+            for reg in args.read_int16:
+                request.read_single(reg, 1)
+            print(await client.register_query(request))
+
+        if args.read_int32:
+            request = mp.RegisterRequest()
+            for reg in args.read_int32:
+                request.read_single(reg, 2)
+            print(await client.register_query(request))
+
+        if args.read_float:
+            request = mp.RegisterRequest()
+            for reg in args.read_float:
+                request.read_single(reg, 3)
+            print(await client.register_query(request))
+
+
 
 
 if __name__ == '__main__':
