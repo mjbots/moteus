@@ -251,6 +251,17 @@ async def do_calibrate(client, args):
     print('Calibration complete')
 
 
+async def _register_query(client, registers, reg_type):
+    request = mp.RegisterRequest()
+    for reg in registers:
+        if '-' in reg:
+            start, end = (int(x) for x in reg.split('-'))
+            request.read_multiple(start, end - start + 1, reg_type)
+        else:
+            request.read_single(int(reg), reg_type)
+    return await client.register_query(request)
+
+
 async def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -286,16 +297,16 @@ async def main():
         '--calibrate', action='store_true',
         help='calibrate the motor, requires full freedom of motion')
     group.add_argument(
-        '--read-int8', action='append', type=int,
+        '--read-int8', action='append', type=str,
         help='read the given registers as int8s')
     group.add_argument(
-        '--read-int16', action='append', type=int,
+        '--read-int16', action='append', type=str,
         help='read the given registers as int16s')
     group.add_argument(
-        '--read-int32', action='append', type=int,
+        '--read-int32', action='append', type=str,
         help='read the given registers as int32s')
     group.add_argument(
-        '--read-float', action='append', type=int,
+        '--read-float', action='append', type=str,
         help='read the given registers as floats')
 
     args = parser.parse_args()
@@ -357,30 +368,16 @@ async def main():
             await do_calibrate(client, args)
 
         if args.read_int8:
-            request = mp.RegisterRequest()
-            for reg in args.read_int8:
-                request.read_single(reg, 0)
-            print(await client.register_query(request))
+            print(await _register_query(client, args.read_int8, 0))
 
         if args.read_int16:
-            request = mp.RegisterRequest()
-            for reg in args.read_int16:
-                request.read_single(reg, 1)
-            print(await client.register_query(request))
+            print(await _register_query(client, args.read_int16, 1))
 
         if args.read_int32:
-            request = mp.RegisterRequest()
-            for reg in args.read_int32:
-                request.read_single(reg, 2)
-            print(await client.register_query(request))
+            print(await _register_query(client, args.read_int32, 2))
 
         if args.read_float:
-            request = mp.RegisterRequest()
-            for reg in args.read_float:
-                request.read_single(reg, 3)
-            print(await client.register_query(request))
-
-
+            print(await _register_query(client, args.read_float, 3))
 
 
 if __name__ == '__main__':
