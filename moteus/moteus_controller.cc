@@ -299,11 +299,11 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
                  const micro::MultiplexProtocol::Value& value) override {
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
-        command_valid_ = true;
         const auto new_mode_int = ReadIntMapping(value);
         if (new_mode_int > static_cast<int8_t>(BldcServo::Mode::kNumModes)) {
           return 3;
         }
+        command_valid_ = true;
         const auto new_mode = static_cast<BldcServo::Mode>(new_mode_int);
         if (new_mode != command_.mode) {
           command_ = {};
