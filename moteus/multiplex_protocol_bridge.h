@@ -16,8 +16,8 @@
 
 #include <functional>
 
-#include "mjlib/base/system_error.h"
 #include "mjlib/micro/async_stream.h"
+#include "mjlib/micro/error_code.h"
 #include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/telemetry_manager.h"
 
@@ -64,7 +64,7 @@ class Bridge {
                                   std::placeholders::_1, std::placeholders::_2));
   }
 
-  void HandleMasterRead(const mjlib::base::error_code& ec, size_t size) {
+  void HandleMasterRead(const mjlib::micro::error_code& ec, size_t size) {
     MJ_ASSERT(!ec);
 
     data_.master.rx++;
@@ -80,7 +80,7 @@ class Bridge {
     StartMasterRead();
   }
 
-  static void StaticHandleSlaveWrite(const mjlib::base::error_code& ec,
+  static void StaticHandleSlaveWrite(const mjlib::micro::error_code& ec,
                                      Slave* slave) {
     MJ_ASSERT(!ec);
     slave->parent->HandleSlaveWrite(slave);
@@ -101,12 +101,12 @@ class Bridge {
   }
 
   static void StaticHandleSlaveRead(
-      const mjlib::base::error_code& ec, size_t size,
+      const mjlib::micro::error_code& ec, size_t size,
       Slave* slave) {
     slave->parent->HandleSlaveRead(ec, size, slave);
   }
 
-  void HandleSlaveRead(const mjlib::base::error_code& ec, size_t size,
+  void HandleSlaveRead(const mjlib::micro::error_code& ec, size_t size,
                        Slave* slave) {
     MJ_ASSERT(!ec);
 
@@ -120,7 +120,7 @@ class Bridge {
   }
 
   static void StaticHandleMasterWrite(
-      const mjlib::base::error_code& ec, Slave* slave) {
+      const mjlib::micro::error_code& ec, Slave* slave) {
     MJ_ASSERT(!ec);
 
     slave->parent->data_.master.tx++;

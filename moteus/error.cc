@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 namespace moteus {
 
 namespace {
-struct MoteusErrorCategory : mjlib::base::error_category {
+struct MoteusErrorCategory : mjlib::micro::error_category {
   const char* name() const noexcept override { return "moteus"; }
   std::string_view message(int condition) const override {
     switch (static_cast<errc>(condition)) {
@@ -40,14 +40,14 @@ struct MoteusErrorCategory : mjlib::base::error_category {
   }
 };
 
-const mjlib::base::error_category& moteus_error_category() {
+const mjlib::micro::error_category& moteus_error_category() {
   static MoteusErrorCategory result;
   return result;
 }
 }
 
-mjlib::base::error_code make_error_code(errc err) {
-  return mjlib::base::error_code(
+mjlib::micro::error_code make_error_code(errc err) {
+  return mjlib::micro::error_code(
       static_cast<int>(err), moteus_error_category());
 }
 

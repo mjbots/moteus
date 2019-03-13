@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -195,7 +195,7 @@ class Stm32F446AsyncUart::Impl {
   // INVOKED FROM INTERRUPT CONTEXT
   void HandleTransmit() {
     const ssize_t amount_sent = tx_size_ - tx_dma_.stream->NDTR;
-    base::error_code error_code;
+    micro::error_code error_code;
 
     // The enable bit should be 0 at this point.
     MJ_ASSERT((tx_dma_.stream->CR & DMA_SxCR_EN) == 0);
@@ -233,7 +233,7 @@ class Stm32F446AsyncUart::Impl {
     // its own even if we send back to back quickly.
   }
 
-  void EventHandleTransmit(base::error_code error_code, ssize_t amount_sent) {
+  void EventHandleTransmit(micro::error_code error_code, ssize_t amount_sent) {
     auto copy = current_write_callback_;
     current_write_callback_ = {};
 
@@ -380,7 +380,7 @@ class Stm32F446AsyncUart::Impl {
 
   micro::SizeCallback current_read_callback_;
   base::string_span current_read_data_;
-  base::error_code pending_rx_error_;
+  micro::error_code pending_rx_error_;
 
   AtomicEventQueue<16> event_queue_;
 

@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 
 #include <type_traits>
 
-#include "mjlib/base/system_error.h"
+#include "mjlib/micro/error_code.h"
 
 namespace moteus {
 
@@ -39,11 +39,11 @@ enum class errc {
   kOverTemperature = 13,
 };
 
-mjlib::base::error_code make_error_code(errc);
+mjlib::micro::error_code make_error_code(errc);
 }
 
 namespace mjlib {
-namespace base {
+namespace micro {
 
 template <>
 struct is_error_code_enum<moteus::errc> : std::true_type {};

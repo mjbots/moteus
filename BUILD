@@ -24,6 +24,14 @@ test_suite(
     ],
 )
 
+filegroup(
+    name = "target",
+    srcs = [
+        "//moteus:moteus",
+        "//moteus:imu_junction",
+    ],
+)
+
 py_runtime(
     name = "system_python3",
     files = [],

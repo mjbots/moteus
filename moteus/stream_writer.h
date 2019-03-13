@@ -71,7 +71,7 @@ class StreamWriter {
         std::bind(&StreamWriter::HandleWrite, this, std::placeholders::_1));
   }
 
-  void HandleWrite(const mjlib::base::error_code& ec) {
+  void HandleWrite(const mjlib::micro::error_code& ec) {
     write_outstanding_ = false;
     for (auto& cbk : data_writing_->callbacks) {
       if (!cbk.valid()) {
