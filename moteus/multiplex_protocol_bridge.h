@@ -18,8 +18,8 @@
 
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/error_code.h"
-#include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/telemetry_manager.h"
+#include "mjlib/multiplex/micro_server.h"
 
 #include "moteus/stream_writer.h"
 
@@ -40,7 +40,7 @@ class Bridge {
 
   template <typename ... Args>
   Bridge(mjlib::micro::TelemetryManager* telemetry_manager,
-         mjlib::micro::MultiplexProtocolServer* master,
+         mjlib::multiplex::MicroServer* master,
          Args&&... slaves)
       : master_(master),
         slaves_{{slaves...}} {
@@ -128,7 +128,7 @@ class Bridge {
   }
 
 
-  mjlib::micro::MultiplexProtocolServer* const master_;
+  mjlib::multiplex::MicroServer* const master_;
   char master_buffer_[256] = {};
   StreamWriter<256> master_writer_{master_->raw_write_stream()};
 

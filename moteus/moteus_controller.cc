@@ -20,11 +20,12 @@
 #include "moteus/moteus_hw.h"
 
 namespace micro = mjlib::micro;
+namespace multiplex = mjlib::multiplex;
 using mjlib::base::Limit;
 
 namespace moteus {
 
-using Value = micro::MultiplexProtocol::Value;
+using Value = multiplex::MicroServer::Value;
 
 namespace {
 template <typename T>
@@ -236,7 +237,7 @@ enum class Register {
 };
 }
 
-class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
+class MoteusController::Impl : public multiplex::MicroServer::Server {
  public:
   Impl(micro::Pool* pool,
        micro::PersistentConfig* persistent_config,
@@ -295,8 +296,8 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
     bldc_.PollMillisecond();
   }
 
-  uint32_t Write(micro::MultiplexProtocol::Register reg,
-                 const micro::MultiplexProtocol::Value& value) override {
+  uint32_t Write(multiplex::MicroServer::Register reg,
+                 const multiplex::MicroServer::Value& value) override {
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
         const auto new_mode_int = ReadIntMapping(value);
@@ -401,8 +402,8 @@ class MoteusController::Impl : public micro::MultiplexProtocolServer::Server {
     return 1;
   }
 
-  micro::MultiplexProtocol::ReadResult Read(
-      micro::MultiplexProtocol::Register reg,
+  multiplex::MicroServer::ReadResult Read(
+      multiplex::MicroServer::Register reg,
       size_t type) const override {
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
@@ -539,7 +540,7 @@ BldcServo* MoteusController::bldc_servo() {
   return &impl_->bldc_;
 }
 
-micro::MultiplexProtocolServer::Server* MoteusController::multiplex_server() {
+multiplex::MicroServer::Server* MoteusController::multiplex_server() {
   return impl_.get();
 }
 

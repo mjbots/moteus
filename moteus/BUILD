@@ -63,11 +63,11 @@ mbed_binary(
         "//mjlib/micro:async_stream",
         "//mjlib/micro:command_manager",
         "//mjlib/micro:error_code",
-        "//mjlib/micro:multiplex_protocol",
         "//mjlib/micro:persistent_config",
         "//mjlib/micro:pool_ptr",
         "//mjlib/micro:static_function",
         "//mjlib/micro:telemetry_manager",
+        "//mjlib/multiplex:micro_server",
     ],
     linker_script = "stm32f446.ld",
 )
@@ -114,11 +114,11 @@ mbed_binary(
         "//mjlib/micro:async_stream",
         "//mjlib/micro:command_manager",
         "//mjlib/micro:error_code",
-        "//mjlib/micro:multiplex_protocol",
         "//mjlib/micro:persistent_config",
         "//mjlib/micro:pool_ptr",
         "//mjlib/micro:static_function",
         "//mjlib/micro:telemetry_manager",
+        "//mjlib/multiplex:micro_server",
     ],
     linker_script = "stm32f446.ld",
 )
@@ -191,8 +191,8 @@ py_binary(
     name = "jump_test",
     srcs = ["jump_test.py"],
     deps = [
-        "//mjlib/micro:py_multiplex_protocol",
-        "//mjlib/micro:aioserial",
+        "//mjlib/multiplex:py_multiplex_protocol",
+        "//mjlib/multiplex:aioserial",
     ],
 )
 
@@ -201,8 +201,8 @@ py_binary(
     srcs = ["moteus_tool.py"],
     deps = [
         ":calibrate_encoder",
-        "//mjlib/micro:py_multiplex_protocol",
-        "//mjlib/micro:aioserial",
+        "//mjlib/multiplex:py_multiplex_protocol",
+        "//mjlib/multiplex:aioserial",
     ],
 )
 
@@ -210,8 +210,8 @@ py_binary(
     name = "bridge_test",
     srcs = ["bridge_test.py"],
     deps = [
-        "//mjlib/micro:py_multiplex_protocol",
-        "//mjlib/micro:aioserial",
+        "//mjlib/multiplex:py_multiplex_protocol",
+        "//mjlib/multiplex:aioserial",
     ],
 )
 

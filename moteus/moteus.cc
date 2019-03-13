@@ -21,9 +21,9 @@
 #include "mjlib/micro/async_exclusive.h"
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
-#include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/telemetry_manager.h"
+#include "mjlib/multiplex/micro_server.h"
 
 #include "moteus/board_debug.h"
 #include "moteus/millisecond_timer.h"
@@ -35,6 +35,7 @@
 
 using namespace moteus;
 namespace micro = mjlib::micro;
+namespace multiplex = mjlib::multiplex;
 
 int main(void) {
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
@@ -65,7 +66,7 @@ int main(void) {
       return options;
     }());
 
-  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, {});
+  multiplex::MicroServer multiplex_protocol(&pool, &rs485, {});
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 

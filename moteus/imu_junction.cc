@@ -21,9 +21,9 @@
 #include "mjlib/micro/async_exclusive.h"
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
-#include "mjlib/micro/multiplex_protocol.h"
 #include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/telemetry_manager.h"
+#include "mjlib/multiplex/micro_server.h"
 
 #include "moteus/imu_junction_hw.h"
 #include "moteus/millisecond_timer.h"
@@ -34,6 +34,7 @@
 
 using namespace moteus;
 namespace micro = mjlib::micro;
+namespace multiplex = mjlib::multiplex;
 
 class Debug {
  public:
@@ -204,8 +205,8 @@ int main(void) {
       return options;
     }());
 
-  micro::MultiplexProtocolServer multiplex_protocol(&pool, &rs485, []() {
-      micro::MultiplexProtocolServer::Options options;
+  multiplex::MicroServer multiplex_protocol(&pool, &rs485, []() {
+      multiplex::MicroServer::Options options;
       options.default_id = 64;
       return options;
     }());
