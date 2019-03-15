@@ -15,6 +15,17 @@ All files contained in this repository, unless otherwise noted, are
 available under an Apache 2.0 License:
 https://www.apache.org/licenses/LICENSE-2.0
 
+# Directory structure #
+
+* hw/ - hardware (mechanical and electrical designs)
+  * controller/ - PCB design for servo controller
+  * 6008_leg/ - brackets and 3d printed parts for robot leg
+  * busbar/ - power distribution PCB
+  * imu_junction/ - IMU and power distribution for quadruped
+* mjlib/ - software libraries common with firmware and host platform
+* moteus/ - firmware for brushless controller
+* tools/ - bazel build configure
+
 # Setup of an individual actuator #
 
 ## Building and flashing the moteus firmware ##
@@ -52,14 +63,3 @@ Test the calibration by commanding a low current position in tview:
 ```
 d pos 0 0 5
 ```
-
-# Directory structure #
-
-* hw/ - hardware (mechanical and electrical designs)
-  * controller/ - PCB design for servo controller
-  * 6008_leg/ - brackets and 3d printed parts for robot leg
-  * busbar/ - power distribution PCB
-  * imu_junction/ - IMU and power distribution for quadruped
-* mjlib/ - software libraries common with firmware and host platform
-* moteus/ - firmware for brushless controller
-* tools/ - bazel build configure
