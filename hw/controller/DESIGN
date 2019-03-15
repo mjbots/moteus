@@ -1,4 +1,10 @@
-TODO
+PRODUCTION TODO
+ * Use a connector for power
+ * Expand BOM to use lower cost parts
+ * Put solder mask over all vias on the back side
+ * Build test fixture
+
+
 r3.1 ERRATA
  * Power input is labeled as +12V, when it should probably be +24V
 
