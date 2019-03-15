@@ -1,5 +1,8 @@
 TODO
-r4 DONE
+r3.1 ERRATA
+ * Power input is labeled as +12V, when it should probably be +24V
+
+r3.1 DONE
  * STM32F4 silkscreen had placement silk actually put on placement layer
 
 r3 ERRATA
