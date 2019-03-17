@@ -127,9 +127,9 @@ def perform_calibration(data, show_plots=False):
     ratio = total_phase / total_delta
     remainder = abs(round(ratio) - ratio)
 
-    if abs(remainder) > 0.05:
+    if abs(remainder) > 0.10:
         return _make_error("encoder not an integral multiple of phase, {} > {}"
-                           .format(remainder, 0.05))
+                           .format(remainder, 0.10))
 
     print("total_phase:", total_phase)
     print("total_delta:", total_delta)
@@ -164,12 +164,17 @@ def perform_calibration(data, show_plots=False):
 
     expected = (2.0 * math.pi / 65536.0) * (result['poles'] / 2) * interp_x
     err = [wrap_negpi_pi(x) for x in avg_interp - expected]
+    # Make the error seem reasonable, so unwrap if we happen to span
+    # the pi boundary.
+    if (max(err) - min(err)) > 1.5 * math.pi:
+        err = [x if x > 0 else x + 2 * math.pi for x in err]
 
     def windowed_avg(data, index, size):
         start = max(0, int(index - size // 2))
         end = min(len(data) - 1, int(index + size // 2))
         subdata = data[start:end]
-        return sum(subdata) / len(subdata)
+        errs = [wrap_negpi_pi(x - subdata[0]) for x in subdata[1:]]
+        return subdata[0] + sum(errs) / len(subdata)
 
     avg_window = int(len(err) / result['poles'])
     avg_err = [windowed_avg(err, i, avg_window) for i in range(len(err))]
