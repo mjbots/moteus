@@ -24,8 +24,17 @@ namespace moteus {
 template <size_t Size>
 class AtomicEventQueue {
  public:
+  struct Options {
+    /// If set, then attempts to queue an event when all slots are
+    /// taken will silently discard the event.
+    bool ignore_full = false;
+
+    Options() {}
+  };
+
   // This may be called from any thread context.
-  void Queue(const mjlib::micro::StaticFunction<void()>& function) {
+  void Queue(const mjlib::micro::StaticFunction<void()>& function,
+             const Options& options = {}) {
     for (auto& entry : entries_) {
       const int current = entry.state.load();
       if (current == 0) {
@@ -46,8 +55,10 @@ class AtomicEventQueue {
       }
     }
 
-    // We must have been all full.
-    MJ_ASSERT(false);
+    if (!options.ignore_full) {
+      // We must have been all full.
+      MJ_ASSERT(false);
+    }
   }
 
   // Run any queued events.  This may be called from any thread

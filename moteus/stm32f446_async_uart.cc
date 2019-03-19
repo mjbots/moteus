@@ -287,7 +287,12 @@ class Stm32F446AsyncUart::Impl {
       MJ_ASSERT(false);
     }
 
-    event_queue_.Queue([this]() { this->EventProcessData(); });
+    EventQueue::Options options;
+    options.ignore_full = true;
+    event_queue_.Queue([this]() {
+        this->EventProcessData();
+      },
+      options);
   }
 
   // INVOKED FROM INTERRUPT CONTEXT
@@ -299,7 +304,14 @@ class Stm32F446AsyncUart::Impl {
       tmp = uart_->DR;
       (void)tmp;
 
-      event_queue_.Queue([this]() { this->EventProcessData(); });
+      EventQueue::Options options;
+      // EventProcessData works just fine if one or more things are
+      // dropped.
+      options.ignore_full = true;
+      event_queue_.Queue([this]() {
+          this->EventProcessData();
+        },
+        options);
     }
   }
 
@@ -382,7 +394,8 @@ class Stm32F446AsyncUart::Impl {
   base::string_span current_read_data_;
   micro::error_code pending_rx_error_;
 
-  AtomicEventQueue<16> event_queue_;
+  using EventQueue = AtomicEventQueue<16>;
+  EventQueue event_queue_;
 
   micro::SizeCallback current_write_callback_;
   ssize_t tx_size_ = 0;
