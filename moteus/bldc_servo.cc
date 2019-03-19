@@ -575,7 +575,8 @@ class BldcServo::Impl {
     // position is forced to be within one rotation of 0.
     if (!status_.position_set) {
       status_.unwrapped_position_raw = static_cast<int16_t>(
-          status_.position + motor_.position_offset);
+          status_.position +
+          motor_.position_offset * motor_.invert ? -1 : 1);
       status_.position_set = true;
     } else {
       status_.unwrapped_position_raw += delta_position;
