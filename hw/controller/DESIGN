@@ -1,6 +1,8 @@
 PRODUCTION TODO
  * Use a connector for power
  * Expand BOM to use lower cost parts
+ * Make SWD and link connector not mate with the same cables, probably
+   make link a 5 pin connector instead of 6
  * Put solder mask over all vias on the back side
  * Build test fixture
 
