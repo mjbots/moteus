@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "stm32f4xx.h"
+
 extern "C" {
 /// This function initiates the multiplex server bootloader.  It takes
 /// over control of a UART and direction pin, and communicates over it
@@ -34,5 +36,8 @@ extern "C" {
 /// NOTE: All interrupts are disabled shortly after starting this
 /// function.  Any actions required to safe a moving system should be
 /// taken before calling this.
-void MultiplexBootloader() __attribute__ ((noreturn));
+void MultiplexBootloader(uint8_t source_id,
+                         USART_TypeDef* uart,
+                         GPIO_TypeDef* direction_port,
+                         int direction_pin) __attribute__ ((noreturn));
 }

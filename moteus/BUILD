@@ -81,6 +81,7 @@ bootloader_mbed_binary(
     ],
     deps = [
         "//mjlib/base:buffer_stream",
+        "//mjlib/base:tokenizer",
         "//mjlib/multiplex:format",
         "//mjlib/multiplex:stream",
         "@boost",
@@ -101,6 +102,7 @@ mbed_binary(
         "bldc_servo.cc",
         "board_debug.h",
         "board_debug.cc",
+        "bootloader.h",
         "drv8323.h",
         "drv8323.cc",
         "error.h",
@@ -145,13 +147,15 @@ mbed_binary(
 
 genrule(
     name = "bin",
-    srcs = ["moteus.elf"],
+    srcs = ["moteus.elf", "bootloader.elf"],
     outs = [
         "moteus.08000000.bin",
+        "bootloader.0800c000.bin",
         "moteus.08010000.bin",
     ],
-    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $< $(location moteus.08010000.bin) && " +
-           "$(OBJCOPY) -Obinary -j .isr_vector $< $(location moteus.08000000.bin)"),
+    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location moteus.elf) $(location moteus.08010000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location bootloader.elf) $(location bootloader.0800c000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .isr_vector $(location moteus.elf) $(location moteus.08000000.bin)"),
     output_to_bindir = True,
 )
 
@@ -164,9 +168,9 @@ OCD = (
 genrule(
     name = "flash",
     tags = ["manual"],
-    srcs = ["moteus.08000000.bin", "moteus.08010000.bin"],
+    srcs = ["moteus.08000000.bin", "moteus.08010000.bin", "bootloader.0800c000.bin"],
     outs = ["flash.stamp"],
-    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location bootloader.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
 genrule(

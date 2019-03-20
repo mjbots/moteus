@@ -19,6 +19,7 @@
 #include <boost/crc.hpp>
 
 #include "mjlib/base/buffer_stream.h"
+#include "mjlib/base/tokenizer.h"
 #include "mjlib/multiplex/format.h"
 #include "mjlib/multiplex/stream.h"
 
@@ -143,6 +144,11 @@ struct Buffer {
   size_t capacity() const {
     return sizeof(data) / sizeof(*data);
   }
+
+  mjlib::base::BufferWriteStream writer() {
+    return mjlib::base::BufferWriteStream(
+        mjlib::base::string_span(&data[pos], capacity() - pos));
+  }
 };
 
 class BootloaderServer {
@@ -201,8 +207,8 @@ class BootloaderServer {
 
   void WriteResponse(uint8_t id) {
     // Formulate our out frame.
-    mjlib::base::BufferWriteStream buffer_stream(
-        mjlib::base::string_span(out_frame_.data, out_frame_.capacity()));
+    out_frame_.pos = 0;
+    auto buffer_stream = out_frame_.writer();
     mjlib::multiplex::WriteStream write_stream(buffer_stream);
 
     write_stream.Write(Format::kHeader);
@@ -260,9 +266,7 @@ class BootloaderServer {
     while (true) {
       ReadFrame();
 
-      // TODO: Look in the command buffer and see if we have a full
-      // line yet.
-      if (frame_.view().find('\n') != std::string_view::npos) {
+      if (command_.view().find_first_of("\r\n") != std::string_view::npos) {
         return;
       }
     }
@@ -380,17 +384,39 @@ class BootloaderServer {
   }
 
   uint8_t GetNextByte() {
-    // Block until the DMA has populated something.
-    while (rx_.data[rx_.pos] == 0xffff);
+    volatile uint16_t* data = rx_.data;
 
-    const uint8_t result = rx_.data[rx_.pos];
-    rx_.data[rx_.pos] = 0xffff;
+    // Block until the DMA has populated something.
+    while (data[rx_.pos] == 0xffff);
+
+    const uint8_t result = data[rx_.pos];
+    data[rx_.pos] = 0xffff;
     rx_.pos = (rx_.pos + 1) % rx_.capacity();
     return result;
   }
 
   void RunCommand() {
+    auto writer = response_.writer();
 
+    auto command_end = command_.view().find_first_of("\r\n");
+
+    mjlib::base::Tokenizer tokenizer(command_.view(), " \r\n");
+    const auto next = tokenizer.next();
+    if (next == std::string_view()) {
+      // Empty line, just ignore.
+    } else if (next == "echo") {
+      // We will just echo back the remainder.
+      writer.write(tokenizer.remaining());
+    } else {
+      writer.write("unknown command\r\n");
+    }
+
+    response_.pos += writer.offset();
+
+    const auto to_consume = command_end + 1;
+    std::memmove(command_.data, command_.data + to_consume,
+                 command_.capacity() - to_consume);
+    command_.pos -= to_consume;
   }
 
  private:
@@ -421,11 +447,19 @@ class BootloaderServer {
 
 extern "C" {
 
-void MultiplexBootloader() {
+void __attribute__((__section__(".multiplex_bootloader")))
+MultiplexBootloader(uint8_t source_id,
+                    USART_TypeDef* uart,
+                    GPIO_TypeDef* direction_port,
+                    int direction_pin) {
   // While we are bootloading, we want no interrupts whatsoever.
   __disable_irq();
 
-  BootloaderServer server(1, USART3, GPIOA, 8);
+  // TODO: Switch the hardfault handler and any other ISRs that are
+  // pointing to the application program.  Maybe switch the whole ISR
+  // table?
+
+  BootloaderServer server(source_id, uart, direction_port, direction_pin);
   server.Run();
 }
 

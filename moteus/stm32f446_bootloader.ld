@@ -17,6 +17,7 @@ SECTIONS
     .text :
     {
         . = ALIGN(4);
+        *bootloader.o(.multiplex_bootloader)
         KEEP(*bootloader.o(.text*))
         KEEP(*bootloader.o(.rodata*))
         *(.text*)

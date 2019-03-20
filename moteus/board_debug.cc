@@ -24,11 +24,13 @@
 
 #include "moteus/as5047.h"
 #include "moteus/bldc_servo.h"
+#include "moteus/bootloader.h"
 #include "moteus/drv8323.h"
 #include "moteus/moteus_hw.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
+namespace multiplex = mjlib::multiplex;
 
 namespace moteus {
 constexpr float kPi = 3.14159265359f;
@@ -45,8 +47,10 @@ class BoardDebug::Impl {
   Impl(micro::Pool* pool,
        micro::CommandManager* command_manager,
        micro::TelemetryManager* telemetry_manager,
+       multiplex::MicroServer* multiplex_protocol,
        BldcServo* bldc_servo)
-      : bldc_(bldc_servo) {
+      : multiplex_protocol_(multiplex_protocol),
+        bldc_(bldc_servo) {
     command_manager->Register(
         "d", std::bind(&Impl::HandleCommand, this,
                        std::placeholders::_1, std::placeholders::_2));
@@ -333,6 +337,13 @@ class BoardDebug::Impl {
       NVIC_SystemReset();
     }
 
+    if (command == "flash") {
+      // TODO: Get the USART and direction pin from our config.
+      MultiplexBootloader(multiplex_protocol_->config()->id, USART1, GPIOA, 8);
+      // We should never get here.
+      MJ_ASSERT(false);
+    }
+
     WriteMessage(response, "unknown command\r\n");
   }
 
@@ -366,6 +377,7 @@ class BoardDebug::Impl {
   DigitalOut led1_{DEBUG_LED1, 1};
   DigitalOut led2_{DEBUG_LED2, 1};
 
+  multiplex::MicroServer* multiplex_protocol_;
   BldcServo* const bldc_;
 
   char out_message_[20] = {};
@@ -388,8 +400,10 @@ class BoardDebug::Impl {
 BoardDebug::BoardDebug(micro::Pool* pool,
                        micro::CommandManager* command_manager,
                        micro::TelemetryManager* telemetry_manager,
+                       multiplex::MicroServer* micro_server,
                        BldcServo* bldc_servo)
-    : impl_(pool, pool, command_manager, telemetry_manager, bldc_servo) {}
+    : impl_(pool, pool, command_manager, telemetry_manager,
+            micro_server, bldc_servo) {}
 
 BoardDebug::~BoardDebug() {}
 

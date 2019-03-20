@@ -17,6 +17,7 @@
 #include "mjlib/micro/command_manager.h"
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
+#include "mjlib/multiplex/micro_server.h"
 
 #include "moteus/bldc_servo.h"
 
@@ -28,6 +29,7 @@ class BoardDebug {
   BoardDebug(mjlib::micro::Pool*,
              mjlib::micro::CommandManager*,
              mjlib::micro::TelemetryManager*,
+             mjlib::multiplex::MicroServer*,
              BldcServo* bldc_servo);
   ~BoardDebug();
 

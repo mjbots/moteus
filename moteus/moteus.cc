@@ -83,7 +83,7 @@ int main(void) {
       &pool, &persistent_config, &telemetry_manager, &timer);
 
   BoardDebug board_debug(
-      &pool, &command_manager, &telemetry_manager,
+      &pool, &command_manager, &telemetry_manager, &multiplex_protocol,
       moteus_controller.bldc_servo());
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
