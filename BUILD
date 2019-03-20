@@ -29,6 +29,7 @@ filegroup(
     srcs = [
         "//moteus:moteus",
         "//moteus:imu_junction",
+        "//moteus:bootloader",
     ],
 )
 

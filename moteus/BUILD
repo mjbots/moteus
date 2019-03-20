@@ -16,6 +16,7 @@
 
 package(default_visibility = ["//visibility:public"])
 load("@com_github_ARMmbed_mbed-os//:rules.bzl", "mbed_binary")
+load("@com_github_ARMmbed_mbed-os-bootloader//:rules.bzl", bootloader_mbed_binary = "mbed_binary")
 
 cc_library(
     name = "common",
@@ -70,6 +71,25 @@ mbed_binary(
         "//mjlib/multiplex:micro_server",
     ],
     linker_script = "stm32f446.ld",
+)
+
+bootloader_mbed_binary(
+    name = "bootloader",
+    srcs = [
+        "bootloader.h",
+        "bootloader.cc",
+    ],
+    deps = [
+        "//mjlib/base:buffer_stream",
+        "//mjlib/multiplex:format",
+        "//mjlib/multiplex:stream",
+        "@boost",
+    ],
+    linker_script = "stm32f446_bootloader.ld",
+    enable_wrappers = False,
+    linkopts = [
+        "-Wl,--wrap,atexit",
+    ],
 )
 
 mbed_binary(

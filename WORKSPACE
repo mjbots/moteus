@@ -24,6 +24,7 @@ load("//tools/workspace:default.bzl", "add_default_repositories")
 add_default_repositories()
 
 load("@com_github_mjbots_rules_mbed//:rules.bzl", mbed_register = "mbed_register")
+load("@com_github_mjbots_rules_mbed//tools/workspace/mbed:repository.bzl", "mbed_repository")
 
 mbed_register(
     config = {
@@ -36,6 +37,22 @@ mbed_register(
             "MBED_APP_START": "0x8010000",
             "MBED_APP_SIZE":  "0x0070000",
         },
+    }
+)
+
+mbed_repository(
+    name = "com_github_ARMmbed_mbed-os-bootloader",
+    target = "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
+    config = {
+        "mbed_target": "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
+
+        "MBED_CONF_RTOS_PRESENT": "0",
+
+        # The application location and offset are directly
+        # configured in the custom linker script, not here.
+
+        # We need to use as few bytes as possible.
+        "NDEBUG": "1",
     }
 )
 
