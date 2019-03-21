@@ -58,6 +58,36 @@ struct DmaPair {
   Dma rx;
 };
 
+void uint8_hex(uint8_t value, char* buffer) {
+  constexpr char digits[] = "0123456789ABCDEF";
+  buffer[0] = digits[value >> 4];
+  buffer[1] = digits[value & 0x0f];
+  buffer[2] = 0;
+}
+
+void uint32_hex(uint32_t value, char* buffer) {
+  for (size_t i = 0; i < 4; i++) {
+    uint8_hex(value >> (3 - i) * 8, &buffer[i * 2]);
+  }
+}
+
+// I was going to just use strtol, but for some reason linking it in
+// caused boost::crc to stop working?  Oh well, this is easy enough
+// for now.
+uint32_t hex_to_i(const std::string_view& str) {
+  uint32_t result = 0;
+  for (char c : str) {
+    result <<= 4;
+    result |= [&]() {
+      if (c >= '0' && c <= '9') { return c - '0'; }
+      if (c >= 'a' && c <= 'f') { return c - 'a' + 0x0a; }
+      if (c >= 'A' && c <= 'F') { return c - 'A' + 0x0a; }
+      return 0;
+    }();
+  }
+  return result;
+}
+
 #define MAKE_UART(DmaNumber, StreamNumber, ChannelNumber, StatusRegister) \
   Dma {                                                                 \
     DmaNumber ## _Stream ## StreamNumber,                               \
@@ -193,6 +223,11 @@ class BootloaderServer {
 
     // Finally, enable receiving.
     uart_->CR3 |= USART_CR3_DMAR;
+
+    // Send out our startup message.
+    auto writer = response_.writer();
+    writer.write("multiplex bootloader protocol 1\r\n");
+    response_.pos = writer.offset();
   }
 
   void Run() {
@@ -407,6 +442,36 @@ class BootloaderServer {
     } else if (next == "echo") {
       // We will just echo back the remainder.
       writer.write(tokenizer.remaining());
+    } else if (next == "unlock") {
+      FLASH->SR |= FLASH_SR_PGSERR;
+      FLASH->SR |= FLASH_SR_PGPERR;
+      FLASH->KEYR = 0x45670123;
+      FLASH->KEYR = 0xCDEF89AB;
+      writer.write("OK\r\n");
+    } else if (next == "lock") {
+      FLASH->CR |= FLASH_CR_LOCK;
+      writer.write("OK\r\n");
+    } else if (next == "w") {
+      const auto address = tokenizer.next();
+      const auto data = tokenizer.next();
+      if (address.empty() || data.empty()) {
+        writer.write("malformed write\r\n");
+      } else {
+        WriteFlash(address, data, writer);
+      }
+    } else if (next == "r") {
+      const auto address = tokenizer.next();
+      const auto size = tokenizer.next();
+      if (address.empty() || size.empty()) {
+        writer.write("malformed read\r\n");
+      } else {
+        ReadFlash(address, size, writer);
+      }
+    } else if (next == "reset") {
+      NVIC_SystemReset();
+    } else if (next == "fault") {
+      uint32_t* const value = reinterpret_cast<uint32_t*>(0x00200002);
+      *value = 1;
     } else {
       writer.write("unknown command\r\n");
     }
@@ -417,6 +482,133 @@ class BootloaderServer {
     std::memmove(command_.data, command_.data + to_consume,
                  command_.capacity() - to_consume);
     command_.pos -= to_consume;
+  }
+
+  void ReadFlash(const std::string_view& address_str,
+                 const std::string_view& size_str,
+                 mjlib::base::WriteStream& writer) {
+    char buf[10] = {};
+
+    const uint32_t start_address = hex_to_i(address_str);
+    const uint32_t size = hex_to_i(size_str);
+    if (size > 32) {
+      writer.write("size too big\r\n");
+      return;
+    }
+    uint32_hex(start_address, buf);
+    writer.write(buf);
+    writer.write(" ");
+
+    for (uint32_t i = 0; i < size; i++) {
+      const uint8_t* const value = reinterpret_cast<uint8_t*>(start_address + i);
+      uint8_hex(*value, buf);
+      writer.write(buf);
+    }
+    writer.write("\n");
+  }
+
+  void WriteFlash(const std::string_view& address_str,
+                  const std::string_view& data_str,
+                  mjlib::base::WriteStream& writer) {
+    if (data_str.size() % 2 != 0) {
+      writer.write("odd data size\r\n");
+      return;
+    }
+    const uint32_t start_address = hex_to_i(address_str);
+    const uint32_t bytes = data_str.size() / 2;
+    for (uint32_t i = 0; i < bytes; i++) {
+      const uint8_t this_byte =
+          hex_to_i(std::string_view(data_str.data() + i * 2, 2));
+      if (!WriteByte(start_address + i, this_byte, writer)) {
+        return;
+      }
+    }
+    writer.write("OK\r\n");
+  }
+
+  bool WriteByte(uint32_t address, uint8_t byte, mjlib::base::WriteStream& writer) {
+    // What sector are we in.
+    Sector* sector = [&]() -> Sector* {
+      for (auto& sector : sectors_) {
+        if (address >= sector.start &&
+            address < (sector.start + sector.size)) {
+          return &sector;
+        }
+      }
+      return nullptr;
+    }();
+
+    if (!sector) {
+      writer.write("address not in flash\r\n");
+      return false;
+    }
+
+    if (!sector->programmable) {
+      writer.write("sector not writeable\r\n");
+      return false;
+    }
+
+    if (!sector->erased) {
+      // Before we can write to this, we need to erase it.
+      const uint32_t error = EraseSector(sector->number);
+      if (error) {
+        writer.write("erase error ");
+        char buf[10] = {};
+        uint32_hex(error, buf);
+        writer.write(buf);
+        writer.write("\r\n");
+        return false;
+      }
+      sector->erased = true;
+    }
+
+    const uint32_t error = ProgramByte(sector->number, address, byte);
+    if (error) {
+      writer.write("program error ");
+      char buf[10] = {};
+      uint32_hex(error, buf);
+      writer.write(buf);
+      writer.write("\r\n");
+      return false;
+    }
+    return true;
+  }
+
+  uint32_t EraseSector(uint32_t number) {
+    while (FLASH->SR & FLASH_SR_BSY);
+    FLASH->CR =
+        // PSIZE = 0, so single byte
+        (number << FLASH_CR_SNB_Pos) |
+        FLASH_CR_SER;
+    FLASH->CR |= FLASH_CR_STRT;
+
+    while (FLASH->SR & FLASH_SR_BSY);
+
+    return FlashError();
+  }
+
+  uint32_t ProgramByte(uint32_t sector, uint32_t address, uint8_t byte) {
+    while (FLASH->SR & FLASH_SR_BSY);
+    FLASH->CR =
+        (sector << FLASH_CR_SNB_Pos) |
+        FLASH_CR_PG;
+
+    *reinterpret_cast<volatile uint8_t*>(address) = byte;
+
+    while (FLASH->SR & FLASH_SR_BSY);
+
+    return FlashError();
+  }
+
+  uint32_t FlashError() {
+    const uint32_t result = FLASH->SR & (
+        FLASH_SR_WRPERR |
+        FLASH_SR_PGAERR |
+        FLASH_SR_PGPERR |
+        FLASH_SR_PGSERR |
+        FLASH_SR_RDERR);
+    FLASH->SR = ~0;
+    return result;
   }
 
  private:
@@ -441,7 +633,30 @@ class BootloaderServer {
   Buffer<char> response_;
 
   Buffer<char> out_frame_;
+
+  struct Sector {
+    uint32_t number;
+    uint32_t start;
+    uint32_t size;
+    bool programmable;
+    bool erased;
+  };
+
+  Sector sectors_[8] = {
+    { 0, 0x8000000, 0x4000, true, false }, // The ISRs
+    { 1, 0x8004000, 0x4000, false, false }, // PersistentConfig
+    { 2, 0x8008000, 0x4000, true, false }, // unused
+    { 3, 0x800c000, 0x4000, false, false }, // where we are located!
+    { 4, 0x8010000, 0x10000, true, false },
+    { 5, 0x8020000, 0x20000, true, false },
+    { 6, 0x8040000, 0x20000, true, false },
+    { 7, 0x8060000, 0x20000, true, false },
+  };
 };
+
+void BadInterrupt() {
+  while (true);
+}
 
 }
 
@@ -455,9 +670,12 @@ MultiplexBootloader(uint8_t source_id,
   // While we are bootloading, we want no interrupts whatsoever.
   __disable_irq();
 
-  // TODO: Switch the hardfault handler and any other ISRs that are
-  // pointing to the application program.  Maybe switch the whole ISR
-  // table?
+  // We don't want any handlers to go into the original application
+  // code, so point everything to a noop.
+  for (int i = -14; i <= 113; i++) {
+    NVIC_SetVector(static_cast<IRQn_Type>(i),
+                   reinterpret_cast<uint32_t>(&BadInterrupt));
+  }
 
   BootloaderServer server(source_id, uart, direction_port, direction_pin);
   server.Run();
@@ -474,9 +692,9 @@ void abort() {
 
 }
 
-
 namespace mjlib {
 namespace base {
+
 void assertion_failed(const char* expression, const char* filename, int line) {
   while (true);
 }
