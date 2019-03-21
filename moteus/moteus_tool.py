@@ -22,7 +22,9 @@ import asyncio
 import fcntl
 import io
 import math
+import tempfile
 import termios
+import subprocess
 import sys
 
 
@@ -283,6 +285,74 @@ async def _write_registers(client, registers, reg_type):
     return await client.register_write(request)
 
 
+def _hexify(data):
+    result = ''
+    for c in data:
+        result += '{:02x}'.format(c)
+    return result
+
+
+async def _write_flash_file(client, bin_file, start_address):
+    data = open(bin_file, 'rb').read()
+    for i in range(0, len(data), 32):
+        this_data = data[i:i+32]
+        this_address = start_address + i
+        await command(client, 'w {:x} {}\n'.format(
+            this_address, _hexify(this_data)).encode('utf8'))
+
+    for i in range(0, len(data), 32):
+        expected_data = data[i:i+32]
+        this_address = start_address + i
+        await write_command(client, 'r {:x} {:x}\n'.format(
+            this_address, len(expected_data)).encode('utf8'))
+        response = (await read_response(client)).decode('utf8')
+        fields = response.strip().split(' ')
+        actual_address = int(fields[0], 16)
+        actual_data = fields[1].lower()
+        if actual_address != this_address:
+            raise RuntimeError(
+                'verify returned wrong address: {:x} != {:x}'.format(
+                    actual_address, this_address))
+        if _hexify(expected_data) != actual_data:
+            raise RuntimeError(
+                'verify returned wrong data at {:x},  {} != {}'.format(
+                    this_address, _hexify(expected_data), actual_data))
+
+
+async def _write_flash(client, elf_file):
+    app_bin_file = tempfile.NamedTemporaryFile()
+    isr_bin_file = tempfile.NamedTemporaryFile()
+
+    # Before touching anything on the device, prepare the bin files we
+    # need from the elf.
+    subprocess.check_call(
+        'arm-none-eabi-objcopy -Obinary '
+        '-j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss '
+        '{elf_file} {app_bin}'.format(
+            elf_file=elf_file, app_bin=app_bin_file.name),
+        shell=True)
+    subprocess.check_call(
+        'arm-none-eabi-objcopy -Obinary '
+        '-j .isr_vector '
+        '{elf_file} {isr_bin}'.format(
+            elf_file=elf_file, isr_bin=isr_bin_file.name),
+        shell=True)
+
+    # Now try to enter the bootloader.
+    await write_command(client, b'd flash\n')
+    response = await read_response(client)
+
+    # We expect to see the bootloader startup, or unknown command if
+    # we are already in the bootloader.
+    await command(client, b'unlock\n')
+
+    await _write_flash_file(client, isr_bin_file.name, 0x08000000)
+    await _write_flash_file(client, app_bin_file.name, 0x08010000)
+
+    await command(client, b'lock\n')
+    await write_command(client, b'reset\n')
+
+
 async def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
@@ -341,6 +411,9 @@ async def main():
     group.add_argument(
         '--write-float', action='append', type=str,
         help='write_registers as float')
+    group.add_argument(
+        '--flash', type=str,
+        help='write the given elf file to flash')
 
     args = parser.parse_args()
 
@@ -423,6 +496,9 @@ async def main():
 
         if args.write_float:
             await _write_registers(client, args.write_float, 3)
+
+        if args.flash:
+            await _write_flash(client, args.flash)
 
 
 if __name__ == '__main__':
