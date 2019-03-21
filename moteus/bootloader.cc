@@ -504,12 +504,13 @@ class BootloaderServer {
       uint8_hex(*value, buf);
       writer.write(buf);
     }
-    writer.write("\n");
+    writer.write("\r\n");
   }
 
   void WriteFlash(const std::string_view& address_str,
                   const std::string_view& data_str,
                   mjlib::base::WriteStream& writer) {
+    const auto start = timer_.read_us();
     if (data_str.size() % 2 != 0) {
       writer.write("odd data size\r\n");
       return;
@@ -523,7 +524,12 @@ class BootloaderServer {
         return;
       }
     }
-    writer.write("OK\r\n");
+    const auto end = timer_.read_us();
+    writer.write("OK ");
+    char buf[16] = {};
+    uint32_hex((end - start), buf);
+    writer.write(buf);
+    writer.write("\r\n");
   }
 
   bool WriteByte(uint32_t address, uint8_t byte, mjlib::base::WriteStream& writer) {
@@ -673,8 +679,10 @@ MultiplexBootloader(uint8_t source_id,
   // We don't want any handlers to go into the original application
   // code, so point everything to a noop.
   for (int i = -14; i <= 113; i++) {
-    NVIC_SetVector(static_cast<IRQn_Type>(i),
-                   reinterpret_cast<uint32_t>(&BadInterrupt));
+    const auto irq = static_cast<IRQn_Type>(i);
+
+    if (irq == DebugMonitor_IRQn) { continue; }
+    NVIC_SetVector(irq, reinterpret_cast<uint32_t>(&BadInterrupt));
   }
 
   BootloaderServer server(source_id, uart, direction_port, direction_pin);
