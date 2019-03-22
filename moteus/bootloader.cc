@@ -443,13 +443,10 @@ class BootloaderServer {
       // We will just echo back the remainder.
       writer.write(tokenizer.remaining());
     } else if (next == "unlock") {
-      FLASH->SR |= FLASH_SR_PGSERR;
-      FLASH->SR |= FLASH_SR_PGPERR;
-      FLASH->KEYR = 0x45670123;
-      FLASH->KEYR = 0xCDEF89AB;
+      Unlock();
       writer.write("OK\r\n");
     } else if (next == "lock") {
-      FLASH->CR |= FLASH_CR_LOCK;
+      Lock();
       writer.write("OK\r\n");
     } else if (next == "w") {
       const auto address = tokenizer.next();
@@ -468,6 +465,8 @@ class BootloaderServer {
         ReadFlash(address, size, writer);
       }
     } else if (next == "reset") {
+      // Make sure flash is back in the locked state before resetting.
+      Lock();
       NVIC_SystemReset();
     } else if (next == "fault") {
       uint32_t* const value = reinterpret_cast<uint32_t*>(0x00200002);
@@ -482,6 +481,23 @@ class BootloaderServer {
     std::memmove(command_.data, command_.data + to_consume,
                  command_.capacity() - to_consume);
     command_.pos -= to_consume;
+  }
+
+  void Unlock() {
+    if (!locked_) { return; }
+
+    FLASH->SR |= FLASH_SR_PGSERR;
+    FLASH->SR |= FLASH_SR_PGPERR;
+    FLASH->KEYR = 0x45670123;
+    FLASH->KEYR = 0xCDEF89AB;
+    locked_ = false;
+  }
+
+  void Lock() {
+    if (locked_) { return; }
+
+    FLASH->CR |= FLASH_CR_LOCK;
+    locked_ = true;
   }
 
   void ReadFlash(const std::string_view& address_str,
@@ -639,6 +655,8 @@ class BootloaderServer {
   Buffer<char> response_;
 
   Buffer<char> out_frame_;
+
+  bool locked_ = true;
 
   struct Sector {
     uint32_t number;
