@@ -295,12 +295,16 @@ def _hexify(data):
 async def _write_flash_file(client, bin_file, start_address):
     data = open(bin_file, 'rb').read()
     for i in range(0, len(data), 32):
+        if not G_VERBOSE:
+            print('writing: {}/{}'.format(i, len(data)), end='\r')
         this_data = data[i:i+32]
         this_address = start_address + i
         await command(client, 'w {:x} {}\n'.format(
             this_address, _hexify(this_data)).encode('utf8'))
 
     for i in range(0, len(data), 32):
+        if not G_VERBOSE:
+            print('verifying: {}/{}'.format(i, len(data)), end='\r')
         expected_data = data[i:i+32]
         this_address = start_address + i
         await write_command(client, 'r {:x} {:x}\n'.format(
