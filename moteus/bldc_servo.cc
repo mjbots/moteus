@@ -309,6 +309,7 @@ class BldcServo::Impl {
       motor_driver_->Enable(true);
       *mode_volatile = kCalibrating;
     }
+    startup_count_++;
   }
 
   uint32_t clock() const {
@@ -572,8 +573,9 @@ class BldcServo::Impl {
     }
 
     // While we are in the first calibrating state, our unwrapped
-    // position is forced to be within one rotation of 0.
-    if (!status_.position_set) {
+    // position is forced to be within one rotation of 0.  Also, the
+    // AS5047 isn't guaranteed to be valid until 10ms after startup.
+    if (!status_.position_set && startup_count_.load() > 10) {
       status_.unwrapped_position_raw = static_cast<int16_t>(
           status_.position +
           motor_.position_offset * motor_.invert ? -1 : 1);
@@ -1090,6 +1092,7 @@ class BldcServo::Impl {
   char debug_buf_[13] = {};
 
   std::atomic<uint32_t> clock_;
+  std::atomic<uint32_t> startup_count_{0};
 
   static Impl* g_impl_;
 };
