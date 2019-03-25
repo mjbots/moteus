@@ -991,8 +991,15 @@ class BldcServo::Impl {
         Limit(status_.control_position + data->velocity / kRateHz,
               position_config_.position_min,
               position_config_.position_max);
+    if (std::isfinite(data->stop_position)) {
+      if ((status_.control_position -
+           data->stop_position) * data->velocity > 0.0f) {
+        // We are moving away from the stop position.  Force it to be there.
+        status_.control_position = data->stop_position;
+      }
+    }
     if (status_.control_position == old_position) {
-      // We have hit our limit.  Assume a velocity of 0.
+      // We have hit a limit.  Assume a velocity of 0.
       velocity_command = 0.0f;
     }
 

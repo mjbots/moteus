@@ -268,6 +268,10 @@ class BoardDebug::Impl {
             command.kd_scale = value;
             break;
           }
+          case 's': {
+            command.stop_position = value;
+            break;
+          }
           default: {
             WriteMessage(response, "unknown option\r\n");
             return;
