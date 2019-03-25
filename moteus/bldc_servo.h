@@ -110,7 +110,7 @@ class BldcServo {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
     float v_scale_V = 0.00884f;  // V per A/D count
 
-    float max_voltage = 22.0f;
+    float max_voltage = 28.0f;
     float max_temperature = 75.0f;
 
     float feedforward_scale = 1.0f;
