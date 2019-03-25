@@ -272,6 +272,10 @@ class BoardDebug::Impl {
             command.stop_position = value;
             break;
           }
+          case 'f': {
+            command.feedforward_A = value;
+            break;
+          }
           default: {
             WriteMessage(response, "unknown option\r\n");
             return;

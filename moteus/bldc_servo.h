@@ -115,6 +115,7 @@ class BldcServo {
 
     float feedforward_scale = 1.0f;
     float velocity_threshold = 0.09f;
+    float position_derate = 0.02f;
 
     uint16_t adc_cycles = 15;  // 3, 15, 28, 56, 84, 112, 144, 480
 
@@ -145,6 +146,7 @@ class BldcServo {
       a->Visit(MJ_NVP(max_temperature));
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(velocity_threshold));
+      a->Visit(MJ_NVP(position_derate));
       a->Visit(MJ_NVP(adc_cycles));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));

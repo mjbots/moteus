@@ -946,13 +946,42 @@ class BldcServo::Impl {
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A) {
+  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A_in) {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
       status_.fault = errc::kMotorNotConfigured;
       return;
     }
+
+    auto limit_q_current = [&](float in) {
+      if (status_.unwrapped_position > position_config_.position_max &&
+          in > 0.0f) {
+        // We derate the request in the direction that moves it
+        // further outside the position limits.  This is mostly useful
+        // when feedforward is applied, as otherwise, the position
+        // limits could easily be exceeded.  Without feedforward, we
+        // shouldn't really be trying to push outside the limits
+        // anyhow.
+        return in *
+            std::max(0.0f,
+                     1.0f - (status_.unwrapped_position -
+                             position_config_.position_max) /
+                     config_.position_derate);
+      }
+      if (status_.unwrapped_position < position_config_.position_min &&
+          in < 0.0f) {
+        return in *
+            std::max(0.0f,
+                     1.0f - (position_config_.position_min -
+                             status_.unwrapped_position) /
+                     config_.position_derate);
+      }
+
+      return in;
+    };
+
+    const float i_q_A = limit_q_current(i_q_A_in);
 
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
@@ -1016,7 +1045,8 @@ class BldcServo::Impl {
                             status_.control_position,
                             measured_velocity, velocity_command,
                             kRateHz,
-                            apply_options);
+                            apply_options) +
+        data->feedforward_A;
     const float max_current = data->max_current;
     const float q_A = Limit(unlimited_q_A, -max_current, max_current);
     MJ_ASSERT(std::abs(q_A) <= max_current);
