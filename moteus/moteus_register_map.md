@@ -84,14 +84,14 @@ The current operational mode of the servo.  Not all values are valid to write.
 
  * 0 - stopped = writeable, clears faults
  * 1 - fault
- * 1,2,3 - preparing to operate
- * 4 - PWM mode = writeable
- * 5 - Voltage mode = writeable
- * 6 - Voltage FOC = writeable
- * 7 - Current = writeable
- * 8 - 1D Position = writeable
- * 9 - 3D Force = writeable
- * 10 - 3D Position = writeable
+ * 2,3,4 - preparing to operate
+ * 5 - PWM mode = writeable
+ * 6 - Voltage mode = writeable
+ * 7 - Voltage FOC = writeable
+ * 8 - Current = writeable
+ * 9 - 1D Position = writeable
+ * 10 - 3D Force = writeable
+ * 11 - 3D Position = writeable
 
 The registers associated with each control mode are reset when not in
 that control mode.
