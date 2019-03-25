@@ -577,8 +577,8 @@ class BldcServo::Impl {
     // AS5047 isn't guaranteed to be valid until 10ms after startup.
     if (!status_.position_set && startup_count_.load() > 10) {
       status_.unwrapped_position_raw = static_cast<int16_t>(
-          status_.position +
-          motor_.position_offset * motor_.invert ? -1 : 1);
+          static_cast<int32_t>(status_.position) +
+          motor_.position_offset * (motor_.invert ? -1 : 1));
       status_.position_set = true;
     } else {
       status_.unwrapped_position_raw += delta_position;
