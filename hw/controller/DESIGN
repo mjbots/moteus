@@ -1,10 +1,14 @@
 PRODUCTION TODO
  * Use a connector for power
  * Expand BOM to use lower cost parts
+ * Switch to some electrolytic for bulk capacitance
  * Make SWD and link connector not mate with the same cables, probably
    make link a 5 pin connector instead of 6
  * Put solder mask over all vias on the back side
  * Build test fixture
+ * Uprate all voltages to handle at least 40V
+   * FETs are only 30V
+   * caps are only 35V
 
 
 r3.1 ERRATA
