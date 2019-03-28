@@ -32,3 +32,6 @@
 #define IMU_GYRO_CS PB_7
 #define IMU_ACCEL_INT PC_14
 #define IMU_GYRO_INT PC_13
+
+#define FAN1 PA_6
+#define FAN2 PA_7

@@ -60,6 +60,7 @@ mbed_binary(
     deps = [
         ":common",
         "//mjlib/base:assert",
+        "//mjlib/base:tokenizer",
         "//mjlib/micro:async_exclusive",
         "//mjlib/micro:async_stream",
         "//mjlib/micro:command_manager",

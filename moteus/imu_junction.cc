@@ -18,6 +18,7 @@
 
 #include "mbed.h"
 
+#include "mjlib/base/tokenizer.h"
 #include "mjlib/micro/async_exclusive.h"
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
@@ -33,16 +34,27 @@
 #include "moteus/system_info.h"
 
 using namespace moteus;
+namespace base = mjlib::base;
 namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
 
 class Debug {
  public:
-  Debug(MillisecondTimer* timer, micro::TelemetryManager* telemetry_manager)
+  Debug(MillisecondTimer* timer,
+        micro::CommandManager* command_manager,
+        micro::TelemetryManager* telemetry_manager)
       : timer_(timer) {
-    telemetry_manager->Register("imu_dbg", &data_);
+    command_manager->Register(
+        "j", std::bind(&Debug::HandleCommand, this,
+                       std::placeholders::_1, std::placeholders::_2));
+
+    telemetry_manager->Register("imu_dbg", &imu_data_);
+    telemetry_manager->Register("fan", &fan_data_);
     spi_.format(8);
     spi_.frequency(5000000);
+
+    fan1_.period_us(20);
+    fan2_.period_us(20);
   }
 
   void Start() {
@@ -78,7 +90,7 @@ class Debug {
     timer_->wait_us(50000);
 
     // Get the chip id.
-    data_.accel_id = read_accel(0x00);
+    imu_data_.accel_id = read_accel(0x00);
 
     // And configure interrupts.
     write_accel(0x53, 0x08);  // INT1_IO_CONF - INT1 as output
@@ -103,8 +115,8 @@ class Debug {
     count_++;
     if (count_ % 10 != 0) { return; }
 
-    data_.accel_int = imu_accel_int_.read();
-    data_.gyro_int = imu_gyro_int_.read();
+    imu_data_.accel_int = imu_accel_int_.read();
+    imu_data_.gyro_int = imu_gyro_int_.read();
 
     imu_accel_cs_.write(0);
     uint8_t buf[6] = {};
@@ -116,9 +128,9 @@ class Debug {
     }
     imu_accel_cs_.write(1);
 
-    data_.accelx = static_cast<int16_t>(buf[1] * 256 + buf[0]);
-    data_.accely = static_cast<int16_t>(buf[3] * 256 + buf[2]);
-    data_.accelz = static_cast<int16_t>(buf[5] * 256 + buf[4]);
+    imu_data_.accelx = static_cast<int16_t>(buf[1] * 256 + buf[0]);
+    imu_data_.accely = static_cast<int16_t>(buf[3] * 256 + buf[2]);
+    imu_data_.accelz = static_cast<int16_t>(buf[5] * 256 + buf[4]);
 
     imu_gyro_cs_.write(0);
     spi_.write(0x80 | 0x02);  // RATE_X_LSB
@@ -127,12 +139,51 @@ class Debug {
     }
     imu_gyro_cs_.write(1);
 
-    data_.gyrox = static_cast<int16_t>(buf[1] * 256 + buf[0]);
-    data_.gyroy = static_cast<int16_t>(buf[3] * 256 + buf[2]);
-    data_.gyroz = static_cast<int16_t>(buf[5] * 256 + buf[4]);
+    imu_data_.gyrox = static_cast<int16_t>(buf[1] * 256 + buf[0]);
+    imu_data_.gyroy = static_cast<int16_t>(buf[3] * 256 + buf[2]);
+    imu_data_.gyroz = static_cast<int16_t>(buf[5] * 256 + buf[4]);
   }
 
-  struct Data {
+  void HandleCommand(const std::string_view& message,
+                     const micro::CommandManager::Response& response) {
+    base::Tokenizer tokenizer(message, " ");
+    const auto command = tokenizer.next();
+    if (command == "fan") {
+      const auto which_fan_str = tokenizer.next();
+      const auto value_str = tokenizer.next();
+
+      if (which_fan_str.empty() || value_str.empty()) {
+        WriteMessage(response, "invalid fan command\r\n");
+        return;
+      }
+
+      PwmOut* const fan = (which_fan_str == "1") ? &fan1_ : &fan2_;
+      float* const fan_out =
+          (which_fan_str == "1") ? &fan_data_.fan1 : &fan_data_.fan2;
+      *fan_out =
+          std::max(
+              0.0f,
+              std::min(
+                  1.0f,
+                  std::strtof(value_str.data(), nullptr)));
+      fan->write(*fan_out);
+      WriteOk(response);
+      return;
+    }
+
+    WriteMessage(response, "unknown command\r\n");
+  }
+
+  void WriteOk(const micro::CommandManager::Response& response) {
+    WriteMessage(response, "OK\r\n");
+  }
+
+  void WriteMessage(const micro::CommandManager::Response& response,
+                    const std::string_view& message) {
+    AsyncWrite(*response.stream, message, response.callback);
+  }
+
+  struct ImuData {
     uint8_t accel_id = 0;
     int16_t accelx = 0;
     int16_t accely = 0;
@@ -159,6 +210,17 @@ class Debug {
     }
   };
 
+  struct FanData {
+    float fan1 = 0.0f;
+    float fan2 = 0.0f;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(fan1));
+      a->Visit(MJ_NVP(fan2));
+    }
+  };
+
   MillisecondTimer* const timer_;
   SPI spi_{IMU_MOSI, IMU_MISO, IMU_SCK};
   DigitalOut imu_accel_cs_{IMU_ACCEL_CS, 1};
@@ -166,8 +228,12 @@ class Debug {
   DigitalIn imu_accel_int_{IMU_ACCEL_INT, PullNone};
   DigitalIn imu_gyro_int_{IMU_GYRO_INT, PullNone};
 
+  PwmOut fan1_{FAN1};
+  PwmOut fan2_{FAN2};
+
   uint16_t count_ = 0;
-  Data data_;
+  ImuData imu_data_;
+  FanData fan_data_;
 };
 
 int main(void) {
@@ -223,7 +289,7 @@ int main(void) {
   SystemInfo system_info(pool, telemetry_manager);
 
   Bridge<2> bridge(&telemetry_manager, &multiplex_protocol, &slave1, &slave2);
-  Debug debug(&timer, &telemetry_manager);
+  Debug debug(&timer, &command_manager, &telemetry_manager);
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
