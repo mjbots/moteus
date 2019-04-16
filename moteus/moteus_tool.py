@@ -167,7 +167,8 @@ async def do_calibrate(client, args):
 
     # We start with the encoder mapping.  For that to work, we first
     # want to get it locked into zero phase.
-    await command(client, b'd pwm 0 0.3')
+    await command(client, 'd pwm 0 {}'.format(
+        args.calibration_power).encode('utf8'))
     await asyncio.sleep(3.0)
 
     await command(client, b'd stop')
@@ -176,7 +177,8 @@ async def do_calibrate(client, args):
     print('Starting calibration process')
 
     # Now we start the calibration process and record the results.
-    await write_command(client, b'd cal 0.3\n')
+    await write_command(client, 'd cal {}\n'.format(
+        args.calibration_power).encode('utf8'))
 
     encoder_lines = []
     while True:
@@ -375,6 +377,8 @@ async def main():
 
     parser.add_argument('--show-plots', action='store_true',
                         help='only valid with --calibrate')
+    parser.add_argument('--calibration-power', default=0.35,
+                        help='voltage to use during calibration')
 
     # The different commands that we can do.  No more than one can be
     # specified at a time.
