@@ -394,7 +394,11 @@ class BootloaderServer {
     command_.pos += *maybe_bytes;
 
     if (query) {
-      // Write out anything we've got.
+      // Write out anything we've got after a short delay to give the
+      // master a chance to switch back to receive mode.
+      constexpr int kResponseDelayUs = 100;
+      timer_.wait_us(kResponseDelayUs);
+
       WriteResponse(*maybe_source_id & 0x7f);
     }
   }
