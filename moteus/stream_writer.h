@@ -25,7 +25,7 @@ namespace moteus {
 /// Supports writing to a stream where the buffer passed to AsyncWrite
 /// does not need to live past the call.  It does this through an
 /// internal double buffer.
-template <size_t Size>
+template <size_t Size, size_t NumCallbacks = 14>
 class StreamWriter {
  public:
   StreamWriter(mjlib::micro::AsyncWriteStream* stream)
@@ -89,7 +89,7 @@ class StreamWriter {
 
   struct Data {
     char buffer[Size] = {};
-    std::array<mjlib::micro::ErrorCallback, 4> callbacks;
+    std::array<mjlib::micro::ErrorCallback, NumCallbacks> callbacks;
   };
 
   Data data1_;
