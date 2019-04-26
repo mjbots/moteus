@@ -239,7 +239,7 @@ class Debug {
 int main(void) {
   MillisecondTimer timer;
 
-  micro::SizedPool<12288> pool;
+  micro::SizedPool<20000> pool;
 
   Stm32F446AsyncUart rs485(&pool, &timer, []() {
       Stm32F446AsyncUart::Options options;
@@ -288,8 +288,10 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
 
-  Bridge<2> bridge(&telemetry_manager, &multiplex_protocol, &slave1, &slave2);
-  Debug debug(&timer, &command_manager, &telemetry_manager);
+  mjlib::micro::PoolPtr<Bridge<2>> bridge(
+      &pool, &telemetry_manager, &multiplex_protocol, &slave1, &slave2);
+  mjlib::micro::PoolPtr<Debug> debug(
+      &pool, &timer, &command_manager, &telemetry_manager);
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
 
@@ -297,8 +299,8 @@ int main(void) {
 
   command_manager.AsyncStart();
   multiplex_protocol.Start(nullptr);
-  bridge.Start();
-  debug.Start();
+  bridge->Start();
+  debug->Start();
 
   auto old_time = timer.read_ms();
 
@@ -312,7 +314,7 @@ int main(void) {
     if (new_time != old_time) {
       telemetry_manager.PollMillisecond();
       system_info.PollMillisecond();
-      debug.PollMillisecond();
+      debug->PollMillisecond();
 
       old_time = new_time;
     }
