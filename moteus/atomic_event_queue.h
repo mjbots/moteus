@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ class AtomicEventQueue {
       const int current = entry.state.load();
       if (current == 0) {
         // We will try to claim this.
-        const int old = entry.state.fetch_add(1);
+        const int old = entry.state.fetch_or(0x01);
         if (old != 0) {
           // Someone else got to it first.
           continue;
@@ -47,7 +47,7 @@ class AtomicEventQueue {
 
         entry.function = function;
 
-        const int should_be_1 = entry.state.fetch_add(1);
+        const int should_be_1 = entry.state.fetch_or(0x02);
         MJ_ASSERT(should_be_1 == 1);
 
         count_++;
@@ -61,30 +61,33 @@ class AtomicEventQueue {
     }
   }
 
-  // Run any queued events.  This may be called from any thread
-  // context.
+  // Run any queued events.  This may be called from only a single
+  // thread context.
   void Poll() {
-    if (count_.load() == 0) {
-      return;
-    }
     for (auto& entry: entries_) {
+      if (count_.load() == 0) {
+        return;
+      }
+
       const int current = entry.state.load();
-      if (current == 2) {
-        const int old = entry.state.fetch_add(1);
-        if (old != 2) {
-          // Someone else got to it first.
-          continue;
-        }
+      if (current == 0x03) {
+        const int should_be_three = entry.state.fetch_or(0x04);
+        // There should only be one poller at a time.
+        MJ_ASSERT(should_be_three == 0x03);
 
         auto copy = entry.function;
         entry.function = {};
 
-        const int should_be_3 = entry.state.fetch_and(0);
-        MJ_ASSERT(should_be_3 == 3);
+        const int should_be_7 = entry.state.fetch_and(0);
+        MJ_ASSERT(should_be_7 == 0x07);
 
         copy();
 
         count_--;
+      } else if (current == 0x07) {
+        // Since we should only have a single poller, this shouldn't
+        // happen.
+        MJ_ASSERT(false);
       }
     }
   }
