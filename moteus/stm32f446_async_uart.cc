@@ -402,7 +402,7 @@ class Stm32F446AsyncUart::Impl {
   base::string_span current_read_data_;
   micro::error_code pending_rx_error_;
 
-  using EventQueue = AtomicEventQueue<24>;
+  using EventQueue = AtomicEventQueue<16>;
   EventQueue event_queue_;
 
   micro::SizeCallback current_write_callback_;
