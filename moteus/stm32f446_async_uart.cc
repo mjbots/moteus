@@ -353,14 +353,22 @@ class Stm32F446AsyncUart::Impl {
 
     MJ_ASSERT(current_read_callback_.valid());
     {
-      auto copy = current_read_callback_;
-      auto rx_error = pending_rx_error_;
+      // Right now, we mark that we no longer want to get any more
+      // data on this callback.
+      //
+      // However, we enqueue the callback itself on the event queue to
+      // avoid recursion.
 
-      current_read_callback_ = {};
       current_read_data_ = {};
-      pending_rx_error_ = {};
+      event_queue_.Queue([this, bytes_read]() {
+          auto copy = current_read_callback_;
+          auto rx_error = pending_rx_error_;
 
-      copy(rx_error, bytes_read);
+          current_read_callback_ = {};
+          pending_rx_error_ = {};
+
+          copy(rx_error, bytes_read);
+       });
     }
 
     // If our DMA stream was disabled for some reason, start over
@@ -394,7 +402,7 @@ class Stm32F446AsyncUart::Impl {
   base::string_span current_read_data_;
   micro::error_code pending_rx_error_;
 
-  using EventQueue = AtomicEventQueue<16>;
+  using EventQueue = AtomicEventQueue<24>;
   EventQueue event_queue_;
 
   micro::SizeCallback current_write_callback_;
