@@ -228,6 +228,10 @@ Mode: Read/write
 When in kPosition mode, advance the commanded position at the given
 velocity in Hz.
 
+As a special case, if the 0x020 position is unset, and 0x023 stop
+position is set, the sign of this is ignored and is instead selected
+so that the motor will move towards the stop position.
+
 ### 0x022 - Position maximum current ###
 
 Type: int8, int16, int32, float

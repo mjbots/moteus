@@ -288,6 +288,18 @@ class BldcServo::Impl {
     CommandData* next = next_data_;
     *next = data;
 
+    // If we have a case where the position is left unspecified, but
+    // we have a velocity and stop condition, then we pick the sign of
+    // the velocity so that we actually move.
+    if (std::isnan(next->position) &&
+        std::isfinite(next->stop_position) &&
+        std::isfinite(next->velocity) &&
+        next->velocity != 0.0f) {
+      next->velocity = std::abs(next->velocity) *
+          ((next->stop_position > status_.unwrapped_position) ?
+           1.0f : -1.0f);
+    }
+
     telemetry_data_ = data;
 
     std::swap(current_data_, next_data_);
