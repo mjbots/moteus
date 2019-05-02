@@ -240,11 +240,16 @@ class BootloaderServer {
     }
   }
 
-  void WriteResponse(uint8_t id) {
+  void WriteResponse(uint8_t id, int max_bytes) {
     // Formulate our out frame.
     out_frame_.pos = 0;
     auto buffer_stream = out_frame_.writer();
     mjlib::multiplex::WriteStream write_stream(buffer_stream);
+
+    const size_t bytes_to_write =
+        max_bytes >= 0 ?
+        std::min<size_t>(max_bytes, response_.pos) :
+        response_.pos;
 
     write_stream.Write(Format::kHeader);
     write_stream.Write<uint8_t>(id_);
@@ -252,13 +257,13 @@ class BootloaderServer {
     write_stream.WriteVaruint(
         mjlib::multiplex::GetVaruintSize(u32(Format::Subframe::kServerToClient)) +
         mjlib::multiplex::GetVaruintSize(1) + // channel number
-        mjlib::multiplex::GetVaruintSize(response_.pos) +
-        response_.pos);
+        mjlib::multiplex::GetVaruintSize(bytes_to_write) +
+        bytes_to_write);
 
     write_stream.WriteVaruint(u32(Format::Subframe::kServerToClient));
     write_stream.WriteVaruint(1);
-    write_stream.WriteVaruint(response_.pos);
-    buffer_stream.write(response_.view());
+    write_stream.WriteVaruint(bytes_to_write);
+    buffer_stream.write(response_.view().substr(0, bytes_to_write));
 
     // Calculate the CRC and write it out.
     boost::crc_ccitt_type crc;
@@ -268,7 +273,9 @@ class BootloaderServer {
     out_frame_.pos = buffer_stream.offset();
 
     // Mark that we've written out all we have.
-    response_.pos = 0;
+    std::memmove(&response_.data[0], &response_.data[bytes_to_write],
+                 response_.pos - bytes_to_write);
+    response_.pos -= bytes_to_write;
 
 
     // Now queue up the DMA transfer and wait for it to finish.
@@ -366,9 +373,13 @@ class BootloaderServer {
     const auto maybe_subframe_id = read_stream.ReadVaruint();
     if (!maybe_subframe_id) { return; }
 
-    if (*maybe_subframe_id != u32(Format::Subframe::kClientToServer)) {
+    if (*maybe_subframe_id != u32(Format::Subframe::kClientToServer) &&
+        *maybe_subframe_id != u32(Format::Subframe::kClientPollServer)) {
       return;
     }
+
+    const bool poll_only =
+        (*maybe_subframe_id == u32(Format::Subframe::kClientPollServer));
 
     const bool query = (*maybe_source_id & 0x80) != 0;
 
@@ -378,20 +389,23 @@ class BootloaderServer {
 
     const auto maybe_bytes = read_stream.ReadVaruint();
     if (!maybe_bytes) { return; }
-    if (*maybe_bytes > static_cast<size_t>(buffer_stream.remaining())) {
-      return;
-    }
-    if (command_.pos + *maybe_bytes > command_.capacity()) {
-      // We would have overrun our command buffer.  Just empty it out
-      // and discard this one too.
-      command_.pos = 0;
-      return;
-    }
 
-    // Great, we have some bytes, move the data into the command buffer.
-    std::memcpy(&command_.data[command_.pos], frame_.data + buffer_stream.offset(),
-                *maybe_bytes);
-    command_.pos += *maybe_bytes;
+    if (!poll_only) {
+      if (*maybe_bytes > static_cast<size_t>(buffer_stream.remaining())) {
+        return;
+      }
+      if (command_.pos + *maybe_bytes > command_.capacity()) {
+        // We would have overrun our command buffer.  Just empty it out
+        // and discard this one too.
+        command_.pos = 0;
+        return;
+      }
+
+      // Great, we have some bytes, move the data into the command buffer.
+      std::memcpy(&command_.data[command_.pos], frame_.data + buffer_stream.offset(),
+                  *maybe_bytes);
+      command_.pos += *maybe_bytes;
+    }
 
     if (query) {
       // Write out anything we've got after a short delay to give the
@@ -399,7 +413,7 @@ class BootloaderServer {
       constexpr int kResponseDelayUs = 100;
       timer_.wait_us(kResponseDelayUs);
 
-      WriteResponse(*maybe_source_id & 0x7f);
+      WriteResponse(*maybe_source_id & 0x7f, poll_only ? *maybe_bytes : -1);
     }
   }
 
