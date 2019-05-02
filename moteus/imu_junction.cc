@@ -112,6 +112,10 @@ class Debug {
   }
 
   void PollMillisecond() {
+    // TODO(jpieper): Re-enable the IMU when I'm willing to debug
+    // timing of the bridge.
+    return;
+
     count_++;
     if (count_ % 10 != 0) { return; }
 
