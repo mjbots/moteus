@@ -88,9 +88,18 @@ async def write_command(stream, line):
     await stream.drain()
 
 
-async def command(stream, line):
-    await write_command(stream, line)
-    return await read_ok(stream)
+async def command(stream, line, retry_count=4, retry_timeout=0.1):
+    for i in range(retry_count):
+        await write_command(stream, line)
+        try:
+            if retry_count > 0:
+                return await asyncio.wait_for(read_ok(stream), retry_timeout)
+            else:
+                return await read_ok(client)
+        except asyncio.TimeoutError:
+            # Loop back and try again
+            pass
+    raise RuntimeError("Retry count exceeded: '{}'".format(line))
 
 
 async def find_online_targets(manager):
@@ -250,7 +259,7 @@ async def do_calibrate(client, args):
     await command(client, b'conf set servopos.position_max 0.01')
 
     # Finally, write all this configuration to the device.
-    await command(client, b'conf write')
+    await command(client, b'conf write', retry_count=0)
 
     print('Calibration complete')
 
@@ -302,7 +311,8 @@ async def _write_flash_file(client, bin_file, start_address):
         this_data = data[i:i+32]
         this_address = start_address + i
         await command(client, 'w {:x} {}\n'.format(
-            this_address, _hexify(this_data)).encode('utf8'))
+            this_address, _hexify(this_data)).encode('utf8'),
+                      retry_timeout=10.0)
 
     for i in range(0, len(data), 32):
         if not G_VERBOSE:
@@ -323,6 +333,22 @@ async def _write_flash_file(client, bin_file, start_address):
             raise RuntimeError(
                 'verify returned wrong data at {:x},  {} != {}'.format(
                     this_address, _hexify(expected_data), actual_data))
+
+
+def expand_targets(target_input):
+    if target_input is None:
+        return None
+
+    result = set()
+
+    for item in target_input:
+        for element in item.split(','):
+            if '-' in element:
+                first, last = (int(x) for x in element.split('-'))
+                result |= set(range(first, last + 1))
+            else:
+                result.add(int(element))
+    return list(result)
 
 
 async def _write_flash(client, elf_file):
@@ -363,7 +389,7 @@ async def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
-        '-t', '--target', type=int, action='append', default=None,
+        '-t', '--target', type=str, action='append', default=None,
         help='destination address(es) (default: autodiscover)')
     parser.add_argument(
         '-d', '--device', type=str, default='/dev/ttyUSB0',
@@ -424,6 +450,8 @@ async def main():
         help='write the given elf file to flash')
 
     args = parser.parse_args()
+
+    args.target = expand_targets(args.target)
 
     if args.verbose:
         global G_VERBOSE
