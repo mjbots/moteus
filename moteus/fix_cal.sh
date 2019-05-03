@@ -1,0 +1,1 @@
+(for i in $(seq 0 63); do echo "conf set motor.offset.$i -4.45"; sleep 0.05; done) | ./bazel-out/k8-fastbuild/bin/mjlib/multiplex/multiplex_tool --type serial --serial_port /dev/ttyUSB2 --serial_baud 3000000 -t 1 -c
