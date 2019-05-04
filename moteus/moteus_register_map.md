@@ -22,6 +22,11 @@ int8 - 1 LSB -> 1A
 int16 - 1 LSB -> 0.1A
 int32 - 1 LSB -> 0.001A
 
+### Torque (measured in N*m) ###
+int8 - 1 LSB -> 0.5 N*m
+int16 - 1 LSB -> 0.01 N*m
+int32 - 1 LSB -> 0.001 N*m
+
 ### Voltage (measured in Volts) ###
 
 int8 - 1 LSB -> 1 V
@@ -154,7 +159,14 @@ Mode: Read only
 
 The current input voltage.
 
-### 0x007 - Fault code ###
+### 0x007 - Torque ###
+
+Types: int8, int16, int32, float
+Mode: Read only
+
+The current applied torque as measured after any gearbox.
+
+### 0x00f - Fault code ###
 
 Type: int8, int16, int32, float
 Mode: Read only
@@ -232,13 +244,13 @@ As a special case, if the 0x020 position is unset, and 0x023 stop
 position is set, the sign of this is ignored and is instead selected
 so that the motor will move towards the stop position.
 
-### 0x022 - Position maximum current ###
+### 0x022 - Position maximum torque ###
 
 Type: int8, int16, int32, float
 Mode: Read/write
 
-When in kPosition mode, the maximum phase current to be applied.
-Defaults to 5A.
+When in kPosition mode, the maximum torque to be applied.  Defaults to
+0.1 Nm.  Note, this is the torque after any gearboxes.
 
 ### 0x023 - Commanded stop position ###
 
@@ -249,13 +261,14 @@ When in kPosition mode, and a non-zero velocity is commanded, stop
 motion when reaching the given position.  NaN / maximal negative mean
 no limit is applied.
 
-### 0x024 - Feedforward current ###
+### 0x024 - Feedforward torque ###
 
 Type: int8, int16, int32, float
 Mode: Read/write
 
-When in kPosition mode, add the given feedforward current after
-applying all regular control loops.
+When in kPosition mode, add the given feedforward torque after
+applying all regular control loops.  Note, this is the torque after
+any gearboxes.
 
 ### 0x025 - Commanded kp scale ###
 

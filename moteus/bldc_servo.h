@@ -257,6 +257,7 @@ class BldcServo {
     int32_t unwrapped_position_raw = 0;
     float unwrapped_position = 0.0f;
     float velocity = 0.0f;
+    float torque_Nm = 0.0f;
 
     mjlib::base::PID::State pid_d;
     mjlib::base::PID::State pid_q;
@@ -293,6 +294,7 @@ class BldcServo {
       a->Visit(MJ_NVP(unwrapped_position_raw));
       a->Visit(MJ_NVP(unwrapped_position));
       a->Visit(MJ_NVP(velocity));
+      a->Visit(MJ_NVP(torque_Nm));
 
       a->Visit(MJ_NVP(pid_d));
       a->Visit(MJ_NVP(pid_q));
@@ -346,9 +348,9 @@ class BldcServo {
     float position = 0.0f;  // kNaN means start at the current position.
     float velocity = 0.0f;
 
-    float max_current = 5.0f;
+    float max_torque_Nm = 0.1f;
     float stop_position = std::numeric_limits<float>::quiet_NaN();
-    float feedforward_A = 0.0f;
+    float feedforward_Nm = 0.0f;
 
     float kp_scale = 1.0f;
     float kd_scale = 1.0f;
@@ -372,9 +374,9 @@ class BldcServo {
 
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(velocity));
-      a->Visit(MJ_NVP(max_current));
+      a->Visit(MJ_NVP(max_torque_Nm));
       a->Visit(MJ_NVP(stop_position));
-      a->Visit(MJ_NVP(feedforward_A));
+      a->Visit(MJ_NVP(feedforward_Nm));
       a->Visit(MJ_NVP(kp_scale));
       a->Visit(MJ_NVP(kd_scale));
 

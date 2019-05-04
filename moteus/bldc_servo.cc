@@ -312,6 +312,10 @@ class BldcServo::Impl {
   const Motor& motor() const { return motor_; }
 
   void UpdateConfig() {
+    // I have no idea why the second kPi is necessary here.  All my
+    // torque measurements just appear to be off by about a factor of
+    // pi.
+    torque_constant_ = motor_.v_per_hz / (2.0f * kPi) * kPi;
   }
 
   void PollMillisecond() {
@@ -657,6 +661,8 @@ class BldcServo::Impl {
           };
     status_.d_A = dq.d;
     status_.q_A = dq.q;
+    status_.torque_Nm = status_.q_A * torque_constant_ /
+        motor_.unwrapped_position_scale;
   }
 
   void ISR_MaybeChangeMode(CommandData* data) {
@@ -1052,14 +1058,20 @@ class BldcServo::Impl {
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
 
+    const float feedforward_A =
+        data->feedforward_Nm *
+        motor_.unwrapped_position_scale / torque_constant_;
+
     const float unlimited_q_A =
         pid_position_.Apply(status_.unwrapped_position,
                             status_.control_position,
                             measured_velocity, velocity_command,
                             kRateHz,
                             apply_options) +
-        data->feedforward_A;
-    const float max_current = data->max_current;
+        feedforward_A;
+    const float max_current =
+        data->max_torque_Nm * motor_.unwrapped_position_scale /
+        torque_constant_;
     const float q_A = Limit(unlimited_q_A, -max_current, max_current);
     MJ_ASSERT(std::abs(q_A) <= max_current);
 
@@ -1142,6 +1154,8 @@ class BldcServo::Impl {
 
   std::atomic<uint32_t> clock_;
   std::atomic<uint32_t> startup_count_{0};
+
+  float torque_constant_ = 0.01f;
 
   static Impl* g_impl_;
 };

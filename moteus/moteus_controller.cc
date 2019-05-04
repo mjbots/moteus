@@ -94,6 +94,10 @@ Value ScaleVoltage(float value, size_t type) {
   return ScaleCurrent(value, type);
 }
 
+Value ScaleTorque(float value, size_t type) {
+  return ScaleMapping(value, 0.5f, 0.01f, 0.001f, type);
+}
+
 int8_t ReadIntMapping(Value value) {
   return std::visit([](auto a) {
       return static_cast<int8_t>(a);
@@ -159,6 +163,10 @@ float ReadCurrent(Value value) {
   return ReadScaleMapping(value, 1.0f, 0.1f, 0.001f);
 }
 
+float ReadTorque(Value value) {
+  return ReadScaleMapping(value, 0.5f, 0.01f, 0.001f);
+}
+
 enum class Register {
   kMode = 0x000,
   kPosition = 0x001,
@@ -167,7 +175,8 @@ enum class Register {
   kQCurrent = 0x004,
   kDCurrent = 0x005,
   kVoltage = 0x006,
-  kFault = 0x007,
+  kTorque = 0x007,
+  kFault = 0x00f,
 
   kPwmPhaseA = 0x010,
   kPwmPhaseB = 0x011,
@@ -185,9 +194,9 @@ enum class Register {
 
   kCommandPosition = 0x020,
   kCommandVelocity = 0x021,
-  kCommandPositionMaxCurrent = 0x022,
+  kCommandPositionMaxTorque = 0x022,
   kCommandStopPosition = 0x023,
-  kCommandFeedforwardCurrent = 0x024,
+  kCommandFeedforwardTorque = 0x024,
   kCommandKpScale = 0x025,
   kCommandKdScale = 0x026,
 
@@ -361,16 +370,16 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.velocity = ReadVelocity(value);
         return 0;
       }
-      case Register::kCommandPositionMaxCurrent: {
-        command_.max_current = ReadCurrent(value);
+      case Register::kCommandPositionMaxTorque: {
+        command_.max_torque_Nm = ReadTorque(value);
         return 0;
       }
       case Register::kCommandStopPosition: {
-        command_.stop_position = ReadCurrent(value);
+        command_.stop_position = ReadPosition(value);
         return 0;
       }
-      case Register::kCommandFeedforwardCurrent: {
-        command_.feedforward_A = ReadCurrent(value);
+      case Register::kCommandFeedforwardTorque: {
+        command_.feedforward_Nm = ReadTorque(value);
         return 0;
       }
       case Register::kCommandKpScale: {
@@ -388,6 +397,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kQCurrent:
       case Register::kDCurrent:
       case Register::kVoltage:
+      case Register::kTorque:
       case Register::kFault:
       case Register::kModelNumber:
       case Register::kSerialNumber:
@@ -426,6 +436,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kVoltage: {
         return ScaleVoltage(bldc_.status().bus_V, type);
+      }
+      case Register::kTorque: {
+        return ScaleTorque(bldc_.status().torque_Nm, type);
       }
       case Register::kFault: {
         return IntMapping(bldc_.status().fault, type);
@@ -467,14 +480,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kCommandVelocity: {
         return ScaleVelocity(command_.velocity, type);
       }
-      case Register::kCommandPositionMaxCurrent: {
-        return ScaleCurrent(command_.max_current, type);
+      case Register::kCommandPositionMaxTorque: {
+        return ScaleTorque(command_.max_torque_Nm, type);
       }
       case Register::kCommandStopPosition: {
         return ScalePosition(command_.stop_position, type);
       }
-      case Register::kCommandFeedforwardCurrent: {
-        return ScaleCurrent(command_.feedforward_A, type);
+      case Register::kCommandFeedforwardTorque: {
+        return ScaleCurrent(command_.feedforward_Nm, type);
       }
       case Register::kCommandKpScale: {
         return ScalePwm(command_.kp_scale, type);

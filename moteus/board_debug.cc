@@ -236,18 +236,18 @@ class BoardDebug::Impl {
     if (command == "pos") {
       const auto pos_str = tokenizer.next();
       const auto vel_str = tokenizer.next();
-      const auto max_i_str = tokenizer.next();
+      const auto max_t_str = tokenizer.next();
 
       if (pos_str.empty() ||
           vel_str.empty() ||
-          max_i_str.empty()) {
+          max_t_str.empty()) {
         WriteMessage(response, "missing p/v/i\r\n");
         return;
       }
 
       const float pos = std::strtof(pos_str.data(), nullptr);
       const float vel = std::strtof(vel_str.data(), nullptr);
-      const float max_i = std::strtof(max_i_str.data(), nullptr);
+      const float max_t = std::strtof(max_t_str.data(), nullptr);
 
       BldcServo::CommandData command;
 
@@ -273,7 +273,7 @@ class BoardDebug::Impl {
             break;
           }
           case 'f': {
-            command.feedforward_A = value;
+            command.feedforward_Nm = value;
             break;
           }
           default: {
@@ -287,7 +287,7 @@ class BoardDebug::Impl {
 
       command.position = pos;
       command.velocity = vel;
-      command.max_current = max_i;
+      command.max_torque_Nm = max_t;
 
       bldc_->Command(command);
       WriteOk(response);
