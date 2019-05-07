@@ -313,6 +313,16 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (command == "rezero") {
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kStopped;
+      command.rezero_position = true;
+
+      bldc_->Command(command);
+      WriteOk(response);
+      return;
+    }
+
     if (command == "clk") {
       const uint32_t clock = bldc_->clock();
       ::snprintf(out_message_, sizeof(out_message_),

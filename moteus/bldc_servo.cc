@@ -482,6 +482,11 @@ class BldcServo::Impl {
 
     debug_out_ = 1;
 
+    if (current_data_->rezero_position) {
+      status_.position_set = false;
+      current_data_->rezero_position = false;
+    }
+
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
     ISR_DoSense();

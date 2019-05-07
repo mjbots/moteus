@@ -358,6 +358,9 @@ class BldcServo {
     // If set, then force the position to be the given value.
     std::optional<float> set_position;
 
+    // If set, then rezero the position as if from boot.
+    bool rezero_position = false;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_ENUM(mode, ModeMapper));
@@ -381,6 +384,7 @@ class BldcServo {
       a->Visit(MJ_NVP(kd_scale));
 
       a->Visit(MJ_NVP(set_position));
+      a->Visit(MJ_NVP(rezero_position));
     }
   };
 
