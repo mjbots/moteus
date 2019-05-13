@@ -88,18 +88,31 @@ async def write_command(stream, line):
     await stream.drain()
 
 
-async def command(stream, line, retry_count=4, retry_timeout=0.1):
-    for i in range(retry_count):
+async def command(stream, line, retry_count=4, retry_timeout=0.3):
+    result = None
+    for i in range(retry_count + 1):
         await write_command(stream, line)
-        try:
-            if retry_count > 0:
-                return await asyncio.wait_for(read_ok(stream), retry_timeout)
-            else:
-                return await read_ok(client)
-        except asyncio.TimeoutError:
-            # Loop back and try again
-            pass
-    raise RuntimeError("Retry count exceeded: '{}'".format(line))
+        if retry_count > 0:
+            try:
+                result = await asyncio.wait_for(read_ok(stream), retry_timeout)
+                break
+            except asyncio.TimeoutError:
+                # Loop back and try again
+                pass
+        else:
+            result = await read_ok(stream)
+            break
+    else:
+        raise RuntimeError("Retry count exceeded ({}): '{}'".format(
+            retry_count, line))
+
+    # Make sure there is nothing left to read.
+    try:
+        _ = await asyncio.wait_for(stream.read(8192), 0.05)
+    except asyncio.TimeoutError:
+        pass
+
+    return result
 
 
 async def find_online_targets(manager):
