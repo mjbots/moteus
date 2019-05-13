@@ -124,6 +124,8 @@ constexpr uint32_t kPwmCounts = kTimerClock / (2 * kPwmRateHz);
 // However, the control counter we want at the actual frequency.
 constexpr uint32_t kControlCounts = kTimerClock / (kIntRateHz);
 
+constexpr float kMaxUnconfiguredCurrent = 5.0;
+
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
   if (timer == TIM1) {
     return TIM1_UP_TIM10_IRQn;
@@ -1064,8 +1066,10 @@ class BldcServo::Impl {
     apply_options.kd_scale = data->kd_scale;
 
     const float feedforward_A =
-        data->feedforward_Nm *
-        motor_.unwrapped_position_scale / torque_constant_;
+        torque_constant_ == 0.0 ?
+        0.0 :
+        (data->feedforward_Nm *
+         motor_.unwrapped_position_scale / torque_constant_);
 
     const float unlimited_q_A =
         pid_position_.Apply(status_.unwrapped_position,
@@ -1075,8 +1079,10 @@ class BldcServo::Impl {
                             apply_options) +
         feedforward_A;
     const float max_current =
-        data->max_torque_Nm * motor_.unwrapped_position_scale /
-        torque_constant_;
+        torque_constant_ == 0.0 ?
+        kMaxUnconfiguredCurrent :
+        (data->max_torque_Nm * motor_.unwrapped_position_scale /
+         torque_constant_);
     const float q_A = Limit(unlimited_q_A, -max_current, max_current);
     MJ_ASSERT(std::abs(q_A) <= max_current);
 
