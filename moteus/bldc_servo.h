@@ -316,6 +316,8 @@ class BldcServo {
     float i_d_A = 0.0f;
     float i_q_A = 0.0f;
 
+    float torque_Nm = 0.0f;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(pwm));
@@ -324,6 +326,7 @@ class BldcServo {
       a->Visit(MJ_NVP(q_V));
       a->Visit(MJ_NVP(i_d_A));
       a->Visit(MJ_NVP(i_q_A));
+      a->Visit(MJ_NVP(torque_Nm));
     }
   };
 

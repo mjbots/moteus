@@ -124,7 +124,8 @@ constexpr uint32_t kPwmCounts = kTimerClock / (2 * kPwmRateHz);
 // However, the control counter we want at the actual frequency.
 constexpr uint32_t kControlCounts = kTimerClock / (kIntRateHz);
 
-constexpr float kMaxUnconfiguredCurrent = 5.0;
+constexpr float kDefaultTorqueConstant = 0.1f;
+constexpr float kMaxUnconfiguredCurrent = 5.0f;
 
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
   if (timer == TIM1) {
@@ -313,11 +314,18 @@ class BldcServo::Impl {
 
   const Motor& motor() const { return motor_; }
 
+  bool is_torque_constant_configured() const {
+    return motor_.v_per_hz != 0.0f;
+  }
+
   void UpdateConfig() {
     // I have no idea why the second kPi is necessary here.  All my
     // torque measurements just appear to be off by about a factor of
     // pi.
-    torque_constant_ = motor_.v_per_hz / (2.0f * kPi) * kPi;
+    torque_constant_ =
+        is_torque_constant_configured() ?
+        motor_.v_per_hz / (2.0f * kPi) * kPi :
+        kDefaultTorqueConstant;
   }
 
   void PollMillisecond() {
@@ -1065,26 +1073,27 @@ class BldcServo::Impl {
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
 
-    const float feedforward_A =
-        torque_constant_ == 0.0 ?
-        0.0 :
-        (data->feedforward_Nm *
-         motor_.unwrapped_position_scale / torque_constant_);
-
-    const float unlimited_q_A =
+    const float unlimited_torque_Nm =
         pid_position_.Apply(status_.unwrapped_position,
                             status_.control_position,
                             measured_velocity, velocity_command,
                             kRateHz,
                             apply_options) +
-        feedforward_A;
-    const float max_current =
-        torque_constant_ == 0.0 ?
-        kMaxUnconfiguredCurrent :
-        (data->max_torque_Nm * motor_.unwrapped_position_scale /
-         torque_constant_);
-    const float q_A = Limit(unlimited_q_A, -max_current, max_current);
-    MJ_ASSERT(std::abs(q_A) <= max_current);
+        data->feedforward_Nm;
+
+    const float limited_torque_Nm =
+        Limit(unlimited_torque_Nm, -data->max_torque_Nm, data->max_torque_Nm);
+
+    control_.torque_Nm = limited_torque_Nm;
+
+    const float limited_q_A =
+        limited_torque_Nm * motor_.unwrapped_position_scale /
+        torque_constant_;
+
+    const float q_A =
+        is_torque_constant_configured() ?
+        limited_q_A :
+        Limit(limited_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
 
     ISR_DoCurrent(sin_cos, 0.0f, q_A);
   }
