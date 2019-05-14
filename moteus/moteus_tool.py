@@ -88,7 +88,7 @@ async def write_command(stream, line):
     await stream.drain()
 
 
-async def command(stream, line, retry_count=4, retry_timeout=0.3):
+async def command(stream, line, retry_count=4, retry_timeout=0.3, flush=True):
     result = None
     for i in range(retry_count + 1):
         await write_command(stream, line)
@@ -107,10 +107,11 @@ async def command(stream, line, retry_count=4, retry_timeout=0.3):
             retry_count, line))
 
     # Make sure there is nothing left to read.
-    try:
-        _ = await asyncio.wait_for(stream.read(8192), 0.05)
-    except asyncio.TimeoutError:
-        pass
+    if flush:
+        try:
+            _ = await asyncio.wait_for(stream.read(8192), 0.05)
+        except asyncio.TimeoutError:
+            pass
 
     return result
 
@@ -325,7 +326,8 @@ async def _write_flash_file(client, bin_file, start_address):
         this_address = start_address + i
         await command(client, 'w {:x} {}\n'.format(
             this_address, _hexify(this_data)).encode('utf8'),
-                      retry_timeout=10.0)
+                      retry_timeout=10.0,
+                      flush=False)
 
     for i in range(0, len(data), 32):
         if not G_VERBOSE:
