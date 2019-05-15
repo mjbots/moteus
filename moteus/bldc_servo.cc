@@ -303,7 +303,7 @@ class BldcServo::Impl {
            1.0f : -1.0f);
     }
 
-    telemetry_data_ = data;
+    telemetry_data_ = *next;
 
     std::swap(current_data_, next_data_);
   }
