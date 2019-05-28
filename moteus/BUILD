@@ -157,6 +157,9 @@ genrule(
     cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location moteus.elf) $(location moteus.08010000.bin) && " +
            "$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location bootloader.elf) $(location bootloader.0800c000.bin) && " +
            "$(OBJCOPY) -Obinary -j .isr_vector $(location moteus.elf) $(location moteus.08000000.bin)"),
+    toolchains = [
+        "@bazel_tools//tools/cpp:current_cc_toolchain",
+    ],
     output_to_bindir = True,
 )
 
@@ -183,6 +186,9 @@ genrule(
     ],
     cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $< $(location imu_junction.08010000.bin) && " +
            "$(OBJCOPY) -Obinary -j .isr_vector $< $(location imu_junction.08000000.bin)"),
+    toolchains = [
+        "@bazel_tools//tools/cpp:current_cc_toolchain",
+    ],
     output_to_bindir = True,
 )
 
