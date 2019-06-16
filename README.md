@@ -28,6 +28,12 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 # Setup of an individual actuator #
 
+## Initial setup ##
+
+```
+sudo apt install curl python
+```
+
 ## Building and flashing the moteus firmware ##
 
 The flash target works out of the box with a stm32f3discovery based
