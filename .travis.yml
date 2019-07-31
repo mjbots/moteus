@@ -1,0 +1,2 @@
+script: ./travis-ci.sh
+dist: bionic
