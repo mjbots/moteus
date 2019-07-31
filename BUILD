@@ -32,9 +32,3 @@ filegroup(
         "//moteus:bootloader",
     ],
 )
-
-py_runtime(
-    name = "system_python3",
-    files = [],
-    interpreter_path = "/usr/bin/python3",
-)
