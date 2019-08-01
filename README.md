@@ -9,6 +9,8 @@ quadraped robot.
 for moderately high power electronics.  It has not yet burned down my
 (or anyone's that I know of) house, but there are no guarantees.
 
+ * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=master)](https://travis-ci.org/mjbots/moteus)
+
 # LICENSE #
 
 All files contained in this repository, unless otherwise noted, are
