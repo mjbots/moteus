@@ -1,2 +1,3 @@
 script: ./travis-ci.sh
 dist: bionic
+language: cpp

@@ -3,4 +3,4 @@
 set -ev
 
 ./tools/bazel test //:host
-./tools/bazel test --cpu=stm32f4 -c opt //:target
+./tools/bazel build --cpu=stm32f4 -c opt //:target
