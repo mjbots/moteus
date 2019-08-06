@@ -1,3 +1,6 @@
 script: ./travis-ci.sh
 dist: bionic
 language: cpp
+cache:
+   directories:
+    - $HOME/.cache/bazel/
