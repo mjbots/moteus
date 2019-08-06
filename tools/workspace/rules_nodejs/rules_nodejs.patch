@@ -1,0 +1,51 @@
+diff --git a/internal/rollup/package.json b/internal/rollup/package.json
+index 7eaded8..491ae23 100644
+--- a/internal/rollup/package.json
++++ b/internal/rollup/package.json
+@@ -8,6 +8,7 @@
+         "rollup-plugin-commonjs": "^9.2.1",
+         "rollup-plugin-json": "4.0.0",
+         "rollup-plugin-node-resolve": "~4.2.0",
++        "rollup-plugin-node-globals": "1.4.0",
+         "rollup-plugin-sourcemaps": "^0.4.2",
+         "shelljs": "0.8.3",
+         "source-map-explorer": "^1.7.0",
+diff --git a/internal/rollup/rollup.config.js b/internal/rollup/rollup.config.js
+index 720b5f6..4936a6a 100644
+--- a/internal/rollup/rollup.config.js
++++ b/internal/rollup/rollup.config.js
+@@ -6,6 +6,7 @@ const sourcemaps = require('rollup-plugin-sourcemaps');
+ const amd = require('rollup-plugin-amd');
+ const commonjs = require('rollup-plugin-commonjs');
+ const rollupJson = require('rollup-plugin-json');
++const rollupGlobals = require('rollup-plugin-node-globals');
+ const isBuiltinModule = require('is-builtin-module');
+ const path = require('path');
+ const fs = require('fs');
+@@ -167,12 +168,12 @@ const enableCodeSplitting = inputs.length > 1;
+
+ const config = {
+   resolveBazel,
+-  onwarn: (warning) => {
+-    // Always fail on warnings, assuming we don't know which are harmless.
+-    // We can add exclusions here based on warning.code, if we discover some
+-    // types of warning should always be ignored under bazel.
+-    throw new Error(warning.message);
+-  },
++  // onwarn: (warning) => {
++  //   // Always fail on warnings, assuming we don't know which are harmless.
++  //   // We can add exclusions here based on warning.code, if we discover some
++  //   // types of warning should always be ignored under bazel.
++  //   throw new Error(warning.message);
++  // },
+   plugins: [TMPL_additional_plugins].concat([
+     {
+       name: 'resolveBazel',
+@@ -195,6 +196,7 @@ const config = {
+       resolveId: notResolved,
+     },
+     sourcemaps(),
++    rollupGlobals(),
+     rollupJson({
+       preferConst: true
+     })

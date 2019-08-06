@@ -22,4 +22,6 @@ def rules_nodejs_repository():
         repo = "bazelbuild/rules_nodejs",
         commit = "7df4228602cf4216515c052532206dc5461e372e",
         sha256 = "d598a5e1b2f3ade81535ab0ac966dcc42f48ccccfddf67a81d59160f1cc6f09b",
+        patches = ["@com_github_mjbots_moteus//tools/workspace/rules_nodejs:rules_nodejs.patch"],
+        patch_args = ["-p1"],
     )
