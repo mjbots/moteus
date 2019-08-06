@@ -4,6 +4,7 @@
   "devDependencies": {
     "@bazel/jasmine": "0.35.0",
     "@bazel/typescript": "0.35.0",
+    "@types/jasmine": "3.3.16",
     "typescript": "=3.5.3"
   },
   "engine": {
