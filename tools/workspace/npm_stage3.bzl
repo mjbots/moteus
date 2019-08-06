@@ -14,23 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+load("@npm_bazel_typescript//:index.bzl", "ts_setup_workspace")
 
-test_suite(
-    name = "host",
-    tests = [
-        "//mjlib:host",
-        "//moteus:host",
-    ],
-)
-
-filegroup(
-    name = "target",
-    srcs = [
-        "//moteus:moteus",
-        "//moteus:imu_junction",
-        "//moteus:bootloader",
-    ],
-)
-
-exports_files(["tsconfig.json"])
+def setup_npm_stage3():
+    ts_setup_workspace()

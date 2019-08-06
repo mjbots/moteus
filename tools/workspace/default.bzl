@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,10 +15,16 @@
 # limitations under the License.
 
 load("//tools/workspace/bazel_deps:repository.bzl", "bazel_deps_repository")
+load("//tools/workspace/bazel:repository.bzl", "bazel_repository")
 load("//tools/workspace/rules_mbed:repository.bzl", "rules_mbed_repository")
+load("//tools/workspace/rules_nodejs:repository.bzl", "rules_nodejs_repository")
 
 def add_default_repositories(excludes = []):
     if "com_github_mjbots_rules_bazel" not in excludes:
         rules_mbed_repository()
+    if "bazel" not in excludes:
+        bazel_repository()
     if "bazel_deps" not in excludes:
         bazel_deps_repository(name = "com_github_mjbots_bazel_deps")
+    if "build_bazel_rules_nodejs" not in excludes:
+        rules_nodejs_repository()

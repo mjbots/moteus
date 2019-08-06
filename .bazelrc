@@ -1,3 +1,7 @@
+build --experimental_allow_incremental_repository_updates
+query --experimental_allow_incremental_repository_updates
+test --experimental_allow_incremental_repository_updates
+
 build --compiler=compiler
 test --compiler=compiler
 

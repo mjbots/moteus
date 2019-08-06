@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-workspace(name = "com_github_mjbots_moteus")
+workspace(name = "com_github_mjbots_moteus",
+          managed_directories = {
+              "@npm": ["node_modules"],
+          })
 
 BAZEL_VERSION = "0.28.1"
 BAZEL_VERSION_SHA = "daa27fbf9213b3dbc8509a8481f7d99cce6815cf54c50d5d3af5ec2b4c41d31f"
@@ -23,6 +26,18 @@ load("//tools/workspace:default.bzl", "add_default_repositories")
 
 add_default_repositories()
 
+# Do the Javascript part of our initialization.
+load("//tools/workspace:npm_stage1.bzl", "setup_npm_stage1")
+setup_npm_stage1()
+
+load("//tools/workspace:npm_stage2.bzl", "setup_npm_stage2")
+setup_npm_stage2()
+
+load("//tools/workspace:npm_stage3.bzl", "setup_npm_stage3")
+setup_npm_stage3()
+
+
+# Now rules_mbed
 load("@com_github_mjbots_rules_mbed//:rules.bzl", mbed_register = "mbed_register")
 load("@com_github_mjbots_rules_mbed//tools/workspace/mbed:repository.bzl", "mbed_repository")
 
@@ -56,6 +71,8 @@ mbed_repository(
     }
 )
 
+
+# And finally, bazel_deps
 load("@com_github_mjbots_bazel_deps//tools/workspace:default.bzl",
      bazel_deps_add = "add_default_repositories")
 bazel_deps_add()

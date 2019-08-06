@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@bazel/jasmine": "0.35.0",
+    "@bazel/typescript": "0.35.0",
+    "typescript": "=3.5.3"
+  },
+  "engine": {
+    "node": "=10.16.0"
+  }
+}

@@ -14,23 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+load("//tools/workspace:github_archive.bzl", "github_archive")
 
-test_suite(
-    name = "host",
-    tests = [
-        "//mjlib:host",
-        "//moteus:host",
-    ],
-)
-
-filegroup(
-    name = "target",
-    srcs = [
-        "//moteus:moteus",
-        "//moteus:imu_junction",
-        "//moteus:bootloader",
-    ],
-)
-
-exports_files(["tsconfig.json"])
+def rules_nodejs_repository():
+    github_archive(
+        name = "build_bazel_rules_nodejs",
+        repo = "bazelbuild/rules_nodejs",
+        commit = "7df4228602cf4216515c052532206dc5461e372e",
+        sha256 = "d598a5e1b2f3ade81535ab0ac966dcc42f48ccccfddf67a81d59160f1cc6f09b",
+    )

@@ -14,23 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+load("@npm//:install_bazel_dependencies.bzl", "install_bazel_dependencies")
 
-test_suite(
-    name = "host",
-    tests = [
-        "//mjlib:host",
-        "//moteus:host",
-    ],
-)
-
-filegroup(
-    name = "target",
-    srcs = [
-        "//moteus:moteus",
-        "//moteus:imu_junction",
-        "//moteus:bootloader",
-    ],
-)
-
-exports_files(["tsconfig.json"])
+def setup_npm_stage2():
+    install_bazel_dependencies()

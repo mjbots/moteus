@@ -9,3 +9,6 @@ fw/BUILD/
 fw/.mbedignore
 
 /bazel-*
+
+/node_modules/
+/yarn.lock

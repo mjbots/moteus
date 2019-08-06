@@ -14,23 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+load("//tools/workspace:github_archive.bzl", "github_archive")
 
-test_suite(
-    name = "host",
-    tests = [
-        "//mjlib:host",
-        "//moteus:host",
-    ],
-)
-
-filegroup(
-    name = "target",
-    srcs = [
-        "//moteus:moteus",
-        "//moteus:imu_junction",
-        "//moteus:bootloader",
-    ],
-)
-
-exports_files(["tsconfig.json"])
+def bazel_repository():
+    github_archive(
+        name = "bazel_skylib",
+        repo = "bazelbuild/bazel-skylib",
+        commit = "d2cf1cc2bcd1e879743faf5216c4887b994705af",
+        sha256 = "4f5657797eb215b4281a05eee830b22289d2ef7571ad8ace6c8da4db76f47b7e",
+    )
