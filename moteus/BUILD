@@ -33,6 +33,20 @@ cc_library(
     ],
 )
 
+bootloader_mbed_binary(
+    name = "imu_junction_dumb",
+    srcs = [
+        "imu_junction_dumb.cc",
+        "imu_junction_hw.h",
+        "millisecond_timer.h",
+        "stm32_serial.cc",
+        "stm32_serial.h",
+    ],
+    deps = [
+        "//mjlib/base:assert",
+    ],
+)
+
 mbed_binary(
     name = "imu_junction",
     srcs = [
@@ -175,6 +189,14 @@ genrule(
     srcs = ["moteus.08000000.bin", "moteus.08010000.bin", "bootloader.0800c000.bin"],
     outs = ["flash.stamp"],
     cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location bootloader.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+)
+
+genrule(
+    name = "imu_junction_dumb_flash",
+    tags = ["manual"],
+    srcs = ["imu_junction_dumb.bin"],
+    outs = ["imu_junction_dumb.stamp"],
+    cmd = (OCD + "-c init -c \"reset_config none separate; program $(location imu_junction_dumb.bin) verify 0x8000000 reset exit 0x8000000\" && touch $@"),
 )
 
 genrule(
