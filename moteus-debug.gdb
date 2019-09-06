@@ -1,2 +1,2 @@
 dir bazel-moteus
-target remote localhost:3333
+target extended-remote localhost:3333
