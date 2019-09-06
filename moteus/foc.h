@@ -23,10 +23,8 @@ namespace moteus {
 
 // A helper to cache the result of sin and cos on a given quantity.
 struct SinCos {
+  // @p theta must be >= 0.0 and <= 2 * pi
   SinCos(float theta) {
-    while (theta < 0.0f) { theta += k2Pi; }
-    while (theta >= k2Pi) { theta -= k2Pi; }
-
     int sin_index = std::max(0, std::min(511, static_cast<int>((512.0f / k2Pi) * theta)));
     int cos_index = ((128 - sin_index) + 512) % 512;
 

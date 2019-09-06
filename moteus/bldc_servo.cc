@@ -169,11 +169,6 @@ uint32_t FindSqr(PinName pin) {
   return channel;
 }
 
-float WrapZeroToTwoPi(float x) {
-  const float mod = ::fmodf(x, k2Pi);
-  return (mod >= 0.0f) ? mod : (mod + k2Pi);
-}
-
 volatile uint32_t* const g_adc1_cr2 = &ADC1->CR2;
 volatile uint32_t* const g_control_timer_sr = &TIM3->SR;
 
@@ -231,6 +226,7 @@ class BldcServo::Impl {
         tsense_(options.tsense),
         tsense_sqr_(FindSqr(options.tsense)),
         debug_out_(options.debug_out),
+        debug_out2_(options.debug_out2),
         debug_serial_([&]() {
             Stm32Serial::Options d_options;
             d_options.tx = options.debug_uart_out;
@@ -249,6 +245,8 @@ class BldcServo::Impl {
     telemetry_manager->Register("servo_stats", &status_);
     telemetry_manager->Register("servo_cmd", &telemetry_data_);
     telemetry_manager->Register("servo_control", &control_);
+
+    UpdateConfig();
 
     MJ_ASSERT(!g_impl_);
     g_impl_ = this;
@@ -326,6 +324,11 @@ class BldcServo::Impl {
         is_torque_constant_configured() ?
         motor_.v_per_hz / (2.0f * kPi) * kPi :
         kDefaultTorqueConstant;
+
+    position_constant_ =
+        k2Pi / 65536.0f * motor_.poles / 2.0f;
+
+    adc_scale_ = 3.3f / (4096.0f * MOTEUS_CURRENT_SENSE_OHM * config_.i_gain);
   }
 
   void PollMillisecond() {
@@ -508,10 +511,14 @@ class BldcServo::Impl {
     SinCos sin_cos{status_.electrical_theta};
 
     ISR_CalculateCurrentState(sin_cos);
+
     ISR_DoControl(sin_cos);
+    debug_out2_ = 0;
 
     ISR_MaybeEmitDebug();
     clock_++;
+
+    debug_out_ = 0;
   }
 
   void ISR_DoSense() __attribute__((always_inline)) {
@@ -523,8 +530,6 @@ class BldcServo::Impl {
     // at 40kHz.  But time spent until now actually limits the
     // maximum duty cycle we can achieve, whereas time spent below
     // just eats cycles the rest of the code could be using.
-
-    debug_out_ = 0;
 
     // Check to see if any motor outputs are now high.  If so, fault,
     // because we have exceeded the maximum duty cycle we can achieve
@@ -590,8 +595,7 @@ class BldcServo::Impl {
 
     status_.electrical_theta =
         WrapZeroToTwoPi(
-            k2Pi * (static_cast<float>(status_.position) / 65536.0f *
-                    (motor_.poles / 2.0f)) +
+            position_constant_ * (static_cast<float>(status_.position)) +
             motor_.offset[offset_index]);
 
     const int16_t delta_position =
@@ -629,6 +633,7 @@ class BldcServo::Impl {
   }
 
   void ISR_MaybeEmitDebug() {
+    if (!config_.enable_debug) { return; }
     if (debug_uart_ == nullptr) { return; }
 
     debug_buf_[0] = 0x5a;
@@ -656,11 +661,10 @@ class BldcServo::Impl {
 
   // This is called from the ISR.
   void ISR_CalculateCurrentState(const SinCos& sin_cos) {
-    const float adc_scale =
-        3.3f / (4096.0f * MOTEUS_CURRENT_SENSE_OHM * config_.i_gain);
-    status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * adc_scale;
-    status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale;
+    status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * adc_scale_;
+    status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale_;
     status_.bus_V = status_.adc3_raw * config_.v_scale_V;
+
     if (!std::isfinite(status_.filt_bus_V)) {
       status_.filt_bus_V = status_.bus_V;
     } else {
@@ -782,8 +786,8 @@ class BldcServo::Impl {
     }();
 
     if (!current_pid_active) {
-      status_.pid_d = {};
-      status_.pid_q = {};
+      status_.pid_d.Clear();
+      status_.pid_q.Clear();
 
       // We always want to start from 0 current when initiating
       // current control of some form.
@@ -811,7 +815,7 @@ class BldcServo::Impl {
     }();
 
     if (!position_pid_active) {
-      status_.pid_position = {};
+      status_.pid_position.Clear();
       status_.control_position = std::numeric_limits<float>::quiet_NaN();
     }
   }
@@ -821,7 +825,7 @@ class BldcServo::Impl {
     // the pointer for the rest of the routine.
     CommandData* data = current_data_;
 
-    control_ = {};
+    control_.Clear();
 
     if (data->set_position) {
       status_.unwrapped_position_raw =
@@ -904,8 +908,11 @@ class BldcServo::Impl {
   }
 
   void ISR_DoStopped() {
+    debug_out2_ = 1;
     motor_driver_->Enable(false);
+    debug_out2_ = 0;
     motor_driver_->Power(false);
+    debug_out2_ = 1;
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
@@ -974,7 +981,7 @@ class BldcServo::Impl {
 
   void ISR_DoVoltageFOC(float theta, float voltage) {
     float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
-    SinCos sc(theta);
+    SinCos sc(WrapZeroToTwoPi(theta));
     InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
@@ -1142,6 +1149,7 @@ class BldcServo::Impl {
 
   // This is just for debugging.
   DigitalOut debug_out_;
+  DigitalOut debug_out2_;
 
   CommandData data_buffers_[2] = {};
 
@@ -1156,7 +1164,7 @@ class BldcServo::Impl {
   CommandData telemetry_data_;
 
   // These values should only be modified from within the ISR.
-  mjlib::base::WindowedAverage<int16_t, 128> velocity_filter_;
+  mjlib::base::WindowedAverage<int16_t, 128, int32_t> velocity_filter_;
   Status status_;
   Control control_;
   uint32_t calibrate_adc1_ = 0;
@@ -1176,6 +1184,8 @@ class BldcServo::Impl {
   std::atomic<uint32_t> startup_count_{0};
 
   float torque_constant_ = 0.01f;
+  float position_constant_ = 0.0f;
+  float adc_scale_ = 0.0f;
 
   static Impl* g_impl_;
 };

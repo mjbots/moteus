@@ -289,6 +289,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.tsense = MOTEUS_TSENSE;
 
             options.debug_out = PB_8;
+            options.debug_out2 = PB_9;
             options.debug_uart_out = PC_10;
 
             return options;

@@ -49,8 +49,10 @@ class BldcServo {
     PinName tsense = NC;  // Must be sampled from ADC3
 
     PinName debug_out = NC;
+    PinName debug_out2 = NC;
 
-    // If set, a constant telemetry stream will be emitted at 40kHz.
+    // If set, a constant telemetry stream will be emitted at the
+    // control rate.
     PinName debug_uart_out = NC;
   };
 
@@ -124,6 +126,10 @@ class BldcServo {
     mjlib::base::PID::Config pid_dq;
     mjlib::base::PID::Config pid_position;
 
+    // Emit the full control rate debug stream.  Enabling this uses
+    // about 1.6us extra in the ISR.
+    bool enable_debug = false;
+
     Config() {
       pid_dq.kp = 0.1f;
       pid_dq.ki = 30.0f;
@@ -150,6 +156,7 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_cycles));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
+      a->Visit(MJ_NVP(enable_debug));
     }
   };
 
@@ -317,6 +324,25 @@ class BldcServo {
     float i_q_A = 0.0f;
 
     float torque_Nm = 0.0f;
+
+    void Clear() {
+      // We implement this manually merely because it is faster than
+      // using the constructor which delegates to memset.  It is
+      // definitely more brittle.
+      pwm.a = 0.0f;
+      pwm.b = 0.0f;
+      pwm.c = 0.0f;
+
+      voltage.a = 0.0f;
+      voltage.b = 0.0f;
+      voltage.c = 0.0f;
+
+      d_V = 0.0f;
+      q_V = 0.0f;
+      i_d_A = 0.0f;
+      i_q_A = 0.0f;
+      torque_Nm = 0.0f;
+    }
 
     template <typename Archive>
     void Serialize(Archive* a) {

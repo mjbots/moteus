@@ -56,8 +56,8 @@ class Drv8323::Impl {
   }
 
   void Enable(bool value) {
-    const bool old_enable = enable_.read() != 0;
-    enable_ = value ? 1 : 0;
+    const bool old_enable = enable_cache_ != 0;
+    enable_ = enable_cache_ = value ? 1 : 0;
 
     if (value) {
       if (!old_enable) {
@@ -101,9 +101,9 @@ class Drv8323::Impl {
 
     s.fault_line = fault_.read() == 0;
     s.power = (hiz_.read() != 0);
-    s.enabled = (enable_.read() != 0);
+    s.enabled = (enable_cache_ != 0);
 
-    if (enable_.read() == 0) {
+    if (enable_cache_ == 0) {
       // If we are not enabled, then we can not communicate over SPI.
       return;
     }
@@ -281,6 +281,7 @@ class Drv8323::Impl {
   SPI spi_;
   DigitalOut cs_;
   DigitalOut enable_;
+  int32_t enable_cache_ = false;
   DigitalOut hiz_;
   DigitalIn fault_;
 

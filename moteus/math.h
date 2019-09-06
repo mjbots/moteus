@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 namespace moteus {
 
 constexpr float k2Pi = 6.283185307179586f;
@@ -22,5 +24,16 @@ constexpr float kSqrt3_4 = 0.86602540378f;
 constexpr float kSqrt6 = 2.449489742783178f;
 constexpr float kSqrt3 = 1.7320508075688772f;
 constexpr float kSqrt2 = 1.4142135623730951f;
+
+inline float WrapZeroToTwoPi(float x) {
+  // We would use fmodf, but we're trying to be fast here and don't
+  // care too much about accuracy.
+
+  // const float mod = ::fmodf(x, k2Pi);
+
+  const int32_t divisor = static_cast<int>(x / k2Pi);
+  const float mod = x - divisor * k2Pi;
+  return (mod >= 0.0f) ? mod : (mod + k2Pi);
+}
 
 }
