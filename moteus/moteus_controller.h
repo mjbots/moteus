@@ -20,6 +20,7 @@
 #include "moteus/as5047.h"
 #include "moteus/bldc_servo.h"
 #include "moteus/drv8323.h"
+#include "moteus/firmware_info.h"
 #include "moteus/millisecond_timer.h"
 
 namespace moteus {
@@ -31,7 +32,8 @@ class MoteusController {
   MoteusController(mjlib::micro::Pool*,
                    mjlib::micro::PersistentConfig* config,
                    mjlib::micro::TelemetryManager* telemetry_manager,
-                   MillisecondTimer*);
+                   MillisecondTimer*,
+                   FirmwareInfo*);
   ~MoteusController();
 
   void Start();

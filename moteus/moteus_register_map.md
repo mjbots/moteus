@@ -126,17 +126,12 @@ int8 - 1 LSB - 0.1 Hz / 36 dps
 int16 - 1 LSB - 0.001 Hz / 0.36 dps
 int32 - 1 LSB - 0.00001 Hz / 0.0036 dps
 
-### 0x003 - Temperature ###
+### 0x003 - Torque ###
 
 Types: int8, int16, int32, float
 Mode: Read only
 
-The current board temperature, measured in degrees celsius.  For
-integral types, the following mapping is used.
-
-int8 - 1 LSB -> 1C
-int16 - 1 LSB -> 0.01C
-int32 - 1 LSB -> 0.001C
+The current applied torque as measured after any gearbox.
 
 ### 0x004 - Measured Q phase current ###
 
@@ -152,19 +147,19 @@ Mode: Read only
 
 The current in the D phase measured in amps.
 
-### 0x006 - Voltage ###
+### 0x00d - Voltage ###
 
 Types: int8, int16, int32, float
 Mode: Read only
 
 The current input voltage.
 
-### 0x007 - Torque ###
+### 0x00e - Temperature ###
 
 Types: int8, int16, int32, float
 Mode: Read only
 
-The current applied torque as measured after any gearbox.
+The current board temperature, measured in degrees celsius.
 
 ### 0x00f - Fault code ###
 
@@ -244,24 +239,7 @@ As a special case, if the 0x020 position is unset, and 0x023 stop
 position is set, the sign of this is ignored and is instead selected
 so that the motor will move towards the stop position.
 
-### 0x022 - Position maximum torque ###
-
-Type: int8, int16, int32, float
-Mode: Read/write
-
-When in kPosition mode, the maximum torque to be applied.  Defaults to
-0.1 Nm.  Note, this is the torque after any gearboxes.
-
-### 0x023 - Commanded stop position ###
-
-Type: int8, int16, int32, float
-Mode: Read/write
-
-When in kPosition mode, and a non-zero velocity is commanded, stop
-motion when reaching the given position.  NaN / maximal negative mean
-no limit is applied.
-
-### 0x024 - Feedforward torque ###
+### 0x022 - Feedforward torque ###
 
 Type: int8, int16, int32, float
 Mode: Read/write
@@ -270,7 +248,7 @@ When in kPosition mode, add the given feedforward torque after
 applying all regular control loops.  Note, this is the torque after
 any gearboxes.
 
-### 0x025 - Commanded kp scale ###
+### 0x023 - Commanded kp scale ###
 
 Type: int8, int16, int32, float
 Mode: Read/write
@@ -278,7 +256,7 @@ Mode: Read/write
 When in kPosition mode, shrink the proportional control term by the
 given factor.  integral types are applied as for PWM.
 
-### 0x026 - Commanded kd scale ###
+### 0x024 - Commanded kd scale ###
 
 Type: int8, int16, int32, float
 Mode: Read/write
@@ -286,6 +264,25 @@ Mode: Read/write
 When in kPosition mode, shrink the derivative control term by the
 given factor.  integral types are applied as for PWM.  This is
 internally limited to be no more than the kp scale in effect.
+
+
+### 0x025 - Position maximum torque ###
+
+Type: int8, int16, int32, float
+Mode: Read/write
+
+When in kPosition mode, the maximum torque to be applied.  Defaults to
+0.1 Nm.  Note, this is the torque after any gearboxes.
+
+### 0x026 - Commanded stop position ###
+
+Type: int8, int16, int32, float
+Mode: Read/write
+
+When in kPosition mode, and a non-zero velocity is commanded, stop
+motion when reaching the given position.  NaN / maximal negative mean
+no limit is applied.
+
 
 ### 0x030 / 0x031 / 0x032 - Force X / Y / Z ###
 
@@ -368,23 +365,13 @@ manner as for the proportional gain.
 
 ### 0x100 - Model Number ###
 
-Register: 0x101
 Name: Model Number
 Types: int32_t
 Mode: Read only
 
 This returns a 32 bit model number.
 
-### 0x101 - Serial Number ###
-
-Register: 0x102
-Name: Serial Number
-Types: int32_t
-Mode: Read only
-
-This returns a 32 bit serial number.
-
-### 0x102 - Firmware Version ###
+### 0x101 - Firmware Version ###
 
 Types: int32
 Mode: Read only
@@ -393,7 +380,7 @@ This returns a 32 bit firmware version, encoded bytewise as
 major.minor.micro.  i.e. 0x010304 is version 1.3.4
 
 
-### 0x103 - Register map version ###
+### 0x102 - Register map version ###
 
 Types: int32
 Mode: Read only
@@ -403,7 +390,6 @@ This returns a number that indicates how to interpret all registers.
 
 ### 0x110 - Multiplex ID ###
 
-Register: 0x104
 Name: Multiplex ID
 Types: int8, int16, int32
 Mode: Configurable
@@ -411,3 +397,11 @@ Mode: Configurable
 This controls the primary ID used to access the device over the
 multiplex RS485 bus.  It can only be between 1 and 127.  (0 is
 reserved as the broadcast address).
+
+### 0x120 - 0x122 - Serial Number ###
+
+Name: Serial Number
+Types: int32_t
+Mode: Read only
+
+This returns a 96 bit serial number, least significant word first.

@@ -26,6 +26,7 @@
 #include "mjlib/multiplex/micro_server.h"
 
 #include "moteus/board_debug.h"
+#include "moteus/firmware_info.h"
 #include "moteus/millisecond_timer.h"
 #include "moteus/moteus_controller.h"
 #include "moteus/moteus_hw.h"
@@ -78,9 +79,10 @@ int main(void) {
   micro::PersistentConfig persistent_config(pool, command_manager, flash_interface);
 
   SystemInfo system_info(pool, telemetry_manager);
+  FirmwareInfo firmware_info(pool, telemetry_manager, MOTEUS_FIRMWARE_VERSION);
 
   MoteusController moteus_controller(
-      &pool, &persistent_config, &telemetry_manager, &timer);
+      &pool, &persistent_config, &telemetry_manager, &timer, &firmware_info);
 
   BoardDebug board_debug(
       &pool, &command_manager, &telemetry_manager, &multiplex_protocol,

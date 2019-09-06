@@ -171,11 +171,12 @@ enum class Register {
   kMode = 0x000,
   kPosition = 0x001,
   kVelocity = 0x002,
-  kTemperature = 0x003,
+  kTorque = 0x003,
   kQCurrent = 0x004,
   kDCurrent = 0x005,
-  kVoltage = 0x006,
-  kTorque = 0x007,
+
+  kVoltage = 0x00d,
+  kTemperature = 0x00e,
   kFault = 0x00f,
 
   kPwmPhaseA = 0x010,
@@ -194,11 +195,11 @@ enum class Register {
 
   kCommandPosition = 0x020,
   kCommandVelocity = 0x021,
-  kCommandPositionMaxTorque = 0x022,
-  kCommandStopPosition = 0x023,
-  kCommandFeedforwardTorque = 0x024,
-  kCommandKpScale = 0x025,
-  kCommandKdScale = 0x026,
+  kCommandFeedforwardTorque = 0x022,
+  kCommandKpScale = 0x023,
+  kCommandKdScale = 0x024,
+  kCommandPositionMaxTorque = 0x025,
+  kCommandStopPosition = 0x026,
 
   // kCommand3dForceX = 0x030,
   // kCommand3dForceY = 0x031,
@@ -240,9 +241,13 @@ enum class Register {
   // kCommand3dKdScale02 = 0x05b,
 
   kModelNumber = 0x100,
-  kSerialNumber = 0x101,
-  kRegisterMapVersion = 0x103,
-  kMultiplexId = 0x104,
+  kFirmwareVersion = 0x101,
+  kRegisterMapVersion = 0x102,
+  kMultiplexId = 0x110,
+
+  kSerialNumber1 = 0x120,
+  kSerialNumber2 = 0x121,
+  kSerialNumber3 = 0x122,
 };
 }
 
@@ -251,7 +256,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   Impl(micro::Pool* pool,
        micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
-       MillisecondTimer* timer)
+       MillisecondTimer* timer,
+       FirmwareInfo* firmware)
       : as5047_([]() {
           AS5047::Options options;
           options.mosi = PB_15;
@@ -286,7 +292,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.debug_uart_out = PC_10;
 
             return options;
-          }()) {}
+          }()),
+        firmware_(firmware) {}
 
   void Start() {
     bldc_.Start();
@@ -400,8 +407,11 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kTorque:
       case Register::kFault:
       case Register::kModelNumber:
-      case Register::kSerialNumber:
+      case Register::kSerialNumber1:
+      case Register::kSerialNumber2:
+      case Register::kSerialNumber3:
       case Register::kRegisterMapVersion:
+      case Register::kFirmwareVersion:
       case Register::kMultiplexId: {
         // Not writeable
         return 2;
@@ -415,6 +425,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   multiplex::MicroServer::ReadResult Read(
       multiplex::MicroServer::Register reg,
       size_t type) const override {
+    auto vi32 = [](auto v) { return Value(static_cast<int32_t>(v)); };
+
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
         return IntMapping(static_cast<int8_t>(bldc_.status().mode), type);
@@ -497,13 +509,31 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
 
       case Register::kModelNumber: {
-        if (type == 2) {
-          return Value(static_cast<int32_t>(MOTEUS_MODEL_NUMBER));
-        }
-        break;
+        if (type != 2) { break; }
+
+        return Value(vi32(MOTEUS_MODEL_NUMBER));
       }
-      case Register::kSerialNumber:
-      case Register::kRegisterMapVersion:
+      case Register::kFirmwareVersion: {
+        if (type != 2) { break; }
+
+        return Value(vi32(firmware_->firmware_version()));
+      }
+      case Register::kRegisterMapVersion: {
+        if (type != 2) { break; }
+
+        return Value(vi32(2));
+      }
+      case Register::kSerialNumber1:
+      case Register::kSerialNumber2:
+      case Register::kSerialNumber3: {
+        if (type != 2) { break; }
+
+        const auto serial_number = firmware_->serial_number();
+        const auto index =
+            static_cast<int>(reg) -
+            static_cast<int>(Register::kSerialNumber1);
+        return Value(vi32(serial_number.number[index]));
+      }
       case Register::kMultiplexId: {
         break;
       }
@@ -516,6 +546,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   AS5047 as5047_;
   Drv8323 drv8323_;
   BldcServo bldc_;
+  FirmwareInfo* const firmware_;
 
   bool command_valid_ = false;
   BldcServo::CommandData command_;
@@ -524,8 +555,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 MoteusController::MoteusController(micro::Pool* pool,
                                    micro::PersistentConfig* persistent_config,
                                    micro::TelemetryManager* telemetry_manager,
-                                   MillisecondTimer* timer)
-    : impl_(pool, pool, persistent_config, telemetry_manager, timer) {}
+                                   MillisecondTimer* timer,
+                                   FirmwareInfo* firmware)
+    : impl_(pool, pool, persistent_config, telemetry_manager,
+            timer, firmware) {}
 
 MoteusController::~MoteusController() {}
 
