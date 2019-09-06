@@ -322,9 +322,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         }
         command_valid_ = true;
         const auto new_mode = static_cast<BldcServo::Mode>(new_mode_int);
-        if (new_mode != command_.mode) {
-          command_ = {};
-        }
+        command_ = {};
         command_.mode = new_mode;
         return 0;
       }
