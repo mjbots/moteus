@@ -19,6 +19,8 @@
 #include "mbed.h"
 #include "pinmap.h"
 
+#include "mjlib/base/inplace_function.h"
+
 namespace micro = mjlib::micro;
 
 namespace moteus {
@@ -287,7 +289,7 @@ class Drv8323::Impl {
 
   uint16_t loop_count_ = 0;
 
-  micro::StaticFunction<void()> status_update_;
+  mjlib::base::inplace_function<void()> status_update_;
 };
 
 Drv8323::Drv8323(micro::Pool* pool,

@@ -45,7 +45,7 @@ IrqCallbackTable::IrqFunction g_handlers[] = {
   g_handle9,
 };
 
-std::array<mjlib::micro::StaticFunction<void()>, 10> g_callbacks;
+std::array<mjlib::base::inplace_function<void()>, 10> g_callbacks;
 
 void g_handle(int slot) {
   g_callbacks[slot]();
@@ -64,11 +64,11 @@ IrqCallbackTable::Callback::~Callback() {
 }
 
 IrqCallbackTable::Callback IrqCallbackTable::MakeFunction(
-    mjlib::micro::StaticFunction<void()> callback) {
+    mjlib::base::inplace_function<void()> callback) {
   // Find an empty entry in the callback list.
   for (size_t i = 0; i < g_callbacks.size(); i++) {
     auto& entry = g_callbacks[i];
-    if (!entry.valid()) {
+    if (!entry) {
       entry = callback;
       return g_handlers[i];
     }

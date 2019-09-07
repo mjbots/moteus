@@ -16,9 +16,9 @@
 
 #include "mbed.h"
 
+#include "mjlib/base/inplace_function.h"
 #include "mjlib/base/visitor.h"
 
-#include "mjlib/micro/static_function.h"
 #include "mjlib/micro/telemetry_manager.h"
 
 namespace moteus {
@@ -71,7 +71,7 @@ class SystemInfo::Impl {
   uint8_t ms_count_ = 0;
   uint32_t last_idle_count_ = 0;
   SystemInfoData data_;
-  mjlib::micro::StaticFunction<void ()> data_updater_;
+  mjlib::base::inplace_function<void ()> data_updater_;
 };
 
 SystemInfo::SystemInfo(mjlib::micro::Pool& pool,

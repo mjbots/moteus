@@ -857,12 +857,16 @@ class BldcServo::Impl {
       }
     }
 
+    debug_out2_ = 1;
+
     // Ensure unused PID controllers have zerod state.
     ISR_ClearPid();
 
     if (status_.mode != kFault) {
       status_.fault = errc::kSuccess;
     }
+
+    debug_out2_ = 0;
 
     switch (status_.mode) {
       case kNumModes:
@@ -987,6 +991,8 @@ class BldcServo::Impl {
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A_in) {
+    debug_out2_ = 1;
+
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
@@ -1029,6 +1035,9 @@ class BldcServo::Impl {
     control_.d_V =
         (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
         pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
+
+    debug_out2_ = 0;
+
     control_.q_V =
         (config_.feedforward_scale * (
             i_q_A * motor_.resistance_ohm -
@@ -1036,12 +1045,15 @@ class BldcServo::Impl {
             motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
+    debug_out2_ = 1;
+
     float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
     auto limit_v = [&](float in) {
       return Limit(in, -max_voltage, max_voltage);
     };
     InverseDqTransform idt(sin_cos, limit_v(control_.d_V), limit_v(control_.q_V));
 
+    debug_out2_ = 0;
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 

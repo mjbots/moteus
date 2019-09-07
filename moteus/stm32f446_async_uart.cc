@@ -191,7 +191,7 @@ class Stm32F446AsyncUart::Impl {
 
   void AsyncReadSome(const base::string_span& data,
                      const micro::SizeCallback& callback) {
-    MJ_ASSERT(!current_read_callback_.valid());
+    MJ_ASSERT(!current_read_callback_);
 
     // All this does is set our buffer and callback.  We're always
     // reading, and that process will just look to see if we have a
@@ -205,7 +205,7 @@ class Stm32F446AsyncUart::Impl {
 
   void AsyncWriteSome(const string_view& data,
                       const micro::SizeCallback& callback) {
-    MJ_ASSERT(!current_write_callback_.valid());
+    MJ_ASSERT(!current_write_callback_);
 
     if (dir_.is_connected()) {
       dir_.write(1);
@@ -276,7 +276,7 @@ class Stm32F446AsyncUart::Impl {
     // The copy could be invalid if we got an unexpected interrupt,
     // but there is no real reason to abort in that case, so just only
     // call it if is valid.
-    if (copy.valid()) {
+    if (!!copy) {
       copy(error_code, amount_sent);
     }
   }
@@ -387,7 +387,7 @@ class Stm32F446AsyncUart::Impl {
       rx_buffer_[rx_buffer_pos_] = 0xffff;
     }
 
-    MJ_ASSERT(current_read_callback_.valid());
+    MJ_ASSERT(!!current_read_callback_);
     {
       // Right now, we mark that we no longer want to get any more
       // data on this callback.

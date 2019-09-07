@@ -19,6 +19,7 @@
 
 #include "mbed.h"
 
+#include "mjlib/base/inplace_function.h"
 #include "mjlib/base/tokenizer.h"
 #include "mjlib/base/visitor.h"
 
@@ -37,7 +38,7 @@ constexpr float kPi = 3.14159265359f;
 constexpr float kCalibrationStep = 0.002;
 
 namespace {
-void recurse(int count, micro::StaticFunction<void(int)> callback) {
+void recurse(int count, base::inplace_function<void(int)> callback) {
   callback(count - 1);
 }
 }
@@ -390,7 +391,7 @@ class BoardDebug::Impl {
   };
 
   Data data_;
-  micro::StaticFunction<void()> data_update_;
+  base::inplace_function<void()> data_update_;
 
   DigitalOut led1_{DEBUG_LED1, 1};
   DigitalOut led2_{DEBUG_LED2, 1};

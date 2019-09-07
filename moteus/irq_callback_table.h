@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "mjlib/micro/static_function.h"
+#include "mjlib/base/inplace_function.h"
 
 namespace moteus {
 
@@ -50,7 +50,7 @@ class IrqCallbackTable {
   /// Given an arbitrary callback, return a function pointer suitable
   /// for use as an interrupt handler.  When invoked, the given
   /// callback will be called.
-  static Callback MakeFunction(mjlib::micro::StaticFunction<void()> callback);
+  static Callback MakeFunction(mjlib::base::inplace_function<void()> callback);
 };
 
 }

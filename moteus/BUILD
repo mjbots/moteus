@@ -29,7 +29,7 @@ cc_library(
         "foc.cc",
     ],
     deps = [
-        "//mjlib/micro:static_function",
+        "//mjlib/base:inplace_function",
     ],
 )
 
@@ -81,7 +81,6 @@ mbed_binary(
         "//mjlib/micro:error_code",
         "//mjlib/micro:persistent_config",
         "//mjlib/micro:pool_ptr",
-        "//mjlib/micro:static_function",
         "//mjlib/micro:telemetry_manager",
         "//mjlib/multiplex:micro_server",
     ],
@@ -147,6 +146,7 @@ mbed_binary(
     deps = [
         ":common",
         "//mjlib/base:assert",
+        "//mjlib/base:inplace_function",
         "//mjlib/base:pid",
         "//mjlib/base:windowed_average",
         "//mjlib/micro:async_exclusive",
@@ -155,7 +155,6 @@ mbed_binary(
         "//mjlib/micro:error_code",
         "//mjlib/micro:persistent_config",
         "//mjlib/micro:pool_ptr",
-        "//mjlib/micro:static_function",
         "//mjlib/micro:telemetry_manager",
         "//mjlib/multiplex:micro_server",
     ],

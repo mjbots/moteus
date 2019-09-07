@@ -17,7 +17,7 @@
 #include <atomic>
 #include <array>
 
-#include "mjlib/micro/static_function.h"
+#include "mjlib/base/inplace_function.h"
 
 namespace moteus {
 
@@ -33,7 +33,7 @@ class AtomicEventQueue {
   };
 
   // This may be called from any thread context.
-  void Queue(const mjlib::micro::StaticFunction<void()>& function,
+  void Queue(const mjlib::base::inplace_function<void()>& function,
              const Options& options = {}) {
     for (auto& entry : entries_) {
       const int current = entry.state.load();
@@ -95,7 +95,7 @@ class AtomicEventQueue {
  private:
   struct Entry {
     std::atomic<int> state = 0;
-    mjlib::micro::StaticFunction<void()> function;
+    mjlib::base::inplace_function<void()> function;
   };
   std::array<Entry, Size> entries_;
 

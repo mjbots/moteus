@@ -42,7 +42,7 @@ class StreamWriter {
 
     const bool installed_callback = [&]() {
       for (auto& cbk_holder : data_in_progress_->callbacks) {
-        if (!cbk_holder.valid()) {
+        if (!cbk_holder) {
           cbk_holder = callback;
           return true;
         }
@@ -74,7 +74,7 @@ class StreamWriter {
   void HandleWrite(const mjlib::micro::error_code& ec) {
     write_outstanding_ = false;
     for (auto& cbk : data_writing_->callbacks) {
-      if (!cbk.valid()) {
+      if (!cbk) {
         continue;
       }
       auto copy = cbk;
