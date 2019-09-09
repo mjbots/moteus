@@ -135,6 +135,7 @@ mbed_binary(
         "position_sensor.h",
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
+        "stm32f446_spi.h",
         "stm32_flash.h",
         "stm32_flash.cc",
         "stm32_serial.h",

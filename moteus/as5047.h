@@ -19,43 +19,23 @@
 #include "hal/spi_api.h"
 
 #include "moteus/position_sensor.h"
+#include "moteus/stm32f446_spi.h"
 
 namespace moteus {
 
 class AS5047 : public PositionSensor {
  public:
-  struct Options {
-    PinName mosi = NC;
-    PinName miso = NC;
-    PinName sck = NC;
-    PinName cs = NC;
-  };
+  using Options = Stm32F446Spi::Options;
 
   AS5047(const Options& options)
-      : cs_(options.cs, 1) {
-    spi_init(&spi_, options.mosi, options.miso, options.sck, NC);
-    spi_format(&spi_, 16, 1, 0);
-    spi_frequency(&spi_, 10000000);
-  }
+      : spi_(options) {}
 
   uint16_t Sample() override {
-    // NOTE: This seems to take around 7us (this is 28% of our full
-    // cycle period).  I think that if I didn't go through the HAL, I
-    // could get this down to something under 2us, which would be more
-    // reasonable.
-    cs_ = 0;
-
-    const uint16_t result =
-        (spi_master_write(&spi_, 0xffff) & 0x3fff) << 2;
-    cs_ = 1;
-    return result;
+    return (spi_.write(0xffff) & 0x3fff) << 2;
   }
 
  private:
-  // We don't use the mbed SPI class because we want to be invokable
-  // from an ISR.
-  spi_t spi_;
-  DigitalOut cs_;
+  Stm32F446Spi spi_;
 };
 
 }
