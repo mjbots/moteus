@@ -44,8 +44,22 @@ class Stm32F446Spi {
     // cycle period).  I think that if I didn't go through the HAL, I
     // could get this down to something under 2us, which would be more
     // reasonable.
+
+    auto* const spi = spi_.spi.handle.Instance;
     cs_ = 0;
-    const auto result = spi_master_write(&spi_, value);
+
+    // This doesn't seem to be a whole lot faster than the HAL in
+    // practice, but it doesn't hurt to do it ourselves and not have
+    // to worry about the extra stuff the HAL does.
+    while ((spi->SR & SPI_SR_BSY) != 0);
+    spi->DR = value;
+    spi->CR1 |= SPI_CR1_SPE;
+    while ((spi->SR & SPI_SR_RXNE) == 0);
+    const uint16_t result = spi->DR;
+    while ((spi->SR & SPI_SR_TXE) == 0);
+    while ((spi->SR & SPI_SR_BSY) != 0);
+    spi->CR1 &= ~(SPI_CR1_SPE);
+
     cs_ = 1;
     return result;
   }

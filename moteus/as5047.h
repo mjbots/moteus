@@ -28,7 +28,13 @@ class AS5047 : public PositionSensor {
   using Options = Stm32F446Spi::Options;
 
   AS5047(const Options& options)
-      : spi_(options) {}
+      : spi_([options]() {
+          // The next frequency down is only 6MHz, so we run a bit out
+          // of tolerance to save a fair amount of time.
+          auto copy = options;
+          copy.frequency = 12000000;
+          return copy;
+        }()) {}
 
   uint16_t Sample() override {
     return (spi_.write(0xffff) & 0x3fff) << 2;
