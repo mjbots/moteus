@@ -97,12 +97,17 @@ int MapConfig(const Array& array, int value) {
 
 constexpr int kIntRateHz = 30000;
 constexpr int kPwmRateHz = 60000;
+constexpr int kInterruptDivisor = kPwmRateHz / kIntRateHz;
 static_assert(kPwmRateHz % kIntRateHz == 0);
 
 // This is used to determine the maximum allowable PWM value so that
 // the current sampling is guaranteed to occur while the FETs are
 // still low.  It was calibrated using the scope and trial and error.
-constexpr float kCurrentSampleTime = 1.3e-6f;
+//
+// For some reason, with 30kHz/60kHz settings, I measure this at
+// 0.8us, but with 40/40 I get 1.3us.  Whatever, 1.4 is conservative
+// and not going to cause problems.
+constexpr float kCurrentSampleTime = 1.4e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
@@ -170,7 +175,6 @@ uint32_t FindSqr(PinName pin) {
 }
 
 volatile uint32_t* const g_adc1_cr2 = &ADC1->CR2;
-volatile uint32_t* const g_control_timer_sr = &TIM3->SR;
 
 /// Read a digital input, but without configuring it in any way.
 class DigitalMonitor {
@@ -255,7 +259,6 @@ class BldcServo::Impl {
   void Start() {
     ConfigureADC();
     ConfigurePwmTimer();
-    ConfigureControlTimer();
 
     if (options_.debug_uart_out != NC) {
       const auto uart = pinmap_peripheral(
@@ -401,17 +404,6 @@ class BldcServo::Impl {
     timer_->CR1 |= TIM_CR1_CEN;
   }
 
-  void ConfigureControlTimer() {
-    __HAL_RCC_TIM3_CLK_ENABLE();
-    control_timer_ = TIM3;
-    control_timer_->CR1 = TIM_CR1_ARPE;
-    control_timer_->PSC = 0;  // No prescaler.
-    control_timer_->ARR = kControlCounts;
-    control_timer_->EGR |= TIM_EGR_UG;
-    control_timer_->CR1 |= TIM_CR1_CEN;
-    MJ_ASSERT(g_control_timer_sr == &control_timer_->SR);
-  }
-
   void ConfigureADC() {
     __HAL_RCC_ADC1_CLK_ENABLE();
     __HAL_RCC_ADC2_CLK_ENABLE();
@@ -489,24 +481,12 @@ class BldcServo::Impl {
     // minor waste.
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 
-    if ((*g_control_timer_sr & TIM_SR_UIF) == 0) {
-      return;
-    }
-
-    debug_out_ = 1;
-
-    if (current_data_->rezero_position) {
-      status_.position_set = false;
-      current_data_->rezero_position = false;
-    }
+    phase_ = (phase_ + 1) % kInterruptDivisor;
+    if (phase_ != 0) { return; }
 
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
     ISR_DoSense();
-
-    // This should logically be done right after checking SR above,
-    // but we delay it until after DoSense to avoid the critical path.
-    *g_control_timer_sr = 0x00;
 
     SinCos sin_cos{status_.electrical_theta};
 
@@ -539,6 +519,13 @@ class BldcServo::Impl {
          monitor3_.read())) {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
+    }
+
+    debug_out_ = 1;
+
+    if (current_data_->rezero_position) {
+      status_.position_set = false;
+      current_data_->rezero_position = false;
     }
 
     uint32_t adc1 = ADC1->DR;
@@ -1122,7 +1109,6 @@ class BldcServo::Impl {
   TIM_TypeDef* timer_ = nullptr;
   volatile uint32_t* timer_sr_ = nullptr;
   volatile uint32_t* timer_cr1_ = nullptr;
-  TIM_TypeDef* control_timer_ = nullptr;
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;
   ADC_TypeDef* const adc3_ = ADC3;
@@ -1151,6 +1137,8 @@ class BldcServo::Impl {
   // This is just for debugging.
   DigitalOut debug_out_;
   DigitalOut debug_out2_;
+
+  int32_t phase_ = 0;
 
   CommandData data_buffers_[2] = {};
 
