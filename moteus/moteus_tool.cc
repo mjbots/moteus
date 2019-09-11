@@ -103,7 +103,7 @@ class Runner {
 
     std::cout << "Scanning for available devices:\n";
     std::vector<int> to_scan;
-    for (int i = 1; i < 16; i++) { to_scan.push_back(i); }
+    for (int i = 1; i < 127; i++) { to_scan.push_back(i); }
     FindTarget(to_scan);
   }
 
@@ -166,7 +166,6 @@ class Runner {
   };
 
   void StartAction(int id, std::vector<int> remaining) {
-    std::cout << fmt::format("StartCommand {}\n", id);
     auto context = std::make_shared<ActionContext>();
     context->id = id;
     context->remaining = remaining;
@@ -176,11 +175,16 @@ class Runner {
   }
 
   void RunOneAction(std::shared_ptr<ActionContext> context) {
-    std::cout << fmt::format("RunOneAction {}\n", context->id);
     if (options_.stop) {
       SendAckedCommand(context, "d stop", [this, context](auto ec, auto) {
           this->FinishAction(ec, context);
         });
+    } else if (options_.dump_config) {
+      SendAckedCommand(context, "conf enumerate",
+                       [this, context](auto ec, auto result) {
+                         std::cout << result;
+                         this->FinishAction(ec, context);
+                       });
     } else if (options_.console) {
       io::StreamFactory::Options stdio_options;
       stdio_options.type = io::StreamFactory::Type::kStdio;
@@ -201,7 +205,6 @@ class Runner {
 
   void FinishAction(const base::error_code& ec,
                     std::shared_ptr<ActionContext> context) {
-    std::cout << fmt::format("FinishAction {}\n", context->id);
     base::FailIf(ec);
 
     context->stream->cancel();
@@ -214,7 +217,6 @@ class Runner {
   void SendAckedCommand(std::shared_ptr<ActionContext> context,
                         const std::string& message,
                         StringCallback followup) {
-    std::cout << fmt::format("SendAckedCommand {}\n", message);
     SendCommand(context, message, [this, context, followup](auto ec) {
         base::FailIf(ec);
         this->WaitForAck(context, followup);
@@ -224,7 +226,6 @@ class Runner {
   void SendCommand(std::shared_ptr<ActionContext> context,
                    const std::string& message,
                    io::ErrorCallback followup) {
-    std::cout << fmt::format("SendCommand {}\n", message);
     auto buf = std::make_shared<std::string>(message + "\n");
     boost::asio::async_write(
         *context->stream,
@@ -242,7 +243,6 @@ class Runner {
 
   void WaitForAck(std::shared_ptr<ActionContext> context,
                   StringCallback followup) {
-    std::cout << fmt::format("WaitForAck\n");
     auto ack_context = std::make_shared<AckContext>();
     ack_context->context = context;
     ack_context->followup = followup;
@@ -251,7 +251,6 @@ class Runner {
   }
 
   void ReadForAck(std::shared_ptr<AckContext> ack_context) {
-    std::cout << fmt::format("ReadForAck\n");
     // Read lines until we get an OK.
     ReadLine(ack_context->context, [this, ack_context](auto ec, auto message) {
         base::FailIf(ec);
@@ -270,7 +269,6 @@ class Runner {
 
   void ReadLine(std::shared_ptr<ActionContext> context,
                 StringCallback callback) {
-    std::cout << fmt::format("ReadLine\n");
     boost::asio::async_read_until(
         *context->stream,
         context->streambuf,
@@ -280,7 +278,6 @@ class Runner {
           std::ostringstream ostr;
           ostr << &context->streambuf;
 
-          std::cout << fmt::format("got line: {}\n", ostr.str());
           context->stream->get_io_service().post(
               std::bind(callback, base::error_code(), ostr.str()));
         });
@@ -324,12 +321,10 @@ class Runner {
     // Try to talk to this particular servo.
     context->stream = client_->MakeTunnel(this_id, kDebugTunnel);
 
-    std::cout << fmt::format("trying {}\n", this_id);
-
     // Send a command, then wait for a reply.
     boost::asio::async_write(
         *context->stream,
-        boost::asio::buffer("tel stop\n"),
+        boost::asio::buffer(std::string_view("tel stop\n")),
         std::bind(&Runner::HandleFindTargetWrite, this, pl::_1,
                   context, remaining));
   }
@@ -349,7 +344,7 @@ class Runner {
         std::bind(&Runner::HandleFindTargetRead, this, pl::_1,
                   context, remaining));
 
-    timer_.expires_from_now(boost::posix_time::milliseconds(1000));
+    timer_.expires_from_now(boost::posix_time::milliseconds(10));
     timer_.async_wait(
         std::bind(&Runner::HandleFindTargetTimeout, this, pl::_1,
                   context, remaining));
@@ -358,7 +353,6 @@ class Runner {
   void HandleFindTargetRead(const base::error_code& ec,
                             std::shared_ptr<FindContext> context,
                             const std::vector<int>& remaining) {
-    std::cout << fmt::format("read done: {}\n", context->id);
     if (context->done) { return; }
     base::FailIf(ec);
 
@@ -378,8 +372,6 @@ class Runner {
   void HandleFindTargetTimeout(const base::error_code& ec,
                                std::shared_ptr<FindContext> context,
                                const std::vector<int>& remaining) {
-    std::cout << fmt::format("timeout id {}\n", context->id);
-
     if (context->done) { return; }
     base::FailIf(ec);
 
