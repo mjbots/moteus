@@ -13,5 +13,7 @@
 // limitations under the License.
 
 namespace moteus {
+namespace tool {
 int moteus_tool_main(int argc, char** argv);
+}
 }

@@ -27,6 +27,7 @@
 #include "mjlib/base/fail.h"
 #include "mjlib/base/program_options_archive.h"
 #include "mjlib/base/system_error.h"
+#include "mjlib/base/time_conversions.h"
 #include "mjlib/io/async_sequence.h"
 #include "mjlib/io/deadline_timer.h"
 #include "mjlib/io/stream_copy.h"
@@ -40,6 +41,7 @@ namespace io = mjlib::io;
 namespace mp = mjlib::multiplex;
 
 namespace moteus {
+namespace tool {
 
 namespace {
 
@@ -259,15 +261,18 @@ class Runner {
   };
 
   void StartAction(int id, std::vector<int> remaining) {
+    if (targets_.size() > 1) {
+      std::cout << fmt::format("Target: {}\n", id);
+    }
     auto context = std::make_shared<ActionContext>();
     context->id = id;
     context->remaining = remaining;
     mp::AsioClient::TunnelOptions tunnel_options;
 
     // Older versions of the bootloader could fail during long running
-    // flash operations at the default 10ms poll rate.  Set it to 50
+    // flash operations at the default 10ms poll rate.  Set it to 100
     // for now.
-    tunnel_options.poll_rate = boost::posix_time::milliseconds(50);
+    tunnel_options.poll_rate = boost::posix_time::milliseconds(100);
 
     context->stream = client_->MakeTunnel(id, kDebugTunnel, tunnel_options);
 
@@ -317,6 +322,8 @@ class Runner {
 
   struct CommandOptions {
     double retry_timeout = 0.3;
+    int max_retries = 4;
+    bool allow_any_response = false;
 
     CommandOptions() {}
 
@@ -324,16 +331,72 @@ class Runner {
       retry_timeout = value;
       return *this;
     }
+
+    CommandOptions& set_max_retries(int value) {
+      max_retries = value;
+      return *this;
+    }
+
+    CommandOptions& set_allow_any_response(bool value) {
+      allow_any_response = value;
+      return *this;
+    }
+  };
+
+  struct SendAckContext {
+    std::shared_ptr<ActionContext> context;
+    StringCallback followup;
+    std::string message;
+    CommandOptions options;
+
+    bool allow_any_response = false;
+    int retry_count = 0;
+    bool done = false;
   };
 
   void SendAckedCommand(std::shared_ptr<ActionContext> context,
                         const std::string& message,
                         StringCallback followup,
-                        CommandOptions = CommandOptions()) {
-    SendCommand(context, message, [this, context, followup](auto ec) {
+                        CommandOptions command_options = CommandOptions()) {
+    auto sc = std::make_shared<SendAckContext>();
+    sc->context = context;
+    sc->message = message;
+    sc->options = command_options;
+    sc->followup = followup;
+
+    timer_.expires_from_now(
+        base::ConvertSecondsToDuration(command_options.retry_timeout));
+    timer_.async_wait(std::bind(&Runner::HandleSendAckedTimeout,
+                                this, pl::_1, sc));
+
+    SendCommand(sc->context, message, [this, sc](auto ec) {
         base::FailIf(ec);
-        this->WaitForAck(context, followup);
+        this->WaitForAck(sc->context, [this, sc](auto ec, auto message) {
+            if (ec == boost::asio::error::operation_aborted) {
+              // We timed out.  Try re-sending the command.
+              sc->retry_count++;
+              if (sc->retry_count < sc->options.max_retries) {
+                SendAckedCommand(
+                    sc->context, sc->message, sc->followup, sc->options);
+                return;
+              }
+            }
+
+            this->timer_.cancel();
+            sc->done = true;
+            sc->followup(ec, message);
+          },
+          sc->options.allow_any_response);
       });
+  }
+
+  void HandleSendAckedTimeout(const base::error_code& ec,
+                              std::shared_ptr<SendAckContext> ctx) {
+    if (ec == boost::asio::error::operation_aborted) { return; }
+    if (ctx->done) { return; }
+
+    // Cancel out our existing read.
+    ctx->context->stream->cancel();
   }
 
   void SendCommand(std::shared_ptr<ActionContext> context,
@@ -354,14 +417,17 @@ class Runner {
   struct AckContext {
     std::shared_ptr<ActionContext> context;
     StringCallback followup;
+    bool allow_any_response = false;
     std::string result;
   };
 
   void WaitForAck(std::shared_ptr<ActionContext> context,
-                  StringCallback followup) {
+                  StringCallback followup,
+                  bool allow_any_response) {
     auto ack_context = std::make_shared<AckContext>();
     ack_context->context = context;
     ack_context->followup = followup;
+    ack_context->allow_any_response = allow_any_response;
 
     ReadForAck(ack_context);
   }
@@ -369,9 +435,18 @@ class Runner {
   void ReadForAck(std::shared_ptr<AckContext> ack_context) {
     // Read lines until we get an OK.
     ReadLine(ack_context->context, [this, ack_context](auto ec, auto message) {
+        if (ec == boost::asio::error::operation_aborted) {
+          ack_context->context->stream->get_io_service().post(
+              std::bind(ack_context->followup, ec, ""));
+          return;
+        }
         base::FailIf(ec);
 
-        if (boost::starts_with(message, "OK")) {
+        if (ack_context->allow_any_response) {
+          ack_context->result += message;
+        }
+        if (ack_context->allow_any_response ||
+            boost::starts_with(message, "OK")) {
           // We're done.
           ack_context->context->stream->get_io_service().post(
               std::bind(ack_context->followup,
@@ -390,6 +465,12 @@ class Runner {
         context->streambuf,
         "\n",
         [this, context, callback](auto ec, auto) {
+          if (ec == boost::asio::error::operation_aborted) {
+            // We had a timeout.
+            context->stream->get_io_service().post(
+                std::bind(callback, ec, ""));
+            return;
+          }
           base::FailIf(ec);
           std::ostringstream ostr;
           ostr << &context->streambuf;
@@ -637,22 +718,26 @@ class Runner {
       auto cmd = fmt::format("w {:x} {}", next_block.address,
                              Hexify(next_block.data));
       SendAckedCommand(
-          flash_context->context, cmd,
+          flash_context->context,
+          cmd,
           std::bind(&Runner::HandleFlashOperation, this,
                     pl::_1, flash_context),
-          CommandOptions().set_retry_timeout(10.0));
+          CommandOptions().set_retry_timeout(5.0));
     } else {
       auto expected_block = flash_context->GetNextBlock();
-      SendCommand(flash_context->context,
-                  fmt::format("r {:x} {:x}",
-                              expected_block.address,
-                              expected_block.data.size()),
-                  std::bind(&Runner::HandleFlashVerifyWrite, this,
-                            pl::_1, flash_context, expected_block));
+      SendAckedCommand(
+          flash_context->context,
+          fmt::format("r {:x} {:x}",
+                      expected_block.address,
+                      expected_block.data.size()),
+          std::bind(&Runner::HandleFlashVerifyWrite, this,
+                    pl::_1, pl::_2, flash_context, expected_block),
+          CommandOptions().set_allow_any_response(true));
     }
   }
 
   void HandleFlashVerifyWrite(base::error_code ec,
+                              const std::string& message,
                               std::shared_ptr<FlashContext> flash_context,
                               const FlashDataBlock& expected) {
     if (ec) {
@@ -661,45 +746,35 @@ class Runner {
       return;
     }
 
-    ReadLine(
-        flash_context->context,
-        [this, flash_context, expected](auto ec, auto message) {
-          if (ec) {
-            ec.Append("While reading verify");
-            HandleFlashOperation(ec, flash_context);
-            return;
-          }
+    std::vector<std::string> fields;
+    boost::split(fields, message, boost::is_any_of(" "));
+    if (fields.size() != 2) {
+      ec.Append(fmt::format("verify returned wrong field count {:d} != 2",
+                            fields.size()));
+      HandleFlashOperation(ec, flash_context);
+      return;
+    }
 
-          std::vector<std::string> fields;
-          boost::split(fields, message, boost::is_any_of(" "));
-          if (fields.size() != 2) {
-            ec.Append(fmt::format("verify returned wrong field count {:d} != 2",
-                                  fields.size()));
-            HandleFlashOperation(ec, flash_context);
-            return;
-          }
+    const auto actual_address = std::stoi(fields[0], nullptr, 16);
+    if (actual_address != expected.address) {
+      ec.Append(fmt::format("verify returned wrong address {:x} != {:x}",
+                            actual_address, expected.address));
+      HandleFlashOperation(ec, flash_context);
+      return;
+    }
 
-          const auto actual_address = std::stoi(fields[0], nullptr, 16);
-          if (actual_address != expected.address) {
-            ec.Append(fmt::format("verify returned wrong address {:x} != {:x}",
-                                  actual_address, expected.address));
-            HandleFlashOperation(ec, flash_context);
-            return;
-          }
+    std::transform(fields[1].begin(), fields[1].end(),
+                   fields[1].begin(),
+                   [](auto c) { return std::tolower(c); });
+    if (Hexify(expected.data) != fields[1]) {
+      ec.Append(fmt::format("verify returned wrong data at {:x}, {} != {}",
+                            expected.address,
+                            fields[1], Hexify(expected.data)));
+      HandleFlashOperation(ec, flash_context);
+      return;
+    }
 
-          std::transform(fields[1].begin(), fields[1].end(),
-                         fields[1].begin(),
-                         [](auto c) { return std::tolower(c); });
-          if (Hexify(expected.data) != fields[1]) {
-            ec.Append(fmt::format("verify returned wrong data at {:x}, {} != {}",
-                                  expected.address,
-                                  fields[1], Hexify(expected.data)));
-            HandleFlashOperation(ec, flash_context);
-            return;
-          }
-
-          HandleFlashOperation({}, flash_context);
-      });
+    HandleFlashOperation({}, flash_context);
   }
 
   void HandleFlashOperation(base::error_code ec,
@@ -792,4 +867,5 @@ int moteus_tool_main(int argc, char** argv) {
   return 0;
 }
 
+}
 }

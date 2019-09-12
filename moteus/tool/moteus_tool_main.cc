@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "moteus/moteus_tool.h"
+#include "moteus/tool/moteus_tool.h"
 
 extern "C" {
 int main(int argc, char** argv) {
-  moteus::moteus_tool_main(argc, argv);
+  moteus::tool::moteus_tool_main(argc, argv);
 }
 }

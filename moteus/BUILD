@@ -232,17 +232,12 @@ cc_test(
         "test/test_main.cc",
     ],
     data = [
-        ":moteus_tool",
+        "//moteus/tool:moteus_tool",
     ],
     deps = [
         ":common",
         "@boost//:test",
     ],
-)
-
-py_library(
-    name = "calibrate_encoder",
-    srcs = ["calibrate_encoder.py"],
 )
 
 py_binary(
@@ -252,40 +247,6 @@ py_binary(
         "//mjlib/multiplex:py_multiplex_protocol",
         "//mjlib/multiplex:aioserial",
     ],
-)
-
-py_binary(
-    name = "py_moteus_tool",
-    srcs = ["moteus_tool.py"],
-    main = "moteus_tool.py",
-    deps = [
-        ":calibrate_encoder",
-        "//mjlib/multiplex:py_multiplex_protocol",
-        "//mjlib/multiplex:aioserial",
-    ],
-)
-
-cc_library(
-    name = "moteus_tool_lib",
-    hdrs = ["moteus_tool.h"],
-    srcs = ["moteus_tool.cc"],
-    deps = [
-        "//mjlib/base:inplace_function",
-        "//mjlib/base:program_options_archive",
-        "//mjlib/io:async_sequence",
-        "//mjlib/io:stream_copy",
-        "//mjlib/io:stream_factory",
-        "//mjlib/multiplex:asio_client",
-        "@boost//:system",
-        "@com_github_serge1_elfio//:elfio",
-        "@fmt",
-    ],
-)
-
-cc_binary(
-    name = "moteus_tool",
-    srcs = ["moteus_tool_main.cc"],
-    deps = [":moteus_tool_lib"],
 )
 
 py_binary(
@@ -307,7 +268,7 @@ py_test(
     deps = [
         "bridge_test",
         "jump_test",
-        "py_moteus_tool",
+        "//moteus/tool:py_moteus_tool",
     ],
 )
 
