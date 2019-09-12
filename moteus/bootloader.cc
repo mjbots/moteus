@@ -439,8 +439,23 @@ class BootloaderServer {
   uint8_t GetNextByte() {
     volatile uint16_t* data = rx_.data;
 
+    int reset_count = 0;
+
     // Block until the DMA has populated something.
-    while (data[rx_.pos] == 0xffff);
+    while (data[rx_.pos] == 0xffff) {
+      // Check to see if we perhaps got out of sync with the DMA.
+      const auto write_position = rx_.capacity() - dma_rx_.stream->NDTR;
+      if (write_position != rx_.pos) {
+        reset_count++;
+        if (reset_count > 1000) {
+          // Wipe out everything and start over.
+          std::memset(rx_.data, 0xff, sizeof(rx_.data));
+          rx_.pos = write_position;
+        }
+      } else {
+        reset_count = 0;
+      }
+    }
 
     const uint8_t result = data[rx_.pos];
     data[rx_.pos] = 0xffff;
