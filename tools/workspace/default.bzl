@@ -21,7 +21,7 @@ load("//tools/workspace/rules_mbed:repository.bzl", "rules_mbed_repository")
 load("//tools/workspace/rules_nodejs:repository.bzl", "rules_nodejs_repository")
 
 def add_default_repositories(excludes = []):
-    if "com_github_mjbots_rules_bazel" not in excludes:
+    if "com_github_mjbots_rules_mbed" not in excludes:
         rules_mbed_repository()
     if "bazel" not in excludes:
         bazel_repository()
