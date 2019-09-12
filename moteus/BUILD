@@ -272,10 +272,12 @@ cc_library(
     deps = [
         "//mjlib/base:inplace_function",
         "//mjlib/base:program_options_archive",
+        "//mjlib/io:async_sequence",
         "//mjlib/io:stream_copy",
         "//mjlib/io:stream_factory",
         "//mjlib/multiplex:asio_client",
         "@boost//:system",
+        "@com_github_serge1_elfio//:elfio",
         "@fmt",
     ],
 )

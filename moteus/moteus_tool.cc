@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 
 #include <boost/algorithm/string.hpp>
@@ -20,9 +22,12 @@
 
 #include <fmt/format.h>
 
+#include <elfio/elfio.hpp>
+
 #include "mjlib/base/fail.h"
-#include "mjlib/base/inplace_function.h"
 #include "mjlib/base/program_options_archive.h"
+#include "mjlib/base/system_error.h"
+#include "mjlib/io/async_sequence.h"
 #include "mjlib/io/deadline_timer.h"
 #include "mjlib/io/stream_copy.h"
 #include "mjlib/io/stream_factory.h"
@@ -37,13 +42,99 @@ namespace mp = mjlib::multiplex;
 namespace moteus {
 
 namespace {
+
+constexpr int kMaxFlashBlockSize = 32;
+
+std::string Hexify(const std::string& data) {
+  std::ostringstream ostr;
+  for (char c : data) {
+    ostr << fmt::format("{:02x}", static_cast<uint8_t>(c));
+  }
+  return ostr.str();
+}
+
+struct ElfMapping {
+  int64_t virtual_address = 0;
+  int64_t physical_address = 0;
+  int64_t size = 0;
+};
+
+class ElfMappings {
+ public:
+  ElfMappings(const ELFIO::elfio& reader) {
+    for (const auto& segment : reader.segments) {
+      ElfMapping mapping;
+      mapping.virtual_address = segment->get_virtual_address();
+      mapping.physical_address = segment->get_physical_address();
+      mapping.size = segment->get_memory_size();
+      mappings_.push_back(mapping);
+    }
+  }
+
+  int64_t LogicalToPhysical(int64_t address, int64_t size) {
+    for (const auto& mapping : mappings_) {
+      if (address >= mapping.virtual_address &&
+          (address + size) <= (mapping.virtual_address + mapping.size)) {
+        return address - mapping.virtual_address + mapping.physical_address;
+      }
+    }
+    throw base::system_error::einval(
+        fmt::format("no mapping for {:x}", address));
+  }
+
+  std::vector<ElfMapping> mappings_;
+};
+
+
+struct ElfData {
+  // Blocks of data associated with a given address.
+  std::map<int64_t, std::string> data;
+};
+
+ElfData ReadElf(const std::string& filename,
+                std::set<std::string> sections) {
+  ELFIO::elfio reader;
+  if (!reader.load(filename)) {
+    throw base::system_error::einval("Could not load ELF file: " + filename);
+  }
+
+  ElfMappings mappings(reader);
+
+  ElfData result;
+
+  for (const auto& section : reader.sections) {
+    const auto name = section->get_name();
+    if (sections.count(name) == 0) { continue; }
+
+    sections.erase(name);
+
+    auto make_data = [](auto section) {
+      return (section->get_data() == nullptr) ?
+        std::string(static_cast<char>(0), section->get_size()) :
+        std::string(section->get_data(), section->get_size());
+    };
+
+    const auto physical_address =
+        mappings.LogicalToPhysical(section->get_address(), section->get_size());
+    result.data[physical_address] = make_data(section);
+  }
+
+  if (sections.size()) {
+    throw base::system_error::einval("Some sections not found");
+  }
+
+  return result;
+}
+
 constexpr int kDebugTunnel = 1;
 
 struct Options {
   bool stop = false;
   bool dump_config = false;
   bool console = false;
+  std::string flash;
 
+  bool verbose = false;
   std::vector<std::string> targets;
   io::StreamFactory::Options stream_options;
 };
@@ -115,7 +206,8 @@ class Runner {
       return
       (options_.stop ? 1 : 0) +
       (options_.dump_config ? 1 : 0) +
-      (options_.console ? 1 : 0);
+      (options_.console ? 1 : 0) +
+      (!options_.flash.empty() ? 1 : 0);
     }();
 
     if (command_count > 1) {
@@ -143,6 +235,7 @@ class Runner {
   void StartRemainingActions(std::vector<int> remaining) {
     if (remaining.empty()) {
       // We're done.
+      std::cout << "All actions complete\n";
       service_.stop();
       return;
     }
@@ -169,7 +262,14 @@ class Runner {
     auto context = std::make_shared<ActionContext>();
     context->id = id;
     context->remaining = remaining;
-    context->stream = client_->MakeTunnel(id, kDebugTunnel);
+    mp::AsioClient::TunnelOptions tunnel_options;
+
+    // Older versions of the bootloader could fail during long running
+    // flash operations at the default 10ms poll rate.  Set it to 50
+    // for now.
+    tunnel_options.poll_rate = boost::posix_time::milliseconds(50);
+
+    context->stream = client_->MakeTunnel(id, kDebugTunnel, tunnel_options);
 
     RunOneAction(context);
   }
@@ -199,8 +299,9 @@ class Runner {
                   base::FailIf(ec);
                 });
           });
+    } else if (!options_.flash.empty()) {
+      DoFlash(context);
     }
-
   }
 
   void FinishAction(const base::error_code& ec,
@@ -212,11 +313,23 @@ class Runner {
   }
 
   using StringCallback =
-      base::inplace_function<void (const base::error_code&, std::string)>;
+      std::function<void (const base::error_code&, std::string)>;
+
+  struct CommandOptions {
+    double retry_timeout = 0.3;
+
+    CommandOptions() {}
+
+    CommandOptions& set_retry_timeout(double value) {
+      retry_timeout = value;
+      return *this;
+    }
+  };
 
   void SendAckedCommand(std::shared_ptr<ActionContext> context,
                         const std::string& message,
-                        StringCallback followup) {
+                        StringCallback followup,
+                        CommandOptions = CommandOptions()) {
     SendCommand(context, message, [this, context, followup](auto ec) {
         base::FailIf(ec);
         this->WaitForAck(context, followup);
@@ -226,6 +339,9 @@ class Runner {
   void SendCommand(std::shared_ptr<ActionContext> context,
                    const std::string& message,
                    io::ErrorCallback followup) {
+    if (options_.verbose) {
+      std::cout << fmt::format(">{}\n", message);
+    }
     auto buf = std::make_shared<std::string>(message + "\n");
     boost::asio::async_write(
         *context->stream,
@@ -273,10 +389,14 @@ class Runner {
         *context->stream,
         context->streambuf,
         "\n",
-        [context, callback](auto ec, auto) {
+        [this, context, callback](auto ec, auto) {
           base::FailIf(ec);
           std::ostringstream ostr;
           ostr << &context->streambuf;
+
+          if (options_.verbose) {
+            std::cout << fmt::format("<{}", ostr.str());
+          }
 
           context->stream->get_io_service().post(
               std::bind(callback, base::error_code(), ostr.str()));
@@ -382,6 +502,242 @@ class Runner {
     FindTarget(remaining);
   }
 
+  void DoFlash(std::shared_ptr<ActionContext> context) {
+    // First, get our two binaries.
+    const auto elf =
+        ReadElf(options_.flash,
+                {".text", ".ARM.extab", ".ARM.exidx",
+                 ".data", ".bss", ".isr_vector"});
+
+    auto count_bytes = [](const std::vector<ElfData>& elfs) {
+      int64_t result = 0;
+      for (const auto& elf: elfs) {
+        for (const auto& pair : elf.data) {
+          result += pair.second.size();
+        }
+      }
+      return result;
+    };
+
+    std::cout << fmt::format("Read ELF file: {} bytes\n",
+                             count_bytes({elf}));
+
+    // If we had coroutines, this would look like:
+    //
+    //  write("d flash")
+    //  read_response("")
+    //  command("unlock")
+    //  write_flash(elf)
+    //  command("lock")
+    //  command("reset")
+    //
+    // However, since we don't, that means we now have a long string
+    // of callbacks in our future.
+
+    io::AsyncSequence(service_)
+        .op([this, context](auto handler) {
+            SendCommand(context, "d flash", handler);
+          })
+        .op([this, context](auto handler) {
+            ReadLine(context,
+                     [handler](auto ec, auto) {
+                       handler(ec);
+                     });
+          })
+        .op([this, context](auto handler) {
+            SendAckedCommand(context, "unlock",
+                             [handler](auto ec, auto) {
+                               handler(ec);
+                             });
+          })
+        .op([this, context, elf](auto handler) {
+            WriteFlash(context, elf, handler);
+          })
+        .op([this, context](auto handler) {
+            SendAckedCommand(context, "lock",
+                             [handler](auto ec, auto) {
+                               handler(ec);
+                             });
+          })
+        .op([this, context](auto handler) {
+            SendCommand(context, "reset", handler);
+          })
+        .Start([this, context](auto ec) {
+            base::FailIf(ec);
+            FinishAction({}, context);
+          });
+  }
+
+  struct FlashDataBlock {
+    int64_t address = -1;
+    std::string data;
+
+    FlashDataBlock(int64_t address_in, std::string data_in)
+        : address(address_in), data(data_in) {}
+
+    FlashDataBlock() {}
+  };
+
+  struct FlashContext {
+    std::shared_ptr<ActionContext> context;
+    ElfData elf;
+    io::ErrorCallback callback;
+
+    bool verifying = false;
+    int64_t current_address = -1;
+
+    FlashContext(std::shared_ptr<ActionContext> context_in,
+                 ElfData elf_in,
+                 io::ErrorCallback callback_in)
+        : context(context_in),
+          elf(elf_in),
+          callback(callback_in) {}
+
+    FlashDataBlock GetNextBlock() {
+      // Find the next pair which contains something greater than the
+      // current address.
+      for (const auto& pair : elf.data) {
+        if (pair.first > current_address) {
+          // This is definitely it.
+          return FlashDataBlock(
+              pair.first, pair.second.substr(0, kMaxFlashBlockSize));
+        }
+        // We might be inside a block that has more data.
+        const auto end_of_this_block =
+            static_cast<int64_t>(pair.first + pair.second.size());
+        if (end_of_this_block > current_address) {
+          return FlashDataBlock(
+              current_address, pair.second.substr(
+                  current_address - pair.first,
+                  std::min<int>(end_of_this_block - current_address,
+                                kMaxFlashBlockSize)));
+        }
+        // Keep looking.
+      }
+      return FlashDataBlock();
+    }
+
+    bool AdvanceBlock() {
+      auto this_block = GetNextBlock();
+      current_address = this_block.address + this_block.data.size();
+      return (GetNextBlock().address < 0);
+    }
+  };
+
+  void WriteFlash(std::shared_ptr<ActionContext> context,
+                  const ElfData& elf,
+                  io::ErrorCallback callback) {
+    auto flash_context = std::make_shared<FlashContext>(context, elf, callback);
+    DoNextFlashOperation(flash_context);
+  }
+
+  void DoNextFlashOperation(std::shared_ptr<FlashContext> flash_context) {
+    if (!flash_context->verifying) {
+      auto next_block = flash_context->GetNextBlock();
+      auto cmd = fmt::format("w {:x} {}", next_block.address,
+                             Hexify(next_block.data));
+      SendAckedCommand(
+          flash_context->context, cmd,
+          std::bind(&Runner::HandleFlashOperation, this,
+                    pl::_1, flash_context),
+          CommandOptions().set_retry_timeout(10.0));
+    } else {
+      auto expected_block = flash_context->GetNextBlock();
+      SendCommand(flash_context->context,
+                  fmt::format("r {:x} {:x}",
+                              expected_block.address,
+                              expected_block.data.size()),
+                  std::bind(&Runner::HandleFlashVerifyWrite, this,
+                            pl::_1, flash_context, expected_block));
+    }
+  }
+
+  void HandleFlashVerifyWrite(base::error_code ec,
+                              std::shared_ptr<FlashContext> flash_context,
+                              const FlashDataBlock& expected) {
+    if (ec) {
+      ec.Append("While writing verify");
+      service_.post(std::bind(flash_context->callback, ec));
+      return;
+    }
+
+    ReadLine(
+        flash_context->context,
+        [this, flash_context, expected](auto ec, auto message) {
+          if (ec) {
+            ec.Append("While reading verify");
+            HandleFlashOperation(ec, flash_context);
+            return;
+          }
+
+          std::vector<std::string> fields;
+          boost::split(fields, message, boost::is_any_of(" "));
+          if (fields.size() != 2) {
+            ec.Append(fmt::format("verify returned wrong field count {:d} != 2",
+                                  fields.size()));
+            HandleFlashOperation(ec, flash_context);
+            return;
+          }
+
+          const auto actual_address = std::stoi(fields[0], nullptr, 16);
+          if (actual_address != expected.address) {
+            ec.Append(fmt::format("verify returned wrong address {:x} != {:x}",
+                                  actual_address, expected.address));
+            HandleFlashOperation(ec, flash_context);
+            return;
+          }
+
+          std::transform(fields[1].begin(), fields[1].end(),
+                         fields[1].begin(),
+                         [](auto c) { return std::tolower(c); });
+          if (Hexify(expected.data) != fields[1]) {
+            ec.Append(fmt::format("verify returned wrong data at {:x}, {} != {}",
+                                  expected.address,
+                                  fields[1], Hexify(expected.data)));
+            HandleFlashOperation(ec, flash_context);
+            return;
+          }
+
+          HandleFlashOperation({}, flash_context);
+      });
+  }
+
+  void HandleFlashOperation(base::error_code ec,
+                            std::shared_ptr<FlashContext> flash_context) {
+    if (ec) {
+      ec.Append(fmt::format("While {} address {:x}",
+                            flash_context->verifying ? "verifying" : "flashing",
+                            flash_context->current_address));
+      service_.post(std::bind(flash_context->callback, ec));
+      return;
+    }
+
+    const bool done = flash_context->AdvanceBlock();
+    if (!options_.verbose) {
+      std::cout << fmt::format(
+          "flash: {:15s}  {:08x}\r",
+          flash_context->verifying ? "verifying" : "flashing",
+          flash_context->current_address);
+      std::cout.flush();
+    }
+    if (!flash_context->verifying) {
+      if (done) {
+        flash_context->current_address = -1;
+        flash_context->verifying = true;
+      }
+      DoNextFlashOperation(flash_context);
+    } else {
+      if (done) {
+        if (!options_.verbose) {
+          std::cout << "\n";
+        }
+        service_.post(std::bind(flash_context->callback, base::error_code()));
+      } else {
+        DoNextFlashOperation(flash_context);
+      }
+    }
+  }
+
   boost::asio::io_service& service_;
   std::vector<int> targets_;
   const Options options_;
@@ -405,6 +761,8 @@ int moteus_tool_main(int argc, char** argv) {
       ("help,h", "display_usage")
       ("targets,t", po::value(&options.targets),
        "destination address(es) (default: autodiscover)")
+      ("verbose,v", po::bool_switch(&options.verbose),
+       "emit all commands sent to and from the device")
 
       ("stop", po::bool_switch(&options.stop),
        "command the servos to stop")
@@ -412,6 +770,8 @@ int moteus_tool_main(int argc, char** argv) {
        "create a serial console")
       ("dump-config", po::bool_switch(&options.dump_config),
        "emit all configuration to the console")
+      ("flash", po::value(&options.flash),
+       "write the given elf file to flash")
       ;
 
   base::ProgramOptionsArchive(&desc).Accept(&options.stream_options);
