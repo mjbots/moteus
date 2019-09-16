@@ -272,7 +272,7 @@ Type: int8, int16, int32, float
 Mode: Read/write
 
 When in kPosition mode, the maximum torque to be applied.  Defaults to
-0.1 Nm.  Note, this is the torque after any gearboxes.
+maximum torque.  Note, this is the torque after any gearboxes.
 
 ### 0x026 - Commanded stop position ###
 

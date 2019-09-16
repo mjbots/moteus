@@ -377,7 +377,7 @@ class BldcServo {
     float position = 0.0f;  // kNaN means start at the current position.
     float velocity = 0.0f;
 
-    float max_torque_Nm = 0.1f;
+    float max_torque_Nm = 100.0f;
     float stop_position = std::numeric_limits<float>::quiet_NaN();
     float feedforward_Nm = 0.0f;
 
