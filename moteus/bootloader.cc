@@ -740,11 +740,6 @@ MultiplexBootloader(uint8_t source_id,
   server.Run();
 }
 
-// We never expect to exit normally, so there is no need to include
-// any of the exit handling machinery.
-void __wrap_atexit(void (*func)()) {
-}
-
 void abort() {
   while (true) {}
 }

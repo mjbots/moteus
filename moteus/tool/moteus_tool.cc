@@ -169,7 +169,7 @@ std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
 
 class Runner {
  public:
-  Runner(boost::asio::io_service& service, const Options& options)
+  Runner(boost::asio::io_context& service, const Options& options)
       : service_(service),
         targets_(ExpandTargets(options.targets)),
         options_(options) {}
@@ -813,7 +813,7 @@ class Runner {
     }
   }
 
-  boost::asio::io_service& service_;
+  boost::asio::io_context& service_;
   std::vector<int> targets_;
   const Options options_;
 
@@ -826,7 +826,7 @@ class Runner {
 }
 
 int moteus_tool_main(int argc, char** argv) {
-  boost::asio::io_service service;
+  boost::asio::io_context service;
 
   po::options_description desc("Allowable options");
 
