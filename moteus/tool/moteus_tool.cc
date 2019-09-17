@@ -169,8 +169,8 @@ std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
 
 class Runner {
  public:
-  Runner(boost::asio::io_context& service, const Options& options)
-      : service_(service),
+  Runner(const boost::asio::executor& executor, const Options& options)
+      : executor_(executor),
         targets_(ExpandTargets(options.targets)),
         options_(options) {}
 
@@ -238,7 +238,7 @@ class Runner {
     if (remaining.empty()) {
       // We're done.
       std::cout << "All actions complete\n";
-      service_.stop();
+      std::exit(0);
       return;
     }
 
@@ -299,7 +299,7 @@ class Runner {
             base::FailIf(ec);
             context->stdio = stdio_stream;
             context->copy.emplace(
-                service_, context->stream.get(), stdio_stream.get(),
+                executor_, context->stream.get(), stdio_stream.get(),
                 [context](auto ec) {
                   base::FailIf(ec);
                 });
@@ -436,7 +436,8 @@ class Runner {
     // Read lines until we get an OK.
     ReadLine(ack_context->context, [this, ack_context](auto ec, auto message) {
         if (ec == boost::asio::error::operation_aborted) {
-          ack_context->context->stream->get_io_service().post(
+          boost::asio::post(
+              ack_context->context->stream->get_executor(),
               std::bind(ack_context->followup, ec, ""));
           return;
         }
@@ -448,7 +449,8 @@ class Runner {
         if (ack_context->allow_any_response ||
             boost::starts_with(message, "OK")) {
           // We're done.
-          ack_context->context->stream->get_io_service().post(
+          boost::asio::post(
+              ack_context->context->stream->get_executor(),
               std::bind(ack_context->followup,
                         base::error_code(), ack_context->result));
         } else {
@@ -467,7 +469,8 @@ class Runner {
         [this, context, callback](auto ec, auto) {
           if (ec == boost::asio::error::operation_aborted) {
             // We had a timeout.
-            context->stream->get_io_service().post(
+            boost::asio::post(
+                context->stream->get_executor(),
                 std::bind(callback, ec, ""));
             return;
           }
@@ -479,7 +482,8 @@ class Runner {
             std::cout << fmt::format("<{}", ostr.str());
           }
 
-          context->stream->get_io_service().post(
+          boost::asio::post(
+              context->stream->get_executor(),
               std::bind(callback, base::error_code(), ostr.str()));
         });
   }
@@ -615,7 +619,7 @@ class Runner {
     // However, since we don't, that means we now have a long string
     // of callbacks in our future.
 
-    io::AsyncSequence(service_.get_executor())
+    io::AsyncSequence(executor_)
         .Add([this, context](auto handler) {
             SendCommand(context, "d flash", handler);
           })
@@ -742,7 +746,9 @@ class Runner {
                               const FlashDataBlock& expected) {
     if (ec) {
       ec.Append("While writing verify");
-      service_.post(std::bind(flash_context->callback, ec));
+      boost::asio::post(
+          executor_,
+          std::bind(flash_context->callback, ec));
       return;
     }
 
@@ -783,7 +789,9 @@ class Runner {
       ec.Append(fmt::format("While {} address {:x}",
                             flash_context->verifying ? "verifying" : "flashing",
                             flash_context->current_address));
-      service_.post(std::bind(flash_context->callback, ec));
+      boost::asio::post(
+          executor_,
+          std::bind(flash_context->callback, ec));
       return;
     }
 
@@ -806,19 +814,21 @@ class Runner {
         if (!options_.verbose) {
           std::cout << "\n";
         }
-        service_.post(std::bind(flash_context->callback, base::error_code()));
+        boost::asio::post(
+            executor_,
+            std::bind(flash_context->callback, base::error_code()));
       } else {
         DoNextFlashOperation(flash_context);
       }
     }
   }
 
-  boost::asio::io_context& service_;
+  boost::asio::executor executor_;
   std::vector<int> targets_;
   const Options options_;
 
-  io::DeadlineTimer timer_{service_};
-  io::StreamFactory factory_{service_};
+  io::DeadlineTimer timer_{executor_};
+  io::StreamFactory factory_{executor_};
   io::SharedStream stream_;
   io::SharedStream stdio_;
   std::optional<mp::AsioClient> client_;
@@ -826,7 +836,7 @@ class Runner {
 }
 
 int moteus_tool_main(int argc, char** argv) {
-  boost::asio::io_context service;
+  boost::asio::io_context context;
 
   po::options_description desc("Allowable options");
 
@@ -860,9 +870,9 @@ int moteus_tool_main(int argc, char** argv) {
     return 0;
   }
 
-  Runner runner(service, options);
+  Runner runner(context.get_executor(), options);
   runner.Start();
-  service.run();
+  context.run();
 
   return 0;
 }
