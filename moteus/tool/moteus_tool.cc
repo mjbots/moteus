@@ -615,32 +615,32 @@ class Runner {
     // However, since we don't, that means we now have a long string
     // of callbacks in our future.
 
-    io::AsyncSequence(service_)
-        .op([this, context](auto handler) {
+    io::AsyncSequence(service_.get_executor())
+        .Add([this, context](auto handler) {
             SendCommand(context, "d flash", handler);
           })
-        .op([this, context](auto handler) {
+        .Add([this, context](auto handler) {
             ReadLine(context,
                      [handler](auto ec, auto) {
                        handler(ec);
                      });
           })
-        .op([this, context](auto handler) {
+        .Add([this, context](auto handler) {
             SendAckedCommand(context, "unlock",
                              [handler](auto ec, auto) {
                                handler(ec);
                              });
           })
-        .op([this, context, elf](auto handler) {
+        .Add([this, context, elf](auto handler) {
             WriteFlash(context, elf, handler);
           })
-        .op([this, context](auto handler) {
+        .Add([this, context](auto handler) {
             SendAckedCommand(context, "lock",
                              [handler](auto ec, auto) {
                                handler(ec);
                              });
           })
-        .op([this, context](auto handler) {
+        .Add([this, context](auto handler) {
             SendCommand(context, "reset", handler);
           })
         .Start([this, context](auto ec) {
