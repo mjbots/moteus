@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "moteus/tool/moteus_tool.h"
+
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -138,7 +140,6 @@ struct Options {
 
   bool verbose = false;
   std::vector<std::string> targets;
-  io::StreamFactory::Options stream_options;
 };
 
 std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
@@ -169,22 +170,21 @@ std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
 
 class Runner {
  public:
-  Runner(const boost::asio::executor& executor, const Options& options)
+  Runner(const boost::asio::executor& executor, ClientMaker* maker,
+         const Options& options)
       : executor_(executor),
+        client_maker_(maker),
         targets_(ExpandTargets(options.targets)),
         options_(options) {}
 
   void Start() {
-    factory_.AsyncCreate(
-        options_.stream_options,
-        std::bind(&Runner::HandleStream, this, pl::_1, pl::_2));
+    client_maker_->AsyncCreate(executor_, &client_,
+                               std::bind(&Runner::HandleClient, this, pl::_1));
   }
 
-  void HandleStream(const base::error_code& ec, io::SharedStream stream) {
+  void HandleClient(const base::error_code& ec) {
     base::FailIf(ec);
 
-    stream_ = stream;
-    client_.emplace(stream_.get());
     FindTargets();
   }
 
@@ -267,7 +267,7 @@ class Runner {
     auto context = std::make_shared<ActionContext>();
     context->id = id;
     context->remaining = remaining;
-    mp::AsioClient::TunnelOptions tunnel_options;
+    ClientBase::TunnelOptions tunnel_options;
 
     // Older versions of the bootloader could fail during long running
     // flash operations at the default 10ms poll rate.  Set it to 100
@@ -824,18 +824,79 @@ class Runner {
   }
 
   boost::asio::executor executor_;
+  boost::asio::executor_work_guard<boost::asio::executor> guard_{executor_};
+  ClientMaker* const client_maker_;
   std::vector<int> targets_;
   const Options options_;
 
   io::DeadlineTimer timer_{executor_};
   io::StreamFactory factory_{executor_};
-  io::SharedStream stream_;
   io::SharedStream stdio_;
-  std::optional<mp::AsioClient> client_;
+  std::unique_ptr<ClientBase> client_;
 };
+
+class AsioClientWrapper : public ClientBase {
+ public:
+  AsioClientWrapper(io::AsyncStream* stream) : base_(stream) {}
+
+  io::SharedStream MakeTunnel(
+      uint8_t id,
+      uint32_t channel,
+      const TunnelOptions& options) override {
+    return base_.MakeTunnel(id, channel, [options]() {
+        mp::AsioClient::TunnelOptions dest_options;
+        dest_options.poll_rate = options.poll_rate;
+        return dest_options;
+      }());
+  }
+
+ private:
+  mp::AsioClient base_;
+};
+
+class AsioClientMaker : public ClientMaker {
+ public:
+  void AddToProgramOptions(po::options_description* options) override {
+    base::ProgramOptionsArchive(options).Accept(&stream_options_);
+  }
+
+  void AsyncCreate(boost::asio::executor executor,
+                   std::unique_ptr<ClientBase>* client,
+                   io::ErrorCallback callback) override {
+    factory_.emplace(executor);
+
+    factory_->AsyncCreate(
+        stream_options_,
+        std::bind(&AsioClientMaker::HandleStream, this,
+                  pl::_1, pl::_2, client, callback));
+  }
+
+ private:
+  void HandleStream(const mjlib::base::error_code& ec,
+                    io::SharedStream stream,
+                    std::unique_ptr<ClientBase>* client,
+                    io::ErrorCallback callback) {
+    base::FailIf(ec);
+
+    stream_ = stream;
+    *client = std::make_unique<AsioClientWrapper>(stream.get());
+
+    callback(mjlib::base::error_code());
+  }
+
+  io::StreamFactory::Options stream_options_;
+
+  std::optional<io::StreamFactory> factory_;
+  io::SharedStream stream_;
+};
+
 }
 
-int moteus_tool_main(int argc, char** argv) {
+int moteus_tool_main(int argc, char** argv, ClientMaker* maker) {
+  AsioClientMaker asio_maker;
+  if (maker == nullptr) {
+    maker = &asio_maker;
+  }
   boost::asio::io_context context;
 
   po::options_description desc("Allowable options");
@@ -859,8 +920,6 @@ int moteus_tool_main(int argc, char** argv) {
        "write the given elf file to flash")
       ;
 
-  base::ProgramOptionsArchive(&desc).Accept(&options.stream_options);
-
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);
@@ -870,7 +929,7 @@ int moteus_tool_main(int argc, char** argv) {
     return 0;
   }
 
-  Runner runner(context.get_executor(), options);
+  Runner runner(context.get_executor(), maker, options);
   runner.Start();
   context.run();
 
