@@ -719,6 +719,10 @@ void BadInterrupt() {
 
 extern "C" {
 
+extern uint8_t __bss_start__;
+extern uint8_t __bss_end__;
+
+
 void __attribute__((__section__(".multiplex_bootloader")))
 MultiplexBootloader(uint8_t source_id,
                     USART_TypeDef* uart,
@@ -726,6 +730,9 @@ MultiplexBootloader(uint8_t source_id,
                     int direction_pin) {
   // While we are bootloading, we want no interrupts whatsoever.
   __disable_irq();
+
+  // Manually zero out our BSS.
+  ::memset(&__bss_start__, 0, &__bss_end__ - &__bss_start__);
 
   // We don't want any handlers to go into the original application
   // code, so point everything to a noop.

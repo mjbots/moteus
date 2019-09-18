@@ -7,7 +7,7 @@ See stm32f446.ld for the entire memory map.
 MEMORY
 {
   FLASH (rx) : ORIGIN = 0x800c000, LENGTH = 0x4000
-  RAM (rwx)  : ORIGIN = 0x200001C8, LENGTH = 128k - (0x1C4+0x4)
+  RAM (rwx)  : ORIGIN = 0x20000200, LENGTH = 128k - (0x200+0x4)
 }
 
 ENTRY(MultiplexBootloader)
@@ -23,6 +23,7 @@ SECTIONS
         *(.text*)
         *(.init)
         *(.fini)
+
         *(.rodata*)
         . = ALIGN(4);
     } >FLASH
