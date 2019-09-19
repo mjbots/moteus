@@ -314,7 +314,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   }
 
   uint32_t Write(multiplex::MicroServer::Register reg,
-                 const multiplex::MicroServer::Value& value) override {
+                 const multiplex::MicroServer::Value& value) override
+      __attribute__ ((optimize("O3"))){
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
         const auto new_mode_int = ReadIntMapping(value);
@@ -423,7 +424,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
   multiplex::MicroServer::ReadResult Read(
       multiplex::MicroServer::Register reg,
-      size_t type) const override {
+      size_t type) const override
+      __attribute__ ((optimize("O3"))) {
     auto vi32 = [](auto v) { return Value(static_cast<int32_t>(v)); };
 
     switch (static_cast<Register>(reg)) {

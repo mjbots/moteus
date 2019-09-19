@@ -309,7 +309,7 @@ class BldcServo::Impl {
     std::swap(current_data_, next_data_);
   }
 
-  Status status() const { return status_; }
+  const Status& status() const { return status_; }
 
   const Config& config() const { return config_; }
 
@@ -1205,7 +1205,7 @@ void BldcServo::Command(const CommandData& data) {
   impl_->Command(data);
 }
 
-BldcServo::Status BldcServo::status() const {
+const BldcServo::Status& BldcServo::status() const {
   return impl_->status();
 }
 

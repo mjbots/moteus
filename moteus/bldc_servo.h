@@ -420,7 +420,7 @@ class BldcServo {
   void Start();
   void Command(const CommandData&);
 
-  Status status() const;
+  const Status& status() const;
   const Config& config() const;
   const Motor& motor() const;
 

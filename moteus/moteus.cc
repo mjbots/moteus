@@ -34,6 +34,10 @@
 #include "moteus/stm32_flash.h"
 #include "moteus/system_info.h"
 
+auto* const MyTIM9 = TIM9;
+auto* const MyDWT = DWT;
+auto* const MyFLASH = FLASH;
+
 using namespace moteus;
 namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
@@ -42,6 +46,14 @@ int main(void) {
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
   DigitalIn hwrev1(HWREV_PIN1, PullUp);
   DigitalIn hwrev2(HWREV_PIN2, PullUp);
+
+  // To enable cycle counting.
+  if (0) {
+    ITM->LAR = 0xC5ACCE55;
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+  }
 
   const uint8_t this_hw_rev =
       0x07 & (~(hwrev0.read() |
