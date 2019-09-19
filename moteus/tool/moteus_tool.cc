@@ -301,6 +301,9 @@ class Runner {
             context->copy.emplace(
                 executor_, context->stream.get(), stdio_stream.get(),
                 [context](auto ec) {
+                  if (ec == boost::asio::error::eof) {
+                    std::exit(0);
+                  }
                   base::FailIf(ec);
                 });
           });
