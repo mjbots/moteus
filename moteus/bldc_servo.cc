@@ -524,8 +524,8 @@ class BldcServo::Impl {
     debug_out_ = 1;
 
     if (current_data_->rezero_position) {
-      status_.position_set = false;
-      current_data_->rezero_position = false;
+      status_.position_to_set = *current_data_->rezero_position;
+      current_data_->rezero_position = {};
     }
 
     uint32_t adc1 = ADC1->DR;
@@ -600,11 +600,18 @@ class BldcServo::Impl {
     // While we are in the first calibrating state, our unwrapped
     // position is forced to be within one rotation of 0.  Also, the
     // AS5047 isn't guaranteed to be valid until 10ms after startup.
-    if (!status_.position_set && startup_count_.load() > 10) {
-      status_.unwrapped_position_raw = static_cast<int16_t>(
-          static_cast<int32_t>(status_.position) +
-          motor_.position_offset * (motor_.invert ? -1 : 1));
-      status_.position_set = true;
+    if (std::isfinite(status_.position_to_set) && startup_count_.load() > 10) {
+      const int16_t zero_position =
+          static_cast<int16_t>(
+              static_cast<int32_t>(status_.position) +
+              motor_.position_offset * (motor_.invert ? -1 : 1));
+      const float error = status_.position_to_set -
+          zero_position * motor_.unwrapped_position_scale/ 65536.0f;;
+      const float integral_offsets =
+          std::round(error / motor_.unwrapped_position_scale);
+      status_.unwrapped_position_raw =
+          zero_position + integral_offsets * 65536.0f;
+      status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
     } else {
       status_.unwrapped_position_raw += delta_position;
     }

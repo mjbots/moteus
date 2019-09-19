@@ -271,7 +271,7 @@ class BldcServo {
     mjlib::base::PID::State pid_position;
 
     float control_position = std::numeric_limits<float>::quiet_NaN();
-    bool position_set = false;
+    float position_to_set = 0.0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -308,7 +308,7 @@ class BldcServo {
       a->Visit(MJ_NVP(pid_position));
 
       a->Visit(MJ_NVP(control_position));
-      a->Visit(MJ_NVP(position_set));
+      a->Visit(MJ_NVP(position_to_set));
     }
   };
 
@@ -387,8 +387,9 @@ class BldcServo {
     // If set, then force the position to be the given value.
     std::optional<float> set_position;
 
-    // If set, then rezero the position as if from boot.
-    bool rezero_position = false;
+    // If set, then rezero the position as if from boot.  Select a
+    // position closest to the given value.
+    std::optional<float> rezero_position;
 
     template <typename Archive>
     void Serialize(Archive* a) {

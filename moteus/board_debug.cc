@@ -317,7 +317,11 @@ class BoardDebug::Impl {
     if (command == "rezero") {
       BldcServo::CommandData command;
       command.mode = BldcServo::kStopped;
-      command.rezero_position = true;
+
+      const auto pos_value = tokenizer.next();
+      command.rezero_position =
+          (pos_value.empty()) ? 0.0 :
+          std::strtof(pos_value.data(), nullptr);
 
       bldc_->Command(command);
       WriteOk(response);
