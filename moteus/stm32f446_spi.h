@@ -40,11 +40,6 @@ class Stm32F446Spi {
   }
 
   uint16_t write(uint16_t value) {
-    // NOTE: This seems to take around 7us (this is 28% of our full
-    // cycle period).  I think that if I didn't go through the HAL, I
-    // could get this down to something under 2us, which would be more
-    // reasonable.
-
     auto* const spi = spi_.spi.handle.Instance;
     cs_ = 0;
 
