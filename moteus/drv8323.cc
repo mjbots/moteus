@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@
 
 #include "mjlib/base/inplace_function.h"
 
+#include "moteus/stm32f446_spi.h"
+
 namespace micro = mjlib::micro;
 
 namespace moteus {
@@ -36,8 +38,18 @@ class Drv8323::Impl {
        MillisecondTimer* timer,
        const Options& options)
       : timer_(timer),
-        spi_(options.mosi, options.miso, options.sck),
-        cs_(options.cs),
+        spi_([&]() {
+            Stm32F446Spi::Options out;
+            out.mosi = options.mosi;
+            out.miso = options.miso;
+            out.sck = options.sck;
+            out.cs = options.cs;
+            // I observed 2MHz being unreliable with the built-in
+            // pullup on MISO, but 1MHz seemed OK.  Thus, lets just do
+            // a bit lower for safety.
+            out.frequency = 750000;
+            return out;
+          }()),
         enable_(options.enable, 0),
         hiz_(options.hiz, 0),
         fault_(options.fault, PullUp) {
@@ -45,12 +57,6 @@ class Drv8323::Impl {
     // mbed's SPI class provides no mechanism to do that. :( Thus we
     // manage it manually here.
     pin_mode(options.miso, PullUp);
-
-    spi_.format(16, 1);
-    // I observed 2MHz being unreliable with the built-in pullup on
-    // MISO, but 1MHz seemed OK.  Thus, lets just do a bit lower for
-    // safety.
-    spi_.frequency(750000);
 
     config->Register("drv8323_conf", &config_,
                      std::bind(&Impl::HandleConfigUpdate, this));
@@ -79,17 +85,13 @@ class Drv8323::Impl {
   }
 
   uint16_t Read(int reg) {
-    cs_ = 0;
     const uint16_t result = spi_.write(0x8000 | (reg << 11)) & 0x7ff;
-    cs_ = 1;
     timer_->wait_us(1);
     return result;
   }
 
   void Write(int reg, uint16_t value) {
-    cs_ = 0;
     spi_.write((reg << 11) | (value & 0x7ff));
-    cs_ = 1;
     timer_->wait_us(1);
   }
 
@@ -280,8 +282,7 @@ class Drv8323::Impl {
   Status status_;
   Config config_;
 
-  SPI spi_;
-  DigitalOut cs_;
+  Stm32F446Spi spi_;
   DigitalOut enable_;
   int32_t enable_cache_ = false;
   DigitalOut hiz_;
