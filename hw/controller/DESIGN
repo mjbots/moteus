@@ -1,3 +1,13 @@
+r4 TODO
+   * line up power caps
+   * line up connectors
+   * line up all other parts
+   * route power fets and 8323
+   * route power/place caps for stm32g4
+   * route everything else
+   * fix silks
+
+
 PRODUCTION TODO
  * Use a connector for power
  * Expand BOM to use lower cost parts
@@ -10,6 +20,9 @@ PRODUCTION TODO
    * FETs are only 30V
    * caps are only 35V
 
+
+r4 DONE
+ * all footprints in place minus new caps
 
 r3.1 ERRATA
  * Power input is labeled as +12V, when it should probably be +24V
