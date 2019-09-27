@@ -1,9 +1,4 @@
 r4 TODO
-   * line up power caps
-   * line up connectors
-   * line up all other parts
-   * route power fets and 8323
-   * route power/place caps for stm32g4
    * route everything else
    * fix silks
 

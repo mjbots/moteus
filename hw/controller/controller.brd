@@ -148,14 +148,25 @@
 <wire x1="-23" y1="10" x2="-23" y2="-43" width="0" layer="20"/>
 <wire x1="-23" y1="-43" x2="23" y2="-43" width="0" layer="20"/>
 <wire x1="23" y1="-43" x2="23" y2="10" width="0" layer="20"/>
-<text x="-2.6" y="-8.4" size="1.2" layer="21" align="top-left">moteus r4</text>
-<text x="-2.8" y="-10" size="1.1" layer="21" align="top-left">(c) jjp@pobox.com</text>
-<text x="-10.2" y="-28" size="1.016" layer="21" font="vector" ratio="10">A</text>
-<text x="1.8" y="-27.9" size="1.016" layer="21" font="vector" ratio="10">B</text>
-<text x="14" y="-28.1" size="1.016" layer="21" font="vector" ratio="10">C</text>
+<text x="-2.6" y="-8.1" size="1.2" layer="21" align="top-left">moteus r4</text>
+<text x="-2.7" y="-9.5" size="1.1" layer="21" align="top-left">(c) jjp@pobox.com</text>
+<text x="-10.4" y="-27.5" size="1.016" layer="21" font="vector" ratio="10">A</text>
+<text x="1.6" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">B</text>
+<text x="13.5" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">C</text>
 <text x="14.7" y="8.4" size="0.8" layer="21" rot="R180">TEMP</text>
-<text x="-0.9" y="-11.8" size="1" layer="21" align="top-left">2019</text>
+<text x="-1.2" y="-11.1" size="1" layer="21" align="top-left">2019</text>
 <wire x1="-23" y1="10" x2="23" y2="10" width="0" layer="20"/>
+<text x="10.9" y="8.4" size="0.8" layer="21" rot="R180">SER</text>
+<text x="2.5" y="8.4" size="0.8" layer="21" rot="R180">DBG</text>
+<text x="8" y="9" size="0.6096" layer="21" font="vector">T</text>
+<text x="11.2" y="9" size="0.6096" layer="21" font="vector">R</text>
+<text x="-0.5" y="9.1" size="0.6096" layer="21" font="vector">2</text>
+<text x="2.9" y="9.1" size="0.6096" layer="21" font="vector">1</text>
+<text x="-6.5" y="3.4" size="0.8" layer="21" rot="R180">SPI</text>
+<text x="-10.1" y="0.6" size="0.6096" layer="21" font="vector">C</text>
+<text x="-8.7" y="0.6" size="0.6096" layer="21" font="vector">K</text>
+<text x="-7.5" y="0.6" size="0.6096" layer="21" font="vector">MO</text>
+<text x="-6" y="0.6" size="0.6096" layer="21" font="vector">MI</text>
 </plain>
 <libraries>
 <library name="controller">
@@ -1863,7 +1874,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </pass>
 </autorouter>
 <elements>
-<element name="R7" library="mfpassives" package="R0402" value="100k 1%" x="-12.67" y="-0.56" smashed="yes">
+<element name="R5" library="mfpassives" package="R0402" value="100k 1%" x="-12.67" y="-0.56" smashed="yes">
 <attribute name="TOLERANCE" value="" x="14" y="-41.2" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="ERJ-2RKF1003X" x="14" y="-41.2" size="1.778" layer="27" display="off"/>
 <attribute name="MFG#" value="N/A" x="14" y="-41.2" size="1.778" layer="27" display="off"/>
@@ -1875,7 +1886,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="-13.77" y="0.14" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="MF" value="Panasonic" x="-12.67" y="-0.56" size="1.778" layer="27" display="off"/>
 </element>
-<element name="R8" library="mfpassives" package="R0402" value="10k 1%" x="-15.18" y="-0.56" smashed="yes">
+<element name="R6" library="mfpassives" package="R0402" value="10k 1%" x="-15.18" y="-0.56" smashed="yes">
 <attribute name="TOLERANCE" value="" x="15.3" y="-41.2" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="ERJ-2RKF1002X" x="15.3" y="-41.2" size="1.778" layer="27" display="off"/>
 <attribute name="MFG#" value="N/A" x="15.3" y="-41.2" size="1.778" layer="27" display="off"/>
@@ -1893,54 +1904,54 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MPN" value="AS5047P-ATSM" x="0" y="0" size="1.778" layer="28" rot="MR180" display="off"/>
 <attribute name="MF" value="AMS" x="0" y="0" size="1.778" layer="28" rot="MR180" display="off"/>
 </element>
-<element name="C10" library="mfpassives" package="C0402" value="0.1uF 50V" x="-0.7" y="-0.72" smashed="yes" rot="R180">
+<element name="C12" library="mfpassives" package="C0402" value="0.1uF" x="-0.7" y="-0.72" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-19.75" y="39.92" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="-19.75" y="39.92" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="-19.75" y="39.92" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-19.75" y="39.92" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="1.5" y="-1.42" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
-<attribute name="MF" value="TDK" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-0.8" y="0.12" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="MF" value="" x="-0.7" y="-0.72" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="Q1" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="-15" y="-22" smashed="yes">
-<attribute name="NAME" x="-15.64" y="-25.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="-15.14" y="-25.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="-15" y="-22" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="TPH1R204PL" x="-15" y="-22" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="Toshiba" x="-15" y="-22" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q2" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="-9" y="-22.3" smashed="yes" rot="R180">
-<attribute name="NAME" x="-8.6" y="-25.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="-8.3" y="-25.6" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="-9" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="TPH1R204PL" x="-9" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="Toshiba" x="-9" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="Q3" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="3" y="-22" smashed="yes">
-<attribute name="NAME" x="4.14" y="-26" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="3.94" y="-25.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="3" y="-22" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="TPH1R204PL" x="3" y="-22" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="Toshiba" x="3" y="-22" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q4" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="-3" y="-22.3" smashed="yes" rot="R180">
-<attribute name="NAME" x="-4.1" y="-25.8" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="-3.2" y="-25.6" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="-3" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="TPH1R204PL" x="-3" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="Toshiba" x="-3" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="Q5" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="9" y="-22" smashed="yes">
-<attribute name="NAME" x="8" y="-26.1" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="9.5" y="-25.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="9" y="-22" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="TPH1R204PL" x="9" y="-22" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="Toshiba" x="9" y="-22" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q6" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="15" y="-22.3" smashed="yes" rot="R180">
-<attribute name="NAME" x="15.55" y="-26.55" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="15.75" y="-25.65" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="15" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="TPH1R204PL" x="15" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="Toshiba" x="15" y="-22.3" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
-<element name="U2" library="controller" package="PVQFN-N48" value="DRV8323RS" x="-7.15" y="-6.28" smashed="yes" rot="R180">
+<element name="U4" library="controller" package="PVQFN-N48" value="DRV8323RS" x="-7.15" y="-6.28" smashed="yes" rot="R180">
 <attribute name="NAME" x="-4.35" y="-10.28" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="-7.15" y="-6.28" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="DRV8323RSRGZR" x="-7.15" y="-6.28" size="1.778" layer="27" rot="R180" display="off"/>
@@ -1949,7 +1960,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="RA" library="rcl" package="M1206" value="0.5mOhm 1% 2W" x="-7.4" y="-16.2" smashed="yes" rot="R270">
 <attribute name="MF" value="Stackpole Electronics" x="-7.4" y="-16.2" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="HCS1206FTL500" x="-7.4" y="-16.2" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="-6.829996875" y="-18.57" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="-9.07" y="-16.170003125" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="POPULATE" value="1" x="-7.4" y="-16.2" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="SH1" library="shorts" package="SHORT_TOP-50" value="SHORTT5" x="-6.41" y="-14.22" smashed="yes">
@@ -1967,16 +1978,16 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="RB" library="rcl" package="M1206" value="0.5mOhm 1% 2W" x="-2.9" y="-16.1" smashed="yes">
 <attribute name="MPN" value="HCS1206FTL500" x="-2.9" y="-16.1" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="-2.9" y="-16.1" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="-0.53" y="-15.429996875" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="-0.770003125" y="-14.43" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="-2.9" y="-16.1" size="1.778" layer="27" display="off"/>
 </element>
 <element name="RC" library="rcl" package="M1206" value="0.5mOhm 1% 2W" x="14.9" y="-16.1" smashed="yes" rot="R270">
 <attribute name="MPN" value="HCS1206FTL500" x="14.9" y="-16.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="14.9" y="-16.1" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="15.57" y="-18.470003125" size="0.6096" layer="25" ratio="10" rot="R180"/>
+<attribute name="NAME" x="14.53" y="-13.529996875" size="0.6096" layer="25" ratio="10"/>
 <attribute name="POPULATE" value="1" x="14.9" y="-16.1" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
-<element name="C13" library="mfpassives" package="C0402" value="0.1uF 50V" x="-7.13" y="-11.4" smashed="yes" rot="R270">
+<element name="C14" library="mfpassives" package="C0402" value="0.1uF 50V" x="-7.13" y="-11.4" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
@@ -1984,7 +1995,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="POPULATE" value="1" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="-6.45" y="-11.26" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="-6.45" y="-12.16" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="MF" value="TDK" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="A" library="controller" package="18AWG_PAD" value="PAD" x="-12" y="-26.9" smashed="yes">
@@ -1996,7 +2007,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="C" library="controller" package="18AWG_PAD" value="PAD" x="12" y="-26.9" smashed="yes">
 <attribute name="POPULATE" value="0" x="12" y="-26.9" size="1.778" layer="27" display="off"/>
 </element>
-<element name="R2" library="mfpassives" package="R0402" value="100k 1%" x="-11.9" y="-9.1" smashed="yes" rot="R90">
+<element name="R10" library="mfpassives" package="R0402" value="100k 1%" x="-11.9" y="-9.1" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="ERJ-2RKF1003X" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MFG#" value="N/A" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2005,10 +2016,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="-14.4" y="-10.5" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="-12.1" y="-10.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 <attribute name="MF" value="Panasonic" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="R4" library="mfpassives" package="R0402" value="10k 1%" x="-13.8" y="-12.6" smashed="yes" rot="R180">
+<element name="R12" library="mfpassives" package="R0402" value="10k 1%" x="-13.8" y="-12.6" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MFG#" value="N/A" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2018,9 +2029,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="-15" y="-13.1" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="-12.7" y="-13" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C21" library="mfpassives" package="C0402" value="0.1uF 50V" x="-11.9" y="-6.75" smashed="yes" rot="R270">
+<element name="C20" library="mfpassives" package="C0402" value="0.1uF 50V" x="-11.9" y="-6.75" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2028,7 +2039,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="POPULATE" value="1" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="-11.4" y="-4.75" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="-11.5" y="-5.55" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="MF" value="TDK" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="L1" library="controller" package="IND_BOURNS_SRN4018" value="SRN4018-220M" x="-18.4" y="-6.9" smashed="yes">
@@ -2043,9 +2054,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MPN" value="MF-DIO-SMA-B140" x="-14.2" y="-5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="-14.2" y="-5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="https://factory.macrofab.com/part/MF-DIO-SMA-B140" x="-14.2" y="-5" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="-16.09" y="-9.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="-12.11" y="-2.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
-<element name="C22" library="mfpassives" package="C0402" value="0.1uF 50V" x="-9.92" y="-11.4" smashed="yes" rot="R90">
+<element name="C16" library="mfpassives" package="C0402" value="0.1uF 50V" x="-9.92" y="-11.4" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="HOUSEPART" value="" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2053,49 +2064,49 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="POPULATE" value="1" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="-10.62" y="-12.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="-10.62" y="-11.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="MF" value="TDK" x="-9.92" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="C23" library="mfpassives" package="C0402" value="1.5uF 35V" x="-8.14" y="-11.4" smashed="yes" rot="R90">
+<element name="C15" library="mfpassives" package="C0402" value="1uF" x="-8.14" y="-11.4" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="C1005X5R1V155M050BC" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="HOUSEPART" value="" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="-9" y="-10.26" size="0.6096" layer="25" font="vector" ratio="10"/>
-<attribute name="MF" value="TDK" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="-7.5" y="-12.64" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="MF" value="" x="-8.14" y="-11.4" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="C24" library="mfpassives" package="C0402" value="1.5uF 35V" x="-5.3" y="-1.3" smashed="yes" rot="R90">
+<element name="C18" library="mfpassives" package="C0402" value="0.1uF" x="-5.3" y="-1.3" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="C1005X5R1V155M050BC" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="HOUSEPART" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="-5.4" y="-2.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
-<attribute name="MF" value="TDK" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="C25" library="mfpassives" package="C0402" value="1.5uF 35V" x="-10.1" y="-1.7" smashed="yes" rot="R180">
+<element name="C17" library="mfpassives" package="C0402" value="1uF" x="-10.1" y="-1.7" smashed="yes" rot="R180">
 <attribute name="TOLERANCE" value="" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="C1005X5R1V155M050BC" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="HOUSEPART" value="" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="-11.7" y="-1.04" size="0.6096" layer="25" font="vector" ratio="10"/>
-<attribute name="MF" value="TDK" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-11.2" y="-0.84" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="MF" value="" x="-10.1" y="-1.7" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="SWD" library="controller" package="JST_S6B-ZR-SM4A-TF(LF)(SN)" value="JST-ZH6" x="-8.6" y="4.7" smashed="yes">
-<attribute name="NAME" x="-16.226703125" y="5.69533125" size="0.8" layer="25" rot="R90" align="top-left"/>
+<attribute name="NAME" x="-16.226703125" y="5.69533125" size="1" layer="25" ratio="10" rot="R90" align="top-left"/>
 <attribute name="POPULATE" value="1" x="-8.6" y="4.7" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="B6B-ZR-SM4-TF(LF)(SN)" x="-8.6" y="4.7" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="S6B-ZR-SM4A-TF(LF)(SN)" x="-8.6" y="4.7" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="JST" x="-8.6" y="4.7" size="1.778" layer="27" display="off"/>
 </element>
-<element name="R5" library="mfpassives" package="R0402" value="10k 1%" x="15.9" y="9.2" smashed="yes">
+<element name="R7" library="mfpassives" package="R0402" value="10k 1%" x="15.9" y="9.2" smashed="yes">
 <attribute name="TOLERANCE" value="" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
 <attribute name="MFG#" value="N/A" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
@@ -2104,7 +2115,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
 <attribute name="URL" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="15.5" y="9.8" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="16.8" y="8.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="MF" value="Panasonic" x="15.9" y="9.2" size="1.778" layer="27" display="off"/>
 </element>
 <element name="D2" library="mfleds" package="LED0603" value="MF-LED-0603-RED" x="0.7" y="-37.1" smashed="yes" rot="MR270">
@@ -2121,7 +2132,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="https://factory.macrofab.com/part/MF-LED-0603-RED" x="-1" y="-37.1" size="1.778" layer="28" rot="MR270" display="off"/>
 <attribute name="NAME" x="-1.2" y="-35.2" size="0.6096" layer="26" font="vector" ratio="10" rot="MR90"/>
 </element>
-<element name="R6" library="mfpassives" package="R0402" value="220" x="-2.6" y="-37.5" smashed="yes" rot="MR90">
+<element name="R1" library="mfpassives" package="R0402" value="220" x="-2.6" y="-37.5" smashed="yes" rot="MR90">
 <attribute name="TOLERANCE" value="" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="MFG#" value="N/A" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
@@ -2130,9 +2141,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="1" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="POPULATE" value="1" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="URL" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
-<attribute name="NAME" x="-1.8" y="-38.6" size="0.6096" layer="26" font="vector" ratio="10" rot="MR90"/>
+<attribute name="NAME" x="-2.9" y="-36.2" size="0.6096" layer="26" font="vector" ratio="10" rot="MR90"/>
 </element>
-<element name="R9" library="mfpassives" package="R0402" value="220" x="2.2" y="-37.4" smashed="yes" rot="MR90">
+<element name="R2" library="mfpassives" package="R0402" value="220" x="2.2" y="-37.4" smashed="yes" rot="MR90">
 <attribute name="TOLERANCE" value="" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="MFG#" value="N/A" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="VOLTAGE" value="" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
@@ -2141,31 +2152,31 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="1" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="POPULATE" value="1" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="URL" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
-<attribute name="NAME" x="1.4" y="-36.6" size="0.6096" layer="26" font="vector" ratio="10" rot="MR270"/>
+<attribute name="NAME" x="1.8" y="-36.1" size="0.6096" layer="26" font="vector" ratio="10" rot="MR90"/>
 </element>
 <element name="SH4" library="shorts" package="SHORT_TOP-BIG" value="SHORTBIG" x="-15.6" y="-2.4" smashed="yes">
 <attribute name="POPULATE" value="0" x="-15.6" y="-2.4" size="1.778" layer="27" display="off"/>
 </element>
-<element name="C28" library="mfpassives" package="C0402" value="1.5uF 35V" x="-13.8" y="-10" smashed="yes" rot="R180">
+<element name="C19" library="mfpassives" package="C0402" value="0.47uF 50V" x="-13.8" y="-10" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="C1005X5R1V155M050BC" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="UMK105ABJ474KV-F" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="-15.7" y="-9.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
-<attribute name="MF" value="TDK" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-15.4" y="-9.6" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="MF" value="Taiyo Yuden" x="-13.8" y="-10" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
-<element name="C20" library="mfpassives" package="C1206" value="10uF" x="-18.42" y="-2.6" smashed="yes">
-<attribute name="HOUSEPART" value="" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<element name="C21" library="mfpassives" package="C1206" value="10uF" x="-18.42" y="-2.6" smashed="yes">
+<attribute name="HOUSEPART" value="YES" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
 <attribute name="TOLERANCE" value="" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
-<attribute name="MPN" value="" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
+<attribute name="MPN" value="MF-CAP-1206-10uF" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
 <attribute name="POPULATE" value="1" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
 <attribute name="VOLTAGE" value="" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
 <attribute name="URL" value="" x="-18.42" y="-2.6" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
-<attribute name="NAME" x="-20.76" y="-3.68" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="-17.32" y="-3.86" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="MF" value="" x="-18.42" y="-2.6" size="1.778" layer="27" display="off"/>
 </element>
 <element name="R11" library="mfpassives" package="R0402" value="33k 1%" x="-13.8" y="-11.26" smashed="yes">
@@ -2179,7 +2190,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="WATTAGE" value="" x="-13.8" y="-11.26" size="1.016" layer="27" font="vector" ratio="10" display="off"/>
 <attribute name="NAME" x="-14.9" y="-10.94" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
-<element name="R12" library="mfpassives" package="R0402" value="47k NTC" x="7.2" y="-27.1" smashed="yes" rot="R90">
+<element name="R8" library="mfpassives" package="R0402" value="47k NTC" x="7.2" y="-27.1" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="7.2" y="-27.1" size="0.8" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="7.2" y="-27.1" size="0.8" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="NCP15WB473F03RC" x="7.2" y="-27.1" size="0.8" layer="27" rot="R90" display="off"/>
@@ -2188,9 +2199,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Murata" x="7.2" y="-27.1" size="0.8" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="7.2" y="-27.1" size="0.8" layer="27" rot="R90" display="off"/>
 <attribute name="WATTAGE" value="" x="7.2" y="-27.1" size="0.8" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="8.6" y="-27.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="NAME" x="7.9" y="-27" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
-<element name="R13" library="mfpassives" package="R0402" value="10k 1%" x="6" y="-27.1" smashed="yes" rot="R270">
+<element name="R9" library="mfpassives" package="R0402" value="10k 1%" x="6" y="-27.1" smashed="yes" rot="R270">
 <attribute name="HOUSEPART" value="" x="6" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="6" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="ERJ-2RKF1002X" x="6" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
@@ -2199,147 +2210,177 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Panasonic" x="6" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="6" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="WATTAGE" value="" x="6" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="6.3" y="-28.3" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="6.3" y="-25.8" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C32" library="mfpassives" package="C0402" value="0.1uF 50V" x="4.8" y="-27.1" smashed="yes" rot="R270">
-<attribute name="HOUSEPART" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
+<element name="C13" library="mfpassives" package="C0402" value="0.1uF" x="4.8" y="-27.1" smashed="yes" rot="R270">
+<attribute name="HOUSEPART" value="YES" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
-<attribute name="MF" value="TDK" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
+<attribute name="MF" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="4.9" y="-28.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="4.1" y="-28.3" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
 <element name="TEMP1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="12.6" y="9.2"/>
 <element name="TEMP2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="13.9" y="9.2"/>
 <element name="DA" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-14.5" y="-27"/>
 <element name="DB" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-2.9" y="-27"/>
 <element name="DC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="9.6" y="-27"/>
-<element name="IC1" library="controller" package="QFN50P700X700X60-49N" value="STM32G474CEU6" x="8.3" y="2.9" smashed="yes">
+<element name="U1" library="controller" package="QFN50P700X700X60-49N" value="STM32G474CEU6" x="8.3" y="2.9" smashed="yes">
 <attribute name="DESCRIPTION" value="STMICROELECTRONICS - STM32G474CEU6 - MCU, 32BIT, 170MHZ, UFQFPN-48" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="HEIGHT" value="0.6mm" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="MOUSER_PART_NUMBER" value="511-STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="MOUSER_PRICE-STOCK" value="https://www.mouser.com/Search/Refine.aspx?Keyword=511-STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="MANUFACTURER_NAME" value="STMicroelectronics" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="MANUFACTURER_PART_NUMBER" value="STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="15.5" y="5" size="1.27" layer="25" align="center"/>
+<attribute name="NAME" x="6.9" y="7.1" size="0.6096" layer="25" font="fixed" ratio="10"/>
+<attribute name="MPN" value="STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
+<attribute name="POPULATE" value="1" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 </element>
-<element name="C1" library="mfpassives" package="C0402" value="0.1uF 50V" x="13.1" y="5.8" rot="R270">
-<attribute name="HOUSEPART" value="" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
+<element name="C2" library="mfpassives" package="C0402" value="0.1uF" x="13.1" y="5.8" smashed="yes" rot="R270">
+<attribute name="HOUSEPART" value="YES" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MF" value="TDK" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MF" value="" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="13.1" y="5.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="NAME" x="14.2" y="6.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
-<element name="C2" library="mfpassives" package="C0402" value="0.1uF 50V" x="5.3" y="7.7">
-<attribute name="HOUSEPART" value="" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
+<element name="C1" library="mfpassives" package="C0402" value="0.1uF" x="5.3" y="7.7" smashed="yes">
+<attribute name="HOUSEPART" value="YES" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
-<attribute name="MF" value="TDK" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="5.3" y="7.7" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="4.2" y="8.8" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C3" library="mfpassives" package="C0402" value="0.1uF 50V" x="11.4" y="-1.9" rot="R180">
-<attribute name="HOUSEPART" value="" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
+<element name="C6" library="mfpassives" package="C0402" value="0.1uF" x="11.4" y="-1.9" smashed="yes" rot="R180">
+<attribute name="HOUSEPART" value="YES" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MF" value="TDK" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="11.4" y="-1.9" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="12.4" y="-2.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
-<element name="C4" library="mfpassives" package="C0402" value="0.1uF 50V" x="9.6" y="-2.58" rot="R270">
-<attribute name="HOUSEPART" value="" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<element name="C5" library="mfpassives" package="C0402" value="0.1uF" x="9.6" y="-2.58" smashed="yes" rot="R270">
+<attribute name="HOUSEPART" value="YES" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MF" value="TDK" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MF" value="" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="9.6" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="NAME" x="10.32" y="-4" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
-<element name="C5" library="mfpassives" package="C1206" value="10uF" x="7.9" y="-6.8">
-<attribute name="HOUSEPART" value="" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
+<element name="C7" library="mfpassives" package="C1206" value="10uF" x="7.9" y="-6.8" smashed="yes">
+<attribute name="HOUSEPART" value="YES" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-1206-10uF" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
 <attribute name="POPULATE" value="1" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="7.9" y="-6.8" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="5.7" y="-5.5" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C6" library="mfpassives" package="C0402" value="1uF" x="8.5" y="-2.58" rot="R270">
-<attribute name="HOUSEPART" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<element name="C4" library="mfpassives" package="C0402" value="1uF" x="8.5" y="-2.58" smashed="yes" rot="R270">
+<attribute name="HOUSEPART" value="YES" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="8.5" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="NAME" x="8.82" y="-4" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
-<element name="C7" library="mfpassives" package="C0402" value="0.1uF 50V" x="2.7" y="2.6" rot="R180">
-<attribute name="HOUSEPART" value="" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
+<element name="C3" library="mfpassives" package="C0402" value="0.1uF" x="2.7" y="2.6" smashed="yes" rot="R180">
+<attribute name="HOUSEPART" value="YES" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="DIELECTRIC" value="" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="VOLTAGE" value="" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="MF" value="TDK" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="2.7" y="2.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="2" y="3.9" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="U4" library="controller" package="SOT23-8" value="TCAN334G" x="17.7" y="-9.5"/>
+<element name="U2" library="controller" package="SOT23-8" value="TCAN334G" x="17.7" y="-9.5" smashed="yes">
+<attribute name="NAME" x="14.3234" y="-6.535" size="0.6096" layer="25" font="vector" ratio="10" rot="SR0"/>
+<attribute name="POPULATE" value="1" x="17.7" y="-9.5" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="TCAN334GDCNT" x="17.7" y="-9.5" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="TI" x="17.7" y="-9.5" size="1.778" layer="27" display="off"/>
+</element>
 <element name="J1" library="controller" package="XT30PW_MALE" value="XT30XT30PW_MALE" x="8" y="-30" smashed="yes" rot="R180">
-<attribute name="NAME" x="14.7" y="-38" size="1.27" layer="25" ratio="6"/>
+<attribute name="NAME" x="14.9" y="-42.6" size="1" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="0" x="8" y="-30" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
 <element name="J2" library="controller" package="XT30PW_MALE" value="XT30XT30PW_MALE" x="-8" y="-30" smashed="yes" rot="R180">
-<attribute name="NAME" x="-14.4" y="-32.6" size="1.27" layer="25" ratio="6" rot="R180"/>
+<attribute name="NAME" x="-14.7" y="-41.5" size="1" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="0" x="-8" y="-30" size="1.778" layer="27" rot="R180" display="off"/>
 </element>
-<element name="C8" library="mfpassives" package="C0402" value="0.1uF 50V" x="13.2" y="-9.5" rot="R90">
-<attribute name="HOUSEPART" value="" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
+<element name="C11" library="mfpassives" package="C0402" value="0.1uF" x="13.2" y="-9.5" smashed="yes" rot="R90">
+<attribute name="HOUSEPART" value="YES" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MF" value="TDK" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="13.2" y="-9.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="12.9" y="-7.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
 <element name="CAN1" library="controller" package="JST_S3B-PH-SM4-TB(LF)(SN)" value="JST-PH3" x="-8" y="-38.4" smashed="yes" rot="MR180">
-<attribute name="NAME" x="-13.5" y="-35.57" size="1.27" layer="26" ratio="10" rot="MR270"/>
+<attribute name="NAME" x="-13.07" y="-38.8" size="1" layer="26" font="vector" ratio="10" rot="MR0"/>
+<attribute name="MPN" value="S3B-PH-SM4-TB(LF)(SN)" x="-8" y="-38.4" size="1.778" layer="28" rot="MR180" display="off"/>
+<attribute name="MF" value="JST" x="-8" y="-38.4" size="1.778" layer="28" rot="MR180" display="off"/>
+<attribute name="POPULATE" value="1" x="-8" y="-38.4" size="1.778" layer="28" rot="MR180" display="off"/>
 </element>
 <element name="CAN2" library="controller" package="JST_S3B-PH-SM4-TB(LF)(SN)" value="JST-PH3" x="8" y="-38.4" smashed="yes" rot="MR180">
-<attribute name="NAME" x="2.5" y="-35.57" size="1.27" layer="26" ratio="10" rot="MR270"/>
+<attribute name="NAME" x="12.67" y="-37" size="1" layer="26" font="vector" ratio="10" rot="MR180"/>
+<attribute name="MPN" value="S3B-PH-SM4-TB(LF)(SN)" x="8" y="-38.4" size="1.778" layer="28" rot="MR180" display="off"/>
+<attribute name="MF" value="JST" x="8" y="-38.4" size="1.778" layer="28" rot="MR180" display="off"/>
+<attribute name="POPULATE" value="1" x="8" y="-38.4" size="1.778" layer="28" rot="MR180" display="off"/>
 </element>
-<element name="ABS" library="controller" package="JST_S4B-ZR-SM4A-TF(LF)(SN)" value="JST_ZH4" x="19" y="-0.7" rot="MR90"/>
-<element name="C9" library="mfpassives" package="C0402" value="1uF" x="19.8" y="-0.8" rot="R270">
-<attribute name="HOUSEPART" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<element name="ABS" library="controller" package="JST_S4B-ZR-SM4A-TF(LF)(SN)" value="JST_ZH4" x="19" y="-0.7" smashed="yes" rot="MR90">
+<attribute name="NAME" x="15.63" y="-5.1" size="1" layer="26" font="vector" ratio="10" rot="MR90"/>
+<attribute name="MPN" value="S4B-ZR-SM4A-TF(LF)(SN)" x="19" y="-0.7" size="1.778" layer="28" rot="MR90" display="off"/>
+<attribute name="MF" value="JST" x="19" y="-0.7" size="1.778" layer="28" rot="MR90" display="off"/>
+<attribute name="POPULATE" value="1" x="19" y="-0.7" size="1.778" layer="28" rot="MR90" display="off"/>
+</element>
+<element name="C9" library="mfpassives" package="C0402" value="1uF" x="19.8" y="-0.8" smashed="yes" rot="R270">
+<attribute name="HOUSEPART" value="YES" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1uF" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="19.8" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="NAME" x="19.5" y="-2.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
-<element name="C11" library="mfpassives" package="C0402" value="0.1uF 50V" x="21.2" y="-0.8" rot="R270">
-<attribute name="HOUSEPART" value="" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<element name="C10" library="mfpassives" package="C0402" value="0.1uF" x="21.2" y="-0.8" smashed="yes" rot="R270">
+<attribute name="HOUSEPART" value="YES" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="DIELECTRIC" value="" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MF" value="TDK" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MF" value="" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="21.2" y="-0.8" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="NAME" x="20.8" y="-2.3" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
-<element name="R1" library="mfpassives" package="R0402" value="2k" x="18.5" y="-1.9" rot="R270">
+<element name="R3" library="mfpassives" package="R0402" value="2k" x="18.5" y="-1.9" smashed="yes" rot="R270">
 <attribute name="HOUSEPART" value="" x="18.5" y="-1.9" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="18.5" y="-1.9" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="ERJ-2RKF1002X" x="18.5" y="-1.9" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2348,8 +2389,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Panasonic" x="18.5" y="-1.9" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="18.5" y="-1.9" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="WATTAGE" value="" x="18.5" y="-1.9" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="NAME" x="18.3" y="-3.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
-<element name="R3" library="mfpassives" package="R0402" value="2k" x="18.5" y="0.5" rot="R90">
+<element name="R4" library="mfpassives" package="R0402" value="2k" x="18.5" y="0.5" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="18.5" y="0.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="18.5" y="0.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="ERJ-2RKF1002X" x="18.5" y="0.5" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2358,8 +2400,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Panasonic" x="18.5" y="0.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="18.5" y="0.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="WATTAGE" value="" x="18.5" y="0.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="18.7" y="1.8" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C12" library="mfpassives" package="C1206" value="10uF" x="-16.3" y="-15.5" rot="R90">
+<element name="C22" library="mfpassives" package="C1206" value="10uF" x="-16.3" y="-15.5" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="-16.3" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="-16.3" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-16.3" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2368,8 +2411,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-16.3" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-16.3" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="-16.3" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="-17.4" y="-13.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
-<element name="C14" library="mfpassives" package="C1206" value="10uF" x="10.2" y="-15.6" rot="R90">
+<element name="C27" library="mfpassives" package="C1206" value="10uF" x="10.2" y="-15.6" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="10.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="10.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="10.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2378,8 +2422,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="10.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="10.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="10.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="9.4" y="-13.3" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C15" library="mfpassives" package="C1206" value="10uF" x="7.8" y="-15.6" rot="R90">
+<element name="C26" library="mfpassives" package="C1206" value="10uF" x="7.8" y="-15.6" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="7.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="7.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="7.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2388,8 +2433,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="7.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="7.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="7.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="7" y="-13.3" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C16" library="mfpassives" package="C1206" value="10uF" x="1.8" y="-15.6" rot="R90">
+<element name="C24" library="mfpassives" package="C1206" value="10uF" x="1.8" y="-15.6" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="1.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="1.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="1.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2398,8 +2444,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="1.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="1.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="1.8" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="1.2" y="-13.3" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C17" library="mfpassives" package="C1206" value="10uF" x="-13.8" y="-15.5" rot="R90">
+<element name="C23" library="mfpassives" package="C1206" value="10uF" x="-13.8" y="-15.5" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="-13.8" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="-13.8" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-13.8" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2408,8 +2455,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-13.8" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="-13.8" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-13.8" y="-15.5" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="-12.5" y="-14.1" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="C18" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-21.2">
+<element name="C35" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-21.2" smashed="yes">
 <attribute name="HOUSEPART" value="" x="20.4" y="-21.2" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="20.4" y="-21.2" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="20.4" y="-21.2" size="1.778" layer="27" display="off"/>
@@ -2418,8 +2466,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="20.4" y="-21.2" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="TDK" x="20.4" y="-21.2" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="20.4" y="-21.2" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="20.1" y="-22" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C19" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-23.4">
+<element name="C36" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-23.4" smashed="yes">
 <attribute name="HOUSEPART" value="" x="20.4" y="-23.4" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="20.4" y="-23.4" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="20.4" y="-23.4" size="1.778" layer="27" display="off"/>
@@ -2428,8 +2477,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="20.4" y="-23.4" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="TDK" x="20.4" y="-23.4" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="20.4" y="-23.4" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="20.1" y="-24.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C26" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-25.6">
+<element name="C37" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-25.6" smashed="yes">
 <attribute name="HOUSEPART" value="" x="20.4" y="-25.6" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="20.4" y="-25.6" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="20.4" y="-25.6" size="1.778" layer="27" display="off"/>
@@ -2438,8 +2488,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="20.4" y="-25.6" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="TDK" x="20.4" y="-25.6" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="20.4" y="-25.6" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="20.1" y="-26.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C27" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-19">
+<element name="C34" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-19" smashed="yes">
 <attribute name="HOUSEPART" value="" x="20.4" y="-19" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="20.4" y="-19" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="20.4" y="-19" size="1.778" layer="27" display="off"/>
@@ -2448,8 +2499,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="20.4" y="-19" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="TDK" x="20.4" y="-19" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="20.4" y="-19" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="20.1" y="-19.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C29" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-16.8" rot="R180">
+<element name="C28" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-16.8" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="-20.4" y="-16.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="-20.4" y="-16.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-20.4" y="-16.8" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2458,8 +2510,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-20.4" y="-16.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="TDK" x="-20.4" y="-16.8" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-20.4" y="-16.8" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-19.5" y="-17.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C30" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-19" rot="R180">
+<element name="C29" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-19" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="-20.4" y="-19" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="-20.4" y="-19" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-20.4" y="-19" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2468,8 +2521,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-20.4" y="-19" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="TDK" x="-20.4" y="-19" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-20.4" y="-19" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-19.5" y="-19.8" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C31" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-21.2" rot="R180">
+<element name="C30" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-21.2" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="-20.4" y="-21.2" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="-20.4" y="-21.2" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-20.4" y="-21.2" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2478,12 +2532,21 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-20.4" y="-21.2" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="TDK" x="-20.4" y="-21.2" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-20.4" y="-21.2" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-19.5" y="-22" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="U$9" library="controller" package="M2.5MOUNT" value="MOUNT" x="-20" y="7"/>
-<element name="U$12" library="controller" package="M2.5MOUNT" value="MOUNT" x="20" y="7"/>
-<element name="U$13" library="controller" package="M2.5MOUNT" value="MOUNT" x="-20" y="-40"/>
-<element name="U$14" library="controller" package="M2.5MOUNT" value="MOUNT" x="20" y="-40"/>
-<element name="C33" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-23.4" rot="R180">
+<element name="M1" library="controller" package="M2.5MOUNT" value="MOUNT" x="-20" y="7">
+<attribute name="POPULATE" value="0" x="-20" y="7" size="1.778" layer="27" display="off"/>
+</element>
+<element name="M2" library="controller" package="M2.5MOUNT" value="MOUNT" x="20" y="7">
+<attribute name="POPULATE" value="0" x="20" y="7" size="1.778" layer="27" display="off"/>
+</element>
+<element name="M3" library="controller" package="M2.5MOUNT" value="MOUNT" x="-20" y="-40">
+<attribute name="POPULATE" value="0" x="-20" y="-40" size="1.778" layer="27" display="off"/>
+</element>
+<element name="M4" library="controller" package="M2.5MOUNT" value="MOUNT" x="20" y="-40">
+<attribute name="POPULATE" value="0" x="20" y="-40" size="1.778" layer="27" display="off"/>
+</element>
+<element name="C31" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-23.4" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="-20.4" y="-23.4" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="-20.4" y="-23.4" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-20.4" y="-23.4" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2492,8 +2555,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-20.4" y="-23.4" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="TDK" x="-20.4" y="-23.4" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-20.4" y="-23.4" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-19.5" y="-24.2" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C34" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-25.6" rot="R180">
+<element name="C32" library="mfpassives" package="C1206" value="10uF" x="-20.4" y="-25.6" smashed="yes" rot="R180">
 <attribute name="HOUSEPART" value="" x="-20.4" y="-25.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="-20.4" y="-25.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="-20.4" y="-25.6" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2502,8 +2566,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="-20.4" y="-25.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="TDK" x="-20.4" y="-25.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="-20.4" y="-25.6" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-19.5" y="-26.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C35" library="mfpassives" package="C1206" value="10uF" x="4.2" y="-15.6" rot="R90">
+<element name="C25" library="mfpassives" package="C1206" value="10uF" x="4.2" y="-15.6" smashed="yes" rot="R90">
 <attribute name="HOUSEPART" value="" x="4.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="4.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="4.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2512,13 +2577,24 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="4.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="TDK" x="4.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="4.2" y="-15.6" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="3.3" y="-13.3" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
-<element name="DTX" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="9.1" y="9.2" rot="R270"/>
-<element name="DTR" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="10.4" y="9.2" rot="R270"/>
-<element name="DBG1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="2.1" y="9.2" rot="R270"/>
-<element name="DBG2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="0.6" y="9.2" rot="R270"/>
-<element name="DAC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="3.5" y="-0.2" rot="R270"/>
-<element name="C36" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-16.8">
+<element name="DTX" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="9.1" y="9.2" rot="R270">
+<attribute name="POPULATE" value="0" x="9.1" y="9.2" size="1.778" layer="27" rot="R270" display="off"/>
+</element>
+<element name="DTR" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="10.4" y="9.2" rot="R270">
+<attribute name="POPULATE" value="0" x="10.4" y="9.2" size="1.778" layer="27" rot="R270" display="off"/>
+</element>
+<element name="DBG1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="2.1" y="9.2" rot="R270">
+<attribute name="POPULATE" value="0" x="2.1" y="9.2" size="1.778" layer="27" rot="R270" display="off"/>
+</element>
+<element name="DBG2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="0.6" y="9.2" rot="R270">
+<attribute name="POPULATE" value="0" x="0.6" y="9.2" size="1.778" layer="27" rot="R270" display="off"/>
+</element>
+<element name="DAC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="3.5" y="-0.2" rot="R270">
+<attribute name="POPULATE" value="0" x="3.5" y="-0.2" size="1.778" layer="27" rot="R270" display="off"/>
+</element>
+<element name="C33" library="mfpassives" package="C1206" value="10uF" x="20.4" y="-16.8" smashed="yes">
 <attribute name="HOUSEPART" value="" x="20.4" y="-16.8" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="20.4" y="-16.8" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="CGA5L1X7R1H106K160AC" x="20.4" y="-16.8" size="1.778" layer="27" display="off"/>
@@ -2527,54 +2603,64 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="20.4" y="-16.8" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="TDK" x="20.4" y="-16.8" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="20.4" y="-16.8" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="20.1" y="-17.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="C37" library="mfpassives" package="C0402" value="0.1uF 50V" x="-16.1" y="-35.9" rot="R90">
-<attribute name="HOUSEPART" value="" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
+<element name="C8" library="mfpassives" package="C0402" value="0.1uF" x="-16.1" y="-35.9" smashed="yes" rot="R90">
+<attribute name="HOUSEPART" value="YES" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="CGA2B3X7R1H104K050BB" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MF" value="TDK" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-16.1" y="-35.9" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="-16.8" y="-35.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="DRV_CS" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-9.9" y="1.8"/>
-<element name="DRV_MOSI" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-7.1" y="1.8"/>
-<element name="DRV_MISO" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-5.6" y="1.8"/>
-<element name="DRV_SCK" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-8.5" y="1.8"/>
+<element name="DRV_CS" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-9.9" y="1.8">
+<attribute name="POPULATE" value="0" x="-9.9" y="1.8" size="1.778" layer="27" display="off"/>
+</element>
+<element name="DRV_MOSI" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-7.1" y="1.8">
+<attribute name="POPULATE" value="0" x="-7.1" y="1.8" size="1.778" layer="27" display="off"/>
+</element>
+<element name="DRV_MISO" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-5.6" y="1.8">
+<attribute name="POPULATE" value="0" x="-5.6" y="1.8" size="1.778" layer="27" display="off"/>
+</element>
+<element name="DRV_SCK" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-8.5" y="1.8">
+<attribute name="POPULATE" value="0" x="-8.5" y="1.8" size="1.778" layer="27" display="off"/>
+</element>
 </elements>
 <signals>
 <signal name="+3V3">
 <contactref element="U3" pad="12"/>
-<contactref element="C10" pad="P$1"/>
+<contactref element="C12" pad="P$1"/>
 <contactref element="L1" pad="1"/>
-<contactref element="C24" pad="P$2"/>
-<contactref element="U2" pad="26"/>
+<contactref element="C18" pad="P$2"/>
+<contactref element="U4" pad="26"/>
 <contactref element="SWD" pad="6"/>
-<contactref element="R6" pad="P$1"/>
-<contactref element="R9" pad="P$1"/>
-<contactref element="C20" pad="P$1"/>
+<contactref element="R1" pad="P$1"/>
+<contactref element="R2" pad="P$1"/>
+<contactref element="C21" pad="P$1"/>
 <contactref element="R11" pad="P$1"/>
-<contactref element="R12" pad="P$1"/>
+<contactref element="R8" pad="P$1"/>
 <contactref element="TEMP1" pad="P$1"/>
-<contactref element="IC1" pad="24"/>
-<contactref element="IC1" pad="21"/>
-<contactref element="IC1" pad="36"/>
-<contactref element="IC1" pad="20"/>
+<contactref element="U1" pad="24"/>
+<contactref element="U1" pad="21"/>
+<contactref element="U1" pad="36"/>
+<contactref element="U1" pad="20"/>
+<contactref element="C5" pad="P$1"/>
 <contactref element="C4" pad="P$1"/>
 <contactref element="C6" pad="P$1"/>
-<contactref element="C3" pad="P$1"/>
-<contactref element="C5" pad="P$2"/>
-<contactref element="C1" pad="P$1"/>
-<contactref element="IC1" pad="48"/>
+<contactref element="C7" pad="P$2"/>
 <contactref element="C2" pad="P$1"/>
-<contactref element="U4" pad="3"/>
-<contactref element="C8" pad="P$1"/>
+<contactref element="U1" pad="48"/>
+<contactref element="C1" pad="P$1"/>
+<contactref element="U2" pad="3"/>
+<contactref element="C11" pad="P$1"/>
 <contactref element="ABS" pad="1"/>
 <contactref element="C9" pad="P$1"/>
-<contactref element="C11" pad="P$1"/>
+<contactref element="C10" pad="P$1"/>
+<contactref element="R4" pad="P$1"/>
 <contactref element="R3" pad="P$1"/>
-<contactref element="R1" pad="P$1"/>
 <polygon width="0.254" layer="15" thermals="no">
 <vertex x="-22.5" y="-3.6"/>
 <vertex x="-16.5" y="-3.6"/>
@@ -2662,7 +2748,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-12.8" y1="-36.4" x2="-16.2" y2="-36.4" width="0.5" layer="16"/>
 <wire x1="-16.2" y1="-36.4" x2="-22.4" y2="-36.4" width="0.5" layer="16"/>
 <wire x1="-22.4" y1="-36.4" x2="-22.4" y2="-3.1" width="0.5" layer="16"/>
-<contactref element="C37" pad="P$1"/>
+<contactref element="C8" pad="P$1"/>
 <wire x1="-16.1" y1="-36.45" x2="-16.1" y2="-37.2" width="0.5" layer="1"/>
 <via x="-16.1" y="-37.2" extent="1-16" drill="0.3048"/>
 <wire x1="-16.1" y1="-37.2" x2="-16.2" y2="-37.1" width="0.5" layer="16"/>
@@ -2681,119 +2767,119 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-3.6" y1="-37.1" x2="-3.6" y2="-36.1" width="0.254" layer="16"/>
 <wire x1="-3.6" y1="-36.1" x2="-2.1" y2="-34.6" width="0.254" layer="16"/>
 <wire x1="-2.1" y1="-34.6" x2="3" y2="-34.6" width="0.254" layer="16"/>
-<wire x1="12.7" y1="-1.9" x2="13.2" y2="-10.05" width="0" layer="19" extent="1-1"/>
+<wire x1="9.35" y1="-6.8" x2="13.2" y2="-10.05" width="0" layer="19" extent="1-1"/>
 <wire x1="-4.6" y1="-2.1" x2="-0.65" y2="-1.75" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="NRST">
 <contactref element="SWD" pad="2"/>
-<contactref element="IC1" pad="7"/>
-<contactref element="C7" pad="P$1"/>
+<contactref element="U1" pad="7"/>
+<contactref element="C3" pad="P$1"/>
 <wire x1="3.25" y1="2.6" x2="3.3" y2="2.65" width="0.254" layer="1"/>
 <wire x1="3.3" y1="2.65" x2="4.85" y2="2.65" width="0.254" layer="1"/>
 <wire x1="-6.35" y1="4.7" x2="3.25" y2="2.6" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="SWCLK">
 <contactref element="SWD" pad="5"/>
-<contactref element="IC1" pad="38"/>
+<contactref element="U1" pad="38"/>
 <wire x1="-10.85" y1="4.7" x2="10.55" y2="6.35" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="SWDIO">
 <contactref element="SWD" pad="3"/>
-<contactref element="IC1" pad="37"/>
+<contactref element="U1" pad="37"/>
 <wire x1="-7.85" y1="4.7" x2="11.05" y2="6.35" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="CUR1">
-<contactref element="U2" pad="25"/>
-<contactref element="IC1" pad="16"/>
+<contactref element="U4" pad="25"/>
+<contactref element="U1" pad="16"/>
 <wire x1="7.05" y1="-0.55" x2="-4.4" y2="-2.805" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="CUR2">
-<contactref element="U2" pad="24"/>
-<contactref element="IC1" pad="17"/>
+<contactref element="U4" pad="24"/>
+<contactref element="U1" pad="17"/>
 <wire x1="7.55" y1="-0.55" x2="-3.675" y2="-3.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="VBAT_SENSE">
-<contactref element="R8" pad="P$2"/>
-<contactref element="R7" pad="P$1"/>
-<contactref element="IC1" pad="30"/>
+<contactref element="R6" pad="P$2"/>
+<contactref element="R5" pad="P$1"/>
+<contactref element="U1" pad="30"/>
 <wire x1="-14.63" y1="-0.56" x2="-13.22" y2="-0.56" width="0.2159" layer="1"/>
 <wire x1="-13.22" y1="-0.56" x2="11.75" y2="2.65" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="AS5047_CS">
 <contactref element="U3" pad="1"/>
-<contactref element="IC1" pad="25"/>
+<contactref element="U1" pad="25"/>
 <wire x1="-1.95" y1="2.9178" x2="11.75" y2="0.15" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="AS5047_SCK">
 <contactref element="U3" pad="2"/>
-<contactref element="IC1" pad="27"/>
+<contactref element="U1" pad="27"/>
 <wire x1="-1.3" y1="2.9178" x2="11.75" y2="1.15" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="AS5047_MISO">
 <contactref element="U3" pad="3"/>
-<contactref element="IC1" pad="28"/>
+<contactref element="U1" pad="28"/>
 <wire x1="-0.65" y1="2.9178" x2="11.75" y2="1.65" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="AS5047_MOSI">
 <contactref element="U3" pad="4"/>
-<contactref element="IC1" pad="29"/>
+<contactref element="U1" pad="29"/>
 <wire x1="0" y1="2.9178" x2="11.75" y2="2.15" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="AS5047_A">
 <contactref element="U3" pad="7"/>
-<contactref element="IC1" pad="42"/>
+<contactref element="U1" pad="42"/>
 <wire x1="1.95" y1="2.9178" x2="8.55" y2="6.35" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="AS5047_B">
 <contactref element="U3" pad="6"/>
-<contactref element="IC1" pad="41"/>
+<contactref element="U1" pad="41"/>
 <wire x1="1.3" y1="2.9178" x2="9.05" y2="6.35" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="MOTOR1">
-<contactref element="U2" pad="37"/>
-<contactref element="IC1" pad="8"/>
+<contactref element="U4" pad="37"/>
+<contactref element="U1" pad="8"/>
 <wire x1="4.85" y1="2.15" x2="-10.625" y2="-3.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR2">
-<contactref element="U2" pad="39"/>
-<contactref element="IC1" pad="9"/>
+<contactref element="U4" pad="39"/>
+<contactref element="U1" pad="9"/>
 <wire x1="4.85" y1="1.65" x2="-10.625" y2="-4.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR3">
-<contactref element="U2" pad="41"/>
-<contactref element="IC1" pad="10"/>
+<contactref element="U4" pad="41"/>
+<contactref element="U1" pad="10"/>
 <wire x1="4.85" y1="1.15" x2="-10.625" y2="-5.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DRV8323_MOSI">
-<contactref element="U2" pad="30"/>
-<contactref element="IC1" pad="15"/>
+<contactref element="U4" pad="30"/>
+<contactref element="U1" pad="15"/>
 <contactref element="DRV_MOSI" pad="P$1"/>
-<wire x1="-6.9" y1="-2.805" x2="-7.1" y2="1.8" width="0" layer="19" extent="1-1"/>
+<wire x1="-7.1" y1="1.8" x2="-6.9" y2="-2.805" width="0" layer="19" extent="1-1"/>
 <wire x1="6.55" y1="-0.55" x2="-6.9" y2="-2.805" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DRV8323_MISO">
-<contactref element="U2" pad="29"/>
-<contactref element="IC1" pad="14"/>
+<contactref element="U4" pad="29"/>
+<contactref element="U1" pad="14"/>
 <contactref element="DRV_MISO" pad="P$1"/>
-<wire x1="-6.4" y1="-2.805" x2="-5.6" y2="1.8" width="0" layer="19" extent="1-1"/>
-<wire x1="6.05" y1="-0.55" x2="-6.4" y2="-2.805" width="0" layer="19" extent="1-1"/>
+<wire x1="-5.6" y1="1.8" x2="-6.4" y2="-2.805" width="0" layer="19" extent="1-1"/>
+<wire x1="6.05" y1="-0.55" x2="-5.6" y2="1.8" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DRV8323_SCLK">
-<contactref element="U2" pad="31"/>
-<contactref element="IC1" pad="13"/>
+<contactref element="U4" pad="31"/>
+<contactref element="U1" pad="13"/>
 <contactref element="DRV_SCK" pad="P$1"/>
-<wire x1="-7.4" y1="-2.805" x2="-8.5" y2="1.8" width="0" layer="19" extent="1-1"/>
+<wire x1="-8.5" y1="1.8" x2="-7.4" y2="-2.805" width="0" layer="19" extent="1-1"/>
 <wire x1="5.55" y1="-0.55" x2="-7.4" y2="-2.805" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DRV8323_CS">
-<contactref element="U2" pad="32"/>
-<contactref element="IC1" pad="2"/>
+<contactref element="U4" pad="32"/>
+<contactref element="U1" pad="2"/>
 <contactref element="DRV_CS" pad="P$1"/>
-<wire x1="-7.9" y1="-2.805" x2="-9.9" y2="1.8" width="0" layer="19" extent="1-1"/>
+<wire x1="-9.9" y1="1.8" x2="-7.9" y2="-2.805" width="0" layer="19" extent="1-1"/>
 <wire x1="4.85" y1="5.15" x2="-7.9" y2="-2.805" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="V+">
-<contactref element="R7" pad="P$2"/>
+<contactref element="R5" pad="P$2"/>
 <contactref element="Q1" pad="PAD"/>
 <contactref element="Q1" pad="7"/>
 <contactref element="Q1" pad="6"/>
@@ -2809,30 +2895,30 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q5" pad="6"/>
 <contactref element="Q5" pad="5"/>
 <contactref element="Q5" pad="8"/>
-<contactref element="U2" pad="47"/>
-<contactref element="R2" pad="P$2"/>
-<contactref element="U2" pad="6"/>
-<contactref element="C13" pad="P$1"/>
-<contactref element="U2" pad="7"/>
-<contactref element="C23" pad="P$1"/>
-<contactref element="C28" pad="P$1"/>
+<contactref element="U4" pad="47"/>
+<contactref element="R10" pad="P$2"/>
+<contactref element="U4" pad="6"/>
+<contactref element="C14" pad="P$1"/>
+<contactref element="U4" pad="7"/>
+<contactref element="C15" pad="P$1"/>
+<contactref element="C19" pad="P$1"/>
 <contactref element="J1" pad="1"/>
 <contactref element="J2" pad="1"/>
-<contactref element="C12" pad="P$1"/>
-<contactref element="C14" pad="P$1"/>
-<contactref element="C15" pad="P$1"/>
-<contactref element="C16" pad="P$1"/>
-<contactref element="C17" pad="P$1"/>
-<contactref element="C18" pad="P$1"/>
-<contactref element="C31" pad="P$1"/>
-<contactref element="C19" pad="P$1"/>
-<contactref element="C26" pad="P$1"/>
+<contactref element="C22" pad="P$1"/>
 <contactref element="C27" pad="P$1"/>
-<contactref element="C29" pad="P$1"/>
-<contactref element="C30" pad="P$1"/>
-<contactref element="C33" pad="P$1"/>
-<contactref element="C34" pad="P$1"/>
+<contactref element="C26" pad="P$1"/>
+<contactref element="C24" pad="P$1"/>
+<contactref element="C23" pad="P$1"/>
 <contactref element="C35" pad="P$1"/>
+<contactref element="C30" pad="P$1"/>
+<contactref element="C36" pad="P$1"/>
+<contactref element="C37" pad="P$1"/>
+<contactref element="C34" pad="P$1"/>
+<contactref element="C28" pad="P$1"/>
+<contactref element="C29" pad="P$1"/>
+<contactref element="C31" pad="P$1"/>
+<contactref element="C32" pad="P$1"/>
+<contactref element="C25" pad="P$1"/>
 <wire x1="-7.4" y1="-9.755" x2="-6.9" y2="-9.755" width="0.254" layer="1"/>
 <wire x1="-7.4" y1="-9.755" x2="-7.13" y2="-10.025" width="0.254" layer="1"/>
 <wire x1="-7.13" y1="-10.025" x2="-7.13" y2="-10.85" width="0.254" layer="1"/>
@@ -2848,7 +2934,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="22.5" y="-15.5"/>
 <vertex x="22.5" y="-42.5"/>
 </polygon>
-<contactref element="C36" pad="P$1"/>
+<contactref element="C33" pad="P$1"/>
 <via x="1.4" y="-18.1" extent="1-16" drill="0.5"/>
 <via x="2.5" y="-18.1" extent="1-16" drill="0.5"/>
 <via x="3.6" y="-18.1" extent="1-16" drill="0.5"/>
@@ -2946,7 +3032,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q2" pad="2"/>
 <contactref element="Q2" pad="3"/>
 <contactref element="RA" pad="2"/>
-<contactref element="U2" pad="11"/>
+<contactref element="U4" pad="11"/>
 <wire x1="-4.9" y1="-9.755" x2="-4.9" y2="-12.8" width="0.254" layer="1"/>
 <wire x1="-4.9" y1="-12.8" x2="-5.7" y2="-13.7" width="0.254" layer="1"/>
 <wire x1="-5.7" y1="-13.7" x2="-8.7" y2="-13.7" width="0.254" layer="1"/>
@@ -2965,7 +3051,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q4" pad="1"/>
 <contactref element="Q4" pad="2"/>
 <contactref element="Q4" pad="3"/>
-<contactref element="U2" pad="14"/>
+<contactref element="U4" pad="14"/>
 <contactref element="RB" pad="2"/>
 <wire x1="-3.675" y1="-8.53" x2="-2.81" y2="-8.53" width="0.254" layer="1"/>
 <wire x1="-2.81" y1="-8.53" x2="-2.7" y2="-8.64" width="0.254" layer="1"/>
@@ -2991,7 +3077,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q6" pad="1"/>
 <contactref element="Q6" pad="2"/>
 <contactref element="Q6" pad="3"/>
-<contactref element="U2" pad="21"/>
+<contactref element="U4" pad="21"/>
 <contactref element="RC" pad="2"/>
 <wire x1="14.9" y1="-17.5" x2="13.6" y2="-16.7" width="0.254" layer="1"/>
 <wire x1="13.6" y1="-16.7" x2="13.6" y2="-13.3" width="0.254" layer="1"/>
@@ -3009,14 +3095,14 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="SNA">
 <contactref element="SH1" pad="1"/>
-<contactref element="U2" pad="12"/>
+<contactref element="U4" pad="12"/>
 <wire x1="-4.4" y1="-9.755" x2="-4.4" y2="-13.1" width="0.254" layer="1"/>
 <wire x1="-4.4" y1="-13.1" x2="-5.523" y2="-14.223" width="0.254" layer="1"/>
 <wire x1="-5.523" y1="-14.223" x2="-6.283" y2="-14.22" width="0.254" layer="1"/>
 </signal>
 <signal name="SNB">
 <contactref element="SH2" pad="1"/>
-<contactref element="U2" pad="13"/>
+<contactref element="U4" pad="13"/>
 <wire x1="-3.675" y1="-9.03" x2="-3.8" y2="-9.155" width="0.254" layer="1"/>
 <wire x1="-3.8" y1="-9.155" x2="-3.8" y2="-13.7" width="0.254" layer="1"/>
 <wire x1="-3.8" y1="-13.7" x2="-4.9" y2="-14.8" width="0.254" layer="1"/>
@@ -3024,7 +3110,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="SNC">
 <contactref element="SH3" pad="1"/>
-<contactref element="U2" pad="22"/>
+<contactref element="U4" pad="22"/>
 <wire x1="14.13" y1="-13.643" x2="14.13" y2="-13.03" width="0.254" layer="1"/>
 <wire x1="14.13" y1="-13.03" x2="9.5" y2="-8.4" width="0.254" layer="1"/>
 <wire x1="9.5" y1="-8.4" x2="3.68" y2="-8.4" width="0.254" layer="1"/>
@@ -3040,7 +3126,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q2" pad="6"/>
 <contactref element="Q2" pad="5"/>
 <contactref element="Q2" pad="8"/>
-<contactref element="U2" pad="9"/>
+<contactref element="U4" pad="9"/>
 <contactref element="A" pad="1"/>
 <contactref element="DA" pad="P$1"/>
 <wire x1="-5.9" y1="-9.755" x2="-5.9" y2="-12.4" width="0.254" layer="1"/>
@@ -3074,7 +3160,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q4" pad="6"/>
 <contactref element="Q4" pad="5"/>
 <contactref element="Q4" pad="8"/>
-<contactref element="U2" pad="16"/>
+<contactref element="U4" pad="16"/>
 <contactref element="B" pad="1"/>
 <contactref element="DB" pad="P$1"/>
 <wire x1="-1.075" y1="-25.05" x2="-0.1" y2="-24.075" width="0.254" layer="1"/>
@@ -3097,7 +3183,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="Q6" pad="6"/>
 <contactref element="Q6" pad="5"/>
 <contactref element="Q6" pad="8"/>
-<contactref element="U2" pad="19"/>
+<contactref element="U4" pad="19"/>
 <contactref element="C" pad="1"/>
 <contactref element="DC" pad="P$1"/>
 <wire x1="13.075" y1="-25.05" x2="12.85" y2="-25.05" width="0.254" layer="1"/>
@@ -3125,7 +3211,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="GHA">
 <contactref element="Q1" pad="4"/>
-<contactref element="U2" pad="8"/>
+<contactref element="U4" pad="8"/>
 <wire x1="-6.4" y1="-9.755" x2="-6.4" y2="-12.2" width="0.254" layer="1"/>
 <wire x1="-6.4" y1="-12.2" x2="-6.6" y2="-12.5" width="0.254" layer="1"/>
 <wire x1="-6.6" y1="-12.5" x2="-9.4" y2="-12.5" width="0.254" layer="1"/>
@@ -3138,7 +3224,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="GLA">
 <contactref element="Q2" pad="4"/>
-<contactref element="U2" pad="10"/>
+<contactref element="U4" pad="10"/>
 <wire x1="-5.4" y1="-9.755" x2="-5.4" y2="-12.6" width="0.254" layer="1"/>
 <wire x1="-5.4" y1="-12.6" x2="-6" y2="-13.3" width="0.254" layer="1"/>
 <wire x1="-6" y1="-13.3" x2="-9" y2="-13.3" width="0.254" layer="1"/>
@@ -3150,7 +3236,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="GHB">
 <contactref element="Q3" pad="4"/>
-<contactref element="U2" pad="17"/>
+<contactref element="U4" pad="17"/>
 <wire x1="4.905" y1="-24.95" x2="5.8" y2="-23.855" width="0.254" layer="1"/>
 <wire x1="5.8" y1="-23.855" x2="5.8" y2="-12.6" width="0.254" layer="1"/>
 <wire x1="5.8" y1="-12.6" x2="4.5" y2="-11.1" width="0.254" layer="1"/>
@@ -3160,7 +3246,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="GLB">
 <contactref element="Q4" pad="4"/>
-<contactref element="U2" pad="15"/>
+<contactref element="U4" pad="15"/>
 <wire x1="-3.675" y1="-8.03" x2="-3.645" y2="-8" width="0.254" layer="1"/>
 <wire x1="-3.645" y1="-8" x2="-2.3" y2="-8" width="0.254" layer="1"/>
 <wire x1="-2.3" y1="-8" x2="-1.9" y2="-8.4" width="0.254" layer="1"/>
@@ -3173,7 +3259,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="GHC">
 <contactref element="Q5" pad="4"/>
-<contactref element="U2" pad="18"/>
+<contactref element="U4" pad="18"/>
 <wire x1="10.905" y1="-24.95" x2="11.8" y2="-24.055" width="0.254" layer="1"/>
 <wire x1="11.8" y1="-24.055" x2="11.8" y2="-13.9" width="0.254" layer="1"/>
 <wire x1="11.8" y1="-13.9" x2="8.4" y2="-10.5" width="0.254" layer="1"/>
@@ -3184,7 +3270,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="GLC">
 <contactref element="Q6" pad="4"/>
-<contactref element="U2" pad="20"/>
+<contactref element="U4" pad="20"/>
 <wire x1="13.095" y1="-19.35" x2="13" y2="-19.255" width="0.254" layer="1"/>
 <wire x1="13" y1="-19.255" x2="13" y2="-13.4" width="0.254" layer="1"/>
 <wire x1="13" y1="-13.4" x2="9" y2="-9.4" width="0.254" layer="1"/>
@@ -3199,56 +3285,56 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="SH3" pad="2"/>
 <contactref element="RB" pad="1"/>
 <contactref element="RC" pad="1"/>
-<contactref element="U2" pad="P9"/>
-<contactref element="U2" pad="P2"/>
-<contactref element="U2" pad="P19"/>
-<contactref element="U2" pad="P4"/>
-<contactref element="U2" pad="PAD"/>
-<contactref element="U2" pad="P10"/>
-<contactref element="U2" pad="P22"/>
-<contactref element="U2" pad="P3"/>
-<contactref element="U2" pad="P13"/>
-<contactref element="U2" pad="P5"/>
-<contactref element="U2" pad="P21"/>
-<contactref element="U2" pad="P25"/>
-<contactref element="U2" pad="P15"/>
-<contactref element="U2" pad="P11"/>
-<contactref element="U2" pad="P17"/>
-<contactref element="U2" pad="P16"/>
-<contactref element="U2" pad="P24"/>
-<contactref element="U2" pad="P7"/>
-<contactref element="U2" pad="P20"/>
-<contactref element="U2" pad="P14"/>
-<contactref element="U2" pad="P6"/>
-<contactref element="U2" pad="P8"/>
-<contactref element="U2" pad="P23"/>
-<contactref element="U2" pad="P12"/>
-<contactref element="U2" pad="P18"/>
-<contactref element="U2" pad="P1"/>
-<contactref element="U2" pad="2"/>
-<contactref element="C13" pad="P$2"/>
-<contactref element="U2" pad="43"/>
+<contactref element="U4" pad="P9"/>
+<contactref element="U4" pad="P2"/>
+<contactref element="U4" pad="P19"/>
+<contactref element="U4" pad="P4"/>
+<contactref element="U4" pad="PAD"/>
+<contactref element="U4" pad="P10"/>
+<contactref element="U4" pad="P22"/>
+<contactref element="U4" pad="P3"/>
+<contactref element="U4" pad="P13"/>
+<contactref element="U4" pad="P5"/>
+<contactref element="U4" pad="P21"/>
+<contactref element="U4" pad="P25"/>
+<contactref element="U4" pad="P15"/>
+<contactref element="U4" pad="P11"/>
+<contactref element="U4" pad="P17"/>
+<contactref element="U4" pad="P16"/>
+<contactref element="U4" pad="P24"/>
+<contactref element="U4" pad="P7"/>
+<contactref element="U4" pad="P20"/>
+<contactref element="U4" pad="P14"/>
+<contactref element="U4" pad="P6"/>
+<contactref element="U4" pad="P8"/>
+<contactref element="U4" pad="P23"/>
+<contactref element="U4" pad="P12"/>
+<contactref element="U4" pad="P18"/>
+<contactref element="U4" pad="P1"/>
+<contactref element="U4" pad="2"/>
+<contactref element="C14" pad="P$2"/>
+<contactref element="U4" pad="43"/>
 <contactref element="SH4" pad="1"/>
 <contactref element="D1" pad="ANODE"/>
-<contactref element="R4" pad="P$2"/>
-<contactref element="C28" pad="P$2"/>
+<contactref element="R12" pad="P$2"/>
+<contactref element="C19" pad="P$2"/>
 <contactref element="J1" pad="2"/>
 <contactref element="J2" pad="2"/>
-<contactref element="C12" pad="P$2"/>
-<contactref element="C14" pad="P$2"/>
-<contactref element="C15" pad="P$2"/>
-<contactref element="C16" pad="P$2"/>
-<contactref element="C17" pad="P$2"/>
-<contactref element="C18" pad="P$2"/>
-<contactref element="C31" pad="P$2"/>
-<contactref element="C19" pad="P$2"/>
-<contactref element="C26" pad="P$2"/>
+<contactref element="C22" pad="P$2"/>
 <contactref element="C27" pad="P$2"/>
-<contactref element="C29" pad="P$2"/>
-<contactref element="C30" pad="P$2"/>
-<contactref element="C33" pad="P$2"/>
-<contactref element="C34" pad="P$2"/>
+<contactref element="C26" pad="P$2"/>
+<contactref element="C24" pad="P$2"/>
+<contactref element="C23" pad="P$2"/>
 <contactref element="C35" pad="P$2"/>
+<contactref element="C30" pad="P$2"/>
+<contactref element="C36" pad="P$2"/>
+<contactref element="C37" pad="P$2"/>
+<contactref element="C34" pad="P$2"/>
+<contactref element="C28" pad="P$2"/>
+<contactref element="C29" pad="P$2"/>
+<contactref element="C31" pad="P$2"/>
+<contactref element="C32" pad="P$2"/>
+<contactref element="C25" pad="P$2"/>
 <wire x1="-9.4" y1="-9.755" x2="-9.4" y2="-8.53" width="0.254" layer="1"/>
 <wire x1="-9.4" y1="-8.53" x2="-9.15" y2="-8.28" width="0.254" layer="1"/>
 <polygon width="0.254" layer="2" thermals="no">
@@ -3263,7 +3349,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="22.5" y="-15.5"/>
 <vertex x="22.5" y="-42.5"/>
 </polygon>
-<contactref element="C36" pad="P$2"/>
+<contactref element="C33" pad="P$2"/>
 <via x="-7.9" y="-16.1" extent="1-16" drill="0.5"/>
 <via x="-6.8" y="-16.1" extent="1-16" drill="0.5"/>
 <via x="-5.7" y="-15.1" extent="1-16" drill="0.5"/>
@@ -3389,38 +3475,38 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </polygon>
 </signal>
 <signal name="CUR3">
-<contactref element="U2" pad="23"/>
-<contactref element="IC1" pad="18"/>
+<contactref element="U4" pad="23"/>
+<contactref element="U1" pad="18"/>
 <wire x1="-3.675" y1="-4.03" x2="8.05" y2="-0.55" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR_HIZ">
-<contactref element="U2" pad="38"/>
-<contactref element="U2" pad="40"/>
-<contactref element="U2" pad="42"/>
-<contactref element="IC1" pad="44"/>
+<contactref element="U4" pad="38"/>
+<contactref element="U4" pad="40"/>
+<contactref element="U4" pad="42"/>
+<contactref element="U1" pad="44"/>
 <wire x1="-10.625" y1="-5.03" x2="-10.625" y2="-6.03" width="0" layer="19" extent="1-1"/>
 <wire x1="-10.625" y1="-4.03" x2="-10.625" y2="-5.03" width="0" layer="19" extent="1-1"/>
 <wire x1="7.55" y1="6.35" x2="-10.625" y2="-4.03" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR_ENABLE">
-<contactref element="U2" pad="33"/>
-<contactref element="IC1" pad="11"/>
+<contactref element="U4" pad="33"/>
+<contactref element="U1" pad="11"/>
 <wire x1="4.85" y1="0.65" x2="-8.4" y2="-2.805" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR_FAULT">
-<contactref element="U2" pad="28"/>
-<contactref element="IC1" pad="43"/>
+<contactref element="U4" pad="28"/>
+<contactref element="U1" pad="43"/>
 <wire x1="-5.9" y1="-2.805" x2="8.05" y2="6.35" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="N$5">
-<contactref element="U2" pad="48"/>
-<contactref element="R2" pad="P$1"/>
+<contactref element="U4" pad="48"/>
+<contactref element="R10" pad="P$1"/>
 <wire x1="-11.9" y1="-9.65" x2="-11.28" y2="-9.03" width="0.3" layer="1"/>
 <wire x1="-11.28" y1="-9.03" x2="-10.625" y2="-9.03" width="0.3" layer="1"/>
 </signal>
 <signal name="N$8">
-<contactref element="R4" pad="P$1"/>
-<contactref element="U2" pad="1"/>
+<contactref element="R12" pad="P$1"/>
+<contactref element="U4" pad="1"/>
 <contactref element="R11" pad="P$2"/>
 <wire x1="-13.25" y1="-12.6" x2="-13.25" y2="-11.26" width="0.254" layer="1"/>
 <wire x1="-13.25" y1="-11.26" x2="-11.99" y2="-11.26" width="0.254" layer="1"/>
@@ -3429,8 +3515,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-9.905" y1="-9.75" x2="-9.9" y2="-9.755" width="0.254" layer="1"/>
 </signal>
 <signal name="N$11">
-<contactref element="U2" pad="45"/>
-<contactref element="C21" pad="P$2"/>
+<contactref element="U4" pad="45"/>
+<contactref element="C20" pad="P$2"/>
 <contactref element="L1" pad="2"/>
 <contactref element="D1" pad="CATHODE"/>
 <wire x1="-10.625" y1="-7.53" x2="-11.67" y2="-7.53" width="0.3" layer="1"/>
@@ -3441,22 +3527,22 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-16.776" y1="-7" x2="-16.876" y2="-6.9" width="1" layer="1"/>
 </signal>
 <signal name="N$12">
-<contactref element="C21" pad="P$1"/>
-<contactref element="U2" pad="44"/>
+<contactref element="C20" pad="P$1"/>
+<contactref element="U4" pad="44"/>
 <wire x1="-10.625" y1="-7.03" x2="-11.07" y2="-7.03" width="0.3" layer="1"/>
 <wire x1="-11.07" y1="-7.03" x2="-11.9" y2="-6.2" width="0.3" layer="1"/>
 </signal>
 <signal name="N$10">
-<contactref element="U2" pad="3"/>
-<contactref element="C22" pad="P$2"/>
+<contactref element="U4" pad="3"/>
+<contactref element="C16" pad="P$2"/>
 <wire x1="-8.9" y1="-9.755" x2="-8.95" y2="-10.09" width="0.254" layer="1"/>
 <wire x1="-8.95" y1="-10.09" x2="-8.95" y2="-10.16" width="0.254" layer="1"/>
 <wire x1="-8.95" y1="-10.16" x2="-9.49" y2="-10.85" width="0.254" layer="1"/>
 <wire x1="-9.49" y1="-10.85" x2="-9.92" y2="-10.85" width="0.254" layer="1"/>
 </signal>
 <signal name="N$13">
-<contactref element="U2" pad="4"/>
-<contactref element="C22" pad="P$1"/>
+<contactref element="U4" pad="4"/>
+<contactref element="C16" pad="P$1"/>
 <wire x1="-9.92" y1="-11.95" x2="-9.92" y2="-11.52" width="0.254" layer="1"/>
 <wire x1="-9.92" y1="-11.52" x2="-9.49" y2="-11.53" width="0.254" layer="1"/>
 <wire x1="-9.49" y1="-11.53" x2="-9.18" y2="-11.22" width="0.254" layer="1"/>
@@ -3466,20 +3552,20 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-8.41" y1="-10.16" x2="-8.4" y2="-9.755" width="0.254" layer="1"/>
 </signal>
 <signal name="N$14">
-<contactref element="C23" pad="P$2"/>
-<contactref element="U2" pad="5"/>
+<contactref element="C15" pad="P$2"/>
+<contactref element="U4" pad="5"/>
 <wire x1="-7.9" y1="-9.755" x2="-7.9" y2="-10.65" width="0.254" layer="1"/>
 <wire x1="-7.9" y1="-10.65" x2="-8.14" y2="-10.85" width="0.254" layer="1"/>
 </signal>
 <signal name="N$16">
-<contactref element="U2" pad="36"/>
-<contactref element="C25" pad="P$2"/>
+<contactref element="U4" pad="36"/>
+<contactref element="C17" pad="P$2"/>
 <wire x1="-9.9" y1="-2.805" x2="-10.65" y2="-1.7" width="0.2159" layer="1"/>
 </signal>
 <signal name="I2C_ABS_SCL">
 <contactref element="ABS" pad="2"/>
-<contactref element="R3" pad="P$2"/>
-<contactref element="IC1" pad="45"/>
+<contactref element="R4" pad="P$2"/>
+<contactref element="U1" pad="45"/>
 <wire x1="18.5" y1="1.05" x2="17.55" y2="0.1" width="0.2159" layer="1"/>
 <wire x1="17.55" y1="0.1" x2="16.6" y2="0.1" width="0.2159" layer="1"/>
 <via x="16.6" y="0.1" extent="1-16" drill="0.3048"/>
@@ -3489,8 +3575,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </signal>
 <signal name="I2C_ABS_SDA">
 <contactref element="ABS" pad="3"/>
-<contactref element="R1" pad="P$2"/>
-<contactref element="IC1" pad="46"/>
+<contactref element="R3" pad="P$2"/>
+<contactref element="U1" pad="46"/>
 <wire x1="18.5" y1="-2.45" x2="17.45" y2="-1.4" width="0.2159" layer="1"/>
 <wire x1="17.45" y1="-1.4" x2="16.6" y2="-1.4" width="0.2159" layer="1"/>
 <via x="16.6" y="-1.4" extent="1-16" drill="0.308"/>
@@ -3499,20 +3585,20 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="6.55" y1="6.35" x2="16.6" y2="-1.4" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="N$17">
-<contactref element="R6" pad="P$2"/>
+<contactref element="R1" pad="P$2"/>
 <contactref element="D3" pad="ANODE"/>
 <wire x1="-2.6" y1="-36.95" x2="-1.9" y2="-36.95" width="0.254" layer="16"/>
 <wire x1="-1.9" y1="-36.95" x2="-1" y2="-37.85" width="0.254" layer="16"/>
 </signal>
 <signal name="N$18">
-<contactref element="R9" pad="P$2"/>
+<contactref element="R2" pad="P$2"/>
 <contactref element="D2" pad="ANODE"/>
 <wire x1="0.7" y1="-37.85" x2="1.2" y2="-37.85" width="0.254" layer="16"/>
 <wire x1="1.2" y1="-37.85" x2="2.2" y2="-36.85" width="0.254" layer="16"/>
 </signal>
 <signal name="LED1">
 <contactref element="D3" pad="CATHODE"/>
-<contactref element="IC1" pad="4"/>
+<contactref element="U1" pad="4"/>
 <wire x1="-1" y1="-36.35" x2="-0.3" y2="-37.05" width="0.127" layer="16"/>
 <wire x1="-0.3" y1="-37.05" x2="-0.3" y2="-38.6" width="0.127" layer="16"/>
 <wire x1="-0.3" y1="-38.6" x2="-0.1" y2="-38.8" width="0.127" layer="16"/>
@@ -3525,12 +3611,11 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="22.5" y1="-7.36" x2="22.46" y2="-7.3" width="0.127" layer="16"/>
 <via x="22.46" y="-7.3" extent="1-16" drill="0.3048"/>
 <wire x1="22.46" y1="-7.3" x2="22.4" y2="-7.2" width="0.127" layer="1"/>
-<wire x1="22.4" y1="-7.2" x2="22.4" y2="-6.9" width="0" layer="19" extent="1-16"/>
-<wire x1="22.4" y1="-6.9" x2="4.85" y2="4.15" width="0" layer="19" extent="1-16"/>
+<wire x1="4.85" y1="4.15" x2="22.4" y2="-7.2" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="LED2">
 <contactref element="D2" pad="CATHODE"/>
-<contactref element="IC1" pad="3"/>
+<contactref element="U1" pad="3"/>
 <wire x1="0.7" y1="-36.35" x2="0.1" y2="-36.95" width="0.127" layer="16"/>
 <wire x1="0.1" y1="-36.95" x2="0.1" y2="-38.4" width="0.127" layer="16"/>
 <wire x1="0.1" y1="-38.4" x2="0.2" y2="-38.5" width="0.127" layer="16"/>
@@ -3543,44 +3628,43 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="22.2" y1="-7.9" x2="21.95" y2="-7.9" width="0.127" layer="16"/>
 <via x="21.95" y="-7.9" extent="1-16" drill="0.3048"/>
 <wire x1="21.95" y1="-7.9" x2="21.9" y2="-7.8" width="0.127" layer="1"/>
-<wire x1="21.9" y1="-7.8" x2="21.9" y2="-7" width="0" layer="19" extent="1-16"/>
-<wire x1="21.9" y1="-7" x2="4.85" y2="4.65" width="0" layer="19" extent="1-16"/>
+<wire x1="4.85" y1="4.65" x2="21.9" y2="-7.8" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="GND">
-<contactref element="R8" pad="P$1"/>
+<contactref element="R6" pad="P$1"/>
 <contactref element="U3" pad="5"/>
 <contactref element="U3" pad="13"/>
-<contactref element="C10" pad="P$2"/>
-<contactref element="U2" pad="35"/>
-<contactref element="U2" pad="27"/>
-<contactref element="C24" pad="P$1"/>
-<contactref element="C25" pad="P$1"/>
+<contactref element="C12" pad="P$2"/>
+<contactref element="U4" pad="35"/>
+<contactref element="U4" pad="27"/>
+<contactref element="C18" pad="P$1"/>
+<contactref element="C17" pad="P$1"/>
 <contactref element="SWD" pad="4"/>
-<contactref element="R5" pad="P$2"/>
+<contactref element="R7" pad="P$2"/>
 <contactref element="SH4" pad="2"/>
-<contactref element="C20" pad="P$2"/>
-<contactref element="R13" pad="P$2"/>
-<contactref element="C32" pad="P$2"/>
-<contactref element="IC1" pad="49"/>
-<contactref element="IC1" pad="47"/>
-<contactref element="IC1" pad="35"/>
+<contactref element="C21" pad="P$2"/>
+<contactref element="R9" pad="P$2"/>
+<contactref element="C13" pad="P$2"/>
+<contactref element="U1" pad="49"/>
+<contactref element="U1" pad="47"/>
+<contactref element="U1" pad="35"/>
+<contactref element="C5" pad="P$2"/>
 <contactref element="C4" pad="P$2"/>
 <contactref element="C6" pad="P$2"/>
+<contactref element="C7" pad="P$1"/>
+<contactref element="C2" pad="P$2"/>
 <contactref element="C3" pad="P$2"/>
-<contactref element="C5" pad="P$1"/>
-<contactref element="C1" pad="P$2"/>
-<contactref element="C7" pad="P$2"/>
-<contactref element="U4" pad="2"/>
-<contactref element="U4" pad="2"/>
-<contactref element="C8" pad="P$2"/>
-<contactref element="U4" pad="5"/>
-<contactref element="U4" pad="8"/>
+<contactref element="U2" pad="2"/>
+<contactref element="U2" pad="2"/>
+<contactref element="C11" pad="P$2"/>
+<contactref element="U2" pad="5"/>
+<contactref element="U2" pad="8"/>
 <contactref element="ABS" pad="4"/>
 <contactref element="C9" pad="P$2"/>
-<contactref element="C11" pad="P$2"/>
+<contactref element="C10" pad="P$2"/>
 <contactref element="CAN1" pad="3"/>
 <contactref element="CAN2" pad="3"/>
-<contactref element="C2" pad="P$2"/>
+<contactref element="C1" pad="P$2"/>
 <polygon width="0.254" layer="2" thermals="no">
 <vertex x="-22.5" y="-3.6"/>
 <vertex x="-16.5" y="-3.6"/>
@@ -3639,8 +3723,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="6.9" y="-8.1"/>
 <vertex x="4.9" y="-8.1"/>
 </polygon>
-<contactref element="IC1" pad="23"/>
-<contactref element="IC1" pad="19"/>
+<contactref element="U1" pad="23"/>
+<contactref element="U1" pad="19"/>
 <via x="5.8" y="8.4" extent="1-16" drill="0.3048"/>
 <wire x1="6.05" y1="6.35" x2="6.05" y2="7.7" width="0.3" layer="1"/>
 <wire x1="6.05" y1="7.7" x2="5.85" y2="7.7" width="0.3" layer="1"/>
@@ -3673,7 +3757,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-11.18" y1="-35.5" x2="-16.1" y2="-35.5" width="0.5" layer="16"/>
 <wire x1="-16.1" y1="-35.5" x2="-21.7" y2="-35.5" width="0.5" layer="16"/>
 <wire x1="-21.7" y1="-35.5" x2="-21.7" y2="0.9" width="0.5" layer="16"/>
-<contactref element="C37" pad="P$2"/>
+<contactref element="C8" pad="P$2"/>
 <wire x1="-16.1" y1="-35.35" x2="-16.1" y2="-34.6" width="0.5" layer="1"/>
 <via x="-16.1" y="-34.6" extent="1-16" drill="0.3048"/>
 <wire x1="-16.1" y1="-34.6" x2="-16.1" y2="-35.5" width="0.5" layer="16"/>
@@ -3697,10 +3781,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="2.15" y1="2.6" x2="0.65" y2="2.9178" width="0" layer="19" extent="1-16"/>
 </signal>
 <signal name="VTEMP_FET">
-<contactref element="R12" pad="P$2"/>
-<contactref element="R13" pad="P$1"/>
-<contactref element="C32" pad="P$1"/>
-<contactref element="IC1" pad="31"/>
+<contactref element="R8" pad="P$2"/>
+<contactref element="R9" pad="P$1"/>
+<contactref element="C13" pad="P$1"/>
+<contactref element="U1" pad="31"/>
 <wire x1="4.8" y1="-26.55" x2="6" y2="-26.55" width="0.254" layer="1"/>
 <wire x1="6" y1="-26.55" x2="7.2" y2="-26.55" width="0.254" layer="1"/>
 <wire x1="7.2" y1="-26.55" x2="6.25" y2="-26.55" width="0.254" layer="1"/>
@@ -3713,24 +3797,24 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="7.9" y1="-11.8" x2="11.75" y2="3.15" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="VTEMP_MOT">
-<contactref element="R5" pad="P$1"/>
+<contactref element="R7" pad="P$1"/>
 <contactref element="TEMP2" pad="P$1"/>
-<contactref element="IC1" pad="26"/>
+<contactref element="U1" pad="26"/>
 <wire x1="15.35" y1="9.2" x2="13.9" y2="9.2" width="0.254" layer="1"/>
 <wire x1="11.75" y1="0.65" x2="13.9" y2="9.2" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="CAN_RX">
-<contactref element="IC1" pad="33"/>
-<contactref element="U4" pad="4"/>
+<contactref element="U1" pad="33"/>
+<contactref element="U2" pad="4"/>
 <wire x1="15" y1="-11.405" x2="11.75" y2="4.15" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="CAN_TX">
-<contactref element="IC1" pad="34"/>
-<contactref element="U4" pad="1"/>
+<contactref element="U1" pad="34"/>
+<contactref element="U2" pad="1"/>
 <wire x1="15" y1="-7.595" x2="11.75" y2="4.65" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="CAN_P" class="1">
-<contactref element="U4" pad="7"/>
+<contactref element="U2" pad="7"/>
 <contactref element="CAN1" pad="1"/>
 <contactref element="CAN2" pad="1"/>
 <wire x1="20.4" y1="-8.865" x2="21.23645" y2="-8.865" width="0.2159" layer="1"/>
@@ -3761,7 +3845,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="21.77101875" y1="-9.02855" x2="21.6" y2="-8.92855" width="0.2159" layer="1"/>
 </signal>
 <signal name="CAN_N" class="1">
-<contactref element="U4" pad="6"/>
+<contactref element="U2" pad="6"/>
 <contactref element="CAN1" pad="2"/>
 <contactref element="CAN2" pad="2"/>
 <wire x1="20.4" y1="-10.135" x2="21.23645" y2="-10.135" width="0.2159" layer="1"/>
@@ -3791,28 +3875,28 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-7.49145" y1="-35.42" x2="-8" y2="-35.42" width="0.2159" layer="16"/>
 </signal>
 <signal name="DAC">
-<contactref element="IC1" pad="12"/>
+<contactref element="U1" pad="12"/>
 <contactref element="DAC" pad="P$1"/>
 <wire x1="3.5" y1="-0.2" x2="4.85" y2="0.15" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DEBUG_TX">
 <contactref element="DTX" pad="P$1"/>
-<contactref element="IC1" pad="40"/>
+<contactref element="U1" pad="40"/>
 <wire x1="9.55" y1="6.35" x2="9.1" y2="9.2" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DEBUG_RX">
 <contactref element="DTR" pad="P$1"/>
-<contactref element="IC1" pad="39"/>
+<contactref element="U1" pad="39"/>
 <wire x1="10.05" y1="6.35" x2="10.4" y2="9.2" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DEBUG1">
 <contactref element="DBG1" pad="P$1"/>
-<contactref element="IC1" pad="5"/>
+<contactref element="U1" pad="5"/>
 <wire x1="4.85" y1="3.65" x2="2.1" y2="9.2" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DEBUG2">
 <contactref element="DBG2" pad="P$1"/>
-<contactref element="IC1" pad="6"/>
+<contactref element="U1" pad="6"/>
 <wire x1="4.85" y1="3.15" x2="0.6" y2="9.2" width="0" layer="19" extent="1-1"/>
 </signal>
 </signals>
