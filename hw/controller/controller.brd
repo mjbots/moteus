@@ -9,7 +9,7 @@
 <grid distance="0.1" unitdist="mm" unit="mm" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="mm" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
-<layer number="2" name="Route2" color="1" fill="3" visible="no" active="yes"/>
+<layer number="2" name="Route2" color="1" fill="3" visible="yes" active="yes"/>
 <layer number="3" name="Route3" color="4" fill="3" visible="no" active="no"/>
 <layer number="4" name="Route4" color="1" fill="4" visible="no" active="no"/>
 <layer number="5" name="Route5" color="4" fill="4" visible="no" active="no"/>
@@ -22,7 +22,7 @@
 <layer number="12" name="Route12" color="1" fill="5" visible="no" active="no"/>
 <layer number="13" name="Route13" color="4" fill="5" visible="no" active="no"/>
 <layer number="14" name="Route14" color="1" fill="6" visible="no" active="no"/>
-<layer number="15" name="Route15" color="4" fill="6" visible="no" active="yes"/>
+<layer number="15" name="Route15" color="4" fill="6" visible="yes" active="yes"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
 <layer number="17" name="Pads" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="18" name="Vias" color="2" fill="1" visible="yes" active="yes"/>
@@ -162,11 +162,15 @@
 <text x="11.2" y="9" size="0.6096" layer="21" font="vector">R</text>
 <text x="-0.5" y="9.1" size="0.6096" layer="21" font="vector">2</text>
 <text x="2.9" y="9.1" size="0.6096" layer="21" font="vector">1</text>
-<text x="-6.5" y="3.4" size="0.8" layer="21" rot="R180">SPI</text>
+<text x="-8.5" y="2.5" size="0.8" layer="21">SPI</text>
 <text x="-10.1" y="0.6" size="0.6096" layer="21" font="vector">C</text>
 <text x="-8.7" y="0.6" size="0.6096" layer="21" font="vector">K</text>
 <text x="-7.5" y="0.6" size="0.6096" layer="21" font="vector">MO</text>
 <text x="-6" y="0.6" size="0.6096" layer="21" font="vector">MI</text>
+<text x="-12.7" y="2.5" size="0.6096" layer="21" font="vector">1</text>
+<text x="-14.2" y="2.5" size="0.6096" layer="21" font="vector">2</text>
+<text x="-15.7" y="2.5" size="0.6096" layer="21" font="vector">3</text>
+<text x="-16.2" y="2.3" size="0.8" layer="21" rot="R180">MOT</text>
 </plain>
 <libraries>
 <library name="controller">
@@ -2628,6 +2632,15 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="DRV_SCK" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-8.5" y="1.8">
 <attribute name="POPULATE" value="0" x="-8.5" y="1.8" size="1.778" layer="27" display="off"/>
 </element>
+<element name="MOT1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-12.5" y="1.8">
+<attribute name="POPULATE" value="0" x="-12.5" y="1.8" size="0.6096" layer="27" font="vector" display="off"/>
+</element>
+<element name="MOT2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-14" y="1.8">
+<attribute name="POPULATE" value="0" x="-14" y="1.8" size="0.6096" layer="27" font="vector" display="off"/>
+</element>
+<element name="MOT3" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-15.5" y="1.8">
+<attribute name="POPULATE" value="0" x="-15.5" y="1.8" size="0.6096" layer="27" font="vector" display="off"/>
+</element>
 </elements>
 <signals>
 <signal name="+3V3">
@@ -2838,16 +2851,22 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <signal name="MOTOR1">
 <contactref element="U4" pad="37"/>
 <contactref element="U1" pad="8"/>
+<contactref element="MOT1" pad="P$1"/>
+<wire x1="-10.625" y1="-3.53" x2="-12.5" y2="1.8" width="0" layer="19" extent="1-1"/>
 <wire x1="4.85" y1="2.15" x2="-10.625" y2="-3.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR2">
 <contactref element="U4" pad="39"/>
 <contactref element="U1" pad="9"/>
+<contactref element="MOT2" pad="P$1"/>
+<wire x1="-14" y1="1.8" x2="-10.625" y2="-4.53" width="0" layer="19" extent="1-1"/>
 <wire x1="4.85" y1="1.65" x2="-10.625" y2="-4.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="MOTOR3">
 <contactref element="U4" pad="41"/>
 <contactref element="U1" pad="10"/>
+<contactref element="MOT3" pad="P$1"/>
+<wire x1="-15.5" y1="1.8" x2="-10.625" y2="-5.53" width="0" layer="19" extent="1-1"/>
 <wire x1="4.85" y1="1.15" x2="-10.625" y2="-5.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="DRV8323_MOSI">

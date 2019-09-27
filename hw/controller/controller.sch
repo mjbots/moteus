@@ -5826,6 +5826,15 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="DRV_SCK" library="controller" deviceset="PAD" device="24AWG_PAD">
 <attribute name="POPULATE" value="0"/>
 </part>
+<part name="MOT1" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="MOT2" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="MOT3" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
 </parts>
 <sheets>
 <sheet>
@@ -6268,6 +6277,15 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </instance>
 <instance part="DRV_SCK" gate="G$1" x="172.72" y="53.34">
 <attribute name="POPULATE" x="172.72" y="53.34" size="7.62" layer="96" display="off"/>
+</instance>
+<instance part="MOT1" gate="G$1" x="215.9" y="60.96">
+<attribute name="POPULATE" x="215.9" y="60.96" size="7.62" layer="96" display="off"/>
+</instance>
+<instance part="MOT2" gate="G$1" x="215.9" y="48.26">
+<attribute name="POPULATE" x="215.9" y="48.26" size="7.62" layer="96" display="off"/>
+</instance>
+<instance part="MOT3" gate="G$1" x="215.9" y="35.56">
+<attribute name="POPULATE" x="215.9" y="35.56" size="7.62" layer="96" display="off"/>
 </instance>
 </instances>
 <busses>
@@ -6762,6 +6780,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="-68.58" y1="104.14" x2="-83.82" y2="104.14" width="0.1524" layer="91"/>
 <label x="-88.9" y="104.14" size="1.778" layer="95"/>
 </segment>
+<segment>
+<pinref part="MOT1" gate="G$1" pin="P$1"/>
+<wire x1="208.28" y1="60.96" x2="187.96" y2="60.96" width="0.1524" layer="91"/>
+<label x="187.96" y="60.96" size="1.778" layer="95"/>
+</segment>
 </net>
 <net name="MOTOR2" class="0">
 <segment>
@@ -6774,6 +6797,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="-68.58" y1="101.6" x2="-83.82" y2="101.6" width="0.1524" layer="91"/>
 <label x="-88.9" y="101.6" size="1.778" layer="95"/>
 </segment>
+<segment>
+<pinref part="MOT2" gate="G$1" pin="P$1"/>
+<wire x1="208.28" y1="48.26" x2="187.96" y2="48.26" width="0.1524" layer="91"/>
+<label x="187.96" y="48.26" size="1.778" layer="95"/>
+</segment>
 </net>
 <net name="MOTOR3" class="0">
 <segment>
@@ -6785,6 +6813,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <pinref part="U1" gate="G$1" pin="PA2"/>
 <wire x1="-68.58" y1="99.06" x2="-83.82" y2="99.06" width="0.1524" layer="91"/>
 <label x="-88.9" y="99.06" size="1.778" layer="95"/>
+</segment>
+<segment>
+<pinref part="MOT3" gate="G$1" pin="P$1"/>
+<wire x1="208.28" y1="35.56" x2="187.96" y2="35.56" width="0.1524" layer="91"/>
+<label x="187.96" y="35.56" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="DRV8323_MOSI" class="0">
