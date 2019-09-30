@@ -5831,6 +5831,14 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <part name="MOT3" library="controller" deviceset="PAD" device="24AWG_PAD">
 <attribute name="POPULATE" value="0"/>
 </part>
+<part name="DG2" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="DG1" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="GND20" library="supply1" deviceset="GND" device=""/>
+<part name="GND21" library="supply1" deviceset="GND" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -6283,6 +6291,14 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <instance part="MOT3" gate="G$1" x="215.9" y="35.56">
 <attribute name="POPULATE" x="215.9" y="35.56" size="7.62" layer="96" display="off"/>
 </instance>
+<instance part="DG2" gate="G$1" x="172.72" y="43.18">
+<attribute name="POPULATE" x="172.72" y="43.18" size="7.62" layer="96" display="off"/>
+</instance>
+<instance part="DG1" gate="G$1" x="172.72" y="172.72">
+<attribute name="POPULATE" x="172.72" y="172.72" size="7.62" layer="96" display="off"/>
+</instance>
+<instance part="GND20" gate="1" x="144.78" y="170.18"/>
+<instance part="GND21" gate="1" x="149.86" y="38.1"/>
 </instances>
 <busses>
 </busses>
@@ -6612,6 +6628,17 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <pinref part="GND19" gate="1" pin="GND"/>
 <wire x1="236.22" y1="106.68" x2="238.76" y2="106.68" width="0.1524" layer="91"/>
 <wire x1="238.76" y1="106.68" x2="238.76" y2="93.98" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="GND21" gate="1" pin="GND"/>
+<wire x1="149.86" y1="40.64" x2="149.86" y2="43.18" width="0.1524" layer="91"/>
+<pinref part="DG2" gate="G$1" pin="P$1"/>
+<wire x1="149.86" y1="43.18" x2="165.1" y2="43.18" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="GND20" gate="1" pin="GND"/>
+<pinref part="DG1" gate="G$1" pin="P$1"/>
+<wire x1="144.78" y1="172.72" x2="165.1" y2="172.72" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="NRST" class="0">
