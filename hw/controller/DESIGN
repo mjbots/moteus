@@ -16,6 +16,7 @@ PRODUCTION TODO
 
 r4 DONE
  * all footprints in place minus new caps
+ * switched TCAN334G to SOT23-8 variant for size
 
 r3.1 ERRATA
  * Power input is labeled as +12V, when it should probably be +24V

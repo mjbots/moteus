@@ -443,7 +443,7 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-3.5" y1="-3.5" x2="-3.5" y2="3.5" width="0.1" layer="21"/>
 <wire x1="-3.5" y1="3" x2="-3" y2="3.5" width="0.1" layer="21"/>
 </package>
-<package name="SOT23-8">
+<package name="SOIC8">
 <smd name="1" x="-2.7" y="1.905" dx="1.5494" dy="0.6096" layer="1"/>
 <smd name="2" x="-2.7" y="0.635" dx="1.5494" dy="0.6096" layer="1"/>
 <smd name="3" x="-2.7" y="-0.635" dx="1.5494" dy="0.6096" layer="1"/>
@@ -565,6 +565,25 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="5" y1="-2.17" x2="-5" y2="-2.17" width="0.127" layer="21"/>
 <wire x1="-5" y1="-2.17" x2="-5" y2="4.03" width="0.127" layer="21"/>
 <text x="-6.4" y="-3.47" size="0.8128" layer="25" ratio="10">&gt;NAME</text>
+</package>
+<package name="SOT23-8">
+<smd name="3" x="0.325" y="-1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="2" x="-0.325" y="-1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="4" x="0.975" y="-1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="1" x="-0.975" y="-1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="6" x="0.325" y="1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="7" x="-0.325" y="1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="5" x="0.975" y="1.3" dx="0.45" dy="1.1" layer="1"/>
+<smd name="8" x="-0.975" y="1.3" dx="0.45" dy="1.1" layer="1"/>
+<wire x1="-1.5" y1="-0.6" x2="-1.3" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="-1.3" y1="-0.6" x2="1.5" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="1.5" y1="-0.6" x2="1.5" y2="0.6" width="0.127" layer="21"/>
+<wire x1="1.5" y1="0.6" x2="-1.5" y2="0.6" width="0.127" layer="21"/>
+<wire x1="-1.5" y1="0.6" x2="-1.5" y2="-0.3" width="0.127" layer="21"/>
+<wire x1="-1.5" y1="-0.3" x2="-1.5" y2="-0.6" width="0.127" layer="21"/>
+<wire x1="-1.5" y1="-0.3" x2="-1.3" y2="-0.3" width="0.127" layer="21"/>
+<wire x1="-1.3" y1="-0.3" x2="-1.3" y2="-0.6" width="0.127" layer="21"/>
+<text x="-1.4" y="2" size="0.6" layer="25" font="vector" ratio="10">&gt;NAME</text>
 </package>
 </packages>
 <symbols>
@@ -1119,7 +1138,22 @@ Source: &lt;a href="https://componentsearchengine.com/Datasheets/1/STM32G474CEU6
 <gate name="G$1" symbol="TCAN334GDCNT" x="-20.32" y="2.54"/>
 </gates>
 <devices>
-<device name="" package="SOT23-8">
+<device name="" package="SOIC8">
+<connects>
+<connect gate="G$1" pin="CANH" pad="7"/>
+<connect gate="G$1" pin="CANL" pad="6"/>
+<connect gate="G$1" pin="GND" pad="2"/>
+<connect gate="G$1" pin="RXD" pad="4"/>
+<connect gate="G$1" pin="SHDN" pad="5"/>
+<connect gate="G$1" pin="STB" pad="8"/>
+<connect gate="G$1" pin="TXD" pad="1"/>
+<connect gate="G$1" pin="VCC" pad="3"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="SOT23" package="SOT23-8">
 <connects>
 <connect gate="G$1" pin="CANH" pad="7"/>
 <connect gate="G$1" pin="CANL" pad="6"/>
@@ -5654,7 +5688,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="GND6" library="supply1" deviceset="GND" device=""/>
-<part name="U2" library="controller" deviceset="TCAN334G" device="">
+<part name="U2" library="controller" deviceset="TCAN334G" device="SOT23" value="TCAN334GSOT23">
 <attribute name="MF" value="TI"/>
 <attribute name="MPN" value="TCAN334GDCNT"/>
 <attribute name="POPULATE" value="1"/>
@@ -5888,9 +5922,9 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-302.26" y="-142.24" size="5.08" layer="90">FET DRIVER</text>
 <text x="-132.08" y="-142.24" size="5.08" layer="90">POWER FETS</text>
 <text x="73.66" y="-142.24" size="5.08" layer="90">BULK CAPACITANCE</text>
-<text x="137.16" y="203.2" size="7.62" layer="90">moteus r4
-(c) jjp@pobox.com
-2019</text>
+<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4
+(c) jjp@pobox.com 2019
+Licensed under the Apache 2.0 License</text>
 </plain>
 <instances>
 <instance part="+3V9" gate="G$1" x="106.68" y="127"/>
