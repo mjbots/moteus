@@ -113,6 +113,7 @@ constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRa
 constexpr float kMaxPwm = 1.0f - kMinPwm;
 
 constexpr float kRateHz = kIntRateHz;
+constexpr float kPeriodS = 1.0f / kRateHz;
 
 constexpr int kCalibrateCount = 256;
 
@@ -302,6 +303,10 @@ class BldcServo::Impl {
       next->velocity = std::abs(next->velocity) *
           ((next->stop_position > status_.unwrapped_position) ?
            1.0f : -1.0f);
+    }
+
+    if (next->timeout_s == 0.0f) {
+      next->timeout_s = config_.default_timeout_s;
     }
 
     telemetry_data_ = *next;
@@ -528,6 +533,12 @@ class BldcServo::Impl {
       current_data_->rezero_position = {};
     }
 
+    if (!std::isfinite(current_data_->timeout_s) ||
+        current_data_->timeout_s != 0.0f) {
+      status_.timeout_s = current_data_->timeout_s;
+      current_data_->timeout_s = 0.0;
+    }
+
     uint32_t adc1 = ADC1->DR;
     uint32_t adc2 = ADC2->DR;
     uint32_t adc3 = ADC3->DR;
@@ -706,7 +717,8 @@ class BldcServo::Impl {
       case kVoltage:
       case kVoltageFoc:
       case kCurrent:
-      case kPosition: {
+      case kPosition:
+      case kPositionTimeout: {
         switch (status_.mode) {
           case kNumModes: {
             MJ_ASSERT(false);
@@ -736,6 +748,10 @@ class BldcServo::Impl {
           case kPosition: {
             // Yep, we can do this.
             status_.mode = data->mode;
+            return;
+          }
+          case kPositionTimeout: {
+            // We cannot leave this mode except through a stop.
             return;
           }
         }
@@ -777,6 +793,7 @@ class BldcServo::Impl {
           return false;
         case kCurrent:
         case kPosition:
+        case kPositionTimeout:
           return true;
       }
       return false;
@@ -806,6 +823,7 @@ class BldcServo::Impl {
         case kCurrent:
           return false;
         case kPosition:
+        case kPositionTimeout:
           return true;
       }
       return false;
@@ -830,6 +848,10 @@ class BldcServo::Impl {
       data->set_position = {};
     }
 
+    if (std::isfinite(status_.timeout_s) && status_.timeout_s > 0.0f) {
+      status_.timeout_s = std::max(0.0f, status_.timeout_s - kPeriodS);
+    }
+
     // See if we need to update our current mode.
     if (data->mode != status_.mode) {
       ISR_MaybeChangeMode(data);
@@ -840,18 +862,21 @@ class BldcServo::Impl {
       if (motor_driver_->fault()) {
         status_.mode = kFault;
         status_.fault = errc::kMotorDriverFault;
-        return;
       }
       if (status_.bus_V > config_.max_voltage) {
         status_.mode = kFault;
         status_.fault = errc::kOverVoltage;
-        return;
       }
       if (status_.fet_temp_C > config_.max_temperature) {
         status_.mode = kFault;
         status_.fault = errc::kOverTemperature;
-        return;
       }
+    }
+
+    if (status_.mode == kPosition &&
+        std::isfinite(status_.timeout_s) &&
+        status_.timeout_s <= 0.0f) {
+      status_.mode = kPositionTimeout;
     }
 
     // Ensure unused PID controllers have zerod state.
@@ -899,6 +924,10 @@ class BldcServo::Impl {
       }
       case kPosition: {
         ISR_DoPosition(sin_cos, data);
+        break;
+      }
+      case kPositionTimeout: {
+        ISR_DoPositionTimeout(sin_cos, data);
         break;
       }
     }
@@ -1035,12 +1064,33 @@ class BldcServo::Impl {
     auto limit_v = [&](float in) {
       return Limit(in, -max_voltage, max_voltage);
     };
-    InverseDqTransform idt(sin_cos, limit_v(control_.d_V), limit_v(control_.q_V));
+    InverseDqTransform idt(sin_cos, limit_v(control_.d_V),
+                           limit_v(control_.q_V));
 
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
+  void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) {
+    mjlib::base::PID::ApplyOptions apply_options;
+    apply_options.kp_scale = 0.0;
+    apply_options.kd_scale = 1.0;
+
+    ISR_DoPositionCommon(sin_cos, data,
+                         apply_options, config_.timeout_max_torque_Nm);
+  }
+
   void ISR_DoPosition(const SinCos& sin_cos, CommandData* data) {
+    mjlib::base::PID::ApplyOptions apply_options;
+    apply_options.kp_scale = data->kp_scale;
+    apply_options.kd_scale = data->kd_scale;
+
+    ISR_DoPositionCommon(sin_cos, data, apply_options, data->max_torque_Nm);
+  }
+
+  void ISR_DoPositionCommon(
+      const SinCos& sin_cos, CommandData* data,
+      const mjlib::base::PID::ApplyOptions& pid_options,
+      float max_torque_Nm) {
     if (!std::isnan(data->position)) {
       status_.control_position = data->position;
       data->position = std::numeric_limits<float>::quiet_NaN();
@@ -1071,20 +1121,16 @@ class BldcServo::Impl {
         status_.velocity, -config_.velocity_threshold,
         config_.velocity_threshold);
 
-    mjlib::base::PID::ApplyOptions apply_options;
-    apply_options.kp_scale = data->kp_scale;
-    apply_options.kd_scale = data->kd_scale;
-
     const float unlimited_torque_Nm =
         pid_position_.Apply(status_.unwrapped_position,
                             status_.control_position,
                             measured_velocity, velocity_command,
                             kRateHz,
-                            apply_options) +
+                            pid_options) +
         data->feedforward_Nm;
 
     const float limited_torque_Nm =
-        Limit(unlimited_torque_Nm, -data->max_torque_Nm, data->max_torque_Nm);
+        Limit(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm);
 
     control_.torque_Nm = limited_torque_Nm;
 

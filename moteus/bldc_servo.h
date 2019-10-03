@@ -126,6 +126,9 @@ class BldcServo {
     mjlib::base::PID::Config pid_dq;
     mjlib::base::PID::Config pid_position;
 
+    float default_timeout_s = 0.1;
+    float timeout_max_torque_Nm = 5.0;
+
     // Emit the full control rate debug stream.  Enabling this uses
     // about 1.6us extra in the ISR.
     bool enable_debug = false;
@@ -156,6 +159,8 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_cycles));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
+      a->Visit(MJ_NVP(default_timeout_s));
+      a->Visit(MJ_NVP(timeout_max_torque_Nm));
       a->Visit(MJ_NVP(enable_debug));
     }
   };
@@ -214,6 +219,15 @@ class BldcServo {
     // Control absolute position
     kPosition = 9,
 
+    // This state can be commanded directly, and will also be entered
+    // automatically upon a watchdog timeout from kPosition.  When in
+    // this state, the controller will apply a derivative only
+    // position control to slowly bring the servos to a resting
+    // position.
+    //
+    // The only way to exit this state is through a stop command.
+    kPositionTimeout = 10,
+
     kNumModes,
   };
 
@@ -229,6 +243,7 @@ class BldcServo {
         { kVoltageFoc, "voltage_foc" },
         { kCurrent, "current" },
         { kPosition, "position" },
+        { kPositionTimeout, "pos_timeout" },
       }};
   }
 
@@ -272,6 +287,7 @@ class BldcServo {
 
     float control_position = std::numeric_limits<float>::quiet_NaN();
     float position_to_set = 0.0;
+    float timeout_s = 0.0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -309,6 +325,7 @@ class BldcServo {
 
       a->Visit(MJ_NVP(control_position));
       a->Visit(MJ_NVP(position_to_set));
+      a->Visit(MJ_NVP(timeout_s));
     }
   };
 
@@ -384,6 +401,8 @@ class BldcServo {
     float kp_scale = 1.0f;
     float kd_scale = 1.0f;
 
+    float timeout_s = 0.0f;
+
     // If set, then force the position to be the given value.
     std::optional<float> set_position;
 
@@ -412,6 +431,7 @@ class BldcServo {
       a->Visit(MJ_NVP(feedforward_Nm));
       a->Visit(MJ_NVP(kp_scale));
       a->Visit(MJ_NVP(kd_scale));
+      a->Visit(MJ_NVP(timeout_s));
 
       a->Visit(MJ_NVP(set_position));
       a->Visit(MJ_NVP(rezero_position));

@@ -251,6 +251,8 @@ class BoardDebug::Impl {
       const float max_t = std::strtof(max_t_str.data(), nullptr);
 
       BldcServo::CommandData command;
+      // We default to no timeout for debug commands.
+      command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
       while (tokenizer.remaining().size()) {
         const auto token = tokenizer.next();
@@ -275,6 +277,10 @@ class BoardDebug::Impl {
           }
           case 'f': {
             command.feedforward_Nm = value;
+            break;
+          }
+          case 't': {
+            command.timeout_s = value;
             break;
           }
           default: {

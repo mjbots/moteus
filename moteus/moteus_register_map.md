@@ -63,6 +63,12 @@ int8 - 1 LSB -> 0.01m/s
 int16 - 1 LSB -> 0.001m/s
 int32 - 1 LSB -> 0.0001m/s
 
+### Time (measured in s) ###
+
+int8 - 1 LSB -> 0.01s
+int16 - 1 LSB -> 0.001s
+int32 - 1 LSB -> 0.000001s
+
 ## Definitions ##
 
 ### Modes ###
@@ -94,9 +100,8 @@ The current operational mode of the servo.  Not all values are valid to write.
  * 6 - Voltage mode = writeable
  * 7 - Voltage FOC = writeable
  * 8 - Current = writeable
- * 9 - 1D Position = writeable
- * 10 - 3D Force = writeable
- * 11 - 3D Position = writeable
+ * 9 - Position = writeable
+ * 10 - Position timeout
 
 The registers associated with each control mode are reset when not in
 that control mode.
@@ -282,6 +287,17 @@ Mode: Read/write
 When in kPosition mode, and a non-zero velocity is commanded, stop
 motion when reaching the given position.  NaN / maximal negative mean
 no limit is applied.
+
+### 0x027 - Watchdog timeout ###
+
+Type: int8, int16, int32, float
+Mode: Read/write
+
+This determines the length of time for which this command is valid.
+If this timeout expires before another command is received, the
+controller will enter the kPositionTimeout state.  The default is 0.0,
+which means to use the configured default.  NaN / maximal negative
+means apply no timeout is enforced.
 
 
 ### 0x030 / 0x031 / 0x032 - Force X / Y / Z ###

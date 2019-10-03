@@ -98,6 +98,10 @@ Value ScaleTorque(float value, size_t type) {
   return ScaleMapping(value, 0.5f, 0.01f, 0.001f, type);
 }
 
+Value ScaleTime(float value, size_t type) {
+  return ScaleMapping(value, 0.01f, 0.001f, 0.000001f, type);
+}
+
 int8_t ReadIntMapping(Value value) {
   return std::visit([](auto a) {
       return static_cast<int8_t>(a);
@@ -167,6 +171,10 @@ float ReadTorque(Value value) {
   return ReadScaleMapping(value, 0.5f, 0.01f, 0.001f);
 }
 
+float ReadTime(Value value) {
+  return ReadScaleMapping(value, 0.01f, 0.001f, 0.000001f);
+}
+
 enum class Register {
   kMode = 0x000,
   kPosition = 0x001,
@@ -200,45 +208,7 @@ enum class Register {
   kCommandKdScale = 0x024,
   kCommandPositionMaxTorque = 0x025,
   kCommandStopPosition = 0x026,
-
-  // kCommand3dForceX = 0x030,
-  // kCommand3dForceY = 0x031,
-  // kCommand3dForceZ = 0x032,
-
-  // kCommand3dPositionX = 0x040,
-  // kCommand3dPositionY = 0x041,
-  // kCommand3dPositionZ = 0x042,
-  // kCommand3dVelocityX = 0x043,
-  // kCommand3dVelocityY = 0x044,
-  // kCommand3dVelocityZ = 0x045,
-
-  // kCommand3dStopPlaneX = 0x046,
-  // kCommand3dStopPlaneY = 0x047,
-  // kCommand3dStopPlaneZ = 0x048,
-
-  // kCommand3dStopPlaneNX = 0x049,
-  // kCommand3dStopPlaneNY = 0x04a,
-  // kCommand3dStopPlaneNZ = 0x04b,
-
-  // kCommand3dMaximumForce = 0x04c,
-
-  // kCommand3dFeedforwardX = 0x04d,
-  // kCommand3dFeedforwardY = 0x04e,
-  // kCommand3dFeedforwardZ = 0x04f,
-
-  // kCommand3dKpScale00 = 0x050,
-  // kCommand3dKpScale11 = 0x051,
-  // kCommand3dKpScale22 = 0x052,
-  // kCommand3dKpScale01 = 0x053,
-  // kCommand3dKpScale12 = 0x054,
-  // kCommand3dKpScale02 = 0x055,
-
-  // kCommand3dKdScale00 = 0x056,
-  // kCommand3dKdScale11 = 0x057,
-  // kCommand3dKdScale22 = 0x058,
-  // kCommand3dKdScale01 = 0x059,
-  // kCommand3dKdScale12 = 0x05a,
-  // kCommand3dKdScale02 = 0x05b,
+  kCommandTimeout = 0x027,
 
   kModelNumber = 0x100,
   kFirmwareVersion = 0x101,
@@ -385,6 +355,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.stop_position = ReadPosition(value);
         return 0;
       }
+      case Register::kCommandTimeout: {
+        command_.timeout_s = ReadTime(value);
+        return 0;
+      }
       case Register::kCommandFeedforwardTorque: {
         command_.feedforward_Nm = ReadTorque(value);
         return 0;
@@ -498,6 +472,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kCommandStopPosition: {
         return ScalePosition(command_.stop_position, type);
+      }
+      case Register::kCommandTimeout: {
+        return ScaleTime(command_.timeout_s, type);
       }
       case Register::kCommandFeedforwardTorque: {
         return ScaleCurrent(command_.feedforward_Nm, type);
