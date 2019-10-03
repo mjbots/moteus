@@ -5873,6 +5873,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="GND20" library="supply1" deviceset="GND" device=""/>
 <part name="GND21" library="supply1" deviceset="GND" device=""/>
+<part name="D33" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="+3V13" library="supply1" deviceset="+3V3" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -6333,6 +6337,10 @@ Licensed under the Apache 2.0 License</text>
 </instance>
 <instance part="GND20" gate="1" x="144.78" y="170.18"/>
 <instance part="GND21" gate="1" x="149.86" y="38.1"/>
+<instance part="D33" gate="G$1" x="175.26" y="185.42">
+<attribute name="POPULATE" x="175.26" y="185.42" size="7.62" layer="96" display="off"/>
+</instance>
+<instance part="+3V13" gate="G$1" x="157.48" y="190.5"/>
 </instances>
 <busses>
 </busses>
@@ -6482,6 +6490,12 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-236.22" y1="-15.24" x2="-236.22" y2="-10.16" width="0.1524" layer="91"/>
 <wire x1="-236.22" y1="-10.16" x2="-228.6" y2="-10.16" width="0.1524" layer="91"/>
 <junction x="-228.6" y="-10.16"/>
+</segment>
+<segment>
+<pinref part="+3V13" gate="G$1" pin="+3V3"/>
+<wire x1="157.48" y1="187.96" x2="157.48" y2="185.42" width="0.1524" layer="91"/>
+<pinref part="D33" gate="G$1" pin="P$1"/>
+<wire x1="157.48" y1="185.42" x2="167.64" y2="185.42" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="GND" class="0">
@@ -7790,13 +7804,6 @@ Licensed under the Apache 2.0 License</text>
 </nets>
 </sheet>
 </sheets>
-<errors>
-<approved hash="104,1,208.28,-58.42,D2,ANODE,N$18,,,"/>
-<approved hash="104,1,208.28,-63.5,D2,CATHODE,LED2,,,"/>
-<approved hash="104,1,187.96,-58.42,D3,ANODE,N$17,,,"/>
-<approved hash="104,1,187.96,-63.5,D3,CATHODE,LED1,,,"/>
-<approved hash="104,1,25.4,-60.96,U$5,VCC,+3V3,,,"/>
-</errors>
 </schematic>
 </drawing>
 <compatibility>
