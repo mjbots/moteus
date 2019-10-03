@@ -1076,7 +1076,8 @@ class BldcServo::Impl {
     apply_options.kd_scale = 1.0;
 
     ISR_DoPositionCommon(sin_cos, data,
-                         apply_options, config_.timeout_max_torque_Nm);
+                         apply_options, config_.timeout_max_torque_Nm,
+                         0.0f, 0.0f);
   }
 
   void ISR_DoPosition(const SinCos& sin_cos, CommandData* data) {
@@ -1084,13 +1085,16 @@ class BldcServo::Impl {
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
 
-    ISR_DoPositionCommon(sin_cos, data, apply_options, data->max_torque_Nm);
+    ISR_DoPositionCommon(sin_cos, data, apply_options, data->max_torque_Nm,
+                         data->feedforward_Nm, data->velocity);
   }
 
   void ISR_DoPositionCommon(
       const SinCos& sin_cos, CommandData* data,
       const mjlib::base::PID::ApplyOptions& pid_options,
-      float max_torque_Nm) {
+      float max_torque_Nm,
+      float feedforward_Nm,
+      float velocity) {
     if (!std::isnan(data->position)) {
       status_.control_position = data->position;
       data->position = std::numeric_limits<float>::quiet_NaN();
@@ -1098,16 +1102,16 @@ class BldcServo::Impl {
       status_.control_position = status_.unwrapped_position;
     }
 
-    auto velocity_command = data->velocity;
+    auto velocity_command = velocity;
 
     const auto old_position = status_.control_position;
     status_.control_position =
-        Limit(status_.control_position + data->velocity / kRateHz,
+        Limit(status_.control_position + velocity_command / kRateHz,
               position_config_.position_min,
               position_config_.position_max);
     if (std::isfinite(data->stop_position)) {
       if ((status_.control_position -
-           data->stop_position) * data->velocity > 0.0f) {
+           data->stop_position) * velocity_command > 0.0f) {
         // We are moving away from the stop position.  Force it to be there.
         status_.control_position = data->stop_position;
       }
@@ -1127,7 +1131,7 @@ class BldcServo::Impl {
                             measured_velocity, velocity_command,
                             kRateHz,
                             pid_options) +
-        data->feedforward_Nm;
+        feedforward_Nm;
 
     const float limited_torque_Nm =
         Limit(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm);
