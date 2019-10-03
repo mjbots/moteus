@@ -2205,11 +2205,21 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="" x="4.8" y="-27.1" size="0.8" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="4.1" y="-28.3" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 </element>
-<element name="TEMP1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="12.9" y="9.2"/>
-<element name="TEMP2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="14.2" y="9.2"/>
-<element name="DA" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-14.5" y="-27"/>
-<element name="DB" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-2.9" y="-27"/>
-<element name="DC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="9.6" y="-27"/>
+<element name="TEMP1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="12.9" y="9.2">
+<attribute name="POPULATE" value="0" x="12.9" y="9.2" size="1.778" layer="27" display="off"/>
+</element>
+<element name="TEMP2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="14.2" y="9.2">
+<attribute name="POPULATE" value="0" x="14.2" y="9.2" size="1.778" layer="27" display="off"/>
+</element>
+<element name="DA" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-14.5" y="-27">
+<attribute name="POPULATE" value="0" x="-14.5" y="-27" size="1.778" layer="27" display="off"/>
+</element>
+<element name="DB" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-2.9" y="-27">
+<attribute name="POPULATE" value="0" x="-2.9" y="-27" size="1.778" layer="27" display="off"/>
+</element>
+<element name="DC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="9.6" y="-27">
+<attribute name="POPULATE" value="0" x="9.6" y="-27" size="1.778" layer="27" display="off"/>
+</element>
 <element name="U1" library="controller" package="QFN50P700X700X60-49N" value="STM32G474CEU6" x="8.3" y="2.9" smashed="yes">
 <attribute name="DESCRIPTION" value="STMICROELECTRONICS - STM32G474CEU6 - MCU, 32BIT, 170MHZ, UFQFPN-48" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="HEIGHT" value="0.6mm" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>

@@ -5638,11 +5638,21 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value=""/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
-<part name="TEMP1" library="controller" deviceset="PAD" device="24AWG_PAD"/>
-<part name="TEMP2" library="controller" deviceset="PAD" device="24AWG_PAD"/>
-<part name="DA" library="controller" deviceset="PAD" device="24AWG_PAD"/>
-<part name="DB" library="controller" deviceset="PAD" device="24AWG_PAD"/>
-<part name="DC" library="controller" deviceset="PAD" device="24AWG_PAD"/>
+<part name="TEMP1" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="TEMP2" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="DA" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="DB" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="DC" library="controller" deviceset="PAD" device="24AWG_PAD">
+<attribute name="POPULATE" value="0"/>
+</part>
 <part name="U1" library="controller" deviceset="STM32G474CEU6" device="">
 <attribute name="MPN" value="STM32G474CEU6"/>
 <attribute name="POPULATE" value="1"/>
@@ -6131,11 +6141,21 @@ Licensed under the Apache 2.0 License</text>
 <attribute name="MPN" x="238.76" y="-104.14" size="1.778" layer="96" display="off"/>
 <attribute name="MF" x="238.76" y="-104.14" size="1.778" layer="96" display="off"/>
 </instance>
-<instance part="TEMP1" gate="G$1" x="185.42" y="-15.24"/>
-<instance part="TEMP2" gate="G$1" x="195.58" y="-17.78"/>
-<instance part="DA" gate="G$1" x="-66.04" y="-208.28" rot="R180"/>
-<instance part="DB" gate="G$1" x="-35.56" y="-208.28" rot="R180"/>
-<instance part="DC" gate="G$1" x="-10.16" y="-208.28" rot="R180"/>
+<instance part="TEMP1" gate="G$1" x="185.42" y="-15.24">
+<attribute name="POPULATE" x="185.42" y="-15.24" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="TEMP2" gate="G$1" x="195.58" y="-17.78">
+<attribute name="POPULATE" x="195.58" y="-17.78" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="DA" gate="G$1" x="-66.04" y="-208.28" rot="R180">
+<attribute name="POPULATE" x="-66.04" y="-208.28" size="1.778" layer="96" rot="R180" display="off"/>
+</instance>
+<instance part="DB" gate="G$1" x="-35.56" y="-208.28" rot="R180">
+<attribute name="POPULATE" x="-35.56" y="-208.28" size="1.778" layer="96" rot="R180" display="off"/>
+</instance>
+<instance part="DC" gate="G$1" x="-10.16" y="-208.28" rot="R180">
+<attribute name="POPULATE" x="-10.16" y="-208.28" size="1.778" layer="96" rot="R180" display="off"/>
+</instance>
 <instance part="U1" gate="G$1" x="-68.58" y="121.92">
 <attribute name="MPN" x="-68.58" y="121.92" size="7.62" layer="96" display="off"/>
 <attribute name="POPULATE" x="-68.58" y="121.92" size="7.62" layer="96" display="off"/>
