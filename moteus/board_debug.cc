@@ -132,8 +132,8 @@ class BoardDebug::Impl {
   void HandleCommand(const std::string_view& message,
                      const micro::CommandManager::Response& response) {
     base::Tokenizer tokenizer(message, " ");
-    const auto command = tokenizer.next();
-    if (command == "led") {
+    const auto cmd_text = tokenizer.next();
+    if (cmd_text == "led") {
       const auto which_led = tokenizer.next();
       const auto state = tokenizer.next();
 
@@ -154,7 +154,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "stop") {
+    if (cmd_text == "stop") {
       BldcServo::CommandData command;
       command.mode = BldcServo::kStopped;
 
@@ -163,7 +163,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "pwm") {
+    if (cmd_text == "pwm") {
       const auto phase_str = tokenizer.next();
       const auto magnitude_str = tokenizer.next();
 
@@ -186,7 +186,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "cal") {
+    if (cmd_text == "cal") {
       const auto magnitude_str = tokenizer.next();
 
       if (magnitude_str.empty()) {
@@ -211,7 +211,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "dq") {
+    if (cmd_text == "dq") {
       const auto d_str = tokenizer.next();
       const auto q_str = tokenizer.next();
 
@@ -234,7 +234,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "pos") {
+    if (cmd_text == "pos" || cmd_text == "tmt") {
       const auto pos_str = tokenizer.next();
       const auto vel_str = tokenizer.next();
       const auto max_t_str = tokenizer.next();
@@ -290,7 +290,10 @@ class BoardDebug::Impl {
         }
       }
 
-      command.mode = BldcServo::kPosition;
+      command.mode =
+          (cmd_text == "pos") ? BldcServo::kPosition :
+          ((cmd_text == "tmt") ? BldcServo::kPositionTimeout :
+           BldcServo::kStopped);
 
       command.position = pos;
       command.velocity = vel;
@@ -301,7 +304,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "index") {
+    if (cmd_text == "index") {
       const auto pos_value = tokenizer.next();
       if (pos_value.empty()) {
         WriteMessage(response, "missing index value\r\n");
@@ -320,7 +323,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "rezero") {
+    if (cmd_text == "rezero") {
       BldcServo::CommandData command;
       command.mode = BldcServo::kStopped;
 
@@ -334,7 +337,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "clk") {
+    if (cmd_text == "clk") {
       const uint32_t clock = bldc_->clock();
       ::snprintf(out_message_, sizeof(out_message_),
                  "%lu\r\n", clock);
@@ -342,15 +345,15 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "die") {
+    if (cmd_text == "die") {
       mbed_die();
     }
 
-    if (command == "assert") {
+    if (cmd_text == "assert") {
       MJ_ASSERT(false);
     }
 
-    if (command == "stack") {
+    if (cmd_text == "stack") {
       volatile int* ptr = {};
       *ptr = 45;
       Recurse(10000);
@@ -358,15 +361,15 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (command == "loop") {
+    if (cmd_text == "loop") {
       for (;;) {}
     }
 
-    if (command == "reset") {
+    if (cmd_text == "reset") {
       NVIC_SystemReset();
     }
 
-    if (command == "flash") {
+    if (cmd_text == "flash") {
       // TODO: Get the USART and direction pin from our config.
       MultiplexBootloader(multiplex_protocol_->config()->id, USART1, GPIOA, 8);
       // We should never get here.
