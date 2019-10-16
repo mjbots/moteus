@@ -31,7 +31,7 @@ import sys
 import mjlib.multiplex.multiplex_protocol as mp
 import mjlib.multiplex.aioserial as aioserial
 
-import moteus.calibrate_encoder
+import moteus.tool.calibrate_encoder
 
 
 G_VERBOSE = False
@@ -211,9 +211,9 @@ async def do_calibrate(client, args):
         if line.startswith('CAL done'):
             break
 
-    calibrate_data = moteus.calibrate_encoder.read_file(
+    calibrate_data = moteus.tool.calibrate_encoder.read_file(
         io.StringIO(''.join(['1>{}\n'.format(x) for x in encoder_lines])))
-    calibration = moteus.calibrate_encoder.perform_calibration(
+    calibration = moteus.tool.calibrate_encoder.perform_calibration(
         calibrate_data, args.show_plots)
 
     if 'error' in calibration:

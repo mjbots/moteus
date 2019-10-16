@@ -33,4 +33,4 @@ def add_default_repositories(excludes = []):
     if "elfio" not in excludes:
         elfio_repository()
     if "mjlib" not in excludes:
-        mjlib_repository(name = "mjlib")
+        mjlib_repository(name = "com_github_mjbots_mjlib")

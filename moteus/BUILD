@@ -29,7 +29,7 @@ cc_library(
         "foc.cc",
     ],
     deps = [
-        "@mjlib//mjlib/base:inplace_function",
+        "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
     ],
 )
 
@@ -43,7 +43,7 @@ bootloader_mbed_binary(
         "stm32_serial.h",
     ],
     deps = [
-        "@mjlib//mjlib/base:assert",
+        "@com_github_mjbots_mjlib//mjlib/base:assert",
     ],
 )
 
@@ -73,16 +73,16 @@ mbed_binary(
     ],
     deps = [
         ":common",
-        "@mjlib//mjlib/base:assert",
-        "@mjlib//mjlib/base:tokenizer",
-        "@mjlib//mjlib/micro:async_exclusive",
-        "@mjlib//mjlib/micro:async_stream",
-        "@mjlib//mjlib/micro:command_manager",
-        "@mjlib//mjlib/micro:error_code",
-        "@mjlib//mjlib/micro:persistent_config",
-        "@mjlib//mjlib/micro:pool_ptr",
-        "@mjlib//mjlib/micro:telemetry_manager",
-        "@mjlib//mjlib/multiplex:micro_server",
+        "@com_github_mjbots_mjlib//mjlib/base:assert",
+        "@com_github_mjbots_mjlib//mjlib/base:tokenizer",
+        "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
+        "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
+        "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
+        "@com_github_mjbots_mjlib//mjlib/micro:error_code",
+        "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
+        "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
+        "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:micro_server",
     ],
     linker_script = "stm32f446.ld",
 )
@@ -94,10 +94,10 @@ bootloader_mbed_binary(
         "bootloader.cc",
     ],
     deps = [
-        "@mjlib//mjlib/base:buffer_stream",
-        "@mjlib//mjlib/base:tokenizer",
-        "@mjlib//mjlib/multiplex:format",
-        "@mjlib//mjlib/multiplex:stream",
+        "@com_github_mjbots_mjlib//mjlib/base:buffer_stream",
+        "@com_github_mjbots_mjlib//mjlib/base:tokenizer",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:format",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:stream",
         "@boost",
     ],
     linker_script = "stm32f446_bootloader.ld",
@@ -146,18 +146,18 @@ mbed_binary(
     ],
     deps = [
         ":common",
-        "@mjlib//mjlib/base:assert",
-        "@mjlib//mjlib/base:inplace_function",
-        "@mjlib//mjlib/base:pid",
-        "@mjlib//mjlib/base:windowed_average",
-        "@mjlib//mjlib/micro:async_exclusive",
-        "@mjlib//mjlib/micro:async_stream",
-        "@mjlib//mjlib/micro:command_manager",
-        "@mjlib//mjlib/micro:error_code",
-        "@mjlib//mjlib/micro:persistent_config",
-        "@mjlib//mjlib/micro:pool_ptr",
-        "@mjlib//mjlib/micro:telemetry_manager",
-        "@mjlib//mjlib/multiplex:micro_server",
+        "@com_github_mjbots_mjlib//mjlib/base:assert",
+        "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
+        "@com_github_mjbots_mjlib//mjlib/base:pid",
+        "@com_github_mjbots_mjlib//mjlib/base:windowed_average",
+        "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
+        "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
+        "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
+        "@com_github_mjbots_mjlib//mjlib/micro:error_code",
+        "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
+        "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
+        "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:micro_server",
     ],
     linker_script = "stm32f446.ld",
 )
@@ -244,8 +244,8 @@ py_binary(
     name = "jump_test",
     srcs = ["jump_test.py"],
     deps = [
-        "@mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@mjlib//mjlib/multiplex:aioserial",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
     ],
 )
 
@@ -253,8 +253,8 @@ py_binary(
     name = "bridge_test",
     srcs = ["bridge_test.py"],
     deps = [
-        "@mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@mjlib//mjlib/multiplex:aioserial",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
     ],
 )
 

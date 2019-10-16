@@ -27,8 +27,11 @@ py_binary(
     main = "moteus_tool.py",
     deps = [
         ":calibrate_encoder",
-        "@mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@mjlib//mjlib/multiplex:aioserial",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
+    ],
+    imports = [
+        "../../../mjlib",
     ],
 )
 
@@ -37,13 +40,13 @@ cc_library(
     hdrs = ["moteus_tool.h"],
     srcs = ["moteus_tool.cc"],
     deps = [
-        "@mjlib//mjlib/base:inplace_function",
-        "@mjlib//mjlib/base:program_options_archive",
-        "@mjlib//mjlib/base:time_conversions",
-        "@mjlib//mjlib/io:async_sequence",
-        "@mjlib//mjlib/io:stream_copy",
-        "@mjlib//mjlib/io:stream_factory",
-        "@mjlib//mjlib/multiplex:asio_client",
+        "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
+        "@com_github_mjbots_mjlib//mjlib/base:program_options_archive",
+        "@com_github_mjbots_mjlib//mjlib/base:time_conversions",
+        "@com_github_mjbots_mjlib//mjlib/io:async_sequence",
+        "@com_github_mjbots_mjlib//mjlib/io:stream_copy",
+        "@com_github_mjbots_mjlib//mjlib/io:stream_factory",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:asio_client",
         "@boost//:system",
         "@com_github_serge1_elfio//:elfio",
         "@fmt",
