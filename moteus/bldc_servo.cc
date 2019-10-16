@@ -688,8 +688,34 @@ class BldcServo::Impl {
           };
     status_.d_A = dq.d;
     status_.q_A = dq.q;
-    status_.torque_Nm = status_.q_A * torque_constant_ /
-        motor_.unwrapped_position_scale;
+    status_.torque_Nm = torque_on() ? (
+        status_.q_A * torque_constant_ /
+        motor_.unwrapped_position_scale) : 0.0f;
+  }
+
+  bool torque_on() const {
+    switch (status_.mode) {
+      case kNumModes: {
+        MJ_ASSERT(false);
+        return false;
+      }
+      case kFault:
+      case kCalibrating:
+      case kCalibrationComplete:
+      case kEnabling:
+      case kStopped: {
+        return false;
+      }
+      case kPwm:
+      case kVoltage:
+      case kVoltageFoc:
+      case kCurrent:
+      case kPosition:
+      case kPositionTimeout: {
+        return true;
+      }
+    }
+    return false;
   }
 
   void ISR_MaybeChangeMode(CommandData* data) {
