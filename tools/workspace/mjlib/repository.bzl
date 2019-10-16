@@ -14,23 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+load("//tools/workspace:github_archive.bzl", "github_archive")
 
-test_suite(
-    name = "host",
-    tests = [
-        "//moteus:host",
-    ],
-)
-
-filegroup(
-    name = "target",
-    srcs = [
-        "//moteus:moteus",
-        "//moteus:imu_junction",
-        "//moteus:imu_junction_dumb",
-        "//moteus:bootloader",
-    ],
-)
-
-exports_files(["tsconfig.json"])
+def mjlib_repository(name):
+    github_archive(
+        name = name,
+        repo = "mjbots/mjlib",
+        commit = "9b97d0cf984743856905ad92f9f682a7b761d0f3",
+        sha256 = "9712a4636dd3fba8b400095c4beed02eef84013d91ffad065e226c7de86fdb7a",
+    )

@@ -27,8 +27,8 @@ py_binary(
     main = "moteus_tool.py",
     deps = [
         ":calibrate_encoder",
-        "//mjlib/multiplex:py_multiplex_protocol",
-        "//mjlib/multiplex:aioserial",
+        "@mjlib//mjlib/multiplex:py_multiplex_protocol",
+        "@mjlib//mjlib/multiplex:aioserial",
     ],
 )
 
@@ -37,13 +37,13 @@ cc_library(
     hdrs = ["moteus_tool.h"],
     srcs = ["moteus_tool.cc"],
     deps = [
-        "//mjlib/base:inplace_function",
-        "//mjlib/base:program_options_archive",
-        "//mjlib/base:time_conversions",
-        "//mjlib/io:async_sequence",
-        "//mjlib/io:stream_copy",
-        "//mjlib/io:stream_factory",
-        "//mjlib/multiplex:asio_client",
+        "@mjlib//mjlib/base:inplace_function",
+        "@mjlib//mjlib/base:program_options_archive",
+        "@mjlib//mjlib/base:time_conversions",
+        "@mjlib//mjlib/io:async_sequence",
+        "@mjlib//mjlib/io:stream_copy",
+        "@mjlib//mjlib/io:stream_factory",
+        "@mjlib//mjlib/multiplex:asio_client",
         "@boost//:system",
         "@com_github_serge1_elfio//:elfio",
         "@fmt",
