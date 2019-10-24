@@ -228,6 +228,9 @@ class BldcServo {
     // The only way to exit this state is through a stop command.
     kPositionTimeout = 10,
 
+    // This is just like kPositionTimeout, but is not latching.
+    kZeroVelocity = 11,
+
     kNumModes,
   };
 
@@ -244,6 +247,7 @@ class BldcServo {
         { kCurrent, "current" },
         { kPosition, "position" },
         { kPositionTimeout, "pos_timeout" },
+        { kZeroVelocity, "zero_vel" },
       }};
   }
 

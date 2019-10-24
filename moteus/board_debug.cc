@@ -234,7 +234,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (cmd_text == "pos" || cmd_text == "tmt") {
+    if (cmd_text == "pos" || cmd_text == "tmt" || cmd_text == "zero") {
       const auto pos_str = tokenizer.next();
       const auto vel_str = tokenizer.next();
       const auto max_t_str = tokenizer.next();
@@ -292,8 +292,9 @@ class BoardDebug::Impl {
 
       command.mode =
           (cmd_text == "pos") ? BldcServo::kPosition :
-          ((cmd_text == "tmt") ? BldcServo::kPositionTimeout :
-           BldcServo::kStopped);
+          (cmd_text == "tmt") ? BldcServo::kPositionTimeout :
+          (cmd_text == "zero") ? BldcServo::kZeroVelocity :
+          BldcServo::kStopped;
 
       command.position = pos;
       command.velocity = vel;

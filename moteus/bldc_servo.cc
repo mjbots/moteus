@@ -711,7 +711,8 @@ class BldcServo::Impl {
       case kVoltageFoc:
       case kCurrent:
       case kPosition:
-      case kPositionTimeout: {
+      case kPositionTimeout:
+      case kZeroVelocity: {
         return true;
       }
     }
@@ -744,7 +745,8 @@ class BldcServo::Impl {
       case kVoltageFoc:
       case kCurrent:
       case kPosition:
-      case kPositionTimeout: {
+      case kPositionTimeout:
+      case kZeroVelocity: {
         switch (status_.mode) {
           case kNumModes: {
             MJ_ASSERT(false);
@@ -771,9 +773,14 @@ class BldcServo::Impl {
           case kVoltage:
           case kVoltageFoc:
           case kCurrent:
-          case kPosition: {
+          case kPosition:
+          case kZeroVelocity: {
             // Yep, we can do this.
             status_.mode = data->mode;
+
+            // Start from scratch if we are in a new mode.
+            ISR_ClearPid(kAlwaysClear);
+
             return;
           }
           case kPositionTimeout: {
@@ -804,7 +811,12 @@ class BldcServo::Impl {
     calibrate_count_ = 0;
   }
 
-  void ISR_ClearPid() {
+  enum ClearMode {
+    kClearIfMode,
+    kAlwaysClear,
+  };
+
+  void ISR_ClearPid(ClearMode force_clear) {
     const bool current_pid_active = [&]() {
       switch (status_.mode) {
         case kNumModes:
@@ -820,12 +832,13 @@ class BldcServo::Impl {
         case kCurrent:
         case kPosition:
         case kPositionTimeout:
+        case kZeroVelocity:
           return true;
       }
       return false;
     }();
 
-    if (!current_pid_active) {
+    if (!current_pid_active || force_clear == kAlwaysClear) {
       status_.pid_d.Clear();
       status_.pid_q.Clear();
 
@@ -850,12 +863,13 @@ class BldcServo::Impl {
           return false;
         case kPosition:
         case kPositionTimeout:
+        case kZeroVelocity:
           return true;
       }
       return false;
     }();
 
-    if (!position_pid_active) {
+    if (!position_pid_active || force_clear == kAlwaysClear) {
       status_.pid_position.Clear();
       status_.control_position = std::numeric_limits<float>::quiet_NaN();
     }
@@ -906,7 +920,7 @@ class BldcServo::Impl {
     }
 
     // Ensure unused PID controllers have zerod state.
-    ISR_ClearPid();
+    ISR_ClearPid(kClearIfMode);
 
     if (status_.mode != kFault) {
       status_.fault = errc::kSuccess;
@@ -952,8 +966,9 @@ class BldcServo::Impl {
         ISR_DoPosition(sin_cos, data);
         break;
       }
-      case kPositionTimeout: {
-        ISR_DoPositionTimeout(sin_cos, data);
+      case kPositionTimeout:
+      case kZeroVelocity: {
+        ISR_DoZeroVelocity(sin_cos, data);
         break;
       }
     }
@@ -1096,7 +1111,7 @@ class BldcServo::Impl {
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) {
+  void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) {
     mjlib::base::PID::ApplyOptions apply_options;
     apply_options.kp_scale = 0.0;
     apply_options.kd_scale = 1.0;
