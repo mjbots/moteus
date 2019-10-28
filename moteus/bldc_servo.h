@@ -133,6 +133,9 @@ class BldcServo {
     // about 1.6us extra in the ISR.
     bool enable_debug = false;
 
+    float flux_brake_min_voltage = -1.0f;
+    float flux_brake_resistance_ohm = 0.1;
+
     Config() {
       pid_dq.kp = 0.1f;
       pid_dq.ki = 30.0f;
@@ -162,6 +165,8 @@ class BldcServo {
       a->Visit(MJ_NVP(default_timeout_s));
       a->Visit(MJ_NVP(timeout_max_torque_Nm));
       a->Visit(MJ_NVP(enable_debug));
+      a->Visit(MJ_NVP(flux_brake_min_voltage));
+      a->Visit(MJ_NVP(flux_brake_resistance_ohm));
     }
   };
 

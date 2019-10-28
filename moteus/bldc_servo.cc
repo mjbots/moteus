@@ -1188,7 +1188,20 @@ class BldcServo::Impl {
         limited_q_A :
         Limit(limited_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
 
-    ISR_DoCurrent(sin_cos, 0.0f, q_A);
+    const float d_A = [&]() {
+      if (config_.flux_brake_min_voltage <= 0.0) {
+        return 0.0f;
+      }
+
+      if (status_.bus_V <= config_.flux_brake_min_voltage) {
+        return 0.0f;
+      }
+
+      return ((status_.bus_V - config_.flux_brake_min_voltage) /
+              config_.flux_brake_resistance_ohm);
+    }();
+
+    ISR_DoCurrent(sin_cos, d_A, q_A);
   }
 
   float LimitPwm(float in) {
