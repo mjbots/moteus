@@ -277,6 +277,7 @@ class BldcServo {
     float cur2_A = 0.0f;
     float bus_V = 0.0f;
     float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
+    float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
     uint16_t position = 0;
     float fet_temp_C = 0.0f;
 
@@ -316,6 +317,7 @@ class BldcServo {
       a->Visit(MJ_NVP(cur2_A));
       a->Visit(MJ_NVP(bus_V));
       a->Visit(MJ_NVP(filt_bus_V));
+      a->Visit(MJ_NVP(filt_1ms_bus_V));
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(fet_temp_C));
       a->Visit(MJ_NVP(electrical_theta));

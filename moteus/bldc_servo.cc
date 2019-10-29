@@ -673,13 +673,17 @@ class BldcServo::Impl {
     status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale_;
     status_.bus_V = status_.adc3_raw * config_.v_scale_V;
 
-    if (!std::isfinite(status_.filt_bus_V)) {
-      status_.filt_bus_V = status_.bus_V;
-    } else {
-      constexpr float alpha = 1.0 / (kRateHz * 0.5f); // 0.5s
-      status_.filt_bus_V =
-          alpha * status_.bus_V + (1.0f - alpha) * status_.filt_bus_V;
-    }
+    auto update_filtered_bus_v = [&](float* filtered, float period_s) {
+      if (!std::isfinite(*filtered)) {
+        *filtered = status_.bus_V;
+      } else {
+        const float alpha = 1.0 / (kRateHz * period_s);
+        *filtered = alpha * status_.bus_V + (1.0f - alpha) * *filtered;
+      }
+    };
+
+    update_filtered_bus_v(&status_.filt_bus_V, 0.5f);
+    update_filtered_bus_v(&status_.filt_1ms_bus_V, 0.001f);
 
     DqTransform dq{sin_cos,
           status_.cur1_A,
@@ -1193,12 +1197,14 @@ class BldcServo::Impl {
         return 0.0f;
       }
 
-      if (status_.bus_V <= config_.flux_brake_min_voltage) {
+      const auto error = (
+          status_.filt_1ms_bus_V - config_.flux_brake_min_voltage);
+
+      if (error <= 0.0f) {
         return 0.0f;
       }
 
-      return ((status_.bus_V - config_.flux_brake_min_voltage) /
-              config_.flux_brake_resistance_ohm);
+      return (error / config_.flux_brake_resistance_ohm);
     }();
 
     ISR_DoCurrent(sin_cos, d_A, q_A);
