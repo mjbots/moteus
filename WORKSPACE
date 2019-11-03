@@ -71,6 +71,16 @@ mbed_repository(
     }
 )
 
+mbed_repository(
+    name = "com_github_ARMmbed_mbed-g4-bootloader",
+    target = "targets/TARGET_STM/TARGET_STM32G4/TARGET_STM32G474xE/TARGET_NUCLEO_G474RE",
+    config = {
+        "mbed_target": "targets/TARGET_STM/TARGET_STM32G4/TARGET_STM32G474xE/TARGET_NUCLEO_G474RE",
+
+        "MBED_CONF_RTOS_PRESENT": "0",
+    },
+)
+
 
 # And finally, bazel_deps
 load("@com_github_mjbots_bazel_deps//tools/workspace:default.bzl",

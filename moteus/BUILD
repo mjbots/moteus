@@ -17,6 +17,7 @@
 package(default_visibility = ["//visibility:public"])
 load("@com_github_ARMmbed_mbed-os//:rules.bzl", "mbed_binary")
 load("@com_github_ARMmbed_mbed-os-bootloader//:rules.bzl", bootloader_mbed_binary = "mbed_binary")
+load("@com_github_ARMmbed_mbed-g4-bootloader//:rules.bzl", g4_bootloader_mbed_binary = "mbed_binary")
 
 cc_library(
     name = "common",
@@ -44,6 +45,15 @@ bootloader_mbed_binary(
     ],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:assert",
+    ],
+)
+
+g4_bootloader_mbed_binary(
+    name = "power_dist",
+    srcs = [
+        "millisecond_timer.h",
+        "power_dist.cc",
+        "power_dist_hw.h",
     ],
 )
 
@@ -185,12 +195,26 @@ OCD = (
     "-f target/stm32f4x.cfg "
 )
 
+OCD_G4 = (
+    "openocd " +
+    "-f interface/stlink.cfg " +
+    "-f target/stm32g4x.cfg "
+)
+
 genrule(
     name = "flash",
     tags = ["manual"],
     srcs = ["moteus.08000000.bin", "moteus.08010000.bin", "bootloader.0800c000.bin"],
     outs = ["flash.stamp"],
     cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location bootloader.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+)
+
+genrule(
+    name = "power_dist_flash",
+    tags = ["manual"],
+    srcs = ["power_dist.bin"],
+    outs = ["power_dist.stamp"],
+    cmd = (OCD_G4 + "-c init -c \"reset_config none separate; program $(location power_dist.bin) verify 0x8000000 reset exit 0x8000000\" && touch $@"),
 )
 
 genrule(

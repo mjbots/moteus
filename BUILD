@@ -29,6 +29,7 @@ filegroup(
         "//moteus:moteus",
         "//moteus:imu_junction",
         "//moteus:imu_junction_dumb",
+        "//moteus:power_dist",
         "//moteus:bootloader",
     ],
 )
