@@ -1,18 +1,21 @@
-r4 TODO
-  * verify ZH and PH SMTRA footprints
+Build test fixture
 
-PRODUCTION TODO
- * Use a connector for power
- * Expand BOM to use lower cost parts
- * Switch to some electrolytic for bulk capacitance
- * Make SWD and link connector not mate with the same cables, probably
-   make link a 5 pin connector instead of 6
- * Put solder mask over all vias on the back side
- * Build test fixture
- * Uprate all voltages to handle at least 40V
-   * FETs are only 30V
-   * caps are only 35V
+r4.1 DONE
+  * Updated to correct STM32G4 pinout
+  * Fixed SWCLK/SWDIO pins
+  * Stopped using PC13/14/15 to drive LEDS
+  * Moved encoder at least 8mm down the board to match fusion
+  * Maybe get absolute encoder connector further down the board and/or
+    further towards the center or maybe face down
+  * Reroute power for uC
+  * Reroute LED controls
+  * Verified power connector polarity
+  * Verified all alternate functions
+  * Inspected all copper layers individually
+  * Powered up r4 board with no stm32g4, nothing exploded and 3.3v
+    power was there
 
+r4.1 TODO
 
 r4 DONE
  * all footprints in place minus new caps
