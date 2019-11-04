@@ -2373,23 +2373,23 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="20.8" y="-5.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
 <element name="R3" library="mfpassives" package="R0402" value="2k" x="18.5" y="-5.1" smashed="yes" rot="R270">
-<attribute name="HOUSEPART" value="" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MPN" value="ERJ-2RKF1002X" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-2K" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="POPULATE" value="1" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VOLTAGE" value="" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="MF" value="Panasonic" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
+<attribute name="MF" value="" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="WATTAGE" value="" x="18.5" y="-5.1" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="NAME" x="18.3" y="-6.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 </element>
 <element name="R4" library="mfpassives" package="R0402" value="2k" x="18.5" y="-2.7" smashed="yes" rot="R90">
-<attribute name="HOUSEPART" value="" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="ERJ-2RKF1002X" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-2K" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="POPULATE" value="1" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MF" value="Panasonic" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="WATTAGE" value="" x="18.5" y="-2.7" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="18.7" y="-1.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>

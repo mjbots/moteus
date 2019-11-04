@@ -5747,12 +5747,14 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF"/>
 </part>
 <part name="R3" library="mfpassives" deviceset="RESISTOR" device="_0402" value="2k">
-<attribute name="MF" value="Panasonic"/>
-<attribute name="MPN" value="ERJ-2RKF1002X"/>
+<attribute name="HOUSEPART" value="YES"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-RES-0402-2K"/>
 </part>
 <part name="R4" library="mfpassives" deviceset="RESISTOR" device="_0402" value="2k">
-<attribute name="MF" value="Panasonic"/>
-<attribute name="MPN" value="ERJ-2RKF1002X"/>
+<attribute name="HOUSEPART" value="YES"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-RES-0402-2K"/>
 </part>
 <part name="C22" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="MF" value="TDK"/>
