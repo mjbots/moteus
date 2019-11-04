@@ -167,7 +167,7 @@
 <text x="1.6" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">B</text>
 <text x="13.5" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">C</text>
 <text x="15.3" y="8.2" size="0.8" layer="21" rot="R180">TEMP</text>
-<text x="-1.2" y="-11.1" size="1" layer="21" align="top-left">2019</text>
+<text x="2.8" y="-11.1" size="1" layer="21" align="top-left">2019</text>
 <text x="8" y="9.7" size="0.8" layer="21" rot="R180">SER</text>
 <text x="2.5" y="8.4" size="0.8" layer="21" rot="R180">DBG</text>
 <text x="9.9" y="8" size="0.6096" layer="21" font="vector">T</text>
@@ -2011,7 +2011,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="POPULATE" value="1" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" x="-13.8" y="-12.6" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="-12.7" y="-13" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="-12.5" y="-13" size="0.6096" layer="25" font="vector" ratio="10"/>
 </element>
 <element name="C20" library="mfpassives" package="C0402" value="0.1uF 50V" x="-11.9" y="-6.75" smashed="yes" rot="R270">
 <attribute name="TOLERANCE" value="" x="-11.9" y="-6.75" size="1.778" layer="27" rot="R270" display="off"/>
@@ -4278,16 +4278,16 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <approved hash="19,1,897298662ca62b1d"/>
 <approved hash="5,1,dfdb11e06573d103"/>
 <approved hash="5,1,66fe9193d6786b5c"/>
-<approved hash="19,1,afa3d1bb881fd3f4"/>
 <approved hash="19,1,731e1b4926a2b706"/>
-<approved hash="19,1,0051bed92ec481bf"/>
-<approved hash="5,1,f6ce8fa98543322c"/>
+<approved hash="19,1,afa3d1bb881fd3f4"/>
 <approved hash="19,1,bc5c5c605c01bc3d"/>
+<approved hash="19,1,0051bed92ec481bf"/>
 <approved hash="5,1,61ef34e701b71940"/>
-<approved hash="19,1,69248948c608dc99"/>
-<approved hash="5,1,eef7233e3d46fe89"/>
+<approved hash="5,1,f6ce8fa98543322c"/>
 <approved hash="19,1,23dc05e00506233a"/>
 <approved hash="5,1,cf9c78df82b52ff2"/>
+<approved hash="19,1,69248948c608dc99"/>
+<approved hash="5,1,eef7233e3d46fe89"/>
 <approved hash="19,16,da93c97f13ba90d8"/>
 <approved hash="19,16,9712078e51581154"/>
 <approved hash="19,16,8522d69d93b91088"/>
