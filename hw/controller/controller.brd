@@ -1894,7 +1894,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="POPULATE" value="1" x="-0.1" y="-12.58" size="1.778" layer="27" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-0.1" y="-12.58" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="-0.1" y="-12.58" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="0" y="-13.42" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="-0.02" y="-13.29" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="MF" value="" x="-0.1" y="-12.58" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q1" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="-15" y="-22" smashed="yes">
@@ -1960,7 +1960,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="RB" library="rcl" package="M1206" value="0.5mOhm 1% 2W" x="-2.9" y="-16.1" smashed="yes">
 <attribute name="MPN" value="HCS1206FTL500" x="-2.9" y="-16.1" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="Stackpole Electronics" x="-2.9" y="-16.1" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="-0.770003125" y="-14.43" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="-0.970003125" y="-16.03" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="-2.9" y="-16.1" size="1.778" layer="27" display="off"/>
 </element>
 <element name="RC" library="rcl" package="M1206" value="0.5mOhm 1% 2W" x="14.9" y="-16.1" smashed="yes" rot="R270">
