@@ -5593,13 +5593,13 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="D3" library="mfleds" deviceset="LED_SINGLE" device="-0603-RED" value="MF-LED-0603-RED"/>
 <part name="+3V7" library="supply1" deviceset="+3V3" device=""/>
-<part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
+<part name="R1" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
 <attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-RES-0402-220"/>
+<attribute name="MPN" value="MF-RES-0402-560"/>
 </part>
-<part name="R2" library="mfpassives" deviceset="RESISTOR" device="_0402" value="220">
+<part name="R2" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
 <attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-RES-0402-220"/>
+<attribute name="MPN" value="MF-RES-0402-560"/>
 </part>
 <part name="P+4" library="supply1" deviceset="V+" device=""/>
 <part name="SH4" library="shorts" deviceset="SHORT" device="BIG" value="SHORTBIG">

@@ -2114,23 +2114,23 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="https://factory.macrofab.com/part/MF-LED-0603-RED" x="-1" y="-37.1" size="1.778" layer="28" rot="MR270" display="off"/>
 <attribute name="NAME" x="-1.2" y="-35.2" size="0.6096" layer="26" font="vector" ratio="10" rot="MR90"/>
 </element>
-<element name="R1" library="mfpassives" package="R0402" value="220" x="-2.6" y="-37.5" smashed="yes" rot="MR90">
+<element name="R1" library="mfpassives" package="R0402" value="560" x="-2.6" y="-37.5" smashed="yes" rot="MR90">
 <attribute name="TOLERANCE" value="" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="MFG#" value="N/A" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="WATTAGE" value="" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
-<attribute name="MPN" value="MF-RES-0402-220" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-560" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="HOUSEPART" value="1" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="POPULATE" value="1" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="URL" x="-2.6" y="-37.5" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="NAME" x="-2.9" y="-36.2" size="0.6096" layer="26" font="vector" ratio="10" rot="MR90"/>
 </element>
-<element name="R2" library="mfpassives" package="R0402" value="220" x="2.2" y="-37.4" smashed="yes" rot="MR90">
+<element name="R2" library="mfpassives" package="R0402" value="560" x="2.2" y="-37.4" smashed="yes" rot="MR90">
 <attribute name="TOLERANCE" value="" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="MFG#" value="N/A" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="VOLTAGE" value="" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="WATTAGE" value="" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
-<attribute name="MPN" value="MF-RES-0402-220" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-560" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="HOUSEPART" value="1" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="POPULATE" value="1" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="URL" x="2.2" y="-37.4" size="1.778" layer="28" rot="MR90" display="off"/>
