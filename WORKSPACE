@@ -19,8 +19,8 @@ workspace(name = "com_github_mjbots_moteus",
               "@npm": ["node_modules"],
           })
 
-BAZEL_VERSION = "0.28.1"
-BAZEL_VERSION_SHA = "daa27fbf9213b3dbc8509a8481f7d99cce6815cf54c50d5d3af5ec2b4c41d31f"
+BAZEL_VERSION = "1.2.0"
+BAZEL_VERSION_SHA = "34eb178663a9f9c6765db72dd58958cdac64c5f08dd51e5b67e28d466079bd1e"
 
 load("//tools/workspace:default.bzl", "add_default_repositories")
 
