@@ -57,46 +57,6 @@ g4_bootloader_mbed_binary(
     ],
 )
 
-mbed_binary(
-    name = "imu_junction",
-    srcs = [
-        "imu_junction_assert.cc",
-        "error.h",
-        "error.cc",
-        "hardfault.s",
-        "imu_junction_hardfault_handler.c",
-        "imu_junction_hw.h",
-        "irq_callback_table.h",
-        "irq_callback_table.cc",
-        "millisecond_timer.h",
-        "multiplex_protocol_bridge.h",
-        "stm32f446_async_uart.h",
-        "stm32f446_async_uart.cc",
-        "stm32_flash.h",
-        "stm32_flash.cc",
-        "stm32_serial.h",
-        "stm32_serial.cc",
-        "stream_writer.h",
-        "system_info.h",
-        "system_info.cc",
-        "imu_junction.cc",
-    ],
-    deps = [
-        ":common",
-        "@com_github_mjbots_mjlib//mjlib/base:assert",
-        "@com_github_mjbots_mjlib//mjlib/base:tokenizer",
-        "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
-        "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
-        "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
-        "@com_github_mjbots_mjlib//mjlib/micro:error_code",
-        "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
-        "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
-        "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:micro_server",
-    ],
-    linker_script = "stm32f446.ld",
-)
-
 bootloader_mbed_binary(
     name = "bootloader",
     srcs = [
