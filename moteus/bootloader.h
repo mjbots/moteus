@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32f4xx.h"
+#pragma once
+
+#include "moteus/stm32.h"
 
 extern "C" {
 /// This function initiates the multiplex server bootloader.  It takes

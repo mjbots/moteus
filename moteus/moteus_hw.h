@@ -20,10 +20,13 @@
 // r2 silk
 // #define MOTEUS_HW_REV 1
 
+// r3 silk
+// #define MOTEUS_HW_REV 2
+
 // The most recent version of the HW.
 #ifndef MOTEUS_HW_REV
-// r3 silk
-#define MOTEUS_HW_REV 2
+// r4.1 silk
+#define MOTEUS_HW_REV 3
 #endif
 
 #define DRV8323_ENABLE PA_3
@@ -31,29 +34,53 @@
 
 #if MOTEUS_HW_REV == 0
 #define DRV8323_CS PA_4
-#elif MOTEUS_HW_REV >= 1
+#elif MOTEUS_HW_REV <= 2
 #define DRV8323_CS PC_8
+#elif MOTEUS_HW_REV >= 3
+#define DRV8323_CS PC_4
 #endif
 
 #define DRV8323_MOSI PA_7
 #define DRV8323_MISO PA_6
 #define DRV8323_SCK PA_5
-#define DRV8323_FAULT PC_4
 
+#if MOTEUS_HW_REV <= 2
+#define DRV8323_FAULT PC_4
+#elif MOTEUS_HW_REV >= 3
+#define DRV8323_FAULT PB_6
+#endif
+
+#if MOTEUS_HW_REV <= 2
 #define DEBUG_LED1 PA_11
 #define DEBUG_LED2 PA_12
+#elif MOTEUS_HW_REV >= 3
+#define DEBUG_LED1 PF_0
+#define DEBUG_LED2 PF_1
+#endif
 
-
+#if MOTEUS_HW_REV <= 2
 #define HWREV_PIN0 PC_13
 #define HWREV_PIN1 PC_14
 #define HWREV_PIN2 PC_15
+#elif MOTEUS_HW_REV >= 3
+#define HWREV_PIN0 PC_13
+#define HWREV_PIN1 PC_6
+#define HWREV_PIN2 PA_15
+#endif
 
+#if MOTEUS_HW_REV <= 2
 #define MOTEUS_VSENSE PC_1_ALT1
+#elif MOTEUS_HW_REV >=3
+#define MOTEUS_VSENSE PA_8
+#endif
+
 
 #if MOTEUS_HW_REV == 0
 #define MOTEUS_TSENSE PC_0_ALT1
-#elif MOTEUS_HW_REV >= 1
+#elif MOTEUS_HW_REV <= 2
 #define MOTEUS_TSENSE PC_2_ALT1
+#elif MOTEUS_HW_REV >= 3
+#define MOTEUS_TSENSE PA_9
 #endif
 
 #if MOTEUS_HW_REV <= 1
@@ -63,5 +90,5 @@
 #endif
 
 
-#define MOTEUS_MODEL_NUMBER 0x0200
+#define MOTEUS_MODEL_NUMBER 0x0300
 #define MOTEUS_FIRMWARE_VERSION 0x000100

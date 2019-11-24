@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32f4xx.h"
+#include "moteus/stm32.h"
 
 void hard_fault_handler_c (unsigned int * hardfault_args)
 {

@@ -30,17 +30,32 @@
 #include "moteus/millisecond_timer.h"
 #include "moteus/moteus_controller.h"
 #include "moteus/moteus_hw.h"
-#include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_flash.h"
 #include "moteus/system_info.h"
 
-auto* const MyTIM9 = TIM9;
+#if defined(TARGET_STM32F4)
+#include "moteus/stm32f446_async_uart.h"
+#elif defined(TARGET_STM32G4)
+#include "moteus/stm32g4_async_uart.h"
+#else
+#error "Unknown target"
+#endif
+
 auto* const MyDWT = DWT;
 auto* const MyFLASH = FLASH;
 
 using namespace moteus;
 namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
+
+#if defined(TARGET_STM32F4)
+using HardwareUart = Stm32F446AsyncUart;
+#elif defined(TARGET_STM32G4)
+using HardwareUart = Stm32G4AsyncUart;
+#else
+#error "Unknown target"
+#endif
+
 
 int main(void) {
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
@@ -70,8 +85,8 @@ int main(void) {
 
   micro::SizedPool<12288> pool;
 
-  Stm32F446AsyncUart rs485(&pool, &timer, []() {
-      Stm32F446AsyncUart::Options options;
+  HardwareUart rs485(&pool, &timer, []() {
+      HardwareUart::Options options;
       options.tx = PA_9;
       options.rx = PA_10;
       options.dir = PA_8;

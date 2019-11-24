@@ -31,8 +31,15 @@
 #include "moteus/foc.h"
 #include "moteus/math.h"
 #include "moteus/moteus_hw.h"
-#include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32_serial.h"
+
+#if defined(TARGET_STM32F4)
+#include "moteus/stm32f446_async_uart.h"
+#elif defined(TARGET_STM32G4)
+#include "moteus/stm32g4_async_uart.h"
+#else
+#error "Unknown target"
+#endif
 
 namespace micro = mjlib::micro;
 
@@ -40,11 +47,31 @@ namespace moteus {
 
 namespace {
 
+#if defined(TARGET_STM32F4)
+using HardwareUart = Stm32F446AsyncUart;
+#elif defined(TARGET_STM32G4)
+using HardwareUart = Stm32G4AsyncUart;
+#else
+#error "Unknown target"
+#endif
+
+
 using mjlib::base::Limit;
 
 float Threshold(float value, float lower, float upper) {
   if (value > lower && value < upper) { return 0.0f; }
   return value;
+}
+
+template <typename AdcType>
+void WaitForAdc(AdcType* adc) {
+#if defined(TARGET_STM32F4)
+    while ((adc->SR & ADC_SR_EOC) == 0);
+#elif defined(TARGET_STM32G4)
+    while ((adc->ISR & ADC_ISR_EOC) == 0);
+#else
+    #error "Unknown target"
+#endif
 }
 
 // From make_thermistor_table.py
@@ -134,6 +161,7 @@ constexpr float kDefaultTorqueConstant = 0.1f;
 constexpr float kMaxUnconfiguredCurrent = 5.0f;
 
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
+#if defined(TARGET_STM32F4)
   if (timer == TIM1) {
     return TIM1_UP_TIM10_IRQn;
   } else if (timer == TIM2) {
@@ -148,6 +176,12 @@ IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
     MJ_ASSERT(false);
   }
   return TIM1_UP_TIM10_IRQn;
+#elif defined(TARGET_STM32G4)
+  MJ_ASSERT(false);
+  return TIM4_IRQn;
+#else
+#error "Unknown target"
+#endif
 }
 
 volatile uint32_t* FindCcr(TIM_TypeDef* timer, PinName pin) {
@@ -175,7 +209,13 @@ uint32_t FindSqr(PinName pin) {
   return channel;
 }
 
+#if defined(TARGET_STM32F4)
 volatile uint32_t* const g_adc1_cr2 = &ADC1->CR2;
+#elif defined(TARGET_STM32G4)
+volatile uint32_t* const g_adc1_cr2 = &ADC1->CR;
+#else
+#error "Unknown target"
+#endif
 
 /// Read a digital input, but without configuring it in any way.
 class DigitalMonitor {
@@ -261,11 +301,12 @@ class BldcServo::Impl {
     ConfigureADC();
     ConfigurePwmTimer();
 
+#if defined(TARGET_STM32F4)
     if (options_.debug_uart_out != NC) {
       const auto uart = pinmap_peripheral(
           options_.debug_uart_out, PinMap_UART_TX);
       debug_uart_ = reinterpret_cast<USART_TypeDef*>(uart);
-      auto dma_pair = Stm32F446AsyncUart::MakeDma(
+      auto dma_pair = HardwareUart::MakeDma(
           static_cast<UARTName>(uart));
       debug_uart_dma_tx_ = dma_pair.tx;
 
@@ -276,6 +317,10 @@ class BldcServo::Impl {
           DMA_SxCR_MINC |
           DMA_MEMORY_TO_PERIPH;
     }
+#elif defined(TARGET_STM32G4)
+#else
+#error "Unknown target"
+#endif
   }
 
   ~Impl() {
@@ -410,6 +455,7 @@ class BldcServo::Impl {
   }
 
   void ConfigureADC() {
+#if defined(TARGET_STM32F4)
     __HAL_RCC_ADC1_CLK_ENABLE();
     __HAL_RCC_ADC2_CLK_ENABLE();
     __HAL_RCC_ADC3_CLK_ENABLE();
@@ -457,6 +503,16 @@ class BldcServo::Impl {
     ADC2->SMPR2 = all_cycles;
     ADC3->SMPR1 = all_cycles;
     ADC3->SMPR2 = all_cycles;
+#elif defined(TARGET_STM32G4)
+    __HAL_RCC_ADC12_CLK_ENABLE();
+    __HAL_RCC_ADC345_CLK_ENABLE();
+
+    // TODO: Do the rest.
+    MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
+
   }
 
   // CALLED IN INTERRUPT CONTEXT.
@@ -484,7 +540,13 @@ class BldcServo::Impl {
     // ready.  This means we will throw away the result if our control
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
+#if defined(TARGET_STM32F4)
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
+#elif defined(TARGET_STM32G4)
+    MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
 
     phase_ = (phase_ + 1) % kInterruptDivisor;
     if (phase_ != 0) { return; }
@@ -507,7 +569,7 @@ class BldcServo::Impl {
 
   void ISR_DoSense() __attribute__((always_inline)) {
     // Wait for conversion to complete.
-    while ((ADC1->SR & ADC_SR_EOC) == 0);
+    WaitForAdc(ADC1);
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -545,7 +607,13 @@ class BldcServo::Impl {
 
     // Start sampling the temperature.
     ADC3->SQR3 = tsense_sqr_;
+#if defined(TARGET_STM32F4)
     ADC3->CR2 |= ADC_CR2_SWSTART;
+#elif defined(TARGET_STM32G4)
+    MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
 
     status_.adc1_raw = adc1;
     status_.adc2_raw = adc2;
@@ -563,14 +631,20 @@ class BldcServo::Impl {
 
     // The temperature sensing should be done by now, but just double
     // check.
-    while ((ADC3->SR & ADC_SR_EOC) == 0);
+    WaitForAdc(ADC3);
     status_.fet_temp_raw = ADC3->DR;
 
     // Set ADC3 back to the sense resistor.
     ADC3->SQR3 = vsense_sqr_;
 
     // Kick off a conversion just to get the FET temp out of the system.
+#if defined(TARGET_STM32F4)
     ADC3->CR2 |= ADC_CR2_SWSTART;
+#elif defined(TARGET_STM32G4)
+    MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
 
     {
       constexpr int adc_max = 4096;
@@ -642,6 +716,7 @@ class BldcServo::Impl {
 
   void ISR_MaybeEmitDebug() {
     if (!config_.enable_debug) { return; }
+#if defined(TARGET_STM32F4)
     if (debug_uart_ == nullptr) { return; }
 
     debug_buf_[0] = 0x5a;
@@ -665,6 +740,10 @@ class BldcServo::Impl {
     debug_uart_dma_tx_.stream->CR |= DMA_SxCR_EN;
 
     debug_uart_->CR3 |= USART_CR3_DMAT;
+#elif defined(TARGET_STM32G4)
+#else
+#error "Unknown target"
+#endif
   }
 
   // This is called from the ISR.
@@ -1282,9 +1361,14 @@ class BldcServo::Impl {
   mjlib::base::PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   Stm32Serial debug_serial_;
+#if defined(TARGET_STM32F4)
   USART_TypeDef* debug_uart_ = nullptr;
-  Stm32F446AsyncUart::Dma debug_uart_dma_tx_;
+  HardwareUart::Dma debug_uart_dma_tx_;
   char debug_buf_[13] = {};
+#elif defined(TARGET_STM32G4)
+#else
+#error "Unknown target"
+#endif
 
   std::atomic<uint32_t> clock_;
   std::atomic<uint32_t> startup_count_{0};

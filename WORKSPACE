@@ -78,6 +78,26 @@ mbed_repository(
         "mbed_target": "targets/TARGET_STM/TARGET_STM32G4/TARGET_STM32G474xE/TARGET_NUCLEO_G474RE",
 
         "MBED_CONF_RTOS_PRESENT": "0",
+
+        # We need to use as few bytes as possible.
+        "NDEBUG": "1",
+    },
+)
+
+
+mbed_repository(
+    name = "com_github_ARMmbed_mbed-g4",
+    target = "targets/TARGET_STM/TARGET_STM32G4/TARGET_STM32G474xE/TARGET_NUCLEO_G474RE",
+    config = {
+        "mbed_target": "targets/TARGET_STM/TARGET_STM32G4/TARGET_STM32G474xE/TARGET_NUCLEO_G474RE",
+
+        "MBED_CONF_RTOS_PRESENT": "0",
+
+        # Start our code at sector a ways in to leave room for the
+        # isrs, persistent storage, and the bootloader.
+
+        "MBED_APP_START": "0x8010000",
+        "MBED_APP_SIZE":  "0x0070000",
     },
 )
 

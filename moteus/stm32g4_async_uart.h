@@ -25,8 +25,8 @@
 
 namespace moteus {
 
-/// Presents a single USART on the STM32F446 as an AsyncStream.
-class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
+/// Presents a single USART on the STM32G4 as an AsyncStream.
+class Stm32G4AsyncUart : public mjlib::micro::AsyncStream {
  public:
   struct Options {
     PinName tx = NC;
@@ -48,10 +48,10 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
     size_t rx_buffer_size = 128u;
   };
 
-  Stm32F446AsyncUart(mjlib::micro::Pool* pool,
-                     MillisecondTimer* timer,
-                     const Options&);
-  ~Stm32F446AsyncUart() override;
+  Stm32G4AsyncUart(mjlib::micro::Pool* pool,
+                   MillisecondTimer* timer,
+                   const Options&);
+  ~Stm32G4AsyncUart() override;
 
   void AsyncReadSome(const mjlib::base::string_span&,
                      const mjlib::micro::SizeCallback&) override;
@@ -60,37 +60,6 @@ class Stm32F446AsyncUart : public mjlib::micro::AsyncStream {
 
   // Call frequently.
   void Poll();
-
-  // The following helper functions are exposed for modules which want
-  // to operate on serial ports in DMA mode, but don't necessarily
-  // want to use interrupts or the callback abstraction.
-  struct Dma {
-    DMA_Stream_TypeDef* stream;
-    uint32_t channel;
-    volatile uint32_t* status_clear;
-    volatile uint32_t* status_register;
-    uint32_t status_tcif;
-    uint32_t status_htif;
-    uint32_t status_teif;
-    uint32_t status_dmeif;
-    uint32_t status_feif;
-    IRQn_Type irq;
-
-    uint32_t all_status() const {
-      return status_tcif |
-        status_htif |
-        status_teif |
-        status_dmeif |
-        status_feif;
-    }
-  };
-
-  struct DmaPair {
-    Dma tx;
-    Dma rx;
-  };
-
-  static DmaPair MakeDma(UARTName uart);
 
  private:
   class Impl;

@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2015-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stm32_flash.h"
+#include "moteus/stm32_flash.h"
 
 #include "mjlib/base/assert.h"
 
+#if defined(TARGET_STM32F4)
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_flash.h"
+#elif defined(TARGET_STM32G4)
+#include "stm32g4xx_hal.h"
+#include "stm32g4xx_hal_flash.h"
+#else
+#error "Unknown target"
+#endif
 
 namespace moteus {
 
@@ -39,6 +46,7 @@ Stm32Flash::Info Stm32Flash::GetInfo() {
 }
 
 void Stm32Flash::Erase() {
+#if defined(TARGET_STM32F4)
   uint32_t error = 0;
 
   FLASH_EraseInitTypeDef erase;
@@ -52,12 +60,23 @@ void Stm32Flash::Erase() {
 
   MJ_ASSERT(result == 0);
   MJ_ASSERT(error == 0xffffffff);
+#elif defined(TARGET_STM32G4)
+  MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
 }
 
 void Stm32Flash::Unlock() {
+#if defined(TARGET_STM32F4)
   FLASH->SR |= FLASH_SR_PGSERR;
   FLASH->SR |= FLASH_SR_PGPERR;
   HAL_FLASH_Unlock();
+#elif defined(TARGET_STM32G4)
+  MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
 }
 
 void Stm32Flash::Lock() {
@@ -65,9 +84,15 @@ void Stm32Flash::Lock() {
 }
 
 void Stm32Flash::ProgramByte(char* ptr, uint8_t value) {
+#if defined(TARGET_STM32F4)
   HAL_FLASH_Program(FLASH_TYPEPROGRAM_BYTE,
                     reinterpret_cast<uint32_t>(ptr),
                     value);
+#elif defined(TARGET_STM32G4)
+  MJ_ASSERT(false);
+#else
+#error "Unknown target"
+#endif
 }
 
 }

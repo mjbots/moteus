@@ -16,6 +16,7 @@
 
 package(default_visibility = ["//visibility:public"])
 load("@com_github_ARMmbed_mbed-os//:rules.bzl", "mbed_binary")
+load("@com_github_ARMmbed_mbed-g4//:rules.bzl", g4_mbed_binary = "mbed_binary")
 load("@com_github_ARMmbed_mbed-os-bootloader//:rules.bzl", bootloader_mbed_binary = "mbed_binary")
 load("@com_github_ARMmbed_mbed-g4-bootloader//:rules.bzl", g4_bootloader_mbed_binary = "mbed_binary")
 
@@ -77,59 +78,75 @@ bootloader_mbed_binary(
     ],
 )
 
+MOTEUS_SOURCES = [
+    "as5047.h",
+    "moteus_assert.cc",
+    "bldc_servo.h",
+    "bldc_servo.cc",
+    "board_debug.h",
+    "board_debug.cc",
+    "bootloader.h",
+    "drv8323.h",
+    "drv8323.cc",
+    "error.h",
+    "error.cc",
+    "hardfault.s",
+    "firmware_info.h",
+    "firmware_info.cc",
+    "irq_callback_table.h",
+    "irq_callback_table.cc",
+    "moteus_controller.h",
+    "moteus_controller.cc",
+    "moteus_hardfault_handler.c",
+    "moteus_hw.h",
+    "millisecond_timer.h",
+    "motor_driver.h",
+    "position_sensor.h",
+    "stm32f446_spi.h",
+    "stm32_flash.h",
+    "stm32_flash.cc",
+    "stm32_serial.h",
+    "stm32_serial.cc",
+    "stm32.h",
+    "system_info.h",
+    "system_info.cc",
+    "moteus.cc",
+]
+
+MOTEUS_DEPS = [
+    ":common",
+    "@com_github_mjbots_mjlib//mjlib/base:assert",
+    "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
+    "@com_github_mjbots_mjlib//mjlib/base:pid",
+    "@com_github_mjbots_mjlib//mjlib/base:windowed_average",
+    "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
+    "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
+    "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
+    "@com_github_mjbots_mjlib//mjlib/micro:error_code",
+    "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
+    "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
+    "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
+    "@com_github_mjbots_mjlib//mjlib/multiplex:micro_server",
+]
+
 mbed_binary(
-    name = "moteus",
-    srcs = [
-        "as5047.h",
-        "moteus_assert.cc",
-        "bldc_servo.h",
-        "bldc_servo.cc",
-        "board_debug.h",
-        "board_debug.cc",
-        "bootloader.h",
-        "drv8323.h",
-        "drv8323.cc",
-        "error.h",
-        "error.cc",
-        "hardfault.s",
-        "firmware_info.h",
-        "firmware_info.cc",
-        "irq_callback_table.h",
-        "irq_callback_table.cc",
-        "moteus_controller.h",
-        "moteus_controller.cc",
-        "moteus_hardfault_handler.c",
-        "moteus_hw.h",
-        "millisecond_timer.h",
-        "motor_driver.h",
-        "position_sensor.h",
+    name = "f4_moteus",
+    srcs = MOTEUS_SOURCES + [
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
-        "stm32f446_spi.h",
-        "stm32_flash.h",
-        "stm32_flash.cc",
-        "stm32_serial.h",
-        "stm32_serial.cc",
-        "system_info.h",
-        "system_info.cc",
-        "moteus.cc",
     ],
-    deps = [
-        ":common",
-        "@com_github_mjbots_mjlib//mjlib/base:assert",
-        "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
-        "@com_github_mjbots_mjlib//mjlib/base:pid",
-        "@com_github_mjbots_mjlib//mjlib/base:windowed_average",
-        "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
-        "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
-        "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
-        "@com_github_mjbots_mjlib//mjlib/micro:error_code",
-        "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
-        "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
-        "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:micro_server",
-    ],
+    deps = MOTEUS_DEPS,
     linker_script = "stm32f446.ld",
+)
+
+g4_mbed_binary(
+    name = "moteus",
+    srcs = MOTEUS_SOURCES + [
+        "stm32g4_async_uart.h",
+        "stm32g4_async_uart.cc",
+    ],
+    deps = MOTEUS_DEPS,
+    linker_script = "stm32g474.ld",
 )
 
 genrule(

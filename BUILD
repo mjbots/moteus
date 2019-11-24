@@ -27,8 +27,15 @@ filegroup(
     name = "target",
     srcs = [
         "//moteus:moteus",
-        "//moteus:imu_junction_dumb",
         "//moteus:power_dist",
+    ],
+)
+
+filegroup(
+    name = "f4_target",
+    srcs = [
+        "//moteus:f4_moteus",
+        "//moteus:imu_junction_dumb",
         "//moteus:bootloader",
     ],
 )

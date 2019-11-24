@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,12 +22,17 @@ namespace {
 int32_t GetMax16OversamplingBaud(UARTName uart) {
   switch (uart) {
     case UART_1:
+#if defined(TARGET_STM32F4)
     case UART_6:
+#endif
       return 5620000;
     case UART_2:
     case UART_3:
     case UART_4:
     case UART_5:
+#if defined(TARGET_STM32G4)
+    case LPUART_1:
+#endif
       return 2810000;
   }
   MJ_ASSERT(false);
@@ -45,8 +50,10 @@ void EnableClock(UARTName uart) {
     __HAL_RCC_UART4_CLK_ENABLE();
   } else if (uart == UART_5) {
     __HAL_RCC_UART5_CLK_ENABLE();
+#if defined(STM32F4)
   } else if (uart == UART_6) {
     __HAL_RCC_USART6_CLK_ENABLE();
+#endif
   } else {
     MJ_ASSERT(false);
   }
