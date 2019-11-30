@@ -23,7 +23,6 @@ load("@com_github_ARMmbed_mbed-g4-bootloader//:rules.bzl", g4_bootloader_mbed_bi
 cc_library(
     name = "common",
     hdrs = [
-        "atomic_event_queue.h",
         "foc.h",
         "math.h",
     ],
@@ -31,7 +30,7 @@ cc_library(
         "foc.cc",
     ],
     deps = [
-        "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
+        "@com_github_mjbots_mjlib//mjlib/micro:atomic_event_queue",
     ],
 )
 
@@ -228,7 +227,6 @@ genrule(
 cc_test(
     name = "test",
     srcs = [
-        "test/atomic_event_queue_test.cc",
         "test/foc_test.cc",
         "test/test_main.cc",
     ],

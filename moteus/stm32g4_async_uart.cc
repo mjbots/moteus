@@ -14,7 +14,7 @@
 
 #include "moteus/stm32g4_async_uart.h"
 
-#include "moteus/atomic_event_queue.h"
+#include "mjlib/micro/atomic_event_queue.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
@@ -35,7 +35,7 @@ class Stm32G4AsyncUart::Impl {
     MJ_ASSERT(false);
   }
 
-  using EventQueue = AtomicEventQueue<24>;
+  using EventQueue = micro::AtomicEventQueue<24>;
   EventQueue event_queue_;
 };
 

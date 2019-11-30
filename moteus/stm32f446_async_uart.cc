@@ -20,8 +20,8 @@
 #include "serial_api_hal.h"
 
 #include "mjlib/base/assert.h"
+#include "mjlib/micro/atomic_event_queue.h"
 
-#include "moteus/atomic_event_queue.h"
 #include "moteus/error.h"
 #include "moteus/irq_callback_table.h"
 #include "moteus/stm32_serial.h"
@@ -438,7 +438,7 @@ class Stm32F446AsyncUart::Impl {
   base::string_span current_read_data_;
   micro::error_code pending_rx_error_;
 
-  using EventQueue = AtomicEventQueue<24>;
+  using EventQueue = micro::AtomicEventQueue<24>;
   EventQueue event_queue_;
 
   micro::SizeCallback current_write_callback_;
