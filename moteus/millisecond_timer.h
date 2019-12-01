@@ -60,7 +60,7 @@ class MillisecondTimer {
   }
 
  private:
-  TIM_HandleTypeDef handle_;
+  TIM_HandleTypeDef handle_ = {};
 };
 
 }
