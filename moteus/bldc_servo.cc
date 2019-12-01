@@ -27,7 +27,6 @@
 #include "mjlib/base/limit.h"
 #include "mjlib/base/windowed_average.h"
 
-#include "moteus/irq_callback_table.h"
 #include "moteus/foc.h"
 #include "moteus/math.h"
 #include "moteus/moteus_hw.h"
@@ -440,7 +439,7 @@ class BldcServo::Impl {
     timer_->PSC = 0; // No prescaler.
     timer_->ARR = kPwmCounts;
 
-    // NOTE: We don't use IrqCallbackTable here because we need the
+    // NOTE: We don't use micro::CallbackTable here because we need the
     // absolute minimum latency possible.
     const auto irqn = FindUpdateIrq(timer_);
     NVIC_SetVector(irqn, reinterpret_cast<uint32_t>(&Impl::GlobalInterrupt));

@@ -92,8 +92,6 @@ MOTEUS_SOURCES = [
     "hardfault.s",
     "firmware_info.h",
     "firmware_info.cc",
-    "irq_callback_table.h",
-    "irq_callback_table.cc",
     "moteus_controller.h",
     "moteus_controller.cc",
     "moteus_hardfault_handler.c",

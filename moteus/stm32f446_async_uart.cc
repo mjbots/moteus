@@ -20,10 +20,11 @@
 #include "serial_api_hal.h"
 
 #include "mjlib/base/assert.h"
+
 #include "mjlib/micro/atomic_event_queue.h"
+#include "mjlib/micro/callback_table.h"
 
 #include "moteus/error.h"
-#include "moteus/irq_callback_table.h"
 #include "moteus/stm32_serial.h"
 
 namespace base = mjlib::base;
@@ -142,7 +143,7 @@ class Stm32F446AsyncUart::Impl {
           DMA_MEMORY_TO_PERIPH |
           DMA_SxCR_TCIE | DMA_SxCR_TEIE;
 
-      tx_callback_ = IrqCallbackTable::MakeFunction([this]() {
+      tx_callback_ = micro::CallbackTable::MakeFunction([this]() {
           this->HandleTransmit();
         });
       NVIC_SetVector(tx_dma_.irq, reinterpret_cast<uint32_t>(tx_callback_.irq_function));
@@ -161,7 +162,7 @@ class Stm32F446AsyncUart::Impl {
           DMA_SxCR_CIRC |
           DMA_SxCR_TCIE | DMA_SxCR_HTIE | DMA_SxCR_TEIE;
 
-      rx_callback_ = IrqCallbackTable::MakeFunction([this]() {
+      rx_callback_ = micro::CallbackTable::MakeFunction([this]() {
           this->HandleReceive();
         });
       NVIC_SetVector(rx_dma_.irq, reinterpret_cast<uint32_t>(rx_callback_.irq_function));
@@ -171,7 +172,7 @@ class Stm32F446AsyncUart::Impl {
       // Notify when there are idle times on the bus.
       uart_->CR1 |= USART_CR1_IDLEIE;
 
-      uart_callback_ = IrqCallbackTable::MakeFunction([this]() {
+      uart_callback_ = micro::CallbackTable::MakeFunction([this]() {
           this->HandleUart();
         });
       NVIC_SetVector(uart_rx_irq_, reinterpret_cast<uint32_t>(uart_callback_.irq_function));
@@ -430,9 +431,9 @@ class Stm32F446AsyncUart::Impl {
   Dma tx_dma_;
   Dma rx_dma_;
 
-  IrqCallbackTable::Callback tx_callback_;
-  IrqCallbackTable::Callback rx_callback_;
-  IrqCallbackTable::Callback uart_callback_;
+  micro::CallbackTable::Callback tx_callback_;
+  micro::CallbackTable::Callback rx_callback_;
+  micro::CallbackTable::Callback uart_callback_;
 
   micro::SizeCallback current_read_callback_;
   base::string_span current_read_data_;
