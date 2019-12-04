@@ -56,8 +56,28 @@ using HardwareUart = Stm32G4AsyncUart;
 #error "Unknown target"
 #endif
 
+extern "C" {
+void SetupClock() {
+#if defined(TARGET_STM32G4)
+  {
+    RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
+
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_FDCAN | RCC_PERIPHCLK_USART2;
+    PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
+    PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+    {
+      mbed_die();
+    }
+  }
+#endif
+}
+}
+
 
 int main(void) {
+  SetupClock();
+
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
   DigitalIn hwrev1(HWREV_PIN1, PullUp);
   DigitalIn hwrev2(HWREV_PIN2, PullUp);
@@ -74,7 +94,7 @@ int main(void) {
       0x07 & (~(hwrev0.read() |
                 (hwrev1.read() << 1) |
                 (hwrev2.read() << 2)));
-  MJ_ASSERT(this_hw_rev == MOTEUS_HW_REV);
+  MJ_ASSERT(this_hw_rev == (MOTEUS_HW_REV - MOTEUS_HW_REV_OFFSET));
 
   // I initially used a Ticker here to enqueue events at 1ms
   // intervals.  However, it introduced jitter into the current
@@ -87,9 +107,9 @@ int main(void) {
 
   HardwareUart rs485(&pool, &timer, []() {
       HardwareUart::Options options;
-      options.tx = PA_9;
-      options.rx = PA_10;
-      options.dir = PA_8;
+      options.tx = MOTEUS_UART_TX;
+      options.rx = MOTEUS_UART_RX;
+      options.dir = MOTEUS_UART_DIR;
       options.baud_rate = 3000000;
       return options;
     }());

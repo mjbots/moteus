@@ -1,6 +1,6 @@
 #!/bin/bash
 
 openocd \
-    -f /usr/share/openocd/scripts/interface/stlink-v2.cfg \
-    -f /usr/share/openocd/scripts/target/stm32f4x_stlink.cfg \
+    -f interface/stlink.cfg \
+    -f target/stm32g4x.cfg \
     -c init -c "reset_config none separate; reset init"

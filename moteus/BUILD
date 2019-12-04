@@ -118,6 +118,7 @@ MOTEUS_DEPS = [
     "@com_github_mjbots_mjlib//mjlib/base:windowed_average",
     "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
     "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
+    "@com_github_mjbots_mjlib//mjlib/micro:callback_table",
     "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
     "@com_github_mjbots_mjlib//mjlib/micro:error_code",
     "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
@@ -176,11 +177,19 @@ OCD_G4 = (
 )
 
 genrule(
-    name = "flash",
+    name = "f4_flash",
     tags = ["manual"],
     srcs = ["moteus.08000000.bin", "moteus.08010000.bin", "bootloader.0800c000.bin"],
-    outs = ["flash.stamp"],
+    outs = ["f4_flash.stamp"],
     cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location bootloader.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+)
+
+genrule(
+    name = "flash",
+    tags = ["manual"],
+    srcs = ["moteus.08000000.bin", "moteus.08010000.bin"],
+    outs = ["flash.stamp"],
+    cmd = (OCD_G4 + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
 genrule(

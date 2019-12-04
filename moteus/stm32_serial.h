@@ -44,8 +44,13 @@ class Stm32Serial {
     return uart_;
   }
 
+  UART_HandleTypeDef* huart() {
+    return &huart_;
+  }
+
  private:
-  USART_TypeDef* uart_;
+  USART_TypeDef* uart_ = nullptr;
+  UART_HandleTypeDef huart_{};
 };
 
 }

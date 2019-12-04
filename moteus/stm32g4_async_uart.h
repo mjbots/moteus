@@ -46,6 +46,9 @@ class Stm32G4AsyncUart : public mjlib::micro::AsyncStream {
     int baud_rate = 115200;
 
     size_t rx_buffer_size = 128u;
+
+    DMA_Channel_TypeDef* rx_dma = DMA1_Channel2;
+    DMA_Channel_TypeDef* tx_dma = DMA1_Channel1;
   };
 
   Stm32G4AsyncUart(mjlib::micro::Pool* pool,

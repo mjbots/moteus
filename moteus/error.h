@@ -29,14 +29,15 @@ enum class errc {
   kUartFramingError = 4,
   kUartNoiseError = 5,
   kUartBufferOverrunError = 6,
+  kUartParityError = 7,
 
-  kCalibrationFault = 7,
-  kMotorDriverFault = 8,
-  kOverVoltage = 9,
-  kEncoderFault = 10,
-  kMotorNotConfigured = 11,
-  kPwmCycleOverrun = 12,
-  kOverTemperature = 13,
+  kCalibrationFault = 32,
+  kMotorDriverFault = 33,
+  kOverVoltage = 34,
+  kEncoderFault = 35,
+  kMotorNotConfigured = 36,
+  kPwmCycleOverrun = 37,
+  kOverTemperature = 38,
 };
 
 mjlib::micro::error_code make_error_code(errc);

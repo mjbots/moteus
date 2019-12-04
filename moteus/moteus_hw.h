@@ -29,6 +29,12 @@
 #define MOTEUS_HW_REV 3
 #endif
 
+#ifdef TARGET_STM32G4
+#define MOTEUS_HW_REV_OFFSET 3
+#else
+#define MOTEUS_HW_REV_OFFSET 0
+#endif
+
 #define DRV8323_ENABLE PA_3
 #define DRV8323_HIZ PC_3
 
@@ -87,6 +93,16 @@
 #define MOTEUS_CURRENT_SENSE_OHM 0.001f
 #elif MOTEUS_HW_REV >= 2
 #define MOTEUS_CURRENT_SENSE_OHM 0.0005f
+#endif
+
+#if MOTEUS_HW_REV <= 2
+#define MOTEUS_UART_TX PA_9
+#define MOTEUS_UART_RX PA_10
+#define MOTEUS_UART_DIR PA_8
+#else
+#define MOTEUS_UART_TX PC_10
+#define MOTEUS_UART_RX PC_11
+#define MOTEUS_UART_DIR NC
 #endif
 
 

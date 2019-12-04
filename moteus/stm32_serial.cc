@@ -39,27 +39,86 @@ int32_t GetMax16OversamplingBaud(UARTName uart) {
   return 0;
 }
 
-void EnableClock(UARTName uart) {
-  if (uart == UART_1) {
+void EnableUart(USART_TypeDef* uart) {
+#if defined (USART1_BASE)
+  if (uart == USART1) {
     __HAL_RCC_USART1_CLK_ENABLE();
-  } else if (uart == UART_2) {
-    __HAL_RCC_USART2_CLK_ENABLE();
-  } else if (uart == UART_3) {
-    __HAL_RCC_USART3_CLK_ENABLE();
-  } else if (uart == UART_4) {
-    __HAL_RCC_UART4_CLK_ENABLE();
-  } else if (uart == UART_5) {
-    __HAL_RCC_UART5_CLK_ENABLE();
-#if defined(STM32F4)
-  } else if (uart == UART_6) {
-    __HAL_RCC_USART6_CLK_ENABLE();
-#endif
-  } else {
-    MJ_ASSERT(false);
+    return;
   }
-#if defined(UART7_BASE) || defined(USART7_BASE)
-  #error "Need to handle more uarts"
 #endif
+#if defined (USART2_BASE)
+  if (uart == USART2) {
+    __HAL_RCC_USART2_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (USART3_BASE)
+  if (uart == USART3) {
+    __HAL_RCC_USART3_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (USART4_BASE)
+  if (uart == USART4) {
+    __HAL_RCC_USART4_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (UART5_BASE)
+  if (uart == UART5) {
+    __HAL_RCC_UART5_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (USART5_BASE)
+  if (uart == USART5) {
+    __HAL_RCC_USART5_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (USART6_BASE)
+  if (uart == USART6) {
+    __HAL_RCC_USART6_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (UART7_BASE)
+  if (uart == UART7) {
+    __HAL_RCC_UART7_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (USART7_BASE)
+  if (uart == USART7) {
+    __HAL_RCC_USART7_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (UART8_BASE)
+  if (uart == UART8) {
+    __HAL_RCC_UART8_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (USART8_BASE)
+  if (uart == USART8) {
+    __HAL_RCC_USART8_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (UART9_BASE)
+  if (uart == UART9) {
+    __HAL_RCC_UART9_CLK_ENABLE();
+    return;
+  }
+#endif
+#if defined (UART10_BASE)
+  if (uart == UART10) {
+    __HAL_RCC_UART10_CLK_ENABLE();
+    return;
+  }
+#endif
+  mbed_die();
 }
 
 }
@@ -74,9 +133,6 @@ Stm32Serial::Stm32Serial(const Options& options) {
   }();
   MJ_ASSERT(uart_ != nullptr);
 
-  // Reset and enable clock.
-  EnableClock(uart_name());
-
   // Configure pins for alternate functions.
   pinmap_pinout(options.tx, PinMap_UART_TX);
   pinmap_pinout(options.rx, PinMap_UART_RX);
@@ -87,32 +143,52 @@ Stm32Serial::Stm32Serial(const Options& options) {
     pin_mode(options.rx, PullUp);
   }
 
-  // Then configure the UART itself.
-  UART_HandleTypeDef huart{};
+  // Reset and enable clock.
+  EnableUart(uart_);
 
-  huart.Instance = uart_;
-  huart.Init.BaudRate = options.baud_rate;
-  huart.Init.WordLength = 8;
-  huart.Init.StopBits = 1;
-  huart.Init.Parity = UART_PARITY_NONE;
-  huart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  // Then configure the UART itself.
+  huart_.Instance = uart_;
+  huart_.Init.BaudRate = options.baud_rate;
+  huart_.Init.WordLength = UART_WORDLENGTH_8B;
+  huart_.Init.StopBits = UART_STOPBITS_1;
+  huart_.Init.Parity = UART_PARITY_NONE;
+
+  if (options.tx == NC) {
+    huart_.Init.Mode = UART_MODE_RX;
+  } else if (options.rx == NC) {
+    huart_.Init.Mode = UART_MODE_TX;
+  } else {
+    huart_.Init.Mode = UART_MODE_TX_RX;
+  }
+
+  huart_.Init.HwFlowCtl = UART_HWCONTROL_NONE;
 
   const int32_t max_16oversampling_baud =
       GetMax16OversamplingBaud(uart_name());
-  huart.Init.OverSampling =
+  huart_.Init.OverSampling =
       (options.baud_rate > max_16oversampling_baud ?
        UART_OVERSAMPLING_8 :
        UART_OVERSAMPLING_16);
 
-  if (options.tx == NC) {
-    huart.Init.Mode = UART_MODE_RX;
-  } else if (options.rx == NC) {
-    huart.Init.Mode = UART_MODE_TX;
-  } else {
-    huart.Init.Mode = UART_MODE_TX_RX;
+  huart_.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart_.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart_.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+
+  if (HAL_UART_Init(&huart_) != HAL_OK) {
+    mbed_die();
   }
 
-  HAL_UART_Init(&huart);
+  if (HAL_UARTEx_SetTxFifoThreshold(
+          &huart_, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK) {
+    mbed_die();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(
+          &huart_, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK) {
+    mbed_die();
+  }
+  if (HAL_UARTEx_EnableFifoMode(&huart_) != HAL_OK) {
+    mbed_die();
+  }
 }
 
 }
