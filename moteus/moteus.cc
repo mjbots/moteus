@@ -65,11 +65,13 @@ void SetupClock() {
     PeriphClkInit.PeriphClockSelection =
         RCC_PERIPHCLK_FDCAN |
         RCC_PERIPHCLK_USART2 |
+        RCC_PERIPHCLK_USART3 |
         RCC_PERIPHCLK_ADC12 |
         RCC_PERIPHCLK_ADC345
         ;
     PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
     PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
+    PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
     PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
     PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
@@ -116,7 +118,7 @@ int main(void) {
       options.tx = MOTEUS_UART_TX;
       options.rx = MOTEUS_UART_RX;
       options.dir = MOTEUS_UART_DIR;
-      options.baud_rate = 3000000;
+      options.baud_rate = 115200;
       return options;
     }());
 

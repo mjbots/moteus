@@ -36,7 +36,12 @@
 #endif
 
 #define DRV8323_ENABLE PA_3
+
+#if MOTEUS_HW_REV <= 2
 #define DRV8323_HIZ PC_3
+#else
+#define DRV8323_HIZ PB_7
+#endif
 
 #if MOTEUS_HW_REV == 0
 #define DRV8323_CS PA_4
