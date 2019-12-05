@@ -247,7 +247,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.hiz = DRV8323_HIZ;
             return options;
           }()),
-        bldc_(pool, persistent_config, telemetry_manager, &as5047_, &drv8323_, []() {
+        bldc_(pool, persistent_config, telemetry_manager,
+              timer, &as5047_, &drv8323_, []() {
             BldcServo::Options options;
             options.pwm1 = PA_0;
             options.pwm2 = PA_1;

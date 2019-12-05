@@ -40,6 +40,10 @@
 #error "Unknown target"
 #endif
 
+#ifdef wait_us
+#undef wait_us
+#endif
+
 namespace micro = mjlib::micro;
 
 namespace moteus {
@@ -176,8 +180,15 @@ IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
   }
   return TIM1_UP_TIM10_IRQn;
 #elif defined(TARGET_STM32G4)
+  if (timer == TIM2) {
+    return TIM2_IRQn;
+  } else if (timer == TIM3) {
+    return TIM3_IRQn;
+  } else if (timer == TIM4) {
+    return TIM4_IRQn;
+  }
   MJ_ASSERT(false);
-  return TIM4_IRQn;
+  return TIM2_IRQn;
 #else
 #error "Unknown target"
 #endif
@@ -251,10 +262,12 @@ class BldcServo::Impl {
  public:
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
+       MillisecondTimer* millisecond_timer,
        PositionSensor* position_sensor,
        MotorDriver* motor_driver,
        const Options& options)
       : options_(options),
+        ms_timer_(millisecond_timer),
         position_sensor_(position_sensor),
         motor_driver_(motor_driver),
         pwm1_(options.pwm1),
@@ -405,8 +418,8 @@ class BldcServo::Impl {
 
     // All three must be the same and be valid.
     MJ_ASSERT(pwm1_timer != 0 &&
-                pwm1_timer == pwm2_timer &&
-                pwm2_timer == pwm3_timer);
+              pwm1_timer == pwm2_timer &&
+              pwm2_timer == pwm3_timer);
     timer_ = reinterpret_cast<TIM_TypeDef*>(pwm1_timer);
     timer_sr_ = &timer_->SR;
     timer_cr1_ = &timer_->CR1;
@@ -506,8 +519,87 @@ class BldcServo::Impl {
     __HAL_RCC_ADC12_CLK_ENABLE();
     __HAL_RCC_ADC345_CLK_ENABLE();
 
-    // TODO: Do the rest.
-    MJ_ASSERT(false);
+    auto disable_adc = [](auto* adc) {
+      if (adc->CR & ADC_CR_ADEN) {
+        adc->CR |= ADC_CR_ADDIS;
+        while (adc->CR & ADC_CR_ADEN);
+      }
+    };
+
+    // First, we have to disable everything to ensure we are in a
+    // known state.
+    disable_adc(ADC1);
+    disable_adc(ADC2);
+    disable_adc(ADC3);
+    disable_adc(ADC4);
+
+    ADC12_COMMON->CCR =
+        (0x6 << ADC_CCR_DUAL_Pos) // Regular simultaneous mode
+        ;
+    ADC345_COMMON->CCR =
+        (0x6 << ADC_CCR_DUAL_Pos) // Regular simultaneous mode
+        ;
+
+    // 20.4.6: ADC Deep power-down mode startup procedure
+    ADC1->CR &= ~ADC_CR_DEEPPWD;
+    ADC2->CR &= ~ADC_CR_DEEPPWD;
+    ADC3->CR &= ~ADC_CR_DEEPPWD;
+    ADC4->CR &= ~ADC_CR_DEEPPWD;
+
+    ADC1->CR |= ADC_CR_ADVREGEN;
+    ADC2->CR |= ADC_CR_ADVREGEN;
+    ADC3->CR |= ADC_CR_ADVREGEN;
+    ADC4->CR |= ADC_CR_ADVREGEN;
+
+    // tADCREG_S = 20us per STM32G474xB datasheet
+    ms_timer_->wait_us(20);
+
+    // 20.4.8: Calibration
+    ADC1->CR |= ADC_CR_ADCAL;
+    ADC2->CR |= ADC_CR_ADCAL;
+    ADC3->CR |= ADC_CR_ADCAL;
+    ADC4->CR |= ADC_CR_ADCAL;
+
+    while ((ADC1->CR & ADC_CR_ADCAL) ||
+           (ADC2->CR & ADC_CR_ADCAL) ||
+           (ADC3->CR & ADC_CR_ADCAL) ||
+           (ADC4->CR & ADC_CR_ADCAL));
+
+    ms_timer_->wait_us(1);
+
+    // 20.4.9: Software procedure to enable the ADC
+    ADC1->ISR |= ADC_ISR_ADRDY;
+    ADC2->ISR |= ADC_ISR_ADRDY;
+    ADC3->ISR |= ADC_ISR_ADRDY;
+    ADC4->ISR |= ADC_ISR_ADRDY;
+
+    ADC1->CR |= ADC_CR_ADEN;
+    ADC2->CR |= ADC_CR_ADEN;
+    ADC3->CR |= ADC_CR_ADEN;
+    ADC4->CR |= ADC_CR_ADEN;
+
+    while (!(ADC1->ISR & ADC_ISR_ADRDY) ||
+           !(ADC2->ISR & ADC_ISR_ADRDY) ||
+           !(ADC3->ISR & ADC_ISR_ADRDY) ||
+           !(ADC4->ISR & ADC_ISR_ADRDY));
+
+    ADC1->ISR |= ADC_ISR_ADRDY;
+    ADC2->ISR |= ADC_ISR_ADRDY;
+    ADC3->ISR |= ADC_ISR_ADRDY;
+    ADC4->ISR |= ADC_ISR_ADRDY;
+
+    ADC1->SQR1 =
+        (1 << ADC_SQR1_L_Pos) |
+        FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
+    ADC2->SQR1 =
+        (1 << ADC_SQR1_L_Pos) |
+        FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
+    ADC3->SQR1 =
+        (1 << ADC_SQR1_L_Pos) |
+        FindSqr(options_.vsense);
+    ADC4->SQR1 =
+        (1 << ADC_SQR1_L_Pos) |
+        FindSqr(options_.tsense);
 #else
 #error "Unknown target"
 #endif
@@ -542,7 +634,8 @@ class BldcServo::Impl {
 #if defined(TARGET_STM32F4)
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
-    MJ_ASSERT(false);
+    ADC1->CR |= ADC_CR_ADSTART;
+    ADC3->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
 #endif
@@ -605,11 +698,11 @@ class BldcServo::Impl {
     uint32_t adc3 = ADC3->DR;
 
     // Start sampling the temperature.
-    ADC3->SQR3 = tsense_sqr_;
 #if defined(TARGET_STM32F4)
+    ADC3->SQR3 = tsense_sqr_;
     ADC3->CR2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
-    MJ_ASSERT(false);
+    // We already sampled the temperature for the G4.
 #else
 #error "Unknown target"
 #endif
@@ -630,8 +723,14 @@ class BldcServo::Impl {
 
     // The temperature sensing should be done by now, but just double
     // check.
+#if defined(TARGET_STM32F4)
     WaitForAdc(ADC3);
     status_.fet_temp_raw = ADC3->DR;
+#elif defined(TARGET_STM32G4)
+    status_.fet_temp_raw = ADC4->DR;
+#else
+#error "Unknown target"
+#endif
 
     // Set ADC3 back to the sense resistor.
     ADC3->SQR3 = vsense_sqr_;
@@ -640,7 +739,7 @@ class BldcServo::Impl {
 #if defined(TARGET_STM32F4)
     ADC3->CR2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
-    MJ_ASSERT(false);
+    // nothing to do here.
 #else
 #error "Unknown target"
 #endif
@@ -1295,6 +1394,7 @@ class BldcServo::Impl {
   }
 
   const Options options_;
+  MillisecondTimer* const ms_timer_;
   PositionSensor* const position_sensor_;
   MotorDriver* const motor_driver_;
 
@@ -1384,12 +1484,13 @@ BldcServo::Impl* BldcServo::Impl::g_impl_ = nullptr;
 BldcServo::BldcServo(micro::Pool* pool,
                      micro::PersistentConfig* persistent_config,
                      micro::TelemetryManager* telemetry_manager,
+                     MillisecondTimer* millisecond_timer,
                      PositionSensor* position_sensor,
                      MotorDriver* motor_driver,
                      const Options& options)
     : impl_(pool,
             persistent_config, telemetry_manager,
-            position_sensor, motor_driver,
+            millisecond_timer, position_sensor, motor_driver,
             options) {}
 BldcServo::~BldcServo() {}
 

@@ -26,6 +26,7 @@
 #include "mjlib/micro/telemetry_manager.h"
 
 #include "moteus/error.h"
+#include "moteus/millisecond_timer.h"
 #include "moteus/motor_driver.h"
 #include "moteus/position_sensor.h"
 
@@ -59,6 +60,7 @@ class BldcServo {
   BldcServo(mjlib::micro::Pool*,
             mjlib::micro::PersistentConfig*,
             mjlib::micro::TelemetryManager*,
+            MillisecondTimer*,
             PositionSensor*,
             MotorDriver*,
             const Options&);

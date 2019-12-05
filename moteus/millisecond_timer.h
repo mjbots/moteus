@@ -16,6 +16,10 @@
 
 #include "mbed.h"
 
+#ifdef wait_us
+#undef wait_us
+#endif
+
 namespace moteus {
 
 class MillisecondTimer {

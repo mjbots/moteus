@@ -62,11 +62,17 @@ void SetupClock() {
   {
     RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
 
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_FDCAN | RCC_PERIPHCLK_USART2;
+    PeriphClkInit.PeriphClockSelection =
+        RCC_PERIPHCLK_FDCAN |
+        RCC_PERIPHCLK_USART2 |
+        RCC_PERIPHCLK_ADC12 |
+        RCC_PERIPHCLK_ADC345
+        ;
     PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
     PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-    {
+    PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
+    PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
       mbed_die();
     }
   }
