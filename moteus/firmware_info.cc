@@ -35,7 +35,15 @@ class FirmwareInfo::Impl {
     info_.version = version;
 
     const int32_t* const device_signature =
-        reinterpret_cast<const int32_t*>(0x1fff7a10);
+        reinterpret_cast<const int32_t*>(
+#if defined(TARGET_STM32F4)
+            0x1fff7a10
+#elif defined(TARGET_STM32G4)
+            0x1fff7590
+#else
+#error "Unknown target"
+#endif
+                                         );
     std::memcpy(&info_.serial_number[0], device_signature,
                 sizeof(uint32_t) * 3);
 
