@@ -28,6 +28,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kUartFramingError: return "uart framing error";
       case errc::kUartNoiseError: return "uart noise error";
       case errc::kUartBufferOverrunError: return "uart buffer overrun";
+      case errc::kUartParityError: return "uart parity error";
       case errc::kCalibrationFault: return "calibration fault";
       case errc::kMotorDriverFault: return "motor driver fault";
       case errc::kOverVoltage: return "over voltage";
