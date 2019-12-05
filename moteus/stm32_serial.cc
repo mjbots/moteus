@@ -170,14 +170,17 @@ Stm32Serial::Stm32Serial(const Options& options) {
        UART_OVERSAMPLING_8 :
        UART_OVERSAMPLING_16);
 
+#if defined(TARGET_STM32G4)
   huart_.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart_.Init.ClockPrescaler = UART_PRESCALER_DIV1;
   huart_.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+#endif
 
   if (HAL_UART_Init(&huart_) != HAL_OK) {
     mbed_die();
   }
 
+#if defined(TARGET_STM32G4)
   if (HAL_UARTEx_SetTxFifoThreshold(
           &huart_, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK) {
     mbed_die();
@@ -189,6 +192,7 @@ Stm32Serial::Stm32Serial(const Options& options) {
   if (HAL_UARTEx_EnableFifoMode(&huart_) != HAL_OK) {
     mbed_die();
   }
+#endif
 }
 
 }
