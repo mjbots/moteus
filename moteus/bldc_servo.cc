@@ -72,6 +72,7 @@ void WaitForAdc(AdcType* adc) {
     while ((adc->SR & ADC_SR_EOC) == 0);
 #elif defined(TARGET_STM32G4)
     while ((adc->ISR & ADC_ISR_EOC) == 0);
+    adc->ISR |= ADC_ISR_EOC;
 #else
     #error "Unknown target"
 #endif
@@ -530,26 +531,20 @@ class BldcServo::Impl {
     // known state.
     disable_adc(ADC1);
     disable_adc(ADC2);
-    disable_adc(ADC3);
-    disable_adc(ADC4);
+    disable_adc(ADC5);
 
     ADC12_COMMON->CCR =
-        (0x6 << ADC_CCR_DUAL_Pos) // Regular simultaneous mode
-        ;
-    ADC345_COMMON->CCR =
         (0x6 << ADC_CCR_DUAL_Pos) // Regular simultaneous mode
         ;
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
     ADC2->CR &= ~ADC_CR_DEEPPWD;
-    ADC3->CR &= ~ADC_CR_DEEPPWD;
-    ADC4->CR &= ~ADC_CR_DEEPPWD;
+    ADC5->CR &= ~ADC_CR_DEEPPWD;
 
     ADC1->CR |= ADC_CR_ADVREGEN;
     ADC2->CR |= ADC_CR_ADVREGEN;
-    ADC3->CR |= ADC_CR_ADVREGEN;
-    ADC4->CR |= ADC_CR_ADVREGEN;
+    ADC5->CR |= ADC_CR_ADVREGEN;
 
     // tADCREG_S = 20us per STM32G474xB datasheet
     ms_timer_->wait_us(20);
@@ -557,36 +552,30 @@ class BldcServo::Impl {
     // 20.4.8: Calibration
     ADC1->CR |= ADC_CR_ADCAL;
     ADC2->CR |= ADC_CR_ADCAL;
-    ADC3->CR |= ADC_CR_ADCAL;
-    ADC4->CR |= ADC_CR_ADCAL;
+    ADC5->CR |= ADC_CR_ADCAL;
 
     while ((ADC1->CR & ADC_CR_ADCAL) ||
            (ADC2->CR & ADC_CR_ADCAL) ||
-           (ADC3->CR & ADC_CR_ADCAL) ||
-           (ADC4->CR & ADC_CR_ADCAL));
+           (ADC5->CR & ADC_CR_ADCAL));
 
     ms_timer_->wait_us(1);
 
     // 20.4.9: Software procedure to enable the ADC
     ADC1->ISR |= ADC_ISR_ADRDY;
     ADC2->ISR |= ADC_ISR_ADRDY;
-    ADC3->ISR |= ADC_ISR_ADRDY;
-    ADC4->ISR |= ADC_ISR_ADRDY;
+    ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->CR |= ADC_CR_ADEN;
     ADC2->CR |= ADC_CR_ADEN;
-    ADC3->CR |= ADC_CR_ADEN;
-    ADC4->CR |= ADC_CR_ADEN;
+    ADC5->CR |= ADC_CR_ADEN;
 
     while (!(ADC1->ISR & ADC_ISR_ADRDY) ||
            !(ADC2->ISR & ADC_ISR_ADRDY) ||
-           !(ADC3->ISR & ADC_ISR_ADRDY) ||
-           !(ADC4->ISR & ADC_ISR_ADRDY));
+           !(ADC5->ISR & ADC_ISR_ADRDY));
 
     ADC1->ISR |= ADC_ISR_ADRDY;
     ADC2->ISR |= ADC_ISR_ADRDY;
-    ADC3->ISR |= ADC_ISR_ADRDY;
-    ADC4->ISR |= ADC_ISR_ADRDY;
+    ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->SQR1 =
         (1 << ADC_SQR1_L_Pos) |
@@ -594,12 +583,17 @@ class BldcServo::Impl {
     ADC2->SQR1 =
         (1 << ADC_SQR1_L_Pos) |
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
-    ADC3->SQR1 =
+    ADC5->SQR1 =
         (1 << ADC_SQR1_L_Pos) |
-        FindSqr(options_.vsense);
-    ADC4->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |
-        FindSqr(options_.tsense);
+        vsense_sqr_ << ADC_SQR1_SQ1_Pos;
+
+    ADC1->SMPR1 =
+        (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
+    ADC2->SMPR1 =
+        (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
+    ADC5->SMPR1 =
+        (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
+
 #else
 #error "Unknown target"
 #endif
@@ -635,7 +629,7 @@ class BldcServo::Impl {
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
     ADC1->CR |= ADC_CR_ADSTART;
-    ADC3->CR |= ADC_CR_ADSTART;
+    ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
 #endif
@@ -695,14 +689,23 @@ class BldcServo::Impl {
 
     uint32_t adc1 = ADC1->DR;
     uint32_t adc2 = ADC2->DR;
+#if defined(TARGET_STM32F4)
     uint32_t adc3 = ADC3->DR;
+#elif defined(TARGET_STM32G4)
+    uint32_t adc3 = ADC5->DR;
+#else
+#error "Unknown target"
+#endif
 
     // Start sampling the temperature.
 #if defined(TARGET_STM32F4)
     ADC3->SQR3 = tsense_sqr_;
     ADC3->CR2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
-    // We already sampled the temperature for the G4.
+    ADC5->SQR1 =
+        (1 << ADC_SQR1_L_Pos) |
+        tsense_sqr_ << ADC_SQR1_SQ1_Pos;
+    ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
 #endif
@@ -726,20 +729,24 @@ class BldcServo::Impl {
 #if defined(TARGET_STM32F4)
     WaitForAdc(ADC3);
     status_.fet_temp_raw = ADC3->DR;
+    // Set ADC3 back to the sense resistor.
+    ADC3->SQR3 = vsense_sqr_;
+
 #elif defined(TARGET_STM32G4)
-    status_.fet_temp_raw = ADC4->DR;
+    WaitForAdc(ADC5);
+    status_.fet_temp_raw = ADC5->DR;
+    ADC5->SQR1 =
+        (1 << ADC_SQR1_L_Pos) |
+        (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
 #else
 #error "Unknown target"
 #endif
-
-    // Set ADC3 back to the sense resistor.
-    ADC3->SQR3 = vsense_sqr_;
 
     // Kick off a conversion just to get the FET temp out of the system.
 #if defined(TARGET_STM32F4)
     ADC3->CR2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
-    // nothing to do here.
+    ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
 #endif

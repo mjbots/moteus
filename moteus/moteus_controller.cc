@@ -230,10 +230,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        FirmwareInfo* firmware)
       : as5047_([]() {
           AS5047::Options options;
-          options.mosi = PB_15;
-          options.miso = PB_14;
-          options.sck = PB_13;
-          options.cs = PB_12;
+          options.mosi = MOTEUS_AS5047_MOSI;
+          options.miso = MOTEUS_AS5047_MISO;
+          options.sck = MOTEUS_AS5047_SCK;
+          options.cs = MOTEUS_AS5047_CS;
           return options;
         }()),
         drv8323_(pool, persistent_config, telemetry_manager, timer, []() {
@@ -254,8 +254,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.pwm2 = PA_1;
             options.pwm3 = PA_2;
 
-            options.current1 = PC_5;
-            options.current2 = PB_0_ALT0;
+            options.current1 = MOTEUS_CURRENT1;
+            options.current2 = MOTEUS_CURRENT2;
             options.vsense = MOTEUS_VSENSE;
             options.tsense = MOTEUS_TSENSE;
 
