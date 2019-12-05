@@ -1,5 +1,10 @@
 Build test fixture
 
+r4.1 ERRATA
+  * maybe don't need to fix...
+    * the current sense lines are run to "slow" ADCs
+    * current 1 and current 2 should be to ADC1 / ADC2
+
 r4.1 DONE
   * Updated to correct STM32G4 pinout
   * Fixed SWCLK/SWDIO pins
