@@ -534,8 +534,9 @@ class BldcServo::Impl {
     disable_adc(ADC5);
 
     ADC12_COMMON->CCR =
-        (0x6 << ADC_CCR_DUAL_Pos) // Regular simultaneous mode
-        ;
+        (4 << ADC_CCR_PRESC_Pos);  // Prescaler /8
+    ADC345_COMMON->CCR =
+        (4 << ADC_CCR_PRESC_Pos);  // Prescaler /8
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
@@ -578,13 +579,13 @@ class BldcServo::Impl {
     ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |
+        (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
     ADC2->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |
+        (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
     ADC5->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |
+        (0 << ADC_SQR1_L_Pos) |  // length 1
         vsense_sqr_ << ADC_SQR1_SQ1_Pos;
 
     ADC1->SMPR1 =
@@ -629,6 +630,7 @@ class BldcServo::Impl {
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
     ADC1->CR |= ADC_CR_ADSTART;
+    ADC2->CR |= ADC_CR_ADSTART;
     ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
@@ -656,6 +658,9 @@ class BldcServo::Impl {
   void ISR_DoSense() __attribute__((always_inline)) {
     // Wait for conversion to complete.
     WaitForAdc(ADC1);
+#if defined(TARGET_STM32F4)
+    WaitForAdc(ADC2);
+#endif
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -692,6 +697,7 @@ class BldcServo::Impl {
 #if defined(TARGET_STM32F4)
     uint32_t adc3 = ADC3->DR;
 #elif defined(TARGET_STM32G4)
+    WaitForAdc(ADC5);
     uint32_t adc3 = ADC5->DR;
 #else
 #error "Unknown target"
@@ -703,7 +709,7 @@ class BldcServo::Impl {
     ADC3->CR2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
     ADC5->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |
+        (0 << ADC_SQR1_L_Pos) |  // length 1
         tsense_sqr_ << ADC_SQR1_SQ1_Pos;
     ADC5->CR |= ADC_CR_ADSTART;
 #else
@@ -736,7 +742,7 @@ class BldcServo::Impl {
     WaitForAdc(ADC5);
     status_.fet_temp_raw = ADC5->DR;
     ADC5->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |
+        (0 << ADC_SQR1_L_Pos) |  // length 1
         (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
 #else
 #error "Unknown target"
@@ -1414,6 +1420,8 @@ class BldcServo::Impl {
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;
   ADC_TypeDef* const adc3_ = ADC3;
+  ADC_TypeDef* const adc5_ = ADC5;
+  ADC_Common_TypeDef* const adc12_common_ = ADC12_COMMON;
 
   // We create these to initialize our pins as output and PWM mode,
   // but otherwise don't use them.

@@ -27,6 +27,7 @@
 
 #include "moteus/error.h"
 #include "moteus/millisecond_timer.h"
+#include "moteus/moteus_hw.h"
 #include "moteus/motor_driver.h"
 #include "moteus/position_sensor.h"
 
@@ -112,7 +113,13 @@ class BldcServo {
 
   struct Config {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
-    float v_scale_V = 0.00884f;  // V per A/D count
+    float v_scale_V = // V per A/D count
+#if MOTEUS_HW_REV <= 2
+        0.00884f
+#elif MOTEUS_HW_REV >= 3
+        0.0099f
+#endif
+        ;
 
     float max_voltage = 28.0f;
     float max_temperature = 75.0f;
