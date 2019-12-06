@@ -92,7 +92,7 @@
 // ADC1
 #define MOTEUS_CURRENT1 PB_0
 // ADC3
-#define MOTEUS_CURRENT2 PB_1
+#define MOTEUS_CURRENT2 PB_1_ALT0
 #endif
 
 #if MOTEUS_HW_REV <= 2
