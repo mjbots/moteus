@@ -70,6 +70,12 @@
 #endif
 
 #if MOTEUS_HW_REV <= 2
+#define MOTEUS_DEBUG_UART_OUT PC_10
+#elif MOTEUS_HW_REV >= 3
+#define MOTEUS_DEBUG_UART_OUT PB_3
+#endif
+
+#if MOTEUS_HW_REV <= 2
 #define HWREV_PIN0 PC_13
 #define HWREV_PIN1 PC_14
 #define HWREV_PIN2 PC_15

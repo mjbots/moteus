@@ -261,7 +261,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
             options.debug_out = PB_8;
             options.debug_out2 = PB_9;
-            options.debug_uart_out = PB_3;
+            options.debug_uart_out = MOTEUS_DEBUG_UART_OUT;
 
             return options;
           }()),
