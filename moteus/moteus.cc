@@ -118,7 +118,11 @@ int main(void) {
       options.tx = MOTEUS_UART_TX;
       options.rx = MOTEUS_UART_RX;
       options.dir = MOTEUS_UART_DIR;
+#if MOTEUS_HW_REV <= 2
+      options.baud_rate = 3000000;
+#elif MOTEUS_HW_REV >= 3
       options.baud_rate = 115200;
+#endif
       return options;
     }());
 
