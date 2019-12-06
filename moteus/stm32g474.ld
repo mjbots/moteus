@@ -24,10 +24,7 @@ Our memory layout looks like the following:
     might be possible in the future to store the bootloader here given
     that our application never changes the ISR vectors.
 
-0x8004000/16kb - persistent settings
-  * This is used by the PersistentConfig mechanism to store
-    application settings across power cycles.
-
+0x8004000/16kb - currently unused
 0x8008000/16kb - currently unused
 
 0x800c000/16kb - bootloader
@@ -35,11 +32,9 @@ Our memory layout looks like the following:
     get everything set up, but once there, it can receive a new
     firmware image over the RS485 protocol.
 
-0x801000/64kb
-0x802000/128kb
-0x804000/128kb
-0x806000/128kb - application data
-  * Everything after the bootloader is reserved for application data.
+0x801000 - application
+
+0x807f00 - persistent settings
 
 */
 
