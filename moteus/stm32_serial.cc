@@ -58,6 +58,12 @@ void EnableUart(USART_TypeDef* uart) {
     return;
   }
 #endif
+#if defined (UART4_BASE)
+  if (uart == UART4) {
+    __HAL_RCC_UART4_CLK_ENABLE();
+    return;
+  }
+#endif
 #if defined (USART4_BASE)
   if (uart == USART4) {
     __HAL_RCC_USART4_CLK_ENABLE();
