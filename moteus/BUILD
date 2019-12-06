@@ -164,6 +164,21 @@ genrule(
     output_to_bindir = True,
 )
 
+genrule(
+    name = "f4_bin",
+    srcs = ["f4_moteus.elf"],
+    outs = [
+        "f4_moteus.08000000.bin",
+        "f4_moteus.08010000.bin",
+    ],
+    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location f4_moteus.elf) $(location f4_moteus.08010000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .isr_vector $(location f4_moteus.elf) $(location f4_moteus.08000000.bin)"),
+    toolchains = [
+        "@bazel_tools//tools/cpp:current_cc_toolchain",
+    ],
+    output_to_bindir = True,
+)
+
 OCD = (
     "openocd " +
     "-f interface/stlink.cfg " +
@@ -179,9 +194,11 @@ OCD_G4 = (
 genrule(
     name = "f4_flash",
     tags = ["manual"],
-    srcs = ["moteus.08000000.bin", "moteus.08010000.bin", "bootloader.0800c000.bin"],
+    srcs = ["f4_moteus.08000000.bin", "f4_moteus.08010000.bin",
+#            "bootloader.0800c000.bin",
+    ],
     outs = ["f4_flash.stamp"],
-    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location bootloader.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location f4_moteus.08000000.bin) verify 0x8000000; program $(location f4_moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
 genrule(
