@@ -123,6 +123,7 @@ MOTEUS_DEPS = [
     "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
     "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
     "@com_github_mjbots_mjlib//mjlib/multiplex:micro_server",
+    "@com_github_mjbots_mjlib//mjlib/multiplex:micro_stream_datagram",
 ]
 
 mbed_binary(
@@ -273,15 +274,6 @@ py_binary(
     ],
 )
 
-py_binary(
-    name = "bridge_test",
-    srcs = ["bridge_test.py"],
-    deps = [
-        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
-    ],
-)
-
 # A dummy target so that running all host tests will result in all our
 # host binaries being built.
 py_test(
@@ -290,7 +282,6 @@ py_test(
         "test/dummy_host_test.py",
     ],
     deps = [
-        "bridge_test",
         "jump_test",
         "//moteus/tool:py_moteus_tool",
     ],

@@ -24,6 +24,7 @@
 #include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/telemetry_manager.h"
 #include "mjlib/multiplex/micro_server.h"
+#include "mjlib/multiplex/micro_stream_datagram.h"
 
 #include "moteus/board_debug.h"
 #include "moteus/firmware_info.h"
@@ -129,7 +130,8 @@ int main(void) {
       return options;
     }());
 
-  multiplex::MicroServer multiplex_protocol(&pool, &rs485, {});
+  multiplex::MicroStreamDatagram stream_datagram(&pool, &rs485, {});
+  multiplex::MicroServer multiplex_protocol(&pool, &stream_datagram, {});
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
