@@ -141,7 +141,8 @@ async def find_online_targets(manager):
 
 async def read_data(client, channel):
     await command(client, 'tel fmt {} 1'.format(channel).encode('utf8'))
-    result = await command(client, 'tel get {}'.format(channel).encode('utf8'))
+    result = await command(client, 'tel get {}'.format(channel).encode('utf8'),
+                           retry_timeout=1.0)
 
     return dict([x.decode('utf8').split(' ') for x in result])
 
