@@ -4,6 +4,10 @@ r4.1 ERRATA
   * maybe don't need to fix...
     * the current sense lines are run to "slow" ADCs
     * current 1 and current 2 should be to ADC1 / ADC2
+  * Could use an actual pullup resistor on DRV8323 MISO to get higher
+    bitrates
+  * Need actual pullup on FAULT line, 40k is too weak... Need
+    something like 5k or smaller.
 
 r4.1 DONE
   * Updated to correct STM32G4 pinout
