@@ -693,10 +693,11 @@ class BldcServo::Impl {
     }
 
     uint32_t adc1 = ADC1->DR;
-    uint32_t adc2 = ADC3->DR;
 #if defined(TARGET_STM32F4)
+    uint32_t adc2 = ADC2->DR;
     uint32_t adc3 = ADC3->DR;
 #elif defined(TARGET_STM32G4)
+    uint32_t adc2 = ADC3->DR;
     WaitForAdc(ADC5);
     uint32_t adc3 = ADC5->DR;
 #else
