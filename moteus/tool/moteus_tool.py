@@ -38,10 +38,13 @@ G_VERBOSE = False
 
 
 def set_serial_low_latency(fd):
-    buf = array.array('i', [0] * 32)
-    fcntl.ioctl(fd, termios.TIOCGSERIAL, buf)
-    buf[4] |= 0x2000
-    fcntl.ioctl(fd, termios.TIOCSSERIAL, buf)
+    try:
+        buf = array.array('i', [0] * 32)
+        fcntl.ioctl(fd, termios.TIOCGSERIAL, buf)
+        buf[4] |= 0x2000
+        fcntl.ioctl(fd, termios.TIOCSSERIAL, buf)
+    except OSError:
+        pass
 
 
 async def readline(stream):
