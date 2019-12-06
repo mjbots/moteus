@@ -530,7 +530,7 @@ class BldcServo::Impl {
     // First, we have to disable everything to ensure we are in a
     // known state.
     disable_adc(ADC1);
-    disable_adc(ADC2);
+    disable_adc(ADC3);
     disable_adc(ADC5);
 
     ADC12_COMMON->CCR =
@@ -540,11 +540,11 @@ class BldcServo::Impl {
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
-    ADC2->CR &= ~ADC_CR_DEEPPWD;
+    ADC3->CR &= ~ADC_CR_DEEPPWD;
     ADC5->CR &= ~ADC_CR_DEEPPWD;
 
     ADC1->CR |= ADC_CR_ADVREGEN;
-    ADC2->CR |= ADC_CR_ADVREGEN;
+    ADC3->CR |= ADC_CR_ADVREGEN;
     ADC5->CR |= ADC_CR_ADVREGEN;
 
     // tADCREG_S = 20us per STM32G474xB datasheet
@@ -552,36 +552,36 @@ class BldcServo::Impl {
 
     // 20.4.8: Calibration
     ADC1->CR |= ADC_CR_ADCAL;
-    ADC2->CR |= ADC_CR_ADCAL;
+    ADC3->CR |= ADC_CR_ADCAL;
     ADC5->CR |= ADC_CR_ADCAL;
 
     while ((ADC1->CR & ADC_CR_ADCAL) ||
-           (ADC2->CR & ADC_CR_ADCAL) ||
+           (ADC3->CR & ADC_CR_ADCAL) ||
            (ADC5->CR & ADC_CR_ADCAL));
 
     ms_timer_->wait_us(1);
 
     // 20.4.9: Software procedure to enable the ADC
     ADC1->ISR |= ADC_ISR_ADRDY;
-    ADC2->ISR |= ADC_ISR_ADRDY;
+    ADC3->ISR |= ADC_ISR_ADRDY;
     ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->CR |= ADC_CR_ADEN;
-    ADC2->CR |= ADC_CR_ADEN;
+    ADC3->CR |= ADC_CR_ADEN;
     ADC5->CR |= ADC_CR_ADEN;
 
     while (!(ADC1->ISR & ADC_ISR_ADRDY) ||
-           !(ADC2->ISR & ADC_ISR_ADRDY) ||
+           !(ADC3->ISR & ADC_ISR_ADRDY) ||
            !(ADC5->ISR & ADC_ISR_ADRDY));
 
     ADC1->ISR |= ADC_ISR_ADRDY;
-    ADC2->ISR |= ADC_ISR_ADRDY;
+    ADC3->ISR |= ADC_ISR_ADRDY;
     ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
-    ADC2->SQR1 =
+    ADC3->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
     ADC5->SQR1 =
@@ -590,7 +590,7 @@ class BldcServo::Impl {
 
     ADC1->SMPR1 =
         (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
-    ADC2->SMPR1 =
+    ADC3->SMPR1 =
         (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
     ADC5->SMPR1 =
         (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
@@ -630,7 +630,7 @@ class BldcServo::Impl {
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
     ADC1->CR |= ADC_CR_ADSTART;
-    ADC2->CR |= ADC_CR_ADSTART;
+    ADC3->CR |= ADC_CR_ADSTART;
     ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
@@ -659,7 +659,7 @@ class BldcServo::Impl {
     // Wait for conversion to complete.
     WaitForAdc(ADC1);
 #if defined(TARGET_STM32F4)
-    WaitForAdc(ADC2);
+    WaitForAdc(ADC3);
 #endif
 
     // We are now out of the most time critical portion of the ISR,
@@ -693,7 +693,7 @@ class BldcServo::Impl {
     }
 
     uint32_t adc1 = ADC1->DR;
-    uint32_t adc2 = ADC2->DR;
+    uint32_t adc2 = ADC3->DR;
 #if defined(TARGET_STM32F4)
     uint32_t adc3 = ADC3->DR;
 #elif defined(TARGET_STM32G4)

@@ -29,7 +29,7 @@
 #define MOTEUS_HW_REV 3
 #endif
 
-#ifdef TARGET_STM32G4
+#if defined(TARGET_STM32G4)
 #define MOTEUS_HW_REV_OFFSET 3
 #else
 #define MOTEUS_HW_REV_OFFSET 0
@@ -91,8 +91,8 @@
 #elif MOTEUS_HW_REV >= 3
 // ADC1
 #define MOTEUS_CURRENT1 PB_0
-// ADC2
-#define MOTEUS_CURRENT2 PB_2
+// ADC3
+#define MOTEUS_CURRENT2 PB_1
 #endif
 
 #if MOTEUS_HW_REV <= 2
