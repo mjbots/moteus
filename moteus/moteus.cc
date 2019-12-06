@@ -30,13 +30,14 @@
 #include "moteus/millisecond_timer.h"
 #include "moteus/moteus_controller.h"
 #include "moteus/moteus_hw.h"
-#include "moteus/stm32_flash.h"
 #include "moteus/system_info.h"
 
 #if defined(TARGET_STM32F4)
 #include "moteus/stm32f446_async_uart.h"
+#include "moteus/stm32f4_flash.h"
 #elif defined(TARGET_STM32G4)
 #include "moteus/stm32g4_async_uart.h"
+#include "moteus/stm32g4_flash.h"
 #else
 #error "Unknown target"
 #endif
@@ -50,8 +51,10 @@ namespace multiplex = mjlib::multiplex;
 
 #if defined(TARGET_STM32F4)
 using HardwareUart = Stm32F446AsyncUart;
+using Stm32Flash = Stm32F4Flash;
 #elif defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
+using Stm32Flash = Stm32G4Flash;
 #else
 #error "Unknown target"
 #endif

@@ -18,10 +18,10 @@
 
 namespace moteus {
 
-class Stm32Flash : public mjlib::micro::FlashInterface {
+class Stm32F4Flash : public mjlib::micro::FlashInterface {
  public:
-  Stm32Flash();
-  ~Stm32Flash() override;
+  Stm32F4Flash();
+  ~Stm32F4Flash() override;
 
   Info GetInfo() override;
   void Erase() override;

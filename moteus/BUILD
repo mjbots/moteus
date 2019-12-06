@@ -100,8 +100,6 @@ MOTEUS_SOURCES = [
     "motor_driver.h",
     "position_sensor.h",
     "stm32f446_spi.h",
-    "stm32_flash.h",
-    "stm32_flash.cc",
     "stm32_serial.h",
     "stm32_serial.cc",
     "stm32.h",
@@ -132,6 +130,8 @@ mbed_binary(
     srcs = MOTEUS_SOURCES + [
         "stm32f446_async_uart.h",
         "stm32f446_async_uart.cc",
+        "stm32f4_flash.h",
+        "stm32f4_flash.cc",
     ],
     deps = MOTEUS_DEPS,
     linker_script = "stm32f446.ld",
@@ -142,6 +142,7 @@ g4_mbed_binary(
     srcs = MOTEUS_SOURCES + [
         "stm32g4_async_uart.h",
         "stm32g4_async_uart.cc",
+        "stm32g4_flash.h",
     ],
     deps = MOTEUS_DEPS,
     linker_script = "stm32g474.ld",
