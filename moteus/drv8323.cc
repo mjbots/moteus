@@ -47,7 +47,7 @@ class Drv8323::Impl {
             // I observed 2MHz being unreliable with the built-in
             // pullup on MISO, but 1MHz seemed OK.  Thus, lets just do
             // a bit lower for safety.
-            out.frequency = 750000;
+            out.frequency = 500000;
             return out;
           }()),
         enable_(options.enable, 0),

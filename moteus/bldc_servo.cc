@@ -1420,8 +1420,10 @@ class BldcServo::Impl {
   ADC_TypeDef* const adc1_ = ADC1;
   ADC_TypeDef* const adc2_ = ADC2;
   ADC_TypeDef* const adc3_ = ADC3;
+#if defined(TARGET_STM32G4)
   ADC_TypeDef* const adc5_ = ADC5;
   ADC_Common_TypeDef* const adc12_common_ = ADC12_COMMON;
+#endif
 
   // We create these to initialize our pins as output and PWM mode,
   // but otherwise don't use them.
