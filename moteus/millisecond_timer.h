@@ -27,10 +27,21 @@ class MillisecondTimer {
   MillisecondTimer() {
     __HAL_RCC_TIM5_CLK_ENABLE();
 
+    constexpr int kExtraPrescaler =
+#if defined(TARGET_STM32F4)
+        2
+#elif defined(TARGET_STM32G4)
+        1
+#else
+#error "Unknown target"
+#endif
+        ;
+
     handle_.Instance = TIM5;
     handle_.Init.Period = 0xFFFFFFFF;
     handle_.Init.Prescaler =
-        (uint32_t)(SystemCoreClock / 2U / 1000000U) - 1;  // 1 us tick
+        (uint32_t)(SystemCoreClock / kExtraPrescaler /
+                   1000000U) - 1;  // 1 us tick
     handle_.Init.ClockDivision = 0;
     handle_.Init.CounterMode = TIM_COUNTERMODE_UP;
     handle_.Init.RepetitionCounter = 0;
