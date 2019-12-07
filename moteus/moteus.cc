@@ -37,6 +37,8 @@
 #include "moteus/stm32f446_async_uart.h"
 #include "moteus/stm32f4_flash.h"
 #elif defined(TARGET_STM32G4)
+#include "moteus/fdcan.h"
+#include "moteus/fdcan_micro_server.h"
 #include "moteus/stm32g4_async_uart.h"
 #include "moteus/stm32g4_flash.h"
 #else
@@ -64,6 +66,21 @@ extern "C" {
 void SetupClock() {
 #if defined(TARGET_STM32G4)
   {
+    __HAL_RCC_SYSCFG_CLK_ENABLE();
+    __HAL_RCC_PWR_CLK_ENABLE();
+
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
+
+    RCC_ClkInitStruct.ClockType      = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1; // 170 MHz
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;  //  85 MHz
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;  //  85 MHz
+
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_6) != HAL_OK) {
+      mbed_die();
+    }
+
     RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
 
     PeriphClkInit.PeriphClockSelection =
@@ -130,8 +147,29 @@ int main(void) {
       return options;
     }());
 
+#if defined(TARGET_STM32G4)
+  FDCan fdcan([]() {
+      FDCan::Options options;
+
+      options.td = MOTEUS_CAN_TD;
+      options.rd = MOTEUS_CAN_RD;
+
+      options.slow_bitrate = 1000000;
+      options.fast_bitrate = 5000000;
+
+      options.fdcan_frame = true;
+      options.bitrate_switch = true;
+
+      return options;
+    }());
+  FDCanMicroServer fdcan_micro_server(&fdcan);
+  multiplex::MicroServer multiplex_protocol(&pool, &fdcan_micro_server, {});
+#elif defined(TARGET_STM32F4)
   multiplex::MicroStreamDatagram stream_datagram(&pool, &rs485, {});
   multiplex::MicroServer multiplex_protocol(&pool, &stream_datagram, {});
+#else
+#error "Unknown target"
+#endif
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
@@ -164,6 +202,9 @@ int main(void) {
 
   for (;;) {
     rs485.Poll();
+#if defined(TARGET_STM32G4)
+    fdcan_micro_server.Poll();
+#endif
     moteus_controller.Poll();
 
     const auto new_time = timer.read_ms();
