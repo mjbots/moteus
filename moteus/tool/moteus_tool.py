@@ -22,19 +22,53 @@ import asyncio
 import fcntl
 import io
 import math
+import struct
 import tempfile
 import termios
 import subprocess
 import sys
 
 
+import mjlib.multiplex.stream_helpers as sh
 import mjlib.multiplex.multiplex_protocol as mp
 import mjlib.multiplex.aioserial as aioserial
 
 import moteus.tool.calibrate_encoder
 
 
+_STREAM_CLIENT_TO_SERVER = 0x40
+_STREAM_SERVER_TO_CLIENT = 0x41
+
+
 G_VERBOSE = False
+
+
+async def readline(stream):
+    result = bytearray()
+    while True:
+        char = await stream.read(1)
+        if char == b'\r' or char == b'\n':
+            if len(result):
+                return result
+        else:
+            result += char
+
+
+def hexify(data):
+    return ''.join(['{:02x}'.format(x) for x in data])
+
+
+def dehexify(data):
+    result = b''
+    for i in range(0, len(data), 2):
+        result += bytes([int(data[i:i+2], 16)])
+    return result
+
+
+def _pack_frame(source, dest, payload):
+    return 'can send {:x} {}\n'.format(
+        (source << 8) | dest,
+        hexify(payload)).encode('latin1')
 
 
 def set_serial_low_latency(fd):
@@ -47,39 +81,31 @@ def set_serial_low_latency(fd):
         pass
 
 
-async def readline(stream):
-    result = bytearray()
-    while True:
-        char = await stream.read(1)
-        if char == b'\r' or char == b'\n':
-            if len(result):
-                if G_VERBOSE:
-                    print(' -- read:', result)
-                return result
-        else:
-            result += char
-
-
 async def readbytes(stream):
     while True:
         await stream.read(1)
 
 
-async def read_response(stream):
+async def read_response(stream, context = 'DEV'):
     result = await readline(stream)
+    if G_VERBOSE:
+        print(' -- {} read: {}'.format(context, result))
+
     _ = await stream.read(1)  # ignore the extra '\n' we know the servos always send
     return result
 
 
-async def read_ok(stream):
+async def read_ok(stream, context = 'DEV'):
     if G_VERBOSE:
-        print(' -- waiting_ok')
+        print(' -- waiting_ok({}):start'.format(context))
     result = []
     while True:
-        line = await read_response(stream)
+        line = await read_response(stream, context)
         if G_VERBOSE:
-            print(' -- waiting_ok')
+            print(' -- waiting_ok({}) line: {}'.format(context, line))
         if line.startswith(b'OK'):
+            if G_VERBOSE:
+                print(' -- waiting_ok({}) DONE'.format(context))
             return result
         result.append(line)
 
@@ -87,8 +113,171 @@ async def read_ok(stream):
 async def write_command(stream, line):
     if G_VERBOSE:
         print(' -- writing:', line)
-    stream.write(line + b'\n')
-    await stream.drain()
+    await stream.write(line + b'\n')
+
+
+class FdcanusbManager:
+    def __init__(self, stream, source_id=0):
+        self.stream = stream
+        self.source_id = source_id
+        self.lock = asyncio.Lock()
+        self._write_data = bytearray()
+
+    async def write(self, data):
+        if G_VERBOSE:
+            print(' -- CAN write:', data)
+        self.stream.write(data)
+
+        await self.stream.drain()
+
+        # Wait for the OK
+        await read_ok(self.stream, 'CAN')
+
+    async def read_frame(self, only_from=None):
+        line = await readline(self.stream)
+        if G_VERBOSE:
+            print(' -- CAN1 read:', line)
+
+        if not line.startswith(b'rcv'):
+            return None
+
+        fields = line.decode('latin1').strip().split(' ')
+        address = int(fields[1], 16)
+        dest = address & 0xff
+        source = (address >> 8) & 0xff
+
+        if only_from and source != only_from:
+            return None
+
+        payload = dehexify(fields[2])
+
+        return payload
+
+
+class FdcanusbClient:
+    def __init__(self, manager, destination_id,
+                 channel=1,
+                 poll_rate_s=0.1,
+                 timeout=0.05):
+        self._manager = manager
+        self._destination_id = destination_id
+        self._channel = channel
+        self._poll_rate_s = poll_rate_s
+        self._timeout = timeout
+        self._read_data = bytearray()
+
+    async def write(self, data, **kwargs):
+        payload = struct.pack(
+            '<BBB',
+            _STREAM_CLIENT_TO_SERVER,
+            self._channel,
+            len(data)) + data
+
+        await self._manager.write('can send {:x} {}\n'.format(
+            self._manager.source_id << 8 | self._destination_id,
+            hexify(payload)).encode('latin1'))
+
+    async def read(self, size):
+        # Poll repeatedly until we have enough.
+        while len(self._read_data) < size:
+            async with self._manager.lock:
+                result = await self._try_one_poll()
+                if result is not None:
+                    print("adding:", result)
+                    self._read_data += result
+
+            if len(self._read_data) >= size:
+                break
+
+            # We didn't get anything, so wait our polling period and
+            # try again.
+            await asyncio.sleep(self._poll_rate_s)
+
+        to_return, self._read_data = (
+            self._read_data[0:size], self._read_data[size:])
+        return to_return
+
+    def _make_stream_client_to_server(self, response, data):
+        '''Returns a tuple of (target_message, remaining_data)'''
+        write_size = min(len(data), 100)
+        payload = struct.pack(
+            '<BBB',
+            _STREAM_CLIENT_TO_SERVER,
+            self._channel,
+            write_size) + data[0:write_size]
+
+        # So that we don't need a varuint.
+        assert len(payload) < 127
+
+        return (_pack_frame(
+            ((0x80 if response else 0x00) | self._manager.source_id),
+            self._destination_id,
+            payload),
+                data[write_size:])
+
+    async def _try_one_poll(self):
+        assert self._manager.lock.locked()
+
+        frame, _ = self._make_stream_client_to_server(True, b'')
+        await self._manager.write(frame)
+
+        # Now we can look for a reply from the device.
+        result = b''
+        timeout = self._timeout
+
+        # We loop multiple times in case a previous poll timed out,
+        # and replies are in-flight.
+        while True:
+            try:
+                payload = await asyncio.wait_for(
+                    self._manager.read_frame(only_from=self._destination_id),
+                    timeout=timeout)
+                if payload is None:
+                    break
+            except asyncio.TimeoutError:
+                # We treat a timeout, for now, the same as if the client
+                # came back with no data at all.
+                break
+
+            payload_stream = sh.AsyncStream(io.BytesIO(payload))
+            subframe_id = await mp.read_varuint(payload_stream)
+            channel = await mp.read_varuint(payload_stream)
+            server_len = await mp.read_varuint(payload_stream)
+
+            if subframe_id is None or channel is None or server_len is None:
+                break
+
+            if subframe_id != _STREAM_SERVER_TO_CLIENT:
+                break
+
+            cur_pos = payload_stream.tell()
+            result += payload[cur_pos:cur_pos+server_len]
+
+            # On subsequent tries through this, we barely want to wait
+            # at all, we're just looking to see if something is
+            # already there.
+            timeout = 0.0001
+
+        return result
+
+    async def register_query(self, request):
+        '''request should be a RegisterRequest object
+        returns a dict from ParseRegisterReply
+        '''
+        async with self._manager.lock:
+            await self._manager.write(_pack_frame(
+                self._manager.source_id | 0x80,
+                self._destination_id,
+                request.data.getbuffer()))
+
+            return await ParseRegisterReply(await self._manager.read_frame())
+
+    async def register_write(self, request):
+        async with self._manager.lock:
+            await self._manager.write(_pack_frame(
+                self._manager.source_id,
+                self._destination_id,
+                request.data.getbuffer()))
 
 
 async def command(stream, line, retry_count=4, retry_timeout=0.3, flush=True):
@@ -415,6 +604,7 @@ async def main():
         help='serial device')
     parser.add_argument(
         '-b', '--baud', type=int, default=3000000, help='baud rate')
+    parser.add_argument('-c', '--fdcanusb', action='store_true')
     parser.add_argument(
         '--skip-stop', action='store_true',
         help='omit initial "tel stop"')
@@ -484,7 +674,9 @@ async def main():
     except asyncio.TimeoutError:
         pass
 
-    manager = mp.MultiplexManager(serial)
+    manager = (mp.MultiplexManager(serial)
+               if not args.fdcanusb else
+               FdcanusbManager(serial))
 
     # If we don't know which target to use, then we search to see who
     # is on the bus.
@@ -496,8 +688,13 @@ async def main():
 
         print('Auto-detected device ids: ', args.target)
 
-    clients = { key: mp.MultiplexClient(
-        manager, timeout=0.02, destination_id=key, channel=1)
+    def make_client():
+        if args.fdcanusb:
+            return FdcanusbClient
+        return mp.MultiplexClient
+
+    clients = { key: make_client()(
+        manager, timeout=0.10, destination_id=key, channel=1)
                 for key in args.target }
 
     for key, client in clients.items():
