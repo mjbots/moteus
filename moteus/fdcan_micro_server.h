@@ -42,6 +42,12 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
     callback(mjlib::micro::error_code(), data.size());
   }
 
+  Properties properties() const override {
+    Properties properties;
+    properties.max_size = 64;
+    return properties;
+  }
+
   void Poll() {
     if (!current_read_header_) { return; }
 
