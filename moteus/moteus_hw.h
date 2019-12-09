@@ -148,6 +148,8 @@
 #define MOTEUS_DEBUG2 PC_15
 #endif
 
+#define MOTEUS_DEBUG_DAC PA_4
+
 #if defined(TARGET_STM32G4)
 #define MOTEUS_CCM_ATTRIBUTE __attribute__ ((section (".ccmram")))
 #elif defined(TARGET_STM32F4)

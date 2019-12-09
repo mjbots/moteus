@@ -50,6 +50,7 @@ class BldcServo {
     PinName vsense = NC;  // Must be sampled from ADC3
     PinName tsense = NC;  // Must be sampled from ADC3
 
+    PinName debug_dac = NC;
     PinName debug_out = NC;
     PinName debug_out2 = NC;
 

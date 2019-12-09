@@ -259,6 +259,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.vsense = MOTEUS_VSENSE;
             options.tsense = MOTEUS_TSENSE;
 
+            options.debug_dac = MOTEUS_DEBUG_DAC;
             options.debug_out = MOTEUS_DEBUG1;
             options.debug_out2 = MOTEUS_DEBUG2;
             options.debug_uart_out = MOTEUS_DEBUG_UART_OUT;

@@ -266,6 +266,7 @@ class BldcServo::Impl {
         vsense_sqr_(FindSqr(options.vsense)),
         tsense_(options.tsense),
         tsense_sqr_(FindSqr(options.tsense)),
+        debug_dac_(options.debug_dac),
         debug_out_(options.debug_out),
         debug_out2_(options.debug_out2),
         debug_serial_([&]() {
@@ -928,6 +929,10 @@ class BldcServo::Impl {
     status_.torque_Nm = torque_on() ? (
         status_.q_A * torque_constant_ /
         motor_.unwrapped_position_scale) : 0.0f;
+
+    DAC->DHR12R1 = 1024 + std::max<int>(
+        0, std::min<int>(
+            2047, static_cast<int>(1024.0f * status_.d_A / 30.0f)));
   }
 
   bool torque_on() const {
@@ -1479,6 +1484,7 @@ class BldcServo::Impl {
   ADC_TypeDef* const adc5_ = ADC5;
   ADC_Common_TypeDef* const adc12_common_ = ADC12_COMMON;
 #endif
+  DAC_TypeDef* const dac_ = DAC;
 
   // We create these to initialize our pins as output and PWM mode,
   // but otherwise don't use them.
@@ -1500,6 +1506,8 @@ class BldcServo::Impl {
   uint32_t vsense_sqr_ = {};
   AnalogIn tsense_;
   uint32_t tsense_sqr_ = {};
+
+  AnalogOut debug_dac_;
 
   // This is just for debugging.
   DigitalOut debug_out_;
