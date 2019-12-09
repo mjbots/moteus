@@ -44,14 +44,6 @@
 #undef wait_us
 #endif
 
-#if defined(TARGET_STM32G4)
-#define _GOFAST_ __attribute__ ((section (".ccmram")))
-#elif defined(TARGET_STM32F4)
-#define _GOFAST_
-#else
-#error "Unknown target"
-#endif
-
 namespace micro = mjlib::micro;
 
 namespace moteus {
@@ -69,21 +61,11 @@ using HardwareUart = Stm32G4AsyncUart;
 
 using mjlib::base::Limit;
 
+float Threshold(float, float, float) MOTEUS_CCM_ATTRIBUTE;
+
 float Threshold(float value, float lower, float upper) {
   if (value > lower && value < upper) { return 0.0f; }
   return value;
-}
-
-template <typename AdcType>
-void WaitForAdc(AdcType* adc) {
-#if defined(TARGET_STM32F4)
-    while ((adc->SR & ADC_SR_EOC) == 0);
-#elif defined(TARGET_STM32G4)
-    while ((adc->ISR & ADC_ISR_EOC) == 0);
-    adc->ISR |= ADC_ISR_EOC;
-#else
-    #error "Unknown target"
-#endif
 }
 
 // From make_thermistor_table.py
@@ -601,13 +583,24 @@ class BldcServo::Impl {
 
   }
 
+  static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
+#if defined(TARGET_STM32F4)
+    while ((adc->SR & ADC_SR_EOC) == 0);
+#elif defined(TARGET_STM32G4)
+    while ((adc->ISR & ADC_ISR_EOC) == 0);
+    adc->ISR |= ADC_ISR_EOC;
+#else
+#error "Unknown target"
+#endif
+  }
+
   // CALLED IN INTERRUPT CONTEXT.
-  static void GlobalInterrupt() _GOFAST_ {
+  static void GlobalInterrupt() MOTEUS_CCM_ATTRIBUTE {
     g_impl_->ISR_HandleTimer();
   }
 
   // CALLED IN INTERRUPT CONTEXT.
-  void ISR_HandleTimer() __attribute__((always_inline)) _GOFAST_ {
+  void ISR_HandleTimer() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // From here, until when we finish sampling the ADC has a critical
     // speed requirement.  Any extra cycles will result in a lower
     // maximal duty cycle of the controller.  Thus there are lots of
@@ -624,7 +617,7 @@ class BldcServo::Impl {
     }
   }
 
-  void ISR_DoTimer() __attribute__((always_inline)) _GOFAST_ {
+  void ISR_DoTimer() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // We start our conversion here so that it can work while we get
     // ready.  This means we will throw away the result if our control
     // timer says it isn't our turn yet, but that is a relatively
@@ -648,24 +641,44 @@ class BldcServo::Impl {
     }
 
     debug_out_ = 1;
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    DWT->CYCCNT = 0;
+#endif
 
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
     ISR_DoSense();
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.sense = DWT->CYCCNT;
+#endif
 
     SinCos sin_cos{status_.electrical_theta};
 
     ISR_CalculateCurrentState(sin_cos);
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.curstate = DWT->CYCCNT;
+#endif
 
     ISR_DoControl(sin_cos);
 
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.control = DWT->CYCCNT;
+#endif
+
     ISR_MaybeEmitDebug();
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.emitdbg = DWT->CYCCNT;
+#endif
     clock_++;
 
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.done = DWT->CYCCNT;
+#endif
     debug_out_ = 0;
   }
 
-  void ISR_DoSense() __attribute__((always_inline)) _GOFAST_ {
+  void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // Wait for conversion to complete.
     WaitForAdc(ADC1);
 #if defined(TARGET_STM32F4)
@@ -688,6 +701,10 @@ class BldcServo::Impl {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
     }
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.adc_done = DWT->CYCCNT;
+#endif
 
     if (current_data_->rezero_position) {
       status_.position_to_set = *current_data_->rezero_position;
@@ -732,7 +749,15 @@ class BldcServo::Impl {
     // Sample the position.
     const uint16_t old_position = status_.position;
 
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.start_pos_sample = DWT->CYCCNT;
+#endif
+
     status_.position_raw = position_sensor_->Sample();
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.done_pos_sample = DWT->CYCCNT;
+#endif
 
     status_.position =
         (motor_.invert ? (65535 - status_.position_raw) : status_.position_raw);
@@ -832,7 +857,7 @@ class BldcServo::Impl {
         (1.0f / 65536.0f);
   }
 
-  void ISR_MaybeEmitDebug() _GOFAST_ {
+  void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
     if (!config_.enable_debug) { return; }
 #if defined(TARGET_STM32F4)
     if (debug_uart_ == nullptr) { return; }
@@ -865,7 +890,7 @@ class BldcServo::Impl {
   }
 
   // This is called from the ISR.
-  void ISR_CalculateCurrentState(const SinCos& sin_cos) _GOFAST_ {
+  void ISR_CalculateCurrentState(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * adc_scale_;
     status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale_;
     status_.bus_V = status_.adc3_raw * config_.v_scale_V;
@@ -920,7 +945,7 @@ class BldcServo::Impl {
     return false;
   }
 
-  void ISR_MaybeChangeMode(CommandData* data) _GOFAST_ {
+  void ISR_MaybeChangeMode(CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     // We are requesting a different mode than we are in now.  Do our
     // best to advance if possible.
     switch (data->mode) {
@@ -1017,7 +1042,7 @@ class BldcServo::Impl {
     kAlwaysClear,
   };
 
-  void ISR_ClearPid(ClearMode force_clear) _GOFAST_ {
+  void ISR_ClearPid(ClearMode force_clear) MOTEUS_CCM_ATTRIBUTE {
     const bool current_pid_active = [&]() {
       switch (status_.mode) {
         case kNumModes:
@@ -1076,7 +1101,7 @@ class BldcServo::Impl {
     }
   }
 
-  void ISR_DoControl(const SinCos& sin_cos) _GOFAST_ {
+  void ISR_DoControl(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     // current_data_ is volatile, so read it out now, and operate on
     // the pointer for the rest of the routine.
     CommandData* data = current_data_;
@@ -1127,6 +1152,10 @@ class BldcServo::Impl {
       status_.fault = errc::kSuccess;
     }
 
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.control_sel_mode = DWT->CYCCNT;
+#endif
+
     switch (status_.mode) {
       case kNumModes:
       case kStopped: {
@@ -1175,7 +1204,7 @@ class BldcServo::Impl {
     }
   }
 
-  void ISR_DoStopped() _GOFAST_ {
+  void ISR_DoStopped() MOTEUS_CCM_ATTRIBUTE {
     motor_driver_->Enable(false);
     motor_driver_->Power(false);
     *pwm1_ccr_ = 0;
@@ -1183,7 +1212,7 @@ class BldcServo::Impl {
     *pwm3_ccr_ = 0;
   }
 
-  void ISR_DoFault() _GOFAST_ {
+  void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
     motor_driver_->Power(false);
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
@@ -1215,7 +1244,7 @@ class BldcServo::Impl {
     status_.mode = kCalibrationComplete;
   }
 
-  void ISR_DoPwmControl(const Vec3& pwm) _GOFAST_ {
+  void ISR_DoPwmControl(const Vec3& pwm) MOTEUS_CCM_ATTRIBUTE {
     control_.pwm.a = LimitPwm(pwm.a);
     control_.pwm.b = LimitPwm(pwm.b);
     control_.pwm.c = LimitPwm(pwm.c);
@@ -1231,7 +1260,7 @@ class BldcServo::Impl {
     motor_driver_->Power(true);
   }
 
-  void ISR_DoVoltageControl(const Vec3& voltage) _GOFAST_ {
+  void ISR_DoVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     control_.voltage = voltage;
 
     auto voltage_to_pwm = [this](float v) {
@@ -1244,14 +1273,14 @@ class BldcServo::Impl {
             voltage_to_pwm(voltage.c)});
   }
 
-  void ISR_DoVoltageFOC(float theta, float voltage) _GOFAST_ {
+  void ISR_DoVoltageFOC(float theta, float voltage) MOTEUS_CCM_ATTRIBUTE {
     float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
     SinCos sc(WrapZeroToTwoPi(theta));
     InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A_in) _GOFAST_ {
+  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
@@ -1293,7 +1322,7 @@ class BldcServo::Impl {
 
     control_.d_V =
         (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
-        pid_d_.Apply(status_.d_A, i_d_A, 0.0f, 0.0f, kRateHz);
+        pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz);
 
     control_.q_V =
         (config_.feedforward_scale * (
@@ -1309,11 +1338,15 @@ class BldcServo::Impl {
     InverseDqTransform idt(sin_cos, limit_v(control_.d_V),
                            limit_v(control_.q_V));
 
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.control_done_cur = DWT->CYCCNT;
+#endif
+
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) _GOFAST_ {
-    mjlib::base::PID::ApplyOptions apply_options;
+  void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    PID::ApplyOptions apply_options;
     apply_options.kp_scale = 0.0;
     apply_options.kd_scale = 1.0;
 
@@ -1322,8 +1355,8 @@ class BldcServo::Impl {
                          0.0f, 0.0f);
   }
 
-  void ISR_DoPosition(const SinCos& sin_cos, CommandData* data) _GOFAST_ {
-    mjlib::base::PID::ApplyOptions apply_options;
+  void ISR_DoPosition(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    PID::ApplyOptions apply_options;
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
 
@@ -1333,10 +1366,10 @@ class BldcServo::Impl {
 
   void ISR_DoPositionCommon(
       const SinCos& sin_cos, CommandData* data,
-      const mjlib::base::PID::ApplyOptions& pid_options,
+      const PID::ApplyOptions& pid_options,
       float max_torque_Nm,
       float feedforward_Nm,
-      float velocity) _GOFAST_ {
+      float velocity) MOTEUS_CCM_ATTRIBUTE {
     if (!std::isnan(data->position)) {
       status_.control_position = data->position;
       data->position = std::numeric_limits<float>::quiet_NaN();
@@ -1404,10 +1437,14 @@ class BldcServo::Impl {
       return (error / config_.flux_brake_resistance_ohm);
     }();
 
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.control_done_pos = DWT->CYCCNT;
+#endif
+
     ISR_DoCurrent(sin_cos, d_A, q_A);
   }
 
-  float LimitPwm(float in) _GOFAST_ {
+  float LimitPwm(float in) MOTEUS_CCM_ATTRIBUTE {
     // We can't go full duty cycle or we wouldn't have time to sample
     // the current.
     return Limit(in, kMinPwm, kMaxPwm);
@@ -1479,9 +1516,9 @@ class BldcServo::Impl {
   uint32_t calibrate_adc2_ = 0;
   uint16_t calibrate_count_ = 0;
 
-  mjlib::base::PID pid_d_{&config_.pid_dq, &status_.pid_d};
-  mjlib::base::PID pid_q_{&config_.pid_dq, &status_.pid_q};
-  mjlib::base::PID pid_position_{&config_.pid_position, &status_.pid_position};
+  PID pid_d_{&config_.pid_dq, &status_.pid_d};
+  PID pid_q_{&config_.pid_dq, &status_.pid_q};
+  PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   Stm32Serial debug_serial_;
 #if defined(TARGET_STM32F4)

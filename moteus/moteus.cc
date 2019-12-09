@@ -119,6 +119,8 @@ int main(void) {
   std::memcpy(&_sccmram, &_siccmram, &_eccmram - &_sccmram);
 #endif
 
+  FLASH->ACR |= FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN;
+
   SetupClock();
 
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
@@ -126,12 +128,14 @@ int main(void) {
   DigitalIn hwrev2(HWREV_PIN2, PullUp);
 
   // To enable cycle counting.
-  if (0) {
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+  {
     ITM->LAR = 0xC5ACCE55;
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
   }
+#endif
 
   const uint8_t this_hw_rev =
       0x07 & (~(hwrev0.read() |
@@ -147,7 +151,7 @@ int main(void) {
   // for millisecond turnover.
   MillisecondTimer timer;
 
-  micro::SizedPool<12288> pool;
+  micro::SizedPool<14000> pool;
 
   HardwareUart rs485(&pool, &timer, []() {
       HardwareUart::Options options;

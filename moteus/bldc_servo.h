@@ -18,7 +18,6 @@
 
 #include "PinNames.h"
 
-#include "mjlib/base/pid.h"
 #include "mjlib/base/visitor.h"
 
 #include "mjlib/micro/persistent_config.h"
@@ -29,6 +28,7 @@
 #include "moteus/millisecond_timer.h"
 #include "moteus/moteus_hw.h"
 #include "moteus/motor_driver.h"
+#include "moteus/pid.h"
 #include "moteus/position_sensor.h"
 
 namespace moteus {
@@ -132,8 +132,8 @@ class BldcServo {
 
     // We use the same PID constants for D and Q current control
     // loops.
-    mjlib::base::PID::Config pid_dq;
-    mjlib::base::PID::Config pid_position;
+    PID::Config pid_dq;
+    PID::Config pid_position;
 
     float default_timeout_s = 0.1;
     float timeout_max_torque_Nm = 5.0;
@@ -300,13 +300,46 @@ class BldcServo {
     float velocity = 0.0f;
     float torque_Nm = 0.0f;
 
-    mjlib::base::PID::State pid_d;
-    mjlib::base::PID::State pid_q;
-    mjlib::base::PID::State pid_position;
+    PID::State pid_d;
+    PID::State pid_q;
+    PID::State pid_position;
 
     float control_position = std::numeric_limits<float>::quiet_NaN();
     float position_to_set = 0.0;
     float timeout_s = 0.0;
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    struct Dwt {
+      uint32_t adc_done = 0;
+      uint32_t start_pos_sample = 0;
+      uint32_t done_pos_sample = 0;
+      uint32_t sense = 0;
+      uint32_t curstate = 0;
+      uint32_t control_sel_mode = 0;
+      uint32_t control_done_pos = 0;
+      uint32_t control_done_cur = 0;
+      uint32_t control = 0;
+      uint32_t emitdbg = 0;
+      uint32_t done = 0;
+
+      template <typename Archive>
+      void Serialize(Archive* a) {
+        a->Visit(MJ_NVP(adc_done));
+        a->Visit(MJ_NVP(start_pos_sample));
+        a->Visit(MJ_NVP(done_pos_sample));
+        a->Visit(MJ_NVP(sense));
+        a->Visit(MJ_NVP(curstate));
+        a->Visit(MJ_NVP(control_sel_mode));
+        a->Visit(MJ_NVP(control_done_pos));
+        a->Visit(MJ_NVP(control_done_cur));
+        a->Visit(MJ_NVP(control));
+        a->Visit(MJ_NVP(emitdbg));
+        a->Visit(MJ_NVP(done));
+      }
+    };
+
+    Dwt dwt;
+#endif
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -346,6 +379,10 @@ class BldcServo {
       a->Visit(MJ_NVP(control_position));
       a->Visit(MJ_NVP(position_to_set));
       a->Visit(MJ_NVP(timeout_s));
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+      a->Visit(MJ_NVP(dwt));
+#endif
     }
   };
 

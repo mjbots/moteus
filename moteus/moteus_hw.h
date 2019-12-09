@@ -148,5 +148,15 @@
 #define MOTEUS_DEBUG2 PC_15
 #endif
 
+#if defined(TARGET_STM32G4)
+#define MOTEUS_CCM_ATTRIBUTE __attribute__ ((section (".ccmram")))
+#elif defined(TARGET_STM32F4)
+#define MOTEUS_CCM_ATTRIBUTE
+#else
+#error "Unknown target"
+#endif
+
+
+
 #define MOTEUS_MODEL_NUMBER 0x0300
 #define MOTEUS_FIRMWARE_VERSION 0x000100

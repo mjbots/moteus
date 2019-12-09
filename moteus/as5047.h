@@ -18,6 +18,7 @@
 
 #include "hal/spi_api.h"
 
+#include "moteus/moteus_hw.h"
 #include "moteus/position_sensor.h"
 #include "moteus/stm32f446_spi.h"
 
@@ -36,7 +37,7 @@ class AS5047 : public PositionSensor {
           return copy;
         }()) {}
 
-  uint16_t Sample() override {
+  uint16_t Sample() override MOTEUS_CCM_ATTRIBUTE {
     return (spi_.write(0xffff) & 0x3fff) << 2;
   }
 

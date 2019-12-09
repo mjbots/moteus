@@ -39,7 +39,7 @@ class Stm32F446Spi {
     spi_frequency(&spi_, options.frequency);
   }
 
-  uint16_t write(uint16_t value) {
+  uint16_t write(uint16_t value) MOTEUS_CCM_ATTRIBUTE {
     auto* const spi = spi_.spi.handle.Instance;
     cs_ = 0;
 

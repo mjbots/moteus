@@ -25,6 +25,8 @@ constexpr float kSqrt6 = 2.449489742783178f;
 constexpr float kSqrt3 = 1.7320508075688772f;
 constexpr float kSqrt2 = 1.4142135623730951f;
 
+float WrapZeroToTwoPi(float) __attribute__((always_inline));
+
 inline float WrapZeroToTwoPi(float x) {
   // We would use fmodf, but we're trying to be fast here and don't
   // care too much about accuracy.
