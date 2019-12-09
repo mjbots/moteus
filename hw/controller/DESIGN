@@ -8,6 +8,7 @@ r4.1 ERRATA
     bitrates
   * Need actual pullup on FAULT line, 40k is too weak... Need
     something like 5k or smaller.
+  * DAC pin has no silk screen labeling it
 
 r4.1 DONE
   * Updated to correct STM32G4 pinout
