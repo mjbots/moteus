@@ -152,15 +152,6 @@ constexpr int kCalibrateCount = 256;
 // without triggering a fault.  Measured relative to 32767
 constexpr int16_t kMaxPositionDelta = 1000;
 
-// mbed configures the Timer clock input to 90MHz.  For any given pwm
-// frequency, we want double the actual frequency since we have an up
-// down counter.
-constexpr uint32_t kTimerClock = 90000000;
-constexpr uint32_t kPwmCounts = kTimerClock / (2 * kPwmRateHz);
-
-// However, the control counter we want at the actual frequency.
-constexpr uint32_t kControlCounts = kTimerClock / (kIntRateHz);
-
 constexpr float kDefaultTorqueConstant = 0.1f;
 constexpr float kMaxUnconfiguredCurrent = 5.0f;
 
@@ -451,7 +442,15 @@ class BldcServo::Impl {
     // Set up PWM.
 
     timer_->PSC = 0; // No prescaler.
-    timer_->ARR = kPwmCounts;
+
+#if defined(TARGET_STM32F4)
+    pwm_counts_ = HAL_RCC_GetPCLK1Freq() / (2 * kPwmRateHz);
+#elif defined(TARGET_STM32G4)
+    pwm_counts_ = HAL_RCC_GetSysClockFreq() / (2 * kPwmRateHz);
+#else
+#error "Unknown target"
+#endif
+    timer_->ARR = pwm_counts_;
 
     // NOTE: We don't use micro::CallbackTable here because we need the
     // absolute minimum latency possible.
@@ -612,13 +611,16 @@ class BldcServo::Impl {
     // speed requirement.  Any extra cycles will result in a lower
     // maximal duty cycle of the controller.  Thus there are lots of
     // micro-optimizations to try and speed things up by little bits.
-    if ((*timer_sr_ & TIM_SR_UIF) &&
-        (*timer_cr1_ & TIM_CR1_DIR)) {
-      ISR_DoTimer();
-    }
+    const auto sr = *timer_sr_;
+    const auto cr = *timer_cr1_;
 
     // Reset the status register.
     timer_->SR = 0x00;
+
+    if ((sr & TIM_SR_UIF) &&
+        (cr & TIM_CR1_DIR)) {
+      ISR_DoTimer();
+    }
   }
 
   void ISR_DoTimer() __attribute__((always_inline)) {
@@ -636,8 +638,13 @@ class BldcServo::Impl {
 #error "Unknown target"
 #endif
 
+    debug_out2_ = !debug_out2_.read();
+
     phase_ = (phase_ + 1) % kInterruptDivisor;
+
     if (phase_ != 0) { return; }
+
+    debug_out_ = 1;
 
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
@@ -678,8 +685,6 @@ class BldcServo::Impl {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
     }
-
-    debug_out_ = 1;
 
     if (current_data_->rezero_position) {
       status_.position_to_set = *current_data_->rezero_position;
@@ -724,10 +729,8 @@ class BldcServo::Impl {
     // Sample the position.
     const uint16_t old_position = status_.position;
 
-    debug_out2_ = 1;
     status_.position_raw = position_sensor_->Sample();
 
-    debug_out2_ = 0;
     status_.position =
         (motor_.invert ? (65535 - status_.position_raw) : status_.position_raw);
 
@@ -1214,9 +1217,9 @@ class BldcServo::Impl {
     control_.pwm.b = LimitPwm(pwm.b);
     control_.pwm.c = LimitPwm(pwm.c);
 
-    const uint16_t pwm1 = static_cast<uint16_t>(control_.pwm.a * kPwmCounts);
-    const uint16_t pwm2 = static_cast<uint16_t>(control_.pwm.b * kPwmCounts);
-    const uint16_t pwm3 = static_cast<uint16_t>(control_.pwm.c * kPwmCounts);
+    const uint16_t pwm1 = static_cast<uint16_t>(control_.pwm.a * pwm_counts_);
+    const uint16_t pwm2 = static_cast<uint16_t>(control_.pwm.b * pwm_counts_);
+    const uint16_t pwm3 = static_cast<uint16_t>(control_.pwm.c * pwm_counts_);
 
     *pwm1_ccr_ = pwm1;
     *pwm2_ccr_ = pwm3;
@@ -1493,6 +1496,8 @@ class BldcServo::Impl {
   float torque_constant_ = 0.01f;
   float position_constant_ = 0.0f;
   float adc_scale_ = 0.0f;
+
+  uint32_t pwm_counts_ = 0;
 
   static Impl* g_impl_;
 };
