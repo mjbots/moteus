@@ -116,19 +116,22 @@ int MapConfig(const Array& array, int value) {
   return result - 1;
 }
 
+#if MOTEUS_HW_REV >= 3
+// r4.1 and above have more DC-link capacitance and can run at the
+// slower 40kHz PWM frequency.
+constexpr int kIntRateHz = 40000;
+constexpr int kPwmRateHz = 40000;
+#elif MOTEUS_HW_REV <= 2
 constexpr int kIntRateHz = 30000;
 constexpr int kPwmRateHz = 60000;
+#endif
 constexpr int kInterruptDivisor = kPwmRateHz / kIntRateHz;
 static_assert(kPwmRateHz % kIntRateHz == 0);
 
 // This is used to determine the maximum allowable PWM value so that
 // the current sampling is guaranteed to occur while the FETs are
 // still low.  It was calibrated using the scope and trial and error.
-//
-// For some reason, with 30kHz/60kHz settings, I measure this at
-// 0.8us, but with 40/40 I get 1.3us.  Whatever, 1.4 is conservative
-// and not going to cause problems.
-constexpr float kCurrentSampleTime = 1.4e-6f;
+constexpr float kCurrentSampleTime = 1.8e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
