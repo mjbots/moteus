@@ -737,6 +737,15 @@ class BldcServo::Impl {
     ADC5->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         tsense_sqr_ << ADC_SQR1_SQ1_Pos;
+    // It can take a few cycles before we can start the ADC.
+    __NOP();
+    __NOP();
+    __NOP();
+    __NOP();
+    __NOP();
+    __NOP();
+    __NOP();
+    __NOP();
     ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
