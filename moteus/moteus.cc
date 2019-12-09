@@ -103,8 +103,22 @@ void SetupClock() {
 }
 }
 
+#if defined(TARGET_STM32G4)
+extern "C" {
+extern char _sccmram;
+extern char _siccmram;
+extern char _eccmram;
+extern char _sccmram;
+}
+#endif
+
+volatile uint8_t g_measured_hw_rev;
 
 int main(void) {
+#if defined(TARGET_STM32G4)
+  std::memcpy(&_sccmram, &_siccmram, &_eccmram - &_sccmram);
+#endif
+
   SetupClock();
 
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
@@ -123,6 +137,7 @@ int main(void) {
       0x07 & (~(hwrev0.read() |
                 (hwrev1.read() << 1) |
                 (hwrev2.read() << 2)));
+  g_measured_hw_rev = this_hw_rev;
   MJ_ASSERT(this_hw_rev == (MOTEUS_HW_REV - MOTEUS_HW_REV_OFFSET));
 
   // I initially used a Ticker here to enqueue events at 1ms

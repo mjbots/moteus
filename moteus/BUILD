@@ -160,7 +160,7 @@ genrule(
         "bootloader.0800c000.bin",
         "moteus.08010000.bin",
     ],
-    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location moteus.elf) $(location moteus.08010000.bin) && " +
+    cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .ccmram -j .bss $(location moteus.elf) $(location moteus.08010000.bin) && " +
            "$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location bootloader.elf) $(location bootloader.0800c000.bin) && " +
            "$(OBJCOPY) -Obinary -j .isr_vector $(location moteus.elf) $(location moteus.08000000.bin)"),
     toolchains = [
