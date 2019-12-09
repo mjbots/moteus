@@ -207,7 +207,6 @@ uint32_t FindSqr(PinName pin) {
 #if defined(TARGET_STM32F4)
 volatile uint32_t* const g_adc1_cr2 = &ADC1->CR2;
 #elif defined(TARGET_STM32G4)
-volatile uint32_t* const g_adc1_cr2 = &ADC1->CR;
 #else
 #error "Unknown target"
 #endif
