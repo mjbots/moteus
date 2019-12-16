@@ -5890,6 +5890,18 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="+3V13" library="supply1" deviceset="+3V3" device=""/>
 <part name="+3V14" library="supply1" deviceset="+3V3" device=""/>
+<part name="R13" library="mfpassives" deviceset="RESISTOR" device="_0402" value="2k">
+<attribute name="HOUSEPART" value="YES"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-RES-0402-2K"/>
+</part>
+<part name="+3V15" library="supply1" deviceset="+3V3" device=""/>
+<part name="R14" library="mfpassives" deviceset="RESISTOR" device="_0402" value="2k">
+<attribute name="HOUSEPART" value="YES"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-RES-0402-2K"/>
+</part>
+<part name="+3V16" library="supply1" deviceset="+3V3" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -5939,7 +5951,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-302.26" y="-142.24" size="5.08" layer="90">FET DRIVER</text>
 <text x="-132.08" y="-142.24" size="5.08" layer="90">POWER FETS</text>
 <text x="73.66" y="-142.24" size="5.08" layer="90">BULK CAPACITANCE</text>
-<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.1
+<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.2
 (c) jjp@pobox.com 2019
 Licensed under the Apache 2.0 License</text>
 </plain>
@@ -6365,6 +6377,16 @@ Licensed under the Apache 2.0 License</text>
 </instance>
 <instance part="+3V13" gate="G$1" x="157.48" y="190.5"/>
 <instance part="+3V14" gate="G$1" x="-71.12" y="129.54"/>
+<instance part="R13" gate="G$1" x="-289.56" y="-208.28">
+<attribute name="MPN" x="-289.56" y="-208.28" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-289.56" y="-208.28" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="+3V15" gate="G$1" x="-289.56" y="-195.58"/>
+<instance part="R14" gate="G$1" x="-289.56" y="-243.84">
+<attribute name="MPN" x="-289.56" y="-243.84" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-289.56" y="-243.84" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="+3V16" gate="G$1" x="-289.56" y="-233.68"/>
 </instances>
 <busses>
 </busses>
@@ -6525,6 +6547,16 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-71.12" y1="127" x2="-71.12" y2="121.92" width="0.1524" layer="91"/>
 <pinref part="U1" gate="G$1" pin="VBAT"/>
 <wire x1="-71.12" y1="121.92" x2="-68.58" y2="121.92" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="R13" gate="G$1" pin="P$1"/>
+<pinref part="+3V15" gate="G$1" pin="+3V3"/>
+<wire x1="-289.56" y1="-203.2" x2="-289.56" y2="-198.12" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="R14" gate="G$1" pin="P$1"/>
+<pinref part="+3V16" gate="G$1" pin="+3V3"/>
+<wire x1="-289.56" y1="-238.76" x2="-289.56" y2="-236.22" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="GND" class="0">
@@ -6926,8 +6958,10 @@ Licensed under the Apache 2.0 License</text>
 <net name="DRV8323_MISO" class="0">
 <segment>
 <pinref part="U4" gate="G$1" pin="MISO"/>
-<wire x1="-279.4" y1="-215.9" x2="-251.46" y2="-215.9" width="0.1524" layer="91"/>
+<wire x1="-289.56" y1="-215.9" x2="-251.46" y2="-215.9" width="0.1524" layer="91"/>
 <label x="-279.4" y="-215.9" size="1.778" layer="95"/>
+<pinref part="R13" gate="G$1" pin="P$2"/>
+<wire x1="-289.56" y1="-215.9" x2="-289.56" y2="-213.36" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="U1" gate="G$1" pin="PA6"/>
@@ -7527,8 +7561,10 @@ Licensed under the Apache 2.0 License</text>
 <net name="MOTOR_FAULT" class="0">
 <segment>
 <pinref part="U4" gate="G$1" pin="FAULT"/>
-<wire x1="-251.46" y1="-251.46" x2="-271.78" y2="-251.46" width="0.1524" layer="91"/>
+<wire x1="-251.46" y1="-251.46" x2="-289.56" y2="-251.46" width="0.1524" layer="91"/>
 <label x="-271.78" y="-251.46" size="1.778" layer="95"/>
+<pinref part="R14" gate="G$1" pin="P$2"/>
+<wire x1="-289.56" y1="-251.46" x2="-289.56" y2="-248.92" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="U1" gate="G$1" pin="PB6"/>

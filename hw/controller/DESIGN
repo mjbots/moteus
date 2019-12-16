@@ -1,5 +1,9 @@
 Build test fixture
 
+r4.2 DONE
+ * Added 2k pullups to DRV8323 MISO and FAULT line
+ * Added silk to DAC pin
+
 r4.1 ERRATA
   * maybe don't need to fix...
     * the current sense lines are run to "slow" ADCs

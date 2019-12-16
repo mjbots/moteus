@@ -9,7 +9,7 @@
 <grid distance="0.1" unitdist="mm" unit="mm" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="mm" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
-<layer number="2" name="Route2" color="1" fill="3" visible="no" active="yes"/>
+<layer number="2" name="Route2" color="1" fill="3" visible="yes" active="yes"/>
 <layer number="3" name="Route3" color="4" fill="3" visible="no" active="no"/>
 <layer number="4" name="Route4" color="1" fill="4" visible="no" active="no"/>
 <layer number="5" name="Route5" color="4" fill="4" visible="no" active="no"/>
@@ -22,7 +22,7 @@
 <layer number="12" name="Route12" color="1" fill="5" visible="no" active="no"/>
 <layer number="13" name="Route13" color="4" fill="5" visible="no" active="no"/>
 <layer number="14" name="Route14" color="1" fill="6" visible="no" active="no"/>
-<layer number="15" name="Route15" color="4" fill="6" visible="no" active="yes"/>
+<layer number="15" name="Route15" color="4" fill="6" visible="yes" active="yes"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
 <layer number="17" name="Pads" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="18" name="Vias" color="2" fill="1" visible="yes" active="yes"/>
@@ -161,7 +161,7 @@
 <wire x1="16" y1="-37" x2="17" y2="-35.5" width="0" layer="20" curve="-68.198574"/>
 <wire x1="17" y1="-35.5" x2="21" y2="-34" width="0" layer="20"/>
 <wire x1="21" y1="-34" x2="23" y2="-31" width="0" layer="20" curve="66.801417"/>
-<text x="-2.6" y="-8.1" size="1.2" layer="21" align="top-left">moteus r4.1</text>
+<text x="-2.6" y="-8.1" size="1.2" layer="21" align="top-left">moteus r4.2</text>
 <text x="-2.7" y="-9.5" size="1.1" layer="21" align="top-left">(c) jjp@pobox.com</text>
 <text x="-10.4" y="-27.5" size="1.016" layer="21" font="vector" ratio="10">A</text>
 <text x="1.6" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">B</text>
@@ -169,7 +169,7 @@
 <text x="15.3" y="8.2" size="0.8" layer="21" rot="R180">TEMP</text>
 <text x="2.8" y="-11.1" size="1" layer="21" align="top-left">2019</text>
 <text x="8" y="9.7" size="0.8" layer="21" rot="R180">SER</text>
-<text x="2.5" y="8.4" size="0.8" layer="21" rot="R180">DBG</text>
+<text x="1.6" y="8.4" size="0.8" layer="21" rot="R180">DBG</text>
 <text x="9.9" y="8" size="0.6096" layer="21" font="vector">T</text>
 <text x="8.6" y="8" size="0.6096" layer="21" font="vector">R</text>
 <text x="-0.5" y="9.1" size="0.6096" layer="21" font="vector">2</text>
@@ -186,6 +186,7 @@
 <text x="11" y="8" size="0.6096" layer="21" font="vector">G</text>
 <text x="-21.1" y="3.5" size="0.8" layer="21" rot="R180">3V</text>
 <text x="-11.2" y="2.5" size="0.6096" layer="21" font="vector">G</text>
+<text x="4.2" y="-0.9" size="0.6096" layer="21" font="vector" rot="R180">DAC</text>
 </plain>
 <libraries>
 <library name="controller">
@@ -2638,6 +2639,28 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="D33" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-20.5" y="3.1">
 <attribute name="POPULATE" value="0" x="-20.5" y="3.1" size="1.778" layer="27" display="off"/>
 </element>
+<element name="R13" library="mfpassives" package="R0402" value="2k" x="-1.5" y="-0.1" smashed="yes" rot="R180">
+<attribute name="HOUSEPART" value="YES" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="TOLERANCE" value="" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-2K" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="POPULATE" value="1" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="VOLTAGE" value="" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="MF" value="" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="URL" value="" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="WATTAGE" value="" x="-1.5" y="-0.1" size="1.778" layer="27" rot="R180" display="off"/>
+<attribute name="NAME" x="-1.7" y="-1.5" size="0.6096" layer="25" font="vector" ratio="10"/>
+</element>
+<element name="R14" library="mfpassives" package="R0402" value="2k" x="-2.7" y="1.4" smashed="yes">
+<attribute name="HOUSEPART" value="YES" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-2K" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="POPULATE" value="1" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="WATTAGE" value="" x="-2.7" y="1.4" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="-1.5" y="0.9" size="0.6096" layer="25" font="vector" ratio="10"/>
+</element>
 </elements>
 <signals>
 <signal name="+3V3">
@@ -2788,6 +2811,14 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="5.55" y1="7.1" x2="5.2" y2="7.45" width="0.254" layer="1"/>
 <wire x1="11.75" y1="5.15" x2="13" y2="5.15" width="0.254" layer="1"/>
 <wire x1="13" y1="5.15" x2="13.05" y2="5.2" width="0.254" layer="1"/>
+<contactref element="R13" pad="P$1"/>
+<contactref element="R14" pad="P$1"/>
+<via x="-0.36" y="-0.13" extent="1-16" drill="0.3048"/>
+<via x="-3.26" y="2.07" extent="1-16" drill="0.3048"/>
+<wire x1="-3.25" y1="1.4" x2="-3.26" y2="1.51" width="0.254" layer="1"/>
+<wire x1="-3.26" y1="1.51" x2="-3.26" y2="2.07" width="0.254" layer="1"/>
+<wire x1="-0.95" y1="-0.1" x2="-0.92" y2="-0.13" width="0.254" layer="1"/>
+<wire x1="-0.92" y1="-0.13" x2="-0.36" y2="-0.13" width="0.254" layer="1"/>
 </signal>
 <signal name="NRST">
 <contactref element="SWD" pad="2"/>
@@ -3059,9 +3090,13 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="0.4" y1="-4.6" x2="2.4" y2="-4.6" width="0.127" layer="1"/>
 <wire x1="-2.2" y1="-2" x2="0.4" y2="-4.6" width="0.127" layer="1"/>
 <wire x1="-2.2" y1="-0.8" x2="-2.2" y2="-2" width="0.127" layer="1"/>
-<wire x1="-4.8" y1="1.8" x2="-2.2" y2="-0.8" width="0.127" layer="1"/>
+<wire x1="-4.8" y1="1.8" x2="-2.45" y2="-0.55" width="0.127" layer="1"/>
+<wire x1="-2.45" y1="-0.55" x2="-2.2" y2="-0.8" width="0.127" layer="1"/>
 <wire x1="-5.3" y1="1.8" x2="-4.8" y2="1.8" width="0.127" layer="1"/>
 <wire x1="6" y1="-0.6" x2="6.05" y2="-0.55" width="0.127" layer="1"/>
+<contactref element="R13" pad="P$2"/>
+<wire x1="-2.05" y1="-0.1" x2="-2.45" y2="-0.5" width="0.127" layer="1"/>
+<wire x1="-2.45" y1="-0.5" x2="-2.45" y2="-0.55" width="0.127" layer="1"/>
 </signal>
 <signal name="DRV8323_SCLK">
 <contactref element="U4" pad="31"/>
@@ -3762,12 +3797,17 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="5.6" y1="8" x2="5.8" y2="8.2" width="0.127" layer="1"/>
 <wire x1="2.6" y1="8" x2="5.6" y2="8" width="0.127" layer="1"/>
 <wire x1="2.6" y1="5" x2="2.6" y2="8" width="0.127" layer="1"/>
-<wire x1="-4" y1="-1.6" x2="2.6" y2="5" width="0.127" layer="2"/>
+<wire x1="-4" y1="-1.6" x2="-0.45" y2="1.95" width="0.127" layer="2"/>
+<wire x1="-0.45" y1="1.95" x2="2.6" y2="5" width="0.127" layer="2"/>
 <wire x1="-5.8" y1="-1.6" x2="-4" y2="-1.6" width="0.127" layer="2"/>
 <wire x1="-6" y1="-1.8" x2="-5.8" y2="-1.6" width="0.127" layer="2"/>
 <wire x1="7.6" y1="6.4" x2="7.55" y2="6.35" width="0.127" layer="1"/>
 <via x="2.6" y="5" extent="1-16" drill="0.1016"/>
 <via x="-6" y="-1.8" extent="1-16" drill="0.1016"/>
+<contactref element="R14" pad="P$2"/>
+<wire x1="-2.15" y1="1.4" x2="-1.7" y2="1.95" width="0.127" layer="1"/>
+<wire x1="-1.7" y1="1.95" x2="-0.45" y2="1.95" width="0.127" layer="1"/>
+<via x="-0.45" y="1.95" extent="1-16" drill="0.3"/>
 </signal>
 <signal name="N$5">
 <contactref element="U4" pad="48"/>
@@ -4281,8 +4321,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <approved hash="19,1,731e1b4926a2b706"/>
 <approved hash="19,1,afa3d1bb881fd3f4"/>
 <approved hash="19,1,bc5c5c605c01bc3d"/>
-<approved hash="19,1,0051bed92ec481bf"/>
 <approved hash="5,1,61ef34e701b71940"/>
+<approved hash="19,1,0051bed92ec481bf"/>
 <approved hash="5,1,f6ce8fa98543322c"/>
 <approved hash="19,1,23dc05e00506233a"/>
 <approved hash="5,1,cf9c78df82b52ff2"/>
