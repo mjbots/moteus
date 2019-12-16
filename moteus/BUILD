@@ -278,6 +278,15 @@ py_binary(
     ],
 )
 
+py_binary(
+    name = "throw_test",
+    srcs = ["throw_test.py"],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
+    ],
+)
+
 # A dummy target so that running all host tests will result in all our
 # host binaries being built.
 py_test(
