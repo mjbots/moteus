@@ -183,7 +183,6 @@ class FdcanusbClient:
             async with self._manager.lock:
                 result = await self._try_one_poll()
                 if result is not None:
-                    print("adding:", result)
                     self._read_data += result
 
             if len(self._read_data) >= size:
