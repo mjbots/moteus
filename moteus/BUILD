@@ -262,6 +262,7 @@ cc_test(
     ],
     data = [
         "//moteus/tool:moteus_tool",
+        "//moteus/tool:tview",
     ],
     deps = [
         ":common",

@@ -20,6 +20,7 @@ Interactively display and update values from an embedded device.
 '''
 
 import binascii
+import io
 import optparse
 import os
 import re
@@ -37,15 +38,14 @@ matplotlib.rcParams['backend.qt4'] = 'PySide'
 from matplotlib.backends import backend_qt4agg
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 
+os.environ['QT_API'] = 'pyside'
 from qtconsole.qt import QtCore, QtGui
+from PySide import QtUiTools
 from qtconsole.history_console_widget import HistoryConsoleWidget
 
-SCRIPT_PATH=os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(SCRIPT_PATH, '../python'))
-sys.path.append(os.path.join(SCRIPT_PATH, '../bazel-bin/utils'))
 
-import telemetry_archive
-import ui_tview_main_window
+from bazel_tools.tools.python.runfiles import runfiles
+import mjlib.telemetry.reader as reader
 
 
 LEFT_LEGEND_LOC = 3
@@ -68,6 +68,7 @@ def dehexify(data):
     for i in range(0, len(data), 2):
         result += bytes([int(data[i:i+2], 16)])
     return result
+
 
 def read_varuint(data, offset):
     '''Return (varuint, next_offset)'''
@@ -895,7 +896,7 @@ class Device:
             if self._telemetry_records[name]:
                 return
 
-        archive = telemetry_archive.ReadArchive(schema, name)
+        archive = reader.from_binary(io.BytesIO(schema), name=name)
 
         record = Record(archive)
         self._telemetry_records[name] = record
@@ -918,7 +919,7 @@ class Device:
 
         record = self._telemetry_records[name]
         if record:
-            struct = record.archive.deserialize(data)
+            struct = record.archive.read(reader.Stream(io.BytesIO(data)))
             record.update(struct)
             _set_tree_widget_data(record.tree_item, struct)
 
@@ -966,30 +967,22 @@ class Device:
         schema = Device.Schema(name, self, record)
         item.setData(0, QtCore.Qt.UserRole, schema)
 
-        # TODO jpieper: Factor this out of tplot.py.
         def add_item(parent, element):
-            if 'fields' not in element:
-                return
-            for field in element['fields']:
-                name = field['name']
+            if isinstance(element, reader.ObjectType):
+                for field in element.fields:
+                    name = field.name
 
-                item = QtGui.QTreeWidgetItem(parent)
-                item.setText(0, name)
+                    item = QtGui.QTreeWidgetItem(parent)
+                    item.setText(0, name)
 
-                if 'children' in field:
-                    for child in field['children']:
-                        add_item(item, child)
+                    add_item(item, field.type_class)
 
         add_item(item, archive.root)
         return item
 
 
-
-class TviewMainWindow(QtGui.QMainWindow):
-
+class TviewMainWindow():
     def __init__(self, options, parent=None):
-        QtGui.QMainWindow.__init__(self, parent)
-
         self.options = options
         self.port = None
         self.devices = []
@@ -999,8 +992,14 @@ class TviewMainWindow(QtGui.QMainWindow):
         self._serial_timer.timeout.connect(self._poll_serial)
         self._serial_timer.start(10)
 
-        self.ui = ui_tview_main_window.Ui_TviewMainWindow()
-        self.ui.setupUi(self)
+        r = runfiles.Create()
+        uifilename = r.Rlocation(
+            "com_github_mjbots_moteus/moteus/tool/tview_main_window.ui")
+        loader = QtUiTools.QUiLoader()
+        uifile = QtCore.QFile(uifilename)
+        uifile.open(QtCore.QFile.ReadOnly)
+        self.ui = loader.load(uifile, parent)
+        uifile.close()
 
         self.ui.configTreeWidget = SizedTreeWidget()
         self.ui.configDock.setWidget(self.ui.configTreeWidget)
@@ -1018,7 +1017,7 @@ class TviewMainWindow(QtGui.QMainWindow):
             self._handle_telemetry_context_menu)
 
         self.ui.configTreeWidget.setItemDelegateForColumn(
-            0, NoEditDelegate(self))
+            0, NoEditDelegate(self.ui))
         self.ui.configTreeWidget.itemExpanded.connect(
             self._handle_config_expanded)
         self.ui.configTreeWidget.itemChanged.connect(
@@ -1032,7 +1031,7 @@ class TviewMainWindow(QtGui.QMainWindow):
         self.console.line_input.connect(self._handle_user_input)
         self.ui.consoleDock.setWidget(self.console)
 
-        self.tabifyDockWidget(self.ui.configDock, self.ui.telemetryDock)
+        self.ui.tabifyDockWidget(self.ui.configDock, self.ui.telemetryDock)
 
         layout = QtGui.QVBoxLayout(self.ui.plotHolderWidget)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1046,6 +1045,9 @@ class TviewMainWindow(QtGui.QMainWindow):
         self.ui.historySpin.valueChanged.connect(update_plotwidget)
 
         QtCore.QTimer.singleShot(0, self._handle_startup)
+
+    def show(self):
+        self.ui.show()
 
     def _open(self):
         if self.options.target:
@@ -1068,11 +1070,11 @@ class TviewMainWindow(QtGui.QMainWindow):
         self.ui.telemetryTreeWidget.clear()
 
         for device_id in [int(x) for x in self.options.devices.split(',')]:
-            if self.options.fdcanusb:
-                stream = FdcanUsbStream(
+            if self.options.rs485:
+                stream = MultiplexStream(
                     self.port, device_id, self.options.max_receive_bytes)
             else:
-                stream = MultiplexStream(
+                stream = FdcanUsbStream(
                     self.port, device_id, self.options.max_receive_bytes)
 
             config_item = QtGui.QTreeWidgetItem()
@@ -1222,13 +1224,16 @@ def main():
     parser.add_option('--baudrate', '-b', type='int', default=115200)
     parser.add_option('--devices', '-d', type='str', default='1')
     parser.add_option('--target', '-t', default=None)
-    parser.add_option('--fdcanusb', '-c', action='store_true')
+    parser.add_option('--rs485', '-c', action='store_true')
     parser.add_option('--max-receive-bytes', default=127, type=int)
 
     options, args = parser.parse_args()
     assert len(args) == 0
 
     app = QtGui.QApplication(sys.argv)
+
+    # To work around https://bugreports.qt.io/browse/PYSIDE-88
+    app.aboutToQuit.connect(lambda: os._exit(0))
 
     tv = TviewMainWindow(options)
     tv.show()

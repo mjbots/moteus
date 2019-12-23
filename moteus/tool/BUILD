@@ -35,6 +35,20 @@ py_binary(
     ],
 )
 
+py_binary(
+    name = "tview",
+    srcs = ["tview.py"],
+    main = "tview.py",
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/telemetry:py_reader",
+        "@bazel_tools//tools/python/runfiles",
+    ],
+    data = ["tview_main_window.ui"],
+    imports = [
+        "../../../mjlib",
+    ],
+)
+
 cc_library(
     name = "moteus_tool_lib",
     hdrs = ["moteus_tool.h"],
