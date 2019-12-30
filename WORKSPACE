@@ -26,6 +26,17 @@ load("//tools/workspace:default.bzl", "add_default_repositories")
 
 add_default_repositories()
 
+# Do mjlib.
+load("@com_github_mjbots_mjlib//tools/workspace:default.bzl",
+     mjlib_add = "add_default_repositories")
+
+mjlib_add(excludes = [
+    "com_github_mjbots_rules_mbed",
+    "bazel",
+    "bazel_deps",
+    "build_bazel_rules_nodejs",
+])
+
 # Do the Javascript part of our initialization.
 load("//tools/workspace:npm_stage1.bzl", "setup_npm_stage1")
 setup_npm_stage1()

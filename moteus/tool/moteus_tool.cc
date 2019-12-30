@@ -20,24 +20,23 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
-#include <boost/program_options.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <fmt/format.h>
 
 #include <elfio/elfio.hpp>
 
+#include "mjlib/base/clipp.h"
 #include "mjlib/base/fail.h"
-#include "mjlib/base/program_options_archive.h"
 #include "mjlib/base/system_error.h"
 #include "mjlib/base/time_conversions.h"
 #include "mjlib/io/async_sequence.h"
 #include "mjlib/io/deadline_timer.h"
 #include "mjlib/io/stream_copy.h"
 #include "mjlib/io/stream_factory.h"
-#include "mjlib/multiplex/asio_client.h"
+#include "mjlib/multiplex/stream_asio_client_builder.h"
 
 namespace pl = std::placeholders;
-namespace po = boost::program_options;
 namespace base = mjlib::base;
 namespace io = mjlib::io;
 namespace mp = mjlib::multiplex;
@@ -170,20 +169,22 @@ std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
 
 class Runner {
  public:
-  Runner(const boost::asio::executor& executor, ClientMaker* maker,
+  Runner(const boost::asio::executor& executor,
+         io::Selector<mp::AsioClient>* selector,
          const Options& options)
       : executor_(executor),
-        client_maker_(maker),
+        client_selector_(selector),
         targets_(ExpandTargets(options.targets)),
         options_(options) {}
 
   void Start() {
-    client_maker_->AsyncCreate(executor_, &client_,
-                               std::bind(&Runner::HandleClient, this, pl::_1));
+    client_selector_->AsyncStart(std::bind(&Runner::HandleClient, this, pl::_1));
   }
 
   void HandleClient(const base::error_code& ec) {
     base::FailIf(ec);
+
+    client_ = client_selector_->selected();
 
     FindTargets();
   }
@@ -267,7 +268,7 @@ class Runner {
     auto context = std::make_shared<ActionContext>();
     context->id = id;
     context->remaining = remaining;
-    ClientBase::TunnelOptions tunnel_options;
+    mp::AsioClient::TunnelOptions tunnel_options;
 
     // Older versions of the bootloader could fail during long running
     // flash operations at the default 10ms poll rate.  Set it to 100
@@ -828,111 +829,53 @@ class Runner {
 
   boost::asio::executor executor_;
   boost::asio::executor_work_guard<boost::asio::executor> guard_{executor_};
-  ClientMaker* const client_maker_;
+  io::Selector<mp::AsioClient>* const client_selector_;
   std::vector<int> targets_;
   const Options options_;
 
   io::DeadlineTimer timer_{executor_};
   io::StreamFactory factory_{executor_};
   io::SharedStream stdio_;
-  std::unique_ptr<ClientBase> client_;
-};
-
-class AsioClientWrapper : public ClientBase {
- public:
-  AsioClientWrapper(io::AsyncStream* stream) : base_(stream) {}
-
-  io::SharedStream MakeTunnel(
-      uint8_t id,
-      uint32_t channel,
-      const TunnelOptions& options) override {
-    return base_.MakeTunnel(id, channel, [options]() {
-        mp::AsioClient::TunnelOptions dest_options;
-        dest_options.poll_rate = options.poll_rate;
-        return dest_options;
-      }());
-  }
-
- private:
-  mp::AsioClient base_;
-};
-
-class AsioClientMaker : public ClientMaker {
- public:
-  void AddToProgramOptions(po::options_description* options) override {
-    base::ProgramOptionsArchive(options).Accept(&stream_options_);
-  }
-
-  void AsyncCreate(boost::asio::executor executor,
-                   std::unique_ptr<ClientBase>* client,
-                   io::ErrorCallback callback) override {
-    factory_.emplace(executor);
-
-    factory_->AsyncCreate(
-        stream_options_,
-        std::bind(&AsioClientMaker::HandleStream, this,
-                  pl::_1, pl::_2, client, callback));
-  }
-
- private:
-  void HandleStream(const mjlib::base::error_code& ec,
-                    io::SharedStream stream,
-                    std::unique_ptr<ClientBase>* client,
-                    io::ErrorCallback callback) {
-    base::FailIf(ec);
-
-    stream_ = stream;
-    *client = std::make_unique<AsioClientWrapper>(stream.get());
-
-    callback(mjlib::base::error_code());
-  }
-
-  io::StreamFactory::Options stream_options_;
-
-  std::optional<io::StreamFactory> factory_;
-  io::SharedStream stream_;
+  mp::AsioClient* client_ = nullptr;
 };
 
 }
 
-int moteus_tool_main(int argc, char** argv, ClientMaker* maker) {
-  AsioClientMaker asio_maker;
-  if (maker == nullptr) {
-    maker = &asio_maker;
-  }
+int moteus_tool_main(int argc, char** argv,
+                     io::Selector<mp::AsioClient>* selector) {
   boost::asio::io_context context;
 
-  po::options_description desc("Allowable options");
+  io::Selector<mp::AsioClient> default_client_selector{
+    context.get_executor(), "client_type"};
+  if (selector == nullptr) {
+    default_client_selector.Register<mp::StreamAsioClientBuilder>("stream");
+    default_client_selector.set_default("stream");
+    selector = &default_client_selector;
+  }
 
   Options options;
 
-  desc.add_options()
-      ("help,h", "display_usage")
-      ("targets,t", po::value(&options.targets),
-       "destination address(es) (default: autodiscover)")
-      ("verbose,v", po::bool_switch(&options.verbose),
-       "emit all commands sent to and from the device")
+  auto group = clipp::group(
+      clipp::repeatable(
+          (clipp::option("t", "target") &
+           clipp::integer("TGT", options.targets)) %
+          "one or more target devices (default: autodiscover)"),
+      clipp::option("v", "verbose").set(options.verbose).doc(
+          "emit all commands sent to and from the device"),
+      clipp::option("s", "stop").set(options.stop).doc(
+          "command the servos to stop"),
+      clipp::option("c", "console").set(options.console).doc(
+          "create a serial console"),
+      clipp::option("dump-config").set(options.dump_config).doc(
+          "emit all configuration to the console"),
+      clipp::option("flash").set(options.flash).doc(
+          "write the given elf file to flash")
+  );
+  group.merge(clipp::with_prefix("client.", selector->program_options()));
 
-      ("stop", po::bool_switch(&options.stop),
-       "command the servos to stop")
-      ("console,c", po::bool_switch(&options.console),
-       "create a serial console")
-      ("dump-config", po::bool_switch(&options.dump_config),
-       "emit all configuration to the console")
-      ("flash", po::value(&options.flash),
-       "write the given elf file to flash")
-      ;
+  mjlib::base::ClippParse(argc, argv, group);
 
-  po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, desc), vm);
-  po::notify(vm);
-
-  if (vm.count("help")) {
-    std::cout << desc;
-    return 0;
-  }
-
-  Runner runner(context.get_executor(), maker, options);
+  Runner runner(context.get_executor(), selector, options);
   runner.Start();
   context.run();
 

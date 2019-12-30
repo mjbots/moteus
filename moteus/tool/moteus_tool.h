@@ -12,48 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdint>
-#include <memory>
-
-#include <boost/asio/executor.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
-#include <boost/program_options.hpp>
-
-#include "mjlib/io/async_stream.h"
-#include "mjlib/io/async_types.h"
+#include "mjlib/io/selector.h"
+#include "mjlib/multiplex/asio_client.h"
 
 namespace moteus {
 namespace tool {
 
-class ClientBase {
- public:
-  virtual ~ClientBase() {}
+int moteus_tool_main(
+    int argc, char** argv,
+    mjlib::io::Selector<mjlib::multiplex::AsioClient>* = nullptr);
 
-  struct TunnelOptions {
-    // Poll this often for data to be received.
-    boost::posix_time::time_duration poll_rate =
-        boost::posix_time::milliseconds(10);
-
-    TunnelOptions() {}
-  };
-
-  /// Allocate a tunnel which can be used to send and receive serial
-  /// stream data.
-  virtual mjlib::io::SharedStream MakeTunnel(
-      uint8_t id,
-      uint32_t channel,
-      const TunnelOptions& options = TunnelOptions()) = 0;
-};
-
-class ClientMaker {
- public:
-  virtual void AddToProgramOptions(
-      boost::program_options::options_description*) = 0;
-  virtual void AsyncCreate(boost::asio::executor,
-                           std::unique_ptr<ClientBase>*,
-                           mjlib::io::ErrorCallback) = 0;
-};
-
-int moteus_tool_main(int argc, char** argv, ClientMaker* = nullptr);
 }
 }
