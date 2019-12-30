@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <boost/asio/io_context.hpp>
+
 #include "mjlib/io/selector.h"
 #include "mjlib/multiplex/asio_client.h"
 
@@ -19,6 +21,7 @@ namespace moteus {
 namespace tool {
 
 int moteus_tool_main(
+    boost::asio::io_context&,
     int argc, char** argv,
     mjlib::io::Selector<mjlib::multiplex::AsioClient>* = nullptr);
 

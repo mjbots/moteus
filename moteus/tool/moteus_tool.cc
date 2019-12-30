@@ -841,10 +841,9 @@ class Runner {
 
 }
 
-int moteus_tool_main(int argc, char** argv,
+int moteus_tool_main(boost::asio::io_context& context,
+                     int argc, char** argv,
                      io::Selector<mp::AsioClient>* selector) {
-  boost::asio::io_context context;
-
   io::Selector<mp::AsioClient> default_client_selector{
     context.get_executor(), "client_type"};
   if (selector == nullptr) {

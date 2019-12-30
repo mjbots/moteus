@@ -16,6 +16,7 @@
 
 extern "C" {
 int main(int argc, char** argv) {
-  moteus::tool::moteus_tool_main(argc, argv);
+  boost::asio::io_context context;
+  moteus::tool::moteus_tool_main(context, argc, argv);
 }
 }
