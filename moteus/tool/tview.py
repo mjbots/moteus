@@ -896,7 +896,7 @@ class Device:
             if self._telemetry_records[name]:
                 return
 
-        archive = reader.from_binary(io.BytesIO(schema), name=name)
+        archive = reader.Type.from_binary(io.BytesIO(schema), name=name)
 
         record = Record(archive)
         self._telemetry_records[name] = record
@@ -960,7 +960,7 @@ class Device:
             self._parent.write_line('tel rate %s 0\r\n' % self._name)
 
 
-    def _add_schema_to_tree(self, name, archive, record):
+    def _add_schema_to_tree(self, name, schema_data, record):
         item = QtGui.QTreeWidgetItem(self._data_tree_item)
         item.setText(0, name)
 
@@ -977,7 +977,7 @@ class Device:
 
                     add_item(item, field.type_class)
 
-        add_item(item, archive.root)
+        add_item(item, schema_data)
         return item
 
 
