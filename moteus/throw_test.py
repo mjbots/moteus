@@ -36,7 +36,7 @@ _STREAM_SERVER_TO_CLIENT = 0x41
 G_VERBOSE = False
 
 
-SERVO_STATS = struct.Struct('<iiHHHHHHHfffffHffffifff')
+SERVO_STATS = struct.Struct('<bbHHHHHHHfffffHffffifff')
 SERVO_STATS_NC = collections.namedtuple('servo_stats', '''mode errc
      adc1_raw adc2_raw adc3_raw
      position_raw fet_temp_raw
@@ -52,9 +52,10 @@ SERVO_STATS_NC = collections.namedtuple('servo_stats', '''mode errc
      torque_Nm''')
 
 RETRACT_POS = -.1
-THROW_POS = -0.223
+THROW_POS = -0.227
 RETRACT_TORQUE = 4
-THROW_TORQUE = 30.0
+THROW_TORQUE = 4.0
+CATCH_DELAY_S = 0.9
 
 def hexify(data):
     return ''.join(['{:02x}'.format(x) for x in data])
@@ -448,7 +449,7 @@ async def main():
                 await servo_set.command({
                     1: 'd pos nan 5.0 {} s{}\n'.format(THROW_TORQUE, THROW_POS).encode('utf8'),
                     })
-            if since_state_s > 2.0:
+            if since_state_s > CATCH_DELAY_S:
                 state = State.RETRACTING
 
         elif state == State.FAULT:
