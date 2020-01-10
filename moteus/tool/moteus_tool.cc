@@ -587,7 +587,7 @@ int moteus_tool_main(boost::asio::io_context& context,
           "create a serial console"),
       clipp::option("dump-config").set(options.dump_config).doc(
           "emit all configuration to the console"),
-      clipp::option("flash").set(options.flash).doc(
+      clipp::option("flash") & clipp::value("file", options.flash).doc(
           "write the given elf file to flash")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
