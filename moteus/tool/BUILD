@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,7 +52,10 @@ py_binary(
 cc_library(
     name = "moteus_tool_lib",
     hdrs = ["moteus_tool.h"],
-    srcs = ["moteus_tool.cc"],
+    srcs = [
+        "moteus_tool.cc",
+        "run_for.h",
+    ],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:clipp",
         "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
@@ -60,6 +63,7 @@ cc_library(
         "@com_github_mjbots_mjlib//mjlib/base:time_conversions",
         "@com_github_mjbots_mjlib//mjlib/io:async_sequence",
         "@com_github_mjbots_mjlib//mjlib/io:debug_time",
+        "@com_github_mjbots_mjlib//mjlib/io:now",
         "@com_github_mjbots_mjlib//mjlib/io:selector",
         "@com_github_mjbots_mjlib//mjlib/io:stream_copy",
         "@com_github_mjbots_mjlib//mjlib/io:stream_factory",

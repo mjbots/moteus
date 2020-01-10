@@ -1,4 +1,4 @@
-// Copyright 2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,9 +32,12 @@
 #include "mjlib/base/time_conversions.h"
 #include "mjlib/io/async_sequence.h"
 #include "mjlib/io/deadline_timer.h"
+#include "mjlib/io/now.h"
 #include "mjlib/io/stream_copy.h"
 #include "mjlib/io/stream_factory.h"
 #include "mjlib/multiplex/stream_asio_client_builder.h"
+
+#include "moteus/tool/run_for.h"
 
 namespace pl = std::placeholders;
 namespace base = mjlib::base;
@@ -201,14 +204,19 @@ class Runner {
   boost::asio::awaitable<bool> FindTarget(int target_id) {
     auto stream = client_->MakeTunnel(target_id, kDebugTunnel);
 
-    auto maybe_result = co_await Command(*stream, "tel stop");
-    co_return (!!maybe_result && *maybe_result == "OK");
+    auto maybe_result = co_await Command(
+        *stream, "tel stop",
+        CommandOptions().set_retry_timeout(0.02).set_retry_count(1));
+
+    co_return !!maybe_result;
   }
 
   boost::asio::awaitable<std::vector<int>> FindTargets() {
     if (!targets_.empty()) {
       co_return targets_;
     }
+
+    discovered_ = true;
 
     std::vector<int> result;
     for (int i = 1; i < 127; i++) {
@@ -255,7 +263,7 @@ class Runner {
     }
 
     for (int target_id : targets_) {
-      if (targets_.size() > 1) {
+      if (discovered_ || targets_.size() > 1) {
         std::cout << fmt::format("Target: {}\n", target_id);
       }
       co_await RunAction(target_id);
@@ -360,20 +368,40 @@ class Runner {
       CommandOptions command_options = CommandOptions()) {
 
     for (int i = 0; i < command_options.retry_count; i++) {
-      // TODO(jpieper): Actually handle timeout.
       co_await WriteMessage(stream, message);
 
-      const auto result = co_await ReadUntilOK(stream);
-      co_return result;
+      const auto expiration = io::Now(executor_.context()) +
+          base::ConvertSecondsToDuration(command_options.retry_timeout);
+
+      const auto maybe_result = co_await RunFor(
+          executor_,
+          stream,
+          [&]() -> boost::asio::awaitable<std::optional<std::string>> {
+            if (command_options.allow_any_response) {
+              co_return co_await ReadLine(stream);
+            } else {
+              co_return co_await ReadUntilOK(stream);
+            }
+          },
+          expiration);
+
+      if (!!maybe_result) {
+        co_return *maybe_result;
+      }
     }
 
     co_return std::optional<std::string>();
   }
 
-  boost::asio::awaitable<std::string> ReadUntilOK(io::AsyncStream& stream) {
+  boost::asio::awaitable<std::optional<std::string>>
+  ReadUntilOK(io::AsyncStream& stream) {
     std::string result;
     while (true) {
-      auto line = co_await ReadLine(stream);
+      auto maybe_line = co_await ReadLine(stream);
+      if (!maybe_line) {
+        co_return std::optional<std::string>{};
+      }
+      const auto line = *maybe_line;
       if (line.substr(0, 2) == "OK") { co_return result; }
       result += line;
     }
@@ -388,13 +416,20 @@ class Runner {
     co_return;
   }
 
-  boost::asio::awaitable<std::string> ReadLine(io::AsyncStream& stream) {
+  boost::asio::awaitable<std::optional<std::string>>
+  ReadLine(io::AsyncStream& stream) {
     boost::asio::streambuf streambuf;
+    boost::system::error_code ec;
     co_await boost::asio::async_read_until(
         stream,
         streambuf,
         '\n',
-        boost::asio::use_awaitable);
+        boost::asio::redirect_error(boost::asio::use_awaitable, ec));
+    if (ec == boost::asio::error::operation_aborted) {
+      co_return std::optional<std::string>();
+    } else if (ec) {
+      throw mjlib::base::system_error(ec);
+    }
     std::ostringstream ostr;
     ostr << &streambuf;
     co_return ostr.str();
@@ -509,7 +544,8 @@ class Runner {
             fmt::format("r {:x} {:x}",
                         expected_block.address,
                         expected_block.data.size());
-        const auto maybe_result = co_await Command(stream, cmd);
+        const auto maybe_result = co_await Command(
+            stream, cmd, CommandOptions().set_allow_any_response(true));
         emit_progress(verify_ctx, "verifying");
         base::system_error::throw_if(
             !maybe_result, fmt::format("no response verifying address {:x}",
@@ -536,6 +572,7 @@ class Runner {
         fmt::format("verify returned wrong address {:x} != {:x}",
                     actual_address, expected.address));
 
+    boost::trim(fields[1]);
     std::transform(fields[1].begin(), fields[1].end(),
                    fields[1].begin(),
                    [](auto c) { return std::tolower(c); });
@@ -550,6 +587,7 @@ class Runner {
   boost::asio::executor_work_guard<boost::asio::executor> guard_{executor_};
   io::Selector<mp::AsioClient>* const client_selector_;
   std::vector<int> targets_;
+  bool discovered_ = false;
   const Options options_;
 
   io::DeadlineTimer timer_{executor_};
