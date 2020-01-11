@@ -1156,7 +1156,7 @@ class TviewMainWindow():
         if item.childCount() > 0:
             return
 
-        menu = QtGui.QMenu(self)
+        menu = QtGui.QMenu(self.ui)
         left_action = menu.addAction('Plot Left')
         right_action = menu.addAction('Plot Right')
         menu.addSeparator()
