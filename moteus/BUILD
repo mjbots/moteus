@@ -307,5 +307,6 @@ test_suite(
     tests = [
         "test",
         "dummy_host_test",
+        "//moteus/tool:test",
     ],
 )

@@ -24,6 +24,8 @@
 
 #include <fmt/format.h>
 
+#include <Eigen/Dense>
+
 #include <elfio/elfio.hpp>
 
 #include "mjlib/base/clipp.h"
@@ -37,6 +39,7 @@
 #include "mjlib/io/stream_factory.h"
 #include "mjlib/multiplex/stream_asio_client_builder.h"
 
+#include "moteus/tool/calibrate.h"
 #include "moteus/tool/run_for.h"
 
 namespace pl = std::placeholders;
@@ -142,6 +145,9 @@ struct Options {
 
   bool verbose = false;
   std::vector<std::string> targets;
+
+  bool calibrate = false;
+  double calibration_power = 0.40;
 };
 
 std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
@@ -240,7 +246,9 @@ class Runner {
       (options_.stop ? 1 : 0) +
       (options_.dump_config ? 1 : 0) +
       (options_.console ? 1 : 0) +
-      (!options_.flash.empty() ? 1 : 0);
+      (!options_.flash.empty() ? 1 : 0) +
+      (options_.calibrate ? 1 : 0)
+      ;
     }();
 
     if (command_count > 1) {
@@ -251,6 +259,7 @@ class Runner {
     // Some actions can only be run with a single target.
     const bool single_target = [&]() {
       if (options_.console) { return true; }
+      if (options_.calibrate) { return true; }
       return false;
     }();
 
@@ -316,6 +325,8 @@ class Runner {
 
     } else if (!options_.flash.empty()) {
       co_await DoFlash(*stream);
+    } else if (options_.calibrate) {
+      co_await DoCalibrate(*stream);
     }
   }
 
@@ -366,6 +377,10 @@ class Runner {
       io::AsyncStream& stream,
       const std::string& message,
       CommandOptions command_options = CommandOptions()) {
+
+    if (options_.verbose) {
+      std::cout << fmt::format("> {}\n", message);
+    }
 
     for (int i = 0; i < command_options.retry_count; i++) {
       co_await WriteMessage(stream, message);
@@ -432,7 +447,11 @@ class Runner {
     }
     std::ostringstream ostr;
     ostr << &streambuf;
-    co_return ostr.str();
+    const auto result = ostr.str();
+    if (options_.verbose) {
+      std::cout << "< " << result;
+    }
+    co_return result;
   }
 
   boost::asio::awaitable<void> DoFlash(io::AsyncStream& stream) {
@@ -583,6 +602,251 @@ class Runner {
                     fields[1], Hexify(expected.data)));
   }
 
+  boost::asio::awaitable<void> DoCalibrate(io::AsyncStream& stream) {
+    std::cout << "This will move the motor, ensure it can spin freely!\n";
+    co_await Sleep(2.0);
+
+    std::string error_message;
+
+    try {
+      // The user needs to have set this beforehand.
+      unwrapped_position_scale_ =
+          co_await ReadConfigDouble(stream, "motor.unwrapped_position_scale");
+
+      // We have 3 things to calibrate.
+      //  1) The encoder to phase mapping
+      //  2) The winding resistance
+      //  3) The kV rating of the motor.
+
+      std::cout << "Starting calibration process\n";
+      co_await CalibrateEncoderMapping(stream);
+      co_await CalibrateWindingResistance(stream);
+      co_await CalibrateKvRating(stream);
+
+      std::cout << "Saving to persistent storage\n";
+
+      co_await Command(stream, "conf write");
+
+      std::cout << "Calibration complete\n";
+
+      co_return;
+    } catch (std::runtime_error& e) {
+      // Eat exceptions so that we can stop.
+      error_message = e.what();
+    }
+
+    // At least attempt to stop the motor.
+    co_await StopIf(true, stream, error_message);
+  }
+
+  boost::asio::awaitable<void> CalibrateEncoderMapping(io::AsyncStream& stream) {
+    // We start with the encoder mapping.  For that to work, we
+    // first want to get it locked into zero phase.
+    co_await Command(
+        stream, fmt::format("d pwm 0 {}", options_.calibration_power));
+    co_await Sleep(3.0);
+
+    co_await(Command(stream, "d stop"));
+    co_await Sleep(0.1);
+
+    co_await WriteMessage(
+        stream, fmt::format("d cal {}", options_.calibration_power));
+
+    std::vector<std::string> lines;
+    int index = 0;
+    while (true) {
+      const auto maybe_line = co_await ReadLine(stream);
+      StopIf(!maybe_line, stream, "error reading calibration");
+      const auto line = boost::trim_copy(*maybe_line);
+      if (!options_.verbose) {
+        std::cout << "Calibrating " << "/-\\|"[index] << "\r";
+        std::cout.flush();
+        index = (index + 1) % 4;
+      }
+      lines.push_back(line);
+      if (boost::starts_with(lines.back(), "CAL done")) {
+        break;
+      }
+    }
+
+    const auto cal_result = Calibrate(lines);
+
+    std::cout << "\nStoring encoder config\n";
+    co_await Command(
+        stream, fmt::format("conf set motor.poles {}", cal_result.poles));
+    co_await Command(
+        stream, fmt::format("conf set motor.invert {}",
+                            cal_result.invert ? 1 : 0));
+    for (size_t i = 0; i < cal_result.offset.size(); i++) {
+      co_await Command(
+          stream, fmt::format("conf set motor.offset.{} {}",
+                              i, cal_result.offset[i]));
+    }
+  }
+
+  boost::asio::awaitable<std::map<std::string, std::string>> ReadData(
+      io::AsyncStream& stream, const std::string& channel) {
+    co_await Command(stream, fmt::format("tel fmt {} 1", channel));
+    const auto maybe_response =
+        co_await Command(stream, fmt::format("tel get {}", channel),
+                         CommandOptions().set_retry_timeout(1.0));
+    StopIf(!maybe_response, stream, "couldn't get telemetry");
+    const auto response = *maybe_response;
+    std::vector<std::string> lines;
+    boost::split(lines, response, boost::is_any_of("\r\n"));
+
+    std::map<std::string, std::string> result;
+    for (const auto& line : lines) {
+      std::vector<std::string> fields;
+      boost::split(fields, line, boost::is_any_of(" "));
+      if (fields.size() < 2) { continue; }
+      result[fields.at(0)] = fields.at(1);
+    }
+    co_return result;
+  }
+
+  boost::asio::awaitable<double> FindCurrent(
+      io::AsyncStream& stream, double voltage) {
+    BOOST_ASSERT(voltage < 0.6);
+    BOOST_ASSERT(voltage >= 0.0);
+
+    co_await Command(stream, fmt::format("d pwm 0 {:.3f}", voltage));
+
+    // Wait a bit for it to stabilize.
+    co_await Sleep(0.3);
+
+    // Now get the servo_stats telemetry channel to read the D and Q
+    // currents.
+    auto data = co_await ReadData(stream, "servo_stats");
+
+    // Stop the current.
+    co_await Command(stream, "d stop");
+
+    // Sleep a tiny bit before returning.
+    co_await Sleep(0.1);
+
+    const auto d_cur = std::stod(data["servo_stats.d_A"]);
+    const auto q_cur = std::stod(data["servo_stats.q_A"]);
+
+    const double current_A = std::hypot(d_cur, q_cur);
+    std::cout << fmt::format("{}V - {}A\n", voltage, current_A);
+    co_return current_A;
+  }
+
+  double CalculateWindingResistance(
+      const std::vector<double>& voltages_in,
+      const std::vector<double>& currents_in) const {
+    Eigen::VectorXd voltages(voltages_in.size(), 1);
+    for (size_t i = 0; i < voltages_in.size(); i++) {
+      voltages(i) = voltages_in[i];
+    }
+    Eigen::MatrixXd currents(currents_in.size(), 1);
+    for (size_t i = 0; i < currents_in.size(); i++) {
+      currents(i, 0) = currents_in[i];
+    }
+
+    Eigen::VectorXd solution = currents.colPivHouseholderQr().solve(voltages);
+    return solution(0, 0);
+  }
+
+  boost::asio::awaitable<void> CalibrateWindingResistance(io::AsyncStream& stream) {
+    std::cout << "Calculating winding resistance\n";
+
+    const std::vector<double> voltages = { 0.25, 0.3, 0.35, 0.4, 0.45 };
+    std::vector<double> currents;
+    for (auto voltage : voltages) {
+      currents.push_back(co_await FindCurrent(stream, voltage));
+    }
+
+    const auto winding_resistance = CalculateWindingResistance(voltages, currents);
+
+    std::cout << fmt::format("Winding resistance: {} ohm\n", winding_resistance);
+
+    co_await Command(stream, fmt::format("conf set motor.resistance_ohm {}",
+                                         winding_resistance));
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> CalibrateKvRating(io::AsyncStream& stream) {
+    std::cout << "Calculating kV rating\n";
+
+    // Retrieve and then restore the position configuration.
+    const double original_position_min =
+        co_await ReadConfigDouble(stream, "servopos.position_min");
+    const double original_position_max =
+        co_await ReadConfigDouble(stream, "servopos.position_max");
+
+    const double speed = 2.0;
+
+    co_await Command(stream, "conf set servopos.position_min -10000");
+    co_await Command(stream, "conf set servopos.position_max 10000");
+    co_await Command(stream, "conf set motor.v_per_hz 0");
+    co_await Command(stream, "d index 0");
+    co_await Command(stream, fmt::format("d pos nan {} 5", speed));
+
+    co_await Sleep(2.0);
+
+    // Read a number of times to be sure we've got something real.
+    Eigen::VectorXd q_Vs(10);
+    for (int i = 0; i < q_Vs.size(); i++) {
+      const auto servo_control = co_await ReadData(stream, "servo_control");
+      co_await Sleep(0.1);
+      q_Vs[i] = std::stod(servo_control.at("servo_control.q_V"));
+    }
+
+    co_await Command(stream, "d stop");
+    co_await Sleep(0.5);
+
+    const double average_q_V = q_Vs.mean();
+
+    const double v_per_hz = unwrapped_position_scale_ * average_q_V / speed;
+
+    std::cout << fmt::format("speed={} q_V={} v_per_hz (pre-gearbox)={}\n",
+                             speed, average_q_V, v_per_hz);
+
+    co_await Command(
+        stream, fmt::format("conf set motor.v_per_hz {}", v_per_hz));
+    co_await Command(
+        stream, fmt::format("conf set servopos.position_min {}",
+                            original_position_min));
+    co_await Command(
+        stream, fmt::format("conf set servopos.position_max {}",
+                            original_position_max));
+
+    co_return;
+  }
+
+  boost::asio::awaitable<double> ReadConfigDouble(
+      io::AsyncStream& stream,
+      const std::string& name) {
+    const auto maybe_result = co_await Command(
+        stream, fmt::format("conf get {}", name),
+        CommandOptions().set_allow_any_response(true));
+    co_await StopIf(!maybe_result, stream,
+                    fmt::format("could not retrieve {}", name));
+    const auto result = std::stod(*maybe_result);
+    co_return result;
+  }
+
+  boost::asio::awaitable<void> StopIf(
+      bool condition, io::AsyncStream& stream, const std::string& message) {
+    if (!condition) { co_return; }
+
+    co_await Command(stream, "d stop");
+    std::cerr << "Error\n";
+    std::cerr << message << "\n";
+    std::exit(1);
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> Sleep(double seconds) {
+    boost::asio::deadline_timer timer(executor_);
+    timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(seconds));
+    co_await timer.async_wait(boost::asio::use_awaitable);
+  }
+
   boost::asio::executor executor_;
   boost::asio::executor_work_guard<boost::asio::executor> guard_{executor_};
   io::Selector<mp::AsioClient>* const client_selector_;
@@ -595,6 +859,8 @@ class Runner {
   io::SharedStream stdio_;
   mp::AsioClient* client_ = nullptr;
   std::optional<io::BidirectionalStreamCopy> copy_;
+
+  double unwrapped_position_scale_ = 1.0;
 };
 
 }
@@ -605,7 +871,15 @@ int moteus_tool_main(boost::asio::io_context& context,
   io::Selector<mp::AsioClient> default_client_selector{
     context.get_executor(), "client_type"};
   if (selector == nullptr) {
-    default_client_selector.Register<mp::StreamAsioClientBuilder>("stream");
+    // Set some convenient defaults.
+    mp::StreamAsioClientBuilder::Options default_stream_options;
+    default_stream_options.stream.type = io::StreamFactory::Type::kSerial;
+    default_stream_options.stream.serial_port = "/dev/fdcanusb";
+    // If the baud rate does matter, 3mbit is a good one.
+    default_stream_options.stream.serial_baud = 3000000;
+
+    default_client_selector.Register<mp::StreamAsioClientBuilder>(
+        "stream", default_stream_options);
     default_client_selector.set_default("stream");
     selector = &default_client_selector;
   }
@@ -626,7 +900,12 @@ int moteus_tool_main(boost::asio::io_context& context,
       clipp::option("dump-config").set(options.dump_config).doc(
           "emit all configuration to the console"),
       clipp::option("flash") & clipp::value("file", options.flash).doc(
-          "write the given elf file to flash")
+          "write the given elf file to flash"),
+      clipp::option("calibrate").set(options.calibrate).doc(
+          "calibrate the motor, requires full freedom of motion"),
+      clipp::option("calibration_power") &
+      clipp::value("V", options.calibration_power).doc(
+          "voltage to use during calibration")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 

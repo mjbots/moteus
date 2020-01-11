@@ -53,6 +53,8 @@ cc_library(
     name = "moteus_tool_lib",
     hdrs = ["moteus_tool.h"],
     srcs = [
+        "calibrate.h",
+        "calibrate.cc",
         "moteus_tool.cc",
         "run_for.h",
     ],
@@ -70,7 +72,20 @@ cc_library(
         "@com_github_mjbots_mjlib//mjlib/multiplex:stream_asio_client_builder",
         "@boost//:system",
         "@com_github_serge1_elfio//:elfio",
+        "@eigen",
         "@fmt",
+    ],
+)
+
+cc_test(
+    name = "test",
+    srcs = [
+        "test/calibrate_test.cc",
+        "test/test_main.cc",
+    ],
+    deps = [
+        ":moteus_tool_lib",
+        "@boost//:test",
     ],
 )
 
