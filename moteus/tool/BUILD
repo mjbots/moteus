@@ -16,23 +16,9 @@
 
 package(default_visibility = ["//visibility:public"])
 
-py_library(
+py_binary(
     name = "calibrate_encoder",
     srcs = ["calibrate_encoder.py"],
-)
-
-py_binary(
-    name = "py_moteus_tool",
-    srcs = ["moteus_tool.py"],
-    main = "moteus_tool.py",
-    deps = [
-        ":calibrate_encoder",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
-    ],
-    imports = [
-        "../../../mjlib",
-    ],
 )
 
 py_binary(

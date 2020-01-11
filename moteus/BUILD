@@ -297,7 +297,8 @@ py_test(
     ],
     deps = [
         "jump_test",
-        "//moteus/tool:py_moteus_tool",
+        "//moteus/tool:calibrate_encoder",
+        "//moteus/tool:tview",
     ],
 )
 
