@@ -147,7 +147,7 @@ class BldcServo {
     float flux_brake_resistance_ohm = 0.1;
 
     Config() {
-      pid_dq.kp = 0.1f;
+      pid_dq.kp = 0.005f;
       pid_dq.ki = 30.0f;
       pid_dq.ilimit = 20.0f;
       pid_dq.sign = -1.0f;
