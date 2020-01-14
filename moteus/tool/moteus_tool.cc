@@ -620,9 +620,16 @@ class Runner {
       //  3) The kV rating of the motor.
 
       std::cout << "Starting calibration process\n";
+      co_await CheckForFault(stream);
+
       co_await CalibrateEncoderMapping(stream);
+      co_await CheckForFault(stream);
+
       co_await CalibrateWindingResistance(stream);
+      co_await CheckForFault(stream);
+
       co_await CalibrateKvRating(stream);
+      co_await CheckForFault(stream);
 
       std::cout << "Saving to persistent storage\n";
 
@@ -839,6 +846,16 @@ class Runner {
                     fmt::format("could not retrieve {}", name));
     const auto result = std::stod(*maybe_result);
     co_return result;
+  }
+
+  boost::asio::awaitable<void> CheckForFault(io::AsyncStream& stream) {
+    const auto servo_stats = co_await ReadData(stream, "servo_stats");
+    if (servo_stats.at("servo_stats.mode") == "1") {
+      mjlib::base::system_error::throw_if(
+          true, fmt::format("Controller reported fault: {}",
+                            servo_stats.at("servo_stats.fault")));
+    }
+    co_return;
   }
 
   boost::asio::awaitable<void> StopIf(
