@@ -1,5 +1,10 @@
 Build test fixture
 
+r4.2
+ * A & C phase wires are *awfully* close to the gate drive terminals
+   of their respective FETS.  Really easy to short them out when
+   soldering, and would be easy to slide a bit further away
+
 r4.2 DONE
  * Added 2k pullups to DRV8323 MISO and FAULT line
  * Added silk to DAC pin
