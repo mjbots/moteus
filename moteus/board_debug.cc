@@ -36,6 +36,7 @@ namespace multiplex = mjlib::multiplex;
 namespace moteus {
 constexpr float kPi = 3.14159265359f;
 constexpr float kCalibrationStep = 0.002;
+constexpr int kMaxCalMs = 200000;  // 200s
 
 namespace {
 void recurse(int count, base::inplace_function<void(int)> callback) {
@@ -66,7 +67,8 @@ class BoardDebug::Impl {
   }
 
   void DoCalibration() {
-    const int kStep = 65536 / 1000;  // 1 electrical phase per second
+    // speed of 1 is 1 electrical phase per second
+    const int kStep = static_cast<int>(cal_speed_ * 65536.0f / 1000.0f);
     const uint16_t position_raw = bldc_->status().position_raw;
     const int32_t delta =
         static_cast<int16_t>(position_raw - cal_old_position_raw_);
@@ -75,6 +77,24 @@ class BoardDebug::Impl {
     cal_phase_ += ((motor_cal_mode_ == kPhaseUp) ? 1 : -1) * kStep;
     const bool phase_complete = std::abs(cal_position_delta_) > 65536;
     cal_count_++;
+
+    if (cal_count_ > kMaxCalMs) {
+      // Whoops, something is wrong.  Either this motor has a *lot* of
+      // poles, or the magnet isn't functioning properly.  Just end
+      // with an error.
+      if (write_outstanding_) { return; }
+
+      WriteMessage(cal_response_, "CAL timeout\r\n");
+      cal_response_ = {};
+      motor_cal_mode_ = kNoMotorCal;
+
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kStopped;
+
+      bldc_->Command(command);
+
+      return;
+    }
 
     switch (motor_cal_mode_) {
       case kPhaseUp: {
@@ -192,6 +212,29 @@ class BoardDebug::Impl {
       if (magnitude_str.empty()) {
         WriteMessage(response, "missing mag\r\n");
         return;
+      }
+
+      cal_speed_ = 1.0f;
+
+      while (tokenizer.remaining().size()) {
+        const auto token = tokenizer.next();
+
+        // We accept optional arguments, each prefixed by a single character.
+
+        if (token.size() < 1) { continue; }
+        const char option = token[0];
+        const float value = std::strtof(&token[1], nullptr);
+
+        switch (option) {
+          case 's': {
+            cal_speed_ = value;
+            break;
+          }
+          default: {
+            WriteMessage(response, "unknown cal option\r\n");
+            return;
+          }
+        }
       }
 
       cal_response_ = response;
@@ -427,6 +470,7 @@ class BoardDebug::Impl {
   uint16_t cal_old_position_raw_ = 0;
   int32_t cal_position_delta_ = 0;
   float cal_magnitude_ = 0.0f;
+  float cal_speed_ = 1.0f;
   bool write_outstanding_ = false;
 };
 

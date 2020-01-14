@@ -148,6 +148,7 @@ struct Options {
 
   bool calibrate = false;
   double calibration_power = 0.40;
+  double calibration_speed = 1.0;
 };
 
 std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
@@ -643,7 +644,9 @@ class Runner {
     // We start with the encoder mapping.  For that to work, we
     // first want to get it locked into zero phase.
     co_await Command(
-        stream, fmt::format("d pwm 0 {}", options_.calibration_power));
+        stream, fmt::format(
+            "d pwm 0 {} s{}",
+            options_.calibration_power, options_.calibration_speed));
     co_await Sleep(3.0);
 
     co_await(Command(stream, "d stop"));
@@ -665,7 +668,16 @@ class Runner {
       }
       lines.push_back(line);
       if (boost::starts_with(lines.back(), "CAL done")) {
+        // All good!
         break;
+      }
+      if (boost::starts_with(lines.back(), "CAL start")) {
+        continue;
+      }
+      if (boost::starts_with(lines.back(), "CAL")) {
+        // Some problem.
+        base::system_error::throw_if(
+            true, fmt::format("Error calibrating: {}", lines.back()));
       }
     }
 
@@ -905,7 +917,10 @@ int moteus_tool_main(boost::asio::io_context& context,
           "calibrate the motor, requires full freedom of motion"),
       clipp::option("calibration_power") &
       clipp::value("V", options.calibration_power).doc(
-          "voltage to use during calibration")
+          "voltage to use during calibration"),
+      clipp::option("calibration_speed") &
+      clipp::value("S", options.calibration_speed).doc(
+          "speed in electrical rps")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 
