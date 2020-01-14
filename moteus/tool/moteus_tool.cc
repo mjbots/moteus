@@ -20,6 +20,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
 
 #include <fmt/format.h>
@@ -44,6 +45,7 @@
 #include "moteus/tool/run_for.h"
 
 namespace pl = std::placeholders;
+namespace fs = boost::filesystem;
 namespace base = mjlib::base;
 namespace io = mjlib::io;
 namespace mp = mjlib::multiplex;
@@ -55,6 +57,24 @@ namespace {
 
 constexpr int kMaxFlashBlockSize = 32;
 constexpr double kPi = 3.141592653589793f;
+
+std::string GetLogDirectory() {
+  // First, look for a dedicated moteus calibration directory.
+  const char* moteus_cal_dir = getenv("MOTEUS_CAL_DIR");
+  if (moteus_cal_dir != nullptr) {
+    return moteus_cal_dir;
+  }
+
+  const char* home = getenv("HOME");
+  if (home != NULL) {
+    fs::path maybe_dir = fs::path(home) / "moteus-cal";
+    if (fs::exists(maybe_dir)) {
+      return maybe_dir.native();
+    }
+  }
+
+  return ".";
+}
 
 std::string Hexify(const std::string& data) {
   std::ostringstream ostr;
@@ -77,7 +97,8 @@ struct CalibrationReport {
   std::string firmware_version;
   std::string model;
 
-  int poles = 0;
+  CalibrationResult calibration;
+
   double winding_resistance = 0.0;
   double v_per_hz = 0.0;
   double kv = 0.0;
@@ -89,7 +110,7 @@ struct CalibrationReport {
     a->Visit(MJ_NVP(serial_number));
     a->Visit(MJ_NVP(firmware_version));
     a->Visit(MJ_NVP(model));
-    a->Visit(MJ_NVP(poles));
+    a->Visit(MJ_NVP(calibration));
     a->Visit(MJ_NVP(winding_resistance));
     a->Visit(MJ_NVP(v_per_hz));
     a->Visit(MJ_NVP(kv));
@@ -678,6 +699,19 @@ class Runner {
       };
 
       report.timestamp = io::Now(executor_.context());
+      const std::vector<std::string> required_keys = {
+        "firmware.serial_number.0",
+        "firmware.serial_number.1",
+        "firmware.serial_number.2",
+        "firmware.version",
+      };
+
+      for (const auto& key : required_keys) {
+        mjlib::base::system_error::throw_if(
+            firmware.count(key) == 0,
+            fmt::format("did not find required firmware key: {}", key));
+      }
+
       report.serial_number = fmt::format(
           "{:08x}{:08x}{:08x}",
           std::stoi(firmware.at("firmware.serial_number.0")),
@@ -688,18 +722,31 @@ class Runner {
       report.model =
           fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
 
-      report.poles = cal_result.poles;
+      report.calibration = cal_result;
       report.winding_resistance = winding_resistance;
       report.v_per_hz = v_per_hz;
       report.kv = kPi / (report.v_per_hz / (2 * kPi));
       report.unwrapped_position_scale = unwrapped_position_scale_;
 
-      std::cout << "REPORT\n";
+      std::string log_filename = fmt::format(
+          "moteus-cal-{}-{}.log",
+          report.serial_number,
+          boost::posix_time::to_iso_string(report.timestamp));
+
+      std::cout << fmt::format("REPORT: {}\n", log_filename);
       std::cout << "------------------------\n";
 
       mjlib::base::Json5WriteArchive(std::cout).Accept(&report);
 
       std::cout << "\n";
+
+      std::ofstream log_file(GetLogDirectory() + "/" + log_filename);
+      if (!log_file.is_open()) {
+        std::cerr << "Could not open log: " << log_filename << "\n";
+      } else {
+        mjlib::base::Json5WriteArchive(log_file).Accept(&report);
+        log_file << "\n";
+      }
 
       co_return;
     } catch (std::runtime_error& e) {
@@ -877,10 +924,10 @@ class Runner {
     co_await Sleep(2.0);
 
     // Read a number of times to be sure we've got something real.
-    Eigen::VectorXd q_Vs(30);
+    Eigen::VectorXd q_Vs(80);
     for (int i = 0; i < q_Vs.size(); i++) {
       const auto servo_control = co_await ReadData(stream, "servo_control");
-      co_await Sleep(0.1);
+      co_await Sleep(0.05);
       q_Vs[i] = std::stod(servo_control.at("servo_control.q_V"));
     }
 

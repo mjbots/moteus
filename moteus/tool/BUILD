@@ -57,6 +57,7 @@ cc_library(
         "@com_github_mjbots_mjlib//mjlib/io:stream_copy",
         "@com_github_mjbots_mjlib//mjlib/io:stream_factory",
         "@com_github_mjbots_mjlib//mjlib/multiplex:stream_asio_client_builder",
+        "@boost//:filesystem",
         "@boost//:system",
         "@com_github_serge1_elfio//:elfio",
         "@eigen",

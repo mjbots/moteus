@@ -17,6 +17,8 @@
 #include <string>
 #include <vector>
 
+#include "mjlib/base/visitor.h"
+
 namespace moteus {
 namespace tool {
 
@@ -29,6 +31,13 @@ struct CalibrationResult {
   double total_phase = 0;
   double total_delta = 0;
   double ratio = 0;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(invert));
+    a->Visit(MJ_NVP(poles));
+    a->Visit(MJ_NVP(offset));
+  }
 };
 
 /// Attempt to solve the calibration problem for a moteus servo.  @p
