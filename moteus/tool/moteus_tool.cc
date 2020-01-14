@@ -30,6 +30,7 @@
 
 #include "mjlib/base/clipp.h"
 #include "mjlib/base/fail.h"
+#include "mjlib/base/json5_write_archive.h"
 #include "mjlib/base/system_error.h"
 #include "mjlib/base/time_conversions.h"
 #include "mjlib/io/async_sequence.h"
@@ -53,6 +54,7 @@ namespace tool {
 namespace {
 
 constexpr int kMaxFlashBlockSize = 32;
+constexpr double kPi = 3.141592653589793f;
 
 std::string Hexify(const std::string& data) {
   std::ostringstream ostr;
@@ -66,6 +68,31 @@ struct ElfMapping {
   int64_t virtual_address = 0;
   int64_t physical_address = 0;
   int64_t size = 0;
+};
+
+struct CalibrationReport {
+  boost::posix_time::ptime timestamp;
+
+  std::string serial_number;
+  std::string firmware_version;
+  std::string model;
+
+  double winding_resistance = 0.0;
+  double v_per_hz = 0.0;
+  double kv = 0.0;
+  double unwrapped_position_scale = 0.0;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(timestamp));
+    a->Visit(MJ_NVP(serial_number));
+    a->Visit(MJ_NVP(firmware_version));
+    a->Visit(MJ_NVP(model));
+    a->Visit(MJ_NVP(winding_resistance));
+    a->Visit(MJ_NVP(v_per_hz));
+    a->Visit(MJ_NVP(kv));
+    a->Visit(MJ_NVP(unwrapped_position_scale));
+  }
 };
 
 class ElfMappings {
@@ -625,10 +652,11 @@ class Runner {
       co_await CalibrateEncoderMapping(stream);
       co_await CheckForFault(stream);
 
-      co_await CalibrateWindingResistance(stream);
+      const auto winding_resistance =
+          co_await CalibrateWindingResistance(stream);
       co_await CheckForFault(stream);
 
-      co_await CalibrateKvRating(stream);
+      const auto v_per_hz = co_await CalibrateKvRating(stream);
       co_await CheckForFault(stream);
 
       std::cout << "Saving to persistent storage\n";
@@ -636,6 +664,38 @@ class Runner {
       co_await Command(stream, "conf write");
 
       std::cout << "Calibration complete\n";
+      CalibrationReport report;
+
+      const auto firmware = co_await ReadData(stream, "firmware");
+
+      auto get = [](const auto& map, auto key, auto dft) -> std::string {
+        auto it = map.find(key);
+        if (it == map.end()) { return dft; }
+        return it->second;
+      };
+
+      report.timestamp = io::Now(executor_.context());
+      report.serial_number = fmt::format(
+          "{:08x}{:08x}{:08x}",
+          std::stoi(firmware.at("firmware.serial_number.0")),
+          std::stoi(firmware.at("firmware.serial_number.1")),
+          std::stoi(firmware.at("firmware.serial_number.2")));
+      report.firmware_version =
+          fmt::format("{:x}", std::stoi(firmware.at("firmware.version")));
+      report.model =
+          fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
+
+      report.winding_resistance = winding_resistance;
+      report.v_per_hz = v_per_hz;
+      report.kv = kPi / (report.v_per_hz / (2 * kPi));
+      report.unwrapped_position_scale = unwrapped_position_scale_;
+
+      std::cout << "REPORT\n";
+      std::cout << "------------------------\n";
+
+      mjlib::base::Json5WriteArchive(std::cout).Accept(&report);
+
+      std::cout << "\n";
 
       co_return;
     } catch (std::runtime_error& e) {
@@ -768,7 +828,8 @@ class Runner {
     return solution(0, 0);
   }
 
-  boost::asio::awaitable<void> CalibrateWindingResistance(io::AsyncStream& stream) {
+  boost::asio::awaitable<double> CalibrateWindingResistance(
+      io::AsyncStream& stream) {
     std::cout << "Calculating winding resistance\n";
 
     const std::vector<double> voltages = { 0.25, 0.3, 0.35, 0.4, 0.45 };
@@ -777,17 +838,19 @@ class Runner {
       currents.push_back(co_await FindCurrent(stream, voltage));
     }
 
-    const auto winding_resistance = CalculateWindingResistance(voltages, currents);
+    const auto winding_resistance =
+        CalculateWindingResistance(voltages, currents);
 
-    std::cout << fmt::format("Winding resistance: {} ohm\n", winding_resistance);
+    std::cout <<
+        fmt::format("Winding resistance: {} ohm\n", winding_resistance);
 
     co_await Command(stream, fmt::format("conf set motor.resistance_ohm {}",
                                          winding_resistance));
 
-    co_return;
+    co_return winding_resistance;
   }
 
-  boost::asio::awaitable<void> CalibrateKvRating(io::AsyncStream& stream) {
+  boost::asio::awaitable<double> CalibrateKvRating(io::AsyncStream& stream) {
     std::cout << "Calculating kV rating\n";
 
     // Retrieve and then restore the position configuration.
@@ -833,7 +896,7 @@ class Runner {
         stream, fmt::format("conf set servopos.position_max {}",
                             original_position_max));
 
-    co_return;
+    co_return v_per_hz;
   }
 
   boost::asio::awaitable<double> ReadConfigDouble(
