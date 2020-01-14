@@ -20,6 +20,9 @@
    <layout class="QVBoxLayout" name="verticalLayout_3">
     <item>
      <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
         <string>Plot</string>
@@ -78,11 +81,6 @@
         </item>
        </layout>
       </widget>
-      <widget class="QWidget" name="tab_2">
-       <attribute name="title">
-        <string>Tab 2</string>
-       </attribute>
-      </widget>
      </widget>
     </item>
    </layout>
@@ -93,7 +91,7 @@
      <x>0</x>
      <y>0</y>
      <width>1254</width>
-     <height>20</height>
+     <height>19</height>
     </rect>
    </property>
   </widget>
