@@ -48,7 +48,15 @@ class Drv8323::Impl {
             // I observed 2MHz being unreliable with the built-in
             // pullup on MISO, but 1MHz seemed OK.  Thus, lets just do
             // a bit lower for safety.
+
+#if MOTEUS_HW_REV <= 3
+            // Silk 4.1 and below lacked a pullup resistor on MISO.
+            // Newer versions have a pullup resistor and can go
+            // faster.
             out.frequency = 500000;
+#else
+            out.frequency = 1000000;
+#endif
             return out;
           }()),
         enable_(options.enable, 0),

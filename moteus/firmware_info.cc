@@ -20,19 +20,23 @@ namespace {
 struct Info {
   uint32_t version = 0;
   std::array<uint32_t, 3> serial_number = {};
+  uint32_t model = 0;
 
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(version));
     a->Visit(MJ_NVP(serial_number));
+    a->Visit(MJ_NVP(model));
   }
 };
 }
 
 class FirmwareInfo::Impl {
  public:
-  Impl(mjlib::micro::TelemetryManager& telemetry, uint32_t version) {
+  Impl(mjlib::micro::TelemetryManager& telemetry, uint32_t version,
+       uint32_t model) {
     info_.version = version;
+    info_.model = model;
 
     const int32_t* const device_signature =
         reinterpret_cast<const int32_t*>(
@@ -55,8 +59,9 @@ class FirmwareInfo::Impl {
 
 FirmwareInfo::FirmwareInfo(mjlib::micro::Pool& pool,
                            mjlib::micro::TelemetryManager& telemetry,
-                           uint32_t version)
-    : impl_(&pool, telemetry, version) {}
+                           uint32_t version,
+                           uint32_t model)
+    : impl_(&pool, telemetry, version, model) {}
 
 FirmwareInfo::~FirmwareInfo() {}
 

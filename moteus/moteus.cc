@@ -142,7 +142,7 @@ int main(void) {
                 (hwrev1.read() << 1) |
                 (hwrev2.read() << 2)));
   g_measured_hw_rev = this_hw_rev;
-  MJ_ASSERT(this_hw_rev == (MOTEUS_HW_REV - MOTEUS_HW_REV_OFFSET));
+  MJ_ASSERT(this_hw_rev == moteus::kHardwareInterlock[MOTEUS_HW_REV]);
 
   // I initially used a Ticker here to enqueue events at 1ms
   // intervals.  However, it introduced jitter into the current
@@ -196,7 +196,8 @@ int main(void) {
   micro::PersistentConfig persistent_config(pool, command_manager, flash_interface);
 
   SystemInfo system_info(pool, telemetry_manager);
-  FirmwareInfo firmware_info(pool, telemetry_manager, MOTEUS_FIRMWARE_VERSION);
+  FirmwareInfo firmware_info(pool, telemetry_manager,
+                             MOTEUS_FIRMWARE_VERSION, MOTEUS_MODEL_NUMBER);
 
   MoteusController moteus_controller(
       &pool, &persistent_config, &telemetry_manager, &timer, &firmware_info);

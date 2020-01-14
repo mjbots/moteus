@@ -25,8 +25,10 @@ namespace moteus {
 class FirmwareInfo {
  public:
   FirmwareInfo(mjlib::micro::Pool&, mjlib::micro::TelemetryManager&,
-               uint32_t version);
+               uint32_t version, uint32_t model);
   ~FirmwareInfo();
+
+  uint32_t model_number() const;
 
   /// Return the firmware version encoded as 0x010203 major.minor.micro
   uint32_t firmware_version() const;

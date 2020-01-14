@@ -14,6 +14,8 @@
 
 #pragma once
 
+namespace moteus {
+
 // r1 silk
 // #define MOTEUS_HW_REV 0
 
@@ -23,16 +25,33 @@
 // r3 silk
 // #define MOTEUS_HW_REV 2
 
+// r4.1 silk
+// #define MOTEUS_HW_REV 3
+
 // The most recent version of the HW.
 #ifndef MOTEUS_HW_REV
-// r4.1 silk
-#define MOTEUS_HW_REV 3
+// r4.2 silk
+#define MOTEUS_HW_REV 4
 #endif
 
+// The mapping between MOTEUS_HW_REV and the version pins on the
+// board.
 #if defined(TARGET_STM32G4)
-#define MOTEUS_HW_REV_OFFSET 3
+constexpr int kHardwareInterlock[] = {
+  -1,  // r1 (never printed for g4)
+  -1,  // r2 (never printed for g4)
+  -1,  // r3 (never printed for g4)
+  0,   // r4.1
+  0,   // r4.2 (unfortunately, indistinguishable from the interlock)
+};
 #else
-#define MOTEUS_HW_REV_OFFSET 0
+constexpr int kHardwareInterlock[] = {
+  0,   // r1
+  1,   // r2
+  2,   // r3 & r3.1
+  -1,  // never printed for f4
+  -1,  // never printed for f4
+};
 #endif
 
 #define DRV8323_ENABLE PA_3
@@ -160,5 +179,7 @@
 
 
 
-#define MOTEUS_MODEL_NUMBER 0x0300
+#define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
 #define MOTEUS_FIRMWARE_VERSION 0x000100
+
+}
