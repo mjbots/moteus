@@ -77,6 +77,7 @@ struct CalibrationReport {
   std::string firmware_version;
   std::string model;
 
+  int poles = 0;
   double winding_resistance = 0.0;
   double v_per_hz = 0.0;
   double kv = 0.0;
@@ -88,6 +89,7 @@ struct CalibrationReport {
     a->Visit(MJ_NVP(serial_number));
     a->Visit(MJ_NVP(firmware_version));
     a->Visit(MJ_NVP(model));
+    a->Visit(MJ_NVP(poles));
     a->Visit(MJ_NVP(winding_resistance));
     a->Visit(MJ_NVP(v_per_hz));
     a->Visit(MJ_NVP(kv));
@@ -176,6 +178,7 @@ struct Options {
   bool calibrate = false;
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
+  double kv_speed = 12.0;
 };
 
 std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
@@ -649,7 +652,7 @@ class Runner {
       std::cout << "Starting calibration process\n";
       co_await CheckForFault(stream);
 
-      co_await CalibrateEncoderMapping(stream);
+      const auto cal_result = co_await CalibrateEncoderMapping(stream);
       co_await CheckForFault(stream);
 
       const auto winding_resistance =
@@ -685,6 +688,7 @@ class Runner {
       report.model =
           fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
 
+      report.poles = cal_result.poles;
       report.winding_resistance = winding_resistance;
       report.v_per_hz = v_per_hz;
       report.kv = kPi / (report.v_per_hz / (2 * kPi));
@@ -707,7 +711,8 @@ class Runner {
     co_await StopIf(true, stream, error_message);
   }
 
-  boost::asio::awaitable<void> CalibrateEncoderMapping(io::AsyncStream& stream) {
+  boost::asio::awaitable<CalibrationResult>
+  CalibrateEncoderMapping(io::AsyncStream& stream) {
     // We start with the encoder mapping.  For that to work, we
     // first want to get it locked into zero phase.
     co_await Command(
@@ -761,6 +766,8 @@ class Runner {
           stream, fmt::format("conf set motor.offset.{} {}",
                               i, cal_result.offset[i]));
     }
+
+    co_return cal_result;
   }
 
   boost::asio::awaitable<std::map<std::string, std::string>> ReadData(
@@ -859,7 +866,7 @@ class Runner {
     const double original_position_max =
         co_await ReadConfigDouble(stream, "servopos.position_max");
 
-    const double speed = 2.0;
+    const double speed = options_.kv_speed * unwrapped_position_scale_;
 
     co_await Command(stream, "conf set servopos.position_min -10000");
     co_await Command(stream, "conf set servopos.position_max 10000");
@@ -870,7 +877,7 @@ class Runner {
     co_await Sleep(2.0);
 
     // Read a number of times to be sure we've got something real.
-    Eigen::VectorXd q_Vs(10);
+    Eigen::VectorXd q_Vs(30);
     for (int i = 0; i < q_Vs.size(); i++) {
       const auto servo_control = co_await ReadData(stream, "servo_control");
       co_await Sleep(0.1);
@@ -879,6 +886,11 @@ class Runner {
 
     co_await Command(stream, "d stop");
     co_await Sleep(0.5);
+
+    if (options_.verbose) {
+      std::cout << fmt::format("q_V[{}] = ", q_Vs.size());
+      std::cout << q_Vs << "\n";
+    }
 
     const double average_q_V = q_Vs.mean();
 
@@ -1000,7 +1012,10 @@ int moteus_tool_main(boost::asio::io_context& context,
           "voltage to use during calibration"),
       clipp::option("calibration_speed") &
       clipp::value("S", options.calibration_speed).doc(
-          "speed in electrical rps")
+          "speed in electrical rps"),
+      clipp::option("kv_speed") &
+      clipp::value("S", options.kv_speed).doc(
+          "speed in mechanical rotor rps")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 
