@@ -21,54 +21,87 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 * hw/ - hardware (mechanical and electrical designs)
   * controller/ - PCB design for servo controller
+  * gearbox_v2/ - integrated servo
   * full_rotation_leg/ - brackets and 3d printed parts for robot leg
-  * busbar/ - power distribution PCB
-  * imu_junction/ - IMU and power distribution for quadruped
-  * chassis/ - quadruped chassis
-* mjlib/ - software libraries common with firmware and host platform
+  * power_dist/ - power distribution for quadruped
+  * chassis_v2/ - quadruped chassis
 * moteus/ - firmware for brushless controller
+* moteus/tool/ - diagnostic tools
 * tools/ - bazel build configure
 
-# Setup of an individual actuator #
+# Getting started #
 
-## Initial setup ##
+## Dependencies ##
 
-```
-sudo apt install curl python
-```
-
-## Building and flashing the moteus firmware ##
-
-The flash target works out of the box with a stm32f3discovery based
-programmer board.
+At the moment, a custom openocd is required to flash images onto STM32G4 based controllers.  Clone and install from mjbots/openocde
 
 ```
-tools/bazel test -c opt --cpu stm32f4 //moteus:flash
+git clone https://github.com/mjbots/openocd
+cd openocd.git
+./configure && make && sudo make install
 ```
 
-or, to flash an already built binary
+Other dependencies which are required for the graphical debugging UI.  Instructions for ubuntu >=18.04 systems:
 
 ```
-moteus/flash.sh
+sudo apt install python3-serial python3-pyside
 ```
+
+## Building the software ##
+
+This will build the host and target binaries for the latest version of
+the moteus controller.
+
+```
+tools/bazel test -c opt --cpu=stm32g4 //:target
+tools/bazel test //:host
+```
+
+## fdcanusb ##
+
+You can make life more convenient by installing the fdcanusb udev rule
+so that it appears as `/dev/fdcanusb`.  See:
+https://github.com/mjbots/fdcanusb/blob/master/70-fdcanusb.rules
+
+## Running tview ##
+
+tview lets you configure and inspect the state of the controller.  It
+can be run like:
+
+```
+./bazel-out/k8-fastbuild/bin/moteus/tool/tview --devices=1
+```
+
+By default, it uses `/dev/fdcanusb` to communicate with targets.
 
 ## Initial configuration ##
 
-First, build the configuration tool:
+Assuming your controller has firmware installed already, you can
+calibrate the controller using the following procedure.
+
+1. Set `motor.unwrapped_position_scale` using tview.  This is the
+   gearbox ratio.  A direct drive system with no gearbox should be
+   1.0.
+
+2. Run the calibration tool:
 
 ```
-tools/bazel test //moteus:moteus_tool
+./bazel-bin/moteus/moteus_tool --target 1 --calibrate
 ```
 
-Next, calibrate the encoder.  IMPORTANT: The servo must be able to
-spin freely to complete this calibration.
+WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
+
+## Flashing firwmare ##
+
+The firmware can be flashed either using:
 
 ```
-./bazel-bin/moteus/moteus_tool --target 1 --calibrate -v
+./moteus/flash.sh
 ```
 
-Test the calibration by commanding a low current position in tview:
+Or using a bazel rule, which first ensures that all firmware sources
+are built correctly.
 
 ```
-d pos 0 0 5
+tools/bazel test //moteus:flash
 ```
