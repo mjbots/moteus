@@ -105,3 +105,55 @@ are built correctly.
 ```
 tools/bazel test //moteus:flash
 ```
+
+# Reference #
+
+## Mechanical ##
+
+The current mechanical drawing can be found at: [20200115-moteus-controller-r42-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.2/20200115-moteus-controller-r42-mechanical.pdf)
+
+## Pinout ##
+
+### JST PH-3 CAN ###
+
+Looking at the pins of the connector with the bottom of the board up
+the pins are numbered 1 to 3 from left to right.
+
+ * 1 - CAN_H
+ * 2 - CAN_L
+ * 3 - GND
+
+NOTE: Ground may not be necessary, only one path through ground in a
+system should exist to avoid ground loops.  In a typical robot
+application with a common ground, that role is filled by the power
+ground.  However, in desktop applications, it may be appropriate to
+connect the CAN ground if the device power supply is otherwise
+isolated.
+
+### JST ZH-6 SWD ###
+
+Looking at the pins of the connector with the top of the board up the
+pins are numbered 1 to 6 from left to right.
+
+ * 1 - NC
+ * 2 - NRST
+ * 3 - SWDIO
+ * 4 - GND
+ * 5 - SWCLK
+ * 6 - 3.3V
+
+### JST ZH-4 I2C ###
+
+Looking at the pins of the connector with the bottom of the board up
+the pins are numbered 1 to 4 from left to right.
+
+ * 1 - 3.3V
+ * 2 - SCL
+ * 3 - SDA
+ * 4 - GND
+
+### XT30PW-M ###
+
+Looking at the pins of the power connector with the top of the board
+up, the ground pin is to the left with the chamfered corner and the
+positive supply is to the right with the square corner.
