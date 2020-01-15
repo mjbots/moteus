@@ -84,6 +84,15 @@ std::string Hexify(const std::string& data) {
   return ostr.str();
 }
 
+std::string MakeGitHash(const std::map<std::string, std::string>& data) {
+  std::string result;
+  for (int i = 0; i < 20; i++) {
+    result += fmt::format(
+        "{:02x}", std::stoi(data.at(fmt::format("git.hash.{}", i))));
+  }
+  return result;
+}
+
 struct ElfMapping {
   int64_t virtual_address = 0;
   int64_t physical_address = 0;
@@ -94,8 +103,9 @@ struct CalibrationReport {
   boost::posix_time::ptime timestamp;
 
   std::string serial_number;
-  std::string firmware_version;
   std::string model;
+  std::string git_hash;
+  bool git_dirty = false;
 
   CalibrationResult calibration;
 
@@ -108,8 +118,9 @@ struct CalibrationReport {
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(timestamp));
     a->Visit(MJ_NVP(serial_number));
-    a->Visit(MJ_NVP(firmware_version));
     a->Visit(MJ_NVP(model));
+    a->Visit(MJ_NVP(git_hash));
+    a->Visit(MJ_NVP(git_dirty));
     a->Visit(MJ_NVP(calibration));
     a->Visit(MJ_NVP(winding_resistance));
     a->Visit(MJ_NVP(v_per_hz));
@@ -691,6 +702,7 @@ class Runner {
       CalibrationReport report;
 
       const auto firmware = co_await ReadData(stream, "firmware");
+      const auto git = co_await ReadData(stream, "git");
 
       auto get = [](const auto& map, auto key, auto dft) -> std::string {
         auto it = map.find(key);
@@ -698,29 +710,44 @@ class Runner {
         return it->second;
       };
 
-      report.timestamp = io::Now(executor_.context());
-      const std::vector<std::string> required_keys = {
-        "firmware.serial_number.0",
-        "firmware.serial_number.1",
-        "firmware.serial_number.2",
-        "firmware.version",
+      auto verify_keys = [](const auto& data,
+                            const std::vector<std::string>& keys) {
+        for (const auto& key : keys) {
+          mjlib::base::system_error::throw_if(
+              data.count(key) == 0,
+              fmt::format("did not find required firmware key: {}", key));
+        }
       };
 
-      for (const auto& key : required_keys) {
-        mjlib::base::system_error::throw_if(
-            firmware.count(key) == 0,
-            fmt::format("did not find required firmware key: {}", key));
-      }
+      report.timestamp = io::Now(executor_.context());
+      verify_keys(
+          firmware,
+          {
+            "firmware.serial_number.0",
+            "firmware.serial_number.1",
+            "firmware.serial_number.2",
+            "firmware.version",
+           });
 
       report.serial_number = fmt::format(
           "{:08x}{:08x}{:08x}",
           std::stoi(firmware.at("firmware.serial_number.0")),
           std::stoi(firmware.at("firmware.serial_number.1")),
           std::stoi(firmware.at("firmware.serial_number.2")));
-      report.firmware_version =
-          fmt::format("{:x}", std::stoi(firmware.at("firmware.version")));
       report.model =
           fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
+
+      verify_keys(git,  []() {
+          std::vector<std::string> result;
+          result.push_back("git.dirty");
+          for (int i = 0; i < 20; i++) {
+            result.push_back(fmt::format("git.hash.{}", i));
+          }
+          return result;
+        }());
+
+      report.git_hash = MakeGitHash(git);
+      report.git_dirty = git.at("git.dirty") != "0";
 
       report.calibration = cal_result;
       report.winding_resistance = winding_resistance;
