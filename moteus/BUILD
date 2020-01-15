@@ -34,6 +34,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "git_info",
+    hdrs = ["git_info.h"],
+    srcs = ["git_info.cc"],
+    linkstamp = "git_info_linkstamp.cc",
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/base:visitor",
+    ],
+)
+
 bootloader_mbed_binary(
     name = "imu_junction_dumb",
     srcs = [
@@ -111,6 +121,7 @@ MOTEUS_SOURCES = [
 
 MOTEUS_DEPS = [
     ":common",
+    ":git_info",
     "@com_github_mjbots_mjlib//mjlib/base:assert",
     "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
     "@com_github_mjbots_mjlib//mjlib/base:limit",

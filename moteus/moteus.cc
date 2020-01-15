@@ -28,6 +28,7 @@
 
 #include "moteus/board_debug.h"
 #include "moteus/firmware_info.h"
+#include "moteus/git_info.h"
 #include "moteus/millisecond_timer.h"
 #include "moteus/moteus_controller.h"
 #include "moteus/moteus_hw.h"
@@ -207,6 +208,9 @@ int main(void) {
       moteus_controller.bldc_servo());
 
   persistent_config.Register("id", multiplex_protocol.config(), [](){});
+
+  GitInfo git_info;
+  telemetry_manager.Register("git", &git_info);
 
   persistent_config.Load();
 
