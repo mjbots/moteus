@@ -92,6 +92,7 @@ g4_bootloader_mbed_binary(
     srcs = [
         "bootloader.h",
         "can_bootloader.cc",
+        "stm32g4xx_fdcan_typedefs.h",
     ],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:buffer_stream",

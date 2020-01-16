@@ -25,8 +25,19 @@
 
 #include "mjlib/base/buffer_stream.h"
 #include "mjlib/base/tokenizer.h"
+#include "mjlib/multiplex/format.h"
+#include "mjlib/multiplex/stream.h"
+
+#include "moteus/stm32g4xx_fdcan_typedefs.h"
 
 namespace {
+using mjlib::multiplex::Format;
+
+template <typename T>
+uint32_t u32(T value) {
+  return static_cast<uint32_t>(value);
+}
+
 void uint8_hex(uint8_t value, char* buffer) {
   constexpr char digits[] = "0123456789ABCDEF";
   buffer[0] = digits[value >> 4];
@@ -259,11 +270,28 @@ class FlashWriter {
   bool sectors_erased_[256] = {};
 };
 
+constexpr int kDlcToSize[] = {
+  0, 1, 2, 3, 4, 5, 6, 7, 8,
+  12, 16, 20, 24, 32, 48, 64,
+};
+
+constexpr int RoundUpDlc(int size) {
+  for (int dlc = 0; ; dlc++) {
+    if (size <= kDlcToSize[dlc]) { return dlc; }
+  }
+  return 15;
+}
+
 class BootloaderServer {
  public:
   BootloaderServer(uint8_t id, FDCAN_GlobalTypeDef* fdcan)
       : id_(id),
         fdcan_(fdcan) {
+    uint32_t SramCanInstanceBase = SRAMCAN_BASE;
+
+    fdcan_RxFIFO0SA_ = SramCanInstanceBase + SRAMCAN_RF0SA;
+    fdcan_TxFIFOQSA_ = SramCanInstanceBase + SRAMCAN_TFQSA;
+
     auto writer = response_.writer();
     writer.write("multiplex bootloader protocol 1\r\n");
     response_.pos = writer.offset();
@@ -288,8 +316,207 @@ class BootloaderServer {
     }
   }
 
+  struct CanFrame {
+    int id_type = 0;
+    uint32_t identifier = 0;
+    uint32_t error_state_indicator = 0;
+    uint32_t timestamp = 0;
+    uint32_t dlc = 0;
+    uint32_t bit_rate_switch = 0;
+    uint32_t fdformat = 0;
+    uint32_t filter_index = 0;
+
+    uint32_t size = 0;
+    uint8_t data[64] = {};
+  };
+
+  CanFrame ReadCanFrame() {
+    CanFrame result;
+
+    // Wait until there is a CAN frame available.
+    while ((fdcan_->RXF0S & FDCAN_RXF0S_F0FL) == 0) {
+      // Nothing in the FIFO yet.
+    }
+
+    const auto get_index = (fdcan_->RXF0S & FDCAN_RXF0S_F0GI) >> FDCAN_RXF0S_F0GI_Pos;
+    auto rx_address = reinterpret_cast<uint32_t*>(
+        fdcan_RxFIFO0SA_ + get_index * SRAMCAN_RF0_SIZE);
+
+    result.id_type = *rx_address & FDCAN_ELEMENT_MASK_XTD;
+    result.identifier = [&]() {
+      if (result.id_type == FDCAN_STANDARD_ID) {
+        return (*rx_address & FDCAN_ELEMENT_MASK_STDID) >> 18u;
+      }
+      return *rx_address & FDCAN_ELEMENT_MASK_EXTID;
+    }();
+
+    result.error_state_indicator = *rx_address & FDCAN_ELEMENT_MASK_ESI;
+
+    rx_address++;
+
+    result.timestamp = *rx_address & FDCAN_ELEMENT_MASK_TS;
+    result.dlc = *rx_address & FDCAN_ELEMENT_MASK_DLC;
+    result.bit_rate_switch = *rx_address & FDCAN_ELEMENT_MASK_BRS;
+    result.fdformat = *rx_address & FDCAN_ELEMENT_MASK_FDF;
+    result.filter_index = (*rx_address & FDCAN_ELEMENT_MASK_FIDX) >> 24u;
+
+    rx_address++;
+
+    result.size = kDlcToSize[result.dlc];
+    auto pdata = reinterpret_cast<uint8_t*>(rx_address);
+    for (size_t i = 0; i < result.size; i++) {
+      result.data[i] = pdata[i];
+    }
+
+    // Acknowledge that we have read FIFO0.
+    fdcan_->RXF0A = get_index;
+
+    return result;
+  }
+
   void ReadFrame() {
-    // TODO
+    auto can_frame = ReadCanFrame();
+
+    // Check if it is addressed to us.
+    uint8_t source_id = (can_frame.identifier >> 8) & 0xff;
+    uint8_t dest_id = (can_frame.identifier & 0xff);
+
+    if (dest_id != id_) {
+      return;
+    }
+
+    // Look for the subframe we know about.
+    mjlib::base::BufferReadStream buffer_stream{
+      std::string_view(reinterpret_cast<const char*>(can_frame.data),
+                       can_frame.size)};
+    mjlib::multiplex::ReadStream read_stream{buffer_stream};
+
+    const auto maybe_subframe_id = read_stream.ReadVaruint();
+    if (!maybe_subframe_id) { return; }
+
+    if (*maybe_subframe_id != u32(Format::Subframe::kClientToServer) &&
+        *maybe_subframe_id != u32(Format::Subframe::kClientPollServer)) {
+      return;
+    }
+
+    const bool poll_only =
+        (*maybe_subframe_id == u32(Format::Subframe::kClientPollServer));
+
+    const bool query = (source_id & 0x80) != 0;
+
+    const auto maybe_channel = read_stream.ReadVaruint();
+    if (!maybe_channel) { return; }
+    if (*maybe_channel != 1) { return; }
+
+    const auto maybe_bytes = read_stream.ReadVaruint();
+    if (!maybe_bytes) { return; }
+
+    if (!poll_only) {
+      if (*maybe_bytes > static_cast<size_t>(buffer_stream.remaining())) {
+        return;
+      }
+      if (command_.pos + *maybe_bytes > command_.capacity()) {
+        // We would have overrun our command buffer.  Just empty it out
+        // and discard this one too.
+        command_.pos = 0;
+        return;
+      }
+
+      // Great, we have some bytes, move the data into the command buffer.
+      std::memcpy(&command_.data[command_.pos], frame_.data + buffer_stream.offset(),
+                  *maybe_bytes);
+      command_.pos += *maybe_bytes;
+    }
+
+    if (query) {
+      // Write out anything we've got after a short delay to give the
+      // master a chance to switch back to receive mode.
+      constexpr int kResponseDelayUs = 100;
+      timer_.wait_us(kResponseDelayUs);
+
+      WriteResponse(source_id & 0x7f, poll_only ? *maybe_bytes : -1);
+    }
+  }
+
+  void WriteResponse(uint8_t id, int max_bytes) {
+    // Formulate our out frame.
+    out_frame_.pos = 0;
+    auto buffer_stream = out_frame_.writer();
+    mjlib::multiplex::WriteStream write_stream(buffer_stream);
+
+    const size_t bytes_to_write =
+        max_bytes >= 0 ?
+        std::min<size_t>(max_bytes, response_.pos) :
+        response_.pos;
+
+    write_stream.WriteVaruint(u32(Format::Subframe::kServerToClient));
+    write_stream.WriteVaruint(1);
+    write_stream.WriteVaruint(bytes_to_write);
+    buffer_stream.write(response_.view().substr(0, bytes_to_write));
+
+    out_frame_.pos = buffer_stream.offset();
+
+    // Mark that we've written out all we have.
+    std::memmove(&response_.data[0], &response_.data[bytes_to_write],
+                 response_.pos - bytes_to_write);
+    response_.pos -= bytes_to_write;
+
+    // Now queue up the transfer.
+
+    WriteCanFrame(((id_ << 8) | id), out_frame_.view());
+  }
+
+  void WriteCanFrame(uint32_t identifier, std::string_view data) {
+    // If the queue is full, something is going seriously wrong.
+    if (fdcan_->TXFQS & FDCAN_TXFQS_TFQF) {
+      // Just drop the frame for now. :(
+      return;
+    }
+
+    auto put_index = (fdcan_->TXFQS & FDCAN_TXFQS_TFQPI) >> FDCAN_TXFQS_TFQPI_Pos;
+
+    // Copy the message.
+
+    uint32_t dlc = RoundUpDlc(data.size());
+
+    const uint32_t element_w1 =
+        (identifier >= 2048) ?
+        (FDCAN_ESI_ACTIVE |
+         FDCAN_EXTENDED_ID |
+         FDCAN_DATA_FRAME |
+         identifier) :
+        (FDCAN_ESI_ACTIVE |
+         FDCAN_STANDARD_ID |
+         FDCAN_DATA_FRAME |
+         (identifier << 18u));
+    const uint32_t message_marker = 0;
+    const uint32_t element_w2 = (
+        (message_marker << 24u) |
+        FDCAN_NO_TX_EVENTS |
+        FDCAN_FD_CAN |
+        FDCAN_BRS_ON |
+        dlc);
+
+    auto* tx_address = reinterpret_cast<uint32_t*>(
+        fdcan_TxFIFOQSA_ + put_index * SRAMCAN_TFQ_SIZE);
+
+    *tx_address = element_w1;
+    tx_address++;
+    *tx_address = element_w2;
+    tx_address++;
+
+    const size_t rounded_up_size = kDlcToSize[dlc];
+
+    auto* pdata = reinterpret_cast<uint8_t*>(tx_address);
+
+    for (size_t i = 0; i < rounded_up_size; i++) {
+      pdata[i] = (i < data.size()) ? data[i] : 0;
+    }
+
+    // Activate the request.
+    fdcan_->TXBAR = (1 << put_index);
+
+    // Ignore the buffer index.  We're never going to cancel anything.
   }
 
   void RunCommand() {
@@ -429,8 +656,13 @@ class BootloaderServer {
 
   const uint8_t id_;
   FDCAN_GlobalTypeDef* const fdcan_;
+  uint32_t fdcan_RxFIFO0SA_ = 0;
+  uint32_t fdcan_TxFIFOQSA_ = 0;
 
   MillisecondTimer timer_;
+
+  // The contents of one multiplex frame.
+  Buffer<char> frame_;
 
   // The current command line that is being received.
   Buffer<char> command_;
@@ -473,7 +705,7 @@ MultiplexBootloader(uint8_t source_id,
     NVIC_SetVector(irq, reinterpret_cast<uint32_t>(&BadInterrupt));
   }
 
-  BootloaderServer server(source_id, nullptr);
+  BootloaderServer server(source_id, FDCAN1);
   server.Run();
 }
 
