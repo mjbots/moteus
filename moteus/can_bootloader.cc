@@ -355,7 +355,7 @@ class BootloaderServer {
     rx_address++;
 
     result.timestamp = *rx_address & FDCAN_ELEMENT_MASK_TS;
-    result.dlc = *rx_address & FDCAN_ELEMENT_MASK_DLC;
+    result.dlc = (*rx_address & FDCAN_ELEMENT_MASK_DLC) >> 16u;
     result.bit_rate_switch = *rx_address & FDCAN_ELEMENT_MASK_BRS;
     result.fdformat = *rx_address & FDCAN_ELEMENT_MASK_FDF;
     result.filter_index = (*rx_address & FDCAN_ELEMENT_MASK_FIDX) >> 24u;
@@ -375,7 +375,7 @@ class BootloaderServer {
   }
 
   void ReadFrame() {
-    auto can_frame = ReadCanFrame();
+    const auto can_frame = ReadCanFrame();
 
     // Check if it is addressed to us.
     uint8_t source_id = (can_frame.identifier >> 8) & 0xff;
@@ -415,25 +415,23 @@ class BootloaderServer {
       if (*maybe_bytes > static_cast<size_t>(buffer_stream.remaining())) {
         return;
       }
-      if (command_.pos + *maybe_bytes > command_.capacity()) {
-        // We would have overrun our command buffer.  Just empty it out
-        // and discard this one too.
-        command_.pos = 0;
-        return;
-      }
+      if (*maybe_bytes > 0) {
+        if (command_.pos + *maybe_bytes > command_.capacity()) {
+          // We would have overrun our command buffer.  Just empty it out
+          // and discard this one too.
+          command_.pos = 0;
+          return;
+        }
 
-      // Great, we have some bytes, move the data into the command buffer.
-      std::memcpy(&command_.data[command_.pos], frame_.data + buffer_stream.offset(),
-                  *maybe_bytes);
-      command_.pos += *maybe_bytes;
+        // Great, we have some bytes, move the data into the command buffer.
+        std::memcpy(&command_.data[command_.pos],
+                    can_frame.data + buffer_stream.offset(),
+                    *maybe_bytes);
+        command_.pos += *maybe_bytes;
+      }
     }
 
     if (query) {
-      // Write out anything we've got after a short delay to give the
-      // master a chance to switch back to receive mode.
-      constexpr int kResponseDelayUs = 100;
-      timer_.wait_us(kResponseDelayUs);
-
       WriteResponse(source_id & 0x7f, poll_only ? *maybe_bytes : -1);
     }
   }
@@ -444,10 +442,14 @@ class BootloaderServer {
     auto buffer_stream = out_frame_.writer();
     mjlib::multiplex::WriteStream write_stream(buffer_stream);
 
+    constexpr size_t kMaxCanPayload = 64 - 3;
+
     const size_t bytes_to_write =
-        max_bytes >= 0 ?
-        std::min<size_t>(max_bytes, response_.pos) :
-        response_.pos;
+        std::min<size_t>(
+            kMaxCanPayload,
+            max_bytes >= 0 ?
+            std::min<size_t>(max_bytes, response_.pos) :
+            response_.pos);
 
     write_stream.WriteVaruint(u32(Format::Subframe::kServerToClient));
     write_stream.WriteVaruint(1);
@@ -495,10 +497,12 @@ class BootloaderServer {
         FDCAN_NO_TX_EVENTS |
         FDCAN_FD_CAN |
         FDCAN_BRS_ON |
-        dlc);
+        (dlc << 16u));
 
-    auto* tx_address = reinterpret_cast<uint32_t*>(
+    auto* const tx_address_base = reinterpret_cast<uint32_t*>(
         fdcan_TxFIFOQSA_ + put_index * SRAMCAN_TFQ_SIZE);
+
+    auto tx_address = tx_address_base;
 
     *tx_address = element_w1;
     tx_address++;
@@ -507,10 +511,19 @@ class BootloaderServer {
 
     const size_t rounded_up_size = kDlcToSize[dlc];
 
-    auto* pdata = reinterpret_cast<uint8_t*>(tx_address);
+    for (size_t i = 0; i < rounded_up_size; i += 4) {
+      auto get_byte = [&](int offset) {
+        auto pos = i + offset;
+        return pos < data.size() ? data[pos] : 0;
+      };
+      const uint32_t this_word =
+          (get_byte(3) << 24) |
+          (get_byte(2) << 16) |
+          (get_byte(1) << 8) |
+          (get_byte(0) << 0);
 
-    for (size_t i = 0; i < rounded_up_size; i++) {
-      pdata[i] = (i < data.size()) ? data[i] : 0;
+      *tx_address = this_word;
+      tx_address++;
     }
 
     // Activate the request.
@@ -661,9 +674,6 @@ class BootloaderServer {
 
   MillisecondTimer timer_;
 
-  // The contents of one multiplex frame.
-  Buffer<char> frame_;
-
   // The current command line that is being received.
   Buffer<char> command_;
 
@@ -698,7 +708,7 @@ MultiplexBootloader(uint8_t source_id,
 
   // We don't want any handlers to go into the original application
   // code, so point everything to a noop.
-  for (int i = 0; i <= 113; i++) {
+  for (int i = -14; i <= 113; i++) {
     const auto irq = static_cast<IRQn_Type>(i);
 
     if (irq == DebugMonitor_IRQn) { continue; }
