@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,10 +68,10 @@ g4_bootloader_mbed_binary(
 )
 
 bootloader_mbed_binary(
-    name = "bootloader",
+    name = "uart_bootloader",
     srcs = [
         "bootloader.h",
-        "bootloader.cc",
+        "uart_bootloader.cc",
     ],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:buffer_stream",
@@ -85,6 +85,23 @@ bootloader_mbed_binary(
     linkopts = [
         "-Wl,--wrap,atexit",
     ],
+)
+
+g4_bootloader_mbed_binary(
+    name = "can_bootloader",
+    srcs = [
+        "bootloader.h",
+        "can_bootloader.cc",
+    ],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/base:buffer_stream",
+        "@com_github_mjbots_mjlib//mjlib/base:tokenizer",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:format",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:stream",
+        "@boost",
+    ],
+    linker_script = "stm32g474_bootloader.ld",
+    enable_wrappers = False,
 )
 
 MOTEUS_SOURCES = [
@@ -166,14 +183,14 @@ g4_mbed_binary(
 
 genrule(
     name = "bin",
-    srcs = ["moteus.elf", "bootloader.elf"],
+    srcs = ["moteus.elf", "can_bootloader.elf"],
     outs = [
         "moteus.08000000.bin",
-        "bootloader.0800c000.bin",
+        "moteus.0800c000.bin",
         "moteus.08010000.bin",
     ],
     cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .ccmram -j .bss $(location moteus.elf) $(location moteus.08010000.bin) && " +
-           "$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location bootloader.elf) $(location bootloader.0800c000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location can_bootloader.elf) $(location moteus.0800c000.bin) && " +
            "$(OBJCOPY) -Obinary -j .isr_vector $(location moteus.elf) $(location moteus.08000000.bin)"),
     toolchains = [
         "@bazel_tools//tools/cpp:current_cc_toolchain",
@@ -183,12 +200,14 @@ genrule(
 
 genrule(
     name = "f4_bin",
-    srcs = ["f4_moteus.elf"],
+    srcs = ["f4_moteus.elf", "uart_bootloader.elf"],
     outs = [
         "f4_moteus.08000000.bin",
+        "f4_moteus.0800c000.bin",
         "f4_moteus.08010000.bin",
     ],
     cmd = ("$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location f4_moteus.elf) $(location f4_moteus.08010000.bin) && " +
+           "$(OBJCOPY) -Obinary -j .text -j .ARM.extab -j .ARM.exidx -j .data -j .bss $(location uart_bootloader.elf) $(location f4_moteus.0800c000.bin) && " +
            "$(OBJCOPY) -Obinary -j .isr_vector $(location f4_moteus.elf) $(location f4_moteus.08000000.bin)"),
     toolchains = [
         "@bazel_tools//tools/cpp:current_cc_toolchain",
@@ -212,18 +231,18 @@ genrule(
     name = "f4_flash",
     tags = ["manual"],
     srcs = ["f4_moteus.08000000.bin", "f4_moteus.08010000.bin",
-#            "bootloader.0800c000.bin",
+            "f4_moteus.0800c000.bin",
     ],
     outs = ["f4_flash.stamp"],
-    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location f4_moteus.08000000.bin) verify 0x8000000; program $(location f4_moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+    cmd = (OCD + " -c init -c \"reset_config none separate; program $(location f4_moteus.08000000.bin) verify 0x8000000; program $(location f4_moteus.0800c000.bin) verify 0x800c000; program $(location f4_moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
 genrule(
     name = "flash",
     tags = ["manual"],
-    srcs = ["moteus.08000000.bin", "moteus.08010000.bin"],
+    srcs = ["moteus.08000000.bin", "moteus.0800c000.bin", "moteus.08010000.bin"],
     outs = ["flash.stamp"],
-    cmd = (OCD_G4 + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
+    cmd = (OCD_G4 + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
 genrule(

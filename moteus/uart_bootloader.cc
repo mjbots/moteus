@@ -12,7 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if defined(TARGET_STM32F4)
 #include "stm32f4xx.h"
+#else
+#error "Unsupported target"
+#endif
 
 #include <string_view>
 

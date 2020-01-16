@@ -1,4 +1,4 @@
-// Copyright 2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@
 
 extern "C" {
 /// This function initiates the multiplex server bootloader.  It takes
-/// over control of a UART and direction pin, and communicates over it
-/// using the multiplex server async stream protocol.  It implements a
-/// minimal command set to support re-flashing of the application
-/// portion of the onboard flash.
+/// over control of the communications hardware, and communicates over
+/// it using the multiplex server async stream protocol.  It
+/// implements a minimal command set to support re-flashing of the
+/// application portion of the onboard flash.
 ///
 /// This function will never return, as it leaves the hardware in an
 /// undefined state.  It may internally cause the device to hard-reset
