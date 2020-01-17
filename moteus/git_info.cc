@@ -41,10 +41,10 @@ GitInfo::GitInfo() {
       hash[i] = ParseHexByte(&kGitHash[i * 2]);
     }
 
-    dirty = kGitDirty;
+    dirty = kGitDirty[0] != '0';
   }
 }
 
 char kGitHash[41] __attribute__((weak)) = {};
-bool kGitDirty __attribute__((weak)) = {};
+char kGitDirty[2] __attribute__((weak)) = {};
 }
