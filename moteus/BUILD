@@ -294,6 +294,7 @@ cc_test(
     ],
     data = [
         "//moteus/tool:moteus_tool",
+        ":multiplex_tool",
         "//moteus/tool:tview",
     ],
     deps = [
@@ -317,6 +318,14 @@ py_binary(
     deps = [
         "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
         "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
+    ],
+)
+
+cc_binary(
+    name = "multiplex_tool",
+    srcs = ["multiplex_tool_main.cc"],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/multiplex:libmultiplex_tool",
     ],
 )
 
