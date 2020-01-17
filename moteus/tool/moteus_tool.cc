@@ -700,6 +700,9 @@ class Runner {
       const auto v_per_hz = co_await CalibrateKvRating(stream);
       co_await CheckForFault(stream);
 
+      // Rezero the servo since we just spun it a lot.
+      co_await Command(stream, "d rezero");
+
       std::cout << "Saving to persistent storage\n";
 
       co_await Command(stream, "conf write");
