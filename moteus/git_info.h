@@ -35,6 +35,6 @@ struct GitInfo {
 };
 
 extern char kGitHash[41];
-extern char kGitDirty[2];
+extern char kGitDirty[10];
 
 }

@@ -15,6 +15,6 @@
 namespace moteus {
 
 char kGitHash[41] = BUILD_SCM_REVISION;
-char kGitDirty[2] = BUILD_SCM_STATUS;
+char kGitDirty[10] = BUILD_SCM_STATUS;
 
 }

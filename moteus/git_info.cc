@@ -46,5 +46,5 @@ GitInfo::GitInfo() {
 }
 
 char kGitHash[41] __attribute__((weak)) = {};
-char kGitDirty[2] __attribute__((weak)) = {};
+char kGitDirty[10] __attribute__((weak)) = {};
 }
