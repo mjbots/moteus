@@ -522,7 +522,7 @@ class Runner {
     const auto elf =
         ReadElf(options_.flash,
                 {".text", ".ARM.extab", ".ARM.exidx",
-                 ".data", ".bss", ".isr_vector"});
+                 ".data", ".ccmram", ".isr_vector"});
 
     auto count_bytes = [](const std::vector<ElfData>& elfs) {
       int64_t result = 0;
@@ -611,7 +611,13 @@ class Runner {
         const auto cmd = fmt::format(
             "w {:x} {}", next_block.address,
             Hexify(next_block.data));
-        co_await Command(stream, cmd, CommandOptions().set_retry_timeout(5.0));
+        const auto result =
+            co_await Command(stream, cmd, CommandOptions().set_retry_timeout(5.0));
+        // Not much we can do to recover from a flash operation not working.  :(
+        if (!result) {
+          std::cerr << "Error writing to flash.\n";
+          std::exit(1);
+        }
         emit_progress(write_ctx, "flashing");
         const bool done = write_ctx.AdvanceBlock();
         if (done) { break; }

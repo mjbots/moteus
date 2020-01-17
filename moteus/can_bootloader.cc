@@ -28,6 +28,7 @@
 #include "mjlib/multiplex/format.h"
 #include "mjlib/multiplex/stream.h"
 
+#include "moteus/git_info.h"
 #include "moteus/stm32g4xx_fdcan_typedefs.h"
 
 namespace {
@@ -115,7 +116,15 @@ struct Buffer {
 
 class FlashWriter {
  public:
+  bool locked() const {
+    return locked_;
+  }
+
   void Unlock() {
+    // After calling unlock, assume we have to erase everything we
+    // touch.
+    for (auto& v : sectors_erased_) { v = false; }
+
     __HAL_FLASH_INSTRUCTION_CACHE_DISABLE();
     __HAL_FLASH_DATA_CACHE_DISABLE();
     // Given that we always do a system reset to exit the bootloader,
@@ -162,14 +171,11 @@ class FlashWriter {
       if (!FlushWord()) {
         return false;
       }
-      if (!MaybeEraseSector(this_shadow)) {
-        return false;
-      }
     }
 
     shadow_start_ = this_shadow;
 
-    uint32_t mask = (0xffull << (offset * 8));
+    uint64_t mask = (0xffull << (offset * 8));
     shadow_ = (shadow_ & ~mask) |
         (static_cast<uint64_t>(value) << (offset * 8));
     shadow_bits_ |= mask;
@@ -185,6 +191,10 @@ class FlashWriter {
 
  private:
   bool FlushWord() {
+    if (!MaybeEraseSector(shadow_start_)) {
+      return false;
+    }
+
     FLASH->CR |= FLASH_CR_PG;
 
     *reinterpret_cast<uint32_t*>(shadow_start_) =
@@ -195,13 +205,15 @@ class FlashWriter {
     *reinterpret_cast<uint32_t*>(shadow_start_ + 4u) =
         static_cast<uint32_t>(shadow_ >> 32u);
 
-    Wait();
-
     shadow_start_ = 0;
     shadow_ = ~0;
     shadow_bits_ = 0;
 
-    return true;
+    const bool result = Wait();
+
+    FLASH->CR &= ~FLASH_CR_PG;
+
+    return result;
   }
 
   bool MaybeEraseSector(uint32_t address) {
@@ -244,7 +256,9 @@ class FlashWriter {
     FLASH->CR |= FLASH_CR_PER;
     FLASH->CR |= FLASH_CR_STRT;
 
-    return Wait();
+    const bool result = Wait();
+    FLASH->CR &= ~FLASH_CR_PER;
+    return result;
   }
 
   bool Wait() {
@@ -268,6 +282,8 @@ class FlashWriter {
   uint64_t shadow_ = 0;
   uint64_t shadow_bits_ = 0;
   bool sectors_erased_[256] = {};
+
+  FLASH_TypeDef* const flash_ = FLASH;
 };
 
 constexpr int kDlcToSize[] = {
@@ -293,7 +309,18 @@ class BootloaderServer {
     fdcan_TxFIFOQSA_ = SramCanInstanceBase + SRAMCAN_TFQSA;
 
     auto writer = response_.writer();
-    writer.write("multiplex bootloader protocol 1\r\n");
+    writer.write("multiplex bootloader protocol 1 ");
+
+    moteus::GitInfo git_info;
+    for (auto v : git_info.hash) {
+      char buf[3] = {};
+      uint8_hex(v, buf);
+      writer.write(buf);
+    }
+    writer.write(" ");
+    writer.write(git_info.dirty ? "dirty" : "clean");
+    writer.write("\r\n");
+
     response_.pos = writer.offset();
   }
 
@@ -648,6 +675,11 @@ class BootloaderServer {
   }
 
   bool WriteByte(uint32_t address, uint8_t byte, mjlib::base::WriteStream& writer) {
+    if (flash_.locked()) {
+      writer.write("flash is locked\r\n");
+      return false;
+    }
+
     if (address < 0x08000000 ||
         address >= 0x08080000) {
       writer.write("address not in flash\r\n");
@@ -695,6 +727,10 @@ extern "C" {
 extern uint8_t __bss_start__;
 extern uint8_t __bss_end__;
 
+extern char _sdata;
+extern char _edata;
+extern char _sidata;
+
 void __attribute__((__section__(".multiplex_bootloader")))
 MultiplexBootloader(uint8_t source_id,
                     USART_TypeDef* uart,
@@ -706,9 +742,18 @@ MultiplexBootloader(uint8_t source_id,
   // Manually zero out our BSS.
   ::memset(&__bss_start__, 0, &__bss_end__ - &__bss_start__);
 
+  // Copy our static data into place.
+  char* dst = &_sdata;
+  char* src = &_sidata;
+  while (dst != &_edata) {
+    *dst = *src;
+    dst++;
+    src++;
+  }
+
   // We don't want any handlers to go into the original application
   // code, so point everything to a noop.
-  for (int i = -14; i <= 113; i++) {
+  for (int i = -14; i <= 102; i++) {
     const auto irq = static_cast<IRQn_Type>(i);
 
     if (irq == DebugMonitor_IRQn) { continue; }

@@ -740,7 +740,7 @@ MultiplexBootloader(uint8_t source_id,
 
   // We don't want any handlers to go into the original application
   // code, so point everything to a noop.
-  for (int i = -14; i <= 113; i++) {
+  for (int i = -14; i <= 96; i++) {
     const auto irq = static_cast<IRQn_Type>(i);
 
     if (irq == DebugMonitor_IRQn) { continue; }

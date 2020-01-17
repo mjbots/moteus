@@ -95,6 +95,7 @@ g4_bootloader_mbed_binary(
         "stm32g4xx_fdcan_typedefs.h",
     ],
     deps = [
+        ":git_info",
         "@com_github_mjbots_mjlib//mjlib/base:buffer_stream",
         "@com_github_mjbots_mjlib//mjlib/base:tokenizer",
         "@com_github_mjbots_mjlib//mjlib/multiplex:format",
