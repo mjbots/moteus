@@ -1149,7 +1149,7 @@ class BldcServo::Impl {
         status_.mode = kFault;
         status_.fault = errc::kOverVoltage;
       }
-      if (status_.fet_temp_C > config_.max_temperature) {
+      if (status_.fet_temp_C > config_.fault_temperature) {
         status_.mode = kFault;
         status_.fault = errc::kOverTemperature;
       }
@@ -1296,7 +1296,7 @@ class BldcServo::Impl {
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
@@ -1331,7 +1331,21 @@ class BldcServo::Impl {
       return in;
     };
 
-    const float i_q_A = limit_q_current(i_q_A_in);
+    auto limit_either_current = [&](float in) {
+      const float derate_fraction = (
+          status_.fet_temp_C - config_.derate_temperature) / (
+              config_.fault_temperature - config_.derate_temperature);
+      const float temp_limit_A = std::min<float>(
+          config_.max_current_A,
+          std::max<float>(
+              0.0f,
+              derate_fraction * (config_.derate_current_A -
+                                 config_.max_current_A) + config_.max_current_A));
+      return Limit(in, -temp_limit_A, temp_limit_A);
+    };
+
+    const float i_q_A = limit_either_current(limit_q_current(i_q_A_in));
+    const float i_d_A = limit_either_current(i_d_A_in);
 
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;

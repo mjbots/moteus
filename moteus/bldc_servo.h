@@ -122,8 +122,9 @@ class BldcServo {
 #endif
         ;
 
-    float max_voltage = 28.0f;
-    float max_temperature = 75.0f;
+    float max_voltage = 37.0f;
+    float derate_temperature = 50.0f;
+    float fault_temperature = 75.0f;
 
     float feedforward_scale = 1.0f;
     float velocity_threshold = 0.09f;
@@ -136,15 +137,18 @@ class BldcServo {
     PID::Config pid_dq;
     PID::Config pid_position;
 
-    float default_timeout_s = 0.1;
-    float timeout_max_torque_Nm = 5.0;
+    float default_timeout_s = 0.1f;
+    float timeout_max_torque_Nm = 5.0f;
 
     // Emit the full control rate debug stream.  Enabling this uses
     // about 1.6us extra in the ISR.
     bool enable_debug = false;
 
-    float flux_brake_min_voltage = -1.0f;
-    float flux_brake_resistance_ohm = 0.1;
+    float flux_brake_min_voltage = 34.5f;
+    float flux_brake_resistance_ohm = 0.1f;
+
+    float max_current_A = 60.0f;
+    float derate_current_A = -20.0f;
 
     Config() {
       pid_dq.kp = 0.005f;
@@ -165,7 +169,8 @@ class BldcServo {
       a->Visit(MJ_NVP(i_gain));
       a->Visit(MJ_NVP(v_scale_V));
       a->Visit(MJ_NVP(max_voltage));
-      a->Visit(MJ_NVP(max_temperature));
+      a->Visit(MJ_NVP(derate_temperature));
+      a->Visit(MJ_NVP(fault_temperature));
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(velocity_threshold));
       a->Visit(MJ_NVP(position_derate));
@@ -177,6 +182,8 @@ class BldcServo {
       a->Visit(MJ_NVP(enable_debug));
       a->Visit(MJ_NVP(flux_brake_min_voltage));
       a->Visit(MJ_NVP(flux_brake_resistance_ohm));
+      a->Visit(MJ_NVP(max_current_A));
+      a->Visit(MJ_NVP(derate_current_A));
     }
   };
 
