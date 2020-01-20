@@ -870,7 +870,13 @@ class Runner {
       boost::split(fields, line, boost::is_any_of(" "));
       if (fields.size() < 2) { continue; }
       result[fields.at(0)] = fields.at(1);
+
+      if (options_.verbose) {
+        std::cout << fmt::format(
+            "key='{}' value='{}'\n", fields.at(0), fields.at(1));
+      }
     }
+
     co_return result;
   }
 
