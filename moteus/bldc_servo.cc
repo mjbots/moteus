@@ -148,6 +148,8 @@ constexpr int16_t kMaxPositionDelta = 1000;
 constexpr float kDefaultTorqueConstant = 0.1f;
 constexpr float kMaxUnconfiguredCurrent = 5.0f;
 
+constexpr int kMaxVelocityFilter = 256;
+
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
 #if defined(TARGET_STM32F4)
   if (timer == TIM1) {
@@ -379,6 +381,9 @@ class BldcServo::Impl {
         k2Pi / 65536.0f * motor_.poles / 2.0f;
 
     adc_scale_ = 3.3f / (4096.0f * MOTEUS_CURRENT_SENSE_OHM * config_.i_gain);
+
+    velocity_filter_ = {std::min<size_t>(
+          kMaxVelocityFilter, config_.velocity_filter_length)};
   }
 
   void PollMillisecond() {
@@ -1542,7 +1547,8 @@ class BldcServo::Impl {
   CommandData telemetry_data_;
 
   // These values should only be modified from within the ISR.
-  mjlib::base::WindowedAverage<int16_t, 128, int32_t> velocity_filter_;
+  mjlib::base::WindowedAverage<
+    int16_t, kMaxVelocityFilter, int32_t> velocity_filter_;
   Status status_;
   Control control_;
   uint32_t calibrate_adc1_ = 0;

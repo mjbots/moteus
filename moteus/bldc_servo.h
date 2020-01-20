@@ -150,6 +150,8 @@ class BldcServo {
     float max_current_A = 60.0f;
     float derate_current_A = -20.0f;
 
+    uint16_t velocity_filter_length = 256;
+
     Config() {
       pid_dq.kp = 0.005f;
       pid_dq.ki = 30.0f;
@@ -184,6 +186,7 @@ class BldcServo {
       a->Visit(MJ_NVP(flux_brake_resistance_ohm));
       a->Visit(MJ_NVP(max_current_A));
       a->Visit(MJ_NVP(derate_current_A));
+      a->Visit(MJ_NVP(velocity_filter_length));
     }
   };
 
