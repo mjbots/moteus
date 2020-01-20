@@ -28,6 +28,7 @@ filegroup(
     srcs = [
         "//moteus:moteus",
         "//moteus:power_dist",
+        "//moteus:can_bootloader",
     ],
 )
 
@@ -36,7 +37,7 @@ filegroup(
     srcs = [
         "//moteus:f4_moteus",
         "//moteus:imu_junction_dumb",
-        "//moteus:bootloader",
+        "//moteus:uart_bootloader",
     ],
 )
 
