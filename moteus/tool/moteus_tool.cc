@@ -99,13 +99,25 @@ struct ElfMapping {
   int64_t size = 0;
 };
 
-struct CalibrationReport {
-  boost::posix_time::ptime timestamp;
-
+struct DeviceInfo {
   std::string serial_number;
   std::string model;
   std::string git_hash;
   bool git_dirty = false;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(serial_number));
+    a->Visit(MJ_NVP(model));
+    a->Visit(MJ_NVP(git_hash));
+    a->Visit(MJ_NVP(git_dirty));
+  }
+};
+
+struct CalibrationReport {
+  boost::posix_time::ptime timestamp;
+
+  DeviceInfo device_info;
 
   CalibrationResult calibration;
 
@@ -117,10 +129,7 @@ struct CalibrationReport {
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(timestamp));
-    a->Visit(MJ_NVP(serial_number));
-    a->Visit(MJ_NVP(model));
-    a->Visit(MJ_NVP(git_hash));
-    a->Visit(MJ_NVP(git_dirty));
+    a->Visit(MJ_NVP(device_info));
     a->Visit(MJ_NVP(calibration));
     a->Visit(MJ_NVP(winding_resistance));
     a->Visit(MJ_NVP(v_per_hz));
@@ -200,6 +209,7 @@ constexpr int kDebugTunnel = 1;
 
 struct Options {
   bool stop = false;
+  bool info = false;
   bool dump_config = false;
   bool console = false;
   std::string flash;
@@ -307,6 +317,7 @@ class Runner {
     const int command_count = [&]() {
       return
       (options_.stop ? 1 : 0) +
+      (options_.info ? 1 : 0) +
       (options_.dump_config ? 1 : 0) +
       (options_.console ? 1 : 0) +
       (!options_.flash.empty() ? 1 : 0) +
@@ -349,43 +360,15 @@ class Runner {
 
     if (options_.stop) {
       co_await Command(*stream, "d stop");
+    } else if (options_.info) {
+      co_await DoInfo(*stream);
     } else if (options_.dump_config) {
       const auto maybe_result = co_await Command(*stream, "conf enumerate");
       if (maybe_result) {
         std::cout << *maybe_result;
       }
     } else if (options_.console) {
-      auto start_factory = [this, stream](io::ErrorCallback callback) {
-        io::StreamFactory::Options stdio_options;
-        stdio_options.type = io::StreamFactory::Type::kStdio;
-        this->factory_.AsyncCreate(
-            stdio_options,
-            [this, stream, callback = std::move(callback)](
-                auto ec, auto stdio_stream) mutable {
-              base::FailIf(ec);
-              this->copy_.emplace(
-                  this->executor_,
-                  stream.get(), stdio_stream.get(),
-                  [callback = std::move(callback),
-                   stdio_stream](auto ec) mutable {
-                    if (!ec || ec == boost::asio::error::eof) {
-                      callback(boost::system::error_code());
-                      return;
-                    }
-                    base::FailIf(ec);
-
-                  });
-            });
-      };
-
-      // Coop the boost::asio machinery to turn a callback based
-      // asynchronous operation into a coroutine based one.
-      co_await async_initiate<
-        decltype(boost::asio::use_awaitable),
-        void(boost::system::error_code)>(
-            start_factory,
-            boost::asio::use_awaitable);
-
+      co_await DoConsole(stream);
     } else if (!options_.flash.empty()) {
       co_await DoFlash(*stream);
     } else if (options_.calibrate) {
@@ -515,6 +498,46 @@ class Runner {
       std::cout << "< " << result;
     }
     co_return result;
+  }
+
+  boost::asio::awaitable<void> DoInfo(io::AsyncStream& stream) {
+    auto device_info = co_await GetDeviceInfo(stream);
+
+    mjlib::base::Json5WriteArchive(std::cout).Accept(&device_info);
+    std::cout << "\n";
+  }
+
+  boost::asio::awaitable<void> DoConsole(io::SharedStream stream) {
+    auto start_factory = [this, stream](io::ErrorCallback callback) {
+      io::StreamFactory::Options stdio_options;
+      stdio_options.type = io::StreamFactory::Type::kStdio;
+      this->factory_.AsyncCreate(
+          stdio_options,
+          [this, stream, callback = std::move(callback)](
+              auto ec, auto stdio_stream) mutable {
+            base::FailIf(ec);
+            this->copy_.emplace(
+                this->executor_,
+                stream.get(), stdio_stream.get(),
+                [callback = std::move(callback),
+                 stdio_stream](auto ec) mutable {
+                  if (!ec || ec == boost::asio::error::eof) {
+                    callback(boost::system::error_code());
+                    return;
+                  }
+                  base::FailIf(ec);
+
+                });
+          });
+    };
+
+    // Coop the boost::asio machinery to turn a callback based
+    // asynchronous operation into a coroutine based one.
+    co_await async_initiate<
+      decltype(boost::asio::use_awaitable),
+      void(boost::system::error_code)>(
+          start_factory,
+          boost::asio::use_awaitable);
   }
 
   boost::asio::awaitable<void> DoFlash(io::AsyncStream& stream) {
@@ -671,6 +694,59 @@ class Runner {
                     fields[1], Hexify(expected.data)));
   }
 
+  boost::asio::awaitable<DeviceInfo> GetDeviceInfo(io::AsyncStream& stream) {
+    DeviceInfo result;
+
+    const auto firmware = co_await ReadData(stream, "firmware");
+    const auto git = co_await ReadData(stream, "git");
+
+    auto get = [](const auto& map, auto key, auto dft) -> std::string {
+      auto it = map.find(key);
+      if (it == map.end()) { return dft; }
+      return it->second;
+    };
+
+    auto verify_keys = [](const auto& data,
+                          const std::vector<std::string>& keys) {
+      for (const auto& key : keys) {
+        mjlib::base::system_error::throw_if(
+            data.count(key) == 0,
+            fmt::format("did not find required firmware key: {}", key));
+      }
+    };
+
+    verify_keys(
+        firmware,
+        {
+          "firmware.serial_number.0",
+              "firmware.serial_number.1",
+              "firmware.serial_number.2",
+              "firmware.version",
+              });
+
+    result.serial_number = fmt::format(
+        "{:08x}{:08x}{:08x}",
+        std::stoi(firmware.at("firmware.serial_number.0")),
+        std::stoi(firmware.at("firmware.serial_number.1")),
+        std::stoi(firmware.at("firmware.serial_number.2")));
+    result.model =
+        fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
+
+    verify_keys(git,  []() {
+        std::vector<std::string> result;
+        result.push_back("git.dirty");
+        for (int i = 0; i < 20; i++) {
+          result.push_back(fmt::format("git.hash.{}", i));
+        }
+        return result;
+      }());
+
+    result.git_hash = MakeGitHash(git);
+    result.git_dirty = git.at("git.dirty") != "0";
+
+    co_return result;
+  }
+
   boost::asio::awaitable<void> DoCalibrate(io::AsyncStream& stream) {
     std::cout << "This will move the motor, ensure it can spin freely!\n";
     co_await Sleep(2.0);
@@ -710,53 +786,9 @@ class Runner {
       std::cout << "Calibration complete\n";
       CalibrationReport report;
 
-      const auto firmware = co_await ReadData(stream, "firmware");
-      const auto git = co_await ReadData(stream, "git");
-
-      auto get = [](const auto& map, auto key, auto dft) -> std::string {
-        auto it = map.find(key);
-        if (it == map.end()) { return dft; }
-        return it->second;
-      };
-
-      auto verify_keys = [](const auto& data,
-                            const std::vector<std::string>& keys) {
-        for (const auto& key : keys) {
-          mjlib::base::system_error::throw_if(
-              data.count(key) == 0,
-              fmt::format("did not find required firmware key: {}", key));
-        }
-      };
-
       report.timestamp = io::Now(executor_.context());
-      verify_keys(
-          firmware,
-          {
-            "firmware.serial_number.0",
-            "firmware.serial_number.1",
-            "firmware.serial_number.2",
-            "firmware.version",
-           });
 
-      report.serial_number = fmt::format(
-          "{:08x}{:08x}{:08x}",
-          std::stoi(firmware.at("firmware.serial_number.0")),
-          std::stoi(firmware.at("firmware.serial_number.1")),
-          std::stoi(firmware.at("firmware.serial_number.2")));
-      report.model =
-          fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
-
-      verify_keys(git,  []() {
-          std::vector<std::string> result;
-          result.push_back("git.dirty");
-          for (int i = 0; i < 20; i++) {
-            result.push_back(fmt::format("git.hash.{}", i));
-          }
-          return result;
-        }());
-
-      report.git_hash = MakeGitHash(git);
-      report.git_dirty = git.at("git.dirty") != "0";
+      report.device_info = co_await GetDeviceInfo(stream);
 
       report.calibration = cal_result;
       report.winding_resistance = winding_resistance;
@@ -766,7 +798,7 @@ class Runner {
 
       std::string log_filename = fmt::format(
           "moteus-cal-{}-{}.log",
-          report.serial_number,
+          report.device_info.serial_number,
           boost::posix_time::to_iso_string(report.timestamp));
 
       std::cout << fmt::format("REPORT: {}\n", log_filename);
@@ -1088,6 +1120,8 @@ int moteus_tool_main(boost::asio::io_context& context,
           "emit all commands sent to and from the device"),
       clipp::option("s", "stop").set(options.stop).doc(
           "command the servos to stop"),
+      clipp::option("i", "info").set(options.info).doc(
+          "display information from the servo"),
       clipp::option("c", "console").set(options.console).doc(
           "create a serial console"),
       clipp::option("dump-config").set(options.dump_config).doc(
