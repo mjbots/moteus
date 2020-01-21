@@ -124,6 +124,9 @@ int main(void) {
 
   SetupClock();
 
+  // Turn on our power light.
+  DigitalOut power_led(POWER_LED, 0);
+
   DigitalIn hwrev0(HWREV_PIN0, PullUp);
   DigitalIn hwrev1(HWREV_PIN1, PullUp);
   DigitalIn hwrev2(HWREV_PIN2, PullUp);

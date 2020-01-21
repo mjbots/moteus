@@ -82,10 +82,10 @@ constexpr int kHardwareInterlock[] = {
 
 #if MOTEUS_HW_REV <= 2
 #define DEBUG_LED1 PA_11
-#define DEBUG_LED2 PA_12
+#define POWER_LED PA_12
 #elif MOTEUS_HW_REV >= 3
 #define DEBUG_LED1 PF_0
-#define DEBUG_LED2 PF_1
+#define POWER_LED PF_1
 #endif
 
 #if MOTEUS_HW_REV <= 2
