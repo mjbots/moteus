@@ -479,11 +479,10 @@ class Runner {
 
   boost::asio::awaitable<std::optional<std::string>>
   ReadLine(io::AsyncStream& stream) {
-    boost::asio::streambuf streambuf;
     boost::system::error_code ec;
     co_await boost::asio::async_read_until(
         stream,
-        streambuf,
+        read_streambuf_,
         '\n',
         boost::asio::redirect_error(boost::asio::use_awaitable, ec));
     if (ec == boost::asio::error::operation_aborted) {
@@ -491,11 +490,13 @@ class Runner {
     } else if (ec) {
       throw mjlib::base::system_error(ec);
     }
-    std::ostringstream ostr;
-    ostr << &streambuf;
-    const auto result = ostr.str();
+    std::istream istr(&read_streambuf_);
+
+    std::string result;
+    std::getline(istr, result);
+
     if (options_.verbose) {
-      std::cout << "< " << result;
+      std::cout << "< " << result << "\n";
     }
     co_return result;
   }
@@ -1084,6 +1085,8 @@ class Runner {
   io::SharedStream stdio_;
   mp::AsioClient* client_ = nullptr;
   std::optional<io::BidirectionalStreamCopy> copy_;
+
+  boost::asio::streambuf read_streambuf_;
 
   double unwrapped_position_scale_ = 1.0;
 };
