@@ -211,6 +211,7 @@ struct Options {
   bool stop = false;
   bool info = false;
   bool dump_config = false;
+  std::string write_config;
   bool console = false;
   std::string flash;
 
@@ -319,6 +320,7 @@ class Runner {
       (options_.stop ? 1 : 0) +
       (options_.info ? 1 : 0) +
       (options_.dump_config ? 1 : 0) +
+      (!options_.write_config.empty() ? 1 : 0) +
       (options_.console ? 1 : 0) +
       (!options_.flash.empty() ? 1 : 0) +
       (options_.calibrate ? 1 : 0)
@@ -367,6 +369,8 @@ class Runner {
       if (maybe_result) {
         std::cout << *maybe_result;
       }
+    } else if (!options_.write_config.empty()) {
+      co_await DoWriteConfig(*stream);
     } else if (options_.console) {
       co_await DoConsole(stream);
     } else if (!options_.flash.empty()) {
@@ -506,6 +510,28 @@ class Runner {
 
     mjlib::base::Json5WriteArchive(std::cout).Accept(&device_info);
     std::cout << "\n";
+  }
+
+  boost::asio::awaitable<void> DoWriteConfig(io::AsyncStream& stream) {
+    std::ifstream inf(options_.write_config);
+    mjlib::base::system_error::throw_if(
+        !inf.is_open(), "opening file: " + options_.write_config);
+
+    std::cout << "Writing config from: " + options_.write_config + "\n";
+
+    while (static_cast<bool>(inf)) {
+      std::string line;
+      std::getline(inf, line);
+      boost::trim(line);
+      if (line.empty()) { continue; }
+
+      std::cout << ":" + line + "\n";
+      auto maybe_result = co_await Command(stream, line);
+      if (!maybe_result) {
+        std::cerr << "Response error!\n";
+        co_return;
+      }
+    }
   }
 
   boost::asio::awaitable<void> DoConsole(io::SharedStream stream) {
@@ -1129,6 +1155,9 @@ int moteus_tool_main(boost::asio::io_context& context,
           "create a serial console"),
       clipp::option("dump-config").set(options.dump_config).doc(
           "emit all configuration to the console"),
+      clipp::option("write-config") &
+      clipp::value("file", options.write_config).doc(
+          "write the given configuration"),
       clipp::option("flash") & clipp::value("file", options.flash).doc(
           "write the given elf file to flash"),
       clipp::option("calibrate").set(options.calibrate).doc(
