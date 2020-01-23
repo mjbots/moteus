@@ -5951,7 +5951,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-302.26" y="-142.24" size="5.08" layer="90">FET DRIVER</text>
 <text x="-132.08" y="-142.24" size="5.08" layer="90">POWER FETS</text>
 <text x="73.66" y="-142.24" size="5.08" layer="90">BULK CAPACITANCE</text>
-<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.2
+<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.3
 (c) jjp@pobox.com 2019
 Licensed under the Apache 2.0 License</text>
 </plain>

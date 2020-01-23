@@ -161,13 +161,12 @@
 <wire x1="16" y1="-37" x2="17" y2="-35.5" width="0" layer="20" curve="-68.198574"/>
 <wire x1="17" y1="-35.5" x2="21" y2="-34" width="0" layer="20"/>
 <wire x1="21" y1="-34" x2="23" y2="-31" width="0" layer="20" curve="66.801417"/>
-<text x="-2.6" y="-8.1" size="1.2" layer="21" align="top-left">moteus r4.2</text>
-<text x="-2.7" y="-9.5" size="1.1" layer="21" align="top-left">(c) jjp@pobox.com</text>
+<text x="-3" y="-8.1" size="1.2" layer="21" align="top-left">mjbots moteus r4.3</text>
+<text x="-3" y="-9.5" size="1.1" layer="21" align="top-left">(c) 2020</text>
 <text x="-10.4" y="-27.5" size="1.016" layer="21" font="vector" ratio="10">A</text>
 <text x="1.6" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">B</text>
-<text x="13.5" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">C</text>
+<text x="15.4" y="-27.5" size="1.016" layer="21" font="vector" ratio="10">C</text>
 <text x="15.3" y="8.2" size="0.8" layer="21" rot="R180">TEMP</text>
-<text x="2.8" y="-11.1" size="1" layer="21" align="top-left">2019</text>
 <text x="8" y="9.7" size="0.8" layer="21" rot="R180">SER</text>
 <text x="1.6" y="8.4" size="0.8" layer="21" rot="R180">DBG</text>
 <text x="9.9" y="8" size="0.6096" layer="21" font="vector">T</text>
@@ -1882,7 +1881,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Panasonic" x="-15.18" y="-0.56" size="1.778" layer="27" display="off"/>
 </element>
 <element name="U3" library="controller" package="TSSOP14" value="AS5147" x="0" y="-8" smashed="yes" rot="MR180">
-<attribute name="NAME" x="-2.6956" y="-7.0172" size="0.6096" layer="26" ratio="10" rot="MR270"/>
+<attribute name="NAME" x="-2.6956" y="-5.9172" size="0.6096" layer="26" ratio="10" rot="MR270"/>
 <attribute name="POPULATE" value="1" x="0" y="-8" size="1.778" layer="28" rot="MR180" display="off"/>
 <attribute name="MPN" value="AS5047P-ATSM" x="0" y="-8" size="1.778" layer="28" rot="MR180" display="off"/>
 <attribute name="MF" value="AMS" x="0" y="-8" size="1.778" layer="28" rot="MR180" display="off"/>
@@ -1981,14 +1980,14 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="-6.45" y="-12.16" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="MF" value="TDK" x="-7.13" y="-11.4" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
-<element name="A" library="controller" package="18AWG_PAD" value="PAD" x="-12" y="-26.9" smashed="yes">
-<attribute name="POPULATE" value="0" x="-12" y="-26.9" size="1.778" layer="27" display="off"/>
+<element name="A" library="controller" package="18AWG_PAD" value="PAD" x="-13.6" y="-27.8" smashed="yes">
+<attribute name="POPULATE" value="0" x="-13.6" y="-27.8" size="1.778" layer="27" display="off"/>
 </element>
-<element name="B" library="controller" package="18AWG_PAD" value="PAD" x="0" y="-26.9" smashed="yes">
-<attribute name="POPULATE" value="0" x="0" y="-26.9" size="1.778" layer="27" display="off"/>
+<element name="B" library="controller" package="18AWG_PAD" value="PAD" x="0" y="-27.8" smashed="yes">
+<attribute name="POPULATE" value="0" x="0" y="-27.8" size="1.778" layer="27" display="off"/>
 </element>
-<element name="C" library="controller" package="18AWG_PAD" value="PAD" x="12" y="-26.9" smashed="yes">
-<attribute name="POPULATE" value="0" x="12" y="-26.9" size="1.778" layer="27" display="off"/>
+<element name="C" library="controller" package="18AWG_PAD" value="PAD" x="13.6" y="-27.8" smashed="yes">
+<attribute name="POPULATE" value="0" x="13.6" y="-27.8" size="1.778" layer="27" display="off"/>
 </element>
 <element name="R10" library="mfpassives" package="R0402" value="100k 1%" x="-11.9" y="-9.1" smashed="yes" rot="R90">
 <attribute name="TOLERANCE" value="" x="-11.9" y="-9.1" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2212,8 +2211,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="TEMP2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="14.2" y="9.2">
 <attribute name="POPULATE" value="0" x="14.2" y="9.2" size="1.778" layer="27" display="off"/>
 </element>
-<element name="DA" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-14.5" y="-27">
-<attribute name="POPULATE" value="0" x="-14.5" y="-27" size="1.778" layer="27" display="off"/>
+<element name="DA" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-8.2" y="-27">
+<attribute name="POPULATE" value="0" x="-8.2" y="-27" size="1.778" layer="27" display="off"/>
 </element>
 <element name="DB" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="-2.9" y="-27">
 <attribute name="POPULATE" value="0" x="-2.9" y="-27" size="1.778" layer="27" display="off"/>
@@ -2331,7 +2330,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="15.6" y="-10.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MF" value="" x="15.6" y="-10.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="15.6" y="-10.9" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="15.3" y="-8.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="16.2" y="-12.1" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
 </element>
 <element name="CAN1" library="controller" package="JST_S3B-PH-SM4-TB(LF)(SN)" value="JST-PH3" x="-8" y="-38.4" smashed="yes" rot="MR180">
 <attribute name="NAME" x="-12.9" y="-34.67" size="1" layer="26" font="vector" ratio="10" rot="MR270"/>
@@ -3401,6 +3400,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="-12" y="-24.3"/>
 <vertex x="-6.7" y="-24.3"/>
 <vertex x="-6.7" y="-28.2"/>
+<vertex x="-11.6" y="-28.2"/>
+<vertex x="-13.1" y="-29.7"/>
+<vertex x="-15.9" y="-29.7"/>
+<vertex x="-17.3" y="-28.3"/>
 <vertex x="-17.3" y="-28.2"/>
 </polygon>
 </signal>
@@ -3456,6 +3459,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="12.7" y="-24.3"/>
 <vertex x="17.3" y="-24.3"/>
 <vertex x="17.3" y="-28.2"/>
+<vertex x="16" y="-29.5"/>
+<vertex x="12.8" y="-29.5"/>
+<vertex x="11.5" y="-28.2"/>
 <vertex x="7.8" y="-28.2"/>
 <vertex x="7.8" y="-26.1"/>
 <vertex x="7.3" y="-25.7"/>
@@ -4071,10 +4077,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="-21.7" y="0.9" extent="1-16" drill="0.3048"/>
 <wire x1="-10" y1="-35.42" x2="-12.3" y2="-35.4" width="0.5" layer="16"/>
 <wire x1="-12.3" y1="-35.4" x2="-12.3" y2="-33" width="0.5" layer="16"/>
-<wire x1="-12.3" y1="-33" x2="-12.3" y2="-31.9" width="0.5" layer="16"/>
-<wire x1="-12.3" y1="-31.9" x2="-15.7" y2="-28.5" width="0.5" layer="16"/>
-<wire x1="-15.7" y1="-28.5" x2="-16.4" y2="-28.5" width="0.5" layer="16"/>
-<wire x1="-16.4" y1="-28.5" x2="-17.6" y2="-27.3" width="0.5" layer="16"/>
+<wire x1="-12.3" y1="-33" x2="-12.3" y2="-32.6" width="0.5" layer="16"/>
+<wire x1="-12.3" y1="-32.6" x2="-17.6" y2="-27.3" width="0.5" layer="16"/>
 <wire x1="-17.6" y1="-27.3" x2="-21.7" y2="-27.3" width="0.5" layer="16"/>
 <wire x1="-21.7" y1="-27.3" x2="-21.7" y2="0.9" width="0.5" layer="16"/>
 <contactref element="C8" pad="P$2"/>
