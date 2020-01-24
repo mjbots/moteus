@@ -7,6 +7,7 @@ At the moment, a custom openocd is required to flash images onto STM32G4 based c
 ```
 git clone https://github.com/mjbots/openocd
 cd openocd.git
+./bootstrap
 ./configure && make && sudo make install
 ```
 
