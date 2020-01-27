@@ -36,9 +36,20 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
   void AsyncWrite(const Header& header,
                   const std::string_view& data,
                   const mjlib::micro::SizeCallback& callback) override {
+    const auto actual_dlc = RoundUpDlc(data.size());
     const uint32_t id =
         ((header.source & 0xff) << 8) | (header.destination & 0xff);
-    fdcan_->Send(id, data, {});
+
+    if (actual_dlc == data.size()) {
+      fdcan_->Send(id, data, {});
+    } else {
+      std::memcpy(buf_, data.data(), data.size());
+      for (size_t i = data.size(); i < actual_dlc; i++) {
+        buf_[i] = 0x50;
+      }
+      fdcan_->Send(id, std::string_view(buf_, actual_dlc), {});
+    }
+
     callback(mjlib::micro::error_code(), data.size());
   }
 
@@ -68,6 +79,26 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
     copy(mjlib::micro::error_code(), bytes);
   }
 
+  static size_t RoundUpDlc(size_t value) {
+    if (value == 0) { return 0; }
+    if (value == 1) { return 1; }
+    if (value == 2) { return 2; }
+    if (value == 3) { return 3; }
+    if (value == 4) { return 4; }
+    if (value == 5) { return 5; }
+    if (value == 6) { return 6; }
+    if (value == 7) { return 7; }
+    if (value == 8) { return 8; }
+    if (value <= 12) { return 12; }
+    if (value <= 16) { return 16; }
+    if (value <= 20) { return 20; }
+    if (value <= 24) { return 24; }
+    if (value <= 32) { return 32; }
+    if (value <= 48) { return 48; }
+    if (value <= 64) { return 64; }
+    return 0;
+  }
+
  private:
   FDCan* const fdcan_;
 
@@ -76,6 +107,7 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
   mjlib::base::string_span current_read_data_;
 
   FDCAN_RxHeaderTypeDef fdcan_header_ = {};
+  char buf_[64] = {};
 };
 
 }
