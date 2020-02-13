@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="yes"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.01" unitdist="mm" unit="mm" style="lines" multiple="1" display="yes" altdistance="0.005" altunitdist="mm" altunit="mm"/>
+<grid distance="0.05" unitdist="mm" unit="mm" style="lines" multiple="1" display="yes" altdistance="0.005" altunitdist="mm" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
 <layer number="2" name="Route2" color="1" fill="3" visible="no" active="yes"/>
@@ -3839,6 +3839,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="-5.4" y="-24.3"/>
 <vertex x="4.1" y="-24.3"/>
 <vertex x="4.1" y="-28.2"/>
+<vertex x="2.9" y="-28.2"/>
+<vertex x="1.65" y="-29.45"/>
+<vertex x="-2.1" y="-29.45"/>
+<vertex x="-3.15" y="-28.2"/>
 <vertex x="-5.4" y="-28.2"/>
 </polygon>
 </signal>
