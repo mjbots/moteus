@@ -186,7 +186,7 @@
 <text x="-21.1" y="3.5" size="0.8" layer="21" rot="R180">3V</text>
 <text x="-11.2" y="2.5" size="0.6096" layer="21" font="vector">G</text>
 <text x="4.2" y="-0.9" size="0.6096" layer="21" font="vector" rot="R180">DAC</text>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="3.47" y="-4.19"/>
 <vertex x="3.56" y="-4.1"/>
 <vertex x="3.5" y="-3.94"/>
@@ -223,7 +223,7 @@
 <vertex x="2.39" y="-4.06"/>
 <vertex x="2.47" y="-4.19"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="-0.05" y="-3.21"/>
 <vertex x="-0.11" y="-2.77"/>
 <vertex x="-0.29" y="-2.82"/>
@@ -271,7 +271,7 @@
 <vertex x="-0.68" y="-3.47"/>
 <vertex x="-0.36" y="-3.32"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="-0.94" y="-7.37"/>
 <vertex x="-1.26" y="-7.69"/>
 <vertex x="-1.41" y="-8.29"/>
@@ -309,7 +309,7 @@
 <vertex x="-0.37" y="-7.69"/>
 <vertex x="-0.67" y="-7.56"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="-0.87" y="-6.35"/>
 <vertex x="-0.64" y="-5.72"/>
 <vertex x="-0.45" y="-5.22"/>
@@ -334,7 +334,7 @@
 <vertex x="-0.44" y="-6.03"/>
 <vertex x="-0.58" y="-6.35"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="0.46" y="-6.07"/>
 <vertex x="0.16" y="-6.07"/>
 <vertex x="0.17" y="-6.18"/>
@@ -366,7 +366,7 @@
 <vertex x="0.51" y="-6.11"/>
 <vertex x="0.47" y="-6.1"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="1.45" y="-4.88"/>
 <vertex x="1.45" y="-4.61"/>
 <vertex x="1.62" y="-4.62"/>
@@ -380,7 +380,7 @@
 <vertex x="1.5" y="-4.9"/>
 <vertex x="1.47" y="-4.88"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="2.14" y="-6.36"/>
 <vertex x="2.14" y="-6.06"/>
 <vertex x="2.85" y="-6.06"/>
@@ -395,7 +395,7 @@
 <vertex x="3.01" y="-6.32"/>
 <vertex x="2.88" y="-6.36"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="3.77" y="-4.71"/>
 <vertex x="3.82" y="-4.66"/>
 <vertex x="3.94" y="-4.61"/>
@@ -422,7 +422,7 @@
 <vertex x="4.07" y="-5.38"/>
 <vertex x="3.77" y="-5.38"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="5.15" y="-5.37"/>
 <vertex x="3.77" y="-5.37"/>
 <vertex x="3.77" y="-5.61"/>
@@ -430,7 +430,7 @@
 <vertex x="5.01" y="-5.49"/>
 <vertex x="5.07" y="-5.45"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="3.77" y="-5.61"/>
 <vertex x="3.77" y="-6.27"/>
 <vertex x="3.81" y="-6.32"/>
@@ -455,7 +455,7 @@
 <vertex x="4.06" y="-6.04"/>
 <vertex x="4.06" y="-5.61"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="5.55" y="-5.5"/>
 <vertex x="5.56" y="-5.26"/>
 <vertex x="5.57" y="-5.17"/>
@@ -496,7 +496,7 @@
 <vertex x="5.83" y="-5.38"/>
 <vertex x="5.83" y="-5.5"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="5.83" y="-5.5"/>
 <vertex x="5.55" y="-5.5"/>
 <vertex x="5.56" y="-5.76"/>
@@ -534,7 +534,7 @@
 <vertex x="5.86" y="-5.78"/>
 <vertex x="5.83" y="-5.61"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="7.5" y="-4.62"/>
 <vertex x="8.84" y="-4.62"/>
 <vertex x="8.84" y="-4.93"/>
@@ -544,7 +544,7 @@
 <vertex x="8.03" y="-4.93"/>
 <vertex x="7.5" y="-4.93"/>
 </polygon>
-<polygon width="0" layer="25">
+<polygon width="0.05" layer="25">
 <vertex x="10.42" y="-4.93"/>
 <vertex x="10.42" y="-4.62"/>
 <vertex x="9.52" y="-4.62"/>
@@ -2479,7 +2479,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="POPULATE" value="1" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="DIELECTRIC" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="-5.4" y="-2.4" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="-4.6" y="0.1" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 <attribute name="MF" value="" x="-5.3" y="-1.3" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C17" library="mfpassives" package="C0402" value="1uF" x="-10.1" y="-1.7" smashed="yes" rot="R180">
