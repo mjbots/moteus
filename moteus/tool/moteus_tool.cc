@@ -224,6 +224,26 @@ struct Options {
   double kv_speed = 12.0;
 };
 
+std::string Base64SerialNumber(
+    uint32_t s1,
+    uint32_t s2,
+    uint32_t s3) {
+  auto u128 = [](auto value) {
+    return static_cast<__uint128_t>(value);
+  };
+
+  __uint128_t serial_num = (u128(s1) << 64) | (u128(s2) << 32) | u128(s3);
+  constexpr char digits[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  BOOST_ASSERT(sizeof(digits) == 65);
+  char result[17] = {};
+  for (int i = 0; i < 16; i++) {
+    result[15 - i] = digits[serial_num % 64];
+    serial_num /= 64;
+  }
+  return std::string(result);
+}
+
 std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
   std::set<int> result;
 
@@ -751,8 +771,7 @@ class Runner {
               "firmware.version",
               });
 
-    result.serial_number = fmt::format(
-        "{:08x}{:08x}{:08x}",
+    result.serial_number = Base64SerialNumber(
         std::stoi(firmware.at("firmware.serial_number.0")),
         std::stoi(firmware.at("firmware.serial_number.1")),
         std::stoi(firmware.at("firmware.serial_number.2")));
