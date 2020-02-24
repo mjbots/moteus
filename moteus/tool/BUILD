@@ -75,6 +75,9 @@ cc_test(
         ":moteus_tool_lib",
         "@boost//:test",
     ],
+    data = [
+        ":moteus_tool",  # just so it is built
+    ],
 )
 
 cc_binary(
