@@ -22,6 +22,7 @@
 #include <boost/asio.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/multiprecision/cpp_int.hpp>
 
 #include <fmt/format.h>
 
@@ -228,17 +229,16 @@ std::string Base64SerialNumber(
     uint32_t s1,
     uint32_t s2,
     uint32_t s3) {
-  auto u128 = [](auto value) {
-    return static_cast<__uint128_t>(value);
-  };
+  using bigint = boost::multiprecision::uint128_t;
 
-  __uint128_t serial_num = (u128(s1) << 64) | (u128(s2) << 32) | u128(s3);
+  bigint serial_num = (bigint(s1) << 64) | (bigint(s2) << 32) | bigint(s3);
   constexpr char digits[] =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   BOOST_ASSERT(sizeof(digits) == 65);
   char result[17] = {};
   for (int i = 0; i < 16; i++) {
-    result[15 - i] = digits[serial_num % 64];
+    const int digit_num = (serial_num % 64).convert_to<int>();
+    result[15 - i] = digits[digit_num];
     serial_num /= 64;
   }
   return std::string(result);
