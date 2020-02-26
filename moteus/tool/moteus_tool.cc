@@ -488,7 +488,7 @@ class Runner {
       }
       const auto line = *maybe_line;
       if (line.substr(0, 2) == "OK") { co_return result; }
-      result += line;
+      result += line + "\n";
     }
   }
 
