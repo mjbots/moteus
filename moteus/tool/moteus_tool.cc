@@ -220,6 +220,7 @@ struct Options {
   std::vector<std::string> targets;
 
   bool calibrate = false;
+  bool zero_offset = false;
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
   double kv_speed = 12.0;
@@ -343,7 +344,8 @@ class Runner {
       (!options_.write_config.empty() ? 1 : 0) +
       (options_.console ? 1 : 0) +
       (!options_.flash.empty() ? 1 : 0) +
-      (options_.calibrate ? 1 : 0)
+      (options_.calibrate ? 1 : 0) +
+      (options_.zero_offset ? 1 : 0)
       ;
     }();
 
@@ -397,6 +399,8 @@ class Runner {
       co_await DoFlash(*stream);
     } else if (options_.calibrate) {
       co_await DoCalibrate(*stream);
+    } else if (options_.zero_offset) {
+      co_await DoZeroOffset(*stream);
     }
   }
 
@@ -931,6 +935,18 @@ class Runner {
     co_return cal_result;
   }
 
+  boost::asio::awaitable<void> DoZeroOffset(io::AsyncStream& stream) {
+    const auto servo_stats = co_await ReadData(stream, "servo_stats");
+    const auto position_raw =
+        std::stoi(servo_stats.at("servo_stats.position_raw"));
+    co_await Command(stream, fmt::format("conf set motor.position_offset {:d}",
+                                         -position_raw));
+    co_await Command(stream, "conf write");
+    co_await Command(stream, "d rezero");
+
+    co_return;
+  }
+
   boost::asio::awaitable<std::map<std::string, std::string>> ReadData(
       io::AsyncStream& stream, const std::string& channel) {
     co_await Command(stream, fmt::format("tel fmt {} 1", channel));
@@ -1181,6 +1197,8 @@ int moteus_tool_main(boost::asio::io_context& context,
           "write the given elf file to flash"),
       clipp::option("calibrate").set(options.calibrate).doc(
           "calibrate the motor, requires full freedom of motion"),
+      clipp::option("zero-offset").set(options.zero_offset).doc(
+          "set the motor's position offset"),
       clipp::option("calibration_power") &
       clipp::value("V", options.calibration_power).doc(
           "voltage to use during calibration"),
