@@ -178,6 +178,7 @@ int main(void) {
 
       options.fdcan_frame = true;
       options.bitrate_switch = true;
+      options.automatic_retransmission = true;
 
       return options;
     }());
