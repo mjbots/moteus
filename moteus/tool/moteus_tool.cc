@@ -1162,7 +1162,7 @@ int moteus_tool_main(boost::asio::io_context& context,
   auto group = clipp::group(
       clipp::repeatable(
           (clipp::option("t", "target") &
-           clipp::integer("TGT", options.targets)) %
+           clipp::value("TGT", options.targets)) %
           "one or more target devices (default: autodiscover)"),
       clipp::option("v", "verbose").set(options.verbose).doc(
           "emit all commands sent to and from the device"),
