@@ -14,6 +14,7 @@
 
 #include "mbed.h"
 
+#include "moteus/fdcan.h"
 #include "moteus/millisecond_timer.h"
 #include "moteus/power_dist_hw.h"
 
@@ -48,6 +49,17 @@ void SetClock() {
    */
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE2);
 
+  {
+    RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
+
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_FDCAN;
+    PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+    {
+      mbed_die();
+    }
+  }
+
   SystemCoreClockUpdate();
 }
 
@@ -57,6 +69,27 @@ int main(void) {
   // Drop our speed down to nothing, because we don't really need to
   // go fast for this and we might as well save the battery.
   SetClock();
+
+  moteus::FDCan::Filter filters[] = {
+    { 0x10005, 0xffffff, moteus::FDCan::FilterMode::kMask,
+      moteus::FDCan::FilterAction::kAccept,
+      moteus::FDCan::FilterType::kExtended,
+    },
+  };
+
+  moteus::FDCan can(
+      [&]() {
+        moteus::FDCan::Options options;
+        options.td = PA_12;
+        options.rd = PA_11;
+        options.slow_bitrate = 125000;
+        options.fast_bitrate = 125000;
+
+        options.filter_begin = &filters[0];
+        options.filter_end = &filters[0] + (sizeof(filters) / sizeof(filters[0]));
+
+        return options;
+      }());
 
   DigitalOut led1(DEBUG_LED1, 1);
 
@@ -77,8 +110,39 @@ int main(void) {
 
   // Set up an interrupt to trigger every 50ms just to kick us out of sleep mode.
 
+  uint32_t last_can = 0;
+
+  char can_status_data[8] = {
+    0, // switch status
+    0, // lock time in 0.1s
+  };
+
+  char can_command_data[8] = {};
+
+  char& power_switch_status = can_status_data[0];
+  uint8_t& lock_time = reinterpret_cast<uint8_t&>(can_status_data[1]);
+
+  FDCAN_RxHeaderTypeDef can_rx_header;
 
   for (;;) {
+    {
+      const auto now = timer.read_ms() / 100;
+      if (now != last_can) {
+        last_can = now;
+
+        can.Send(0x10004, std::string_view(can_status_data,
+                                           sizeof(can_status_data)));
+
+        if (lock_time > 0) { lock_time--; }
+      }
+
+      if (can.Poll(&can_rx_header, can_command_data)) {
+        if (can_command_data[1] > 0) {
+          lock_time = static_cast<uint8_t>(can_command_data[1]);
+        }
+      }
+    }
+
     switch (state) {
       case kPowerOff: {
         switch_led.write(1);  // inverted
@@ -100,8 +164,10 @@ int main(void) {
       }
     }
 
+    power_switch_status = (power_switch.read() == 0) ? 1 : 0;
+
     // Handle state transitions.
-    if (power_switch.read() == 0) {
+    if (power_switch_status == 1) {
       // The switch is on.  Try to get into the power on state.
       switch (state) {
         case kPowerOff: {
@@ -122,8 +188,10 @@ int main(void) {
         }
       }
     } else {
-      // Always go straight to power off.
-      state = kPowerOff;
+      if (lock_time == 0) {
+        // Only turn off once our lock time has expired.
+        state = kPowerOff;
+      }
     }
   }
 }

@@ -61,9 +61,14 @@ bootloader_mbed_binary(
 g4_bootloader_mbed_binary(
     name = "power_dist",
     srcs = [
+        "fdcan.cc",
+        "fdcan.h",
         "millisecond_timer.h",
         "power_dist.cc",
         "power_dist_hw.h",
+    ],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/base:string_span",
     ],
 )
 
