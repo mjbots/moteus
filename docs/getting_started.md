@@ -2,19 +2,20 @@
 
 ## Dependencies ##
 
-At the moment, a custom openocd is required to flash images onto STM32G4 based controllers.  Clone and install from mjbots/openocde
+Some dependencies are required for the graphical debugging UI.  Instructions for ubuntu >=18.04 systems:
 
 ```
+sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial
+```
+
+If you want to re-flash the firmware using the debugging port, a custom openocd is currently required.  Clone and install from mjbots/openocde
+
+```
+sudo apt install autotools-dev automake autogen autoconf libtool
 git clone https://github.com/mjbots/openocd
 cd openocd.git
 ./bootstrap
 ./configure && make && sudo make install
-```
-
-Other dependencies which are required for the graphical debugging UI.  Instructions for ubuntu >=18.04 systems:
-
-```
-sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial
 ```
 
 ## Building the software ##
