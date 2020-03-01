@@ -326,6 +326,15 @@ py_binary(
     ],
 )
 
+py_binary(
+    name = "fdcanusb_register_example",
+    srcs = ["fdcanusb_register_example.py"],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
+    ],
+)
+
 cc_binary(
     name = "multiplex_tool",
     srcs = ["multiplex_tool_main.cc"],
@@ -342,7 +351,9 @@ py_test(
         "test/dummy_host_test.py",
     ],
     deps = [
+        "fdcanusb_register_example",
         "jump_test",
+        "throw_test",
         "//moteus/tool:calibrate_encoder",
         "//moteus/tool:tview",
     ],
