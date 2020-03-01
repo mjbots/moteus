@@ -14,7 +14,7 @@ cd openocd.git
 Other dependencies which are required for the graphical debugging UI.  Instructions for ubuntu >=18.04 systems:
 
 ```
-sudo apt install python3-serial python3-pyside
+sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial
 ```
 
 ## Building the software ##
