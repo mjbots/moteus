@@ -616,7 +616,8 @@ class Runner {
     co_await Command(stream, "unlock");
     co_await WriteFlash(stream, elf);
     co_await Command(stream, "lock");
-    co_await Command(stream, "reset");
+    // We don't expect to get a reply from this.
+    co_await WriteMessage(stream, "reset");
   }
 
   struct FlashDataBlock {
