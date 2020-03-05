@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -716,6 +716,7 @@ class BldcServo::Impl {
 
     if (current_data_->rezero_position) {
       status_.position_to_set = *current_data_->rezero_position;
+      status_.rezeroed = true;
       current_data_->rezero_position = {};
     }
 

@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -183,6 +183,7 @@ enum class Register {
   kQCurrent = 0x004,
   kDCurrent = 0x005,
 
+  kRezeroState = 0x00c,
   kVoltage = 0x00d,
   kTemperature = 0x00e,
   kFault = 0x00f,
@@ -379,6 +380,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kTemperature:
       case Register::kQCurrent:
       case Register::kDCurrent:
+      case Register::kRezeroState:
       case Register::kVoltage:
       case Register::kTorque:
       case Register::kFault:
@@ -422,6 +424,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kDCurrent: {
         return ScaleCurrent(bldc_.status().d_A, type);
+      }
+      case Register::kRezeroState: {
+        return IntMapping(bldc_.status().rezeroed ? 1 : 0, type);
       }
       case Register::kVoltage: {
         return ScaleVoltage(bldc_.status().bus_V, type);

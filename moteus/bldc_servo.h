@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -318,6 +318,7 @@ class BldcServo {
     float control_position = std::numeric_limits<float>::quiet_NaN();
     float position_to_set = 0.0;
     float timeout_s = 0.0;
+    bool rezeroed = false;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     struct Dwt {
@@ -390,6 +391,7 @@ class BldcServo {
       a->Visit(MJ_NVP(control_position));
       a->Visit(MJ_NVP(position_to_set));
       a->Visit(MJ_NVP(timeout_s));
+      a->Visit(MJ_NVP(rezeroed));
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
       a->Visit(MJ_NVP(dwt));

@@ -152,6 +152,14 @@ Mode: Read only
 
 The current in the D phase measured in amps.
 
+### 0x00c - Rezero State ###
+
+Types: int8, int16, int32, float
+Mode: Read only
+
+Non-zero if this servo has been rezeroed since the most recent power
+on or reset.
+
 ### 0x00d - Voltage ###
 
 Types: int8, int16, int32, float
