@@ -224,6 +224,7 @@ struct Options {
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
   double kv_speed = 12.0;
+  double v_per_hz_fudge = 0.8;
 };
 
 std::string Base64SerialNumber(
@@ -1078,7 +1079,9 @@ class Runner {
 
     const double average_q_V = q_Vs.mean();
 
-    const double v_per_hz = unwrapped_position_scale_ * average_q_V / speed;
+    const double v_per_hz =
+        options_.v_per_hz_fudge *
+        unwrapped_position_scale_ * average_q_V / speed;
 
     std::cout << fmt::format("speed={} q_V={} v_per_hz (pre-gearbox)={}\n",
                              speed, average_q_V, v_per_hz);
@@ -1208,7 +1211,10 @@ int moteus_tool_main(boost::asio::io_context& context,
           "speed in electrical rps"),
       clipp::option("kv_speed") &
       clipp::value("S", options.kv_speed).doc(
-          "speed in mechanical rotor rps")
+          "speed in mechanical rotor rps"),
+      clipp::option("v_per_hz_fudge") &
+      clipp::value("V", options.kv_speed).doc(
+          "factor to multiply v_per_hz by")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 
