@@ -102,6 +102,7 @@ The current operational mode of the servo.  Not all values are valid to write.
  * 8 - Current = writeable
  * 9 - Position = writeable
  * 10 - Position timeout
+ * 11 - Zero Velocity = writeable
 
 The registers associated with each control mode are reset when not in
 that control mode.
