@@ -1,6 +1,6 @@
 moteus controller reference
 
-# register command set #
+# A. register command set #
 
 The register command set is intended for use in real-time
 applications.  It provides multiple levels of conciseness, and is
@@ -18,14 +18,14 @@ Common definitions:
   maximum valid length.
 - *float*: An IEEE 754 32-bit floating point number.
 
-## Subframes ##
+## A.1 Subframes ##
 
 Each CAN-FD frame contains one or more "subframes".  A short
 description of the allowable subframe types are described below.  The
 canonical reference is located at
 [multiplex/format.h](https://github.com/mjbots/mjlib/blob/master/mjlib/multiplex/format.h)
 
-### Write Registers ###
+### A.1.a Write Registers ###
 
 *0x00, 0x04, 0x08, 0x0c* - write (int8|int16|int32|float)
 
@@ -34,14 +34,14 @@ canonical reference is located at
 - `varuint` => start register number
 - N x (int8|int16|int32|float) => values
 
-### Read Registers ###
+### A.1.b Read Registers ###
 
 *0x10, 0x14, 0x18, 0x1c* - read (int8|int16|int32|float)
 
 - `varuint` => number of registers (may be optionally encoded as a non-zero 2 LSBs)
 - `varuint` => start register number
 
-### Reply ###
+### A.1.c Reply ###
 
 *0x20, 0x24, 0x28, 0x2c* - reply (int8|int16|int32|float)
 
@@ -49,61 +49,61 @@ canonical reference is located at
 - `varuint` => start register number
 - N x (int8|int16|int32|float) => values
 
-### Errors ###
+### A.1.d Errors ###
 
 *0x30, 0x31* - read/write error
 
 - `varuint` => register number
 - `varuint` => error number
 
-### NOP ###
+### A.1.e NOP ###
 
 *0x50* - no operation
 
 
-## Register Usage ##
+## A.2 Register Usage ##
 
 The full set of allowed registers are documented in
 [moteus_register_map.md](../moteus/moteus_register_map.md).  An
 abbreviated set are listed here.
 
-### Mappings ###
+### A.2.a Mappings ###
 
 When registers are accessed as integer types, the following mappings
 are used to encode the underlying floating point values into integer
 values.
 
-#### Current (measured in Amps) ####
+#### A.2.a.1 Current (measured in Amps) ####
 
 - int8 => 1 LSB => 1A
 - int16 => 1 LSB => 0.1A
 - int32 => 1 LSB => 0.001A
 
-#### Torque (measured in N*m) ####
+#### A.2.a.2 Torque (measured in N*m) ####
 
 - int8 => 1 LSB => 0.5 N*m
 - int16 => 1 LSB => 0.01 N*m
 - int32 => 1 LSB => 0.001 N*m
 
-#### Voltage (measured in Volts) ####
+#### A.2.a.3 Voltage (measured in Volts) ####
 
 - int8 => 1 LSB => 1V
 - int16 => 1 LSB => 0.1V
 - int32 => 1 LSB => 0.001 V
 
-#### Temperature (measured in degrees Celsius) ####
+#### A.2.a.4 Temperature (measured in degrees Celsius) ####
 
 - int8 => 1 LSB => 1 C
 - int16 => 1 LSB => 0.1C
 - int32 => 1 LSB => 0.001 C
 
-#### Time (measured in seconds) ####
+#### A.2.a.5 Time (measured in seconds) ####
 
 - int8 => 1 LSB => 0.01s
 - int16 => 1 LSB => 0.001s
 - int32 => 1 LSB => 0.000001s
 
-### Registers ###
+### A.2.b Registers ###
 
 #### 0x000 - Mode ####
 
@@ -241,7 +241,7 @@ controller will enter the Timeout state.  The default is 0.0, which
 means to use the system-wide configured default.  NaN / maximal
 negative means apply no enforced timeout.
 
-## Example ##
+## A.3 Example ##
 
 A single CAN-FD frame can be used to command the servo, and initiate a
 query of certain registers.  An example frame might look like the
@@ -299,13 +299,13 @@ Decoded, that means:
  - `14` temperature is 20C
  - `00` no fault
 
-# diagnostic command set #
+# B. diagnostic command set #
 
 The following command set is intended for debugging and diagnostics.
 It can be entered from `tview` or the `--console` mode of
 `multiplex_tool` or `moteus_tool`.
 
-## `d` - board debug ##
+## B.1 `d` - board debug ##
 
 ### `d stop` ###
 
@@ -413,7 +413,7 @@ Each optional element consists of a prefix character followed by a value.  Permi
 
 Enter the bootloader.
 
-## `tel` - telemetry ##
+## B.2 `tel` - telemetry ##
 
 ### `tel list` ###
 
@@ -461,7 +461,7 @@ Stop emitting all periodic telemetry data.
 
 Switch all channels to text mode.
 
-## `conf` - configuration ##
+## B.3 `conf` - configuration ##
 
 ### `conf enumerate` ###
 
@@ -517,7 +517,7 @@ calibrate the controller using the following procedure.
 WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
 
 
-# Flashing firwmare #
+# C. Flashing firwmare #
 
 The firmware can be flashed either using:
 
@@ -532,7 +532,7 @@ are built correctly.
 tools/bazel test //moteus:flash
 ```
 
-# Mechanical #
+# D. Mechanical #
 
 The current mechanical drawing for the controller can be found at:
 [20200115-moteus-controller-r42-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.2/20200115-moteus-controller-r42-mechanical.pdf)
@@ -540,7 +540,7 @@ The current mechanical drawing for the controller can be found at:
 The current mechanical drawing for the qdd100 servo can be foudn at:
 [20200315-qdd100-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/qdd100/20200315-qdd100-mechanical.pdf)
 
-# Pinout #
+# E. Pinout #
 
 ## JST PH-3 CAN ##
 
