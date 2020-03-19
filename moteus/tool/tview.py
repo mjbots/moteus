@@ -21,6 +21,7 @@ Interactively display and update values from an embedded device.
 
 import binascii
 import io
+import numpy
 import optparse
 import os
 import re
@@ -52,6 +53,7 @@ LEFT_LEGEND_LOC = 3
 RIGHT_LEGEND_LOC = 2
 
 DEFAULT_RATE = 100
+MAX_HISTORY_SIZE = 100
 
 def readline(stream):
     result = b''
@@ -602,6 +604,7 @@ class Record:
         self.archive = archive
         self.tree_item = None
         self.signals = {}
+        self.history = []
 
     def get_signal(self, name):
         if name not in self.signals:
@@ -611,8 +614,21 @@ class Record:
 
     def update(self, struct):
         count = 0
+        self.history.append(struct)
+        if len(self.history) > MAX_HISTORY_SIZE:
+            self.history = self.history[1:]
+
         for key, signal in self.signals.items():
-            value = _get_data(struct, key)
+            if key.startswith('__STDDEV_'):
+                remaining = key.split('__STDDEV_')[1]
+                values = [_get_data(x, remaining) for x in self.history]
+                value = numpy.std(values)
+            elif key.startswith('__MEAN_'):
+                remaining = key.split('__MEAN_')[1]
+                values = [_get_data(x, remaining) for x in self.history]
+                value = numpy.mean(values)
+            else:
+                value = _get_data(struct, key)
             if signal.update(value):
                 count += 1
         return count != 0
@@ -1159,13 +1175,31 @@ class TviewMainWindow():
         menu = QtGui.QMenu(self.ui)
         left_action = menu.addAction('Plot Left')
         right_action = menu.addAction('Plot Right')
+        left_std_action = menu.addAction('Plot StdDev Left')
+        right_std_action = menu.addAction('Plot StdDev Right')
+        left_mean_action = menu.addAction('Plot Mean Left')
+        right_mean_action = menu.addAction('Plot Mean Right')
+
+        plot_actions = [
+            left_action,
+            right_action,
+            left_std_action,
+            right_std_action,
+            left_mean_action,
+            right_mean_action,
+        ]
+
+        right_actions = [right_action, right_std_action, right_mean_action]
+        std_actions = [left_std_action, right_std_action]
+        mean_actions = [left_mean_action, right_mean_action]
+
         menu.addSeparator()
         copy_name = menu.addAction('Copy Name')
         copy_value = menu.addAction('Copy Value')
 
         requested = menu.exec_(self.ui.telemetryTreeWidget.mapToGlobal(pos))
 
-        if requested == left_action or requested == right_action:
+        if requested in plot_actions:
             top = item
             while top.parent().parent():
                 top = top.parent()
@@ -1178,8 +1212,17 @@ class TviewMainWindow():
 
             leaf = name.split('.', 1)[1]
             axis = 0
-            if requested == right_action:
+            if requested in right_actions:
                 axis = 1
+
+            if requested in std_actions:
+                leaf = '__STDDEV_' + leaf
+                name = 'stddev ' + name
+
+            if requested in mean_actions:
+                leaf = '__MEAN_' + leaf
+                name = 'mean ' + name
+
             plot_item = self.ui.plotWidget.add_plot(
                 name, record.get_signal(leaf), axis)
             self.ui.plotItemCombo.addItem(name, plot_item)
