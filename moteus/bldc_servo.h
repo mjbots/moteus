@@ -114,13 +114,7 @@ class BldcServo {
 
   struct Config {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
-    float v_scale_V = // V per A/D count
-#if MOTEUS_HW_REV <= 2
-        0.00884f
-#elif MOTEUS_HW_REV >= 3
-        0.0099f
-#endif
-        ;
+    float v_scale_V = 0.00884f;  // V per A/D count
 
     float max_voltage = 37.0f;
     float derate_temperature = 50.0f;
@@ -130,7 +124,14 @@ class BldcServo {
     float velocity_threshold = 0.09f;
     float position_derate = 0.02f;
 
-    uint16_t adc_cycles = 15;  // 3, 15, 28, 56, 84, 112, 144, 480
+    // The current ADCs are driven by the drv8323's op-amp, which is
+    // very low impedance.  Thus they don't need much sampling time.
+    uint16_t adc_cur_cycles = 2;  // 2, 6, 12, 24, 47, 92, 247, 640
+
+    // However, the aux channels, (voltage and temperature), are just
+    // driven by resistor networks (relatively high impedance).  They
+    // need a larger sampling time.
+    uint16_t adc_aux_cycles = 47;
 
     // We use the same PID constants for D and Q current control
     // loops.
@@ -176,7 +177,8 @@ class BldcServo {
       a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(velocity_threshold));
       a->Visit(MJ_NVP(position_derate));
-      a->Visit(MJ_NVP(adc_cycles));
+      a->Visit(MJ_NVP(adc_cur_cycles));
+      a->Visit(MJ_NVP(adc_aux_cycles));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
       a->Visit(MJ_NVP(default_timeout_s));
@@ -325,6 +327,7 @@ class BldcServo {
       uint32_t adc_done = 0;
       uint32_t start_pos_sample = 0;
       uint32_t done_pos_sample = 0;
+      uint32_t done_temp_sample = 0;
       uint32_t sense = 0;
       uint32_t curstate = 0;
       uint32_t control_sel_mode = 0;
@@ -339,6 +342,7 @@ class BldcServo {
         a->Visit(MJ_NVP(adc_done));
         a->Visit(MJ_NVP(start_pos_sample));
         a->Visit(MJ_NVP(done_pos_sample));
+        a->Visit(MJ_NVP(done_temp_sample));
         a->Visit(MJ_NVP(sense));
         a->Visit(MJ_NVP(curstate));
         a->Visit(MJ_NVP(control_sel_mode));

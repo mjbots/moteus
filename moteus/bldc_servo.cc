@@ -459,6 +459,35 @@ class BldcServo::Impl {
 
   void ConfigureADC() {
 #if defined(TARGET_STM32F4)
+    constexpr uint16_t kCycleMap[] = {
+      3, 15, 28, 56, 84, 112, 144, 480,
+    };
+#elif defined(TARGET_STM32G4)
+    constexpr uint16_t kCycleMap[] = {
+      2, 6, 12, 24, 47, 92, 247, 640,
+    };
+#else
+#error "Unknown target"
+#endif
+
+    const uint32_t cur_cycles = MapConfig(kCycleMap, config_.adc_cur_cycles);
+    const uint32_t aux_cycles = MapConfig(kCycleMap, config_.adc_aux_cycles);
+    auto make_cycles = [](auto v) {
+      return
+        (v << 0) |
+        (v << 3) |
+        (v << 6) |
+        (v << 9) |
+        (v << 12) |
+        (v << 15) |
+        (v << 18) |
+        (v << 21) |
+        (v << 24);
+    };
+    const uint32_t all_cur_cycles = make_cycles(cur_cycles);
+    const uint32_t all_aux_cycles = make_cycles(aux_cycles);
+
+#if defined(TARGET_STM32F4)
     __HAL_RCC_ADC1_CLK_ENABLE();
     __HAL_RCC_ADC2_CLK_ENABLE();
     __HAL_RCC_ADC3_CLK_ENABLE();
@@ -484,28 +513,13 @@ class BldcServo::Impl {
     MJ_ASSERT(reinterpret_cast<uint32_t>(ADC3) ==
                 pinmap_peripheral(options_.vsense, PinMap_ADC));
 
-    constexpr uint16_t kCycleMap[] = {
-      3, 15, 28, 56, 84, 112, 144, 480,
-    };
-
     // Set sample times to the same thing across the board
-    const uint32_t cycles = MapConfig(kCycleMap, config_.adc_cycles);
-    const uint32_t all_cycles =
-        (cycles << 0) |
-        (cycles << 3) |
-        (cycles << 6) |
-        (cycles << 9) |
-        (cycles << 12) |
-        (cycles << 15) |
-        (cycles << 18) |
-        (cycles << 21) |
-        (cycles << 24);
-    ADC1->SMPR1 = all_cycles;
-    ADC1->SMPR2 = all_cycles;
-    ADC2->SMPR1 = all_cycles;
-    ADC2->SMPR2 = all_cycles;
-    ADC3->SMPR1 = all_cycles;
-    ADC3->SMPR2 = all_cycles;
+    ADC1->SMPR1 = all_cur_cycles;
+    ADC1->SMPR2 = all_cur_cycles;
+    ADC2->SMPR1 = all_cur_cycles;
+    ADC2->SMPR2 = all_cur_cycles;
+    ADC3->SMPR1 = all_aux_cycles;
+    ADC3->SMPR2 = all_aux_cycles;
 #elif defined(TARGET_STM32G4)
     __HAL_RCC_ADC12_CLK_ENABLE();
     __HAL_RCC_ADC345_CLK_ENABLE();
@@ -575,15 +589,15 @@ class BldcServo::Impl {
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
     ADC5->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        vsense_sqr_ << ADC_SQR1_SQ1_Pos;
+        (1 << ADC_SQR1_L_Pos) |  // length 1
+        (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
 
-    ADC1->SMPR1 =
-        (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
-    ADC3->SMPR1 =
-        (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
-    ADC5->SMPR1 =
-        (2 << ADC_SMPR1_SMP0_Pos);  // 12.5 ADC Cycles
+    ADC1->SMPR1 = all_cur_cycles;
+    ADC1->SMPR2 = all_cur_cycles;
+    ADC3->SMPR1 = all_cur_cycles;
+    ADC3->SMPR2 = all_cur_cycles;
+    ADC5->SMPR1 = all_aux_cycles;
+    ADC5->SMPR2 = all_aux_cycles;
 
 #else
 #error "Unknown target"
@@ -743,18 +757,18 @@ class BldcServo::Impl {
     ADC3->SQR3 = tsense_sqr_;
     ADC3->CR2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
+    // The datasheet says that ADSTP *must* be activated before
+    // switching channels to guarantee that a conversion is not in
+    // progress.  At this point, we know a conversion is not in
+    // progress, since we're in one-shot mode.  However, if we don't
+    // assert ADSTP, then the channel doesn't switch properly.  Guess
+    // it is needed for other reasons too?
+    ADC5->CR |= ADC_CR_ADSTP;
+    while (ADC5->CR & ADC_CR_ADSTP);
+
     ADC5->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         tsense_sqr_ << ADC_SQR1_SQ1_Pos;
-    // It can take a few cycles before we can start the ADC.
-    __NOP();
-    __NOP();
-    __NOP();
-    __NOP();
-    __NOP();
-    __NOP();
-    __NOP();
-    __NOP();
     ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
@@ -779,51 +793,6 @@ class BldcServo::Impl {
 
     status_.position =
         (motor_.invert ? (65535 - status_.position_raw) : status_.position_raw);
-
-    // The temperature sensing should be done by now, but just double
-    // check.
-#if defined(TARGET_STM32F4)
-    WaitForAdc(ADC3);
-    status_.fet_temp_raw = ADC3->DR;
-    // Set ADC3 back to the sense resistor.
-    ADC3->SQR3 = vsense_sqr_;
-
-#elif defined(TARGET_STM32G4)
-    WaitForAdc(ADC5);
-    status_.fet_temp_raw = ADC5->DR;
-    ADC5->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
-#else
-#error "Unknown target"
-#endif
-
-    // Kick off a conversion just to get the FET temp out of the system.
-#if defined(TARGET_STM32F4)
-    ADC3->CR2 |= ADC_CR2_SWSTART;
-#elif defined(TARGET_STM32G4)
-    ADC5->CR |= ADC_CR_ADSTART;
-#else
-#error "Unknown target"
-#endif
-
-    {
-      constexpr int adc_max = 4096;
-      constexpr size_t size_thermistor_table =
-          sizeof(g_thermistor_lookup) / sizeof(*g_thermistor_lookup);
-      size_t offset = std::max<size_t>(
-          1, std::min<size_t>(
-              size_thermistor_table - 2,
-              status_.fet_temp_raw * size_thermistor_table / adc_max));
-      const int16_t this_value = offset * adc_max / size_thermistor_table;
-      const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
-      const float temp1 = g_thermistor_lookup[offset];
-      const float temp2 = g_thermistor_lookup[offset + 1];
-      status_.fet_temp_C = temp1 +
-          (temp2 - temp1) *
-          static_cast<float>(status_.fet_temp_raw - this_value) /
-          static_cast<float>(next_value - this_value);
-    }
 
     const int offset_size = motor_.offset.size();
     const int offset_index = status_.position * offset_size / 65536;
@@ -873,6 +842,60 @@ class BldcServo::Impl {
     status_.unwrapped_position =
         status_.unwrapped_position_raw * motor_.unwrapped_position_scale *
         (1.0f / 65536.0f);
+
+    // The temperature sensing should be done by now, but just double
+    // check.
+#if defined(TARGET_STM32F4)
+    WaitForAdc(ADC3);
+    status_.fet_temp_raw = ADC3->DR;
+    // Set ADC3 back to the voltage sense resistor.
+    ADC3->SQR3 = vsense_sqr_;
+
+#elif defined(TARGET_STM32G4)
+    WaitForAdc(ADC5);
+    status_.fet_temp_raw = ADC5->DR;
+
+    ADC5->CR |= ADC_CR_ADSTP;
+    while (ADC5->CR & ADC_CR_ADSTP);
+
+    // Switch back to the voltage sense resistor.
+    ADC5->SQR1 =
+        (0 << ADC_SQR1_L_Pos) |  // length 1
+        (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+#else
+#error "Unknown target"
+#endif
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.done_temp_sample = DWT->CYCCNT;
+#endif
+
+    // Kick off a conversion just to get the FET temp out of the system.
+#if defined(TARGET_STM32F4)
+    ADC3->CR2 |= ADC_CR2_SWSTART;
+#elif defined(TARGET_STM32G4)
+    ADC5->CR |= ADC_CR_ADSTART;
+#else
+#error "Unknown target"
+#endif
+
+    {
+      constexpr int adc_max = 4096;
+      constexpr size_t size_thermistor_table =
+          sizeof(g_thermistor_lookup) / sizeof(*g_thermistor_lookup);
+      size_t offset = std::max<size_t>(
+          1, std::min<size_t>(
+              size_thermistor_table - 2,
+              status_.fet_temp_raw * size_thermistor_table / adc_max));
+      const int16_t this_value = offset * adc_max / size_thermistor_table;
+      const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
+      const float temp1 = g_thermistor_lookup[offset];
+      const float temp2 = g_thermistor_lookup[offset + 1];
+      status_.fet_temp_C = temp1 +
+          (temp2 - temp1) *
+          static_cast<float>(status_.fet_temp_raw - this_value) /
+          static_cast<float>(next_value - this_value);
+    }
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
