@@ -90,8 +90,7 @@ Value ScaleCurrent(float value, size_t type) {
 }
 
 Value ScaleVoltage(float value, size_t type) {
-  // For now, voltage and current have identical scaling.
-  return ScaleCurrent(value, type);
+  return ScaleMapping(value, 0.5f, 0.1f, 0.001f, type);
 }
 
 Value ScaleTorque(float value, size_t type) {
@@ -152,7 +151,7 @@ float ReadPwm(Value value) {
 }
 
 float ReadVoltage(Value value) {
-  return ReadScaleMapping(value, 1.0f, 0.1f, 0.001f);
+  return ReadScaleMapping(value, 0.5f, 0.1f, 0.001f);
 }
 
 float ReadPosition(Value value) {

@@ -29,7 +29,7 @@ int32 - 1 LSB -> 0.001 N*m
 
 ### Voltage (measured in Volts) ###
 
-int8 - 1 LSB -> 1 V
+int8 - 1 LSB -> 0.5 V
 int16 - 1 LSB -> 0.1 V
 int32 - 1 LSB -> 0.001 V
 
