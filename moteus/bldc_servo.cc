@@ -380,12 +380,10 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    // I have no idea why the second kPi is necessary here.  All my
-    // torque measurements just appear to be off by about a factor of
-    // pi.
+    const double kv = 4.0f * kPi * kPi / motor_.v_per_hz;
     torque_constant_ =
         is_torque_constant_configured() ?
-        motor_.v_per_hz / (2.0f * kPi) * kPi :
+        (kPi * kPi / kv) :
         kDefaultTorqueConstant;
 
     position_constant_ =

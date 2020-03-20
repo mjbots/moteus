@@ -223,8 +223,6 @@ struct Options {
   bool zero_offset = false;
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
-  double kv_speed = 12.0;
-  double v_per_hz_fudge = 0.8;
 };
 
 std::string Base64SerialNumber(
@@ -845,7 +843,12 @@ class Runner {
       report.calibration = cal_result;
       report.winding_resistance = winding_resistance;
       report.v_per_hz = v_per_hz;
-      report.kv = kPi / (report.v_per_hz / (2 * kPi));
+
+      // We need to convert speed into radians per second, which is a
+      // 2pi factor.  We need to convert voltage into peak to peak,
+      // which is another factor of 2.  Then to convert from torque
+      // constant to kv is another factor of pi.
+      report.kv = 4 * kPi * kPi / report.v_per_hz;
       report.unwrapped_position_scale = unwrapped_position_scale_;
 
       std::string log_filename = fmt::format(
@@ -976,6 +979,25 @@ class Runner {
     co_return result;
   }
 
+  boost::asio::awaitable<double> FindSpeed(
+      io::AsyncStream& stream, double voltage) {
+    BOOST_ASSERT(voltage < 1.0);
+    BOOST_ASSERT(voltage >= 0.0);
+
+    co_await Command(stream, fmt::format("d vdq 0 {:.3f}", voltage));
+
+    // Wait for it to stabilize.
+    co_await Sleep(1.0);
+
+    const auto data = co_await ReadData(stream, "servo_stats");
+
+    const auto velocity = std::stod(data.at("servo_stats.velocity"));
+
+    std::cout << fmt::format("{}V - {}Hz\n", voltage, velocity);
+
+    co_return velocity;
+  }
+
   boost::asio::awaitable<double> FindCurrent(
       io::AsyncStream& stream, double voltage) {
     BOOST_ASSERT(voltage < 0.6);
@@ -988,7 +1010,7 @@ class Runner {
 
     // Now get the servo_stats telemetry channel to read the D and Q
     // currents.
-    auto data = co_await ReadData(stream, "servo_stats");
+    const auto data = co_await ReadData(stream, "servo_stats");
 
     // Stop the current.
     co_await Command(stream, "d stop");
@@ -996,8 +1018,8 @@ class Runner {
     // Sleep a tiny bit before returning.
     co_await Sleep(0.1);
 
-    const auto d_cur = std::stod(data["servo_stats.d_A"]);
-    const auto q_cur = std::stod(data["servo_stats.q_A"]);
+    const auto d_cur = std::stod(data.at("servo_stats.d_A"));
+    const auto q_cur = std::stod(data.at("servo_stats.q_A"));
 
     const double current_A = std::hypot(d_cur, q_cur);
     std::cout << fmt::format("{}V - {}A\n", voltage, current_A);
@@ -1007,16 +1029,21 @@ class Runner {
   double CalculateWindingResistance(
       const std::vector<double>& voltages_in,
       const std::vector<double>& currents_in) const {
-    Eigen::VectorXd voltages(voltages_in.size(), 1);
-    for (size_t i = 0; i < voltages_in.size(); i++) {
-      voltages(i) = voltages_in[i];
+    return CalculateSlope(voltages_in, currents_in);
+  }
+
+  double CalculateSlope(const std::vector<double>& x_in,
+                        const std::vector<double>& y_in) const {
+    Eigen::VectorXd x(x_in.size(), 1);
+    for (size_t i = 0; i < x_in.size(); i++) {
+      x(i) = x_in[i];
     }
-    Eigen::MatrixXd currents(currents_in.size(), 1);
-    for (size_t i = 0; i < currents_in.size(); i++) {
-      currents(i, 0) = currents_in[i];
+    Eigen::MatrixXd y(y_in.size(), 1);
+    for (size_t i = 0; i < y_in.size(); i++) {
+      y(i, 0) = y_in[i];
     }
 
-    Eigen::VectorXd solution = currents.colPivHouseholderQr().solve(voltages);
+    Eigen::VectorXd solution = y.colPivHouseholderQr().solve(x);
     return solution(0, 0);
   }
 
@@ -1051,40 +1078,26 @@ class Runner {
     const double original_position_max =
         co_await ReadConfigDouble(stream, "servopos.position_max");
 
-    const double speed = options_.kv_speed * unwrapped_position_scale_;
-
-    co_await Command(stream, "conf set servopos.position_min -10000");
-    co_await Command(stream, "conf set servopos.position_max 10000");
-    co_await Command(stream, "conf set motor.v_per_hz 0");
+    co_await Command(stream, "conf set servopos.position_min NaN");
+    co_await Command(stream, "conf set servopos.position_max NaN");
     co_await Command(stream, "d index 0");
-    co_await Command(stream, fmt::format("d pos nan {} 5", speed));
 
-    co_await Sleep(2.0);
-
-    // Read a number of times to be sure we've got something real.
-    Eigen::VectorXd q_Vs(80);
-    for (int i = 0; i < q_Vs.size(); i++) {
-      const auto servo_control = co_await ReadData(stream, "servo_control");
-      co_await Sleep(0.05);
-      q_Vs[i] = std::stod(servo_control.at("servo_control.q_V"));
+    const std::vector<double> voltages = { 0.0, 0.2, 0.4, 0.6, 0.8 };
+    std::vector<double> speed_hzs;
+    for (auto voltage : voltages) {
+      speed_hzs.push_back(co_await FindSpeed(stream, voltage));
     }
 
     co_await Command(stream, "d stop");
+
     co_await Sleep(0.5);
 
-    if (options_.verbose) {
-      std::cout << fmt::format("q_V[{}] = ", q_Vs.size());
-      std::cout << q_Vs << "\n";
-    }
-
-    const double average_q_V = q_Vs.mean();
+    const double geared_v_per_hz = CalculateSlope(voltages, speed_hzs);
 
     const double v_per_hz =
-        options_.v_per_hz_fudge *
-        unwrapped_position_scale_ * average_q_V / speed;
+        geared_v_per_hz * unwrapped_position_scale_;
 
-    std::cout << fmt::format("speed={} q_V={} v_per_hz (pre-gearbox)={}\n",
-                             speed, average_q_V, v_per_hz);
+    std::cout << fmt::format("v_per_hz (pre-gearbox)={}\n", v_per_hz);
 
     co_await Command(
         stream, fmt::format("conf set motor.v_per_hz {}", v_per_hz));
@@ -1106,8 +1119,14 @@ class Runner {
         CommandOptions().set_allow_any_response(true));
     co_await StopIf(!maybe_result, stream,
                     fmt::format("could not retrieve {}", name));
-    const auto result = std::stod(*maybe_result);
-    co_return result;
+    try {
+      const auto result = std::stod(*maybe_result);
+      co_return result;
+    } catch (std::invalid_argument& e) {
+      throw base::system_error::einval(
+          fmt::format("error reading '{}'={}: {}",
+                      name, *maybe_result, e.what()));
+    }
   }
 
   boost::asio::awaitable<void> CheckForFault(io::AsyncStream& stream) {
@@ -1208,13 +1227,7 @@ int moteus_tool_main(boost::asio::io_context& context,
           "voltage to use during calibration"),
       clipp::option("calibration_speed") &
       clipp::value("S", options.calibration_speed).doc(
-          "speed in electrical rps"),
-      clipp::option("kv_speed") &
-      clipp::value("S", options.kv_speed).doc(
-          "speed in mechanical rotor rps"),
-      clipp::option("v_per_hz_fudge") &
-      clipp::value("V", options.kv_speed).doc(
-          "factor to multiply v_per_hz by")
+          "speed in electrical rps")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 
