@@ -737,6 +737,8 @@ class BldcServo::Impl {
     status_.dwt.adc_done = DWT->CYCCNT;
 #endif
 
+    position_sensor_->StartSample();
+
     if (current_data_->rezero_position) {
       status_.position_to_set = *current_data_->rezero_position;
       status_.rezeroed = true;
@@ -787,14 +789,14 @@ class BldcServo::Impl {
     status_.adc2_raw = adc2;
     status_.adc3_raw = adc3;
 
-    // Sample the position.
+    // Wait for the position sample to finish.
     const uint16_t old_position = status_.position;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.start_pos_sample = DWT->CYCCNT;
 #endif
 
-    status_.position_raw = position_sensor_->Sample();
+    status_.position_raw = position_sensor_->FinishSample();
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_pos_sample = DWT->CYCCNT;

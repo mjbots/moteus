@@ -26,6 +26,9 @@ class PositionSensor {
   /// This is called in an ISR and must complete as quickly as
   /// possible.
   virtual uint16_t Sample() = 0;
+
+  virtual void StartSample() = 0;
+  virtual uint16_t FinishSample() = 0;
 };
 
 }

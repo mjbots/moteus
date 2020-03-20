@@ -41,6 +41,14 @@ class AS5047 : public PositionSensor {
     return (spi_.write(0xffff) & 0x3fff) << 2;
   }
 
+  void StartSample() override MOTEUS_CCM_ATTRIBUTE {
+    return spi_.start_write(0xffff);
+  }
+
+  uint16_t FinishSample() override MOTEUS_CCM_ATTRIBUTE {
+    return (spi_.finish_write() & 0x3fff) << 2;
+  }
+
  private:
   Stm32F446Spi spi_;
 };

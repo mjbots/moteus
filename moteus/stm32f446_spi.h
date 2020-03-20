@@ -40,6 +40,11 @@ class Stm32F446Spi {
   }
 
   uint16_t write(uint16_t value) MOTEUS_CCM_ATTRIBUTE {
+    start_write(value);
+    return finish_write();
+  }
+
+  void start_write(uint16_t value) MOTEUS_CCM_ATTRIBUTE {
     auto* const spi = spi_.spi.handle.Instance;
     cs_ = 0;
 
@@ -49,6 +54,11 @@ class Stm32F446Spi {
     while ((spi->SR & SPI_SR_BSY) != 0);
     spi->DR = value;
     spi->CR1 |= SPI_CR1_SPE;
+  }
+
+  uint16_t finish_write() MOTEUS_CCM_ATTRIBUTE {
+    auto* const spi = spi_.spi.handle.Instance;
+
     while ((spi->SR & SPI_SR_RXNE) == 0);
     const uint16_t result = spi->DR;
     while ((spi->SR & SPI_SR_TXE) == 0);
