@@ -68,6 +68,17 @@ float Threshold(float value, float lower, float upper) {
   return value;
 }
 
+float Offset(float minval, float blend, float val) MOTEUS_CCM_ATTRIBUTE;
+
+float Offset(float minval, float blend, float val) {
+  if (val == 0.0f) { return 0.0f; }
+  if (std::abs(val) >= blend) {
+    return (val < 0.0f) ? (-minval + val) : (minval + val);
+  }
+  const float ratio = val / blend;
+  return ratio * (blend + minval);
+}
+
 // From make_thermistor_table.py
 constexpr float g_thermistor_lookup[] = {
   -74.17f, // 0
@@ -341,8 +352,8 @@ class BldcServo::Impl {
     // we have a velocity and stop condition, then we pick the sign of
     // the velocity so that we actually move.
     if (std::isnan(next->position) &&
-        std::isfinite(next->stop_position) &&
-        std::isfinite(next->velocity) &&
+        !std::isnan(next->stop_position) &&
+        !std::isnan(next->velocity) &&
         next->velocity != 0.0f) {
       next->velocity = std::abs(next->velocity) *
           ((next->stop_position > status_.unwrapped_position) ?
@@ -734,7 +745,7 @@ class BldcServo::Impl {
       current_data_->rezero_position = {};
     }
 
-    if (!std::isfinite(current_data_->timeout_s) ||
+    if (std::isnan(current_data_->timeout_s) ||
         current_data_->timeout_s != 0.0f) {
       status_.timeout_s = current_data_->timeout_s;
       current_data_->timeout_s = 0.0;
@@ -815,7 +826,7 @@ class BldcServo::Impl {
     // While we are in the first calibrating state, our unwrapped
     // position is forced to be within one rotation of 0.  Also, the
     // AS5047 isn't guaranteed to be valid until 10ms after startup.
-    if (std::isfinite(status_.position_to_set) && startup_count_.load() > 10) {
+    if (!std::isnan(status_.position_to_set) && startup_count_.load() > 10) {
       const int16_t zero_position =
           static_cast<int16_t>(
               static_cast<int32_t>(status_.position) +
@@ -930,23 +941,23 @@ class BldcServo::Impl {
 #endif
   }
 
+  void ISR_UpdateFilteredBusV(float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
+    if (std::isnan(*filtered)) {
+      *filtered = status_.bus_V;
+    } else {
+      const float alpha = 1.0 / (kRateHz * period_s);
+      *filtered = alpha * status_.bus_V + (1.0f - alpha) * *filtered;
+    }
+  }
+
   // This is called from the ISR.
   void ISR_CalculateCurrentState(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * adc_scale_;
     status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale_;
     status_.bus_V = status_.adc3_raw * config_.v_scale_V;
 
-    auto update_filtered_bus_v = [&](float* filtered, float period_s) {
-      if (!std::isfinite(*filtered)) {
-        *filtered = status_.bus_V;
-      } else {
-        const float alpha = 1.0 / (kRateHz * period_s);
-        *filtered = alpha * status_.bus_V + (1.0f - alpha) * *filtered;
-      }
-    };
-
-    update_filtered_bus_v(&status_.filt_bus_V, 0.5f);
-    update_filtered_bus_v(&status_.filt_1ms_bus_V, 0.001f);
+    ISR_UpdateFilteredBusV(&status_.filt_bus_V, 0.5f);
+    ISR_UpdateFilteredBusV(&status_.filt_1ms_bus_V, 0.001f);
 
     DqTransform dq{sin_cos,
           status_.cur1_A,
@@ -1088,7 +1099,7 @@ class BldcServo::Impl {
   };
 
   void ISR_ClearPid(ClearMode force_clear) MOTEUS_CCM_ATTRIBUTE {
-    const bool current_pid_active = [&]() {
+    const bool current_pid_active = [&]() MOTEUS_CCM_ATTRIBUTE {
       switch (status_.mode) {
         case kNumModes:
         case kStopped:
@@ -1119,7 +1130,7 @@ class BldcServo::Impl {
       status_.pid_q.desired = 0.0f;
     }
 
-    const bool position_pid_active = [&]() {
+    const bool position_pid_active = [&]() MOTEUS_CCM_ATTRIBUTE {
       switch (status_.mode) {
         case kNumModes:
         case kStopped:
@@ -1159,7 +1170,7 @@ class BldcServo::Impl {
       data->set_position = {};
     }
 
-    if (std::isfinite(status_.timeout_s) && status_.timeout_s > 0.0f) {
+    if (!std::isnan(status_.timeout_s) && status_.timeout_s > 0.0f) {
       status_.timeout_s = std::max(0.0f, status_.timeout_s - kPeriodS);
     }
 
@@ -1185,7 +1196,7 @@ class BldcServo::Impl {
     }
 
     if (status_.mode == kPosition &&
-        std::isfinite(status_.timeout_s) &&
+        !std::isnan(status_.timeout_s) &&
         status_.timeout_s <= 0.0f) {
       status_.mode = kPositionTimeout;
     }
@@ -1305,27 +1316,18 @@ class BldcServo::Impl {
     motor_driver_->Power(true);
   }
 
+  float ISR_VoltageToPwm(float v) const MOTEUS_CCM_ATTRIBUTE {
+    return 0.5f + Offset(config_.pwm_min, config_.pwm_min_blend,
+                         v / status_.filt_bus_V);
+  }
+
   void ISR_DoVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     control_.voltage = voltage;
 
-    const auto offset = [](float minval, float blend, float val) -> float {
-      if (val == 0.0) { return 0.0; }
-      if (std::abs(val) >= blend) {
-        return (val < 0.0f) ? (-minval + val) : (minval + val);
-      }
-      const float ratio = val / blend;
-      return ratio * (blend + minval);
-    };
-
-    const auto voltage_to_pwm = [&](float v) -> float {
-      return 0.5f + offset(config_.pwm_min, config_.pwm_min_blend,
-                           v / status_.filt_bus_V);
-    };
-
     ISR_DoPwmControl(Vec3{
-        voltage_to_pwm(voltage.a),
-            voltage_to_pwm(voltage.b),
-            voltage_to_pwm(voltage.c)});
+        ISR_VoltageToPwm(voltage.a),
+            ISR_VoltageToPwm(voltage.b),
+            ISR_VoltageToPwm(voltage.c)});
   }
 
   void ISR_DoVoltageFOC(float theta, float voltage) MOTEUS_CCM_ATTRIBUTE {
@@ -1343,8 +1345,9 @@ class BldcServo::Impl {
       return;
     }
 
-    auto limit_q_current = [&](float in) {
-      if (status_.unwrapped_position > position_config_.position_max &&
+    auto limit_q_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
+      if (!std::isnan(position_config_.position_max) &&
+          status_.unwrapped_position > position_config_.position_max &&
           in > 0.0f) {
         // We derate the request in the direction that moves it
         // further outside the position limits.  This is mostly useful
@@ -1358,7 +1361,8 @@ class BldcServo::Impl {
                              position_config_.position_max) /
                      config_.position_derate);
       }
-      if (status_.unwrapped_position < position_config_.position_min &&
+      if (!std::isnan(position_config_.position_min) &&
+          status_.unwrapped_position < position_config_.position_min &&
           in < 0.0f) {
         return in *
             std::max(0.0f,
@@ -1370,7 +1374,7 @@ class BldcServo::Impl {
       return in;
     };
 
-    auto limit_either_current = [&](float in) {
+    auto limit_either_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       const float derate_fraction = (
           status_.fet_temp_C - config_.derate_temperature) / (
               config_.fault_temperature - config_.derate_temperature);
@@ -1401,7 +1405,7 @@ class BldcServo::Impl {
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
     float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
-    auto limit_v = [&](float in) {
+    auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
     InverseDqTransform idt(sin_cos, limit_v(control_.d_V),
@@ -1453,7 +1457,7 @@ class BldcServo::Impl {
         Limit(status_.control_position + velocity_command / kRateHz,
               position_config_.position_min,
               position_config_.position_max);
-    if (std::isfinite(data->stop_position)) {
+    if (!std::isnan(data->stop_position)) {
       if ((status_.control_position -
            data->stop_position) * velocity_command > 0.0f) {
         // We are moving away from the stop position.  Force it to be there.
@@ -1491,7 +1495,7 @@ class BldcServo::Impl {
         limited_q_A :
         Limit(limited_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
 
-    const float d_A = [&]() {
+    const float d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
       if (config_.flux_brake_min_voltage <= 0.0) {
         return 0.0f;
       }
