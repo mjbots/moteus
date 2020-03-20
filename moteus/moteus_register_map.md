@@ -99,10 +99,11 @@ The current operational mode of the servo.  Not all values are valid to write.
  * 5 - PWM mode = writeable
  * 6 - Voltage mode = writeable
  * 7 - Voltage FOC = writeable
- * 8 - Current = writeable
- * 9 - Position = writeable
- * 10 - Position timeout
- * 11 - Zero Velocity = writeable
+ * 8 - Voltage DQ = writeable
+ * 9 - Current = writeable
+ * 10 - Position = writeable
+ * 11 - Position timeout
+ * 12 - Zero Velocity = writeable
 
 The registers associated with each control mode are reset when not in
 that control mode.
@@ -214,6 +215,19 @@ Mode: Read/write
 
 When in kVoltageFoc mode, this controls the desired applied phase voltage.
 
+### 0x01a - D Voltage ###
+
+Type: int8, int16, int32, float
+Mode: Read/write
+
+When in kVoltageDq mode, this controls the desired applied D voltage.
+
+### 0x01b - Q Voltage ###
+
+Type: int8, int16, int32, float
+Mode: Read/write
+
+When in kVoltageDq mode, this controls the desired applied Q voltage.
 
 ### 0x01c - Commanded Q Phase Current ###
 

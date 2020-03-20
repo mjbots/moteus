@@ -254,6 +254,29 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "vdq") {
+      const auto d_str = tokenizer.next();
+      const auto q_str = tokenizer.next();
+
+      if (d_str.empty() || q_str.empty()) {
+        WriteMessage(response, "missing d/q voltage\r\n");
+        return;
+      }
+
+      const float d_V = std::strtof(d_str.data(), nullptr);
+      const float q_V = std::strtof(q_str.data(), nullptr);
+
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kVoltageDq;
+
+      command.d_V = d_V;
+      command.q_V = q_V;
+
+      bldc_->Command(command);
+      WriteOk(response);
+      return;
+    }
+
     if (cmd_text == "dq") {
       const auto d_str = tokenizer.next();
       const auto q_str = tokenizer.next();

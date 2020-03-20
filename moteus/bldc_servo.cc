@@ -991,6 +991,7 @@ class BldcServo::Impl {
       case kPwm:
       case kVoltage:
       case kVoltageFoc:
+      case kVoltageDq:
       case kCurrent:
       case kPosition:
       case kPositionTimeout:
@@ -1025,6 +1026,7 @@ class BldcServo::Impl {
       case kPwm:
       case kVoltage:
       case kVoltageFoc:
+      case kVoltageDq:
       case kCurrent:
       case kPosition:
       case kPositionTimeout:
@@ -1054,6 +1056,7 @@ class BldcServo::Impl {
           case kPwm:
           case kVoltage:
           case kVoltageFoc:
+          case kVoltageDq:
           case kCurrent:
           case kPosition:
           case kZeroVelocity: {
@@ -1110,6 +1113,7 @@ class BldcServo::Impl {
         case kPwm:
         case kVoltage:
         case kVoltageFoc:
+        case kVoltageDq:
           return false;
         case kCurrent:
         case kPosition:
@@ -1141,6 +1145,7 @@ class BldcServo::Impl {
         case kPwm:
         case kVoltage:
         case kVoltageFoc:
+        case kVoltageDq:
         case kCurrent:
           return false;
         case kPosition:
@@ -1242,6 +1247,10 @@ class BldcServo::Impl {
       }
       case kVoltageFoc: {
         ISR_DoVoltageFOC(data->theta, data->voltage);
+        break;
+      }
+      case kVoltageDq: {
+        ISR_DoVoltageDQ(sin_cos, data->d_V, data->q_V);
         break;
       }
       case kCurrent: {
@@ -1393,18 +1402,25 @@ class BldcServo::Impl {
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
 
-    control_.d_V =
+    const float d_V =
         (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
         pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz);
 
-    control_.q_V =
+    const float q_V =
         (config_.feedforward_scale * (
             i_q_A * motor_.resistance_ohm -
             status_.velocity * motor_.v_per_hz /
             motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
-    float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
+    ISR_DoVoltageDQ(sin_cos, d_V, q_V);
+  }
+
+  void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+    control_.d_V = d_V;
+    control_.q_V = q_V;
+
+    const float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };

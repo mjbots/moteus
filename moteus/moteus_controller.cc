@@ -198,6 +198,8 @@ enum class Register {
 
   kVFocTheta = 0x018,
   kVFocVoltage = 0x019,
+  kVoltageDqD = 0x01a,
+  kVoltageDqQ = 0x01b,
 
   kCommandQCurrent = 0x01c,
   kCommandDCurrent = 0x01d,
@@ -334,6 +336,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.voltage = ReadVoltage(value);
         return 0;
       }
+      case Register::kVoltageDqD: {
+        command_.d_V = ReadVoltage(value);
+        return 0;
+      }
+      case Register::kVoltageDqQ: {
+        command_.q_V = ReadVoltage(value);
+        return 0;
+      }
       case Register::kCommandQCurrent: {
         command_.i_q_A = ReadCurrent(value);
         return 0;
@@ -462,6 +472,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kVFocVoltage: {
         return ScaleVoltage(command_.voltage, type);
       }
+      case Register::kVoltageDqD: {
+        return ScaleVoltage(command_.d_V, type);
+      }
+      case Register::kVoltageDqQ: {
+        return ScaleVoltage(command_.q_V, type);
+      }
       case Register::kCommandQCurrent: {
         return ScaleCurrent(command_.i_q_A, type);
       }
@@ -506,7 +522,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kRegisterMapVersion: {
         if (type != 2) { break; }
 
-        return Value(vi32(2));
+        return Value(vi32(3));
       }
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:

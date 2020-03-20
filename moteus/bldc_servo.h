@@ -244,11 +244,14 @@ class BldcServo {
     // Control the phase and voltage magnitude
     kVoltageFoc = 7,
 
+    // Control d and q voltage
+    kVoltageDq = 8,
+
     // Control d and q current
-    kCurrent = 8,
+    kCurrent = 9,
 
     // Control absolute position
-    kPosition = 9,
+    kPosition = 10,
 
     // This state can be commanded directly, and will also be entered
     // automatically upon a watchdog timeout from kPosition.  When in
@@ -257,10 +260,10 @@ class BldcServo {
     // position.
     //
     // The only way to exit this state is through a stop command.
-    kPositionTimeout = 10,
+    kPositionTimeout = 11,
 
     // This is just like kPositionTimeout, but is not latching.
-    kZeroVelocity = 11,
+    kZeroVelocity = 12,
 
     kNumModes,
   };
@@ -275,6 +278,7 @@ class BldcServo {
         { kPwm, "pwm" },
         { kVoltage, "voltage" },
         { kVoltageFoc, "voltage_foc" },
+        { kVoltageDq, "voltage_dq" },
         { kCurrent, "current" },
         { kPosition, "position" },
         { kPositionTimeout, "pos_timeout" },
@@ -464,6 +468,10 @@ class BldcServo {
     float theta = 0.0f;
     float voltage = 0.0f;
 
+    // For kVoltageDq
+    float d_V = 0.0f;
+    float q_V = 0.0f;
+
     // For kFoc mode.
     float i_d_A = 0.0f;
     float i_q_A = 0.0f;
@@ -498,6 +506,9 @@ class BldcServo {
 
       a->Visit(MJ_NVP(theta));
       a->Visit(MJ_NVP(voltage));
+
+      a->Visit(MJ_NVP(d_V));
+      a->Visit(MJ_NVP(q_V));
 
       a->Visit(MJ_NVP(i_d_A));
       a->Visit(MJ_NVP(i_q_A));
