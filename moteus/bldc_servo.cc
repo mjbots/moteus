@@ -538,9 +538,9 @@ class BldcServo::Impl {
     disable_adc(ADC5);
 
     ADC12_COMMON->CCR =
-        (4 << ADC_CCR_PRESC_Pos);  // Prescaler /8
+        (1 << ADC_CCR_PRESC_Pos);  // Prescaler /2
     ADC345_COMMON->CCR =
-        (4 << ADC_CCR_PRESC_Pos);  // Prescaler /8
+        (1 << ADC_CCR_PRESC_Pos);  // Prescaler /2
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
