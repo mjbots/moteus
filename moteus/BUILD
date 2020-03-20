@@ -186,6 +186,7 @@ g4_mbed_binary(
     ],
     deps = MOTEUS_DEPS,
     linker_script = "stm32g474.ld",
+    features = ["speedopt"],
 )
 
 genrule(
