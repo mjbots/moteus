@@ -115,6 +115,8 @@ class BldcServo {
   struct Config {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
     float v_scale_V = 0.00884f;  // V per A/D count
+    float pwm_min = 0.009f;  // value below which PWM has no effect
+    float pwm_min_blend = 0.01f;  // blend into the full PWM over this region
 
     float max_voltage = 37.0f;
     float derate_temperature = 50.0f;
@@ -171,6 +173,8 @@ class BldcServo {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(i_gain));
       a->Visit(MJ_NVP(v_scale_V));
+      a->Visit(MJ_NVP(pwm_min));
+      a->Visit(MJ_NVP(pwm_min_blend));
       a->Visit(MJ_NVP(max_voltage));
       a->Visit(MJ_NVP(derate_temperature));
       a->Visit(MJ_NVP(fault_temperature));

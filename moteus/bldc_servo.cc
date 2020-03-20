@@ -1308,8 +1308,18 @@ class BldcServo::Impl {
   void ISR_DoVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     control_.voltage = voltage;
 
-    auto voltage_to_pwm = [this](float v) {
-      return 0.5f + 2.0f * v / status_.filt_bus_V;
+    const auto offset = [](float minval, float blend, float val) -> float {
+      if (val == 0.0) { return 0.0; }
+      if (std::abs(val) >= blend) {
+        return (val < 0.0f) ? (-minval + val) : (minval + val);
+      }
+      const float ratio = val / blend;
+      return ratio * (blend + minval);
+    };
+
+    const auto voltage_to_pwm = [&](float v) -> float {
+      return 0.5f + offset(config_.pwm_min, config_.pwm_min_blend,
+                           v / status_.filt_bus_V);
     };
 
     ISR_DoPwmControl(Vec3{
@@ -1319,8 +1329,8 @@ class BldcServo::Impl {
   }
 
   void ISR_DoVoltageFOC(float theta, float voltage) MOTEUS_CCM_ATTRIBUTE {
-    float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
     SinCos sc(WrapZeroToTwoPi(theta));
+    const float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
     InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
@@ -1390,7 +1400,7 @@ class BldcServo::Impl {
             motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
 
-    float max_voltage = 0.5f * (0.5f - kMinPwm) * status_.filt_bus_V;
+    float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
     auto limit_v = [&](float in) {
       return Limit(in, -max_voltage, max_voltage);
     };
