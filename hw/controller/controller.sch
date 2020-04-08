@@ -7943,11 +7943,6 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-53.34" y1="144.78" x2="-53.34" y2="157.48" width="0.1524" layer="91"/>
 <label x="-53.34" y="157.48" size="1.778" layer="95" rot="R90"/>
 </segment>
-<segment>
-<pinref part="U1" gate="G$1" pin="PB9"/>
-<wire x1="-55.88" y1="144.78" x2="-55.88" y2="157.48" width="0.1524" layer="91"/>
-<label x="-55.88" y="157.48" size="1.778" layer="95" rot="R90"/>
-</segment>
 </net>
 <net name="I2C_ABS_SDA" class="0">
 <segment>
@@ -7958,6 +7953,11 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-236.22" y1="-33.02" x2="-223.52" y2="-33.02" width="0.1524" layer="91"/>
 <wire x1="-236.22" y1="-25.4" x2="-236.22" y2="-33.02" width="0.1524" layer="91"/>
 <junction x="-236.22" y="-33.02"/>
+</segment>
+<segment>
+<pinref part="U1" gate="G$1" pin="PB9"/>
+<wire x1="-55.88" y1="144.78" x2="-55.88" y2="157.48" width="0.1524" layer="91"/>
+<label x="-55.88" y="157.48" size="1.778" layer="95" rot="R90"/>
 </segment>
 </net>
 <net name="N$17" class="0">
@@ -8141,6 +8141,13 @@ Licensed under the Apache 2.0 License</text>
 </nets>
 </sheet>
 </sheets>
+<errors>
+<approved hash="104,1,220.98,111.76,D2,ANODE,N$18,,,"/>
+<approved hash="104,1,220.98,106.68,D2,CATHODE,LED2,,,"/>
+<approved hash="104,1,200.66,111.76,D3,ANODE,N$17,,,"/>
+<approved hash="104,1,200.66,106.68,D3,CATHODE,LED1,,,"/>
+<approved hash="104,1,-259.08,-86.36,U2,VCC,+3V3,,,"/>
+</errors>
 </schematic>
 </drawing>
 <compatibility>

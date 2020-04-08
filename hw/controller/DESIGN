@@ -1,5 +1,3 @@
-Build test fixture
-
 r4.3
  * caps need switching to soft termination variant, C3216X7R1H106K160AE
  * caps need to be aligned parallel to board edge
