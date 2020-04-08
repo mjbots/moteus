@@ -1,5 +1,15 @@
 Build test fixture
 
+r4.3
+ * caps need switching to soft termination variant, C3216X7R1H106K160AE
+ * caps need to be aligned parallel to board edge
+ * I2C connector should be on top of board
+ * Swap PA8/PB12 to improve ADC options
+   * VBAT_SENSE goes to PB12, VTEMP_MOT goes to PA8
+ * Need to rev board version pins
+ * Update board rev number to 4.4
+
+
 r4.2
  * A & C phase wires are *awfully* close to the gate drive terminals
    of their respective FETS.  Really easy to short them out when
