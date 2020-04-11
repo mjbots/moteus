@@ -4628,8 +4628,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="10.85" y1="-3.25" x2="10.8" y2="-3.7" width="0.3" layer="1"/>
 <via x="8.3" y="2.9" extent="1-16" drill="0.3048"/>
 <via x="-21.7" y="0.9" extent="1-16" drill="0.3048"/>
-<wire x1="-10" y1="-35.42" x2="-12.3" y2="-35.4" width="0.5" layer="16"/>
-<wire x1="-12.3" y1="-35.4" x2="-12.3" y2="-33" width="0.5" layer="16"/>
+<wire x1="-10" y1="-35.42" x2="-12.3" y2="-35.42" width="0.5" layer="16"/>
+<wire x1="-12.3" y1="-35.42" x2="-12.3" y2="-33" width="0.5" layer="16"/>
 <wire x1="-12.3" y1="-33" x2="-12.3" y2="-32.6" width="0.5" layer="16"/>
 <wire x1="-12.3" y1="-32.6" x2="-17.6" y2="-27.3" width="0.5" layer="16"/>
 <wire x1="-17.6" y1="-27.3" x2="-21.7" y2="-27.3" width="0.5" layer="16"/>
