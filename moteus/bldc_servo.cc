@@ -1318,6 +1318,12 @@ class BldcServo::Impl {
     const uint16_t pwm2 = static_cast<uint16_t>(control_.pwm.b * pwm_counts_);
     const uint16_t pwm3 = static_cast<uint16_t>(control_.pwm.c * pwm_counts_);
 
+    // NOTE(jpieper): We flip pwm2 and pwm3 here, which changes the
+    // order of stepping.  Why you may ask?  No good reason.  It does
+    // require that the currents be similarly swapped in
+    // ISR_CalculateCurrentState.  Changing it back now would reverse
+    // the sign of position for any existing motor, so it isn't an
+    // easy change to make.
     *pwm1_ccr_ = pwm1;
     *pwm2_ccr_ = pwm3;
     *pwm3_ccr_ = pwm2;
