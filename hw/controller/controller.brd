@@ -2647,7 +2647,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MOUSER_PART_NUMBER" value="511-STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="MOUSER_PRICE-STOCK" value="https://www.mouser.com/Search/Refine.aspx?Keyword=511-STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="STM32G474CEU6" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="9.5" y="6.75" size="0.6096" layer="25" font="fixed" ratio="10"/>
+<attribute name="NAME" x="9.5" y="7" size="0.6096" layer="25" font="fixed" ratio="10"/>
 <attribute name="POPULATE" value="1" x="8.3" y="2.9" size="1.778" layer="27" display="off"/>
 </element>
 <element name="C2" library="mfpassives" package="C0402" value="0.1uF" x="13.3" y="5.7" smashed="yes" rot="R90">
