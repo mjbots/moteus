@@ -20,6 +20,6 @@ def rules_mbed_repository():
     github_archive(
         name = "com_github_mjbots_rules_mbed",
         repo = "mjbots/rules_mbed",
-        commit = "530fae6d8930f5ffeb122ef4f8888e95b7b6181d",
-        sha256 = "dec173706849f7d3d7892b70ced3d3dca2e051a5ee0fe2eea78c3db2abbf849b",
+        commit = "5ace815664d008278d514ae88d0b39843be66104",
+        sha256 = "061f284f5d08f283231e110827ecbac9360d0d09f7b58d76938f3fd26eca8ba5",
     )

@@ -27,9 +27,3 @@ test --workspace_status_command=tools/workspace_status.sh
 
 build --stamp
 test --stamp
-
-build --copt -Wdouble-promotion
-test --copt -Wdouble-promotion
-
-build --copt -Werror
-test --copt -Werror
