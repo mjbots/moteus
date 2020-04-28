@@ -223,6 +223,7 @@ struct Options {
   bool zero_offset = false;
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
+  double resistance_voltage = 0.45;
 };
 
 std::string Base64SerialNumber(
@@ -1000,7 +1001,7 @@ class Runner {
 
   boost::asio::awaitable<double> FindCurrent(
       io::AsyncStream& stream, double voltage) {
-    BOOST_ASSERT(voltage < 0.6);
+    BOOST_ASSERT(voltage < 3.0);
     BOOST_ASSERT(voltage >= 0.0);
 
     co_await Command(stream, fmt::format("d pwm 0 {:.3f}", voltage));
@@ -1051,7 +1052,11 @@ class Runner {
       io::AsyncStream& stream) {
     std::cout << "Calculating winding resistance\n";
 
-    const std::vector<double> voltages = { 0.25, 0.3, 0.35, 0.4, 0.45 };
+    const std::vector<double> ratios = { 0.5, 0.6, 0.7, 0.85, 1.0 };
+    std::vector<double> voltages;
+    for (const auto ratio : ratios) {
+      voltages.push_back(ratio * options_.resistance_voltage);
+    }
     std::vector<double> currents;
     for (auto voltage : voltages) {
       currents.push_back(co_await FindCurrent(stream, voltage));
@@ -1227,7 +1232,10 @@ int moteus_tool_main(boost::asio::io_context& context,
           "voltage to use during calibration"),
       clipp::option("calibration_speed") &
       clipp::value("S", options.calibration_speed).doc(
-          "speed in electrical rps")
+          "speed in electrical rps"),
+      clipp::option("resistance_voltage") &
+      clipp::value("V", options.resistance_voltage).doc(
+          "maximum voltage when measuring resistance")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 
