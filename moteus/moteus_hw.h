@@ -128,10 +128,12 @@ constexpr int kHardwareInterlock[] = {
 #define MOTEUS_TSENSE PA_9
 #endif
 
+#ifndef MOTEUS_CURRENT_SENSE_OHM
 #if MOTEUS_HW_REV <= 1
 #define MOTEUS_CURRENT_SENSE_OHM 0.001f
 #elif MOTEUS_HW_REV >= 2
 #define MOTEUS_CURRENT_SENSE_OHM 0.0005f
+#endif
 #endif
 
 #if MOTEUS_HW_REV <= 2
