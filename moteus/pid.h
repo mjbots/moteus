@@ -135,7 +135,7 @@ class PID {
 
     const float max_i_update = config_->iratelimit / rate_hz;
     float to_update_i = state_->error * config_->ki / rate_hz;
-    if (max_i_update > 0.0) {
+    if (max_i_update > 0.0f) {
       if (to_update_i > max_i_update) {
         to_update_i = max_i_update;
       } else if (to_update_i < -max_i_update) {
@@ -155,7 +155,7 @@ class PID {
     state_->d = apply_options.kd_scale * config_->kd * state_->error_rate;
     state_->pd = state_->p + state_->d;
 
-    if (config_->kpkd_limit >= 0.0) {
+    if (config_->kpkd_limit >= 0.0f) {
       if (state_->pd > config_->kpkd_limit) {
         state_->pd = config_->kpkd_limit;
       } else if (state_->pd < -config_->kpkd_limit) {

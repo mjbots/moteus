@@ -57,7 +57,7 @@ namespace tool {
 namespace {
 
 constexpr int kMaxFlashBlockSize = 32;
-constexpr double kPi = 3.141592653589793f;
+constexpr double kPi = 3.141592653589793;
 
 std::string GetLogDirectory() {
   // First, look for a dedicated moteus calibration directory.
@@ -849,7 +849,7 @@ class Runner {
       // 2pi factor.  We need to convert voltage into peak to peak,
       // which is another factor of 2.  Then to convert from torque
       // constant to kv is another factor of pi.
-      report.kv = 4 * kPi * kPi / report.v_per_hz;
+      report.kv = 4.0 * kPi * kPi / report.v_per_hz;
       report.unwrapped_position_scale = unwrapped_position_scale_;
 
       std::string log_filename = fmt::format(

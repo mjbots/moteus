@@ -20,6 +20,11 @@ load("@com_github_ARMmbed_mbed-g4//:rules.bzl", g4_mbed_binary = "mbed_binary")
 load("@com_github_ARMmbed_mbed-os-bootloader//:rules.bzl", bootloader_mbed_binary = "mbed_binary")
 load("@com_github_ARMmbed_mbed-g4-bootloader//:rules.bzl", g4_bootloader_mbed_binary = "mbed_binary")
 
+COPTS = [
+    "-Werror",
+    "-Wdouble-promotion",
+]
+
 cc_library(
     name = "common",
     hdrs = [
@@ -32,6 +37,7 @@ cc_library(
     deps = [
         "@com_github_mjbots_mjlib//mjlib/micro:atomic_event_queue",
     ],
+    copts = COPTS,
 )
 
 cc_library(
@@ -42,6 +48,7 @@ cc_library(
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:visitor",
     ],
+    copts = COPTS,
 )
 
 bootloader_mbed_binary(
@@ -56,6 +63,7 @@ bootloader_mbed_binary(
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:assert",
     ],
+    copts = COPTS,
 )
 
 g4_bootloader_mbed_binary(
@@ -70,6 +78,7 @@ g4_bootloader_mbed_binary(
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:string_span",
     ],
+    copts = COPTS,
 )
 
 bootloader_mbed_binary(
@@ -90,6 +99,7 @@ bootloader_mbed_binary(
     linkopts = [
         "-Wl,--wrap,atexit",
     ],
+    copts = COPTS,
 )
 
 g4_bootloader_mbed_binary(
@@ -109,6 +119,7 @@ g4_bootloader_mbed_binary(
     ],
     linker_script = "stm32g474_bootloader.ld",
     enable_wrappers = False,
+    copts = COPTS,
 )
 
 MOTEUS_SOURCES = [
@@ -172,6 +183,7 @@ mbed_binary(
     ],
     deps = MOTEUS_DEPS,
     linker_script = "stm32f446.ld",
+    copts = COPTS,
 )
 
 g4_mbed_binary(
@@ -187,6 +199,7 @@ g4_mbed_binary(
     deps = MOTEUS_DEPS,
     linker_script = "stm32g474.ld",
     features = ["speedopt"],
+    copts = COPTS,
 )
 
 genrule(

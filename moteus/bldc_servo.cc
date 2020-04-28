@@ -380,7 +380,7 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    const double kv = 4.0f * kPi * kPi / motor_.v_per_hz;
+    const float kv = 4.0f * kPi * kPi / motor_.v_per_hz;
     torque_constant_ =
         is_torque_constant_configured() ?
         (kPi * kPi / kv) :
@@ -945,7 +945,7 @@ class BldcServo::Impl {
     if (std::isnan(*filtered)) {
       *filtered = status_.bus_V;
     } else {
-      const float alpha = 1.0 / (kRateHz * period_s);
+      const float alpha = 1.0f / (kRateHz * period_s);
       *filtered = alpha * status_.bus_V + (1.0f - alpha) * *filtered;
     }
   }
@@ -1518,7 +1518,7 @@ class BldcServo::Impl {
         Limit(limited_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
 
     const float d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
-      if (config_.flux_brake_min_voltage <= 0.0) {
+      if (config_.flux_brake_min_voltage <= 0.0f) {
         return 0.0f;
       }
 

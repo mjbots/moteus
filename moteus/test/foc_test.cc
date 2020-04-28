@@ -51,7 +51,7 @@ BOOST_AUTO_TEST_CASE(FocTest1) {
 }
 
 BOOST_AUTO_TEST_CASE(FocTest2) {
-  SinCos sin_cos(kPi / 2.0);
+  SinCos sin_cos(kPi / 2.0f);
 
   DqTransform dq(sin_cos, 2.0, 0., 0.);
   BOOST_TEST(std::abs(dq.d) <= 1e-5);

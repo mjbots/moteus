@@ -396,7 +396,7 @@ class BoardDebug::Impl {
 
       const auto pos_value = tokenizer.next();
       command.rezero_position =
-          (pos_value.empty()) ? 0.0 :
+          (pos_value.empty()) ? 0.0f :
           std::strtof(pos_value.data(), nullptr);
 
       bldc_->Command(command);
