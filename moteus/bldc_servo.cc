@@ -1060,11 +1060,16 @@ class BldcServo::Impl {
           case kCurrent:
           case kPosition:
           case kZeroVelocity: {
-            // Yep, we can do this.
-            status_.mode = data->mode;
+            if (data->mode == kPosition && ISR_IsOutsideLimits()) {
+              status_.mode = kFault;
+              status_.fault = errc::kStartOutsideLimit;
+            } else {
+              // Yep, we can do this.
+              status_.mode = data->mode;
 
-            // Start from scratch if we are in a new mode.
-            ISR_ClearPid(kAlwaysClear);
+              // Start from scratch if we are in a new mode.
+              ISR_ClearPid(kAlwaysClear);
+            }
 
             return;
           }
@@ -1075,6 +1080,13 @@ class BldcServo::Impl {
         }
       }
     }
+  }
+
+  bool ISR_IsOutsideLimits() {
+    return ((!std::isnan(position_config_.position_min) &&
+             status_.unwrapped_position < position_config_.position_min) ||
+            (!std::isnan(position_config_.position_max) &&
+             status_.unwrapped_position > position_config_.position_max));
   }
 
   void ISR_StartCalibrating() {

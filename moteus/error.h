@@ -38,6 +38,7 @@ enum class errc {
   kMotorNotConfigured = 36,
   kPwmCycleOverrun = 37,
   kOverTemperature = 38,
+  kStartOutsideLimit = 39,
 };
 
 mjlib::micro::error_code make_error_code(errc);

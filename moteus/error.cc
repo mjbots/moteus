@@ -36,6 +36,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kMotorNotConfigured: return "motor not configured";
       case errc::kPwmCycleOverrun: return "pwm cycle overrun";
       case errc::kOverTemperature: return "over temperature";
+      case errc::kStartOutsideLimit: return "start outside limit";
     }
     return "unknown";
   }
