@@ -268,28 +268,6 @@ class BldcServo {
     kNumModes,
   };
 
-  static std::array<std::pair<Mode, const char*>, kNumModes> ModeMapper() {
-    return { {
-        { kStopped, "stopped" },
-        { kFault, "fault" },
-        { kEnabling, "enabling" },
-        { kCalibrating, "calibrating" },
-        { kCalibrationComplete, "calib_complete" },
-        { kPwm, "pwm" },
-        { kVoltage, "voltage" },
-        { kVoltageFoc, "voltage_foc" },
-        { kVoltageDq, "voltage_dq" },
-        { kCurrent, "current" },
-        { kPosition, "position" },
-        { kPositionTimeout, "pos_timeout" },
-        { kZeroVelocity, "zero_vel" },
-      }};
-  }
-
-  static std::array<std::pair<errc, const char*>, 0> FaultMapper() {
-    return {{}};
-  }
-
   struct Status {
     Mode mode = kStopped;
     errc fault = errc::kSuccess;
@@ -367,8 +345,8 @@ class BldcServo {
 
     template <typename Archive>
     void Serialize(Archive* a) {
-      a->Visit(MJ_ENUM(mode, ModeMapper));
-      a->Visit(MJ_ENUM(fault, FaultMapper));
+      a->Visit(MJ_NVP(mode));
+      a->Visit(MJ_NVP(fault));
 
       a->Visit(MJ_NVP(adc1_raw));
       a->Visit(MJ_NVP(adc2_raw));
@@ -498,7 +476,7 @@ class BldcServo {
 
     template <typename Archive>
     void Serialize(Archive* a) {
-      a->Visit(MJ_ENUM(mode, ModeMapper));
+      a->Visit(MJ_NVP(mode));
 
       a->Visit(MJ_NVP(pwm));
 
@@ -542,4 +520,34 @@ class BldcServo {
   mjlib::micro::PoolPtr<Impl> impl_;
 };
 
+}
+
+namespace mjlib {
+namespace base {
+
+template <>
+struct IsEnum<moteus::BldcServo::Mode> {
+  static constexpr bool value = true;
+
+  using M = moteus::BldcServo::Mode;
+  static std::array<std::pair<M, const char*>, M::kNumModes> map() {
+    return { {
+        { M::kStopped, "stopped" },
+        { M::kFault, "fault" },
+        { M::kEnabling, "enabling" },
+        { M::kCalibrating, "calibrating" },
+        { M::kCalibrationComplete, "calib_complete" },
+        { M::kPwm, "pwm" },
+        { M::kVoltage, "voltage" },
+        { M::kVoltageFoc, "voltage_foc" },
+        { M::kVoltageDq, "voltage_dq" },
+        { M::kCurrent, "current" },
+        { M::kPosition, "position" },
+        { M::kPositionTimeout, "pos_timeout" },
+        { M::kZeroVelocity, "zero_vel" },
+      }};
+  }
+};
+
+}
 }

@@ -137,7 +137,7 @@ class Drv8323 : public MotorDriver {
 
   const Status* status() const;
 
-  enum class PwmMode {
+  enum PwmMode {
     k6x = 0x0,
     k3x = 0x1,
     k1x = 0x2,
@@ -145,35 +145,13 @@ class Drv8323 : public MotorDriver {
     kNumPwmModes = 4
   };
 
-  static std::array<std::pair<PwmMode, const char*>,
-                    static_cast<int>(PwmMode::kNumPwmModes)>
-  PwmModeMapper() {
-    return { {
-      { PwmMode::k6x, "6x" },
-      { PwmMode::k3x, "3x" },
-      { PwmMode::k1x, "1x" },
-      { PwmMode::kIndependent, "independent" },
-    } };
-  }
-
-  enum class OcpMode {
+  enum OcpMode {
     kLatchedFault,
     kAutomaticRetry,
     kReportNoAction,
     kIgnored,
     kNumOcpModes,
   };
-
-  static std::array<std::pair<OcpMode, const char*>,
-                    static_cast<int>(OcpMode::kNumOcpModes)>
-  OcpModeMapper() {
-    return { {
-        { OcpMode::kLatchedFault, "latched_fault" },
-        { OcpMode::kAutomaticRetry, "automatic_retry" },
-        { OcpMode::kReportNoAction, "report_no_action" },
-        { OcpMode::kIgnored, "ignored" },
-    } };
-  }
 
   // The default values here will be assigned with PersistentConfig is
   // instructed to reset to defaults, so they should be appropriate
@@ -226,7 +204,7 @@ class Drv8323 : public MotorDriver {
       a->Visit(MJ_NVP(dis_cpuv));
       a->Visit(MJ_NVP(dis_gdf));
       a->Visit(MJ_NVP(otw_rep));
-      a->Visit(MJ_ENUM(pwm_mode, PwmModeMapper));
+      a->Visit(MJ_NVP(pwm_mode));
       a->Visit(MJ_NVP(pwm_1x_asynchronous));
       a->Visit(MJ_NVP(pwm_1x_dir));
 
@@ -240,7 +218,7 @@ class Drv8323 : public MotorDriver {
 
       a->Visit(MJ_NVP(tretry));
       a->Visit(MJ_NVP(dead_time_ns));
-      a->Visit(MJ_ENUM(ocp_mode, OcpModeMapper));
+      a->Visit(MJ_NVP(ocp_mode));
       a->Visit(MJ_NVP(ocp_deg_us));
       a->Visit(MJ_NVP(vds_lvl_mv));
 
@@ -258,4 +236,42 @@ class Drv8323 : public MotorDriver {
   mjlib::micro::PoolPtr<Impl> impl_;
 };
 
+}
+
+namespace mjlib {
+namespace base {
+
+template <>
+struct IsEnum<moteus::Drv8323::PwmMode> {
+  static constexpr bool value = true;
+
+  using P = moteus::Drv8323::PwmMode;
+  static std::array<std::pair<P, const char*>,
+                    static_cast<int>(P::kNumPwmModes)> map() {
+    return { {
+        { P::k6x, "6x" },
+        { P::k3x, "3x" },
+        { P::k1x, "1x" },
+        { P::kIndependent, "independent" },
+            } };
+  }
+};
+
+template <>
+struct IsEnum<moteus::Drv8323::OcpMode> {
+  static constexpr bool value = true;
+
+  using O = moteus::Drv8323::OcpMode;
+  static std::array<std::pair<O, const char*>,
+                    static_cast<int>(O::kNumOcpModes)> map() {
+    return { {
+        { O::kLatchedFault, "latched_fault" },
+        { O::kAutomaticRetry, "automatic_retry" },
+        { O::kReportNoAction, "report_no_action" },
+        { O::kIgnored, "ignored" },
+    } };
+  }
+};
+
+}
 }

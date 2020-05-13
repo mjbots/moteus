@@ -16,6 +16,7 @@
 
 #include <type_traits>
 
+#include "mjlib/base/visitor.h"
 #include "mjlib/micro/error_code.h"
 
 namespace moteus {
@@ -45,6 +46,16 @@ mjlib::micro::error_code make_error_code(errc);
 }
 
 namespace mjlib {
+namespace base {
+template <>
+struct IsEnum<moteus::errc> {
+  static constexpr bool value = true;
+
+  static std::array<std::pair<moteus::errc, const char*>, 0> map() {
+    return {{}};
+  }
+};
+}
 namespace micro {
 
 template <>
