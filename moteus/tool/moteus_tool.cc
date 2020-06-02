@@ -215,6 +215,7 @@ struct Options {
   std::string write_config;
   bool console = false;
   std::string flash;
+  bool no_restore_config = false;
 
   bool verbose = false;
   std::vector<std::string> targets;
@@ -543,13 +544,20 @@ class Runner {
 
     std::cout << "Writing config from: " + options_.write_config + "\n";
 
-    while (static_cast<bool>(inf)) {
+    co_await WriteConfigStream(stream, inf);
+  }
+
+  boost::asio::awaitable<void> WriteConfigStream(io::AsyncStream& stream,
+                                                 std::istream& config_stream) {
+    while (static_cast<bool>(config_stream)) {
       std::string line;
-      std::getline(inf, line);
+      std::getline(config_stream, line);
       boost::trim(line);
       if (line.empty()) { continue; }
 
-      std::cout << ":" + line + "\n";
+      if (options_.verbose) {
+        std::cout << ":" + line + "\n";
+      }
       auto maybe_result = co_await Command(stream, line);
       if (!maybe_result) {
         std::cerr << "Response error!\n";
@@ -611,6 +619,15 @@ class Runner {
     std::cout << fmt::format("Read ELF file: {} bytes\n",
                              count_bytes({elf}));
 
+    // Read our old config.
+    const auto old_config = co_await Command(stream, "conf enumerate");
+
+    std::cout << "Captured old config\n";
+
+    base::system_error::throw_if(
+        !old_config,
+        fmt::format("unable to retrieve original configuration"));
+
     co_await WriteMessage(stream, "d flash");
     co_await ReadLine(stream);
     co_await Command(stream, "unlock");
@@ -618,6 +635,36 @@ class Runner {
     co_await Command(stream, "lock");
     // We don't expect to get a reply from this.
     co_await WriteMessage(stream, "reset");
+
+    // Wait a bit for the controller to restart.
+    co_await Sleep(1.0);
+
+    if (!options_.no_restore_config) {
+      // Now restore our old config in case the new firmware isn't able
+      // to load it.
+      co_await RestoreConfig(stream, *old_config);
+
+      std::cout << "Restored config\n";
+    }
+  }
+
+  boost::asio::awaitable<void> RestoreConfig(
+      io::AsyncStream& stream,
+      const std::string& old_config) {
+    std::istringstream istr(old_config);
+    std::ostringstream ostr;
+
+    while (static_cast<bool>(istr)) {
+      std::string line;
+      std::getline(istr, line);
+      boost::trim(line);
+      if (line.empty()) { continue; }
+      ostr << "conf set " << line << "\n";
+    }
+    ostr << "conf write\n";
+
+    std::istringstream conf_write(ostr.str());
+    co_await WriteConfigStream(stream, conf_write);
   }
 
   struct FlashDataBlock {
@@ -1223,6 +1270,8 @@ int moteus_tool_main(boost::asio::io_context& context,
           "write the given configuration"),
       clipp::option("flash") & clipp::value("file", options.flash).doc(
           "write the given elf file to flash"),
+      clipp::option("no-restore-config").set(options.no_restore_config).doc(
+          "do not restore config after flash"),
       clipp::option("calibrate").set(options.calibrate).doc(
           "calibrate the motor, requires full freedom of motion"),
       clipp::option("zero-offset").set(options.zero_offset).doc(
