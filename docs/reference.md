@@ -128,7 +128,7 @@ shaft.  The maximum negative integer is reserved and will not be
 reported.  Mapping:
 
 - int8 => 1 LSB => 0.01 rotation => 3.6 degrees (range of -1.27 to 1.27)
-- int16 => 1 LSB => 0.001 rotation => 0.36 degrees (range of -32.767 to 32.767)
+- int16 => 1 LSB => 0.0001 rotation => 0.036 degrees (range of -3.2767 to 3.2767)
 - int32 => 1 LSB => 0.00001 rotation => 0.0036 degrees
 
 #### 0x002 - Velocity ####
@@ -139,7 +139,7 @@ The current velocity of the servo, measured in Hz at the output shaft.
 Mapping:
 
 - int8 => 1 LSB => 0.1Hz / 36 dps
-- int16 => 1 LSB => 0.001 Hz > 0.36 dps
+- int16 => 1 LSB => 0.00025 Hz > 0.36 dps
 - int32 => 1 LSB => 0.00001 Hz => 0.0036 dps
 
 #### 0x003 - Torque ####

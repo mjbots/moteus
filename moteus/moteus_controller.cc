@@ -67,11 +67,11 @@ Value ScaleMapping(float value,
 }
 
 Value ScalePosition(float value, size_t type) {
-  return ScaleMapping(value, 0.01f, 0.001f, 0.00001f, type);
+  return ScaleMapping(value, 0.01f, 0.0001f, 0.00001f, type);
 }
 
 Value ScaleVelocity(float value, size_t type) {
-  return ScaleMapping(value, 0.1f, 0.001f, 0.00001f, type);
+  return ScaleMapping(value, 0.1f, 0.00025f, 0.00001f, type);
 }
 
 Value ScaleTemperature(float value, size_t type) {
@@ -155,11 +155,11 @@ float ReadVoltage(Value value) {
 }
 
 float ReadPosition(Value value) {
-  return ReadScaleMapping(value, 0.01f, 0.001f, 0.00001f);
+  return ReadScaleMapping(value, 0.01f, 0.0001f, 0.00001f);
 }
 
 float ReadVelocity(Value value) {
-  return ReadScaleMapping(value, 0.1f, 0.001f, 0.00001f);
+  return ReadScaleMapping(value, 0.1f, 0.00025f, 0.00001f);
 }
 
 float ReadCurrent(Value value) {
@@ -521,7 +521,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kRegisterMapVersion: {
         if (type != 2) { break; }
 
-        return Value(vi32(3));
+        return Value(vi32(4));
       }
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
