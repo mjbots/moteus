@@ -15,6 +15,7 @@
 #include "mbed.h"
 
 #include "moteus/fdcan.h"
+#include "moteus/git_info.h"
 #include "moteus/millisecond_timer.h"
 #include "moteus/power_dist_hw.h"
 
@@ -90,6 +91,8 @@ int main(void) {
 
         return options;
       }());
+
+  moteus::GitInfo git_info;
 
   DigitalOut led1(DEBUG_LED1, 1);
 

@@ -76,6 +76,7 @@ g4_bootloader_mbed_binary(
         "power_dist_hw.h",
     ],
     deps = [
+        ":git_info",
         "@com_github_mjbots_mjlib//mjlib/base:string_span",
     ],
     copts = COPTS,
