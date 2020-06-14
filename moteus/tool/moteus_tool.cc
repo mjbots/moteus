@@ -388,7 +388,10 @@ class Runner {
     } else if (options_.info) {
       co_await DoInfo(*stream);
     } else if (options_.dump_config) {
-      const auto maybe_result = co_await Command(*stream, "conf enumerate");
+      CommandOptions command_options;
+      command_options.retry_timeout = 2.0;
+      const auto maybe_result = co_await Command(
+          *stream, "conf enumerate", command_options);
       if (maybe_result) {
         std::cout << *maybe_result;
       }
