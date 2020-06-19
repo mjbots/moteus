@@ -153,8 +153,12 @@ constexpr float kPeriodS = 1.0f / kRateHz;
 constexpr int kCalibrateCount = 256;
 
 // The maximum amount the absolute encoder can change in one cycle
-// without triggering a fault.  Measured relative to 32767
-constexpr int16_t kMaxPositionDelta = 1000;
+// without triggering a fault.  Measured as a fraction of a uint16_t
+// and corresponds to roughly 28krpm, which is the limit of the AS5047
+// encoder.
+//  28000 / 60 = 467 Hz
+//  467 Hz * 65536 / kIntRate ~= 763
+constexpr int16_t kMaxPositionDelta = 28000 / 60 * 65536 / kIntRateHz;
 
 constexpr float kDefaultTorqueConstant = 0.1f;
 constexpr float kMaxUnconfiguredCurrent = 5.0f;
@@ -843,11 +847,16 @@ class BldcServo::Impl {
     }
 
     {
-      velocity_filter_.Add(delta_position * 256);
-      constexpr float velocity_scale = 1.0f / (256.0f * 65536.0f);
+      // We construct the velocity in a careful way so as to maximize
+      // the available resolution.  The windowed filter is calculated
+      // losslessly.  Then, the average is conducted in the floating
+      // point domain, so as to not suffer from rounding error.
+      velocity_filter_.Add(delta_position);
+      constexpr float velocity_scale = 1.0f / 65536.0f;
       status_.velocity =
-          static_cast<float>(velocity_filter_.average()) *
-          motor_.unwrapped_position_scale * velocity_scale * kRateHz;
+          static_cast<float>(velocity_filter_.total()) *
+          motor_.unwrapped_position_scale * velocity_scale * kRateHz /
+          static_cast<float>(velocity_filter_.size());
     }
 
     status_.unwrapped_position =
