@@ -21,10 +21,10 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 * hw/ - hardware (mechanical and electrical designs)
   * controller/ - PCB design for servo controller
-  * gearbox_v2/ - integrated servo
-  * full_rotation_leg/ - brackets and 3d printed parts for robot leg
+  * qdd100/ - integrated servo
+  * mk2_chassis/ - quadruped chassis
+  * mk2_leg/ - quadruped leg
   * power_dist/ - power distribution for quadruped
-  * chassis_v2/ - quadruped chassis
 * moteus/ - firmware for brushless controller
 * moteus/tool/ - diagnostic tools
 * tools/ - bazel build configure
