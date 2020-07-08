@@ -69,6 +69,12 @@ int8 - 1 LSB -> 0.01s
 int16 - 1 LSB -> 0.001s
 int32 - 1 LSB -> 0.000001s
 
+### Position (measured in revolutions) ###
+
+int8 - 1 LSB - 0.01 rotation/3.6 degrees (range of -1.28 to 1.27)
+int16 - 1 LSB - 0.0001 rotation/0.036 degrees (range of -3,2768 to 3.2767)
+int32 - 1 LSB - 0.00001 rotation/0.0036 degrees
+
 ## Definitions ##
 
 ### Modes ###
@@ -115,11 +121,7 @@ Mode: Read only
 
 The current position of the servo, measured in rotations of the end
 effector.  The maximal negative integer is reserved and will not be
-reported.  Integral mapping:
-
-int8 - 1 LSB - 0.01 rotation/3.6 degrees (range of -1.28 to 1.27)
-int16 - 1 LSB - 0.0001 rotation/0.036 degrees (range of -3,2768 to 3.2767)
-int32 - 1 LSB - 0.00001 rotation/0.0036 degrees
+reported.
 
 ### 0x002 - Velocity ###
 
@@ -251,9 +253,9 @@ set to 0.
 Type: int8, int16, int32, float
 Mode: Read/write
 
-When in kPosition mode, this controls the desired position.  The same
-integral mapping is used as for 0x001 Position.  The maximal negative
-integer, or NaN for float represents "use the current position value".
+When in kPosition mode, this controls the desired position.  The
+maximal negative integer, or NaN for float represents "use the current
+position value".
 
 ### 0x021 - Commanded Velocity ###
 
@@ -364,3 +366,13 @@ Types: int32_t
 Mode: Read only
 
 This returns a 96 bit serial number, least significant word first.
+
+### 0x130 - Rezero ###
+
+Name: Rezero
+Types: int8, int16, int32, float
+Mode: Write only
+
+When sent, this causes the servo to select a whole number of internal
+motor rotations so that the final position is as close to the given
+position as possible.

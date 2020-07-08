@@ -220,6 +220,8 @@ enum class Register {
   kSerialNumber1 = 0x120,
   kSerialNumber2 = 0x121,
   kSerialNumber3 = 0x122,
+
+  kRezero = 0x130,
 };
 }
 
@@ -384,6 +386,13 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return 0;
       }
 
+      case Register::kRezero: {
+        command_.rezero_position = ReadPosition(value);
+        command_.mode = BldcServo::kStopped;
+        command_valid_ = true;
+        return 0;
+      }
+
       case Register::kPosition:
       case Register::kVelocity:
       case Register::kTemperature:
@@ -535,6 +544,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return Value(vi32(serial_number.number[index]));
       }
       case Register::kMultiplexId: {
+        break;
+      }
+      case Register::kRezero: {
         break;
       }
     }

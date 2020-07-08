@@ -103,6 +103,12 @@ values.
 - int16 => 1 LSB => 0.001s
 - int32 => 1 LSB => 0.000001s
 
+#### A.2.a.6 Position (measured in revolutions) ####
+
+- int8 => 1 LSB => 0.01 rotation => 3.6 degrees (range of -1.27 to 1.27)
+- int16 => 1 LSB => 0.0001 rotation => 0.036 degrees (range of -3.2767 to 3.2767)
+- int32 => 1 LSB => 0.00001 rotation => 0.0036 degrees
+
 ### A.2.b Registers ###
 
 #### 0x000 - Mode ####
@@ -125,11 +131,7 @@ Mode: Read only
 
 The current position of the servo, measured in rotations of the output
 shaft.  The maximum negative integer is reserved and will not be
-reported.  Mapping:
-
-- int8 => 1 LSB => 0.01 rotation => 3.6 degrees (range of -1.27 to 1.27)
-- int16 => 1 LSB => 0.0001 rotation => 0.036 degrees (range of -3.2767 to 3.2767)
-- int32 => 1 LSB => 0.00001 rotation => 0.0036 degrees
+reported.
 
 #### 0x002 - Velocity ####
 
@@ -182,10 +184,9 @@ A fault code which will be set if the primary mode is 1 (Fault).
 
 Mode: Read/write
 
-When in Position mode, this controls the desired position.  The same
-integral mapping is used as for 0x001 Position.  The maximal negative
-integer, or NaN for float represents, "use the current position
-value".
+When in Position mode, this controls the desired position.  The
+maximal negative integer, or NaN for float represents, "use the
+current position value".
 
 #### 0x021 - Velocity command ####
 
@@ -240,6 +241,14 @@ If this timeout expires before another command is received, the
 controller will enter the Timeout state.  The default is 0.0, which
 means to use the system-wide configured default.  NaN / maximal
 negative means apply no enforced timeout.
+
+### 0x130 - Rezero ###
+
+Mode: Write only
+
+When sent, this causes the servo to select a whole number of internal
+motor rotations so that the final position is as close to the given
+position as possible.
 
 ## A.3 Example ##
 
