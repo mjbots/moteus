@@ -623,7 +623,9 @@ class Runner {
                              count_bytes({elf}));
 
     // Read our old config.
-    const auto old_config = co_await Command(stream, "conf enumerate");
+    const auto old_config = co_await Command(
+        stream, "conf enumerate",
+        CommandOptions().set_retry_timeout(2.0));
 
     std::cout << "Captured old config\n";
 
