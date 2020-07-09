@@ -8,16 +8,6 @@ Some dependencies are required for the graphical debugging UI.  Instructions for
 sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial
 ```
 
-If you want to re-flash the firmware using the debugging port, a custom openocd is currently required.  Clone and install from mjbots/openocde
-
-```
-sudo apt install autotools-dev automake autogen autoconf libtool
-git clone https://github.com/mjbots/openocd
-cd openocd.git
-./bootstrap
-./configure && make && sudo make install
-```
-
 ## Building the software ##
 
 This will build the host and target binaries for the latest version of
@@ -63,3 +53,33 @@ The bottom pane has a command line console which shows the commands
 sent internally by tview and their responses, and provides an
 interactive console to interact with the device using the diagnostic
 protocol.
+
+## Flashing over CAN ##
+
+```
+./moteus_tool -t 1 --flash path/to/file.elf
+```
+
+## Flashing from the debug port ##
+
+If you want to re-flash the firmware using the debugging port, a custom openocd is currently required.  Clone and install from mjbots/openocde
+
+```
+sudo apt install autotools-dev automake autogen autoconf libtool
+git clone https://github.com/mjbots/openocd
+cd openocd.git
+./bootstrap
+./configure && make && sudo make install
+```
+
+Then you can either flash using bazel:
+
+```
+tools/bazel test -c opt --cpu=stm32g4 //moteus:flash
+```
+
+Or re-flash the same file using:
+
+```
+./moteus/flash.sh
+```
