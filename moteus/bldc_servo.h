@@ -150,7 +150,7 @@ class BldcServo {
     float flux_brake_min_voltage = 34.5f;
     float flux_brake_resistance_ohm = 0.1f;
 
-    float max_current_A = 65.0f;
+    float max_current_A = 100.0f;
     float derate_current_A = -20.0f;
 
     uint16_t velocity_filter_length = 256;
