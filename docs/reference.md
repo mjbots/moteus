@@ -508,7 +508,110 @@ Update the RAM values of all configurable parameters to their firmware
 default.
 
 
-# Calibration #
+# C. Configurable values #
+
+This section describes the configurable values which are most likely
+to be modified for end-user applications.  Changes to all values take
+effect *immediately*.  This may mean, that for instance, it is wise to
+stop control loops before drastically changing control parameters.  Or
+maybe not, it depends upon your goals.
+
+## `id.id` ##
+
+The servo ID presented on the CAN bus.  After this is modified, you need to immediately adjust which servo ID you communicate with in order to continue communication or save the parameters.
+
+## `motor.position_offset` ##
+
+This value is added to `servo_stats.position` before reporting
+`unwrapped_position_raw`.  It thus sets the `0` value for all position
+control.
+
+## `motor.unwrapped_position_scale` ##
+
+This sets the reduction of any integrated gearbox.  Using this scales
+all position, velocity, and torque commands and statuses accordingly.
+A reducing gearbox will need a value between 0 and 1, so `0.25` for a
+4x reduction gearbox.
+
+## `servopos.position_min` ##
+
+The minimum allowed control position value, measured in rotations.
+
+## `servopos.position_max` ##
+
+The maximum allowed control position value, measured in rotations.
+
+## `servo.pid_position` ##
+
+These configure the position mode PID controller.
+
+* `kp/ki/kd` - PID gains with units of:
+  * kp - Nm per rotation
+  * ki - Nm/s per rotation
+  * kd - Nm per rotation/s
+* `iratelimit` - The maximum rate at which the integral term can
+   wind up, in N*m/s.  <0 means "no limit"
+* `ilimit` - The total maximum I term, in Nm
+* `kpkd_limit` - The total maximum combined P and D terms, in Nm.
+   0.0 means "no limit"
+* `max_desired_rate` - If non-zero, the commanded position is
+  limited to change at this rate in Hz.
+
+## `servo.pid_dq` ##
+
+These have the same semantics as the position mode PID controller, and
+affect the current control loop.
+
+## `servo.max_voltage` ##
+
+If the input voltage reaches this value, a fault is triggered and all
+torque is stopped.
+
+## `servo.derate_temperature` ##
+
+Torque begins to be limited when the temperature reaches this value.
+
+## `servo.fault_temperature` ##
+
+If the temperature reaches this value, a fault is triggered and all
+torque is stopped.
+
+## `servo.flux_brake_min_voltage` ##
+
+When the input voltage is above this value, the controller causes the
+motor to act as a "virtual resistor" with resistance
+`servo.flux_brake_resistance_ohm`.  All extra energy is dumped into
+the D phase of the motor.  This can be used to handle excess
+regenerative energy if the input DC link is incapable of accepting
+sufficient energy.
+
+## `servo.max_current_A` ##
+
+Phase current will never be used more than this value.  It can be
+decreased to limit the total power used by the controller.  Increasing
+beyond the factory configured value can result in hardware damage.
+
+## `servo.rotation_*` ##
+
+These values configure a higher order torque model for a motor.
+
+* `servo.rotation_current_cutoff_A` if the phase current is less than
+  this value, then the linear relationship implied by `motor.v_per_hz`
+  is used.
+
+Once above that cutoff, the following formula is used to determine torque from phase current:
+
+```
+torque = cutoff * tc + torque_scale * log2(1 + (I - cutoff) * current_scale)
+```
+
+Where `tc` is the torque constant derived from `motor.v_per_hz`.
+
+This model is not automatically calibrated, and needs to be determined
+and configured manually.
+
+
+# D. Calibration #
 
 Assuming your controller has firmware installed already, you can
 calibrate the controller using the following procedure.
@@ -526,7 +629,7 @@ calibrate the controller using the following procedure.
 WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
 
 
-# C. Flashing firwmare #
+# E. Flashing firwmare #
 
 The firmware can be flashed either using:
 
@@ -541,7 +644,7 @@ are built correctly.
 tools/bazel test //moteus:flash
 ```
 
-# D. Mechanical #
+# F. Mechanical #
 
 The current mechanical drawing for the controller can be found at:
 [20200115-moteus-controller-r42-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.2/20200115-moteus-controller-r42-mechanical.pdf)
@@ -549,7 +652,7 @@ The current mechanical drawing for the controller can be found at:
 The current mechanical drawing for the qdd100 servo can be foudn at:
 [20200315-qdd100-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/qdd100/20200315-qdd100-mechanical.pdf)
 
-# E. Pinout #
+# G. Pinout #
 
 ## JST PH-3 CAN ##
 
