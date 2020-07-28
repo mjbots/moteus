@@ -27,7 +27,7 @@ namespace tool {
 /// Run the coroutine @f, but call 'cancel' on @p object if it does
 /// not return before @p expires_at.
 template <typename Object, typename Functor>
-auto RunFor(boost::asio::executor& executor,
+auto RunFor(boost::asio::any_io_executor& executor,
             Object& object,
             Functor f,
             boost::posix_time::ptime expires_at)

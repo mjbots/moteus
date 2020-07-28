@@ -273,7 +273,7 @@ std::vector<int> ExpandTargets(const std::vector<std::string>& targets) {
 
 class Runner {
  public:
-  Runner(const boost::asio::executor& executor,
+  Runner(const boost::asio::any_io_executor& executor,
          io::Selector<mp::AsioClient>* selector,
          const Options& options)
       : executor_(executor),
@@ -1211,8 +1211,8 @@ class Runner {
     co_await timer.async_wait(boost::asio::use_awaitable);
   }
 
-  boost::asio::executor executor_;
-  boost::asio::executor_work_guard<boost::asio::executor> guard_{executor_};
+  boost::asio::any_io_executor executor_;
+  boost::asio::executor_work_guard<boost::asio::any_io_executor> guard_{executor_};
   io::Selector<mp::AsioClient>* const client_selector_;
   std::vector<int> targets_;
   bool discovered_ = false;
