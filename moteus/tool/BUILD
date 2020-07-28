@@ -78,6 +78,7 @@ cc_test(
     data = [
         ":moteus_tool",  # just so it is built
     ],
+    size = "small",
 )
 
 cc_binary(

@@ -326,6 +326,7 @@ cc_test(
         "@boost//:test",
         "@fmt",
     ],
+    size = "small",
 )
 
 py_binary(
@@ -377,6 +378,7 @@ py_test(
         "//moteus/tool:calibrate_encoder",
         "//moteus/tool:tview",
     ],
+    size = "small",
 )
 
 
