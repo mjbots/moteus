@@ -39,29 +39,31 @@ class TorqueModel {
     const float rotation_extra =
         torque_scale_ *
         log2f_approx(1.0f + std::max(
-                         0.0f, (current - current_cutoff_A_)) *
+                         0.0f, (std::abs(current) - current_cutoff_A_)) *
                      current_scale_);
-    return ((current < current_cutoff_A_) ?
+    return ((std::abs(current) < current_cutoff_A_) ?
             // rotation_extra will always be 0 here, but we add it in
             // anyways to force the evaluation of the above code no
             // matter what.  Thus our loop timing will be relatively
             // constant even when we go into the rotation regime.
             (current * torque_constant_) :
             // In this case, rotation_extra should be non-zero.
-            (current_cutoff_A_ * torque_constant_ +
-             rotation_extra));
+            std::copysignf(current_cutoff_A_ * torque_constant_ +
+                           rotation_extra,
+                           current));
   }
 
   float torque_to_current(float torque) const __attribute__((always_inline)) {
-    const float a = (torque - current_cutoff_A_ * torque_constant_) /
+    const float a = (std::abs(torque) - current_cutoff_A_ * torque_constant_) /
                     torque_scale_;
     const float rotation_extra = (pow2f_approx(a) - 1.0f) / current_scale_;
 
     const float cutoff_torque =
         current_cutoff_A_ * torque_constant_;
-    return (torque < cutoff_torque) ?
+    return (std::abs(torque) < cutoff_torque) ?
         (torque / torque_constant_) :
-        (current_cutoff_A_ + rotation_extra);
+        std::copysign(current_cutoff_A_ + rotation_extra,
+                      torque);
   }
 
   const float torque_constant_;

@@ -46,6 +46,11 @@ BOOST_AUTO_TEST_CASE(BasicTorqueModel, * boost::unit_test::tolerance(1e-3f)) {
       const float calculated_current = dut.torque_to_current(test.torque);
       BOOST_TEST(calculated_current == test.current,
                  boost::test_tools::tolerance(2.5e-2f));
+
+      // And negative.
+      BOOST_TEST(dut.current_to_torque(-test.current) == -test.torque);
+      BOOST_TEST(dut.torque_to_current(-test.torque) == -test.current,
+                 boost::test_tools::tolerance(2.5e-2f));
     }
   }
 }
