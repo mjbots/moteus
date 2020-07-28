@@ -46,7 +46,7 @@ class TorqueModel {
             // anyways to force the evaluation of the above code no
             // matter what.  Thus our loop timing will be relatively
             // constant even when we go into the rotation regime.
-            (current * torque_constant_ + rotation_extra) :
+            (current * torque_constant_) :
             // In this case, rotation_extra should be non-zero.
             (current_cutoff_A_ * torque_constant_ +
              rotation_extra));
