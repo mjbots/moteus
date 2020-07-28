@@ -649,7 +649,7 @@ tools/bazel test //moteus:flash
 The current mechanical drawing for the controller can be found at:
 [20200115-moteus-controller-r42-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.2/20200115-moteus-controller-r42-mechanical.pdf)
 
-The current mechanical drawing for the qdd100 servo can be foudn at:
+The current mechanical drawing for the qdd100 servo can be found at:
 [20200315-qdd100-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/qdd100/20200315-qdd100-mechanical.pdf)
 
 # G. Pinout #
