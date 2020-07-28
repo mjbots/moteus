@@ -1547,7 +1547,7 @@ class BldcServo::Impl {
     control_.torque_Nm = limited_torque_Nm;
 
     const float limited_q_A =
-        torque_to_current(limited_torque_Nm) * motor_.unwrapped_position_scale;
+        torque_to_current(limited_torque_Nm * motor_.unwrapped_position_scale);
 
     const float q_A =
         is_torque_constant_configured() ?
