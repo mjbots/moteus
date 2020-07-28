@@ -30,6 +30,7 @@ cc_library(
     hdrs = [
         "foc.h",
         "math.h",
+        "torque_model.h",
     ],
     srcs = [
         "foc.cc",
@@ -311,6 +312,8 @@ cc_test(
     name = "test",
     srcs = [
         "test/foc_test.cc",
+        "test/math_test.cc",
+        "test/torque_model_test.cc",
         "test/test_main.cc",
     ],
     data = [
@@ -321,6 +324,7 @@ cc_test(
     deps = [
         ":common",
         "@boost//:test",
+        "@fmt",
     ],
 )
 

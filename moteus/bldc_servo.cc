@@ -31,6 +31,7 @@
 #include "moteus/math.h"
 #include "moteus/moteus_hw.h"
 #include "moteus/stm32_serial.h"
+#include "moteus/torque_model.h"
 
 #if defined(TARGET_STM32F4)
 #include "moteus/stm32f446_async_uart.h"
@@ -381,6 +382,22 @@ class BldcServo::Impl {
 
   bool is_torque_constant_configured() const {
     return motor_.v_per_hz != 0.0f;
+  }
+
+  float current_to_torque(float current) const MOTEUS_CCM_ATTRIBUTE {
+    TorqueModel model(torque_constant_,
+                      motor_.rotation_current_cutoff_A,
+                      motor_.rotation_current_scale,
+                      motor_.rotation_torque_scale);
+    return model.current_to_torque(current);
+  }
+
+  float torque_to_current(float torque) const MOTEUS_CCM_ATTRIBUTE {
+    TorqueModel model(torque_constant_,
+                      motor_.rotation_current_cutoff_A,
+                      motor_.rotation_current_scale,
+                      motor_.rotation_torque_scale);
+    return model.torque_to_current(torque);
   }
 
   void UpdateConfig() {
@@ -976,7 +993,7 @@ class BldcServo::Impl {
     status_.d_A = dq.d;
     status_.q_A = dq.q;
     status_.torque_Nm = torque_on() ? (
-        status_.q_A * torque_constant_ /
+        current_to_torque(status_.q_A) /
         motor_.unwrapped_position_scale) : 0.0f;
 
     DAC->DHR12R1 = 1024 + std::max<int>(
@@ -1530,8 +1547,7 @@ class BldcServo::Impl {
     control_.torque_Nm = limited_torque_Nm;
 
     const float limited_q_A =
-        limited_torque_Nm * motor_.unwrapped_position_scale /
-        torque_constant_;
+        torque_to_current(limited_torque_Nm) * motor_.unwrapped_position_scale;
 
     const float q_A =
         is_torque_constant_configured() ?

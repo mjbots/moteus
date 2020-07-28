@@ -100,6 +100,19 @@ class BldcServo {
     // After applying inversion, add this value to the position.
     uint16_t position_offset = 0;
 
+    // These control the higher order motor torque model.
+    //
+    // When above the cutoff current, the torque is calculated as:
+    //
+    //   cutoff * torque_constant + tscale * log2(1 + (I - cutoff) * iscale)
+    //
+    // This models the "rotation" region of magnetic permeability.  By
+    // default, the cutoff current is set unreasonably large, so that
+    // the controller will not use this region to estimate torque.
+    float rotation_current_cutoff_A = 10000.0;
+    float rotation_current_scale = 0.05;
+    float rotation_torque_scale = 14.7;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(poles));
@@ -109,6 +122,9 @@ class BldcServo {
       a->Visit(MJ_NVP(unwrapped_position_scale));
       a->Visit(MJ_NVP(offset));
       a->Visit(MJ_NVP(position_offset));
+      a->Visit(MJ_NVP(rotation_current_cutoff_A));
+      a->Visit(MJ_NVP(rotation_current_scale));
+      a->Visit(MJ_NVP(rotation_torque_scale));
     }
   };
 
