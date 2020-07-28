@@ -57,7 +57,6 @@ namespace tool {
 namespace {
 
 constexpr int kMaxFlashBlockSize = 32;
-constexpr double kPi = 3.141592653589793;
 
 std::string GetLogDirectory() {
   // First, look for a dedicated moteus calibration directory.
@@ -864,7 +863,7 @@ class Runner {
       // We have 3 things to calibrate.
       //  1) The encoder to phase mapping
       //  2) The winding resistance
-      //  3) The kV rating of the motor.
+      //  3) The Kv rating of the motor.
 
       std::cout << "Starting calibration process\n";
       co_await CheckForFault(stream);
@@ -897,11 +896,9 @@ class Runner {
       report.winding_resistance = winding_resistance;
       report.v_per_hz = v_per_hz;
 
-      // We need to convert speed into radians per second, which is a
-      // 2pi factor.  We need to convert voltage into peak to peak,
-      // which is another factor of 2.  Then to convert from torque
-      // constant to kv is another factor of pi.
-      report.kv = 4.0 * kPi * kPi / report.v_per_hz;
+      // We measure voltage to the center, not peak-to-peak, thus the
+      // extra 0.5.
+      report.kv = 0.5 * 60.0 / report.v_per_hz;
       report.unwrapped_position_scale = unwrapped_position_scale_;
 
       std::string log_filename = fmt::format(
@@ -1127,7 +1124,7 @@ class Runner {
   }
 
   boost::asio::awaitable<double> CalibrateKvRating(io::AsyncStream& stream) {
-    std::cout << "Calculating kV rating\n";
+    std::cout << "Calculating Kv rating\n";
 
     // Retrieve and then restore the position configuration.
     const double original_position_min =

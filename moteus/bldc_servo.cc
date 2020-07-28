@@ -401,10 +401,15 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    const float kv = 4.0f * kPi * kPi / motor_.v_per_hz;
+    const float kv = 0.5f * 60.0f / motor_.v_per_hz;
+
+    // I have no idea why this fudge is necessary, but it seems to be
+    // consistent across every motor I have tried.
+    constexpr float kFudge = 0.78;
+
     torque_constant_ =
         is_torque_constant_configured() ?
-        (kPi * kPi / kv) :
+        kFudge * 60.0f / (2.0f * kPi * kv) :
         kDefaultTorqueConstant;
 
     position_constant_ =
