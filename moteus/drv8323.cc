@@ -22,7 +22,7 @@
 #include "mjlib/base/inplace_function.h"
 
 #include "moteus/moteus_hw.h"
-#include "moteus/stm32f446_spi.h"
+#include "moteus/stm32_spi.h"
 
 namespace micro = mjlib::micro;
 
@@ -40,7 +40,7 @@ class Drv8323::Impl {
        const Options& options)
       : timer_(timer),
         spi_([&]() {
-            Stm32F446Spi::Options out;
+            Stm32Spi::Options out;
             out.mosi = options.mosi;
             out.miso = options.miso;
             out.sck = options.sck;
@@ -291,7 +291,7 @@ class Drv8323::Impl {
   Status status_;
   Config config_;
 
-  Stm32F446Spi spi_;
+  Stm32Spi spi_;
   DigitalOut enable_;
   int32_t enable_cache_ = false;
   DigitalOut hiz_;

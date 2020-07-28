@@ -19,13 +19,13 @@
 #include "hal/spi_api.h"
 
 #include "moteus/moteus_hw.h"
-#include "moteus/stm32f446_spi.h"
+#include "moteus/stm32_spi.h"
 
 namespace moteus {
 
 class AS5047 {
  public:
-  using Options = Stm32F446Spi::Options;
+  using Options = Stm32Spi::Options;
 
   AS5047(const Options& options)
       : spi_([options]() {
@@ -49,7 +49,7 @@ class AS5047 {
   }
 
  private:
-  Stm32F446Spi spi_;
+  Stm32Spi spi_;
 };
 
 }

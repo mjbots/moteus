@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@
 
 namespace moteus {
 
-class Stm32F446Spi {
+class Stm32Spi {
  public:
   struct Options {
     PinName mosi = NC;
@@ -31,7 +31,7 @@ class Stm32F446Spi {
     int width = 16;
   };
 
-  Stm32F446Spi(const Options& options)
+  Stm32Spi(const Options& options)
       : cs_(options.cs, 1) {
 
     spi_init(&spi_, options.mosi, options.miso, options.sck, NC);
