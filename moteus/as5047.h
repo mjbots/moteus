@@ -19,12 +19,11 @@
 #include "hal/spi_api.h"
 
 #include "moteus/moteus_hw.h"
-#include "moteus/position_sensor.h"
 #include "moteus/stm32f446_spi.h"
 
 namespace moteus {
 
-class AS5047 : public PositionSensor {
+class AS5047 {
  public:
   using Options = Stm32F446Spi::Options;
 
@@ -37,15 +36,15 @@ class AS5047 : public PositionSensor {
           return copy;
         }()) {}
 
-  uint16_t Sample() override MOTEUS_CCM_ATTRIBUTE {
+  uint16_t Sample() MOTEUS_CCM_ATTRIBUTE {
     return (spi_.write(0xffff) & 0x3fff) << 2;
   }
 
-  void StartSample() override MOTEUS_CCM_ATTRIBUTE {
+  void StartSample() MOTEUS_CCM_ATTRIBUTE {
     return spi_.start_write(0xffff);
   }
 
-  uint16_t FinishSample() override MOTEUS_CCM_ATTRIBUTE {
+  uint16_t FinishSample() MOTEUS_CCM_ATTRIBUTE {
     return (spi_.finish_write() & 0x3fff) << 2;
   }
 

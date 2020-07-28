@@ -265,7 +265,7 @@ class BldcServo::Impl {
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
        MillisecondTimer* millisecond_timer,
-       PositionSensor* position_sensor,
+       AS5047* position_sensor,
        MotorDriver* motor_driver,
        const Options& options)
       : options_(options),
@@ -1589,7 +1589,7 @@ class BldcServo::Impl {
 
   const Options options_;
   MillisecondTimer* const ms_timer_;
-  PositionSensor* const position_sensor_;
+  AS5047* const position_sensor_;
   MotorDriver* const motor_driver_;
 
   Motor motor_;
@@ -1689,7 +1689,7 @@ BldcServo::BldcServo(micro::Pool* pool,
                      micro::PersistentConfig* persistent_config,
                      micro::TelemetryManager* telemetry_manager,
                      MillisecondTimer* millisecond_timer,
-                     PositionSensor* position_sensor,
+                     AS5047* position_sensor,
                      MotorDriver* motor_driver,
                      const Options& options)
     : impl_(pool,

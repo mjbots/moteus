@@ -146,7 +146,6 @@ MOTEUS_SOURCES = [
     "millisecond_timer.h",
     "motor_driver.h",
     "pid.h",
-    "position_sensor.h",
     "stm32f446_spi.h",
     "stm32_serial.h",
     "stm32_serial.cc",
