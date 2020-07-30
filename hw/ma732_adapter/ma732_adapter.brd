@@ -74,14 +74,14 @@
 </layers>
 <board>
 <plain>
-<wire x1="-3.175" y1="3" x2="3.175" y2="3" width="0.254" layer="20"/>
-<wire x1="3.175" y1="3" x2="3.175" y2="-3" width="0.254" layer="20"/>
-<wire x1="3.175" y1="-3" x2="-3.175" y2="-3" width="0.254" layer="20"/>
-<wire x1="-3.175" y1="-3" x2="-3.175" y2="3" width="0.254" layer="20"/>
-<text x="-2" y="2.4" size="0.3" layer="21">MA732 ADAPTER</text>
-<text x="-1.4" y="-2.7" size="0.3" layer="21">jjp@pobox.com</text>
-<wire x1="-3.1" y1="2.3" x2="-2.4" y2="2.3" width="0.1524" layer="21"/>
-<wire x1="-2.4" y1="2.3" x2="-2.4" y2="2.9" width="0.1524" layer="21"/>
+<wire x1="-3.175" y1="3.175" x2="3.175" y2="3.175" width="0.254" layer="20"/>
+<wire x1="3.175" y1="3.175" x2="3.175" y2="-3.175" width="0.254" layer="20"/>
+<wire x1="3.175" y1="-3.175" x2="-3.175" y2="-3.175" width="0.254" layer="20"/>
+<wire x1="-3.175" y1="-3.175" x2="-3.175" y2="3.175" width="0.254" layer="20"/>
+<text x="-2" y="2.5" size="0.3" layer="21">MA732 ADAPTER</text>
+<text x="-0.4" y="-2.8" size="0.3" layer="21">jjp@pobox.com</text>
+<wire x1="-3.1" y1="2.4" x2="-2.4" y2="2.4" width="0.1524" layer="21"/>
+<wire x1="-2.4" y1="2.4" x2="-2.4" y2="3.1" width="0.1524" layer="21"/>
 </plain>
 <libraries>
 <library name="ma732_adapter">
