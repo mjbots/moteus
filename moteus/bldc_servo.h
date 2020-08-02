@@ -91,7 +91,7 @@ class BldcServo {
     // Hz is electrical
     float v_per_hz = 0.0f;  // 0.15f / 5.0f;
 
-    float unwrapped_position_scale = 1.0f / 6.0f;
+    float unwrapped_position_scale = 1.0f;
 
     // Electrical phase offset in radians as a function of encoder
     // position.
