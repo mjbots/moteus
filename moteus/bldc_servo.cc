@@ -280,10 +280,13 @@ class BldcServo::Impl {
         monitor3_(options.pwm3),
         current1_(options.current1),
         current2_(options.current2),
+        current3_(options.current3),
         vsense_(options.vsense),
         vsense_sqr_(FindSqr(options.vsense)),
         tsense_(options.tsense),
         tsense_sqr_(FindSqr(options.tsense)),
+        msense_(options.msense),
+        msense_sqr_(FindSqr(options.msense)),
         debug_dac_(options.debug_dac),
         debug_out_(options.debug_out),
         debug_out2_(options.debug_out2),
@@ -569,7 +572,9 @@ class BldcServo::Impl {
     // First, we have to disable everything to ensure we are in a
     // known state.
     disable_adc(ADC1);
+    disable_adc(ADC2);
     disable_adc(ADC3);
+    disable_adc(ADC4);
     disable_adc(ADC5);
 
     ADC12_COMMON->CCR =
@@ -579,11 +584,15 @@ class BldcServo::Impl {
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
+    ADC2->CR &= ~ADC_CR_DEEPPWD;
     ADC3->CR &= ~ADC_CR_DEEPPWD;
+    ADC4->CR &= ~ADC_CR_DEEPPWD;
     ADC5->CR &= ~ADC_CR_DEEPPWD;
 
     ADC1->CR |= ADC_CR_ADVREGEN;
+    ADC2->CR |= ADC_CR_ADVREGEN;
     ADC3->CR |= ADC_CR_ADVREGEN;
+    ADC4->CR |= ADC_CR_ADVREGEN;
     ADC5->CR |= ADC_CR_ADVREGEN;
 
     // tADCREG_S = 20us per STM32G474xB datasheet
@@ -591,46 +600,81 @@ class BldcServo::Impl {
 
     // 20.4.8: Calibration
     ADC1->CR |= ADC_CR_ADCAL;
+    ADC2->CR |= ADC_CR_ADCAL;
     ADC3->CR |= ADC_CR_ADCAL;
+    ADC4->CR |= ADC_CR_ADCAL;
     ADC5->CR |= ADC_CR_ADCAL;
 
     while ((ADC1->CR & ADC_CR_ADCAL) ||
+           (ADC2->CR & ADC_CR_ADCAL) ||
            (ADC3->CR & ADC_CR_ADCAL) ||
+           (ADC4->CR & ADC_CR_ADCAL) ||
            (ADC5->CR & ADC_CR_ADCAL));
 
     ms_timer_->wait_us(1);
 
     // 20.4.9: Software procedure to enable the ADC
     ADC1->ISR |= ADC_ISR_ADRDY;
+    ADC2->ISR |= ADC_ISR_ADRDY;
     ADC3->ISR |= ADC_ISR_ADRDY;
+    ADC4->ISR |= ADC_ISR_ADRDY;
     ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->CR |= ADC_CR_ADEN;
+    ADC2->CR |= ADC_CR_ADEN;
     ADC3->CR |= ADC_CR_ADEN;
+    ADC4->CR |= ADC_CR_ADEN;
     ADC5->CR |= ADC_CR_ADEN;
 
     while (!(ADC1->ISR & ADC_ISR_ADRDY) ||
+           !(ADC2->ISR & ADC_ISR_ADRDY) ||
            !(ADC3->ISR & ADC_ISR_ADRDY) ||
+           !(ADC4->ISR & ADC_ISR_ADRDY) ||
            !(ADC5->ISR & ADC_ISR_ADRDY));
 
     ADC1->ISR |= ADC_ISR_ADRDY;
+    ADC2->ISR |= ADC_ISR_ADRDY;
     ADC3->ISR |= ADC_ISR_ADRDY;
+    ADC4->ISR |= ADC_ISR_ADRDY;
     ADC5->ISR |= ADC_ISR_ADRDY;
 
     ADC1->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
+    ADC2->SQR1 =
+        (0 << ADC_SQR1_L_Pos) |  // length 1
+        FindSqr(options_.current3) << ADC_SQR1_SQ1_Pos;
     ADC3->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
-    ADC5->SQR1 =
-        (1 << ADC_SQR1_L_Pos) |  // length 1
-        (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    if (hw_rev_ <= 4) {
+      // For version <=4, we sample the motor temperature and the
+      // battery sense first.
+      ADC4->SQR1 =
+          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (msense_sqr_ << ADC_SQR1_SQ1_Pos);
+      ADC5->SQR1 =
+          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    } else if (hw_rev_ >= 5) {
+      // For 5+, ADC4 always stays on the battery.
+      ADC4->SQR1 =
+          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+      ADC5->SQR1 =
+          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    }
 
     ADC1->SMPR1 = all_cur_cycles;
     ADC1->SMPR2 = all_cur_cycles;
+    ADC2->SMPR1 = all_cur_cycles;
+    ADC2->SMPR2 = all_cur_cycles;
     ADC3->SMPR1 = all_cur_cycles;
     ADC3->SMPR2 = all_cur_cycles;
+
+    ADC4->SMPR1 = all_aux_cycles;
+    ADC4->SMPR2 = all_aux_cycles;
     ADC5->SMPR1 = all_aux_cycles;
     ADC5->SMPR2 = all_aux_cycles;
 
@@ -683,7 +727,9 @@ class BldcServo::Impl {
     *g_adc1_cr2 |= ADC_CR2_SWSTART;
 #elif defined(TARGET_STM32G4)
     ADC1->CR |= ADC_CR_ADSTART;
+    ADC2->CR |= ADC_CR_ADSTART;
     ADC3->CR |= ADC_CR_ADSTART;
+    ADC4->CR |= ADC_CR_ADSTART;
     ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
@@ -739,6 +785,7 @@ class BldcServo::Impl {
     // Wait for conversion to complete.
     WaitForAdc(ADC1);
 #if defined(TARGET_STM32F4)
+    WaitForADC(ADC2);
     WaitForAdc(ADC3);
 #endif
 
@@ -777,14 +824,23 @@ class BldcServo::Impl {
       current_data_->timeout_s = 0.0;
     }
 
-    uint32_t adc1 = ADC1->DR;
+    status_.adc_cur1_raw = ADC1->DR;
 #if defined(TARGET_STM32F4)
-    uint32_t adc2 = ADC2->DR;
-    uint32_t adc3 = ADC3->DR;
+    status_.adc_cur2_raw = ADC2->DR;
+    status_.adc_voltage_sense_raw = ADC3->DR;
 #elif defined(TARGET_STM32G4)
-    uint32_t adc2 = ADC3->DR;
+    status_.adc_cur2_raw = ADC3->DR;
+    status_.adc_cur3_raw = ADC2->DR;
+    WaitForAdc(ADC4);
     WaitForAdc(ADC5);
-    uint32_t adc3 = ADC5->DR;
+
+    if (hw_rev_ <= 4) {
+      status_.adc_motor_temp_raw = ADC4->DR;
+      status_.adc_voltage_sense_raw = ADC5->DR;
+    } else {
+      status_.adc_voltage_sense_raw = ADC4->DR;
+      status_.adc_fet_temp_raw = ADC5->DR;
+    }
 #else
 #error "Unknown target"
 #endif
@@ -803,17 +859,19 @@ class BldcServo::Impl {
     ADC5->CR |= ADC_CR_ADSTP;
     while (ADC5->CR & ADC_CR_ADSTP);
 
-    ADC5->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        tsense_sqr_ << ADC_SQR1_SQ1_Pos;
+    if (hw_rev_ <= 4) {
+      ADC5->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          tsense_sqr_ << ADC_SQR1_SQ1_Pos;
+    } else {
+      ADC5->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          msense_sqr_ << ADC_SQR1_SQ1_Pos;
+    }
     ADC5->CR |= ADC_CR_ADSTART;
 #else
 #error "Unknown target"
 #endif
-
-    status_.adc1_raw = adc1;
-    status_.adc2_raw = adc2;
-    status_.adc3_raw = adc3;
 
     // Wait for the position sample to finish.
     const uint16_t old_position = status_.position;
@@ -895,15 +953,26 @@ class BldcServo::Impl {
 
 #elif defined(TARGET_STM32G4)
     WaitForAdc(ADC5);
-    status_.fet_temp_raw = ADC5->DR;
+    if (hw_rev_ <= 4) {
+      status_.adc_fet_temp_raw = ADC5->DR;
+    } else {
+      status_.adc_motor_temp_raw = ADC5->DR;
+    }
 
     ADC5->CR |= ADC_CR_ADSTP;
     while (ADC5->CR & ADC_CR_ADSTP);
 
-    // Switch back to the voltage sense resistor.
-    ADC5->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    if (hw_rev_ <= 4) {
+      // Switch back to the voltage sense resistor.
+      ADC5->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    } else {
+      // Switch back to FET temp sense.
+      ADC5->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    }
 #else
 #error "Unknown target"
 #endif
@@ -928,14 +997,14 @@ class BldcServo::Impl {
       size_t offset = std::max<size_t>(
           1, std::min<size_t>(
               size_thermistor_table - 2,
-              status_.fet_temp_raw * size_thermistor_table / adc_max));
+              status_.adc_fet_temp_raw * size_thermistor_table / adc_max));
       const int16_t this_value = offset * adc_max / size_thermistor_table;
       const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
       const float temp1 = g_thermistor_lookup[offset];
       const float temp2 = g_thermistor_lookup[offset + 1];
       status_.fet_temp_C = temp1 +
           (temp2 - temp1) *
-          static_cast<float>(status_.fet_temp_raw - this_value) /
+          static_cast<float>(status_.adc_fet_temp_raw - this_value) /
           static_cast<float>(next_value - this_value);
     }
   }
@@ -983,9 +1052,10 @@ class BldcServo::Impl {
 
   // This is called from the ISR.
   void ISR_CalculateCurrentState(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
-    status_.cur1_A = (status_.adc1_raw - status_.adc1_offset) * adc_scale_;
-    status_.cur2_A = (status_.adc2_raw - status_.adc2_offset) * adc_scale_;
-    status_.bus_V = status_.adc3_raw * config_.v_scale_V;
+    status_.cur1_A = (status_.adc_cur1_raw - status_.adc_cur1_offset) * adc_scale_;
+    status_.cur2_A = (status_.adc_cur2_raw - status_.adc_cur2_offset) * adc_scale_;
+    status_.cur3_A = (status_.adc_cur3_raw - status_.adc_cur3_offset) * adc_scale_;
+    status_.bus_V = status_.adc_voltage_sense_raw * config_.v_scale_V;
 
     ISR_UpdateFilteredBusV(&status_.filt_bus_V, 0.5f);
     ISR_UpdateFilteredBusV(&status_.filt_1ms_bus_V, 0.001f);
@@ -1136,6 +1206,7 @@ class BldcServo::Impl {
 
     calibrate_adc1_ = 0;
     calibrate_adc2_ = 0;
+    calibrate_adc3_ = 0;
     calibrate_count_ = 0;
   }
 
@@ -1328,8 +1399,9 @@ class BldcServo::Impl {
   }
 
   void ISR_DoCalibrating() {
-    calibrate_adc1_ += status_.adc1_raw;
-    calibrate_adc2_ += status_.adc2_raw;
+    calibrate_adc1_ += status_.adc_cur1_raw;
+    calibrate_adc2_ += status_.adc_cur2_raw;
+    calibrate_adc3_ += status_.adc_cur3_raw;
     calibrate_count_++;
 
     if (calibrate_count_ < kCalibrateCount) {
@@ -1338,17 +1410,20 @@ class BldcServo::Impl {
 
     const uint16_t new_adc1_offset = calibrate_adc1_ / kCalibrateCount;
     const uint16_t new_adc2_offset = calibrate_adc2_ / kCalibrateCount;
+    const uint16_t new_adc3_offset = calibrate_adc3_ / kCalibrateCount;
 
     if (std::abs(static_cast<int>(new_adc1_offset) - 2048) > 200 ||
-        std::abs(static_cast<int>(new_adc2_offset) - 2048) > 200) {
+        std::abs(static_cast<int>(new_adc2_offset) - 2048) > 200 ||
+        std::abs(static_cast<int>(new_adc3_offset) - 2048) > 200) {
       // Error calibrating.  Just fault out.
       status_.mode = kFault;
       status_.fault = errc::kCalibrationFault;
       return;
     }
 
-    status_.adc1_offset = new_adc1_offset;
-    status_.adc2_offset = new_adc2_offset;
+    status_.adc_cur1_offset = new_adc1_offset;
+    status_.adc_cur2_offset = new_adc2_offset;
+    status_.adc_cur3_offset = new_adc3_offset;
     status_.mode = kCalibrationComplete;
   }
 
@@ -1602,6 +1677,7 @@ class BldcServo::Impl {
   ADC_TypeDef* const adc2_ = ADC2;
   ADC_TypeDef* const adc3_ = ADC3;
 #if defined(TARGET_STM32G4)
+  ADC_TypeDef* const adc4_ = ADC4;
   ADC_TypeDef* const adc5_ = ADC5;
   ADC_Common_TypeDef* const adc12_common_ = ADC12_COMMON;
 #endif
@@ -1623,10 +1699,13 @@ class BldcServo::Impl {
 
   AnalogIn current1_;
   AnalogIn current2_;
+  AnalogIn current3_;
   AnalogIn vsense_;
   uint32_t vsense_sqr_ = {};
   AnalogIn tsense_;
   uint32_t tsense_sqr_ = {};
+  AnalogIn msense_;
+  uint32_t msense_sqr_ = {};
 
   AnalogOut debug_dac_;
 
@@ -1655,6 +1734,7 @@ class BldcServo::Impl {
   Control control_;
   uint32_t calibrate_adc1_ = 0;
   uint32_t calibrate_adc2_ = 0;
+  uint32_t calibrate_adc3_ = 0;
   uint16_t calibrate_count_ = 0;
 
   PID pid_d_{&config_.pid_dq, &status_.pid_d};
@@ -1679,6 +1759,8 @@ class BldcServo::Impl {
   float adc_scale_ = 0.0f;
 
   uint32_t pwm_counts_ = 0;
+
+  const uint8_t hw_rev_ = g_measured_hw_rev;
 
   static Impl* g_impl_;
 };

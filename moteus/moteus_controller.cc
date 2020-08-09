@@ -260,8 +260,15 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
             options.current1 = MOTEUS_CURRENT1;
             options.current2 = MOTEUS_CURRENT2;
-            options.vsense = MOTEUS_VSENSE;
+            options.current3 = MOTEUS_CURRENT3;
+            options.vsense =
+                (g_measured_hw_rev < 5) ?
+                MOTEUS_VSENSE : MOTEUS_VSENSE_5_AND_LATER;
+
             options.tsense = MOTEUS_TSENSE;
+            options.msense =
+                (g_measured_hw_rev < 5) ?
+                MOTEUS_MSENSE : MOTEUS_MSENSE_5_AND_LATER;
 
             options.debug_dac = MOTEUS_DEBUG_DAC;
             options.debug_out = MOTEUS_DEBUG1;

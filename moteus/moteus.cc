@@ -1,4 +1,4 @@
-// Copyright 2018-2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -113,7 +113,10 @@ extern char _sccmram;
 }
 #endif
 
+namespace moteus {
+volatile uint8_t g_measured_hw_pins;
 volatile uint8_t g_measured_hw_rev;
+}
 
 int main(void) {
 #if defined(TARGET_STM32G4)
@@ -141,12 +144,29 @@ int main(void) {
   }
 #endif
 
-  const uint8_t this_hw_rev =
+  const uint8_t this_hw_pins =
       0x07 & (~(hwrev0.read() |
                 (hwrev1.read() << 1) |
                 (hwrev2.read() << 2)));
-  g_measured_hw_rev = this_hw_rev;
-  MJ_ASSERT(this_hw_rev == moteus::kHardwareInterlock[MOTEUS_HW_REV]);
+  moteus::g_measured_hw_pins = this_hw_pins;
+  const uint8_t measured_hw_rev = [&]() {
+    int i = 0;
+    for (auto rev_pins : kHardwareInterlock) {
+      if (rev_pins == this_hw_pins) { return i; }
+      i++;
+    }
+    return -1;
+  }();
+  g_measured_hw_rev = measured_hw_rev;
+  // Check if the detected board revision level is in our compatible
+  // set.
+  const bool compatible = [&]() {
+    for (auto possible_version : kCompatibleHwRev) {
+      if (measured_hw_rev == possible_version) { return true; }
+    }
+    return false;
+  }();
+  MJ_ASSERT(compatible);
 
   // I initially used a Ticker here to enqueue events at 1ms
   // intervals.  However, it introduced jitter into the current

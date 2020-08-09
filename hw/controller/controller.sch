@@ -5956,7 +5956,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.4
 (c) jjp@pobox.com 2019
 Licensed under the Apache 2.0 License</text>
-<text x="22.86" y="111.76" size="1.778" layer="91">PA10/PC6/PB3 Version
+<text x="22.86" y="111.76" size="1.778" layer="91">PC13/PA15/PC6 Version
 110</text>
 </plain>
 <instances>

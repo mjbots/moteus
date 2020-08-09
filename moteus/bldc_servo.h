@@ -44,11 +44,12 @@ class BldcServo {
     PinName pwm3 = NC;
 
     PinName current1 = NC;  // Must be sampled from ADC1
-    PinName current2 = NC;  // Must be sampled from ADC2
+    PinName current2 = NC;  // Must be sampled from ADC3
+    PinName current3 = NC;  // Must be sampled from ADC2
 
-    PinName current3 = NC;
-    PinName vsense = NC;  // Must be sampled from ADC3
-    PinName tsense = NC;  // Must be sampled from ADC3
+    PinName vsense = NC;  // Must be sampled from ADC4/5
+    PinName tsense = NC;  // Must be sampled from ADC5
+    PinName msense = NC;  // Must be sampled from ADC5/4
 
     PinName debug_dac = NC;
     PinName debug_out = NC;
@@ -288,17 +289,23 @@ class BldcServo {
     Mode mode = kStopped;
     errc fault = errc::kSuccess;
 
-    uint16_t adc1_raw = 0;
-    uint16_t adc2_raw = 0;
-    uint16_t adc3_raw = 0;
-    uint16_t position_raw = 0;
-    uint16_t fet_temp_raw = 0;
+    uint16_t adc_cur1_raw = 0;
+    uint16_t adc_cur2_raw = 0;
+    uint16_t adc_cur3_raw = 0;
+    uint16_t adc_voltage_sense_raw = 0;
+    uint16_t adc_fet_temp_raw = 0;
+    uint16_t adc_motor_temp_raw = 0;
 
-    uint16_t adc1_offset = 2048;
-    uint16_t adc2_offset = 2048;
+    uint16_t position_raw = 0;
+
+    uint16_t adc_cur1_offset = 2048;
+    uint16_t adc_cur2_offset = 2048;
+    uint16_t adc_cur3_offset = 2048;
 
     float cur1_A = 0.0f;
     float cur2_A = 0.0f;
+    float cur3_A = 0.0f;
+
     float bus_V = 0.0f;
     float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
     float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
@@ -364,17 +371,23 @@ class BldcServo {
       a->Visit(MJ_NVP(mode));
       a->Visit(MJ_NVP(fault));
 
-      a->Visit(MJ_NVP(adc1_raw));
-      a->Visit(MJ_NVP(adc2_raw));
-      a->Visit(MJ_NVP(adc3_raw));
-      a->Visit(MJ_NVP(position_raw));
-      a->Visit(MJ_NVP(fet_temp_raw));
+      a->Visit(MJ_NVP(adc_cur1_raw));
+      a->Visit(MJ_NVP(adc_cur2_raw));
+      a->Visit(MJ_NVP(adc_cur3_raw));
+      a->Visit(MJ_NVP(adc_voltage_sense_raw));
+      a->Visit(MJ_NVP(adc_fet_temp_raw));
+      a->Visit(MJ_NVP(adc_motor_temp_raw));
 
-      a->Visit(MJ_NVP(adc1_offset));
-      a->Visit(MJ_NVP(adc2_offset));
+      a->Visit(MJ_NVP(position_raw));
+
+      a->Visit(MJ_NVP(adc_cur1_offset));
+      a->Visit(MJ_NVP(adc_cur2_offset));
+      a->Visit(MJ_NVP(adc_cur3_offset));
 
       a->Visit(MJ_NVP(cur1_A));
       a->Visit(MJ_NVP(cur2_A));
+      a->Visit(MJ_NVP(cur3_A));
+
       a->Visit(MJ_NVP(bus_V));
       a->Visit(MJ_NVP(filt_bus_V));
       a->Visit(MJ_NVP(filt_1ms_bus_V));

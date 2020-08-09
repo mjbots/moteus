@@ -1,4 +1,4 @@
-// Copyright 2019 Josh Pieper, jjp@pobox.com.
+// Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
 
 #include "moteus/firmware_info.h"
 
+#include "moteus/moteus_hw.h"
+
 namespace moteus {
 
 namespace {
@@ -21,12 +23,14 @@ struct Info {
   uint32_t version = 0;
   std::array<uint32_t, 3> serial_number = {};
   uint32_t model = 0;
+  uint8_t hwrev = g_measured_hw_rev;
 
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(version));
     a->Visit(MJ_NVP(serial_number));
     a->Visit(MJ_NVP(model));
+    a->Visit(MJ_NVP(hwrev));
   }
 };
 }
