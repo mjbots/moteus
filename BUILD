@@ -32,13 +32,4 @@ filegroup(
     ],
 )
 
-filegroup(
-    name = "f4_target",
-    srcs = [
-        "//moteus:f4_moteus",
-        "//moteus:imu_junction_dumb",
-        "//moteus:uart_bootloader",
-    ],
-)
-
 exports_files(["tsconfig.json"])

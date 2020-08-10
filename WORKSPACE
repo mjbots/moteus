@@ -55,31 +55,8 @@ load("@com_github_mjbots_rules_mbed//tools/workspace/mbed:repository.bzl", "mbed
 mbed_register(
     config = {
         "mbed_target": "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
-        "mbed_config": {
-            "MBED_CONF_RTOS_PRESENT": "0",
-
-            # Start our code at sector 4, leaving sectors 0, 1, 2, and
-            # 3 for application data storage.
-            "MBED_APP_START": "0x8010000",
-            "MBED_APP_SIZE":  "0x0070000",
-        },
-    }
-)
-
-mbed_repository(
-    name = "com_github_ARMmbed_mbed-os-bootloader",
-    target = "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
-    config = {
-        "mbed_target": "targets/TARGET_STM/TARGET_STM32F4/TARGET_STM32F446xE/TARGET_NUCLEO_F446ZE",
-
-        "MBED_CONF_RTOS_PRESENT": "0",
-
-        # The application location and offset are directly
-        # configured in the custom linker script, not here.
-
-        # We need to use as few bytes as possible.
-        "NDEBUG": "1",
-    }
+        "mbed_config" : {},
+    },
 )
 
 mbed_repository(
