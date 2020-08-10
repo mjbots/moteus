@@ -47,3 +47,17 @@ BOOST_AUTO_TEST_CASE(log2f_approx_test, * boost::unit_test::tolerance(1e-3f)) {
   BOOST_TEST(pow2f_approx(log2f_approx(0.01)) == 0.01,
              boost::test_tools::tolerance(3e-2));
 }
+
+BOOST_AUTO_TEST_CASE(WrapZeroToTwoPiTest) {
+  for (float v = -50.0f; v <= 50.0f; v += 0.001f) {
+    BOOST_TEST_CONTEXT(v) {
+      auto result = WrapZeroToTwoPi(v);
+      const auto oracle_neg_pos = std::atan2(std::sin(v), std::cos(v));
+      const auto corrected =
+          (oracle_neg_pos > 0.0f) ?
+          oracle_neg_pos :
+          (2.0f * M_PI + oracle_neg_pos);
+      BOOST_TEST(std::abs(corrected - result) < 0.001f);
+    }
+  }
+}
