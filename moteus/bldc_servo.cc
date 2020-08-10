@@ -897,7 +897,7 @@ class BldcServo::Impl {
 
     DqTransform dq{sin_cos,
           status_.cur1_A,
-          0.0f - (status_.cur1_A + status_.cur2_A),
+          status_.cur3_A,
           status_.cur2_A
           };
     status_.d_A = dq.d;
