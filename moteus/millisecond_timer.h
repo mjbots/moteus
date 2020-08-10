@@ -28,9 +28,7 @@ class MillisecondTimer {
     __HAL_RCC_TIM5_CLK_ENABLE();
 
     constexpr int kExtraPrescaler =
-#if defined(TARGET_STM32F4)
-        2
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
         1
 #else
 #error "Unknown target"

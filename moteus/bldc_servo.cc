@@ -33,9 +33,7 @@
 #include "moteus/stm32_serial.h"
 #include "moteus/torque_model.h"
 
-#if defined(TARGET_STM32F4)
-#include "moteus/stm32f446_async_uart.h"
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
 #include "moteus/stm32g4_async_uart.h"
 #else
 #error "Unknown target"
@@ -51,9 +49,7 @@ namespace moteus {
 
 namespace {
 
-#if defined(TARGET_STM32F4)
-using HardwareUart = Stm32F446AsyncUart;
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
 #else
 #error "Unknown target"
@@ -167,22 +163,7 @@ constexpr float kMaxUnconfiguredCurrent = 5.0f;
 constexpr int kMaxVelocityFilter = 256;
 
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
-#if defined(TARGET_STM32F4)
-  if (timer == TIM1) {
-    return TIM1_UP_TIM10_IRQn;
-  } else if (timer == TIM2) {
-    return TIM2_IRQn;
-  } else if (timer == TIM3) {
-    return TIM3_IRQn;
-  } else if (timer == TIM4) {
-    return TIM4_IRQn;
-  } else if (timer == TIM8) {
-    return TIM8_UP_TIM13_IRQn;
-  } else {
-    MJ_ASSERT(false);
-  }
-  return TIM1_UP_TIM10_IRQn;
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
   if (timer == TIM2) {
     return TIM2_IRQn;
   } else if (timer == TIM3) {
@@ -221,13 +202,6 @@ uint32_t FindSqr(PinName pin) {
   const auto channel = STM_PIN_CHANNEL(function);
   return channel;
 }
-
-#if defined(TARGET_STM32F4)
-volatile uint32_t* const g_adc1_cr2 = &ADC1->CR2;
-#elif defined(TARGET_STM32G4)
-#else
-#error "Unknown target"
-#endif
 
 /// Read a digital input, but without configuring it in any way.
 class DigitalMonitor {
@@ -318,27 +292,6 @@ class BldcServo::Impl {
   void Start() {
     ConfigureADC();
     ConfigurePwmTimer();
-
-#if defined(TARGET_STM32F4)
-    if (options_.debug_uart_out != NC) {
-      const auto uart = pinmap_peripheral(
-          options_.debug_uart_out, PinMap_UART_TX);
-      debug_uart_ = reinterpret_cast<USART_TypeDef*>(uart);
-      auto dma_pair = HardwareUart::MakeDma(
-          static_cast<UARTName>(uart));
-      debug_uart_dma_tx_ = dma_pair.tx;
-
-      debug_uart_dma_tx_.stream->PAR =
-          reinterpret_cast<uint32_t>(&(debug_uart_->DR));
-      debug_uart_dma_tx_.stream->CR =
-          debug_uart_dma_tx_.channel |
-          DMA_SxCR_MINC |
-          DMA_MEMORY_TO_PERIPH;
-    }
-#elif defined(TARGET_STM32G4)
-#else
-#error "Unknown target"
-#endif
   }
 
   ~Impl() {
@@ -496,17 +449,9 @@ class BldcServo::Impl {
   }
 
   void ConfigureADC() {
-#if defined(TARGET_STM32F4)
-    constexpr uint16_t kCycleMap[] = {
-      3, 15, 28, 56, 84, 112, 144, 480,
-    };
-#elif defined(TARGET_STM32G4)
     constexpr uint16_t kCycleMap[] = {
       2, 6, 12, 24, 47, 92, 247, 640,
     };
-#else
-#error "Unknown target"
-#endif
 
     const uint32_t cur_cycles = MapConfig(kCycleMap, config_.adc_cur_cycles);
     const uint32_t aux_cycles = MapConfig(kCycleMap, config_.adc_aux_cycles);
@@ -525,40 +470,6 @@ class BldcServo::Impl {
     const uint32_t all_cur_cycles = make_cycles(cur_cycles);
     const uint32_t all_aux_cycles = make_cycles(aux_cycles);
 
-#if defined(TARGET_STM32F4)
-    __HAL_RCC_ADC1_CLK_ENABLE();
-    __HAL_RCC_ADC2_CLK_ENABLE();
-    __HAL_RCC_ADC3_CLK_ENABLE();
-
-    // Triple mode: Regular simultaneous mode only.
-    ADC->CCR = (0x16 << ADC_CCR_MULTI_Pos);
-
-    // Turn on all the converters.
-    ADC1->CR2 = ADC_CR2_ADON;
-    ADC2->CR2 = ADC_CR2_ADON;
-    ADC3->CR2 = ADC_CR2_ADON;
-
-    // We rely on the AnalogIn members to configure the pins as
-    // inputs.
-    ADC1->SQR3 = FindSqr(options_.current1);
-    ADC2->SQR3 = FindSqr(options_.current2);
-    ADC3->SQR3 = vsense_sqr_;
-
-    MJ_ASSERT(reinterpret_cast<uint32_t>(ADC1) ==
-                pinmap_peripheral(options_.current1, PinMap_ADC));
-    MJ_ASSERT(reinterpret_cast<uint32_t>(ADC2) ==
-                pinmap_peripheral(options_.current2, PinMap_ADC));
-    MJ_ASSERT(reinterpret_cast<uint32_t>(ADC3) ==
-                pinmap_peripheral(options_.vsense, PinMap_ADC));
-
-    // Set sample times to the same thing across the board
-    ADC1->SMPR1 = all_cur_cycles;
-    ADC1->SMPR2 = all_cur_cycles;
-    ADC2->SMPR1 = all_cur_cycles;
-    ADC2->SMPR2 = all_cur_cycles;
-    ADC3->SMPR1 = all_aux_cycles;
-    ADC3->SMPR2 = all_aux_cycles;
-#elif defined(TARGET_STM32G4)
     __HAL_RCC_ADC12_CLK_ENABLE();
     __HAL_RCC_ADC345_CLK_ENABLE();
 
@@ -677,22 +588,11 @@ class BldcServo::Impl {
     ADC4->SMPR2 = all_aux_cycles;
     ADC5->SMPR1 = all_aux_cycles;
     ADC5->SMPR2 = all_aux_cycles;
-
-#else
-#error "Unknown target"
-#endif
-
   }
 
   static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
-#if defined(TARGET_STM32F4)
-    while ((adc->SR & ADC_SR_EOC) == 0);
-#elif defined(TARGET_STM32G4)
     while ((adc->ISR & ADC_ISR_EOC) == 0);
     adc->ISR |= ADC_ISR_EOC;
-#else
-#error "Unknown target"
-#endif
   }
 
   // CALLED IN INTERRUPT CONTEXT.
@@ -723,17 +623,11 @@ class BldcServo::Impl {
     // ready.  This means we will throw away the result if our control
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
-#if defined(TARGET_STM32F4)
-    *g_adc1_cr2 |= ADC_CR2_SWSTART;
-#elif defined(TARGET_STM32G4)
     ADC1->CR |= ADC_CR_ADSTART;
     ADC2->CR |= ADC_CR_ADSTART;
     ADC3->CR |= ADC_CR_ADSTART;
     ADC4->CR |= ADC_CR_ADSTART;
     ADC5->CR |= ADC_CR_ADSTART;
-#else
-#error "Unknown target"
-#endif
 
     debug_out2_ = !debug_out2_.read();
 
@@ -784,10 +678,6 @@ class BldcServo::Impl {
   void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // Wait for conversion to complete.
     WaitForAdc(ADC1);
-#if defined(TARGET_STM32F4)
-    WaitForADC(ADC2);
-    WaitForAdc(ADC3);
-#endif
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -825,10 +715,6 @@ class BldcServo::Impl {
     }
 
     status_.adc_cur1_raw = ADC1->DR;
-#if defined(TARGET_STM32F4)
-    status_.adc_cur2_raw = ADC2->DR;
-    status_.adc_voltage_sense_raw = ADC3->DR;
-#elif defined(TARGET_STM32G4)
     status_.adc_cur2_raw = ADC3->DR;
     status_.adc_cur3_raw = ADC2->DR;
     WaitForAdc(ADC4);
@@ -841,15 +727,9 @@ class BldcServo::Impl {
       status_.adc_voltage_sense_raw = ADC4->DR;
       status_.adc_fet_temp_raw = ADC5->DR;
     }
-#else
-#error "Unknown target"
-#endif
 
     // Start sampling the temperature.
-#if defined(TARGET_STM32F4)
-    ADC3->SQR3 = tsense_sqr_;
-    ADC3->CR2 |= ADC_CR2_SWSTART;
-#elif defined(TARGET_STM32G4)
+    //
     // The datasheet says that ADSTP *must* be activated before
     // switching channels to guarantee that a conversion is not in
     // progress.  At this point, we know a conversion is not in
@@ -869,9 +749,6 @@ class BldcServo::Impl {
           msense_sqr_ << ADC_SQR1_SQ1_Pos;
     }
     ADC5->CR |= ADC_CR_ADSTART;
-#else
-#error "Unknown target"
-#endif
 
     // Wait for the position sample to finish.
     const uint16_t old_position = status_.position;
@@ -945,13 +822,6 @@ class BldcServo::Impl {
 
     // The temperature sensing should be done by now, but just double
     // check.
-#if defined(TARGET_STM32F4)
-    WaitForAdc(ADC3);
-    status_.fet_temp_raw = ADC3->DR;
-    // Set ADC3 back to the voltage sense resistor.
-    ADC3->SQR3 = vsense_sqr_;
-
-#elif defined(TARGET_STM32G4)
     WaitForAdc(ADC5);
     if (hw_rev_ <= 4) {
       status_.adc_fet_temp_raw = ADC5->DR;
@@ -973,22 +843,13 @@ class BldcServo::Impl {
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
     }
-#else
-#error "Unknown target"
-#endif
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_temp_sample = DWT->CYCCNT;
 #endif
 
     // Kick off a conversion just to get the FET temp out of the system.
-#if defined(TARGET_STM32F4)
-    ADC3->CR2 |= ADC_CR2_SWSTART;
-#elif defined(TARGET_STM32G4)
     ADC5->CR |= ADC_CR_ADSTART;
-#else
-#error "Unknown target"
-#endif
 
     {
       constexpr int adc_max = 4096;
@@ -1011,34 +872,6 @@ class BldcServo::Impl {
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
     if (!config_.enable_debug) { return; }
-#if defined(TARGET_STM32F4)
-    if (debug_uart_ == nullptr) { return; }
-
-    debug_buf_[0] = 0x5a;
-    debug_buf_[1] = static_cast<uint8_t>(255.0f * status_.electrical_theta / k2Pi);
-    debug_buf_[2] = static_cast<int8_t>(status_.pid_q.desired * 2.0f);
-    int16_t measured_q_a = static_cast<int16_t>(status_.q_A * 500.0f);
-    std::memcpy(&debug_buf_[3], &measured_q_a, sizeof(measured_q_a));
-    int16_t measured_pid_q_p = 32767.0f * status_.pid_q.p / 12.0f;
-    std::memcpy(&debug_buf_[5], &measured_pid_q_p, sizeof(measured_pid_q_p));
-    int16_t measured_pid_q_i = 32767.0f * status_.pid_q.integral / 12.0f;
-    std::memcpy(&debug_buf_[7], &measured_pid_q_i, sizeof(measured_pid_q_i));
-    int16_t control_q_V = 32767.0f * control_.q_V / 12.0f;
-    std::memcpy(&debug_buf_[9], &control_q_V, sizeof(control_q_V));
-
-    debug_buf_[11] = static_cast<int8_t>(127.0f * status_.velocity / 10.0f);
-    debug_buf_[12] = static_cast<int8_t>(127.0f * status_.bus_V / 24.0f);
-
-    *debug_uart_dma_tx_.status_clear |= debug_uart_dma_tx_.all_status();
-    debug_uart_dma_tx_.stream->NDTR = sizeof(debug_buf_);
-    debug_uart_dma_tx_.stream->M0AR = reinterpret_cast<uint32_t>(&debug_buf_);
-    debug_uart_dma_tx_.stream->CR |= DMA_SxCR_EN;
-
-    debug_uart_->CR3 |= USART_CR3_DMAT;
-#elif defined(TARGET_STM32G4)
-#else
-#error "Unknown target"
-#endif
   }
 
   void ISR_UpdateFilteredBusV(float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
@@ -1742,14 +1575,6 @@ class BldcServo::Impl {
   PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   Stm32Serial debug_serial_;
-#if defined(TARGET_STM32F4)
-  USART_TypeDef* debug_uart_ = nullptr;
-  HardwareUart::Dma debug_uart_dma_tx_;
-  char debug_buf_[13] = {};
-#elif defined(TARGET_STM32G4)
-#else
-#error "Unknown target"
-#endif
 
   std::atomic<uint32_t> clock_;
   std::atomic<uint32_t> startup_count_{0};

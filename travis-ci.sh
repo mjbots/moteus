@@ -2,5 +2,5 @@
 
 set -ev
 
-./tools/bazel test //:host
-./tools/bazel build --cpu=stm32g4 -c opt //:target
+./tools/bazel test --cpu=k8 //:host
+./tools/bazel build //:target

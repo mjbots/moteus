@@ -14,9 +14,7 @@
 
 #pragma once
 
-#if defined(TARGET_STM32F4)
-#include "stm32f4xx.h"
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
 #include "stm32g4xx.h"
 #else
 #error "Unknown target"

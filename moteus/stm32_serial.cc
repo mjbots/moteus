@@ -22,9 +22,6 @@ namespace {
 int32_t GetMax16OversamplingBaud(UARTName uart) {
   switch (uart) {
     case UART_1:
-#if defined(TARGET_STM32F4)
-    case UART_6:
-#endif
       return 5620000;
     case UART_2:
     case UART_3:

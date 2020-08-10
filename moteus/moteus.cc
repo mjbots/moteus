@@ -34,10 +34,7 @@
 #include "moteus/moteus_hw.h"
 #include "moteus/system_info.h"
 
-#if defined(TARGET_STM32F4)
-#include "moteus/stm32f446_async_uart.h"
-#include "moteus/stm32f4_flash.h"
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
 #include "moteus/fdcan.h"
 #include "moteus/fdcan_micro_server.h"
 #include "moteus/stm32g4_async_uart.h"
@@ -53,10 +50,7 @@ using namespace moteus;
 namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
 
-#if defined(TARGET_STM32F4)
-using HardwareUart = Stm32F446AsyncUart;
-using Stm32Flash = Stm32F4Flash;
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
 using Stm32Flash = Stm32G4Flash;
 #else
@@ -204,9 +198,6 @@ int main(void) {
     }());
   FDCanMicroServer fdcan_micro_server(&fdcan);
   multiplex::MicroServer multiplex_protocol(&pool, &fdcan_micro_server, {});
-#elif defined(TARGET_STM32F4)
-  multiplex::MicroStreamDatagram stream_datagram(&pool, &rs485, {});
-  multiplex::MicroServer multiplex_protocol(&pool, &stream_datagram, {});
 #else
 #error "Unknown target"
 #endif

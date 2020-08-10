@@ -44,9 +44,7 @@ class FirmwareInfo::Impl {
 
     const int32_t* const device_signature =
         reinterpret_cast<const int32_t*>(
-#if defined(TARGET_STM32F4)
-            0x1fff7a10
-#elif defined(TARGET_STM32G4)
+#if defined(TARGET_STM32G4)
             0x1fff7590
 #else
 #error "Unknown target"
