@@ -650,6 +650,8 @@ class BldcServo::Impl {
 #endif
 
     SinCos sin_cos{status_.electrical_theta};
+    status_.sin = sin_cos.s;
+    status_.cos = sin_cos.c;
 
     ISR_CalculateCurrentState(sin_cos);
 #ifdef MOTEUS_PERFORMANCE_MEASURE

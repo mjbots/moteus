@@ -331,6 +331,9 @@ class BldcServo {
     float timeout_s = 0.0;
     bool rezeroed = false;
 
+    float sin = 0.0f;
+    float cos = 0.0f;
+
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     struct Dwt {
       uint32_t adc_done = 0;
@@ -411,6 +414,9 @@ class BldcServo {
       a->Visit(MJ_NVP(position_to_set));
       a->Visit(MJ_NVP(timeout_s));
       a->Visit(MJ_NVP(rezeroed));
+
+      a->Visit(MJ_NVP(sin));
+      a->Visit(MJ_NVP(cos));
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
       a->Visit(MJ_NVP(dwt));
