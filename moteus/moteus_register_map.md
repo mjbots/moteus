@@ -292,9 +292,7 @@ Type: int8, int16, int32, float
 Mode: Read/write
 
 When in kPosition mode, shrink the derivative control term by the
-given factor.  integral types are applied as for PWM.  This is
-internally limited to be no more than the kp scale in effect.
-
+given factor.  integral types are applied as for PWM.
 
 ### 0x025 - Position maximum torque ###
 
