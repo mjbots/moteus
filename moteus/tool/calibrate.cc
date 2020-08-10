@@ -181,13 +181,18 @@ Eigen::VectorXd Interpolate(const Eigen::VectorXd& sample_points,
 Eigen::VectorXd WindowAverage(const Eigen::VectorXd& values, int window_size) {
   Eigen::VectorXd result(values.size());
   for (int i = 0; i < values.size(); i++) {
-    int start = std::max<int>(0, i - window_size / 2);
-    int end = std::min<int>(values.size(), i + window_size / 2);
+    int start = i - window_size / 2;
+    int end = i + window_size / 2;
     Eigen::VectorXd errs(end - start);
-    for (int i = start; i < end; i++) {
-      errs[i - start] = WrapNegPiToPi(values[i] - values[start]);
+    auto wrap = [&](int v) -> int {
+      if (v < 0) { return v + values.size(); }
+      if (v >= values.size()) { return v - values.size(); }
+      return v;
+    };
+    for (int j = start; j < end; j++) {
+      errs[j - start] = WrapNegPiToPi(values[wrap(j)] - values[wrap(start)]);
     }
-    result[i] = values[start] + errs.mean();
+    result[i] = values[wrap(start)] + errs.mean();
   }
 
   return result;

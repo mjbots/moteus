@@ -2149,7 +2149,7 @@ BOOST_AUTO_TEST_CASE(CalibrateTest, *boost::unit_test::tolerance(1e-3)) {
   BOOST_TEST(result.invert == false);
 
   std::vector<double> expected_offsets = {
-    -1.792239934999236,
+    -1.7985491034584755,
     -1.811379523626072,
     -1.805294180172147,
     -1.8011223623091335,
