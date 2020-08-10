@@ -39,6 +39,19 @@ inline float WrapZeroToTwoPi(float x) {
   return (mod >= 0.0f) ? mod : (mod + k2Pi);
 }
 
+int32_t RadiansToQ31(float) __attribute__((always_inline));
+
+inline int32_t RadiansToQ31(float x) {
+  // First we scale, then wrap, and finally convert out.
+  const float scaled = x / k2Pi;
+  // Now we wrap to be from 0 to 1.
+  const int32_t i = static_cast<int>(scaled);
+  float mod = scaled - i;
+  if (mod < 0) { mod += 1.0f; }
+
+  return static_cast<int32_t>(((mod > 0.5f) ? (mod - 1.0f) : mod) * 4294967296.0f);
+}
+
 float log2f_approx(float X) __attribute__((always_inline));
 
 inline float log2f_approx(float X) {

@@ -21,7 +21,8 @@ using namespace moteus;
 namespace tt = boost::test_tools;
 
 BOOST_AUTO_TEST_CASE(FocTest1) {
-  SinCos sin_cos(0.0);
+  Cordic cordic;
+  SinCos sin_cos = cordic.radians(0.0);
 
   DqTransform dq(sin_cos, 2.0, 0., 0.);
   BOOST_TEST(dq.d == 1.3333333333f);
@@ -51,7 +52,8 @@ BOOST_AUTO_TEST_CASE(FocTest1) {
 }
 
 BOOST_AUTO_TEST_CASE(FocTest2) {
-  SinCos sin_cos(kPi / 2.0f);
+  Cordic cordic;
+  SinCos sin_cos = cordic.radians(kPi / 2.0f);
 
   DqTransform dq(sin_cos, 2.0, 0., 0.);
   BOOST_TEST(std::abs(dq.d) <= 1e-5);

@@ -368,8 +368,7 @@ class BldcServo::Impl {
         kFudge * 60.0f / (2.0f * kPi * kv) :
         kDefaultTorqueConstant;
 
-    position_constant_ =
-        k2Pi / 65536.0f * motor_.poles / 2.0f;
+    position_constant_ = motor_.poles / 2;
 
     adc_scale_ = 3.3f / (4096.0f * MOTEUS_CURRENT_SENSE_OHM * config_.i_gain);
 
@@ -649,7 +648,7 @@ class BldcServo::Impl {
     status_.dwt.sense = DWT->CYCCNT;
 #endif
 
-    SinCos sin_cos{status_.electrical_theta};
+    SinCos sin_cos = cordic_(RadiansToQ31(status_.electrical_theta));
     status_.sin = sin_cos.s;
     status_.cos = sin_cos.c;
 
@@ -766,15 +765,16 @@ class BldcServo::Impl {
 #endif
 
     status_.position =
-        (motor_.invert ? (65535 - status_.position_raw) : status_.position_raw);
+        (motor_.invert ? (65536 - status_.position_raw) : status_.position_raw);
 
     const int offset_size = motor_.offset.size();
     const int offset_index = status_.position * offset_size / 65536;
     MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
 
+    constexpr float kU16ToTheta = k2Pi / 65536.0f;
     status_.electrical_theta =
         WrapZeroToTwoPi(
-            position_constant_ * (static_cast<float>(status_.position)) +
+            ((position_constant_ * status_.position) % 65536) * kU16ToTheta +
             motor_.offset[offset_index]);
 
     const int16_t delta_position =
@@ -1299,7 +1299,7 @@ class BldcServo::Impl {
   }
 
   void ISR_DoVoltageFOC(float theta, float voltage) MOTEUS_CCM_ATTRIBUTE {
-    SinCos sc(WrapZeroToTwoPi(theta));
+    SinCos sc = cordic_(RadiansToQ31(theta));
     const float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
     InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
     ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
@@ -1582,10 +1582,11 @@ class BldcServo::Impl {
   std::atomic<uint32_t> startup_count_{0};
 
   float torque_constant_ = 0.01f;
-  float position_constant_ = 0.0f;
+  int32_t position_constant_ = 0;
   float adc_scale_ = 0.0f;
 
   uint32_t pwm_counts_ = 0;
+  Cordic cordic_;
 
   const uint8_t hw_rev_ = g_measured_hw_rev;
 

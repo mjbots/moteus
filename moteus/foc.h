@@ -19,24 +19,61 @@
 
 #include "moteus/math.h"
 
+#ifdef TARGET_STM32G4
+#include "stm32g4xx_ll_cordic.h"
+#endif
+
 namespace moteus {
 
 // A helper to cache the result of sin and cos on a given quantity.
 struct SinCos {
-  // @p theta must be >= 0.0 and <= 2 * pi
-  SinCos(float theta) {
-    int sin_index = std::max(0, std::min(511, static_cast<int>((512.0f / k2Pi) * theta)));
-    int cos_index = ((128 - sin_index) + 512) % 512;
-
-    s = table_[sin_index];
-    c = table_[cos_index];
-  }
-
   float s;
   float c;
-
-  static const float table_[512];
 };
+
+class Cordic {
+ public:
+#ifdef TARGET_STM32G4
+  Cordic() {
+    __HAL_RCC_CORDIC_CLK_ENABLE();
+    LL_CORDIC_Config(
+        CORDIC,
+        LL_CORDIC_FUNCTION_COSINE,
+        LL_CORDIC_PRECISION_5CYCLES,
+        LL_CORDIC_SCALE_0,
+        LL_CORDIC_NBWRITE_1,
+        LL_CORDIC_NBREAD_2,
+        LL_CORDIC_INSIZE_32BITS,
+        LL_CORDIC_OUTSIZE_32BITS);
+  }
+
+  SinCos operator()(int32_t theta_q31) const {
+    LL_CORDIC_WriteData(CORDIC, theta_q31);
+    SinCos result;
+    result.c = from_q31(LL_CORDIC_ReadData(CORDIC));
+    result.s = from_q31(LL_CORDIC_ReadData(CORDIC));
+    return result;
+  };
+
+  static float from_q31(uint32_t val) {
+    return static_cast<float>(static_cast<int32_t>(val)) * (1.0f / 2147483648.0f);
+  }
+#else
+  Cordic() {}
+
+  SinCos operator()(int32_t theta_q31) const {
+    SinCos result;
+    result.s = std::sin(static_cast<float>(theta_q31) * kPi * (1.0f / 2147483648.0f));
+    result.c = std::cos(static_cast<float>(theta_q31) * kPi * (1.0f / 2147483648.0f));
+    return result;
+  }
+
+  SinCos radians(float theta) const {
+    return (*this)(RadiansToQ31(theta));
+  }
+#endif
+};
+
 
 struct DqTransform {
   DqTransform(const SinCos& sc, float a, float b, float c)
