@@ -117,10 +117,15 @@ constexpr int kCompatibleHwRev[] = {
 #if MOTEUS_HW_REV <= 2
 #error "Not supported"
 #elif MOTEUS_HW_REV >= 3
-// ADC1
-#define MOTEUS_CURRENT1 PB_0
+// We've picked these particular pins so that all 3 channels are one
+// of the "slow" channels so they will have similar analog performance
+// characteristics.
+
 // ADC3
-#define MOTEUS_CURRENT2 PB_1_ALT0
+#define MOTEUS_CURRENT1 PB_0_ALT0
+// ADC1
+#define MOTEUS_CURRENT2 PB_1
+// ADC2
 #define MOTEUS_CURRENT3 PB_2
 #endif
 

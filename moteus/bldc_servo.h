@@ -144,8 +144,10 @@ class BldcServo {
     float position_derate = 0.02f;
 
     // The current ADCs are driven by the drv8323's op-amp, which is
-    // very low impedance.  Thus they don't need much sampling time.
-    uint16_t adc_cur_cycles = 2;  // 2, 6, 12, 24, 47, 92, 247, 640
+    // very low impedance.  They thus don't need a lot of sampling
+    // time.  (They are on "slow" pins though, which means we can't
+    // get away with minimal sampling).
+    uint16_t adc_cur_cycles = 24;  // 2, 6, 12, 24, 47, 92, 247, 640
 
     // However, the aux channels, (voltage and temperature), are just
     // driven by resistor networks (relatively high impedance).  They

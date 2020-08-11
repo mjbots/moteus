@@ -550,13 +550,13 @@ class BldcServo::Impl {
 
     ADC1->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
-        FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
+        FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
     ADC2->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current3) << ADC_SQR1_SQ1_Pos;
     ADC3->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
-        FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
+        FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
     if (hw_rev_ <= 4) {
       // For version <=4, we sample the motor temperature and the
       // battery sense first.
@@ -622,13 +622,17 @@ class BldcServo::Impl {
     // ready.  This means we will throw away the result if our control
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
+
+    // NOTE: For some reason, this order seems to work a lot better.
+    // If ADC3 is started in the middle, it can give very noisy
+    // results for some PWM values.  You can test this by running "d
+    // pwm N 0.3" in 0.1 radian intervals and looking for >10 LSB ADC
+    // noise on any of the current channels at any point.
     ADC1->CR |= ADC_CR_ADSTART;
     ADC2->CR |= ADC_CR_ADSTART;
-    ADC3->CR |= ADC_CR_ADSTART;
-    ADC4->CR |= ADC_CR_ADSTART;
     ADC5->CR |= ADC_CR_ADSTART;
-
-    debug_out2_ = !debug_out2_.read();
+    ADC4->CR |= ADC_CR_ADSTART;
+    ADC3->CR |= ADC_CR_ADSTART;
 
     if constexpr (kInterruptDivisor != 1) {
       phase_ = (phase_ + 1) % kInterruptDivisor;
@@ -636,7 +640,6 @@ class BldcServo::Impl {
       if (phase_ != 0) { return; }
     }
 
-    debug_out_ = 1;
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     DWT->CYCCNT = 0;
 #endif
@@ -679,6 +682,14 @@ class BldcServo::Impl {
   void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // Wait for conversion to complete.
     WaitForAdc(ADC1);
+    WaitForAdc(ADC2);
+    WaitForAdc(ADC3);
+
+    // We would like to set this debug pin as soon as possible.
+    // However, if we flip it while the current ADCs are sampling,
+    // they can get a lot more noise in some situations.  Thus just
+    // wait until now.
+    debug_out_ = 1;
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -715,8 +726,8 @@ class BldcServo::Impl {
       current_data_->timeout_s = 0.0;
     }
 
-    status_.adc_cur1_raw = ADC1->DR;
-    status_.adc_cur2_raw = ADC3->DR;
+    status_.adc_cur1_raw = ADC3->DR;
+    status_.adc_cur2_raw = ADC1->DR;
     status_.adc_cur3_raw = ADC2->DR;
     WaitForAdc(ADC4);
     WaitForAdc(ADC5);
@@ -1515,6 +1526,7 @@ class BldcServo::Impl {
   ADC_TypeDef* const adc4_ = ADC4;
   ADC_TypeDef* const adc5_ = ADC5;
   ADC_Common_TypeDef* const adc12_common_ = ADC12_COMMON;
+  ADC_Common_TypeDef* const adc345_common_ = ADC345_COMMON;
 #endif
   DAC_TypeDef* const dac_ = DAC;
 
