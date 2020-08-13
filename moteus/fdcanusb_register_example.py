@@ -73,9 +73,11 @@ class MoteusMode(enum.IntEnum):
     PWM = 5
     VOLTAGE = 6
     VOLTAGE_FOC = 7
-    CURRENT = 8
-    POSITION = 9
-    TIMEOUT = 10
+    VOLTAGE_DQ = 8
+    CURRENT = 9
+    POSITION = 10
+    TIMEOUT = 11
+    ZERO_VEL = 12
 
 
 def hexify(data):
@@ -193,13 +195,13 @@ class Spinner:
             MOTEUS_REG_POS_POSITION,
             self.angle_deg / 360.0,  # position
             self.velocity_dps / 360.0,  # velocity
-            0,  # torque
+            0.0,  # feedforward torque
             ))
         buf.write(struct.pack(
             "<bbb",
             0x1c,  # read float32 (variable number)
             4,     # 4 registers
-            0x00   # starting at 4
+            0x00   # starting at 0
             ))
         buf.write(struct.pack(
             "<bb",
@@ -232,13 +234,13 @@ class Spinner:
         response_data = parse_register_reply(response)
 
         print("Mode: {: 3}  Pos: {: .2f}deg  Vel: {: 6.2f}dps  "
-              "Torque: {: 6.2f}Nm  Temp: {: 3d}C  Voltage: {: 2d}V    ".format(
+              "Torque: {: 6.2f}Nm  Temp: {: 3d}C  Voltage: {: 3.1f}V    ".format(
                   response_data[MOTEUS_REG_MODE],
                   response_data[MOTEUS_REG_POSITION] * 360.0,
                   response_data[MOTEUS_REG_VELOCITY] * 360.0,
                   response_data[MOTEUS_REG_TORQUE],
                   response_data[MOTEUS_REG_TEMP_C],
-                  response_data[MOTEUS_REG_V]),
+                  response_data[MOTEUS_REG_V] * 0.5),
               end = '\r')
 
     def send_can_frame(self, frame, reply):
