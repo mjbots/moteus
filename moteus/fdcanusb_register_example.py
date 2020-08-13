@@ -233,9 +233,9 @@ class Spinner:
         response = dehexify(fields[2])
         response_data = parse_register_reply(response)
 
-        print("Mode: {: 3}  Pos: {: .2f}deg  Vel: {: 6.2f}dps  "
+        print("Mode: {: 2d}  Pos: {: 6.2f}deg  Vel: {: 6.2f}dps  "
               "Torque: {: 6.2f}Nm  Temp: {: 3d}C  Voltage: {: 3.1f}V    ".format(
-                  response_data[MOTEUS_REG_MODE],
+                  int(response_data[MOTEUS_REG_MODE]),
                   response_data[MOTEUS_REG_POSITION] * 360.0,
                   response_data[MOTEUS_REG_VELOCITY] * 360.0,
                   response_data[MOTEUS_REG_TORQUE],
