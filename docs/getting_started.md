@@ -2,10 +2,16 @@
 
 ## Dependencies ##
 
-Some dependencies are required for the graphical debugging UI.  Instructions for ubuntu >=18.04 systems:
+Some dependencies are required for the graphical debugging UI.  Instructions for ubuntu 18.04 systems:
 
 ```
 sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial
+```
+
+For ubuntu 20.04 systems:
+
+```
+sudo apt install curl libc6-python3-matplotlib python3-pyside2.qtgui python3-qtconsole python3-serial
 ```
 
 ## Building the software ##
@@ -15,7 +21,7 @@ the moteus controller.
 
 ```
 tools/bazel test -c opt --cpu=stm32g4 //:target
-tools/bazel test //:host
+tools/bazel test --cpu=k8 //:host
 ```
 
 ## fdcanusb ##
