@@ -5,13 +5,13 @@
 Some dependencies are required for the graphical debugging UI.  Instructions for ubuntu 18.04 systems:
 
 ```
-sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial
+sudo apt install curl python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial
 ```
 
 For ubuntu 20.04 systems:
 
 ```
-sudo apt install libc6-dev libtinfo5 gcc curl libc6-python3-matplotlib python3-pyside2.qtgui python3-qtconsole python3-serial
+sudo apt install libc6-dev libtinfo5 gcc curl libc6-dev python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial python-is-python3
 ```
 
 ## Building the software ##
@@ -36,7 +36,7 @@ tview lets you configure and inspect the state of the controller.  It
 can be run like:
 
 ```
-./bazel-out/k8-fastbuild/bin/moteus/tool/tview --devices=1
+./bazel-out/k8-opt/bin/moteus/tool/tview --devices=1
 ```
 
 By default, it uses `/dev/fdcanusb` to communicate with targets.

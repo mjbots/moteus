@@ -32,16 +32,15 @@ import sys
 import time
 
 import matplotlib
+import matplotlib.figure
 
-matplotlib.use('Qt4Agg')
-matplotlib.rcParams['backend.qt4'] = 'PySide'
+os.environ['QT_API'] = 'pyside2'
+from matplotlib.backends import backend_qt5agg
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+qt_backend = matplotlib.backends.backend_qt5agg
 
-from matplotlib.backends import backend_qt4agg
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-
-os.environ['QT_API'] = 'pyside'
 from qtconsole.qt import QtCore, QtGui
-from PySide import QtUiTools
+from PySide2 import QtUiTools
 from qtconsole.history_console_widget import HistoryConsoleWidget
 
 
@@ -494,7 +493,7 @@ class PlotWidget(QtGui.QWidget):
 
         self.canvas.draw = draw
 
-        self.toolbar = backend_qt4agg.NavigationToolbar2QT(self.canvas, self)
+        self.toolbar = qt_backend.NavigationToolbar2QT(self.canvas, self)
         self.pause_action = QtGui.QAction(u'Pause', self)
         self.pause_action.setCheckable(True)
         self.pause_action.toggled.connect(self._handle_pause)
