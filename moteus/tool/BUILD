@@ -76,7 +76,9 @@ cc_test(
         "@boost//:test",
     ],
     data = [
-        ":moteus_tool",  # just so it is built
+        # Just so they are built.
+        ":moteus_tool",
+        ":dynamometer_drive",
     ],
     size = "small",
 )
@@ -85,4 +87,14 @@ cc_binary(
     name = "moteus_tool",
     srcs = ["moteus_tool_main.cc"],
     deps = [":moteus_tool_lib"],
+)
+
+cc_binary(
+    name = "dynamometer_drive",
+    srcs = ["dynamometer_drive.cc"],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/base:clipp",
+        "@com_github_mjbots_mjlib//mjlib/base:clipp_archive",
+        "@com_github_mjbots_mjlib//mjlib/base:visitor",
+    ],
 )
