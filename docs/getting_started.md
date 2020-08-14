@@ -5,13 +5,13 @@
 Some dependencies are required for the graphical debugging UI.  Instructions for ubuntu 18.04 systems:
 
 ```
-sudo apt install curl python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial
+sudo apt install curl python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial python3-snappy
 ```
 
 For ubuntu 20.04 systems:
 
 ```
-sudo apt install libc6-dev libtinfo5 gcc curl libc6-dev python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial python-is-python3
+sudo apt install libc6-dev libtinfo5 gcc curl libc6-dev python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial python3-snappy python-is-python3
 ```
 
 ## Building the software ##
