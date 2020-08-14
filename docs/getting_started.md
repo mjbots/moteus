@@ -11,7 +11,7 @@ sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python
 For ubuntu 20.04 systems:
 
 ```
-sudo apt install gcc curl libc6-python3-matplotlib python3-pyside2.qtgui python3-qtconsole python3-serial
+sudo apt install libc6-dev libtinfo5 gcc curl libc6-python3-matplotlib python3-pyside2.qtgui python3-qtconsole python3-serial
 ```
 
 ## Building the software ##
