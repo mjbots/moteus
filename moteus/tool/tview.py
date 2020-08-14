@@ -481,18 +481,6 @@ class PlotWidget(QtGui.QWidget):
 
         self.right_axis = None
 
-        def draw():
-            # NOTE jpieper: For some reason, on the first repaint
-            # event, the height is negative, which throws spurious
-            # errors.  Paper over that here.
-            l, b, w, h = self.figure.bbox.bounds
-            if h < 0:
-                return
-            FigureCanvas.draw(self.canvas)
-            self.canvas.repaint()
-
-        self.canvas.draw = draw
-
         self.toolbar = qt_backend.NavigationToolbar2QT(self.canvas, self)
         self.pause_action = QtGui.QAction(u'Pause', self)
         self.pause_action.setCheckable(True)
