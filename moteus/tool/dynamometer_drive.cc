@@ -49,6 +49,37 @@ namespace {
 
 constexpr int kDebugTunnel = 1;
 
+struct Options {
+  int fixture_id = 32;
+  int dut_id = 1;
+  std::string torque_transducer;
+
+  bool verbose = false;
+  std::string log;
+  double max_test_time_s = 1200.0;
+
+  double max_torque_Nm = 0.5;
+
+
+  // The different cycles we can do.
+  bool static_torque_ripple = false;
+  double static_torque_ripple_speed = 0.01;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(fixture_id));
+    a->Visit(MJ_NVP(dut_id));
+    a->Visit(MJ_NVP(torque_transducer));
+    a->Visit(MJ_NVP(verbose));
+    a->Visit(MJ_NVP(log));
+    a->Visit(MJ_NVP(max_test_time_s));
+    a->Visit(MJ_NVP(max_torque_Nm));
+
+    a->Visit(MJ_NVP(static_torque_ripple));
+    a->Visit(MJ_NVP(static_torque_ripple_speed));
+  }
+};
+
 struct TorqueTransducer {
   boost::posix_time::ptime timestamp;
 
@@ -102,24 +133,6 @@ std::string StringValue(const std::string& line_in) {
   return line.substr(pos + 1);
 }
 
-struct Options {
-  int fixture_id = 32;
-  int dut_id = 1;
-  std::string torque_transducer;
-
-  bool verbose = false;
-  std::string log;
-
-  template <typename Archive>
-  void Serialize(Archive* a) {
-    a->Visit(MJ_NVP(fixture_id));
-    a->Visit(MJ_NVP(dut_id));
-    a->Visit(MJ_NVP(torque_transducer));
-    a->Visit(MJ_NVP(verbose));
-    a->Visit(MJ_NVP(log));
-  }
-};
-
 class Controller {
  public:
   Controller(const std::string& log_prefix,
@@ -130,6 +143,17 @@ class Controller {
         stream_(stream),
         file_writer_(file_writer),
         options_(options) {}
+
+  boost::asio::awaitable<void> OKReceived() {
+    auto operation = [this](io::ErrorCallback callback) {
+      BOOST_ASSERT(!ok_callback_);
+      ok_callback_ = std::move(callback);
+    };
+
+    co_await async_initiate<
+      decltype(boost::asio::use_awaitable),
+      void(boost::system::error_code)>(operation, boost::asio::use_awaitable);
+  }
 
   boost::asio::awaitable<void> SomethingReceived() {
     auto operation = [this](io::ErrorCallback callback) {
@@ -143,7 +167,7 @@ class Controller {
   }
 
   boost::asio::awaitable<void> Start() {
-    co_await WriteMessage("tel stop");
+    co_await WriteMessage("tel stop\nd stop\n");
 
     char buf[4096] = {};
 
@@ -195,6 +219,12 @@ class Controller {
     co_return;
   }
 
+  boost::asio::awaitable<void> Command(const std::string& message) {
+    co_await WriteMessage(message);
+    co_await OKReceived();
+    co_return;
+  }
+
   boost::asio::awaitable<void> WriteMessage(const std::string& message) {
     if (options_.verbose) {
       fmt::print("> {}\n", message);
@@ -219,6 +249,11 @@ class Controller {
       }
       const auto line = *maybe_line;
       if (boost::starts_with(line, "OK")) {
+        if (ok_callback_) {
+          boost::asio::post(
+              stream_->get_executor(),
+              std::bind(std::move(ok_callback_), mjlib::base::error_code()));
+        }
         // We ignore these.
       } else if (boost::starts_with(line, "ERR")) {
         // This causes us to terminate immediately.
@@ -266,6 +301,7 @@ class Controller {
   std::set<std::string> log_data_;
 
   io::ErrorCallback received_callback_;
+  io::ErrorCallback ok_callback_;
 };
 
 class Application {
@@ -304,7 +340,71 @@ class Application {
 
   boost::asio::awaitable<void> Task() {
     co_await Init();
+
+    const auto expiration =
+        mjlib::io::Now(executor_.context()) +
+        mjlib::base::ConvertSecondsToDuration(options_.max_test_time_s);
+
+    co_await RunFor(
+        executor_,
+        fixture_->stream(),
+        [&]() -> boost::asio::awaitable<bool> {
+          co_await RunTestCycle();
+          co_return false;
+        },
+        expiration);
+
     co_return;
+  }
+
+  boost::asio::awaitable<void> RunTestCycle() {
+    if (options_.static_torque_ripple) {
+      co_await RunStaticTorqueRipple();
+    } else {
+      fmt::print("No cycle selected\n");
+    }
+
+    // Make sure everything is stopped.
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> RunStaticTorqueRipple() {
+    co_await fixture_->Command(
+        "conf set servo.pid_position.ki 100.0");
+    co_await fixture_->Command(
+        fmt::format("conf set servo.pid_position.ilimit {}",
+                    std::max(0.2, options_.max_torque_Nm)));
+    co_await fixture_->Command("conf set servopos.position_min nan");
+    co_await fixture_->Command("conf set servopos.position_max nan");
+    co_await dut_->Command("conf set servopos.position_min nan");
+    co_await dut_->Command("conf set servopos.position_max nan");
+
+
+    co_await fixture_->Command("d rezero");
+    co_await dut_->Command("d rezero");
+
+    // Start the fixture sweeping.
+    co_await fixture_->Command(
+        fmt::format("d pos nan {} {}",
+                    options_.static_torque_ripple_speed,
+                    options_.max_torque_Nm));
+
+    // Then start commanding the different torques on the dut servo,
+    // each for a bit more than one revolution.
+    for (double test_torque : {0.0, 0.05, 0.1, 0.2}) {
+      fmt::print("\nTesting torque: {}\n", test_torque);
+      co_await dut_->Command(fmt::format("d pos nan 0 {} p0 d0 f{}",
+                                         test_torque, test_torque));
+
+      // Wait for the time required by one full cycle plus a bit.
+      boost::asio::deadline_timer timer(executor_);
+      timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(1.2 / options_.static_torque_ripple_speed));
+      co_await timer.async_wait(boost::asio::use_awaitable);
+    }
   }
 
   boost::asio::awaitable<void> Init() {
