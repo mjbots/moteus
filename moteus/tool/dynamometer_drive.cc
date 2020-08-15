@@ -402,7 +402,8 @@ class Application {
 
       // Wait for the time required by one full cycle plus a bit.
       boost::asio::deadline_timer timer(executor_);
-      timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(1.2 / options_.static_torque_ripple_speed));
+      timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(
+                                 1.2 / options_.static_torque_ripple_speed));
       co_await timer.async_wait(boost::asio::use_awaitable);
     }
   }
@@ -492,7 +493,8 @@ class Application {
   }
 
   boost::asio::any_io_executor executor_;
-  boost::asio::executor_work_guard<boost::asio::any_io_executor> guard_{executor_};
+  boost::asio::executor_work_guard<
+    boost::asio::any_io_executor> guard_{executor_};
   io::Selector<mp::AsioClient>* const client_selector_;
   const Options& options_;
 
