@@ -19,7 +19,9 @@ produce a result plot with some useful metrics."""
 
 import bisect
 import datetime
+import math
 import matplotlib.pyplot as plt
+import numpy
 import sys
 
 import mjlib.telemetry.file_reader as file_reader
@@ -68,7 +70,8 @@ def main():
     # Figure out which torques were tested.
     dut_servo_cmd = data["dut_servo_cmd"]
     dut_servo_stats = data["dut_servo_stats"]
-    tested_torques = set([x.data.feedforward_Nm for x in dut_servo_cmd])
+    tested_torques = set(
+        [float('nan')] + [x.data.feedforward_Nm for x in dut_servo_cmd])
 
     def find_full_encoder(start):
         # Then we want to go until just before a full encoder
@@ -93,29 +96,39 @@ def main():
     # test.
     def find_test(torque_Nm):
         # First, pick the largest region with the given torque.
-        regions = find_regions(
-            dut_servo_cmd,
-            lambda x: (x.data.mode.value == 10 and
-                       x.data.feedforward_Nm == torque_Nm))
+        if math.isnan(torque_Nm):
+            regions = find_regions(
+                dut_servo_cmd,
+                lambda x: (x.data.mode.value == 0))
+        else:
+            regions = find_regions(
+                dut_servo_cmd,
+                lambda x: (x.data.mode.value == 10 and
+                           x.data.feedforward_Nm == torque_Nm))
 
         regions.sort(reverse=True, key=lambda x: len(x))
         biggest_region = regions[0]
 
-        # Skip 2s from the start
-        begin = biggest_region[0].timestamp + 2.0
+        # Skip from the start to move past startup transients.
+        begin = biggest_region[0].timestamp + 4.0
         end = find_full_encoder(begin)
 
         return {
-            "torque" : torque_Nm,
+            "torque" : torque_Nm if not math.isnan(torque_Nm) else 'stop',
             "begin" : begin,
             "end" : end,
             }
     tests = [find_test(x) for x in tested_torques]
+    tests.sort(key=lambda x: abs(x["torque"]) if type(x["torque"]) == float else -1)
     print("tests: ", tests)
 
     ax = plt.subplot(111)
 
-    for test in tests:
+    analysis = []
+
+    cmap = plt.get_cmap("tab10")
+
+    for i, test in enumerate(tests):
         si = bisect_left(data["torque"], test["begin"])
         se = bisect_left(data["torque"], test["end"])
 
@@ -125,12 +138,26 @@ def main():
             (dut_servo_stats[bisect_left(dut_servo_stats, x[0])].data.position, x[1])
             for x in timed_torque]
         to_plot.sort()
-        ax.plot([x[0] for x in to_plot], [(x[1] - test["torque"]) for x in to_plot],
-                label=f'{test["torque"]:.2f} Nm')
+
+        color = cmap(i)
+        color = (color[0], color[1], color[2], 1.0 - float(i) / len(tests))
+        print("color: ", color)
+        compare_torque = test["torque"] if type(test["torque"]) == float else 0.0
+        torque_name = f'{test["torque"]:.2f} Nm' if type(test["torque"]) == float else "stop"
+        ax.plot([x[0] for x in to_plot], [(x[1] - compare_torque) for x in to_plot],
+                label=torque_name,
+                color=color)
+
+        torques = [x[1] for x in to_plot]
+        std = numpy.std(torques)
+        pkpk = max(torques) - min(torques)
+        analysis.append(f'{torque_name} std={std:.3f} pk-pk={pkpk:.3f}')
 
     ax.grid()
     ax.legend()
     ax.set_title("Torque Error vs Encoder Position")
+    ax.set_ylabel("Transducer measured N*m")
+    ax.set_xlabel("Magnetic Encoder Position")
 
     git_data = data["dut_git"][0].data
     git_hash = ''.join(['{:02x}'.format(x) for x in git_data.hash])
@@ -139,6 +166,10 @@ def main():
     test_info = f'git: {git_hash} dirty: {git_data.dirty} time: {test_timestr}'
     ax.text(0.95, 0.01, test_info,
             horizontalalignment='right', transform=ax.transAxes)
+    ax.text(0.95, 0.04, '\n'.join(analysis),
+            horizontalalignment='right',
+            verticalalignment='bottom',
+            transform=ax.transAxes)
 
     plt.show()
 

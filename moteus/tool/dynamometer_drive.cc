@@ -368,43 +368,56 @@ class Application {
 
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
+    co_await dut_->Command("tel stop");
+    co_await fixture_->Command("tel stop");
 
     co_return;
   }
 
   boost::asio::awaitable<void> RunStaticTorqueRipple() {
     co_await fixture_->Command(
-        "conf set servo.pid_position.ki 100.0");
+        "conf set servo.pid_position.ki 200.0");
+    co_await fixture_->Command(
+        "conf set servo.pid_position.kp 10.0");
     co_await fixture_->Command(
         fmt::format("conf set servo.pid_position.ilimit {}",
-                    std::max(0.2, options_.max_torque_Nm)));
+                    std::max(0.3, options_.max_torque_Nm)));
     co_await fixture_->Command("conf set servopos.position_min nan");
     co_await fixture_->Command("conf set servopos.position_max nan");
     co_await dut_->Command("conf set servopos.position_min nan");
     co_await dut_->Command("conf set servopos.position_max nan");
 
-
-    co_await fixture_->Command("d rezero");
-    co_await dut_->Command("d rezero");
-
-    // Start the fixture sweeping.
-    co_await fixture_->Command(
-        fmt::format("d pos nan {} {}",
-                    options_.static_torque_ripple_speed,
-                    options_.max_torque_Nm));
-
     // Then start commanding the different torques on the dut servo,
     // each for a bit more than one revolution.
-    for (double test_torque : {0.0, 0.05, 0.1, 0.2}) {
+    constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+    for (double test_torque : {kNaN, 0.0, 0.05, -0.05, 0.1, -0.1, 0.2, -0.2}) {
       fmt::print("\nTesting torque: {}\n", test_torque);
-      co_await dut_->Command(fmt::format("d pos nan 0 {} p0 d0 f{}",
-                                         test_torque, test_torque));
+
+      co_await fixture_->Command("d rezero");
+      co_await dut_->Command("d rezero");
+
+      // Start the fixture sweeping.
+      co_await fixture_->Command(
+          fmt::format("d pos nan {} {}",
+                      options_.static_torque_ripple_speed,
+                      options_.max_torque_Nm));
+
+
+      if (std::isfinite(test_torque)) {
+        co_await dut_->Command(fmt::format("d pos nan 0 {} p0 d0 f{}",
+                                           std::abs(test_torque), test_torque));
+      } else {
+        co_await dut_->Command(fmt::format("d stop"));
+      }
 
       // Wait for the time required by one full cycle plus a bit.
       boost::asio::deadline_timer timer(executor_);
       timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(
                                  1.2 / options_.static_torque_ripple_speed));
       co_await timer.async_wait(boost::asio::use_awaitable);
+
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
     }
   }
 
@@ -484,7 +497,7 @@ class Application {
       data.time_code = std::stol(fields.at(0));
       data.torque_Nm = std::stod(fields.at(1));
       data.temperature_C = std::stod(fields.at(3));
-    } catch (std::runtime_error& e) {
+    } catch (std::invalid_argument& e) {
       fmt::print("Ignoring torque data: '{}': {}", line, e.what());
       // Ignore.
       return;
