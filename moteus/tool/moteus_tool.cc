@@ -375,6 +375,8 @@ class Runner {
       }
       co_await RunAction(target_id);
     }
+
+    co_return;
   }
 
   boost::asio::awaitable<void> RunAction(int id) {

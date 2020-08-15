@@ -91,10 +91,22 @@ cc_binary(
 
 cc_binary(
     name = "dynamometer_drive",
-    srcs = ["dynamometer_drive.cc"],
+    srcs = [
+        "dynamometer_drive.cc",
+        "line_reader.h",
+        "run_for.h",
+    ],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:clipp",
         "@com_github_mjbots_mjlib//mjlib/base:clipp_archive",
+        "@com_github_mjbots_mjlib//mjlib/base:fail",
         "@com_github_mjbots_mjlib//mjlib/base:visitor",
+        "@com_github_mjbots_mjlib//mjlib/io:now",
+        "@com_github_mjbots_mjlib//mjlib/io:selector",
+        "@com_github_mjbots_mjlib//mjlib/io:stream_factory",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:asio_client",
+        "@com_github_mjbots_mjlib//mjlib/multiplex:stream_asio_client_builder",
+        "@com_github_mjbots_mjlib//mjlib/telemetry:file_writer",
+        "@fmt",
     ],
 )
