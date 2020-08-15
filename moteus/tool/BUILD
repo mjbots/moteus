@@ -106,6 +106,7 @@ cc_binary(
         "@com_github_mjbots_mjlib//mjlib/io:stream_factory",
         "@com_github_mjbots_mjlib//mjlib/multiplex:asio_client",
         "@com_github_mjbots_mjlib//mjlib/multiplex:stream_asio_client_builder",
+        "@com_github_mjbots_mjlib//mjlib/telemetry:binary_write_archive",
         "@com_github_mjbots_mjlib//mjlib/telemetry:file_writer",
         "@fmt",
     ],

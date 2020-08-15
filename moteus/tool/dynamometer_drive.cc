@@ -18,6 +18,7 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/signals2/signal.hpp>
 
 #include <fmt/format.h>
 
@@ -32,6 +33,7 @@
 #include "mjlib/multiplex/asio_client.h"
 #include "mjlib/multiplex/stream_asio_client_builder.h"
 
+#include "mjlib/telemetry/binary_write_archive.h"
 #include "mjlib/telemetry/file_writer.h"
 
 #include "moteus/tool/line_reader.h"
@@ -47,6 +49,52 @@ namespace {
 
 constexpr int kDebugTunnel = 1;
 
+struct TorqueTransducer {
+  boost::posix_time::ptime timestamp;
+
+  uint32_t time_code = 0;
+  double torque_Nm = 0.0;
+  double temperature_C = 0.0;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(timestamp));
+    a->Visit(MJ_NVP(time_code));
+    a->Visit(MJ_NVP(torque_Nm));
+    a->Visit(MJ_NVP(temperature_C));
+  }
+};
+
+class LogRegistrar {
+ public:
+  LogRegistrar(mjlib::telemetry::FileWriter* file_writer)
+      : file_writer_(file_writer) {}
+
+  template <typename T>
+  void Register(const std::string& name,
+                boost::signals2::signal<void (const T*)>* signal) {
+    const auto identifier = file_writer_->AllocateIdentifier(name);
+    file_writer_->WriteSchema(
+        identifier,
+        mjlib::telemetry::BinarySchemaArchive::template schema<T>());
+    signal->connect(std::bind(&LogRegistrar::HandleData<T>,
+                              this, identifier, std::placeholders::_1));
+  }
+
+  template <typename T>
+  void HandleData(mjlib::telemetry::FileWriter::Identifier identifier,
+                  const T* data) {
+    if (!file_writer_->IsOpen()) { return; }
+
+    auto buffer = file_writer_->GetBuffer();
+    mjlib::telemetry::BinaryWriteArchive(*buffer).Accept(data);
+    file_writer_->WriteData({}, identifier, std::move(buffer));
+  }
+
+ private:
+  mjlib::telemetry::FileWriter* const file_writer_;
+};
+
 std::string StringValue(const std::string& line_in) {
   const auto line = boost::trim_copy(line_in);
   std::size_t pos = line.find(' ');
@@ -57,6 +105,7 @@ std::string StringValue(const std::string& line_in) {
 struct Options {
   int fixture_id = 32;
   int dut_id = 1;
+  std::string torque_transducer;
 
   bool verbose = false;
   std::string log;
@@ -65,6 +114,7 @@ struct Options {
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(fixture_id));
     a->Visit(MJ_NVP(dut_id));
+    a->Visit(MJ_NVP(torque_transducer));
     a->Visit(MJ_NVP(verbose));
     a->Visit(MJ_NVP(log));
   }
@@ -253,6 +303,11 @@ class Application {
   }
 
   boost::asio::awaitable<void> Task() {
+    co_await Init();
+    co_return;
+  }
+
+  boost::asio::awaitable<void> Init() {
     // First, connect to our two devices.
     fixture_.emplace(
         "fixture_",
@@ -279,12 +334,61 @@ class Application {
         },
         expiration);
 
-    // Then we would connect to our other instrumentation, like the
-    // torque transducer and current monitors.
+    // Then the torque transducer.
+    log_registrar_.Register("torque", &torque_signal_);
+    boost::asio::co_spawn(
+        executor_,
+        std::bind(&Application::ReadTorque, this),
+        [](std::exception_ptr ptr) {
+          if (ptr) {
+            std::rethrow_exception(ptr);
+          }
+        });
 
-    // Finally, run the configured test cycle.
+    // Then the current sense.
+
+    // Give things a little bit to wait.
+    boost::asio::deadline_timer timer(executor_);
+    timer.expires_from_now(boost::posix_time::milliseconds(500));
+    co_await timer.async_wait(boost::asio::use_awaitable);
 
     co_return;
+  }
+
+  boost::asio::awaitable<void> ReadTorque() {
+    boost::asio::serial_port port(executor_, options_.torque_transducer);
+
+    boost::asio::streambuf streambuf;
+    std::istream istr(&streambuf);
+    while (true) {
+      co_await boost::asio::async_read_until(
+          port,
+          streambuf,
+          "\n",
+          boost::asio::use_awaitable);
+
+      std::string line;
+      std::getline(istr, line);
+      EmitTorque(line);
+    }
+  }
+
+  void EmitTorque(const std::string& line) {
+    std::vector<std::string> fields;
+    boost::split(fields, line, boost::is_any_of(","));
+    if (fields.size() < 4) { return; }
+    TorqueTransducer data;
+    try {
+      data.timestamp = mjlib::io::Now(executor_.context());
+      data.time_code = std::stol(fields.at(0));
+      data.torque_Nm = std::stod(fields.at(1));
+      data.temperature_C = std::stod(fields.at(3));
+    } catch (std::runtime_error& e) {
+      fmt::print("Ignoring torque data: '{}': {}", line, e.what());
+      // Ignore.
+      return;
+    }
+    torque_signal_(&data);
   }
 
   boost::asio::any_io_executor executor_;
@@ -295,9 +399,12 @@ class Application {
   mp::AsioClient* client_ = nullptr;
 
   mjlib::telemetry::FileWriter file_writer_;
+  LogRegistrar log_registrar_{&file_writer_};
 
   std::optional<Controller> fixture_;
   std::optional<Controller> dut_;
+
+  boost::signals2::signal<void (const TorqueTransducer*)> torque_signal_;
 };
 
 int do_main(int argc, char** argv) {
