@@ -495,8 +495,18 @@ class Application {
     try {
       data.timestamp = mjlib::io::Now(executor_.context());
       data.time_code = std::stol(fields.at(0));
-      data.torque_Nm = std::stod(fields.at(1));
+      data.torque_Nm = std::stod(fields.at(1)) - torque_tare_;
       data.temperature_C = std::stod(fields.at(3));
+
+      // We skip the first N samples to tare on startup.
+      constexpr double kNumTareSamples = 4;
+      if (torque_tare_count_ < kNumTareSamples) {
+        torque_tare_total_ += data.torque_Nm;
+        torque_tare_count_++;
+        if (torque_tare_count_ >= kNumTareSamples) {
+          torque_tare_ = torque_tare_total_ / torque_tare_count_;
+        }
+      }
     } catch (std::invalid_argument& e) {
       fmt::print("Ignoring torque data: '{}': {}", line, e.what());
       // Ignore.
@@ -520,6 +530,10 @@ class Application {
   std::optional<Controller> dut_;
 
   boost::signals2::signal<void (const TorqueTransducer*)> torque_signal_;
+
+  double torque_tare_total_ = 0.0;
+  double torque_tare_count_ = 0;
+  double torque_tare_ = 0.0;
 };
 
 int do_main(int argc, char** argv) {
