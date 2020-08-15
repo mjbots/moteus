@@ -79,6 +79,7 @@ cc_test(
         # Just so they are built.
         ":moteus_tool",
         ":dynamometer_drive",
+        ":dyno_static_torque_ripple",
     ],
     size = "small",
 )
@@ -109,5 +110,13 @@ cc_binary(
         "@com_github_mjbots_mjlib//mjlib/telemetry:binary_write_archive",
         "@com_github_mjbots_mjlib//mjlib/telemetry:file_writer",
         "@fmt",
+    ],
+)
+
+py_binary(
+    name = "dyno_static_torque_ripple",
+    srcs = ["dyno_static_torque_ripple.py"],
+    deps = [
+        "@com_github_mjbots_mjlib//mjlib/telemetry:py_file_reader",
     ],
 )
