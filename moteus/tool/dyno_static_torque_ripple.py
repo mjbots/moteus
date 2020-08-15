@@ -18,6 +18,7 @@
 produce a result plot with some useful metrics."""
 
 import bisect
+import datetime
 import matplotlib.pyplot as plt
 import sys
 
@@ -129,7 +130,15 @@ def main():
 
     ax.grid()
     ax.legend()
-    ax.set_title("Torque Ripple vs Encoder Position")
+    ax.set_title("Torque Error vs Encoder Position")
+
+    git_data = data["dut_git"][0].data
+    git_hash = ''.join(['{:02x}'.format(x) for x in git_data.hash])
+    test_timestr = datetime.datetime.utcfromtimestamp(
+        data["dut_git"][0].timestamp).isoformat()
+    test_info = f'git: {git_hash} dirty: {git_data.dirty} time: {test_timestr}'
+    ax.text(0.95, 0.01, test_info,
+            horizontalalignment='right', transform=ax.transAxes)
 
     plt.show()
 
