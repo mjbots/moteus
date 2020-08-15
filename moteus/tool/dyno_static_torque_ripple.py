@@ -17,6 +17,7 @@
 """Process a .log file from a static torque ripply dynamometer run and
 produce a result plot with some useful metrics."""
 
+import argparse
 import bisect
 import datetime
 import math
@@ -25,6 +26,7 @@ import numpy
 import sys
 
 import mjlib.telemetry.file_reader as file_reader
+
 
 
 def wrap_int16(value):
@@ -64,7 +66,13 @@ def find_regions(data, predicate):
 
 
 def main():
-    fr = file_reader.FileReader(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ripple', '-r', action='store_true')
+    parser.add_argument('filename', type=str, nargs=1)
+    args = parser.parse_args()
+
+
+    fr = file_reader.FileReader(args.filename[0])
     data = fr.get(["torque", "dut_servo_cmd", "dut_servo_stats", "dut_git"])
 
     # Figure out which torques were tested.
@@ -134,6 +142,11 @@ def main():
 
         timed_torque = [(x.timestamp, x.data.torque_Nm)
                         for x in data["torque"][si:se]]
+        offset = sum([x[1] for x in timed_torque]) / len(timed_torque)
+
+        compare_torque = (offset if args.ripple else (
+            test["torque"] if type(test["torque"]) == float else 0.0))
+
         to_plot = [
             (dut_servo_stats[bisect_left(dut_servo_stats, x[0])].data.position, x[1])
             for x in timed_torque]
@@ -142,8 +155,8 @@ def main():
         color = cmap(i)
         color = (color[0], color[1], color[2], 1.0 - float(i) / len(tests))
         print("color: ", color)
-        compare_torque = test["torque"] if type(test["torque"]) == float else 0.0
-        torque_name = f'{test["torque"]:.2f} Nm' if type(test["torque"]) == float else "stop"
+        torque_name = (f'{test["torque"]:.2f} Nm'
+                       if type(test["torque"]) == float else "stop")
         ax.plot([x[0] for x in to_plot], [(x[1] - compare_torque) for x in to_plot],
                 label=torque_name,
                 color=color)
@@ -155,7 +168,8 @@ def main():
 
     ax.grid()
     ax.legend()
-    ax.set_title("Torque Error vs Encoder Position")
+    ax.set_title("Torque {} vs Encoder Position".format(
+        "Error" if not args.ripple else "Ripple"))
     ax.set_ylabel("Transducer measured N*m")
     ax.set_xlabel("Magnetic Encoder Position")
 
