@@ -1,5 +1,29 @@
 moteus controller reference
 
+# Theory of Operation #
+
+The moteus controller is intended to drive 3 phase brushless motors
+using field oriented control.  It has an integrated magnetic encoder
+for sensing the rotor position, 3 half-H bridges for switching power
+to each of the three phases, and current sense capability on each of
+the three phases.
+
+The primary control mode, labeled as "position" mode in the rest of
+this document is a two stage cascaded controller, with both running at
+the switching frequency of 40kHz.  The outer stage is an integrated
+position/velocity PID controller with optional feedforward torque.
+The output of that loop is a desired torque/current for the Q phase of
+the FOC controller.  The inner stage is a current mode PI controller.
+Its output is the desired PWM value for the Q phase.  Then the
+magnetic encoder is used to map the D/Q phase PWM values to the 3
+phases of the motor.
+
+Since PID scaling for the integrated position mode loop can be
+adjusted on a cycle-by-cycle basis, this allows you to operate the
+controller with full position/velocity/torque control, or
+velocity/torque, or just torque, or any combination seamlessly
+throughout the control cycle.
+
 # A. register command set #
 
 The register command set is intended for use in real-time
