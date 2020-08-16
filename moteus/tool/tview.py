@@ -556,6 +556,7 @@ class TviewConsoleWidget(HistoryConsoleWidget):
     def __init__(self, *args, **kw):
         super(TviewConsoleWidget, self).__init__(*args, **kw)
 
+        self.execute_on_complete_input = False
         self._prompt = '>>> '
         self.clear()
 
