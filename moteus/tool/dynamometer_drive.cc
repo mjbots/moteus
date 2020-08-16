@@ -18,9 +18,11 @@
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/signals2/signal.hpp>
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include "mjlib/base/clipp_archive.h"
 #include "mjlib/base/clipp.h"
@@ -33,8 +35,10 @@
 #include "mjlib/multiplex/asio_client.h"
 #include "mjlib/multiplex/stream_asio_client_builder.h"
 
+#include "mjlib/telemetry/binary_schema_parser.h"
 #include "mjlib/telemetry/binary_write_archive.h"
 #include "mjlib/telemetry/file_writer.h"
+#include "mjlib/telemetry/mapped_binary_reader.h"
 
 #include "moteus/tool/line_reader.h"
 #include "moteus/tool/run_for.h"
@@ -42,6 +46,67 @@
 namespace base = mjlib::base;
 namespace io = mjlib::io;
 namespace mp = mjlib::multiplex;
+
+namespace {
+/// This is a minimal copy of moteus::BldcServo::Status used to
+/// monitor the servos in real-time.
+struct ServoStats {
+  enum Mode {
+    kStopped = 0,
+    kFault =1 ,
+    kPwm = 5,
+    kVoltage = 6,
+    kVoltageFoc = 7,
+    kVoltageDq = 8,
+    kCurrent = 9,
+    kPosition = 10,
+    kPositionTimeout = 11,
+    kZeroVelocity = 12,
+  };
+  Mode mode = kStopped;
+
+  enum Fault {
+    kNone = 0,
+  };
+  Fault fault = kNone;
+  float torque_Nm = 0.0f;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(mode));
+    a->Visit(MJ_NVP(fault));
+    a->Visit(MJ_NVP(torque_Nm));
+  }
+};
+}  // namespace
+
+namespace mjlib {
+namespace base {
+template <>
+struct IsEnum<::ServoStats::Mode> {
+  static constexpr bool value = true;
+
+  using M = ::ServoStats::Mode;
+  static std::array<std::pair<M, const char*>, 1> map() {
+    return { {
+        { M::kStopped, "stopped" },
+            }};
+  }
+};
+
+template <>
+struct IsEnum<::ServoStats::Fault> {
+  static constexpr bool value = true;
+
+  using M = ::ServoStats::Fault;
+  static std::array<std::pair<M, const char*>, 1> map() {
+    return { {
+        { M::kNone, "none" },
+            }};
+  }
+};
+}  // namespace base
+}  // namespace mjlib
 
 namespace moteus {
 namespace tool {
@@ -96,6 +161,12 @@ struct TorqueTransducer {
   }
 };
 
+void ExceptionRethrower(std::exception_ptr ptr) {
+  if (ptr) {
+    std::rethrow_exception(ptr);
+  }
+}
+
 class LogRegistrar {
  public:
   LogRegistrar(mjlib::telemetry::FileWriter* file_writer)
@@ -133,6 +204,20 @@ std::string StringValue(const std::string& line_in) {
   return line.substr(pos + 1);
 }
 
+class ServoStatsReader {
+ public:
+  ServoStatsReader(const std::string& schema) : schema_(schema) {}
+
+  ServoStats Read(const std::string& data) {
+    return reader_.Read(data);
+  }
+
+ private:
+  const std::string schema_;
+  mjlib::telemetry::BinarySchemaParser parser_{schema_, "servo_stats"};
+  mjlib::telemetry::MappedBinaryReader<ServoStats> reader_{&parser_};
+};
+
 class Controller {
  public:
   Controller(const std::string& log_prefix,
@@ -143,6 +228,10 @@ class Controller {
         stream_(stream),
         file_writer_(file_writer),
         options_(options) {}
+
+  std::string stats() const {
+    return fmt::format("{:2d} {:6.3f}", servo_stats_.mode, servo_stats_.torque_Nm);
+  }
 
   boost::asio::awaitable<void> OKReceived() {
     auto operation = [this](io::ErrorCallback callback) {
@@ -192,11 +281,7 @@ class Controller {
     boost::asio::co_spawn(
         stream_->get_executor(),
         std::bind(&Controller::Run, this),
-        [](std::exception_ptr ptr) {
-          if (ptr) {
-            std::rethrow_exception(ptr);
-          }
-        });
+        ExceptionRethrower);
 
     std::vector<std::string> names = {
       "servo_stats",
@@ -207,7 +292,12 @@ class Controller {
 
     for (const auto& name : names) {
       co_await WriteMessage(fmt::format("tel schema {}", name));
-      co_await WriteMessage(fmt::format("tel rate {} 50", name));
+      while (true) {
+        co_await SomethingReceived();
+        if (log_ids_.count(name) != 0) { break; }
+      }
+
+      co_await Command(fmt::format("tel rate {} 50", name));
 
       // Now wait for this to have data.
       while (true) {
@@ -237,7 +327,6 @@ class Controller {
   }
 
   boost::asio::awaitable<void> Run() {
-    fmt::print("{} Run()\n", log_prefix_);
     // Read from the stream, barfing on errors, and logging any binary
     // data that comes our way.
     while (true) {
@@ -263,13 +352,22 @@ class Controller {
 
         const auto ident = file_writer_->AllocateIdentifier(log_prefix_ + name);
         log_ids_[name] = ident;
-        file_writer_->WriteSchema(ident, co_await reader_.ReadBinaryBlob());
+        const std::string schema = co_await reader_.ReadBinaryBlob();
+        file_writer_->WriteSchema(ident, schema);
+
+        if (name == "servo_stats") {
+          servo_stats_reader_.emplace(schema);
+        }
       } else if (boost::starts_with(line, "emit ")) {
         const auto name = StringValue(line);
         if (log_ids_.count(name)) {
           const auto ident = log_ids_.at(name);
           log_data_.insert(name);
-          file_writer_->WriteData({}, ident, co_await reader_.ReadBinaryBlob());
+          const auto data = co_await reader_.ReadBinaryBlob();
+          file_writer_->WriteData({}, ident, data);
+          if (name == "servo_stats") {
+            HandleServoStats(servo_stats_reader_->Read(data));
+          }
         }
       } else {
         fmt::print("Ignoring unknown line: {}\n", line);
@@ -288,13 +386,25 @@ class Controller {
   mjlib::io::AsyncStream& stream() { return *stream_; }
 
  private:
+  void HandleServoStats(const ServoStats& servo_stats) {
+    servo_stats_ = servo_stats;
+    // By default, we throw an exception for any fault.
+    if (servo_stats_.mode == ServoStats::kFault) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("Fault: {} {}", log_prefix_,
+                      static_cast<int>(servo_stats.fault)));
+    }
+  }
+
   const std::string log_prefix_;
   mjlib::io::SharedStream stream_;
   mjlib::telemetry::FileWriter* const file_writer_;
-  const Options& options_;
+  const Options options_;
 
   LineReader reader_{stream_.get(), [&]() {
-      return LineReader::Options().set_verbose(options_.verbose);
+      LineReader::Options o;
+      o.set_verbose(options_.verbose);
+      return o;
     }()};
 
   std::map<std::string, uint64_t> log_ids_;
@@ -302,6 +412,9 @@ class Controller {
 
   io::ErrorCallback received_callback_;
   io::ErrorCallback ok_callback_;
+
+  std::optional<ServoStatsReader> servo_stats_reader_;
+  ServoStats servo_stats_;
 };
 
 class Application {
@@ -349,7 +462,16 @@ class Application {
         executor_,
         fixture_->stream(),
         [&]() -> boost::asio::awaitable<bool> {
-          co_await RunTestCycle();
+          std::exception_ptr eptr;
+          try {
+            co_await RunTestCycle();
+          } catch (mjlib::base::system_error& se) {
+            eptr = std::current_exception();
+          }
+          co_await Stop();
+          if (eptr) {
+            std::rethrow_exception(eptr);
+          }
           co_return false;
         },
         expiration);
@@ -363,13 +485,23 @@ class Application {
     } else {
       fmt::print("No cycle selected\n");
     }
+    co_return;
+  }
 
-    // Make sure everything is stopped.
+  boost::asio::awaitable<void> Stop() {
+    // Make sure everything is stopped.  We use WriteMessage here,
+    // since it doesn't rely on the read loops operating.
 
-    co_await dut_->Command("d stop");
-    co_await fixture_->Command("d stop");
-    co_await dut_->Command("tel stop");
-    co_await fixture_->Command("tel stop");
+    co_await dut_->WriteMessage("d stop");
+    co_await fixture_->WriteMessage("d stop");
+    co_await dut_->WriteMessage("tel stop");
+    co_await fixture_->WriteMessage("tel stop");
+
+    // Since we can't use the read loops, just wait a bit to make sure
+    // those commands go out.
+    boost::asio::deadline_timer timer(executor_);
+    timer.expires_from_now(boost::posix_time::seconds(1));
+    co_await timer.async_wait(boost::asio::use_awaitable);
 
     co_return;
   }
@@ -410,7 +542,11 @@ class Application {
         co_await dut_->Command(fmt::format("d stop"));
       }
 
-      // Wait for the time required by one full cycle plus a bit.
+      // Wait for the time required by one full cycle plus a bit while
+      // printing our status.
+      StatusPrinter status_printer(
+          this, fmt::format("STAT_TOR({})", test_torque));
+
       boost::asio::deadline_timer timer(executor_);
       timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(
                                  1.2 / options_.static_torque_ripple_speed));
@@ -453,11 +589,7 @@ class Application {
     boost::asio::co_spawn(
         executor_,
         std::bind(&Application::ReadTorque, this),
-        [](std::exception_ptr ptr) {
-          if (ptr) {
-            std::rethrow_exception(ptr);
-          }
-        });
+        ExceptionRethrower);
 
     // Then the current sense.
 
@@ -514,6 +646,45 @@ class Application {
     }
     torque_signal_(&data);
   }
+
+  class StatusPrinter {
+   public:
+    StatusPrinter(Application* parent, const std::string& header) {
+      boost::asio::co_spawn(
+          parent->executor_,
+          std::bind(&StatusPrinter::Run, parent, header, done_),
+          ExceptionRethrower);
+    }
+
+    ~StatusPrinter() {
+      *done_ = true;
+      fmt::print("\n");
+    }
+
+    static boost::asio::awaitable<void> Run(
+        Application* app, const std::string& header,
+        std::shared_ptr<bool> done) {
+      const auto start = mjlib::io::Now(app->executor_.context());
+      const auto elapsed = [&]() {
+        const auto now = mjlib::io::Now(app->executor_.context());
+        const auto delta = now - start;
+        return fmt::format("{:02d}:{:02d}:{:02d}",
+                           delta.hours(), delta.minutes(), delta.seconds());
+      };
+
+      while (!*done) {
+        fmt::print("{} {} fixture=({})  dut=({})\r",
+                   elapsed(), header, app->fixture_->stats(), app->dut_->stats());
+        ::fflush(stdout);
+
+        boost::asio::deadline_timer timer(app->executor_);
+        timer.expires_from_now(boost::posix_time::seconds(1));
+        co_await timer.async_wait(boost::asio::use_awaitable);
+      }
+    }
+
+    std::shared_ptr<bool> done_ = std::make_shared<bool>(false);
+  };
 
   boost::asio::any_io_executor executor_;
   boost::asio::executor_work_guard<

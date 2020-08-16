@@ -42,7 +42,11 @@ class LineReader {
 
   LineReader(mjlib::io::AsyncStream* stream, const Options& options = {})
       : stream_(stream),
-        options_(options) {}
+        options_(options) {
+  }
+
+  ~LineReader() {
+  }
 
   boost::asio::awaitable<std::optional<std::string>> ReadLine() {
     boost::system::error_code ec;
@@ -62,14 +66,14 @@ class LineReader {
     std::getline(istr, result);
 
     if (options_.verbose) {
-      std::cout << "< " << result << "\n";
+      fmt::print("< {}\n", result);
     }
     co_return result;
   }
 
   auto AtLeast(int size) {
     return [this, size](auto, auto) -> size_t  {
-      return std::max<int>(0, size - read_streambuf_.size());
+      return std::max<int>(0, size - this->read_streambuf_.size());
     };
   }
 
@@ -101,7 +105,7 @@ class LineReader {
 
  private:
   mjlib::io::AsyncStream* const stream_;
-  const Options& options_;
+  const Options options_;
 
   boost::asio::streambuf read_streambuf_;
 };
