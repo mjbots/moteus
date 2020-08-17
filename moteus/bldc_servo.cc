@@ -139,7 +139,11 @@ static_assert(kPwmRateHz % kIntRateHz == 0);
 // This is used to determine the maximum allowable PWM value so that
 // the current sampling is guaranteed to occur while the FETs are
 // still low.  It was calibrated using the scope and trial and error.
-constexpr float kCurrentSampleTime = 1.4e-6f;
+//
+// As of 2020-08-16, 1.3e-6 was the largest value at which I could
+// reliably trigger a fault, although I once saw a fault at 1.4.  Thus
+// pick 1.5 as our value.
+constexpr float kCurrentSampleTime = 1.5e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
