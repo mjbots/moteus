@@ -126,9 +126,11 @@ struct Options {
   double max_torque_Nm = 0.5;
 
 
-  // The different cycles we can do.
+  // The different cycles we can do and their options.
   bool static_torque_ripple = false;
   double static_torque_ripple_speed = 0.01;
+
+  bool pwm_cycle_overrun = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -142,6 +144,8 @@ struct Options {
 
     a->Visit(MJ_NVP(static_torque_ripple));
     a->Visit(MJ_NVP(static_torque_ripple_speed));
+
+    a->Visit(MJ_NVP(pwm_cycle_overrun));
   }
 };
 
@@ -233,6 +237,10 @@ class Controller {
     return fmt::format("{:2d} {:6.3f}", servo_stats_.mode, servo_stats_.torque_Nm);
   }
 
+  const ServoStats& servo_stats() const {
+    return servo_stats_;
+  }
+
   boost::asio::awaitable<void> OKReceived() {
     auto operation = [this](io::ErrorCallback callback) {
       BOOST_ASSERT(!ok_callback_);
@@ -275,8 +283,6 @@ class Controller {
         },
         mjlib::io::Now(stream_->get_executor().context()) +
         boost::posix_time::milliseconds(300));
-
-    fmt::print("Done flushing\n");
 
     boost::asio::co_spawn(
         stream_->get_executor(),
@@ -482,6 +488,8 @@ class Application {
   boost::asio::awaitable<void> RunTestCycle() {
     if (options_.static_torque_ripple) {
       co_await RunStaticTorqueRipple();
+    } else if (options_.pwm_cycle_overrun) {
+      co_await RunPwmCycleOverrun();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -499,9 +507,7 @@ class Application {
 
     // Since we can't use the read loops, just wait a bit to make sure
     // those commands go out.
-    boost::asio::deadline_timer timer(executor_);
-    timer.expires_from_now(boost::posix_time::seconds(1));
-    co_await timer.async_wait(boost::asio::use_awaitable);
+    co_await Sleep(1.0);
 
     co_return;
   }
@@ -547,14 +553,56 @@ class Application {
       StatusPrinter status_printer(
           this, fmt::format("STAT_TOR({})", test_torque));
 
-      boost::asio::deadline_timer timer(executor_);
-      timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(
-                                 1.2 / options_.static_torque_ripple_speed));
-      co_await timer.async_wait(boost::asio::use_awaitable);
+      co_await Sleep(1.2 / options_.static_torque_ripple_speed);
 
       co_await dut_->Command("d stop");
       co_await fixture_->Command("d stop");
     }
+  }
+
+  boost::asio::awaitable<void> RunPwmCycleOverrun() {
+    co_await fixture_->Command("d stop");
+    co_await dut_->Command("conf set servopos.position_min -3.0");
+    co_await dut_->Command("conf set servopos.position_max 3.0");
+
+    constexpr int kPulseCount = 4;
+    constexpr double kPulseTorque = 1.5;
+
+    for (int i = 0; i < kPulseCount; i++) {
+      // Now, what we'll do is command a moderate constant torque with
+      // no load presented by the fixture.  That should result in the
+      // current loop maxing out, which if the PWM cycle isn't
+      // configured correctly will fault.  If it is configured
+      // correctly, we'll just zoom past the position limit and stop.
+      fmt::print("About to pulse {}/{}\n", i + 1, kPulseCount);
+      co_await Sleep(1.0);
+
+      co_await dut_->Command("d rezero");
+      co_await Sleep(0.1);
+
+      co_await dut_->Command(
+          fmt::format("d pos nan 0 {} p0 d0 f{}",
+                      kPulseTorque,
+                      kPulseTorque * ((i % 2) == 0 ? 1.0 : -1.0)));
+
+      co_await Sleep(4.0);
+
+      // Verify that we have not faulted.
+      if (dut_->servo_stats().mode != ServoStats::kPosition) {
+        throw mjlib::base::system_error::einval("DUT no longer in position mode");
+      }
+    }
+
+    fmt::print("Test passed\n");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> Sleep(double seconds) {
+    boost::asio::deadline_timer timer(executor_);
+    timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(seconds));
+    co_await timer.async_wait(boost::asio::use_awaitable);
+    co_return;
   }
 
   boost::asio::awaitable<void> Init() {
@@ -597,6 +645,8 @@ class Application {
     boost::asio::deadline_timer timer(executor_);
     timer.expires_from_now(boost::posix_time::milliseconds(500));
     co_await timer.async_wait(boost::asio::use_awaitable);
+
+    fmt::print("Initialization complete\n");
 
     co_return;
   }
@@ -733,7 +783,12 @@ int do_main(int argc, char** argv) {
 
   Application application{context, &default_client_selector, options};
   application.Start();
-  context.run();
+  try {
+    context.run();
+  } catch (std::runtime_error& e) {
+    fmt::print(stderr, "Error: {}\n", e.what());
+    return 1;
+  }
 
   return 0;
 }
