@@ -223,6 +223,8 @@ struct Options {
   bool zero_offset = false;
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
+  std::string calibration_raw;
+
   double resistance_voltage = 0.45;
 };
 
@@ -457,10 +459,6 @@ class Runner {
       const std::string& message,
       CommandOptions command_options = CommandOptions()) {
 
-    if (options_.verbose) {
-      std::cout << fmt::format("> {}\n", message);
-    }
-
     for (int i = 0; i < command_options.retry_count; i++) {
       co_await WriteMessage(stream, message);
 
@@ -503,6 +501,10 @@ class Runner {
 
   boost::asio::awaitable<void> WriteMessage(io::AsyncStream& stream,
                                             const std::string& message) {
+    if (options_.verbose) {
+      std::cout << fmt::format("> {}\n", message);
+    }
+
     co_await boost::asio::async_write(
         stream,
         boost::asio::buffer(message + "\n"),
@@ -939,15 +941,17 @@ class Runner {
     // first want to get it locked into zero phase.
     co_await Command(
         stream, fmt::format(
-            "d pwm 0 {} s{}",
-            options_.calibration_power, options_.calibration_speed));
+            "d pwm 0 {}",
+            options_.calibration_power));
     co_await Sleep(3.0);
 
     co_await(Command(stream, "d stop"));
     co_await Sleep(0.1);
 
     co_await WriteMessage(
-        stream, fmt::format("d cal {}", options_.calibration_power));
+        stream, fmt::format(
+            "d cal {} s{}",
+            options_.calibration_power, options_.calibration_speed));
 
     std::vector<std::string> lines;
     int index = 0;
@@ -972,6 +976,13 @@ class Runner {
         // Some problem.
         base::system_error::throw_if(
             true, fmt::format("Error calibrating: {}", lines.back()));
+      }
+    }
+
+    if (!options_.calibration_raw.empty()) {
+      std::ofstream of(options_.calibration_raw);
+      for (auto& line : lines) {
+        of << line << "\n";
       }
     }
 
@@ -1286,6 +1297,9 @@ int moteus_tool_main(boost::asio::io_context& context,
       clipp::option("calibration_speed") &
       clipp::value("S", options.calibration_speed).doc(
           "speed in electrical rps"),
+      clipp::option("calibration_raw") &
+      clipp::value("FILE", options.calibration_raw).doc(
+          "write raw calibration data"),
       clipp::option("resistance_voltage") &
       clipp::value("V", options.resistance_voltage).doc(
           "maximum voltage when measuring resistance")
