@@ -29,13 +29,14 @@ class Stm32Spi {
     PinName cs = NC;
     int frequency = 10000000;
     int width = 16;
+    int mode = 1;
   };
 
   Stm32Spi(const Options& options)
       : cs_(options.cs, 1) {
 
     spi_init(&spi_, options.mosi, options.miso, options.sck, NC);
-    spi_format(&spi_, options.width, 1, 0);
+    spi_format(&spi_, options.width, options.mode, 0);
     spi_frequency(&spi_, options.frequency);
   }
 
