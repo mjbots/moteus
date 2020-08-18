@@ -162,10 +162,6 @@ class BldcServo {
     float default_timeout_s = 0.1f;
     float timeout_max_torque_Nm = 5.0f;
 
-    // Emit the full control rate debug stream.  Enabling this uses
-    // about 1.6us extra in the ISR.
-    bool enable_debug = false;
-
     float flux_brake_min_voltage = 34.5f;
     float flux_brake_resistance_ohm = 0.1f;
 
@@ -206,7 +202,6 @@ class BldcServo {
       a->Visit(MJ_NVP(pid_position));
       a->Visit(MJ_NVP(default_timeout_s));
       a->Visit(MJ_NVP(timeout_max_torque_Nm));
-      a->Visit(MJ_NVP(enable_debug));
       a->Visit(MJ_NVP(flux_brake_min_voltage));
       a->Visit(MJ_NVP(flux_brake_resistance_ohm));
       a->Visit(MJ_NVP(max_current_A));
@@ -348,7 +343,6 @@ class BldcServo {
       uint32_t control_done_pos = 0;
       uint32_t control_done_cur = 0;
       uint32_t control = 0;
-      uint32_t emitdbg = 0;
       uint32_t done = 0;
 
       template <typename Archive>
@@ -363,7 +357,6 @@ class BldcServo {
         a->Visit(MJ_NVP(control_done_pos));
         a->Visit(MJ_NVP(control_done_cur));
         a->Visit(MJ_NVP(control));
-        a->Visit(MJ_NVP(emitdbg));
         a->Visit(MJ_NVP(done));
       }
     };

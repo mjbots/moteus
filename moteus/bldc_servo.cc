@@ -668,11 +668,6 @@ class BldcServo::Impl {
     status_.dwt.control = DWT->CYCCNT;
 #endif
 
-    ISR_MaybeEmitDebug();
-
-#ifdef MOTEUS_PERFORMANCE_MEASURE
-    status_.dwt.emitdbg = DWT->CYCCNT;
-#endif
     clock_++;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
@@ -883,10 +878,6 @@ class BldcServo::Impl {
           static_cast<float>(status_.adc_fet_temp_raw - this_value) /
           static_cast<float>(next_value - this_value);
     }
-  }
-
-  void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
-    if (!config_.enable_debug) { return; }
   }
 
   void ISR_UpdateFilteredBusV(float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
