@@ -140,10 +140,9 @@ static_assert(kPwmRateHz % kIntRateHz == 0);
 // the current sampling is guaranteed to occur while the FETs are
 // still low.  It was calibrated using the scope and trial and error.
 //
-// As of 2020-08-16, 1.3e-6 was the largest value at which I could
-// reliably trigger a fault, although I once saw a fault at 1.4.  Thus
-// pick 1.5 as our value.
-constexpr float kCurrentSampleTime = 1.5e-6f;
+// As of 2020-08-18, 1.53 caused faults, 1.54 and above were fault
+// free, thus we pick 1.6
+constexpr float kCurrentSampleTime = 1.6e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
@@ -491,10 +490,14 @@ class BldcServo::Impl {
     disable_adc(ADC4);
     disable_adc(ADC5);
 
+    // The prescaler must be at least 4x to be able to accurately read
+    // across all channels.  If it is too low, you'll see errors that
+    // look like quantization, but not in a particularly uniform way
+    // and not consistently across each of the channels.
     ADC12_COMMON->CCR =
-        (1 << ADC_CCR_PRESC_Pos);  // Prescaler /2
+        (2 << ADC_CCR_PRESC_Pos);  // Prescaler /4
     ADC345_COMMON->CCR =
-        (1 << ADC_CCR_PRESC_Pos);  // Prescaler /2
+        (2 << ADC_CCR_PRESC_Pos);  // Prescaler /4
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
@@ -626,17 +629,12 @@ class BldcServo::Impl {
     // ready.  This means we will throw away the result if our control
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
-
-    // NOTE: For some reason, this order seems to work a lot better.
-    // If ADC3 is started in the middle, it can give very noisy
-    // results for some PWM values.  You can test this by running "d
-    // pwm N 0.3" in 0.1 radian intervals and looking for >10 LSB ADC
-    // noise on any of the current channels at any point.
     ADC1->CR |= ADC_CR_ADSTART;
     ADC2->CR |= ADC_CR_ADSTART;
-    ADC5->CR |= ADC_CR_ADSTART;
-    ADC4->CR |= ADC_CR_ADSTART;
     ADC3->CR |= ADC_CR_ADSTART;
+
+    ADC4->CR |= ADC_CR_ADSTART;
+    ADC5->CR |= ADC_CR_ADSTART;
 
     if constexpr (kInterruptDivisor != 1) {
       phase_ = (phase_ + 1) % kInterruptDivisor;
