@@ -36,7 +36,7 @@ namespace multiplex = mjlib::multiplex;
 namespace moteus {
 constexpr float kPi = 3.14159265359f;
 constexpr float kCalibrationStep = 0.002;
-constexpr int kMaxCalMs = 200000;  // 200s
+constexpr float kMaxCalPoleCount = 50.0f;
 
 namespace {
 void recurse(int count, base::inplace_function<void(int)> callback) {
@@ -67,6 +67,8 @@ class BoardDebug::Impl {
   }
 
   void DoCalibration() {
+    const auto old_phase = cal_phase_;
+
     // speed of 1 is 1 electrical phase per second
     const int kStep = static_cast<int>(cal_speed_ * 65536.0f / 1000.0f);
     const uint16_t position_raw = bldc_->status().position_raw;
@@ -78,7 +80,14 @@ class BoardDebug::Impl {
     const bool phase_complete = std::abs(cal_position_delta_) > 65536;
     cal_count_++;
 
-    if (cal_count_ > kMaxCalMs) {
+    const float kMaxTimeMs =
+        2.f * // margin
+        2.f * // up and down
+        1000.f * // ms in s
+        kMaxCalPoleCount /
+        cal_speed_;
+
+    if (cal_count_ > kMaxTimeMs) {
       // Whoops, something is wrong.  Either this motor has a *lot* of
       // poles, or the magnet isn't functioning properly.  Just end
       // with an error.
@@ -129,12 +138,17 @@ class BoardDebug::Impl {
       }
     }
 
-    if (cal_count_ % 20 == 0 && !write_outstanding_) {
+    if ((cal_count_ % 10) == 0 && !write_outstanding_) {
+      const auto& status = bldc_->status();
+
       ::snprintf(out_message_, sizeof(out_message_),
-                 "%d %d %d\r\n",
+                 "%d %d %d i1=%d i2=%d i3=%d\r\n",
                  motor_cal_mode_,
-                 cal_phase_,
-                 bldc_->status().position_raw);
+                 old_phase,
+                 status.position_raw,
+                 static_cast<int>(status.cur1_A * 1000),
+                 static_cast<int>(status.cur2_A * 1000),
+                 static_cast<int>(status.cur3_A * 1000));
       write_outstanding_ = true;
       AsyncWrite(*cal_response_.stream, out_message_, [this](auto) {
           write_outstanding_ = false;
@@ -247,7 +261,7 @@ class BoardDebug::Impl {
       cal_magnitude_ = std::strtof(magnitude_str.data(), nullptr);
 
       write_outstanding_ = true;
-      AsyncWrite(*cal_response_.stream, "CAL start\r\n", [this](auto) {
+      AsyncWrite(*cal_response_.stream, "CAL start 2\r\n", [this](auto) {
           write_outstanding_ = false;
         });
 
@@ -479,7 +493,7 @@ class BoardDebug::Impl {
   multiplex::MicroServer* multiplex_protocol_;
   BldcServo* const bldc_;
 
-  char out_message_[20] = {};
+  char out_message_[64] = {};
 
   micro::CommandManager::Response cal_response_;
   enum MotorCalMode {
