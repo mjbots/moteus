@@ -48,7 +48,6 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
-
 #if defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
 #else
@@ -673,6 +672,13 @@ class BldcServo::Impl {
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done = DWT->CYCCNT;
 #endif
+
+    const uint32_t cnt = timer_->CNT;
+    status_.final_timer =
+        ((*timer_cr1_) & TIM_CR1_DIR) ?
+        (pwm_counts_ - cnt) :
+        (pwm_counts_ + cnt);
+    status_.total_timer = 2 * pwm_counts_;
     debug_out_ = 0;
   }
 

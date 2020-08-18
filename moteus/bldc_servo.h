@@ -330,6 +330,8 @@ class BldcServo {
 
     float sin = 0.0f;
     float cos = 0.0f;
+    uint32_t final_timer = 0;
+    uint32_t total_timer = 0;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     struct Dwt {
@@ -412,6 +414,8 @@ class BldcServo {
 
       a->Visit(MJ_NVP(sin));
       a->Visit(MJ_NVP(cos));
+      a->Visit(MJ_NVP(final_timer));
+      a->Visit(MJ_NVP(total_timer));
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
       a->Visit(MJ_NVP(dwt));
