@@ -46,7 +46,7 @@ struct File {
 File ParseFile(const std::vector<std::string>& lines_in) {
   std::deque<std::string> lines;
   std::copy(lines_in.begin(), lines_in.end(), std::back_inserter(lines));
-  if (lines.front() != "CAL start") {
+  if (!boost::starts_with(lines.front(), "CAL start")) {
     mjlib::base::system_error::throw_if(
         true, "Does not start with magic line: " + lines.front());
   }
@@ -66,7 +66,7 @@ File ParseFile(const std::vector<std::string>& lines_in) {
     std::vector<std::string> fields;
     boost::split(fields, line, boost::is_any_of(" "));
 
-    if (fields.size() != 3) {
+    if (fields.size() < 3) {
       mjlib::base::system_error::throw_if(
           true, "malformed line: " + line);
     }
