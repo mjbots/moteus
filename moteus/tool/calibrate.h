@@ -47,5 +47,22 @@ struct CalibrationResult {
 /// This will throw an mjlib::base::system_error on error.
 CalibrationResult Calibrate(const std::vector<std::string>& lines);
 
+namespace detail {
+struct Entry {
+  int phase = 0;
+  int encoder = 0;
+  double i1 = 0.0;
+  double i2 = 0.0;
+  double i3 = 0.0;
+};
+
+struct File {
+  std::vector<Entry> phase_up;
+  std::vector<Entry> phase_down;
+};
+
+File ParseFile(const std::vector<std::string>& lines);
+}
+
 }
 }

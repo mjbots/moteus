@@ -32,17 +32,9 @@ namespace tool {
 namespace {
 
 constexpr double kPi = 3.14159265358979323846;
+}
 
-struct Entry {
-  int phase = 0;
-  int encoder = 0;
-};
-
-struct File {
-  std::vector<Entry> phase_up;
-  std::vector<Entry> phase_down;
-};
-
+namespace detail {
 File ParseFile(const std::vector<std::string>& lines_in) {
   std::deque<std::string> lines;
   std::copy(lines_in.begin(), lines_in.end(), std::back_inserter(lines));
@@ -73,7 +65,24 @@ File ParseFile(const std::vector<std::string>& lines_in) {
 
     const auto phase = std::stoi(fields[1]);
     const auto encoder = std::stoi(fields[2]);
-    const auto entry = Entry{phase, encoder};
+
+    auto entry = Entry{phase, encoder};
+
+    for (size_t i = 3; i < fields.size(); i++) {
+      std::vector<std::string> keyval;
+      boost::split(keyval, fields[i], boost::is_any_of("="));
+      if (keyval.size() == 2) {
+        const auto& key = keyval[0];
+        const auto& val = keyval[1];
+        if (key == "i1") {
+          entry.i1 = 0.001 * std::stod(val);
+        } else if (key == "i2") {
+          entry.i2 = 0.001 * std::stod(val);
+        } else if (key == "i3") {
+          entry.i3 = 0.001 * std::stod(val);
+        }
+      }
+    }
 
     if (fields[0] == "1") {
       result.phase_up.push_back(entry);
@@ -89,6 +98,9 @@ File ParseFile(const std::vector<std::string>& lines_in) {
       true, "Does not end with magic line");
   return {};
 }
+}  // namespace detail
+
+namespace {
 
 int WrapInt16(int value) {
   if (value > 32767) {
@@ -201,7 +213,7 @@ Eigen::VectorXd WindowAverage(const Eigen::VectorXd& values, int window_size) {
 }
 
 CalibrationResult Calibrate(const std::vector<std::string>& lines) {
-  auto file = ParseFile(lines);
+  auto file = detail::ParseFile(lines);
 
   if (file.phase_up.empty() ||
       file.phase_down.empty()) {
@@ -257,13 +269,13 @@ CalibrationResult Calibrate(const std::vector<std::string>& lines) {
 
   // Now we need to figure out the phase offset at select points.  We
   // interpolate and average the phase up and phase down sections.
-  std::vector<Entry> phase_up_by_encoder = file.phase_up;
+  std::vector<detail::Entry> phase_up_by_encoder = file.phase_up;
   const auto encoder_sort = [](const auto& lhs, const auto& rhs) {
     return lhs.encoder < rhs.encoder;
   };
   std::sort(phase_up_by_encoder.begin(), phase_up_by_encoder.end(),
             encoder_sort);
-  std::vector<Entry> phase_down_by_encoder = file.phase_down;
+  std::vector<detail::Entry> phase_down_by_encoder = file.phase_down;
   std::sort(phase_down_by_encoder.begin(), phase_down_by_encoder.end(),
             encoder_sort);
 

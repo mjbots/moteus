@@ -16,6 +16,35 @@
 
 #include <boost/test/auto_unit_test.hpp>
 
+BOOST_AUTO_TEST_CASE(ParseFileTest, *boost::unit_test::tolerance(1e-3)) {
+  const auto result = moteus::tool::detail::ParseFile({
+      "CAL start",
+          "1 1300 1 i1=323 i2=-1235 i3=4321",
+          "1 1302 2 i1=4 i2=5 i3=6",
+          "2 23 4 i1=5 i2=6 i3=8",
+          "CAL done",
+          });
+
+  BOOST_TEST(result.phase_up.size() == 2);
+  BOOST_TEST(result.phase_up.at(0).phase == 1300);
+  BOOST_TEST(result.phase_up.at(0).encoder == 1);
+  BOOST_TEST(result.phase_up.at(0).i1 == 0.323);
+  BOOST_TEST(result.phase_up.at(0).i2 == -1.235);
+  BOOST_TEST(result.phase_up.at(0).i3 == 4.321);
+  BOOST_TEST(result.phase_up.at(1).phase == 1302);
+  BOOST_TEST(result.phase_up.at(1).encoder == 2);
+  BOOST_TEST(result.phase_up.at(1).i1 == 0.004);
+  BOOST_TEST(result.phase_up.at(1).i2 == 0.005);
+  BOOST_TEST(result.phase_up.at(1).i3 == 0.006);
+
+  BOOST_TEST(result.phase_down.size() == 1);
+  BOOST_TEST(result.phase_down.at(0).phase == 23);
+  BOOST_TEST(result.phase_down.at(0).encoder == 4);
+  BOOST_TEST(result.phase_down.at(0).i1 == 0.005);
+  BOOST_TEST(result.phase_down.at(0).i2 == 0.006);
+  BOOST_TEST(result.phase_down.at(0).i3 == 0.008);
+}
+
 BOOST_AUTO_TEST_CASE(CalibrateTest, *boost::unit_test::tolerance(1e-3)) {
   std::vector<std::string> data = {
     "CAL start",
