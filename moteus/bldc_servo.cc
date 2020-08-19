@@ -1316,13 +1316,6 @@ class BldcServo::Impl {
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
-    if (motor_.poles == 0) {
-      // We aren't configured yet.
-      status_.mode = kFault;
-      status_.fault = errc::kMotorNotConfigured;
-      return;
-    }
-
     auto limit_q_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       if (!std::isnan(position_config_.position_max) &&
           status_.unwrapped_position > position_config_.position_max &&
@@ -1386,6 +1379,13 @@ class BldcServo::Impl {
   }
 
   void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+    if (motor_.poles == 0) {
+      // We aren't configured yet.
+      status_.mode = kFault;
+      status_.fault = errc::kMotorNotConfigured;
+      return;
+    }
+
     control_.d_V = d_V;
     control_.q_V = q_V;
 
