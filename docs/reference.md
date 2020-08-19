@@ -577,7 +577,7 @@ These configure the position mode PID controller.
    wind up, in N*m/s.  <0 means "no limit"
 * `ilimit` - The total maximum I term, in Nm
 * `kpkd_limit` - The total maximum combined P and D terms, in Nm.
-   0.0 means "no limit"
+   <0 means "no limit"
 * `max_desired_rate` - If non-zero, the commanded position is
   limited to change at this rate in Hz.
 
