@@ -139,9 +139,12 @@ static_assert(kPwmRateHz % kIntRateHz == 0);
 // the current sampling is guaranteed to occur while the FETs are
 // still low.  It was calibrated using the scope and trial and error.
 //
-// As of 2020-08-18, 1.53 caused faults, 1.54 and above were fault
-// free, thus we pick 1.6
-constexpr float kCurrentSampleTime = 1.6e-6f;
+// The primary test is a high torque pulse with absolute position
+// limits in place of +-1.0.  Something like "d pos nan 0 1 p0 d0 f1".
+// This all but ensures the current controller will saturate.
+//
+// As of 2020-08-20, 1.79 was the highest value that failed.
+constexpr float kCurrentSampleTime = 1.85e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
@@ -489,14 +492,14 @@ class BldcServo::Impl {
     disable_adc(ADC4);
     disable_adc(ADC5);
 
-    // The prescaler must be at least 4x to be able to accurately read
+    // The prescaler must be at least 6x to be able to accurately read
     // across all channels.  If it is too low, you'll see errors that
     // look like quantization, but not in a particularly uniform way
     // and not consistently across each of the channels.
     ADC12_COMMON->CCR =
-        (2 << ADC_CCR_PRESC_Pos);  // Prescaler /4
+        (3 << ADC_CCR_PRESC_Pos);  // Prescaler /6
     ADC345_COMMON->CCR =
-        (2 << ADC_CCR_PRESC_Pos);  // Prescaler /4
+        (3 << ADC_CCR_PRESC_Pos);  // Prescaler /6
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
