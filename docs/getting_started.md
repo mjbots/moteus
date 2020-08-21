@@ -60,6 +60,21 @@ sent internally by tview and their responses, and provides an
 interactive console to interact with the device using the diagnostic
 protocol.
 
+# Initial Configuration #
+
+There are a few parameters you will likely want to configure early on
+in your setup:
+
+* `servopos.position_min` and `servopos.position_max` these define the bounds of motion which the controller will allow when in position control mode.  Attempting to start beyond this region will fault, and if outside the region in operation, no torque will be applied to go further outside.
+* `servo.max_current_A` the maximum phase current to apply to the motor.  This can be used to limit the maximum torque that the system is capable of regardless of any command sent.
+* `servo.pid_position` the PID parameters for the position control loop.
+* `motor.unwrapped_position_scale` any gearbox scaling, a reducing gearbox should be configured with a number smaller than one, e.g. 0.25 for a 4x reduction gearbox.  This affects reported position, speed, and torques.
+* `id.id` the CAN-FD id used by this device
+
+A larger set of parameters is documented in the reference manual.
+
+# Upgrading the Firmware #
+
 ## Flashing over CAN ##
 
 ```
