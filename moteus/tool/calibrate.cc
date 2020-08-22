@@ -215,11 +215,15 @@ Eigen::VectorXd WindowAverage(const Eigen::VectorXd& values, int window_size) {
 CalibrationResult Calibrate(const std::vector<std::string>& lines) {
   auto file = detail::ParseFile(lines);
 
-  if (file.phase_up.empty() ||
-      file.phase_down.empty()) {
+  if (file.phase_up.size() < 2 ||
+      file.phase_down.size() < 2) {
     mjlib::base::system_error::throw_if(
         true, "one or more phases was empty");
   }
+
+  // We discard the first entry from the phase up side, since it will
+  // be bogus.
+  file.phase_up.erase(file.phase_up.begin());
 
   double total_delta = 0;
   for (size_t i = 0; i < file.phase_up.size() - 1; i++) {
