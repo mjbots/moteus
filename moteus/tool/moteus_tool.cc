@@ -32,6 +32,7 @@
 
 #include "mjlib/base/clipp.h"
 #include "mjlib/base/fail.h"
+#include "mjlib/base/json5_read_archive.h"
 #include "mjlib/base/json5_write_archive.h"
 #include "mjlib/base/system_error.h"
 #include "mjlib/base/time_conversions.h"
@@ -226,6 +227,8 @@ struct Options {
   std::string calibration_raw;
 
   double resistance_voltage = 0.45;
+
+  std::string restore_calibration;
 };
 
 std::string Base64SerialNumber(
@@ -347,7 +350,8 @@ class Runner {
       (options_.console ? 1 : 0) +
       (!options_.flash.empty() ? 1 : 0) +
       (options_.calibrate ? 1 : 0) +
-      (options_.zero_offset ? 1 : 0)
+      (options_.zero_offset ? 1 : 0) +
+      (!options_.restore_calibration.empty() ? 1 : 0)
       ;
     }();
 
@@ -360,6 +364,7 @@ class Runner {
     const bool single_target = [&]() {
       if (options_.console) { return true; }
       if (options_.calibrate) { return true; }
+      if (!options_.restore_calibration.empty()) { return true; }
       return false;
     }();
 
@@ -408,6 +413,8 @@ class Runner {
       co_await DoCalibrate(*stream);
     } else if (options_.zero_offset) {
       co_await DoZeroOffset(*stream);
+    } else if (!options_.restore_calibration.empty()) {
+      co_await DoRestoreCalibration(*stream);
     }
   }
 
@@ -1027,6 +1034,45 @@ class Runner {
     co_return;
   }
 
+  boost::asio::awaitable<void> DoRestoreCalibration(io::AsyncStream& stream) {
+    std::ifstream in(options_.restore_calibration);
+    const auto report =
+        mjlib::base::Json5ReadArchive::Read<CalibrationReport>(in);
+
+    const auto& cal_result = report.calibration;
+
+    // Verify that the serial number matches.
+    const auto this_device_info = co_await GetDeviceInfo(stream);
+    if (this_device_info.serial_number != report.device_info.serial_number) {
+      throw base::system_error::einval(
+          fmt::format("Serial number in calibration ({}) does not match device ({})",
+                      report.device_info.serial_number,
+                      this_device_info.serial_number));
+    }
+
+    co_await Command(
+        stream, fmt::format("conf set motor.poles {}", cal_result.poles));
+    co_await Command(
+        stream, fmt::format("conf set motor.invert {}",
+                            cal_result.invert ? 1 : 0));
+    for (size_t i = 0; i < cal_result.offset.size(); i++) {
+      co_await Command(
+          stream, fmt::format("conf set motor.offset.{} {}",
+                              i, cal_result.offset[i]));
+    }
+
+    co_await Command(stream, fmt::format("conf set motor.resistance_ohm {}",
+                                         report.winding_resistance));
+    co_await Command(
+        stream, fmt::format("conf set motor.v_per_hz {}", report.v_per_hz));
+
+    co_await Command(stream, "conf write");
+
+    std::cout << "Calibration restored\n";
+
+    co_return;
+  }
+
   boost::asio::awaitable<std::map<std::string, std::string>> ReadData(
       io::AsyncStream& stream, const std::string& channel) {
     co_await Command(stream, fmt::format("tel fmt {} 1", channel));
@@ -1314,7 +1360,10 @@ int moteus_tool_main(boost::asio::io_context& context,
           "write raw calibration data"),
       clipp::option("resistance_voltage") &
       clipp::value("V", options.resistance_voltage).doc(
-          "maximum voltage when measuring resistance")
+          "maximum voltage when measuring resistance"),
+      clipp::option("restore-calibration") &
+      clipp::value("FILE", options.restore_calibration).doc(
+          "restore calibration from logged data")
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 

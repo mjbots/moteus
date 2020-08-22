@@ -47,6 +47,7 @@ cc_library(
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:clipp",
         "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
+        "@com_github_mjbots_mjlib//mjlib/base:json5_read_archive",
         "@com_github_mjbots_mjlib//mjlib/base:json5_write_archive",
         "@com_github_mjbots_mjlib//mjlib/base:program_options_archive",
         "@com_github_mjbots_mjlib//mjlib/base:time_conversions",
