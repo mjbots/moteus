@@ -553,8 +553,11 @@ class Runner {
     co_await WriteConfigStream(stream, inf);
   }
 
-  boost::asio::awaitable<void> WriteConfigStream(io::AsyncStream& stream,
-                                                 std::istream& config_stream) {
+  boost::asio::awaitable<void> WriteConfigStream(
+      io::AsyncStream& stream,
+      std::istream& config_stream) {
+
+    std::vector<std::string> errors;
     while (static_cast<bool>(config_stream)) {
       std::string line;
       std::getline(config_stream, line);
@@ -566,10 +569,19 @@ class Runner {
       }
       auto maybe_result = co_await Command(stream, line);
       if (!maybe_result) {
-        std::cerr << "Response error!\n";
-        co_return;
+        errors.push_back(line);
       }
     }
+
+    if (errors.size()) {
+      std::cout << "\nSome config could not be set:\n";
+      for (const auto& line : errors) {
+        std::cout << " " << line << "\n";
+      }
+      std::cout << "\n";
+    }
+
+    co_return;
   }
 
   boost::asio::awaitable<void> DoConsole(io::SharedStream stream) {
