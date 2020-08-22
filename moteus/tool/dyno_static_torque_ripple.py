@@ -68,6 +68,7 @@ def find_regions(data, predicate):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ripple', '-r', action='store_true')
+    parser.add_argument('--sign', type=float, default=1.0)
     parser.add_argument('filename', type=str, nargs=1)
     args = parser.parse_args()
 
@@ -140,7 +141,7 @@ def main():
         si = bisect_left(data["torque"], test["begin"])
         se = bisect_left(data["torque"], test["end"])
 
-        timed_torque = [(x.timestamp, x.data.torque_Nm)
+        timed_torque = [(x.timestamp, args.sign * x.data.torque_Nm)
                         for x in data["torque"][si:se]]
         offset = sum([x[1] for x in timed_torque]) / len(timed_torque)
 
