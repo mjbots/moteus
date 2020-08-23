@@ -118,6 +118,7 @@ struct Options {
   int fixture_id = 32;
   int dut_id = 1;
   std::string torque_transducer;
+  double transducer_scale = 1.0;
 
   bool verbose = false;
   std::string log;
@@ -137,6 +138,7 @@ struct Options {
     a->Visit(MJ_NVP(fixture_id));
     a->Visit(MJ_NVP(dut_id));
     a->Visit(MJ_NVP(torque_transducer));
+    a->Visit(MJ_NVP(transducer_scale));
     a->Visit(MJ_NVP(verbose));
     a->Visit(MJ_NVP(log));
     a->Visit(MJ_NVP(max_test_time_s));
@@ -677,7 +679,8 @@ class Application {
     try {
       data.timestamp = mjlib::io::Now(executor_.context());
       data.time_code = std::stol(fields.at(0));
-      data.torque_Nm = std::stod(fields.at(1)) - torque_tare_;
+      data.torque_Nm =
+          options_.torque_scale * (std::stod(fields.at(1)) - torque_tare_);
       data.temperature_C = std::stod(fields.at(3));
 
       // We skip the first N samples to tare on startup.
