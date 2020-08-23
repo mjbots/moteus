@@ -680,7 +680,7 @@ class Application {
       data.timestamp = mjlib::io::Now(executor_.context());
       data.time_code = std::stol(fields.at(0));
       data.torque_Nm =
-          options_.torque_scale * (std::stod(fields.at(1)) - torque_tare_);
+          options_.transducer_scale * (std::stod(fields.at(1)) - torque_tare_);
       data.temperature_C = std::stod(fields.at(3));
 
       // We skip the first N samples to tare on startup.
