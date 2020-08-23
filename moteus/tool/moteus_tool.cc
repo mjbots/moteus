@@ -43,7 +43,12 @@
 #include "mjlib/io/stream_factory.h"
 #include "mjlib/multiplex/stream_asio_client_builder.h"
 
+#include "mjlib/telemetry/binary_schema_parser.h"
+#include "mjlib/telemetry/mapped_binary_reader.h"
+
 #include "moteus/tool/calibrate.h"
+#include "moteus/tool/line_reader.h"
+#include "moteus/tool/moteus_subset.h"
 #include "moteus/tool/run_for.h"
 
 namespace pl = std::placeholders;
@@ -85,11 +90,10 @@ std::string Hexify(const std::string& data) {
   return ostr.str();
 }
 
-std::string MakeGitHash(const std::map<std::string, std::string>& data) {
+std::string MakeGitHash(const std::array<uint8_t, 20>& hash) {
   std::string result;
   for (int i = 0; i < 20; i++) {
-    result += fmt::format(
-        "{:02x}", std::stoi(data.at(fmt::format("git.hash.{}", i))));
+    result += fmt::format("{:02x}", static_cast<int>(hash[i]));
   }
   return result;
 }
@@ -461,26 +465,7 @@ class Controller {
   }
 
   boost::asio::awaitable<std::optional<std::string>> ReadLine() {
-    boost::system::error_code ec;
-    co_await boost::asio::async_read_until(
-        stream_,
-        read_streambuf_,
-        '\n',
-        boost::asio::redirect_error(boost::asio::use_awaitable, ec));
-    if (ec == boost::asio::error::operation_aborted) {
-      co_return std::optional<std::string>();
-    } else if (ec) {
-      throw mjlib::base::system_error(ec);
-    }
-    std::istream istr(&read_streambuf_);
-
-    std::string result;
-    std::getline(istr, result);
-
-    if (options_.verbose) {
-      std::cout << "< " << result << "\n";
-    }
-    co_return result;
+    co_return co_await reader_.ReadLine();
   }
 
   boost::asio::awaitable<double> ReadConfigDouble(
@@ -500,11 +485,11 @@ class Controller {
   }
 
   boost::asio::awaitable<void> CheckForFault() {
-    const auto servo_stats = co_await ReadData("servo_stats");
-    if (servo_stats.at("servo_stats.mode") == "1") {
+    const auto servo_stats = co_await ReadData<ServoStats>("servo_stats");
+    if (servo_stats.mode == ServoStats::kFault) {
       mjlib::base::system_error::throw_if(
           true, fmt::format("Controller reported fault: {}",
-                            servo_stats.at("servo_stats.fault")));
+                            static_cast<int>(servo_stats.fault)));
     }
     co_return;
   }
@@ -569,51 +554,17 @@ class Controller {
   boost::asio::awaitable<DeviceInfo> GetDeviceInfo() {
     DeviceInfo result;
 
-    const auto firmware = co_await ReadData("firmware");
-    const auto git = co_await ReadData("git");
-
-    auto get = [](const auto& map, auto key, auto dft) -> std::string {
-      auto it = map.find(key);
-      if (it == map.end()) { return dft; }
-      return it->second;
-    };
-
-    auto verify_keys = [](const auto& data,
-                          const std::vector<std::string>& keys) {
-      for (const auto& key : keys) {
-        mjlib::base::system_error::throw_if(
-            data.count(key) == 0,
-            fmt::format("did not find required firmware key: {}", key));
-      }
-    };
-
-    verify_keys(
-        firmware,
-        {
-          "firmware.serial_number.0",
-              "firmware.serial_number.1",
-              "firmware.serial_number.2",
-              "firmware.version",
-              });
+    const auto firmware = co_await ReadData<Firmware>("firmware");
+    const auto git = co_await ReadData<Git>("git");
 
     result.serial_number = Base64SerialNumber(
-        std::stoi(firmware.at("firmware.serial_number.0")),
-        std::stoi(firmware.at("firmware.serial_number.1")),
-        std::stoi(firmware.at("firmware.serial_number.2")));
-    result.model =
-        fmt::format("{:x}", std::stoi(get(firmware, "firmware.model", "0")));
+        firmware.serial_number[0],
+        firmware.serial_number[1],
+        firmware.serial_number[2]);
+    result.model = fmt::format("{:x}", firmware.model);
 
-    verify_keys(git,  []() {
-        std::vector<std::string> result;
-        result.push_back("git.dirty");
-        for (int i = 0; i < 20; i++) {
-          result.push_back(fmt::format("git.hash.{}", i));
-        }
-        return result;
-      }());
-
-    result.git_hash = MakeGitHash(git);
-    result.git_dirty = git.at("git.dirty") != "0";
+    result.git_hash = MakeGitHash(git.hash);
+    result.git_dirty = git.dirty != 0;
 
     co_return result;
   }
@@ -670,31 +621,44 @@ class Controller {
     }
   }
 
-  boost::asio::awaitable<std::map<std::string, std::string>> ReadData(
-      const std::string& channel) {
-    co_await Command(fmt::format("tel fmt {} 1", channel));
-    const auto maybe_response =
-        co_await Command(fmt::format("tel get {}", channel),
-                         CommandOptions().set_retry_timeout(1.0));
-    StopIf(!maybe_response, "couldn't get telemetry");
-    const auto response = *maybe_response;
-    std::vector<std::string> lines;
-    boost::split(lines, response, boost::is_any_of("\r\n"));
+  template <typename T>
+  boost::asio::awaitable<T> ReadData(const std::string& name) {
+    auto it = readers_.find(name);
+    if (it == readers_.end()) {
+      co_await WriteMessage(fmt::format("tel schema {}", name));
+      const auto maybe_schema_announce = co_await ReadLine();
 
-    std::map<std::string, std::string> result;
-    for (const auto& line : lines) {
-      std::vector<std::string> fields;
-      boost::split(fields, line, boost::is_any_of(" "));
-      if (fields.size() < 2) { continue; }
-      result[fields.at(0)] = fields.at(1);
+      StopIf(!maybe_schema_announce ||
+             *maybe_schema_announce != fmt::format("schema {}", name),
+             fmt::format("Invalid schema announce for '{}': {}",
+                         name, maybe_schema_announce.value_or("unset")));
 
-      if (options_.verbose) {
-        std::cout << fmt::format(
-            "key='{}' value='{}'\n", fields.at(0), fields.at(1));
-      }
+      const auto schema = co_await reader_.ReadBinaryBlob();
+
+      // Set this channel to be binary.
+      co_await Command(fmt::format("tel fmt {} 0", name));
+
+      it = readers_.insert(
+          std::make_pair(
+              name,
+              std::make_unique<ConcreteDataReader<T>>(
+                  name, schema))).first;
     }
 
-    co_return result;
+    MJ_ASSERT(it != readers_.end());
+    auto* const my_reader =
+        dynamic_cast<ConcreteDataReader<T>*>(it->second.get());
+    MJ_ASSERT(my_reader != nullptr);
+
+    co_await WriteMessage(fmt::format("tel get {}", name));
+    const auto maybe_data_announce = co_await ReadLine();
+    StopIf(!maybe_data_announce ||
+           *maybe_data_announce != fmt::format("emit {}", name),
+           fmt::format("Invalid announce for '{}': {}", name,
+                       maybe_data_announce.value_or("UNSET")));
+
+    const auto data = co_await reader_.ReadBinaryBlob();
+    co_return my_reader->Read(data);
   }
 
   boost::asio::awaitable<double> FindSpeed(double voltage) {
@@ -706,9 +670,9 @@ class Controller {
     // Wait for it to stabilize.
     co_await Sleep(1.0);
 
-    const auto data = co_await ReadData("servo_stats");
+    const auto data = co_await ReadData<ServoStats>("servo_stats");
 
-    const auto velocity = std::stod(data.at("servo_stats.velocity"));
+    const auto velocity = data.velocity;
 
     std::cout << fmt::format("{}V - {}Hz\n", voltage, velocity);
 
@@ -726,7 +690,7 @@ class Controller {
 
     // Now get the servo_stats telemetry channel to read the D and Q
     // currents.
-    const auto data = co_await ReadData("servo_stats");
+    const auto data = co_await ReadData<ServoStats>("servo_stats");
 
     // Stop the current.
     co_await Command("d stop");
@@ -734,8 +698,8 @@ class Controller {
     // Sleep a tiny bit before returning.
     co_await Sleep(0.1);
 
-    const auto d_cur = std::stod(data.at("servo_stats.d_A"));
-    const auto q_cur = std::stod(data.at("servo_stats.q_A"));
+    const auto d_cur = data.d_A;
+    const auto q_cur = data.q_A;
 
     const double current_A = std::hypot(d_cur, q_cur);
     std::cout << fmt::format("{}V - {}A\n", voltage, current_A);
@@ -817,9 +781,35 @@ class Controller {
   }
 
  private:
+  class DataReader {
+   public:
+    virtual ~DataReader() {}
+  };
+
+  template <typename T>
+  class ConcreteDataReader : public DataReader {
+   public:
+    ConcreteDataReader(const std::string& name, const std::string& schema)
+        : parser_{schema, name},
+          reader_{&parser_} {}
+
+    ~ConcreteDataReader() override {}
+
+    T Read(const std::string& data) {
+      return reader_.Read(data);
+    }
+
+   private:
+    mjlib::telemetry::BinarySchemaParser parser_;
+    mjlib::telemetry::MappedBinaryReader<T> reader_;
+  };
+
   io::AsyncStream& stream_;
   const Options options_;
-  boost::asio::streambuf read_streambuf_;
+  LineReader reader_{
+    &stream_, LineReader::Options().set_verbose(options_.verbose)};
+
+  std::map<std::string, std::unique_ptr<DataReader>> readers_;
 };
 
 class Runner {
@@ -1234,9 +1224,9 @@ class Runner {
   }
 
   boost::asio::awaitable<void> DoZeroOffset(Controller* controller) {
-    const auto servo_stats = co_await controller->ReadData("servo_stats");
-    const auto position_raw =
-        std::stoi(servo_stats.at("servo_stats.position_raw"));
+    const auto servo_stats =
+        co_await controller->ReadData<ServoStats>("servo_stats");
+    const auto position_raw = servo_stats.position_raw;
     co_await controller->Command(
         fmt::format("conf set motor.position_offset {:d}",
                     -position_raw));

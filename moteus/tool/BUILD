@@ -41,6 +41,8 @@ cc_library(
     srcs = [
         "calibrate.h",
         "calibrate.cc",
+        "line_reader.h",
+        "moteus_subset.h",
         "moteus_tool.cc",
         "run_for.h",
     ],
@@ -58,6 +60,8 @@ cc_library(
         "@com_github_mjbots_mjlib//mjlib/io:stream_copy",
         "@com_github_mjbots_mjlib//mjlib/io:stream_factory",
         "@com_github_mjbots_mjlib//mjlib/multiplex:stream_asio_client_builder",
+        "@com_github_mjbots_mjlib//mjlib/telemetry:binary_schema_parser",
+        "@com_github_mjbots_mjlib//mjlib/telemetry:mapped_binary_reader",
         "@boost//:filesystem",
         "@boost//:system",
         "@com_github_serge1_elfio//:elfio",
