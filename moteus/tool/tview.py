@@ -30,19 +30,35 @@ import socket
 import struct
 import sys
 import time
-
 import matplotlib
 import matplotlib.figure
 
-os.environ['QT_API'] = 'pyside2'
-from matplotlib.backends import backend_qt5agg
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-qt_backend = matplotlib.backends.backend_qt5agg
+try:
+    import PySide2
 
-from qtconsole.qt import QtCore, QtGui
-from PySide2 import QtUiTools
+    os.environ['QT_API'] = 'pyside2'
+
+    from matplotlib.backends import backend_qt5agg
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+    qt_backend = matplotlib.backends.backend_qt5agg
+
+    from PySide2 import QtUiTools
+
+except:
+    print("Falling back to PySide1")
+    # Fall back to pyside1
+    matplotlib.use('Qt4Agg')
+    matplotlib.rcParams['backend.qt4'] = 'PySide'
+
+    from matplotlib.backends import backend_qt4agg
+    from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+    os.environ['QT_API'] = 'pyside'
+    from PySide import QtUiTools
+    qt_backend = matplotlib.backends.backend_qt4agg
+
+
 from qtconsole.history_console_widget import HistoryConsoleWidget
-
+from qtconsole.qt import QtCore, QtGui
 
 from bazel_tools.tools.python.runfiles import runfiles
 import mjlib.telemetry.reader as reader
