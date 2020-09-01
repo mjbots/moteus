@@ -40,73 +40,15 @@
 #include "mjlib/telemetry/file_writer.h"
 #include "mjlib/telemetry/mapped_binary_reader.h"
 
+#include "moteus/math.h"
+
 #include "moteus/tool/line_reader.h"
+#include "moteus/tool/moteus_subset.h"
 #include "moteus/tool/run_for.h"
 
 namespace base = mjlib::base;
 namespace io = mjlib::io;
 namespace mp = mjlib::multiplex;
-
-namespace {
-/// This is a minimal copy of moteus::BldcServo::Status used to
-/// monitor the servos in real-time.
-struct ServoStats {
-  enum Mode {
-    kStopped = 0,
-    kFault =1 ,
-    kPwm = 5,
-    kVoltage = 6,
-    kVoltageFoc = 7,
-    kVoltageDq = 8,
-    kCurrent = 9,
-    kPosition = 10,
-    kPositionTimeout = 11,
-    kZeroVelocity = 12,
-  };
-  Mode mode = kStopped;
-
-  enum Fault {
-    kNone = 0,
-  };
-  Fault fault = kNone;
-  float torque_Nm = 0.0f;
-
-  template <typename Archive>
-  void Serialize(Archive* a) {
-    a->Visit(MJ_NVP(mode));
-    a->Visit(MJ_NVP(fault));
-    a->Visit(MJ_NVP(torque_Nm));
-  }
-};
-}  // namespace
-
-namespace mjlib {
-namespace base {
-template <>
-struct IsEnum<::ServoStats::Mode> {
-  static constexpr bool value = true;
-
-  using M = ::ServoStats::Mode;
-  static std::array<std::pair<M, const char*>, 1> map() {
-    return { {
-        { M::kStopped, "stopped" },
-            }};
-  }
-};
-
-template <>
-struct IsEnum<::ServoStats::Fault> {
-  static constexpr bool value = true;
-
-  using M = ::ServoStats::Fault;
-  static std::array<std::pair<M, const char*>, 1> map() {
-    return { {
-        { M::kNone, "none" },
-            }};
-  }
-};
-}  // namespace base
-}  // namespace mjlib
 
 namespace moteus {
 namespace tool {
@@ -133,6 +75,9 @@ struct Options {
 
   bool pwm_cycle_overrun = false;
 
+  // Different functional validation cycles.
+  bool validate_pwm_mode = false;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(fixture_id));
@@ -148,6 +93,8 @@ struct Options {
     a->Visit(MJ_NVP(static_torque_ripple_speed));
 
     a->Visit(MJ_NVP(pwm_cycle_overrun));
+
+    a->Visit(MJ_NVP(validate_pwm_mode));
   }
 };
 
@@ -492,6 +439,8 @@ class Application {
       co_await RunStaticTorqueRipple();
     } else if (options_.pwm_cycle_overrun) {
       co_await RunPwmCycleOverrun();
+    } else if (options_.validate_pwm_mode) {
+      co_await ValidatePwmMode();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -596,6 +545,205 @@ class Application {
     }
 
     fmt::print("Test passed\n");
+
+    co_return;
+  }
+
+  struct PwmResult {
+    double phase = 0.0;
+    double voltage = 0.0;
+
+    ServoStats::Mode mode = ServoStats::kStopped;
+    double d_A = 0.0;
+    double q_A = 0.0;
+    double fixture_speed = 0.0;
+    double fixture_position = 0.0;
+  };
+
+  boost::asio::awaitable<PwmResult> RunPwmVoltage(double phase, double voltage) {
+    co_await dut_->Command(fmt::format("d pwm {} {}",
+                                       WrapZeroToTwoPi(phase), voltage));
+    co_await Sleep(0.3);
+
+    PwmResult result;
+    result.phase = phase;
+    result.voltage = voltage;
+    result.mode = dut_->servo_stats().mode;
+    result.d_A = dut_->servo_stats().d_A;
+    result.q_A = dut_->servo_stats().q_A;
+    result.fixture_speed = fixture_->servo_stats().velocity;
+    result.fixture_position = fixture_->servo_stats().unwrapped_position;
+
+    co_return result;
+  }
+
+  boost::asio::awaitable<void> ValidatePwmMode() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d rezero");
+
+    fmt::print("Centering motor\n");
+    co_await dut_->Command("d pwm 0 0.35");
+    co_await Sleep(1.0);
+
+    fmt::print("Running voltage ramp\n");
+
+    std::vector<PwmResult> ramp_results;
+
+    // First, ramp up PWM gradually.  The measured current should
+    // increase and should be mostly in the D phase and the motor
+    // should not generally be spinning.
+    for (double voltage : { 0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35 }) {
+      fmt::print("{}  \r", voltage);
+      ::fflush(stdout);
+      ramp_results.push_back(co_await RunPwmVoltage(0.0, voltage));
+    }
+
+    std::vector<PwmResult> slew_results;
+
+    fmt::print("Running phase slew\n");
+
+    // Then slew phase around.  We'll make sure that the current
+    // remains largely in the D phase, and that the fixture does
+    // indeed move around.
+    for (double phase = 0.0; phase < 30.0; phase += 1.0) {
+      fmt::print("{}  \r", phase);
+      ::fflush(stdout);
+      slew_results.push_back(
+          co_await RunPwmVoltage(phase, 0.35));
+    }
+
+    co_await dut_->Command("d stop");
+
+    // Print our results.
+    fmt::print("\nRAMP\n");
+    for (const auto& r : ramp_results) {
+      fmt::print(" {} {} {} {} {}\n",
+                 r.voltage, r.d_A, r.q_A, r.fixture_speed, r.fixture_position);
+    }
+    fmt::print("\n");
+    fmt::print("SLEW\n");
+    for (const auto& r : slew_results) {
+      fmt::print(" {} {} {} {} {}\n",
+                 r.phase, r.d_A, r.q_A, r.fixture_speed, r.fixture_position);
+    }
+
+    // And then analyze them.
+    std::vector<std::string> errors;
+
+    for (const auto& r : ramp_results) {
+      if (r.mode != ServoStats::kPwm) {
+        errors.push_back(
+            fmt::format("Motor not in PWM mode at voltage: {} {}!={}",
+                        r.voltage, r.mode, ServoStats::kPwm));
+        break;
+      }
+    }
+
+    for (const auto& r : slew_results) {
+      if (r.mode != ServoStats::kPwm) {
+        errors.push_back(
+            fmt::format("Motor not in PWM mode at phase: {} {}!={}",
+                        r.phase, r.mode, ServoStats::kPwm));
+        break;
+      }
+    }
+
+    for (const auto& r : ramp_results) {
+      const double kMaxError = 1.5;
+      if (std::abs(r.q_A) > kMaxError) {
+        errors.push_back(
+            fmt::format(
+                "Too much Q phase current at voltage: {} ({} > {})",
+                r.voltage, r.q_A, kMaxError));
+        break;
+      }
+    }
+
+    // This test runs with a motor that has a phase resistance of
+    // roughly 0.062 ohms.
+    for (const auto& r : ramp_results) {
+      const auto expected_current = r.voltage / 0.062;
+      if (std::abs(r.d_A - expected_current) > 2.5) {
+        errors.push_back(
+            fmt::format(
+                "D phase current too far from purely resistive: "
+                "I({}) = V({}) / R({}) != {}",
+                expected_current, r.voltage, 0.062, r.d_A));
+        break;
+      }
+    }
+
+    // The fixture should not be moving during the voltage ramp phase.
+    const auto initial_fixture = ramp_results.at(0).fixture_position;
+    for (const auto& r : ramp_results) {
+      if (std::abs(r.fixture_position - initial_fixture) > 0.1) {
+        errors.push_back(
+            fmt::format("fixture moved position at voltage {}", r.voltage));
+        break;
+      }
+      if (std::abs(r.fixture_speed) > 0.1) {
+        errors.push_back(
+            fmt::format("fixture had non-zero velocity at voltage {} |{}|>0.1",
+                        r.voltage, r.fixture_speed));
+        break;
+      }
+    }
+
+    for (const auto& r : slew_results) {
+      const double kMaxError = 1.5;
+      if (std::abs(r.q_A) > kMaxError) {
+        errors.push_back(
+            fmt::format("Too much Q phase in slew at phase {} |{}| > {}",
+                        r.phase, r.q_A, kMaxError));
+        break;
+      }
+    }
+
+    for (const auto& r : slew_results) {
+      const double kExpectedCurrent = 6.0;
+      const double kMaxError = 1.5;
+      if (std::abs(r.d_A - kExpectedCurrent) > kMaxError) {
+        errors.push_back(
+            fmt::format("D phase is not correct |{} - {}| > {}",
+                        r.d_A, kExpectedCurrent, kMaxError));
+        break;
+      }
+    }
+
+    for (const auto& r : slew_results) {
+      if (std::abs(r.fixture_speed) > 0.1) {
+        errors.push_back(
+            fmt::format("fixture has non-zero speed at phase {}, {} != 0.0",
+                        r.phase, r.fixture_speed));
+        break;
+      }
+    }
+
+    // The test motor requires 7 electrical cycles to result in 1 full
+    // revolution.  We need to verify that each step is close to that
+    // movement, and all in the same direction.
+    double expected_position = slew_results.front().fixture_position;
+    const double kMaxError = 0.01;
+    for (const auto& r : slew_results) {
+      if (std::abs(r.fixture_position - expected_position) > kMaxError) {
+        errors.push_back(
+            fmt::format("Fixture position off at phase {}, |{} - {}| > {}",
+                        r.phase, r.fixture_position, expected_position, kMaxError));
+        break;
+      }
+      expected_position -= (1.0 / (2.0 * M_PI)) / 7.0;
+    }
+
+    if (errors.size()) {
+      fmt::print("\nERRORS\n");
+      for (const auto& e : errors) {
+        fmt::print("{}\n", e);
+      }
+      std::exit(1);
+    } else {
+      fmt::print("\nSUCCESS\n");
+    }
 
     co_return;
   }

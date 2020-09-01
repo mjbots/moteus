@@ -47,6 +47,7 @@ struct ServoStats {
   Fault fault = kNone;
 
   uint16_t position_raw = 0;
+  float unwrapped_position = 0.0f;
 
   float torque_Nm = 0.0f;
 
@@ -60,6 +61,7 @@ struct ServoStats {
     a->Visit(MJ_NVP(mode));
     a->Visit(MJ_NVP(fault));
     a->Visit(MJ_NVP(position_raw));
+    a->Visit(MJ_NVP(unwrapped_position));
     a->Visit(MJ_NVP(torque_Nm));
 
     a->Visit(MJ_NVP(d_A));

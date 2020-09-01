@@ -100,9 +100,11 @@ cc_binary(
     srcs = [
         "dynamometer_drive.cc",
         "line_reader.h",
+        "moteus_subset.h",
         "run_for.h",
     ],
     deps = [
+        "//moteus:common",
         "@com_github_mjbots_mjlib//mjlib/base:clipp",
         "@com_github_mjbots_mjlib//mjlib/base:clipp_archive",
         "@com_github_mjbots_mjlib//mjlib/base:fail",
