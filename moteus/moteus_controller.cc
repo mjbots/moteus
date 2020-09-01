@@ -515,7 +515,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return ScaleTime(command_.timeout_s, type);
       }
       case Register::kCommandFeedforwardTorque: {
-        return ScaleCurrent(command_.feedforward_Nm, type);
+        return ScaleTorque(command_.feedforward_Nm, type);
       }
       case Register::kCommandKpScale: {
         return ScalePwm(command_.kp_scale, type);
