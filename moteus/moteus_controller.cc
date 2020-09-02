@@ -212,6 +212,12 @@ enum class Register {
   kCommandStopPosition = 0x026,
   kCommandTimeout = 0x027,
 
+  kPositionKp = 0x030,
+  kPositionKi = 0x031,
+  kPositionKd = 0x032,
+  kPositionFeedforward = 0x033,
+  kPositionCommandTorque = 0x034,
+
   kModelNumber = 0x100,
   kFirmwareVersion = 0x101,
   kRegisterMapVersion = 0x102,
@@ -409,6 +415,11 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kVoltage:
       case Register::kTorque:
       case Register::kFault:
+      case Register::kPositionKp:
+      case Register::kPositionKi:
+      case Register::kPositionKd:
+      case Register::kPositionFeedforward:
+      case Register::kPositionCommandTorque:
       case Register::kModelNumber:
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
@@ -524,6 +535,21 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return ScalePwm(command_.kd_scale, type);
       }
 
+      case Register::kPositionKp: {
+        return ScaleTorque(bldc_.status().pid_position.p, type);
+      }
+      case Register::kPositionKi: {
+        return ScaleTorque(bldc_.status().pid_position.integral, type);
+      }
+      case Register::kPositionKd: {
+        return ScaleTorque(bldc_.status().pid_position.d, type);
+      }
+      case Register::kPositionFeedforward: {
+        return ScaleTorque(command_.feedforward_Nm, type);
+      }
+      case Register::kPositionCommandTorque: {
+        return ScaleTorque(bldc_.control().torque_Nm, type);
+      }
       case Register::kModelNumber: {
         if (type != 2) { break; }
 

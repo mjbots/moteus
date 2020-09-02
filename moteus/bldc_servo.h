@@ -544,6 +544,7 @@ class BldcServo {
 
   const Status& status() const;
   const Config& config() const;
+  const Control& control() const;
   const Motor& motor() const;
 
   /// Return a clock which increments with every control cycle.

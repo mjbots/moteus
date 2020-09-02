@@ -322,6 +322,46 @@ controller will enter the kPositionTimeout state.  The default is 0.0,
 which means to use the configured default.  NaN / maximal negative
 means apply no timeout is enforced.
 
+### 0x030 - Proportional torque ###
+
+Type: int8, int16, int32, float
+Mode: Read
+
+This reports the torque contribution from the proportional term in the
+PID controller.
+
+### 0x031 - Integral torque ###
+
+Type: int8, int16, int32, float
+Mode: Read
+
+This reports the torque contribution from the integral term in the
+PID controller.
+
+### 0x032 - Derivative torque ###
+
+Type: int8, int16, int32, float
+Mode: Read
+
+This reports the torque contribution from the derivative term in the
+PID controller.
+
+### 0x033 - Feedforward torque ###
+
+Type: int8, int16, int32, float
+Mode: Read
+
+This reports the feedforward contribution in the PID controller.
+
+### 0x034 - Total control torque ###
+
+Type: int8, int16, int32, float
+Mode: Read
+
+This reports the total commanded torque from the position mode
+controller.
+
+
 ### 0x100 - Model Number ###
 
 Name: Model Number

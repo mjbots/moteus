@@ -336,9 +336,8 @@ class BldcServo::Impl {
   }
 
   const Status& status() const { return status_; }
-
   const Config& config() const { return config_; }
-
+  const Control& control() const { return control_; }
   const Motor& motor() const { return motor_; }
 
   bool is_torque_constant_configured() const {
@@ -1640,6 +1639,10 @@ const BldcServo::Status& BldcServo::status() const {
 
 const BldcServo::Config& BldcServo::config() const {
   return impl_->config();
+}
+
+const BldcServo::Control& BldcServo::control() const {
+  return impl_->control();
 }
 
 const BldcServo::Motor& BldcServo::motor() const {
