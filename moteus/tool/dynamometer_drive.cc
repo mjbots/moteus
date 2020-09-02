@@ -763,12 +763,9 @@ class Application {
     co_await fixture_->Command("d rezero");
     co_await dut_->Command("d rezero");
 
-    // Start the fixture holding.
-    co_await fixture_->Command("d pos nan 0 0.3");
-    co_await Sleep(1.0);
-
     auto test = [&](double d_A, double q_A,
                     double expected_torque,
+                    double expected_speed,
                     const std::string& message) -> boost::asio::awaitable<void> {
       fmt::print("Testing d={} q={}\n", d_A, q_A);
       co_await dut_->Command(fmt::format("d dq {} {}", d_A, q_A));
@@ -778,8 +775,11 @@ class Application {
         if (dut_->servo_stats().mode != ServoStats::kCurrent) {
           throw mjlib::base::system_error::einval("DUT not in current mode");
         }
-        if (std::abs(fixture_->servo_stats().velocity) > 0.1) {
-          throw mjlib::base::system_error::einval("Fixture not stationary");
+        if (std::abs(fixture_->servo_stats().velocity - expected_speed) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "Fixture speed {} != {} (within {})",
+                  fixture_->servo_stats().velocity, expected_speed, 0.1));
         }
         if (std::abs(dut_->servo_stats().d_A - d_A) > 1.0) {
           throw mjlib::base::system_error::einval(
@@ -791,10 +791,10 @@ class Application {
               fmt::format("Q phase current {} != {} (within {})",
                           dut_->servo_stats().q_A, q_A, 1.0));
         }
-        if (std::abs(current_torque_Nm_ - expected_torque) > 0.1) {
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format("Transducer torque {} != {} (within {})",
-                          current_torque_Nm_, expected_torque, 0.1));
+                          current_torque_Nm_, expected_torque, 0.15));
         }
       } catch (mjlib::base::system_error& se) {
         se.code().Append(message);
@@ -802,19 +802,31 @@ class Application {
       }
     };
 
-    // Start by entering current mode, and verifying we made it there.
+    // Verify a number of currents with the fixture stationary, and
+    // moving in both directions.
+    for (double fs : {0.0, -0.2, 0.2}) {
+      // Start the fixture holding.
+      co_await fixture_->Command(
+          fmt::format("d pos nan {} 0.2", fs));
+      co_await Sleep(1.0);
 
-    co_await test(0, 0, 0, "d=0 q=0");
-    co_await test(2, 0, 0, "d=2 q=0");
-    co_await test(4, 0, 0, "d=4 q=0");
-    co_await test(0, 2, 0.1, "d=0 q=2");
-    co_await test(0, 4, 0.2, "d=0 q=4");
-    co_await test(0, -2, -0.1, "d=0 q=-2");
-    co_await test(0, -4, -0.2, "d=0 q=-4");
+      try {
+        co_await test(0, 0, 0, fs, "d=0 q=0");
+        co_await test(2, 0, 0, fs, "d=2 q=0");
+        co_await test(4, 0, 0, fs, "d=4 q=0");
+        co_await test(0, 2, 0.1, fs, "d=0 q=2");
+        co_await test(0, 4, 0.2, fs, "d=0 q=4");
+        co_await test(0, -2, -0.1, fs, "d=0 q=-2");
+        co_await test(0, -4, -0.2, fs, "d=0 q=-4");
+      } catch (mjlib::base::system_error& se) {
+        se.code().Append(fmt::format("fixture speed {}", fs));
+        throw;
+      }
+    }
 
     fmt::print("SUCCESS\n");
 
-    co_await fixture_->Command("d stop");
+    co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
 
     co_return;
