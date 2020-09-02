@@ -60,7 +60,7 @@ struct Options {
   int fixture_id = 32;
   int dut_id = 1;
   std::string torque_transducer;
-  double transducer_scale = 1.0;
+  double transducer_scale = -1.0;
 
   bool verbose = false;
   std::string log;
@@ -77,6 +77,7 @@ struct Options {
 
   // Different functional validation cycles.
   bool validate_pwm_mode = false;
+  bool validate_current_mode = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -95,6 +96,7 @@ struct Options {
     a->Visit(MJ_NVP(pwm_cycle_overrun));
 
     a->Visit(MJ_NVP(validate_pwm_mode));
+    a->Visit(MJ_NVP(validate_current_mode));
   }
 };
 
@@ -441,6 +443,8 @@ class Application {
       co_await RunPwmCycleOverrun();
     } else if (options_.validate_pwm_mode) {
       co_await ValidatePwmMode();
+    } else if (options_.validate_current_mode) {
+      co_await ValidateCurrentMode();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -463,7 +467,7 @@ class Application {
     co_return;
   }
 
-  boost::asio::awaitable<void> RunStaticTorqueRipple() {
+  boost::asio::awaitable<void> CommandFixtureRigid() {
     co_await fixture_->Command(
         "conf set servo.pid_position.ki 200.0");
     co_await fixture_->Command(
@@ -475,6 +479,10 @@ class Application {
     co_await fixture_->Command("conf set servopos.position_max nan");
     co_await dut_->Command("conf set servopos.position_min nan");
     co_await dut_->Command("conf set servopos.position_max nan");
+  }
+
+  boost::asio::awaitable<void> RunStaticTorqueRipple() {
+    co_await CommandFixtureRigid();
 
     // Then start commanding the different torques on the dut servo,
     // each for a bit more than one revolution.
@@ -748,6 +756,70 @@ class Application {
     co_return;
   }
 
+  boost::asio::awaitable<void> ValidateCurrentMode() {
+    // Set the fixture to hold position.
+    co_await CommandFixtureRigid();
+
+    co_await fixture_->Command("d rezero");
+    co_await dut_->Command("d rezero");
+
+    // Start the fixture holding.
+    co_await fixture_->Command("d pos nan 0 0.3");
+    co_await Sleep(1.0);
+
+    auto test = [&](double d_A, double q_A,
+                    double expected_torque,
+                    const std::string& message) -> boost::asio::awaitable<void> {
+      fmt::print("Testing d={} q={}\n", d_A, q_A);
+      co_await dut_->Command(fmt::format("d dq {} {}", d_A, q_A));
+      co_await Sleep(0.5);
+
+      try {
+        if (dut_->servo_stats().mode != ServoStats::kCurrent) {
+          throw mjlib::base::system_error::einval("DUT not in current mode");
+        }
+        if (std::abs(fixture_->servo_stats().velocity) > 0.1) {
+          throw mjlib::base::system_error::einval("Fixture not stationary");
+        }
+        if (std::abs(dut_->servo_stats().d_A - d_A) > 1.0) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("D phase current {} != {} (within {})",
+                          dut_->servo_stats().d_A, d_A, 1.0));
+        }
+        if (std::abs(dut_->servo_stats().q_A - q_A) > 1.0) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Q phase current {} != {} (within {})",
+                          dut_->servo_stats().q_A, q_A, 1.0));
+        }
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.1) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Transducer torque {} != {} (within {})",
+                          current_torque_Nm_, expected_torque, 0.1));
+        }
+      } catch (mjlib::base::system_error& se) {
+        se.code().Append(message);
+        throw;
+      }
+    };
+
+    // Start by entering current mode, and verifying we made it there.
+
+    co_await test(0, 0, 0, "d=0 q=0");
+    co_await test(2, 0, 0, "d=2 q=0");
+    co_await test(4, 0, 0, "d=4 q=0");
+    co_await test(0, 2, 0.1, "d=0 q=2");
+    co_await test(0, 4, 0.2, "d=0 q=4");
+    co_await test(0, -2, -0.1, "d=0 q=-2");
+    co_await test(0, -4, -0.2, "d=0 q=-4");
+
+    fmt::print("SUCCESS\n");
+
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    co_return;
+  }
+
   boost::asio::awaitable<void> Sleep(double seconds) {
     boost::asio::deadline_timer timer(executor_);
     timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(seconds));
@@ -829,6 +901,7 @@ class Application {
       data.time_code = std::stol(fields.at(0));
       data.torque_Nm =
           options_.transducer_scale * (std::stod(fields.at(1)) - torque_tare_);
+      current_torque_Nm_ = data.torque_Nm;
       data.temperature_C = std::stod(fields.at(3));
 
       // We skip the first N samples to tare on startup.
@@ -906,6 +979,8 @@ class Application {
   double torque_tare_total_ = 0.0;
   double torque_tare_count_ = 0;
   double torque_tare_ = 0.0;
+
+  double current_torque_Nm_ = 0.0;
 };
 
 int do_main(int argc, char** argv) {
