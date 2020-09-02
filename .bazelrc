@@ -28,8 +28,8 @@ test --workspace_status_command=tools/workspace_status.sh
 build -c opt
 test -c opt
 
-build --cpu stm32g4
-test --cpu stm32g4
+build --cpu k8
+test --cpu k8
 
 build --stamp
 test --stamp
