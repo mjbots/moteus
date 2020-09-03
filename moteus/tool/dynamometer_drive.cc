@@ -867,50 +867,83 @@ class Application {
     // Set the fixture to hold position and DUT to vanilla gains.
     co_await CommandFixtureRigid();
 
-    Controller::PidConstants pid;
-    co_await dut_->ConfigurePid(pid);
-    co_await fixture_->Command("d index 0");
-
-    // Start the fixture holding where it is.
-    co_await fixture_->Command(
-        fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
-
-    // Set the DUT to be at exactly 0.
-    co_await dut_->Command("d index 0");
-
     auto verify_position_mode = [&]() {
       if (dut_->servo_stats().mode != ServoStats::kPosition) {
         throw mjlib::base::system_error::einval("DUT not in position mode");
       }
     };
 
+    // Start the fixture holding where it is.
+    co_await fixture_->Command("d index 0");
+    co_await fixture_->Command(
+        fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
+
+    co_await Sleep(1.0);
+
     // Verify position mode kp gain.
-    for (double position : {0.0, -0.1, 0.1, -0.2, 0.2, -0.3, 0.3}) {
-      fmt::print("Verifying kp position = {}\n", position);
+    for (const double kp : { 1.0, 0.5, 0.2}) {
+      Controller::PidConstants pid;
+      pid.kp = kp;
+      co_await dut_->ConfigurePid(pid);
 
-      // Enter position mode.
-      co_await dut_->Command(fmt::format("d pos {} 0 0.4", position));
-      co_await Sleep(1.0);
+      // Set the DUT to be at exactly 0.
+      co_await dut_->Command("d index 0");
 
-      // We should be in position mode, the actual fixture position
-      // should not have materially changed, and the correct amount of
-      // torque should be present at the physical torque sensor.
-      verify_position_mode();
+      for (double position : {0.0, -0.1, 0.1, -0.2, 0.2, -0.3, 0.3}) {
+        fmt::print("Verifying kp={} position={}\n", kp, position);
 
-      if (std::abs(fixture_->servo_stats().unwrapped_position) > 0.02) {
-        throw mjlib::base::system_error::einval(
-            fmt::format(
-                "fixture position no longer zero {}",
-                fixture_->servo_stats().unwrapped_position));
+        // Enter position mode.
+        co_await dut_->Command(fmt::format("d pos {} 0 0.4", position));
+        co_await Sleep(1.5);
+
+        // We should be in position mode, the actual fixture position
+        // should not have materially changed, and the correct amount of
+        // torque should be present at the physical torque sensor.
+        verify_position_mode();
+
+        if (std::abs(fixture_->servo_stats().unwrapped_position) > 0.02) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "fixture position no longer zero {}",
+                  fixture_->servo_stats().unwrapped_position));
+        }
+
+        const double expected_torque = pid.kp * position;
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "kp torque not as expected {} != {} (within {})",
+                  current_torque_Nm_, expected_torque, 0.15));
+        }
       }
+      dut_->Command("d stop");
+    }
 
-      const double expected_torque = pid.kp * position;
-      if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
-        throw mjlib::base::system_error::einval(
-            fmt::format(
-                "torque not as expected {} != {} (within {})",
-                current_torque_Nm_, expected_torque, 0.15));
+    // Now we'll test kd.
+    for (const double kd : {0.15, 0.1, 0.05}) {
+      fmt::print("Verifying kd {}\n", kd);
+      Controller::PidConstants pid;
+      pid.kp = 0.0;
+      pid.kd = kd;
+      co_await dut_->ConfigurePid(pid);
+
+      co_await dut_->Command("d pos nan 0 0.4");
+
+      for (double speed : {-2.0, -1.0, -0.5, 0.0, 0.5, 1.0, 2.0}) {
+        co_await fixture_->Command(fmt::format("d pos nan {} 0.4", speed));
+        co_await Sleep(1.0);
+
+        verify_position_mode();
+        const double expected_torque = speed * pid.kd;
+
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.18) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("kd torque not as expected {} != {} (within {})",
+                          current_torque_Nm_, expected_torque, 0.18));
+        }
       }
+      co_await fixture_->Command("d stop");
+      co_await dut_->Command("d stop");
     }
 
     co_await dut_->Command("d stop");
