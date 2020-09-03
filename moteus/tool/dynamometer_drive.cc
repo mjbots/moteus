@@ -946,6 +946,50 @@ class Application {
       co_await dut_->Command("d stop");
     }
 
+    // Test ki.
+
+    // Lock and rezero everything.
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+    co_await fixture_->Command(
+        fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
+
+    for (const double ki : {1.0, 0.5, 0.2}) {
+      fmt::print("Verifying ki {}\n", ki);
+
+      Controller::PidConstants pid;
+      pid.kp = 0.0;
+      pid.kd = 0.0;
+      pid.ki = ki;
+      pid.ilimit = options_.max_torque_Nm;
+      co_await dut_->ConfigurePid(pid);
+
+      for (const double position : {0.3, 0.15, 0.0, -0.15, -0.3}) {
+        co_await dut_->Command(
+            fmt::format("d pos {} 0 {}", position, options_.max_torque_Nm));
+
+        const double kDelayS = 1.0;
+        co_await Sleep(kDelayS);
+
+        const double expected_torque = kDelayS * pid.ki * position;
+
+        verify_position_mode();
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("ki torque not as expected {} != {} (within {})",
+                          current_torque_Nm_, expected_torque, 0.15));
+        }
+
+        // Stop the DUT to clear out the I term.
+        co_await dut_->Command("d stop");
+
+        // And sleep a bit to let the fixture recuperate.
+        co_await Sleep(0.2);
+      }
+    }
+
+    fmt::print("SUCCESS\n");
+
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
 
