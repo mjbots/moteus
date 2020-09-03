@@ -78,6 +78,7 @@ struct Options {
   // Different functional validation cycles.
   bool validate_pwm_mode = false;
   bool validate_current_mode = false;
+  bool validate_basic_position_mode = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -97,6 +98,7 @@ struct Options {
 
     a->Visit(MJ_NVP(validate_pwm_mode));
     a->Visit(MJ_NVP(validate_current_mode));
+    a->Visit(MJ_NVP(validate_basic_position_mode));
   }
 };
 
@@ -283,6 +285,34 @@ class Controller {
     co_return;
   }
 
+  struct PidConstants {
+    double kp = 1.0;
+    double ki = 0.0;
+    double ilimit = 0.0;
+    double kd = 0.0;
+
+    double position_min = std::numeric_limits<double>::quiet_NaN();
+    double position_max = std::numeric_limits<double>::quiet_NaN();
+  };
+
+  boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
+    co_await Command(
+        fmt::format("conf set servo.pid_position.kp {}", pid.kp));
+    co_await Command(
+        fmt::format("conf set servo.pid_position.ki {}", pid.ki));
+    co_await Command(
+        fmt::format("conf set servo.pid_position.ilimit {}", pid.ilimit));
+    co_await Command(
+        fmt::format("conf set servo.pid_position.kd {}", pid.kd));
+
+    co_await Command(
+        fmt::format("conf set servopos.position_min {}", pid.position_min));
+    co_await Command(
+        fmt::format("conf set servopos.position_max {}", pid.position_max));
+
+    co_return;
+  }
+
   boost::asio::awaitable<void> Run() {
     // Read from the stream, barfing on errors, and logging any binary
     // data that comes our way.
@@ -445,6 +475,8 @@ class Application {
       co_await ValidatePwmMode();
     } else if (options_.validate_current_mode) {
       co_await ValidateCurrentMode();
+    } else if (options_.validate_basic_position_mode) {
+      co_await ValidateBasicPositionMode();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -468,17 +500,13 @@ class Application {
   }
 
   boost::asio::awaitable<void> CommandFixtureRigid() {
-    co_await fixture_->Command(
-        "conf set servo.pid_position.ki 200.0");
-    co_await fixture_->Command(
-        "conf set servo.pid_position.kp 10.0");
-    co_await fixture_->Command(
-        fmt::format("conf set servo.pid_position.ilimit {}",
-                    std::max(0.3, options_.max_torque_Nm)));
-    co_await fixture_->Command("conf set servopos.position_min nan");
-    co_await fixture_->Command("conf set servopos.position_max nan");
-    co_await dut_->Command("conf set servopos.position_min nan");
-    co_await dut_->Command("conf set servopos.position_max nan");
+    Controller::PidConstants pid;
+    pid.ki = 200.0;
+    pid.kd = 0.2;
+    pid.kp = 10.0;
+    pid.ilimit = 0.3;
+
+    co_await fixture_->ConfigurePid(pid);
   }
 
   boost::asio::awaitable<void> RunStaticTorqueRipple() {
@@ -825,6 +853,65 @@ class Application {
     }
 
     fmt::print("SUCCESS\n");
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateBasicPositionMode() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    // Set the fixture to hold position and DUT to vanilla gains.
+    co_await CommandFixtureRigid();
+
+    Controller::PidConstants pid;
+    co_await dut_->ConfigurePid(pid);
+    co_await fixture_->Command("d index 0");
+
+    // Start the fixture holding where it is.
+    co_await fixture_->Command(
+        fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
+
+    // Set the DUT to be at exactly 0.
+    co_await dut_->Command("d index 0");
+
+    auto verify_position_mode = [&]() {
+      if (dut_->servo_stats().mode != ServoStats::kPosition) {
+        throw mjlib::base::system_error::einval("DUT not in position mode");
+      }
+    };
+
+    // Verify position mode kp gain.
+    for (double position : {0.0, -0.1, 0.1, -0.2, 0.2, -0.3, 0.3}) {
+      fmt::print("Verifying kp position = {}\n", position);
+
+      // Enter position mode.
+      co_await dut_->Command(fmt::format("d pos {} 0 0.4", position));
+      co_await Sleep(1.0);
+
+      // We should be in position mode, the actual fixture position
+      // should not have materially changed, and the correct amount of
+      // torque should be present at the physical torque sensor.
+      verify_position_mode();
+
+      if (std::abs(fixture_->servo_stats().unwrapped_position) > 0.02) {
+        throw mjlib::base::system_error::einval(
+            fmt::format(
+                "fixture position no longer zero {}",
+                fixture_->servo_stats().unwrapped_position));
+      }
+
+      const double expected_torque = pid.kp * position;
+      if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
+        throw mjlib::base::system_error::einval(
+            fmt::format(
+                "torque not as expected {} != {} (within {})",
+                current_torque_Nm_, expected_torque, 0.15));
+      }
+    }
 
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
