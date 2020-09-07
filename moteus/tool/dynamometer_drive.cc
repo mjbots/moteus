@@ -78,7 +78,8 @@ struct Options {
   // Different functional validation cycles.
   bool validate_pwm_mode = false;
   bool validate_current_mode = false;
-  bool validate_basic_position_mode = false;
+  bool validate_position_basic = false;
+  bool validate_position_pid = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -98,7 +99,8 @@ struct Options {
 
     a->Visit(MJ_NVP(validate_pwm_mode));
     a->Visit(MJ_NVP(validate_current_mode));
-    a->Visit(MJ_NVP(validate_basic_position_mode));
+    a->Visit(MJ_NVP(validate_position_basic));
+    a->Visit(MJ_NVP(validate_position_pid));
   }
 };
 
@@ -475,8 +477,10 @@ class Application {
       co_await ValidatePwmMode();
     } else if (options_.validate_current_mode) {
       co_await ValidateCurrentMode();
-    } else if (options_.validate_basic_position_mode) {
-      co_await ValidateBasicPositionMode();
+    } else if (options_.validate_position_pid) {
+      co_await ValidatePositionPid();
+    } else if (options_.validate_position_basic) {
+      co_await ValidatePositionBasic();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -860,11 +864,202 @@ class Application {
     co_return;
   }
 
-  boost::asio::awaitable<void> ValidateBasicPositionMode() {
+  boost::asio::awaitable<void> ValidatePositionBasic() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+
+    // Set some constants that should work for basic position control.
+    Controller::PidConstants pid;
+    pid.kp = 1.0;
+    pid.ki = 0.0;
+    pid.kd = 0.05;
+    co_await dut_->ConfigurePid(pid);
+
+    // Move to a few different positions.
+    for (const double position : {0.0, -0.2, 0.3}) {
+      fmt::print("Moving to position {}\n", position);
+      co_await dut_->Command(fmt::format("d pos {} 0 0.2", position));
+
+      co_await Sleep(1.0);
+
+      // The fixture should be close to this now.
+      const double fixture_position =
+          options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+      if (std::abs(fixture_position - position) > 0.05) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("Fixture position {} != {}",
+                        fixture_position, position));
+      }
+    }
+
+    // Move at a few different velocities.
+    for (const double velocity : {0.0, -1.5, 3.0}) {
+      fmt::print("Moving at velocity {}\n", velocity);
+      co_await dut_->Command(fmt::format("d pos nan {} 0.2", velocity));
+
+      co_await Sleep(1.0);
+
+      const double fixture_velocity =
+          options_.transducer_scale * fixture_->servo_stats().velocity;
+      if (std::abs(fixture_velocity - velocity) > 0.35) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("Fixture velocity {} != {}",
+                        fixture_velocity, velocity));
+      }
+    }
+
+    co_await dut_->Command("d index 0");
+    co_await fixture_->Command("d index 0");
+
+    // Use the stop position.
+    for (const double stop_position : {2.0, 0.5}) {
+      fmt::print("Moving using stop position to {}\n", stop_position);
+      const double kFixedVelocity = 1.0;
+      co_await dut_->Command(fmt::format("d pos nan {} 0.2 s{}",
+                                         kFixedVelocity, stop_position));
+
+      co_await Sleep(0.3);
+      const double fixture_velocity =
+          options_.transducer_scale * fixture_->servo_stats().velocity;
+      if ((std::abs(fixture_velocity) - kFixedVelocity) > 0.35) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("Fixture velocity {} != {}",
+                        fixture_velocity, kFixedVelocity));
+
+      }
+
+      co_await Sleep(2.5);
+      const double fixture_position =
+          options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+      if (std::abs(fixture_position - stop_position) > 0.05) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("Fixture stop position {} != {}",
+                        fixture_position, stop_position));
+      }
+    }
+
+    // Configure with some position limits in place and verify we
+    // don't move outside of them by much.
+    for (const double position_limit : {0.1, 1.0, 2.0}) {
+      fmt::print("Testing position limit {}\n", position_limit);
+      auto pid_limit = pid;
+      pid_limit.position_min = -position_limit;
+      pid_limit.position_max = 10.0;
+      co_await dut_->ConfigurePid(pid_limit);
+      co_await dut_->Command("d index 0");
+      co_await fixture_->Command("d index 0");
+
+      co_await dut_->Command(
+          fmt::format("d pos nan 1.5 {} s-10",
+                      options_.max_torque_Nm));
+      co_await Sleep(3.0);
+
+      {
+        const double fixture_position =
+            options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+        if (std::abs(fixture_position - (-position_limit)) > 0.05) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Fixture stop position {} != {}",
+                          fixture_position, -position_limit));
+        }
+      }
+
+      co_await dut_->Command("d stop");
+      pid_limit.position_min = -10.0;
+      pid_limit.position_max = position_limit;
+      co_await dut_->ConfigurePid(pid_limit);
+      co_await dut_->Command(
+          fmt::format("d pos nan 1.5 {} s10", options_.max_torque_Nm));
+      co_await Sleep(3.0);
+
+      {
+        const double fixture_position =
+            options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+        if (std::abs(fixture_position - position_limit) > 0.05) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Fixture stop position {} != {}",
+                          fixture_position, position_limit));
+        }
+      }
+
+      co_await dut_->Command("d stop");
+    }
+
+    // Get back to our default config.
+    co_await dut_->ConfigurePid(pid);
+
+    // Now we'll do the basic tests with the fixture locked rigidly in
+    // place.
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+
+    co_await CommandFixtureRigid();
+    co_await fixture_->Command(
+        fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
+
+    for (const double max_torque : {0.15, 0.3}) {
+      fmt::print("Testing max torque {}\n", max_torque);
+      co_await dut_->Command(fmt::format("d pos 5 0 {}", max_torque));
+      co_await Sleep(1.0);
+
+      if (std::abs(current_torque_Nm_ - max_torque) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "kp torque not as expected {} != {} (within {})",
+                  current_torque_Nm_, max_torque, 0.15));
+      }
+
+      co_await dut_->Command(fmt::format("d pos -5 0 {}", max_torque));
+      co_await Sleep(1.0);
+      if (std::abs(current_torque_Nm_ - (-max_torque)) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "kp torque not as expected {} != {} (within {})",
+                  current_torque_Nm_, -max_torque, 0.15));
+      }
+    }
+
+    for (const double feedforward_torque : {0.15, 0.3}) {
+      fmt::print("Testing feedforward torque {}\n", feedforward_torque);
+      co_await dut_->Command(
+          fmt::format("d pos 0 0 {} f{}",
+                      options_.max_torque_Nm, feedforward_torque));
+      co_await Sleep(1.0);
+
+      if (std::abs(current_torque_Nm_ - feedforward_torque) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "kp torque not as expected {} != {} (within {})",
+                  current_torque_Nm_, feedforward_torque, 0.15));
+      }
+
+      co_await dut_->Command(
+          fmt::format("d pos 0 0 {} f{}",
+                      options_.max_torque_Nm, -feedforward_torque));
+      co_await Sleep(1.0);
+      if (std::abs(current_torque_Nm_ - (-feedforward_torque)) > 0.15) {
+          throw mjlib::base::system_error::einval(
+              fmt::format(
+                  "kp torque not as expected {} != {} (within {})",
+                  current_torque_Nm_, -feedforward_torque, 0.15));
+      }
+    }
+
+    fmt::print("SUCCESS\n");
+
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
 
-    // Set the fixture to hold position and DUT to vanilla gains.
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidatePositionPid() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    // Set the fixture to hold position.
     co_await CommandFixtureRigid();
 
     auto verify_position_mode = [&]() {
