@@ -210,13 +210,14 @@ Mode: Read/write
 
 When in Position mode, this controls the desired position.  The
 maximal negative integer, or NaN for float represents, "use the
-current position value".
+current position value".  Note, the controller will attempt to achieve
+this position *right now* subject to the kp and kd constants.
 
 #### 0x021 - Velocity command ####
 
 Mode: Read/write
 
-When in Position mode, advance the commanded position at the given
+When in Position mode, advance the desired position at the given
 velocity in Hz.
 
 As a special case, if the 0x020 position is unset, and 0x023 stop
@@ -382,6 +383,9 @@ Each optional element consists of a prefix character followed by a value.  Permi
 - `f` - feedforward torque in Nm
 - `t` - timeout: If another command is not received in this many
   seconds, enter the timeout mode.
+
+The position, velocity, maximum torque, and all optional fields have
+the same semantics as for the register protocol documented above.
 
 ### `d tmt` ###
 

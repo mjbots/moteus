@@ -60,6 +60,41 @@ sent internally by tview and their responses, and provides an
 interactive console to interact with the device using the diagnostic
 protocol.
 
+# How position mode works #
+
+The primary control mode for the moteus controller is an integrated
+position/velocity controller.  The semantics of the control command
+are somewhat unorthodox, so as to be easily amenable to idempotent
+commands sent from a higher level controller.  Each command looks
+like:
+
+ * Position: The desired position *right now* in revolutions
+ * Velocity: The rate at which the desired position changes in
+   revolutions / s
+ * Maximum torque: Never use more than this amount of torque when controlling
+ * Feedforward torque: Give this much extra torque beyond what the
+   normal control loop says
+ * Stop position: If non-special, never move the desired position away
+   from this target.
+ * kp scale: Scale the proportional constant by this factor
+ * kd scale: Scale the derivative constant by this factor
+
+Additionally, the position may be set as a "special value" (NaN for
+floating point and the debug interface, maximal negative for integer
+encodings).  In that case, the position selected is "wherever you are
+right now".
+
+Some limited amount of preprogrammed constant velocity trajectories
+can be emulated using an unset position and the stop position.  In
+that case, the sign of the velocity command is ignored, and is instead
+selected to point towards the stop position.  If that is the only
+command, or that command is repeated indefinitely, it will have the
+same effect of causing the controller to move to the stop position at
+a constant velocity.
+
+A pure velocity mode can be obtained by setting the kp scale to 0 (or
+permanently so by configuring the kp constant to 0).
+
 # Initial Configuration #
 
 There are a few parameters you will likely want to configure early on
