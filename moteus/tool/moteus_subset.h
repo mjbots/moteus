@@ -56,6 +56,9 @@ struct ServoStats {
 
   float velocity = 0.0f;
 
+  uint32_t final_timer = 0;
+  uint32_t total_timer = 0;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(mode));
@@ -68,6 +71,9 @@ struct ServoStats {
     a->Visit(MJ_NVP(q_A));
 
     a->Visit(MJ_NVP(velocity));
+
+    a->Visit(MJ_NVP(final_timer));
+    a->Visit(MJ_NVP(total_timer));
   }
 };
 

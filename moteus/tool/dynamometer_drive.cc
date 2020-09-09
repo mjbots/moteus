@@ -168,7 +168,19 @@ class ServoStatsReader {
   ServoStatsReader(const std::string& schema) : schema_(schema) {}
 
   ServoStats Read(const std::string& data) {
-    return reader_.Read(data);
+    auto result = reader_.Read(data);
+
+    // Here we verify that the final and total timer are always valid.
+    if (result.final_timer == 0 ||
+        result.total_timer == 0 ||
+        result.final_timer > 3000 ||
+        result.total_timer < 4250) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("Invalid timer final={} total={}",
+                      result.final_timer, result.total_timer));
+    }
+
+    return result;
   }
 
  private:
@@ -316,6 +328,16 @@ class Controller {
   }
 
   boost::asio::awaitable<void> Run() {
+    try {
+      co_await DoRun();
+    } catch (mjlib::base::system_error& se) {
+      se.code().Append("When processing " + log_prefix_);
+      throw;
+    }
+    co_return;
+  }
+
+  boost::asio::awaitable<void> DoRun() {
     // Read from the stream, barfing on errors, and logging any binary
     // data that comes our way.
     while (true) {
