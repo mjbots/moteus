@@ -42,6 +42,48 @@ namespace {
 void recurse(int count, base::inplace_function<void(int)> callback) {
   callback(count - 1);
 }
+
+bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
+                  const char* valid_options) {
+  while (tokenizer->remaining().size()) {
+    const auto token = tokenizer->next();
+    // We accept optional arguments, each prefixed by a single
+    // character.
+    if (token.size() < 1) { continue; }
+    const char option = token[0];
+    if (::strchr(valid_options, option) == nullptr) {
+      return false;
+    }
+
+    const float value = std::strtof(&token[1], nullptr);
+    switch (option) {
+      case 'p': {
+        command->kp_scale = value;
+        break;
+      }
+      case 'd': {
+        command->kd_scale = value;
+        break;
+      }
+      case 's': {
+        command->stop_position = value;
+        break;
+      }
+      case 'f': {
+        command->feedforward_Nm = value;
+        break;
+      }
+      case 't': {
+        command->timeout_s = value;
+        break;
+      }
+      default: {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 }
 
 class BoardDebug::Impl {
@@ -334,40 +376,9 @@ class BoardDebug::Impl {
       // We default to no timeout for debug commands.
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      while (tokenizer.remaining().size()) {
-        const auto token = tokenizer.next();
-        // We accept optional arguments, each prefixed by a single
-        // character.
-        if (token.size() < 1) { continue; }
-        const char option = token[0];
-        const float value = std::strtof(&token[1], nullptr);
-
-        switch (option) {
-          case 'p': {
-            command.kp_scale = value;
-            break;
-          }
-          case 'd': {
-            command.kd_scale = value;
-            break;
-          }
-          case 's': {
-            command.stop_position = value;
-            break;
-          }
-          case 'f': {
-            command.feedforward_Nm = value;
-            break;
-          }
-          case 't': {
-            command.timeout_s = value;
-            break;
-          }
-          default: {
-            WriteMessage(response, "unknown option\r\n");
-            return;
-          }
-        }
+      if (!ParseOptions(&command, &tokenizer, "pdsft")) {
+        WriteMessage(response, "unknown option\r\n");
+        return;
       }
 
       command.mode =
@@ -381,6 +392,42 @@ class BoardDebug::Impl {
       command.max_torque_Nm = max_t;
 
       bldc_->Command(command);
+      WriteOk(response);
+      return;
+    }
+
+    if (cmd_text == "within") {
+      const auto min_str = tokenizer.next();
+      const auto max_str = tokenizer.next();
+      const auto max_t_str = tokenizer.next();
+
+      if (min_str.empty() ||
+          max_str.empty() ||
+          max_t_str.empty()) {
+        WriteMessage(response, "missing min/max/t\r\n");
+        return;
+      }
+
+      const float min_pos = std::strtof(min_str.data(), nullptr);
+      const float max_pos = std::strtof(max_str.data(), nullptr);
+      const float max_t = std::strtof(max_t_str.data(), nullptr);
+
+      BldcServo::CommandData command;
+      command.timeout_s = std::numeric_limits<float>::quiet_NaN();
+
+      if (!ParseOptions(&command, &tokenizer, "pdtf")) {
+        WriteMessage(response, "unknown option\r\n");
+        return;
+      }
+
+      command.mode = BldcServo::kStayWithinBounds;
+
+      command.bounds_min = min_pos;
+      command.bounds_max = max_pos;
+      command.max_torque_Nm = max_t;
+
+      bldc_->Command(command);
+
       WriteOk(response);
       return;
     }

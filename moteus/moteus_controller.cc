@@ -218,6 +218,14 @@ enum class Register {
   kPositionFeedforward = 0x033,
   kPositionCommandTorque = 0x034,
 
+  kStayWithinLower = 0x040,
+  kStayWithinUpper = 0x041,
+  kStayWithinFeedforward = 0x042,
+  kStayWithinKpScale = 0x043,
+  kStayWithinKdScale = 0x044,
+  kStayWithinMaxTorque = 0x045,
+  kStayWithinTimeout = 0x046,
+
   kModelNumber = 0x100,
   kFirmwareVersion = 0x101,
   kRegisterMapVersion = 0x102,
@@ -374,7 +382,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.velocity = ReadVelocity(value);
         return 0;
       }
-      case Register::kCommandPositionMaxTorque: {
+      case Register::kCommandPositionMaxTorque:
+      case Register::kStayWithinMaxTorque: {
         command_.max_torque_Nm = ReadTorque(value);
         return 0;
       }
@@ -382,20 +391,32 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.stop_position = ReadPosition(value);
         return 0;
       }
-      case Register::kCommandTimeout: {
+      case Register::kCommandTimeout:
+      case Register::kStayWithinTimeout: {
         command_.timeout_s = ReadTime(value);
         return 0;
       }
-      case Register::kCommandFeedforwardTorque: {
+      case Register::kCommandFeedforwardTorque:
+      case Register::kStayWithinFeedforward: {
         command_.feedforward_Nm = ReadTorque(value);
         return 0;
       }
-      case Register::kCommandKpScale: {
+      case Register::kCommandKpScale:
+      case Register::kStayWithinKpScale: {
         command_.kp_scale = ReadPwm(value);
         return 0;
       }
-      case Register::kCommandKdScale: {
+      case Register::kCommandKdScale:
+      case Register::kStayWithinKdScale: {
         command_.kd_scale = ReadPwm(value);
+        return 0;
+      }
+      case Register::kStayWithinLower: {
+        command_.bounds_min = ReadPosition(value);
+        return 0;
+      }
+      case Register::kStayWithinUpper: {
+        command_.bounds_max = ReadPosition(value);
         return 0;
       }
 
@@ -516,22 +537,27 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kCommandVelocity: {
         return ScaleVelocity(command_.velocity, type);
       }
-      case Register::kCommandPositionMaxTorque: {
+      case Register::kCommandPositionMaxTorque:
+      case Register::kStayWithinMaxTorque: {
         return ScaleTorque(command_.max_torque_Nm, type);
       }
       case Register::kCommandStopPosition: {
         return ScalePosition(command_.stop_position, type);
       }
-      case Register::kCommandTimeout: {
+      case Register::kCommandTimeout:
+      case Register::kStayWithinTimeout: {
         return ScaleTime(command_.timeout_s, type);
       }
-      case Register::kCommandFeedforwardTorque: {
+      case Register::kCommandFeedforwardTorque:
+      case Register::kStayWithinFeedforward: {
         return ScaleTorque(command_.feedforward_Nm, type);
       }
-      case Register::kCommandKpScale: {
+      case Register::kCommandKpScale:
+      case Register::kStayWithinKpScale: {
         return ScalePwm(command_.kp_scale, type);
       }
-      case Register::kCommandKdScale: {
+      case Register::kCommandKdScale:
+      case Register::kStayWithinKdScale: {
         return ScalePwm(command_.kd_scale, type);
       }
 
@@ -550,6 +576,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kPositionCommandTorque: {
         return ScaleTorque(bldc_.control().torque_Nm, type);
       }
+
+      case Register::kStayWithinLower: {
+        return ScalePosition(command_.bounds_min, type);
+      }
+      case Register::kStayWithinUpper: {
+        return ScalePosition(command_.bounds_max, type);
+      }
+
       case Register::kModelNumber: {
         if (type != 2) { break; }
 

@@ -73,6 +73,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_position_wraparound(self):
         dyno('--validate_position_wraparound', '1')
 
+    def test_validate_stay_within(self):
+        dyno('--validate_stay_within', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):

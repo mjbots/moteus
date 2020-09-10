@@ -55,6 +55,8 @@ namespace tool {
 namespace {
 
 constexpr int kDebugTunnel = 1;
+constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
+constexpr double kNumTareSamples = 4;
 
 struct Options {
   int fixture_id = 32;
@@ -82,6 +84,7 @@ struct Options {
   bool validate_position_pid = false;
   bool validate_position_lowspeed = false;
   bool validate_position_wraparound = false;
+  bool validate_stay_within = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -105,6 +108,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_position_pid));
     a->Visit(MJ_NVP(validate_position_lowspeed));
     a->Visit(MJ_NVP(validate_position_wraparound));
+    a->Visit(MJ_NVP(validate_stay_within));
   }
 };
 
@@ -558,6 +562,8 @@ class Application {
       co_await ValidatePositionLowspeed();
     } else if (options_.validate_position_wraparound) {
       co_await ValidatePositionWraparound();
+    } else if (options_.validate_stay_within) {
+      co_await ValidateStayWithin();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -597,7 +603,6 @@ class Application {
 
     // Then start commanding the different torques on the dut servo,
     // each for a bit more than one revolution.
-    constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
     for (double test_torque : {kNaN, 0.0, 0.05, -0.05, 0.1, -0.1, 0.2, -0.2}) {
       fmt::print("\nTesting torque: {}\n", test_torque);
 
@@ -1396,6 +1401,104 @@ class Application {
     co_return;
   }
 
+  boost::asio::awaitable<void> ValidateStayWithin() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    Controller::PidConstants pid;
+    pid.kp = 2;
+    co_await dut_->ConfigurePid(pid);
+    co_await CommandFixtureRigid();
+    constexpr double kSpeed = 2.0;
+
+    for (const double feedforward : {0.0, -0.1, 0.1}) {
+      for (const double max_torque : {0.35, 0.15}) {
+        for (const double bounds_low : {kNaN, -0.5, -1.5}) {
+          for (const double bounds_high : { kNaN, 0.5, 1.5}) {
+            fmt::print("Testing bounds {}-{} max_torque={} feedforward={}\n",
+                       bounds_low, bounds_high, max_torque, feedforward);
+
+            co_await dut_->Command("d index 0");
+            co_await fixture_->Command("d index 0");
+
+            co_await dut_->Command(
+                fmt::format("d within {} {} {} f{}",
+                            bounds_low, bounds_high, max_torque, feedforward));
+
+            co_await fixture_->Command(
+                fmt::format("d pos nan {} 0.25",
+                            -kSpeed * options_.transducer_scale));
+            co_await Sleep(3.0 / kSpeed);
+            const double low_position =
+                options_.transducer_scale *
+                fixture_->servo_stats().unwrapped_position;
+            const double low_torque = current_torque_Nm_;
+
+            co_await fixture_->Command(
+                fmt::format("d pos nan {} 0.25", kSpeed * options_.transducer_scale));
+            co_await Sleep(6.0 / kSpeed);
+            const double high_position =
+                options_.transducer_scale *
+                fixture_->servo_stats().unwrapped_position;
+            const double high_torque = current_torque_Nm_;
+
+
+            co_await fixture_->Command("d stop");
+            co_await dut_->Command("d stop");
+
+            auto evaluate = [max_torque, feedforward](
+                auto bounds, auto position, auto torque, auto name) {
+              if (std::isnan(bounds) || max_torque < 0.2) {
+                // We should not have stopped at any lower bound and our
+                // torque should have been similarly low.
+                if (std::isnan(bounds)) {
+                  if (std::abs(torque - feedforward) > 0.07) {
+                    throw mjlib::base::system_error::einval(
+                        fmt::format("Unexpected {} torque present {} != {}",
+                                    name, torque, feedforward));
+                  }
+                } else {
+                  if (std::abs(std::abs(torque) - max_torque) > 0.08) {
+                    throw mjlib::base::system_error::einval(
+                        fmt::format(
+                            "Should have pushed through bounds, torque |{}| != {}",
+                            torque, max_torque));
+                  }
+                }
+                if (std::abs(position) < 1.8) {
+                  throw mjlib::base::system_error::einval(
+                      fmt::format(
+                          "{} bound unset, yet position didn't go far: |{}| < 1.8",
+                          name, position));
+                }
+              } else {
+                if (std::abs(torque) < 0.12) {
+                  throw mjlib::base::system_error::einval(
+                      fmt::format("Insufficient {} torque: |{}| < 0.10",
+                                  name, torque));
+                }
+                if (std::abs(position - bounds) > 0.20) {
+                  throw mjlib::base::system_error::einval(
+                      fmt::format("{} bounds not constrained {} != {}",
+                                  name, position, bounds));
+                }
+              }
+            };
+
+            evaluate(bounds_low, low_position, low_torque, "low");
+            evaluate(bounds_high, high_position, high_torque, "high");
+
+            co_await Sleep(1.0);
+          }
+        }
+      }
+    }
+
+    fmt::print("SUCCESS\n");
+
+    co_return;
+  }
+
   boost::asio::awaitable<void> Sleep(double seconds) {
     boost::asio::deadline_timer timer(executor_);
     timer.expires_from_now(mjlib::base::ConvertSecondsToDuration(seconds));
@@ -1437,12 +1540,12 @@ class Application {
         std::bind(&Application::ReadTorque, this),
         ExceptionRethrower);
 
-    // Then the current sense.
+    // TODO: Then the current sense.
 
     // Give things a little bit to wait.
-    boost::asio::deadline_timer timer(executor_);
-    timer.expires_from_now(boost::posix_time::milliseconds(500));
-    co_await timer.async_wait(boost::asio::use_awaitable);
+    while (torque_tare_count_ < kNumTareSamples) {
+      co_await Sleep(0.5);
+    }
 
     fmt::print("Initialization complete\n");
 
@@ -1481,7 +1584,6 @@ class Application {
       data.temperature_C = std::stod(fields.at(3));
 
       // We skip the first N samples to tare on startup.
-      constexpr double kNumTareSamples = 4;
       if (torque_tare_count_ < kNumTareSamples) {
         torque_tare_total_ += data.torque_Nm;
         torque_tare_count_++;
@@ -1490,7 +1592,7 @@ class Application {
         }
       }
     } catch (std::invalid_argument& e) {
-      fmt::print("Ignoring torque data: '{}': {}", line, e.what());
+      fmt::print("Ignoring torque data: '{}': {}\n", line, e.what());
       // Ignore.
       return;
     }

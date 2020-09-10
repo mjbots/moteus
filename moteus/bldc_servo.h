@@ -279,6 +279,11 @@ class BldcServo {
     // This is just like kPositionTimeout, but is not latching.
     kZeroVelocity = 12,
 
+    // This applies the PID controller only to stay within a
+    // particular position region, and applies 0 torque when within
+    // that region.
+    kStayWithinBounds = 13,
+
     kNumModes,
   };
 
@@ -502,6 +507,10 @@ class BldcServo {
 
     float timeout_s = 0.0f;
 
+    // For kStayWithinBounds
+    float bounds_min = 0.0f;
+    float bounds_max = 0.0f;
+
     // If set, then force the position to be the given value.
     std::optional<float> set_position;
 
@@ -581,6 +590,7 @@ struct IsEnum<moteus::BldcServo::Mode> {
         { M::kPosition, "position" },
         { M::kPositionTimeout, "pos_timeout" },
         { M::kZeroVelocity, "zero_vel" },
+        { M::kStayWithinBounds, "within" },
       }};
   }
 };

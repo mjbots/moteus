@@ -153,6 +153,7 @@ to write.
 - 10 => position
 - 11 => timeout
 - 12 => zero velocity
+- 13 => stay within
 
 #### 0x001 - Position ####
 
@@ -360,6 +361,47 @@ Mode: Read
 This reports the total commanded torque from the position mode
 controller.
 
+### 0x040 - Stay within lower bound ###
+
+Mode: Read/write
+
+When in Stay Within mode, this controls the minimum allowable
+position.  The maximal negative integer or NaN for float represents,
+"there is no lower bound".  When special or the position is above this
+bound (and also respecting the optional upper bound), only a
+feedforward torque is applied.  When outside this bound, the PID
+controller is used to force the position back to the bound.
+
+### 0x041 - Stay within upper bound ###
+
+Mode: Read/write
+
+When in Stay Within mode, this controls the maximum allowable
+position.  The maximal negative integer, or NaN for float represents,
+"there is no upper bound". When special or the position is below this
+bound (and also respecting the optional lower bound), only a
+feedforward torque is applied.  When outside this bound, the PID
+controller is used to force the position back to the bound.
+
+### 0x042 - Feedforward torque ###
+
+A shadow of the 0x022 register.
+
+### 0x043 - Kp scale ###
+
+A shadow of the 0x023 register.
+
+### 0x044 - Kd scale ###
+
+A shadow of the 0x024 register.
+
+### 0x045 - Maximum torque ###
+
+A shadow of the 0x025 register.
+
+### 0x046 - Watchdog timeout ###
+
+A shadow of the 0x027 register.
 
 ### 0x100 - Model Number ###
 
@@ -541,6 +583,21 @@ d zero <pos> <vel> <max_torque> [options...]
 
 Available options are identical to `d pos`.  `pos` and `vel` are
 ignored.
+
+### `d within` ###
+
+Enter the "stay within" state.  When the position is contained within
+the given bounds, only the feedforward torque is applied.  Otherwise,
+the position mode controller is used to hold the position at the
+violated boundary.
+
+```
+d within <lowbound> <highbound> <max_torque> [options...]
+```
+
+The fields have the same semantics as for the register protocol
+documented above.  The options are the same as for `d pos`, with the
+exception of stop position which is not supported.
 
 ### `d index` ###
 
