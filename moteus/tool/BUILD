@@ -85,6 +85,7 @@ cc_test(
         ":moteus_tool",
         ":dynamometer_drive",
         ":dyno_static_torque_ripple",
+        ":firmware_validate",
     ],
     size = "small",
 )
@@ -127,5 +128,17 @@ py_binary(
     srcs = ["dyno_static_torque_ripple.py"],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/telemetry:py_file_reader",
+    ],
+)
+
+py_binary(
+    name = "firmware_validate",
+    srcs = ["firmware_validate.py"],
+    deps = [
+        "@bazel_tools//tools/python/runfiles",
+    ],
+    data = [
+        ":moteus_tool",
+        ":dynamometer_drive",
     ],
 )

@@ -694,19 +694,19 @@ class Application {
     std::vector<std::string> errors;
 
     for (const auto& r : ramp_results) {
-      if (r.mode != ServoStats::kPwm) {
+      if (r.mode != ServoStats::kVoltageFoc) {
         errors.push_back(
             fmt::format("Motor not in PWM mode at voltage: {} {}!={}",
-                        r.voltage, r.mode, ServoStats::kPwm));
+                        r.voltage, r.mode, ServoStats::kVoltageFoc));
         break;
       }
     }
 
     for (const auto& r : slew_results) {
-      if (r.mode != ServoStats::kPwm) {
+      if (r.mode != ServoStats::kVoltageFoc) {
         errors.push_back(
             fmt::format("Motor not in PWM mode at phase: {} {}!={}",
-                        r.phase, r.mode, ServoStats::kPwm));
+                        r.phase, r.mode, ServoStats::kVoltageFoc));
         break;
       }
     }
