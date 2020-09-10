@@ -140,5 +140,6 @@ py_binary(
     data = [
         ":moteus_tool",
         ":dynamometer_drive",
+        ":dyno_static_torque_ripple",
     ],
 )

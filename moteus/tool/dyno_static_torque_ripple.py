@@ -69,6 +69,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ripple', '-r', action='store_true')
     parser.add_argument('--sign', type=float, default=1.0)
+    parser.add_argument('--skip-plot', action='store_true')
     parser.add_argument('filename', type=str, nargs=1)
     args = parser.parse_args()
 
@@ -129,13 +130,15 @@ def main():
             }
     tests = [find_test(x) for x in tested_torques]
     tests.sort(key=lambda x: abs(x["torque"]) if type(x["torque"]) == float else -1)
-    print("tests: ", tests)
-
-    ax = plt.subplot(111)
+    print("** TESTS")
+    print(tests)
+    print()
 
     analysis = []
 
-    cmap = plt.get_cmap("tab10")
+    if not args.skip_plot:
+        ax = plt.subplot(111)
+        cmap = plt.get_cmap("tab10")
 
     for i, test in enumerate(tests):
         si = bisect_left(data["torque"], test["begin"])
@@ -153,40 +156,50 @@ def main():
             for x in timed_torque]
         to_plot.sort()
 
-        color = cmap(i)
-        color = (color[0], color[1], color[2], 1.0 - float(i) / len(tests))
-        print("color: ", color)
         torque_name = (f'{test["torque"]:.2f} Nm'
-                       if type(test["torque"]) == float else "stop")
-        ax.plot([x[0] for x in to_plot], [(x[1] - compare_torque) for x in to_plot],
-                label=torque_name,
-                color=color)
+                       if type(test["torque"]) == float else "stop Nm")
+        if not args.skip_plot:
+            color = cmap(i)
+            color = (color[0], color[1], color[2], 1.0 - float(i) / len(tests))
+            ax.plot([x[0] for x in to_plot],
+                    [(x[1] - compare_torque) for x in to_plot],
+                    label=torque_name,
+                    color=color)
 
         torques = [x[1] for x in to_plot]
         std = numpy.std(torques)
         pkpk = max(torques) - min(torques)
         analysis.append(f'{torque_name} std={std:.3f} pk-pk={pkpk:.3f}')
 
-    ax.grid()
-    ax.legend()
-    ax.set_title("Torque {} vs Encoder Position".format(
-        "Error" if not args.ripple else "Ripple"))
-    ax.set_ylabel("Transducer measured N*m")
-    ax.set_xlabel("Magnetic Encoder Position")
+    if not args.skip_plot:
+        ax.grid()
+        ax.legend()
+        ax.set_title("Torque {} vs Encoder Position".format(
+            "Error" if not args.ripple else "Ripple"))
+        ax.set_ylabel("Transducer measured N*m")
+        ax.set_xlabel("Magnetic Encoder Position")
 
     git_data = data["dut_git"][0].data
     git_hash = ''.join(['{:02x}'.format(x) for x in git_data.hash])
     test_timestr = datetime.datetime.utcfromtimestamp(
         data["dut_git"][0].timestamp).isoformat()
     test_info = f'git: {git_hash} dirty: {git_data.dirty} time: {test_timestr}'
-    ax.text(0.95, 0.01, test_info,
-            horizontalalignment='right', transform=ax.transAxes)
-    ax.text(0.95, 0.04, '\n'.join(analysis),
-            horizontalalignment='right',
-            verticalalignment='bottom',
-            transform=ax.transAxes)
 
-    plt.show()
+    print("** ANALYSIS")
+    print('\n'.join(analysis))
+    print()
+    print("** GIT")
+    print(test_info)
+
+    if not args.skip_plot:
+        ax.text(0.95, 0.01, test_info,
+                horizontalalignment='right', transform=ax.transAxes)
+        ax.text(0.95, 0.04, '\n'.join(analysis),
+                horizontalalignment='right',
+                verticalalignment='bottom',
+                transform=ax.transAxes)
+
+        plt.show()
 
 
 if __name__ == '__main__':

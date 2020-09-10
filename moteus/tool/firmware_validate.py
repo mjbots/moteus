@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import datetime
+import re
 import subprocess
 import tempfile
 import unittest
@@ -26,20 +27,29 @@ MOTEUS_TOOL = RUNFILES.Rlocation(
     "com_github_mjbots_moteus/moteus/tool/moteus_tool")
 DYNAMOMETER_DRIVE = RUNFILES.Rlocation(
     "com_github_mjbots_moteus/moteus/tool/dynamometer_drive")
+TORQUE_RIPPLE = RUNFILES.Rlocation(
+    "com_github_mjbots_moteus/moteus/tool/dyno_static_torque_ripple")
 
-def dyno(*args):
+def dyno(*args, keep_log=False):
     tmp = tempfile.NamedTemporaryFile(
         prefix='{}-moteus_firmware_validate-'.format(
             datetime.datetime.now().isoformat()),
         delete = False)
 
-    subprocess.run(args = [DYNAMOMETER_DRIVE,
-                           '--torque_transducer', '/dev/ttyUSB0',
-                           '--log', tmp.name] + list(args),
-                   check = True)
+    try:
+        subprocess.run(args = [DYNAMOMETER_DRIVE,
+                               '--torque_transducer', '/dev/ttyUSB0',
+                               '--log', tmp.name] + list(args),
+                       check = True)
+        if not keep_log:
+            os.remove(tmp.name)
+            return None
+        return tmp.name
+    except:
+        print("Failing log: {}".format(tmp.name))
 
 
-class TestDyno(unittest.TestCase):
+class TestDynoFast(unittest.TestCase):
     def test_validate_pwm_mode(self):
         dyno('--validate_pwm_mode', '1')
 
@@ -54,6 +64,25 @@ class TestDyno(unittest.TestCase):
 
     def test_validate_position_pid(self):
         dyno('--validate_position_pid', '1')
+
+
+class TestDynoSlow(unittest.TestCase):
+    def test_torque_ripple(self):
+        log_file = dyno('--static_torque_ripple', '1', keep_log=True)
+        result = subprocess.check_output(
+            '{} --skip-plot --ripple {}'.format(TORQUE_RIPPLE, log_file),
+            shell=True)
+        data = re.search(
+            r'\*\* ANALYSIS\n(.*?)\n\n', result.decode('utf8'),
+            re.DOTALL).group(1).split('\n')
+        print('\n'.join(data))
+        for line in data:
+            fields = line.split(' ')
+            torque_name = fields[0:2]
+            extra = fields[2:]
+            data_dict = dict([x.split('=') for x in extra])
+            self.assertLess(float(data_dict['std']), 0.015)
+            self.assertLess(float(data_dict['pk-pk']), 0.060)
 
 
 if __name__ == '__main__':
