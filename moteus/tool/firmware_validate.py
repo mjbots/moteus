@@ -67,6 +67,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_position_pid(self):
         dyno('--validate_position_pid', '1')
 
+    def test_validate_position_lowspeed(self):
+        dyno('--validate_position_lowspeed', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):

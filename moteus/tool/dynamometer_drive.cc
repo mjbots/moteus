@@ -80,6 +80,7 @@ struct Options {
   bool validate_current_mode = false;
   bool validate_position_basic = false;
   bool validate_position_pid = false;
+  bool validate_position_lowspeed = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -101,6 +102,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_current_mode));
     a->Visit(MJ_NVP(validate_position_basic));
     a->Visit(MJ_NVP(validate_position_pid));
+    a->Visit(MJ_NVP(validate_position_lowspeed));
   }
 };
 
@@ -503,6 +505,8 @@ class Application {
       co_await ValidatePositionPid();
     } else if (options_.validate_position_basic) {
       co_await ValidatePositionBasic();
+    } else if (options_.validate_position_lowspeed) {
+      co_await ValidatePositionLowspeed();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1211,6 +1215,88 @@ class Application {
 
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidatePositionLowspeed() {
+    co_await fixture_->Command("d stop");
+    co_await dut_->Command("d stop");
+
+    // We purposefully use no I term to see how good we are with just
+    // PD.
+    Controller::PidConstants pid;
+    pid.kp = 1.0;
+    pid.kd = 0.05;
+    co_await dut_->ConfigurePid(pid);
+
+    // TODO: Work with start positions other than 0.0, the goal would
+    // be to hit 16.0, and 32700.0.
+    for (const double start_pos : {0.0}) {
+      // We start with a series of low speed maneuvers.  At each, we
+      // verify that movement does take place, and that the velocity
+      // profile as measured at the fixture is sufficiently "smooth".
+      //
+      // TODO: Test 0.001, although right now our performance isn't good
+      // enough to distinguish it from zero velocity.
+      for (const double speed : { 0.5, -0.5, 0.1, -0.1, 0.01, -0.01 }) {
+        fmt::print("Testing speed {} from start {}\n", speed, start_pos);
+
+        co_await dut_->Command(fmt::format("d index {}", start_pos));
+        co_await fixture_->Command("d index 0");
+        co_await dut_->Command(fmt::format("d pos nan {} {}",
+                                           speed, options_.max_torque_Nm));
+
+        struct Result {
+          double position = 0;
+          double velocity = 0;
+        };
+        std::vector<Result> results;
+        constexpr auto kIterationCount = 50;
+        constexpr auto kDelayS = 0.2;
+        constexpr auto kTotalTime = kIterationCount * kDelayS;
+        const double scale = options_.transducer_scale;
+
+        for (int i = 0; i < kIterationCount; i++) {
+          co_await Sleep(kDelayS);
+          results.push_back({
+              scale * fixture_->servo_stats().unwrapped_position,
+                  scale * fixture_->servo_stats().velocity});
+          fmt::print("pos={} vel={}\n",
+                     results.back().position, results.back().velocity);
+        }
+
+        co_await dut_->Command("d stop");
+
+        // Now look to see that the fixture moved the correct amount.
+        const double expected_movement = kTotalTime * speed;
+        const double actual_movement = results.back().position;
+
+        // TODO: Lower this threshold once we get better performance.
+        const double tolerance =
+            (std::abs(speed) > 0.1) ? 0.07 : 0.021;
+        if (std::abs(expected_movement - actual_movement) > tolerance) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("total movement not as expected {} != {}",
+                          actual_movement, expected_movement));
+        }
+
+        for (size_t i = 1; i < results.size(); i++) {
+          const double estimated_velocity =
+              (results[i].position - results[i - 1].position) / kDelayS;
+          // TODO: Lower this threshold.
+          if (std::abs(estimated_velocity - speed) > 0.17) {
+            throw mjlib::base::system_error::einval(
+                fmt::format("estimated speed at index {} too far off {} != {}",
+                            i, estimated_velocity, speed));
+          }
+        }
+
+        co_await Sleep(1.0);
+      }
+    }
+
+    fmt::print("SUCCESS\n");
 
     co_return;
   }
