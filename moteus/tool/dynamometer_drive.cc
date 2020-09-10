@@ -536,6 +536,8 @@ class Application {
   }
 
   boost::asio::awaitable<void> RunStaticTorqueRipple() {
+    // Zero out the integrator.  We don't care about the other gains.
+    co_await dut_->ConfigurePid(Controller::PidConstants());
     co_await CommandFixtureRigid();
 
     // Then start commanding the different torques on the dut servo,
