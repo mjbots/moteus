@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import datetime
+import os
 import re
 import subprocess
 import tempfile
@@ -47,6 +48,7 @@ def dyno(*args, keep_log=False):
         return tmp.name
     except:
         print("Failing log: {}".format(tmp.name))
+        raise
 
 
 class TestDynoFast(unittest.TestCase):
