@@ -145,9 +145,14 @@ to write.
 - 0 => stopped = writeable, clears faults
 - 1 => fault
 - 2,3,4 => preparing to operate
-- 9 => position
-- 10 => timeout
-- 11 => zero velocity
+- 5 => PWM mode
+- 6 => voltage mode
+- 7 => voltage FOC
+- 8 => voltage DQ
+- 9 => current
+- 10 => position
+- 11 => timeout
+- 12 => zero velocity
 
 #### 0x001 - Position ####
 
@@ -203,6 +208,60 @@ The current board temperature, measured in degrees celsius.
 Mode: Read only
 
 A fault code which will be set if the primary mode is 1 (Fault).
+
+### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ###
+
+Mode: Read/write
+
+When in kPwm mode, this controls the raw PWM value for phase A, B, and C.
+
+### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ###
+
+Mode: Read/write
+
+When in kVoltage mode, this controls the voltage applied to phase A,
+B, and C.
+
+
+### 0x018 - Voltage FOC Theta ###
+
+Mode: Read/write
+
+When in kVoltageFoc mode, this controls the desired electrical phase.
+Integral types use the PWM mapping.
+
+### 0x019 - Voltage FOC Voltage ###
+
+Mode: Read/write
+
+When in kVoltageFoc mode, this controls the desired applied phase voltage.
+
+### 0x01a - D Voltage ###
+
+Mode: Read/write
+
+When in kVoltageDq mode, this controls the desired applied D voltage.
+
+### 0x01b - Q Voltage ###
+
+Mode: Read/write
+
+When in kVoltageDq mode, this controls the desired applied Q voltage.
+
+### 0x01c - Commanded Q Phase Current ###
+
+Mode: Read/write
+
+When in kFoc mode, this controls the desired Q phase current.
+
+### 0x01d - Commanded D Phase Current ###
+
+Mode: Read/write
+
+When in kFoc mode, this controls the desired D phase current.  Unless
+you like burning power, with a BLDC motor you will typically want this
+set to 0.
+
 
 #### 0x020 - Position command ####
 
@@ -266,6 +325,80 @@ If this timeout expires before another command is received, the
 controller will enter the Timeout state.  The default is 0.0, which
 means to use the system-wide configured default.  NaN / maximal
 negative means apply no enforced timeout.
+
+### 0x030 - Proportional torque ###
+
+Mode: Read
+
+This reports the torque contribution from the proportional term in the
+PID controller.
+
+### 0x031 - Integral torque ###
+
+Mode: Read
+
+This reports the torque contribution from the integral term in the
+PID controller.
+
+### 0x032 - Derivative torque ###
+
+Mode: Read
+
+This reports the torque contribution from the derivative term in the
+PID controller.
+
+### 0x033 - Feedforward torque ###
+
+Mode: Read
+
+This reports the feedforward contribution in the PID controller.
+
+### 0x034 - Total control torque ###
+
+Mode: Read
+
+This reports the total commanded torque from the position mode
+controller.
+
+
+### 0x100 - Model Number ###
+
+Name: Model Number
+Mode: Read only
+
+This returns a 32 bit model number.
+
+### 0x101 - Firmware Version ###
+
+Mode: Read only
+
+This returns a 32 bit firmware version, encoded bytewise as
+major.minor.micro.  i.e. 0x010304 is version 1.3.4
+
+
+### 0x102 - Register map version ###
+
+Mode: Read only
+
+This returns a number that indicates how to interpret all registers.
+
+
+### 0x110 - Multiplex ID ###
+
+Name: Multiplex ID
+Mode: Configurable
+
+This controls the primary ID used to access the device over the
+multiplex RS485 bus.  It can only be between 1 and 127.  (0 is
+reserved as the broadcast address).
+
+### 0x120 - 0x122 - Serial Number ###
+
+Name: Serial Number
+Mode: Read only
+
+This returns a 96 bit serial number, least significant word first.
+
 
 ### 0x130 - Rezero ###
 
