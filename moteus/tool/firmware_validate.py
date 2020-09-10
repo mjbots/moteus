@@ -43,6 +43,20 @@ class TestDyno(unittest.TestCase):
     def test_validate_pwm_mode(self):
         dyno('--validate_pwm_mode', '1')
 
+    def test_pwm_cycle_overrun(self):
+        dyno('--pwm_cycle_overrun', '1')
+
+    def test_validate_current_mode(self):
+        dyno('--validate_current_mode', '1')
+
+    def test_validate_position_basic(self):
+        dyno('--validate_position_basic', '1')
+
+    def test_validate_position_pid(self):
+        dyno('--validate_position_pid', '1')
+
 
 if __name__ == '__main__':
+    print("Set PS to 24V/5A!")
+
     unittest.main()
