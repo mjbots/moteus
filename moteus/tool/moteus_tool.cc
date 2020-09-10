@@ -320,6 +320,7 @@ struct Options {
 
   bool calibrate = false;
   bool zero_offset = false;
+  bool calibrate_noupdate = false;
   double calibration_power = 0.40;
   double calibration_speed = 1.0;
   std::string calibration_raw;
@@ -725,8 +726,10 @@ class Controller {
     std::cout <<
         fmt::format("Winding resistance: {} ohm\n", winding_resistance);
 
-    co_await Command(fmt::format("conf set motor.resistance_ohm {}",
-                                 winding_resistance));
+    if (!options_.calibrate_noupdate) {
+      co_await Command(fmt::format("conf set motor.resistance_ohm {}",
+                                   winding_resistance));
+    }
 
     co_return winding_resistance;
   }
@@ -741,8 +744,10 @@ class Controller {
     const double original_position_max =
         co_await ReadConfigDouble("servopos.position_max");
 
-    co_await Command("conf set servopos.position_min NaN");
-    co_await Command("conf set servopos.position_max NaN");
+    if (!options_.calibrate_noupdate) {
+      co_await Command("conf set servopos.position_min NaN");
+      co_await Command("conf set servopos.position_max NaN");
+    }
     co_await Command("d index 0");
 
     const std::vector<double> voltages = { 0.0, 0.2, 0.4, 0.6, 0.8 };
@@ -762,8 +767,10 @@ class Controller {
 
     std::cout << fmt::format("v_per_hz (pre-gearbox)={}\n", v_per_hz);
 
-    co_await Command(
-        fmt::format("conf set motor.v_per_hz {}", v_per_hz));
+    if (!options_.calibrate_noupdate) {
+      co_await Command(
+          fmt::format("conf set motor.v_per_hz {}", v_per_hz));
+    }
     co_await Command(
         fmt::format("conf set servopos.position_min {}",
                     original_position_min));
@@ -1208,16 +1215,18 @@ class Runner {
 
     const auto cal_result = Calibrate(lines);
 
-    std::cout << "\nStoring encoder config\n";
-    co_await controller->Command(
-        fmt::format("conf set motor.poles {}", cal_result.poles));
-    co_await controller->Command(
-        fmt::format("conf set motor.invert {}",
-                    cal_result.invert ? 1 : 0));
-    for (size_t i = 0; i < cal_result.offset.size(); i++) {
+    if (!options_.calibrate_noupdate) {
+      std::cout << "\nStoring encoder config\n";
       co_await controller->Command(
-          fmt::format("conf set motor.offset.{} {}",
-                      i, cal_result.offset[i]));
+          fmt::format("conf set motor.poles {}", cal_result.poles));
+      co_await controller->Command(
+          fmt::format("conf set motor.invert {}",
+                      cal_result.invert ? 1 : 0));
+      for (size_t i = 0; i < cal_result.offset.size(); i++) {
+        co_await controller->Command(
+            fmt::format("conf set motor.offset.{} {}",
+                        i, cal_result.offset[i]));
+      }
     }
 
     co_return cal_result;
@@ -1337,6 +1346,8 @@ int moteus_tool_main(boost::asio::io_context& context,
           "do not restore config after flash"),
       clipp::option("calibrate").set(options.calibrate).doc(
           "calibrate the motor, requires full freedom of motion"),
+      clipp::option("calibrate-no-update").set(options.calibrate_noupdate).doc(
+          "do not store calibration results on motor"),
       clipp::option("zero-offset").set(options.zero_offset).doc(
           "set the motor's position offset"),
       clipp::option("calibration_power") &
