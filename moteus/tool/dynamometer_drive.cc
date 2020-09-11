@@ -1008,7 +1008,7 @@ class Application {
       co_await Sleep(2.5);
       const double fixture_position =
           options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
-      if (std::abs(fixture_position - stop_position) > 0.05) {
+      if (std::abs(fixture_position - stop_position) > 0.07) {
         throw mjlib::base::system_error::einval(
             fmt::format("Fixture stop position {} != {}",
                         fixture_position, stop_position));
@@ -1034,7 +1034,7 @@ class Application {
       {
         const double fixture_position =
             options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
-        if (std::abs(fixture_position - (-position_limit)) > 0.05) {
+        if (std::abs(fixture_position - (-position_limit)) > 0.07) {
           throw mjlib::base::system_error::einval(
               fmt::format("Fixture stop position {} != {}",
                           fixture_position, -position_limit));
@@ -1244,10 +1244,10 @@ class Application {
         const double expected_torque = kDelayS * pid.ki * position;
 
         verify_position_mode();
-        if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.16) {
           throw mjlib::base::system_error::einval(
               fmt::format("ki torque not as expected {} != {} (within {})",
-                          current_torque_Nm_, expected_torque, 0.15));
+                          current_torque_Nm_, expected_torque, 0.16));
         }
 
         // Stop the DUT to clear out the I term.
