@@ -687,9 +687,8 @@ class BldcServo::Impl {
   }
 
   void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
-    // Wait for conversion to complete.
-    WaitForAdc(ADC1);
-    WaitForAdc(ADC2);
+    // Wait for conversion to complete.  We started ADC3 last, so we
+    // just wait for it.
     WaitForAdc(ADC3);
 
     // We would like to set this debug pin as soon as possible.
@@ -736,7 +735,7 @@ class BldcServo::Impl {
     status_.adc_cur1_raw = ADC3->DR;
     status_.adc_cur2_raw = ADC1->DR;
     status_.adc_cur3_raw = ADC2->DR;
-    WaitForAdc(ADC4);
+    // We started ADC4 before 5, so we can just wait for it.
     WaitForAdc(ADC5);
 
     if (hw_rev_ <= 4) {
@@ -917,10 +916,6 @@ class BldcServo::Impl {
     status_.torque_Nm = torque_on() ? (
         current_to_torque(status_.q_A) /
         motor_.unwrapped_position_scale) : 0.0f;
-
-    DAC->DHR12R1 = 1024 + std::max<int>(
-        0, std::min<int>(
-            2047, static_cast<int>(1024.0f * status_.d_A / 30.0f)));
   }
 
   bool torque_on() const {
