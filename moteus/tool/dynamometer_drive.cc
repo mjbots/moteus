@@ -81,6 +81,7 @@ struct Options {
   bool validate_position_basic = false;
   bool validate_position_pid = false;
   bool validate_position_lowspeed = false;
+  bool validate_position_wraparound = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -103,6 +104,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_position_basic));
     a->Visit(MJ_NVP(validate_position_pid));
     a->Visit(MJ_NVP(validate_position_lowspeed));
+    a->Visit(MJ_NVP(validate_position_wraparound));
   }
 };
 
@@ -554,6 +556,8 @@ class Application {
       co_await ValidatePositionBasic();
     } else if (options_.validate_position_lowspeed) {
       co_await ValidatePositionLowspeed();
+    } else if (options_.validate_position_wraparound) {
+      co_await ValidatePositionWraparound();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1277,9 +1281,7 @@ class Application {
     pid.kd = 0.05;
     co_await dut_->ConfigurePid(pid);
 
-    // TODO: Work with start positions other than 0.0, the goal would
-    // be to hit 16.0, and 32700.0.
-    for (const double start_pos : {0.0}) {
+    for (const double start_pos : {0.0, 16.0, 32700.0}) {
       // We start with a series of low speed maneuvers.  At each, we
       // verify that movement does take place, and that the velocity
       // profile as measured at the fixture is sufficiently "smooth".
@@ -1342,6 +1344,52 @@ class Application {
         co_await Sleep(1.0);
       }
     }
+
+    fmt::print("SUCCESS\n");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidatePositionWraparound() {
+    fmt::print("Testing for wraparound\n");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+
+    co_await dut_->Command("d stop");
+
+    Controller::PidConstants pid;
+    pid.kd = 0.05;
+    co_await dut_->ConfigurePid(pid);
+
+    co_await dut_->Command("d index 32760");
+    co_await dut_->Command("d pos nan 4.0 0.1");
+
+    co_await Sleep(0.5);
+
+    // This should wrap around in 2 s.
+    for (int tenth_seconds = 0; tenth_seconds < 40; tenth_seconds++) {
+      co_await Sleep(0.1);
+
+      const double velocity =
+          options_.transducer_scale * fixture_->servo_stats().velocity;
+      if (std::abs(velocity - 4.0) > 0.3) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("velocity incorrect {} != {}",
+                        velocity, 4.0));
+      }
+    }
+
+    co_await dut_->Command("d stop");
+    co_await Sleep(1.0);
+
+    // We should still be spinning at 4.0 rev/s.
+    const double position = dut_->servo_stats().unwrapped_position;
+    if (position > -30000.0) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("position did not wrap {}", position));
+    }
+
+    co_await dut_->Command("d stop");
 
     fmt::print("SUCCESS\n");
 

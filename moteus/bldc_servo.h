@@ -323,7 +323,8 @@ class BldcServo {
     PID::State pid_q;
     PID::State pid_position;
 
-    float control_position = std::numeric_limits<float>::quiet_NaN();
+    // This is scaled to be 65536 larger than unwrapped_position_raw.
+    std::optional<int64_t> control_position;
     float position_to_set = 0.0;
     float timeout_s = 0.0;
     bool rezeroed = false;

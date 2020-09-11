@@ -1114,7 +1114,7 @@ class BldcServo::Impl {
 
     if (!position_pid_active || force_clear == kAlwaysClear) {
       status_.pid_position.Clear();
-      status_.control_position = std::numeric_limits<float>::quiet_NaN();
+      status_.control_position = {};
     }
   }
 
@@ -1430,28 +1430,71 @@ class BldcServo::Impl {
       float max_torque_Nm,
       float feedforward_Nm,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
+    // Note that status_.control_position is measured in terms of 1 /
+    // 65536th of unwrapped_position_raw.  This is so that velocities
+    // do not become so small as to result in no change whatsoever at
+    // the control rate.
+    //
+    // We go to some lengths in our conversions to and from
+    // control_position so as to avoid converting a float directly to
+    // an int64, which calls out to a system library that is pretty
+    // slow.
+
     if (!std::isnan(data->position)) {
-      status_.control_position = data->position;
+      status_.control_position =
+          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(
+              static_cast<int32_t>(motor_scale16_ * data->position));
       data->position = std::numeric_limits<float>::quiet_NaN();
-    } else if (std::isnan(status_.control_position)) {
-      status_.control_position = status_.unwrapped_position;
+    } else if (!status_.control_position) {
+      status_.control_position =
+          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(status_.unwrapped_position_raw);
     }
 
     auto velocity_command = velocity;
 
-    const auto old_position = status_.control_position;
+    const auto old_position = *status_.control_position;
+    // This limits our usable velocity to 20kHz modulo the position
+    // scale at a 40kHz switching frequency.  1.2 million RPM should
+    // be enough for anybody?
     status_.control_position =
-        Limit(status_.control_position + velocity_command / kRateHz,
-              position_config_.position_min,
-              position_config_.position_max);
+        *status_.control_position +
+        static_cast<int32_t>(
+            (65536.0f * motor_scale16_ * velocity_command) /
+            kRateHz);
+
+    const auto saturate = [&](auto value, auto compare) MOTEUS_CCM_ATTRIBUTE {
+      if (std::isnan(value)) { return; }
+      const auto limit_value = (
+          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(
+              static_cast<int32_t>(motor_scale16_ * value)));
+      if (compare(*status_.control_position, limit_value)) {
+        status_.control_position = limit_value;
+      }
+    };
+    saturate(position_config_.position_min, [](auto l, auto r) { return l < r; });
+    saturate(position_config_.position_max, [](auto l, auto r) { return l > r; });
+
     if (!std::isnan(data->stop_position)) {
-      if ((status_.control_position -
-           data->stop_position) * velocity_command > 0.0f) {
+      const int64_t stop_position_raw =
+          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(
+              static_cast<int32_t>(motor_scale16_ * data->stop_position));
+
+      auto sign = [](auto value) MOTEUS_CCM_ATTRIBUTE -> float {
+        if (value < 0) { return -1.0f; }
+        if (value > 0) { return 1.0f; }
+        return 0.0f;
+      };
+      if (sign(*status_.control_position -
+               stop_position_raw) * velocity_command > 0.0f) {
         // We are moving away from the stop position.  Force it to be there.
-        status_.control_position = data->stop_position;
+        status_.control_position = stop_position_raw;
       }
     }
-    if (status_.control_position == old_position) {
+    if (*status_.control_position == old_position) {
       // We have hit a limit.  Assume a velocity of 0.
       velocity_command = 0.0f;
     }
@@ -1460,12 +1503,19 @@ class BldcServo::Impl {
         status_.velocity, -config_.velocity_threshold,
         config_.velocity_threshold);
 
+    // We always control relative to the control position of 0, so
+    // that we get equal performance across the entire viable integral
+    // position range.
+    const int32_t scaled_control =
+        static_cast<int32_t>(*status_.control_position / 65536);
     const float unlimited_torque_Nm =
-        pid_position_.Apply(status_.unwrapped_position,
-                            status_.control_position,
-                            measured_velocity, velocity_command,
-                            kRateHz,
-                            pid_options) +
+        pid_position_.Apply(
+            (status_.unwrapped_position_raw - scaled_control) /
+            65536.0f * motor_.unwrapped_position_scale,
+            0.0,
+            measured_velocity, velocity_command,
+            kRateHz,
+            pid_options) +
         feedforward_Nm;
 
     const float limited_torque_Nm =
