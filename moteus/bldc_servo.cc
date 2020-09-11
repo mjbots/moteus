@@ -378,6 +378,8 @@ class BldcServo::Impl {
 
     velocity_filter_ = {std::min<size_t>(
           kMaxVelocityFilter, config_.velocity_filter_length)};
+
+    motor_scale16_ = 65536.0f / motor_.unwrapped_position_scale;
   }
 
   void PollMillisecond() {
@@ -811,7 +813,7 @@ class BldcServo::Impl {
               static_cast<int32_t>(status_.position) +
               motor_.position_offset * (motor_.invert ? -1 : 1));
       const float error = status_.position_to_set -
-          zero_position * motor_.unwrapped_position_scale/ 65536.0f;;
+                          zero_position / motor_scale16_;
       const float integral_offsets =
           std::round(error / motor_.unwrapped_position_scale);
       status_.unwrapped_position_raw =
@@ -827,16 +829,14 @@ class BldcServo::Impl {
       // losslessly.  Then, the average is conducted in the floating
       // point domain, so as to not suffer from rounding error.
       velocity_filter_.Add(delta_position);
-      constexpr float velocity_scale = 1.0f / 65536.0f;
       status_.velocity =
-          static_cast<float>(velocity_filter_.total()) *
-          motor_.unwrapped_position_scale * velocity_scale * kRateHz /
+          ((static_cast<float>(velocity_filter_.total()) / motor_scale16_) *
+           kRateHz) /
           static_cast<float>(velocity_filter_.size());
     }
 
     status_.unwrapped_position =
-        status_.unwrapped_position_raw * motor_.unwrapped_position_scale *
-        (1.0f / 65536.0f);
+        status_.unwrapped_position_raw / motor_scale16_;
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -1347,16 +1347,21 @@ class BldcServo::Impl {
       return in;
     };
 
+    const float derate_fraction = (
+        status_.fet_temp_C - config_.derate_temperature) / (
+            config_.fault_temperature - config_.derate_temperature);
+
+    const float derate_current_A =
+        std::max<float>(
+            0.0f,
+            derate_fraction *
+            (config_.derate_current_A - config_.max_current_A) +
+            config_.max_current_A);
+
+    const float temp_limit_A = std::min<float>(
+        config_.max_current_A, derate_current_A);
+
     auto limit_either_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
-      const float derate_fraction = (
-          status_.fet_temp_C - config_.derate_temperature) / (
-              config_.fault_temperature - config_.derate_temperature);
-      const float temp_limit_A = std::min<float>(
-          config_.max_current_A,
-          std::max<float>(
-              0.0f,
-              derate_fraction * (config_.derate_current_A -
-                                 config_.max_current_A) + config_.max_current_A));
       return Limit(in, -temp_limit_A, temp_limit_A);
     };
 
@@ -1596,6 +1601,8 @@ class BldcServo::Impl {
 
   float torque_constant_ = 0.01f;
   int32_t position_constant_ = 0;
+  // 65536.0f / unwrapped_position_scale_
+  float motor_scale16_ = 0;
   float adc_scale_ = 0.0f;
 
   uint32_t pwm_counts_ = 0;
