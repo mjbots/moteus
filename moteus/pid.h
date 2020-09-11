@@ -32,7 +32,6 @@ class PID {
     float kd = 0.0f;
     float iratelimit = -1.0f;
     float ilimit = 0.0f;
-    float kpkd_limit = -1.0f;
     float max_desired_rate = 0.0f;  // 0 is unlimited
     int8_t sign = 1;
 
@@ -43,7 +42,6 @@ class PID {
       a->Visit(MJ_NVP(kd));
       a->Visit(MJ_NVP(iratelimit));
       a->Visit(MJ_NVP(ilimit));
-      a->Visit(MJ_NVP(kpkd_limit));
       a->Visit(MJ_NVP(max_desired_rate));
       a->Visit(MJ_NVP(sign));
     }
@@ -154,14 +152,6 @@ class PID {
     state_->p = apply_options.kp_scale * config_->kp * state_->error;
     state_->d = apply_options.kd_scale * config_->kd * state_->error_rate;
     state_->pd = state_->p + state_->d;
-
-    if (config_->kpkd_limit >= 0.0f) {
-      if (state_->pd > config_->kpkd_limit) {
-        state_->pd = config_->kpkd_limit;
-      } else if (state_->pd < -config_->kpkd_limit) {
-        state_->pd = -config_->kpkd_limit;
-      }
-    }
 
     state_->command = config_->sign * (state_->pd + state_->integral);
 
