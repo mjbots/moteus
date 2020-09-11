@@ -232,9 +232,7 @@ class Controller {
       void(boost::system::error_code)>(operation, boost::asio::use_awaitable);
   }
 
-  boost::asio::awaitable<void> Start() {
-    co_await WriteMessage("tel stop\nd stop\n");
-
+  boost::asio::awaitable<void> Flush() {
     char buf[4096] = {};
 
     // Discard anything we receive for some amount of time.
@@ -252,6 +250,14 @@ class Controller {
         },
         mjlib::io::Now(stream_->get_executor().context()) +
         boost::posix_time::milliseconds(300));
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> Start() {
+    co_await WriteMessage("tel stop\nd stop\n");
+
+    co_await Flush();
 
     boost::asio::co_spawn(
         stream_->get_executor(),
@@ -440,12 +446,27 @@ class Application {
         options_(options),
         file_writer_() {}
 
+  void ErrorStop() {
+    client_selector_->AsyncStart(
+        std::bind(&Application::HandleStopClient, this, std::placeholders::_1));
+  }
+
   void Start() {
     if (!options_.log.empty()) {
       file_writer_.Open(options_.log);
     }
     client_selector_->AsyncStart(
         std::bind(&Application::HandleClient, this, std::placeholders::_1));
+  }
+
+  void HandleStopClient(const base::error_code& ec) {
+    fmt::print("HandleStopClient\n");
+    base::FailIf(ec);
+    client_ = client_selector_->selected();
+    boost::asio::co_spawn(
+        executor_,
+        std::bind(&Application::TaskStop, this),
+        ExceptionRethrower);
   }
 
   void HandleClient(const base::error_code& ec) {
@@ -462,6 +483,33 @@ class Application {
           }
           std::exit(0);
         });
+  }
+
+  boost::asio::awaitable<void> TaskStop() {
+    fmt::print("TaskStop\n");
+    fixture_.emplace(
+        "fixture_",
+        &file_writer_,
+        client_->MakeTunnel(options_.fixture_id, kDebugTunnel, {}),
+        options_);
+    dut_.emplace(
+        "dut_",
+        &file_writer_,
+        client_->MakeTunnel(options_.dut_id, kDebugTunnel, {}),
+        options_);
+
+    co_await fixture_->WriteMessage("d stop");
+    co_await dut_->WriteMessage("d stop");
+
+    co_await fixture_->Flush();
+    co_await dut_->Flush();
+
+    fmt::print("Sleeping\n");
+    co_await Sleep(1.0);
+
+    std::exit(1);
+
+    co_return;
   }
 
   boost::asio::awaitable<void> Task() {
@@ -481,7 +529,6 @@ class Application {
           } catch (mjlib::base::system_error& se) {
             eptr = std::current_exception();
           }
-          co_await Stop();
           if (eptr) {
             std::rethrow_exception(eptr);
           }
@@ -1464,40 +1511,55 @@ class Application {
   double current_torque_Nm_ = 0.0;
 };
 
-int do_main(int argc, char** argv) {
+struct Context {
   boost::asio::io_context context;
 
   io::Selector<mp::AsioClient> default_client_selector{
     context.get_executor(), "client_type"};
 
-  mp::StreamAsioClientBuilder::Options default_stream_options;
-  default_stream_options.stream.type = io::StreamFactory::Type::kSerial;
-  default_stream_options.stream.serial_port = "/dev/fdcanusb";
-  // If the baud rate does matter, 3mbit is a good one.
-  default_stream_options.stream.serial_baud = 3000000;
-
-  default_client_selector.Register<mp::StreamAsioClientBuilder>(
-      "stream", default_stream_options);
-  default_client_selector.set_default("stream");
-
   Options options;
 
-  auto group = mjlib::base::ClippArchive().Accept(&options).group();
-  group.merge(clipp::with_prefix(
-                  "client.", default_client_selector.program_options()));
+  Context(int argc, char** argv) {
+    mp::StreamAsioClientBuilder::Options default_stream_options;
+    default_stream_options.stream.type = io::StreamFactory::Type::kSerial;
+    default_stream_options.stream.serial_port = "/dev/fdcanusb";
+    // If the baud rate does matter, 3mbit is a good one.
+    default_stream_options.stream.serial_baud = 3000000;
 
-  mjlib::base::ClippParse(argc, argv, group);
+    default_client_selector.Register<mp::StreamAsioClientBuilder>(
+        "stream", default_stream_options);
+    default_client_selector.set_default("stream");
 
-  Application application{context, &default_client_selector, options};
-  application.Start();
-  try {
-    context.run();
-  } catch (std::runtime_error& e) {
-    fmt::print(stderr, "Error: {}\n", e.what());
-    return 1;
+    auto group = mjlib::base::ClippArchive().Accept(&options).group();
+    group.merge(clipp::with_prefix(
+                    "client.", default_client_selector.program_options()));
+
+    mjlib::base::ClippParse(argc, argv, group);
+  }
+};
+
+int do_main(int argc, char** argv) {
+  {
+    Context ctx(argc, argv);
+
+    Application application{ctx.context, &ctx.default_client_selector, ctx.options};
+    application.Start();
+    try {
+      ctx.context.run();
+      return 0;
+    } catch (std::runtime_error& e) {
+      fmt::print(stderr, "Error: {}\n", e.what());
+    }
   }
 
-  return 0;
+  // Clean up after an error by sending stop commands to everything.
+
+  Context ctx(argc, argv);
+  Application application{ctx.context, &ctx.default_client_selector, ctx.options};
+  application.ErrorStop();
+  ctx.context.run();
+
+  return 1;
 }
 
 }
