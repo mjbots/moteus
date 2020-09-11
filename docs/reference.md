@@ -1,6 +1,8 @@
 moteus controller reference
 
-# Theory of Operation #
+# Overview #
+
+## Theory of Operation ##
 
 The moteus controller is intended to drive 3 phase brushless motors
 using field oriented control.  It has an integrated magnetic encoder
@@ -23,6 +25,49 @@ adjusted on a cycle-by-cycle basis, this allows you to operate the
 controller with full position/velocity/torque control, or
 velocity/torque, or just torque, or any combination seamlessly
 throughout the control cycle.
+
+## Limits ##
+
+### Position ###
+
+The commanded position is limited to +-32767.0 revolutions before any
+`unwrapped_position_scale` has been applied.  Reducers there will
+further limit the range of the commandable revolutions.  For instance,
+a 1/10 reducer configured as `unwrapped_position_scale=0.1` results in
+a available position command range of +-3276.7 revolutions.
+
+If either:
+
+a. the position is commanded as the special value (NaN or maximal negative), or
+b. the kp term is zero either through configuration or the "kp scale"
+
+Then it is safe for the controller to "wrap around" from the maximal
+possible position to the maximal negative position and vice versa.
+This is useful in velocity control applications.
+
+The commanded position is internally treated as a 32 bit floating
+point value.  Thus the position resolution is reduced when the
+magnitude of the position is large.  Resolution equal to the full
+capabilities of the onboard encoder (~0.09degree) is maintained to
+positions of +-2048.0 revolutions.  At the maximum possible position,
+this resolution is reduced to ~1.44degrees.  Note, that this is only
+for the "commanded position".  Velocity control and PID feedback on
+the position works in an integral space and performs identically at
+all positions.
+
+### Velocity ###
+
+The smallest usable mechanical velocity which can be commanded is
+0.0001 revolutions per second before any `unwrapped_position_scale`
+has been applied.  This corresponds to 0.036 degrees per second.
+Reducers will decrease the minimum usable velocity.
+
+The maximum mechanical velocity which can be commanded is 28000 rpm,
+or ~467 revolutions per second before any reducers.  Note, most motors
+will be incapable of this speed either mechanically or electrically.
+
+The maximum electrical frequency is 5kHz.
+
 
 # A. register command set #
 
