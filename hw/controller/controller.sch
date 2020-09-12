@@ -586,6 +586,9 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-1.3" y1="-0.3" x2="-1.3" y2="-0.6" width="0.127" layer="21"/>
 <text x="-1.4" y="2" size="0.6" layer="25" font="vector" ratio="10">&gt;NAME</text>
 </package>
+<package name="16AWG_PAD">
+<pad name="1" x="0" y="0" drill="1.9" thermals="no"/>
+</package>
 </packages>
 <symbols>
 <symbol name="AS5147">
@@ -986,6 +989,14 @@ Regulator</text>
 <device name="24AWG_PAD" package="24AWG_PAD">
 <connects>
 <connect gate="G$1" pin="P$1" pad="P$1"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="16AWG_PAD" package="16AWG_PAD">
+<connects>
+<connect gate="G$1" pin="P$1" pad="1"/>
 </connects>
 <technologies>
 <technology name=""/>
@@ -5441,9 +5452,9 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value="Panasonic"/>
 <attribute name="MPN" value="ERJ-2RKF1003X"/>
 </part>
-<part name="R6" library="mfpassives" deviceset="RESISTOR" device="_0402" value="10k 1%">
+<part name="R6" library="mfpassives" deviceset="RESISTOR" device="_0402" value="4.7k 1%">
 <attribute name="MF" value="Panasonic"/>
-<attribute name="MPN" value="ERJ-2RKF1002X"/>
+<attribute name="MPN" value="ERJ-2RKF4701X"/>
 </part>
 <part name="U3" library="controller" deviceset="AS5147" device="">
 <attribute name="MF" value="AMS"/>
@@ -5459,32 +5470,32 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="Q1" library="controller" deviceset="TPH1R204PL" device="SOP_ADVANCE_8">
 <attribute name="MF" value="Toshiba"/>
-<attribute name="MPN" value="TPH1R204PL,L1Q"/>
+<attribute name="MPN" value="TPH2R506PL,L1Q"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="Q2" library="controller" deviceset="TPH1R204PL" device="SOP_ADVANCE_8">
 <attribute name="MF" value="Toshiba"/>
-<attribute name="MPN" value="TPH1R204PL,L1Q"/>
+<attribute name="MPN" value="TPH2R506PL,L1Q"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="Q3" library="controller" deviceset="TPH1R204PL" device="SOP_ADVANCE_8">
 <attribute name="MF" value="Toshiba"/>
-<attribute name="MPN" value="TPH1R204PL,L1Q"/>
+<attribute name="MPN" value="TPH2R506PL,L1Q"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="Q4" library="controller" deviceset="TPH1R204PL" device="SOP_ADVANCE_8">
 <attribute name="MF" value="Toshiba"/>
-<attribute name="MPN" value="TPH1R204PL,L1Q"/>
+<attribute name="MPN" value="TPH2R506PL,L1Q"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="Q5" library="controller" deviceset="TPH1R204PL" device="SOP_ADVANCE_8">
 <attribute name="MF" value="Toshiba"/>
-<attribute name="MPN" value="TPH1R204PL,L1Q"/>
+<attribute name="MPN" value="TPH2R506PL,L1Q"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="Q6" library="controller" deviceset="TPH1R204PL" device="SOP_ADVANCE_8">
 <attribute name="MF" value="Toshiba"/>
-<attribute name="MPN" value="TPH1R204PL,L1Q"/>
+<attribute name="MPN" value="TPH2R506PL,L1Q"/>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="U4" library="controller" deviceset="DRV8323RS" device="">
@@ -5523,13 +5534,13 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="CGA2B3X7R1H104K050BB"/>
 </part>
-<part name="A" library="controller" deviceset="PAD" device="">
+<part name="A" library="controller" deviceset="PAD" device="16AWG_PAD" value="PAD16AWG_PAD">
 <attribute name="POPULATE" value="0"/>
 </part>
-<part name="B" library="controller" deviceset="PAD" device="">
+<part name="B" library="controller" deviceset="PAD" device="16AWG_PAD" value="PAD16AWG_PAD">
 <attribute name="POPULATE" value="0"/>
 </part>
-<part name="C" library="controller" deviceset="PAD" device="">
+<part name="C" library="controller" deviceset="PAD" device="16AWG_PAD" value="PAD16AWG_PAD">
 <attribute name="POPULATE" value="0"/>
 </part>
 <part name="P-2" library="supply1" deviceset="V-" device=""/>
@@ -5953,11 +5964,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-302.26" y="-142.24" size="5.08" layer="90">FET DRIVER</text>
 <text x="-132.08" y="-142.24" size="5.08" layer="90">POWER FETS</text>
 <text x="73.66" y="-142.24" size="5.08" layer="90">BULK CAPACITANCE</text>
-<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.4
+<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.5
 (c) jjp@pobox.com 2019
 Licensed under the Apache 2.0 License</text>
 <text x="22.86" y="111.76" size="1.778" layer="91">PC13/PA15/PC6 Version
-110</text>
+101</text>
 </plain>
 <instances>
 <instance part="+3V9" gate="G$1" x="106.68" y="127" smashed="yes">
@@ -6664,8 +6675,8 @@ Licensed under the Apache 2.0 License</text>
 <instance part="+3V16" gate="G$1" x="-289.56" y="-233.68" smashed="yes">
 <attribute name="VALUE" x="-292.1" y="-238.76" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="GND22" gate="1" x="30.48" y="96.52" smashed="yes">
-<attribute name="VALUE" x="27.94" y="93.98" size="1.778" layer="96"/>
+<instance part="GND22" gate="1" x="20.32" y="147.32" smashed="yes">
+<attribute name="VALUE" x="17.78" y="144.78" size="1.778" layer="96"/>
 </instance>
 </instances>
 <busses>
@@ -7012,10 +7023,11 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="144.78" y1="172.72" x2="165.1" y2="172.72" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PC6"/>
-<wire x1="-22.86" y1="104.14" x2="30.48" y2="104.14" width="0.1524" layer="91"/>
-<wire x1="30.48" y1="104.14" x2="30.48" y2="99.06" width="0.1524" layer="91"/>
+<pinref part="U1" gate="G$1" pin="PA15"/>
+<wire x1="-33.02" y1="144.78" x2="-33.02" y2="154.94" width="0.1524" layer="91"/>
+<wire x1="-33.02" y1="154.94" x2="20.32" y2="154.94" width="0.1524" layer="91"/>
 <pinref part="GND22" gate="1" pin="GND"/>
+<wire x1="20.32" y1="154.94" x2="20.32" y2="149.86" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="NRST" class="0">

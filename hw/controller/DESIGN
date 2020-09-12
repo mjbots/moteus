@@ -1,3 +1,11 @@
+r4.5
+ * revved version pins to 101
+ * changed low side of vsense divider to 4.7k from 10k to get more range
+ * changed fets to TPH2R506PL
+ * enlarged phase wire vias from 1.6mm to 1.9mm drill, and moved
+   slightly further away from FETs and power pins... similarly tweaked
+   fill region and minorly a few traces to still cover them.
+
 r4.3
  * caps need switching to soft termination variant, C3216X7R1H106K160AE
  * caps need to be aligned parallel to board edge
