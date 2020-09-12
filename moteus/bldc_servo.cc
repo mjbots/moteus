@@ -635,7 +635,6 @@ class BldcServo::Impl {
     ADC1->CR |= ADC_CR_ADSTART;
     ADC2->CR |= ADC_CR_ADSTART;
     ADC3->CR |= ADC_CR_ADSTART;
-
     ADC4->CR |= ADC_CR_ADSTART;
     ADC5->CR |= ADC_CR_ADSTART;
 
@@ -735,7 +734,7 @@ class BldcServo::Impl {
     status_.adc_cur1_raw = ADC3->DR;
     status_.adc_cur2_raw = ADC1->DR;
     status_.adc_cur3_raw = ADC2->DR;
-    // We started ADC4 before 5, so we can just wait for it.
+    // We started ADC4 before 5, so we can just wait for 5.
     WaitForAdc(ADC5);
 
     if (hw_rev_ <= 4) {
@@ -754,6 +753,8 @@ class BldcServo::Impl {
     // progress, since we're in one-shot mode.  However, if we don't
     // assert ADSTP, then the channel doesn't switch properly.  Guess
     // it is needed for other reasons too?
+    ADC4->CR |= ADC_CR_ADSTP;
+    while (ADC4->CR & ADC_CR_ADSTP);
     ADC5->CR |= ADC_CR_ADSTP;
     while (ADC5->CR & ADC_CR_ADSTP);
 
