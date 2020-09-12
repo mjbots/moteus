@@ -734,7 +734,7 @@ class BldcServo::Impl {
     status_.adc_cur1_raw = ADC3->DR;
     status_.adc_cur2_raw = ADC1->DR;
     status_.adc_cur3_raw = ADC2->DR;
-    // We started ADC4 before 5, so we can just wait for 5.
+    WaitForAdc(ADC4);
     WaitForAdc(ADC5);
 
     if (hw_rev_ <= 4) {
