@@ -1157,6 +1157,15 @@ class BldcServo::Impl {
         status_.mode = kFault;
         status_.fault = errc::kOverVoltage;
       }
+      // NOTE: This is mostly to identify faulty voltage sense
+      // components.  Actual undervolts are more likely to trigger the
+      // drv8323 first.  If we erroneously use a very low voltage
+      // here, we can command a very large current due to the voltage
+      // compensation.
+      if (status_.bus_V < 4.0f) {
+        status_.mode = kFault;
+        status_.fault = errc::kUnderVoltage;
+      }
       if (status_.fet_temp_C > config_.fault_temperature) {
         status_.mode = kFault;
         status_.fault = errc::kOverTemperature;

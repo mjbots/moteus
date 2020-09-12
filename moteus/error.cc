@@ -37,6 +37,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kPwmCycleOverrun: return "pwm cycle overrun";
       case errc::kOverTemperature: return "over temperature";
       case errc::kStartOutsideLimit: return "start outside limit";
+      case errc::kUnderVoltage: return "under voltage";
     }
     return "unknown";
   }

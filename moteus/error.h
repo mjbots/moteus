@@ -40,6 +40,7 @@ enum class errc {
   kPwmCycleOverrun = 37,
   kOverTemperature = 38,
   kStartOutsideLimit = 39,
+  kUnderVoltage = 40,
 };
 
 mjlib::micro::error_code make_error_code(errc);
