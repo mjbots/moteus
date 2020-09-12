@@ -239,6 +239,27 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "raw") {
+      const auto pwm1_str = tokenizer.next();
+      const auto pwm2_str = tokenizer.next();
+      const auto pwm3_str = tokenizer.next();
+
+      if (pwm1_str.empty() || pwm2_str.empty() || pwm3_str.empty()) {
+        WriteMessage(response, "missing pwm value\r\n");
+        return;
+      }
+
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kPwm;
+      command.pwm.a = std::strtof(pwm1_str.data(), nullptr);
+      command.pwm.b = std::strtof(pwm2_str.data(), nullptr);
+      command.pwm.c = std::strtof(pwm3_str.data(), nullptr);
+
+      bldc_->Command(command);
+      WriteOk(response);
+      return;
+    }
+
     if (cmd_text == "pwm") {
       const auto phase_str = tokenizer.next();
       const auto magnitude_str = tokenizer.next();

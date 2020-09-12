@@ -566,6 +566,17 @@ It can be entered from `tview` or the `--console` mode of
 This causes the controller to enter the "stopped" state, which
 disables the motor driver.
 
+### `d raw` ###
+
+This enters the "raw" PWM mode.  Syntax:
+
+```
+d raw <pwm_a> <pwm_b> <pwm_c>
+```
+
+Where the pwm values are between 0.0 and 1.0.  A command to the idle
+state is thus: `d raw 0.5 0.5 0.5`.
+
 ### `d pwm` ###
 
 This enters voltage-FOC mode.  Syntax:
