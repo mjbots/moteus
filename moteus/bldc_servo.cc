@@ -145,8 +145,8 @@ static_assert(kPwmRateHz % kIntRateHz == 0);
 // limits in place of +-1.0.  Something like "d pos nan 0 1 p0 d0 f1".
 // This all but ensures the current controller will saturate.
 //
-// As of 2020-08-20, 1.79 was the highest value that failed.
-constexpr float kCurrentSampleTime = 1.85e-6f;
+// As of 2020-09-13, 0.98 was the highest value that failed.
+constexpr float kCurrentSampleTime = 1.03e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
@@ -702,9 +702,8 @@ class BldcServo::Impl {
   }
 
   void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
-    // Wait for conversion to complete.  We started ADC3 last, so we
-    // just wait for it.
-    WaitForAdc(ADC3);
+    // Wait for sampling to complete.
+    while ((ADC3->ISR & ADC_ISR_EOS) == 0);
 
     // We would like to set this debug pin as soon as possible.
     // However, if we flip it while the current ADCs are sampling,
@@ -729,12 +728,11 @@ class BldcServo::Impl {
       status_.fault = errc::kPwmCycleOverrun;
     }
 
-#ifdef MOTEUS_PERFORMANCE_MEASURE
-    status_.dwt.adc_done = DWT->CYCCNT;
-#endif
-
+    // With sampling done, we can kick off our encoder read.
     position_sensor_->StartSample();
 
+    // Do a bit more rarely needed bookeeping while we let the ADCs
+    // finish.
     if (current_data_->rezero_position) {
       status_.position_to_set = *current_data_->rezero_position;
       status_.rezeroed = true;
@@ -747,9 +745,22 @@ class BldcServo::Impl {
       current_data_->timeout_s = 0.0;
     }
 
+    // And now, wait for the entire conversion to complete.  We
+    // started ADC3 last, so we just wait for it.
+    WaitForAdc(ADC3);
+
+#ifdef MOTEUS_PERFORMANCE_MEASURE
+    status_.dwt.adc_done = DWT->CYCCNT;
+#endif
+
     status_.adc_cur1_raw = ADC3->DR;
     status_.adc_cur2_raw = ADC1->DR;
     status_.adc_cur3_raw = ADC2->DR;
+
+    // TODO: Since we have to let ADC4/5 sample for much longer, we
+    // could save a lot of time by switching ADC5's targets every
+    // other cycle and not even reading it until the position sampling
+    // was done.  For now though, we read all the things every cycle.
     WaitForAdc(ADC4);
     WaitForAdc(ADC5);
 
