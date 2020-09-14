@@ -557,9 +557,6 @@ class BldcServo {
   const Control& control() const;
   const Motor& motor() const;
 
-  /// Return a clock which increments with every control cycle.
-  uint32_t clock() const;
-
  private:
   class Impl;
   mjlib::micro::PoolPtr<Impl> impl_;

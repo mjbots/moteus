@@ -276,8 +276,6 @@ class BldcServo::Impl {
             return d_options;
           }()) {
 
-    clock_.store(0);
-
     persistent_config->Register("motor", &motor_,
                                 std::bind(&Impl::UpdateConfig, this));
     persistent_config->Register("servo", &config_,
@@ -390,10 +388,6 @@ class BldcServo::Impl {
       *mode_volatile = kCalibrating;
     }
     startup_count_++;
-  }
-
-  uint32_t clock() const {
-    return clock_.load();
   }
 
  private:
@@ -669,8 +663,6 @@ class BldcServo::Impl {
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control = DWT->CYCCNT;
 #endif
-
-    clock_++;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done = DWT->CYCCNT;
@@ -1703,7 +1695,6 @@ class BldcServo::Impl {
 
   Stm32Serial debug_serial_;
 
-  std::atomic<uint32_t> clock_;
   std::atomic<uint32_t> startup_count_{0};
 
   float torque_constant_ = 0.01f;
@@ -1761,10 +1752,6 @@ const BldcServo::Control& BldcServo::control() const {
 
 const BldcServo::Motor& BldcServo::motor() const {
   return impl_->motor();
-}
-
-uint32_t BldcServo::clock() const {
-  return impl_->clock();
 }
 
 }

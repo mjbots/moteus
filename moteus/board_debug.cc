@@ -486,14 +486,6 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (cmd_text == "clk") {
-      const uint32_t clock = bldc_->clock();
-      ::snprintf(out_message_, sizeof(out_message_),
-                 "%lu\r\n", clock);
-      WriteMessage(response, out_message_);
-      return;
-    }
-
     if (cmd_text == "die") {
       mbed_die();
     }
