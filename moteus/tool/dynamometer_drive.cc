@@ -1339,7 +1339,7 @@ class Application {
           const double estimated_velocity =
               (results[i].position - results[i - 1].position) / kDelayS;
           // TODO: Lower this threshold.
-          if (std::abs(estimated_velocity - speed) > 0.17) {
+          if (std::abs(estimated_velocity - speed) > 0.18) {
             throw mjlib::base::system_error::einval(
                 fmt::format("estimated speed at index {} too far off {} != {}",
                             i, estimated_velocity, speed));
