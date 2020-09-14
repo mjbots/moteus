@@ -48,6 +48,8 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
+constexpr int kAdcPrescale = 6;
+
 #if defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
 #else
@@ -491,10 +493,27 @@ class BldcServo::Impl {
     // across all channels.  If it is too low, you'll see errors that
     // look like quantization, but not in a particularly uniform way
     // and not consistently across each of the channels.
+    auto map_adc_prescale = [](int prescale) {
+      if (prescale == 1) { return 0; }
+      if (prescale == 2) { return 1; }
+      if (prescale == 4) { return 2; }
+      if (prescale == 6) { return 3; }
+      if (prescale == 8) { return 4; }
+      if (prescale == 10) { return 5; }
+      if (prescale == 12) { return 6; }
+      if (prescale == 16) { return 7; }
+      if (prescale == 32) { return 8; }
+      if (prescale == 64) { return 9; }
+      if (prescale == 128) { return 10; }
+      if (prescale == 256) { return 11; }
+      MJ_ASSERT(false);
+      return 0;
+    };
+
     ADC12_COMMON->CCR =
-        (3 << ADC_CCR_PRESC_Pos);  // Prescaler /6
+        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos);
     ADC345_COMMON->CCR =
-        (3 << ADC_CCR_PRESC_Pos);  // Prescaler /6
+        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos);
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
