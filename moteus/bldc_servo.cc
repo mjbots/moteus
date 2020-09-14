@@ -571,6 +571,12 @@ class BldcServo::Impl {
     ADC4->ISR |= ADC_ISR_ADRDY;
     ADC5->ISR |= ADC_ISR_ADRDY;
 
+    ADC1->CFGR &= ~(ADC_CFGR_CONT);
+    ADC2->CFGR &= ~(ADC_CFGR_CONT);
+    ADC3->CFGR &= ~(ADC_CFGR_CONT);
+    ADC4->CFGR &= ~(ADC_CFGR_CONT);
+    ADC5->CFGR &= ~(ADC_CFGR_CONT);
+
     ADC1->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
@@ -584,18 +590,18 @@ class BldcServo::Impl {
       // For version <=4, we sample the motor temperature and the
       // battery sense first.
       ADC4->SQR1 =
-          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (0 << ADC_SQR1_L_Pos) |  // length 1
           (msense_sqr_ << ADC_SQR1_SQ1_Pos);
       ADC5->SQR1 =
-          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (0 << ADC_SQR1_L_Pos) |  // length 1
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
     } else if (hw_rev_ >= 5) {
       // For 5+, ADC4 always stays on the battery.
       ADC4->SQR1 =
-          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (0 << ADC_SQR1_L_Pos) |  // length 1
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
       ADC5->SQR1 =
-          (1 << ADC_SQR1_L_Pos) |  // length 1
+          (0 << ADC_SQR1_L_Pos) |  // length 1
           (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
     }
 
@@ -614,7 +620,6 @@ class BldcServo::Impl {
 
   static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
     while ((adc->ISR & ADC_ISR_EOC) == 0);
-    adc->ISR |= ADC_ISR_EOC;
   }
 
   // CALLED IN INTERRUPT CONTEXT.
@@ -756,19 +761,8 @@ class BldcServo::Impl {
       status_.adc_fet_temp_raw = ADC5->DR;
     }
 
-    // Start sampling the temperature.
-    //
-    // The datasheet says that ADSTP *must* be activated before
-    // switching channels to guarantee that a conversion is not in
-    // progress.  At this point, we know a conversion is not in
-    // progress, since we're in one-shot mode.  However, if we don't
-    // assert ADSTP, then the channel doesn't switch properly.  Guess
-    // it is needed for other reasons too?
-    ADC4->CR |= ADC_CR_ADSTP;
-    while (ADC4->CR & ADC_CR_ADSTP);
-    ADC5->CR |= ADC_CR_ADSTP;
-    while (ADC5->CR & ADC_CR_ADSTP);
-
+    // Start sampling the other thing on ADC5, what that is depends
+    // upon our board version.
     if (hw_rev_ <= 4) {
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
@@ -858,9 +852,6 @@ class BldcServo::Impl {
       status_.adc_motor_temp_raw = ADC5->DR;
     }
 
-    ADC5->CR |= ADC_CR_ADSTP;
-    while (ADC5->CR & ADC_CR_ADSTP);
-
     if (hw_rev_ <= 4) {
       // Switch back to the voltage sense resistor.
       ADC5->SQR1 =
@@ -876,9 +867,6 @@ class BldcServo::Impl {
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_temp_sample = DWT->CYCCNT;
 #endif
-
-    // Kick off a conversion just to get the FET temp out of the system.
-    ADC5->CR |= ADC_CR_ADSTART;
 
     {
       constexpr int adc_max = 4096;
