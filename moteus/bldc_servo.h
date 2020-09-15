@@ -543,6 +543,8 @@ class BldcServo {
       a->Visit(MJ_NVP(kp_scale));
       a->Visit(MJ_NVP(kd_scale));
       a->Visit(MJ_NVP(timeout_s));
+      a->Visit(MJ_NVP(bounds_min));
+      a->Visit(MJ_NVP(bounds_max));
 
       a->Visit(MJ_NVP(set_position));
       a->Visit(MJ_NVP(rezero_position));
