@@ -504,7 +504,7 @@ following, encoded in hex with annotations.
 - `01` - write a single int8 register (number of registers is encoded
   in the 2 LSBs)
  - `00` - start register number "Mode"
- - `09` - "position" mode
+ - `0a` - "position" mode
 - `07` - write 3x int16 registers (number of registers is encoded in
   the 2 LSBs)
  - `20` - register 0x020
@@ -521,12 +521,12 @@ following, encoded in hex with annotations.
 
 Thus the whole CAN-FD message would be (in hex):
 
-`01000907206000200150ff140400170d`
+`01000a07206000200150ff140400170d`
 
 To send this using the fdcanusb converter to a device configured at
 the default address of 1, you could write.
 
-`can send 8001 01000907206000200150ff140400170d`
+`can send 8001 01000a07206000200150ff140400170d`
 
 The `80` in ID is used for two purposes.  The high bit being set
 forces the device to respond (otherwise it will not respond, even if
@@ -534,7 +534,7 @@ query commands are sent).  The remaining bits are the "ID" to respond
 to.  In response to this command, a possible response from the servo
 would look like:
 
-`rcv 100 24040009005000000170ff230d181400`
+`rcv 100 2404000a005000000170ff230d181400`
 
 Decoded, that means:
 
@@ -543,7 +543,7 @@ Decoded, that means:
 - `24` reply with int16 values
  - `04` 4 registers
  - `00` starting at register 0
- - `0900` in mode 9 - Position
+ - `0a00` in mode 10 - Position
  - `5000` position is 0x0050 = 80 = 28.8 degrees
  - `0001` velocity is 0x0100 = 256 = 92.16 dps
  - `70ff` torque is 0xff70 = -144 = -1.44 Nm
