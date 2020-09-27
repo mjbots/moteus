@@ -29,8 +29,10 @@ import serial
 import struct
 import time
 
-# These multiplex constants can be found at:
-# https://github.com/mjbots/mjlib/blob/master/mjlib/multiplex/format.h
+# These constants can be found in:
+# https://github.com/mjbots/moteus/blob/master/docs/reference.md under
+# "register command set".
+
 MP_INT8 = 0
 MP_INT16 = 1
 MP_INT32 = 2
@@ -50,9 +52,6 @@ _TYPE_STRUCTS = {
     MP_F32: struct.Struct('<f'),
 }
 
-
-# These moteus register definitions can be found at:
-# https://github.com/mjbots/moteus/blob/master/moteus/moteus_register_map.md
 MOTEUS_REG_MODE = 0x000
 MOTEUS_REG_POSITION = 0x001
 MOTEUS_REG_VELOCITY = 0x002
