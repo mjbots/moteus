@@ -325,7 +325,7 @@ Mode: Read/write
 When in Position mode, advance the desired position at the given
 velocity in Hz.
 
-As a special case, if the 0x020 position is unset, and 0x023 stop
+As a special case, if the 0x020 position is unset, and 0x026 stop
 position is set, the sign of this is ignored, and is instead selected
 so that the motor will move towards the stop position.
 
