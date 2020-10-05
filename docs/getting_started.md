@@ -113,7 +113,7 @@ A larger set of parameters is documented in the reference manual.
 ## Flashing over CAN ##
 
 ```
-./moteus_tool -t 1 --flash path/to/file.elf
+./bazel-out/k8-opt/bin/moteus/tool/moteus_tool -t 1 --flash path/to/file.elf
 ```
 
 ## Flashing from the debug port ##
