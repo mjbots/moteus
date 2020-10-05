@@ -1,4 +1,4 @@
-// Copyright 2014 Josh Pieper, jjp@pobox.com.
+// Copyright 2014-2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#define BOOST_TEST_MODULE mech
-#define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_MODULE moteus
 #include <boost/test/unit_test.hpp>
-
-extern "C" {
-int main(int argc, char** argv) {
-  return boost::unit_test::unit_test_main(&init_unit_test, argc, argv);
-}
-}
