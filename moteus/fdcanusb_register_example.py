@@ -150,7 +150,7 @@ def parse_register_reply(data):
             reg = read_varuint(stream)
             err = read_varuint(stream)
             result[reg] = 'rerr {}'.format(err)
-        elif opcode_Base == MP_NOP:
+        elif opcode_base == MP_NOP:
             pass
         else:
             # Unknown opcode.  Just bail.
