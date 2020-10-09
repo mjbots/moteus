@@ -885,7 +885,8 @@ These values configure a higher order torque model for a motor.
   this value, then the linear relationship implied by `motor.v_per_hz`
   is used.
 
-Once above that cutoff, the following formula is used to determine torque from phase current:
+Once above that cutoff, the following formula is used to determine
+torque from phase current:
 
 ```
 torque = cutoff * tc + torque_scale * log2(1 + (I - cutoff) * current_scale)
@@ -895,6 +896,26 @@ Where `tc` is the torque constant derived from `motor.v_per_hz`.
 
 This model is not automatically calibrated, and needs to be determined
 and configured manually.
+
+## `servo.default.timeout_s` ##
+
+When sending position mode commands over CAN, there is an optional
+watchdog timeout.  If commands are not received at a certain rate,
+then the controller will latch into the "position timeout" state,
+requiring a stop command to resume operation.  This configuration
+value controls the length of time that the controller will wait after
+receiving a command before entering this state.  If set to `nan` then
+the controller will never enter this timeout state.
+
+It may be overidden on a per-command basis with the 0x027 register or
+the `t` optional flag of the `d pos` command for the diagnostic
+interface.
+
+## `servo.timeout_max_torque_Nm` ##
+
+When in the "position timeout" mode the controller acts to damp the
+output.  This parameter controls the maximum torque available for such
+damping.
 
 
 # D. Calibration #
