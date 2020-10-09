@@ -259,14 +259,15 @@ A fault code which will be set if the primary mode is 1 (Fault).
 
 Mode: Read/write
 
-When in kPwm mode, this controls the raw PWM value for phase A, B, and C.
+When in kPwm mode, this controls the raw PWM value for phase A, B, and
+C.  If unspecified, 0.0 is used.
 
 ### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ###
 
 Mode: Read/write
 
 When in kVoltage mode, this controls the voltage applied to phase A,
-B, and C.
+B, and C.  If unspecified, 0.0 is used.
 
 
 ### 0x018 - Voltage FOC Theta ###
@@ -274,31 +275,35 @@ B, and C.
 Mode: Read/write
 
 When in kVoltageFoc mode, this controls the desired electrical phase.
-Integral types use the PWM mapping.
+Integral types use the PWM mapping.  If unspecified, 0.0 is used.
 
 ### 0x019 - Voltage FOC Voltage ###
 
 Mode: Read/write
 
-When in kVoltageFoc mode, this controls the desired applied phase voltage.
+When in kVoltageFoc mode, this controls the desired applied phase
+voltage.  If unspecified, 0.0 is used.
 
 ### 0x01a - D Voltage ###
 
 Mode: Read/write
 
 When in kVoltageDq mode, this controls the desired applied D voltage.
+If unspecified, 0.0 is used.
 
 ### 0x01b - Q Voltage ###
 
 Mode: Read/write
 
 When in kVoltageDq mode, this controls the desired applied Q voltage.
+If unspecified, 0.0 is used.
 
 ### 0x01c - Commanded Q Phase Current ###
 
 Mode: Read/write
 
-When in kFoc mode, this controls the desired Q phase current.
+When in kFoc mode, this controls the desired Q phase current.  If
+unspecified, 0.0 is used.
 
 ### 0x01d - Commanded D Phase Current ###
 
@@ -306,7 +311,7 @@ Mode: Read/write
 
 When in kFoc mode, this controls the desired D phase current.  Unless
 you like burning power, with a BLDC motor you will typically want this
-set to 0.
+set to 0.  If unspecified, 0.0 is used.
 
 
 #### 0x020 - Position command ####
@@ -315,8 +320,9 @@ Mode: Read/write
 
 When in Position mode, this controls the desired position.  The
 maximal negative integer, or NaN for float represents, "use the
-current position value".  Note, the controller will attempt to achieve
-this position *right now* subject to the kp and kd constants.
+current position value".  If unspecified, 0.0 is used.  Note, the
+controller will attempt to achieve this position *right now* subject
+to the kp and kd constants.
 
 #### 0x021 - Velocity command ####
 
@@ -327,7 +333,8 @@ velocity in Hz.
 
 As a special case, if the 0x020 position is unset, and 0x026 stop
 position is set, the sign of this is ignored, and is instead selected
-so that the motor will move towards the stop position.
+so that the motor will move towards the stop position.  If
+unspecified, 0.0 is used.
 
 #### 0x022 - Feedforward torque ####
 
@@ -335,13 +342,15 @@ Mode: Read/write
 
 When in Position mode, add the given feedforward torque after applying
 all regular control loops.  Note, this is torque at the output shaft.
+If unspecified, 0.0 is used.
 
 #### 0x023 - Kp scale ####
 
 Mode: Read/write
 
 When in Position mode, shrink the proportional control term by the
-given factor.  Integral types are applied as for PWM.
+given factor.  Integral types are applied as for PWM.  If unspecified,
+1.0 is used.
 
 #### 0x024 - Kd scale ####
 
@@ -349,18 +358,19 @@ Mode: Read/write
 
 When in Position mode, shrink the derivative control term by the given
 factor.  Integral types are applied as for PWM.  This is internally
-limited to be no more than the kp scale.
+limited to be no more than the kp scale.  If unspecified, 1.0 is used.
 
 #### 0x025 - Maximum torque ####
 
-When in Position mode, the maximum torque to be applied.  This
-defaults to the system-wide configured maximum torque.
+When in Position mode, the maximum torque to be applied.  If
+unspecified, this defaults to the system-wide configured maximum
+torque.
 
 #### 0x026 - Commanded stop position ####
 
 When in Position mode, and a non-zero velocity is commanded, stop
 motion when reaching the given position.  NaN / maximal negative means
-no limit is applied.
+no limit is applied.  If unspecified, NaN is used.
 
 #### 0x027 - Watchdog timeout ####
 
@@ -415,7 +425,8 @@ position.  The maximal negative integer or NaN for float represents,
 "there is no lower bound".  When special or the position is above this
 bound (and also respecting the optional upper bound), only a
 feedforward torque is applied.  When outside this bound, the PID
-controller is used to force the position back to the bound.
+controller is used to force the position back to the bound.  If
+unspecified, 0.0 is used.
 
 ### 0x041 - Stay within upper bound ###
 
@@ -426,7 +437,8 @@ position.  The maximal negative integer, or NaN for float represents,
 "there is no upper bound". When special or the position is below this
 bound (and also respecting the optional lower bound), only a
 feedforward torque is applied.  When outside this bound, the PID
-controller is used to force the position back to the bound.
+controller is used to force the position back to the bound.  If
+unspecified, 0.0 is used.
 
 ### 0x042 - Feedforward torque ###
 
