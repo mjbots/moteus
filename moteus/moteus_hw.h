@@ -34,10 +34,13 @@ extern volatile uint8_t g_measured_hw_rev;
 // r4.2 and r4.3 silk
 // #define MOTEUS_HW_REV 4
 
+// r4.4 silk
+// #define MOTEUS_HW_REV 5
+
 // The most recent version of the HW.
 #ifndef MOTEUS_HW_REV
-// r4.4 silk
-#define MOTEUS_HW_REV 5
+// r4.5 silk
+#define MOTEUS_HW_REV 6
 #endif
 
 // The mapping between MOTEUS_HW_REV and the version pins on the
@@ -50,12 +53,14 @@ constexpr int kHardwareInterlock[] = {
   0,   // r4.1
   0,   // r4.2/r4.3 (unfortunately, indistinguishable from the interlock)
   1,   // r4.4
+  2,   // r4.5
 };
 #else
 constexpr int kHardwareInterlock[] = {
   0,   // r1
   1,   // r2
   2,   // r3 & r3.1
+  -1,  // never printed for f4
   -1,  // never printed for f4
   -1,  // never printed for f4
   -1,  // never printed for f4
@@ -67,6 +72,7 @@ constexpr int kCompatibleHwRev[] = {
   // 3 isn't compatible, but we forgot to rev the version pins
   3,
   4, 5,
+  6,
 };
 
 #define DRV8323_ENABLE PA_3
@@ -161,6 +167,11 @@ constexpr int kCompatibleHwRev[] = {
 #elif MOTEUS_HW_REV >= 2
 #define MOTEUS_CURRENT_SENSE_OHM 0.0005f
 #endif
+#endif
+
+#ifndef MOTEUS_VSENSE_ADC_SCALE
+#define MOTEUS_VSENSE_ADC_SCALE_PRE6 0.00884f
+#define MOTEUS_VSENSE_ADC_SCALE_POST6 0.017947f
 #endif
 
 #if MOTEUS_HW_REV <= 2

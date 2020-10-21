@@ -276,7 +276,10 @@ class BldcServo::Impl {
             d_options.tx = options.debug_uart_out;
             d_options.baud_rate = 5450000;
             return d_options;
-          }()) {
+          }()),
+        vsense_adc_scale_((g_measured_hw_rev < 6) ?
+                          MOTEUS_VSENSE_ADC_SCALE_PRE6 :
+                          MOTEUS_VSENSE_ADC_SCALE_POST6) {
 
     persistent_config->Register("motor", &motor_,
                                 std::bind(&Impl::UpdateConfig, this));
@@ -912,7 +915,7 @@ class BldcServo::Impl {
     status_.cur1_A = (status_.adc_cur1_raw - status_.adc_cur1_offset) * adc_scale_;
     status_.cur2_A = (status_.adc_cur2_raw - status_.adc_cur2_offset) * adc_scale_;
     status_.cur3_A = (status_.adc_cur3_raw - status_.adc_cur3_offset) * adc_scale_;
-    status_.bus_V = status_.adc_voltage_sense_raw * config_.v_scale_V;
+    status_.bus_V = status_.adc_voltage_sense_raw * vsense_adc_scale_;
 
     ISR_UpdateFilteredBusV(&status_.filt_bus_V, 0.5f);
     ISR_UpdateFilteredBusV(&status_.filt_1ms_bus_V, 0.001f);
@@ -1720,6 +1723,8 @@ class BldcServo::Impl {
   // 65536.0f / unwrapped_position_scale_
   float motor_scale16_ = 0;
   float adc_scale_ = 0.0f;
+
+  float vsense_adc_scale_ = 0.0f;
 
   uint32_t pwm_counts_ = 0;
   Cordic cordic_;
