@@ -132,9 +132,9 @@ canonical reference is located at
 
 ## A.2 Register Usage ##
 
-The full set of allowed registers are documented in
-[moteus_register_map.md](../moteus/moteus_register_map.md).  An
-abbreviated set are listed here.
+Each register may be accessed as potentially multiple data types.
+This section describes the common mappings, and the semantics of each
+register.
 
 ### A.2.a Mappings ###
 
