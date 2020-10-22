@@ -168,6 +168,7 @@ class BldcServo {
     float derate_current_A = -20.0f;
 
     uint16_t velocity_filter_length = 256;
+    uint16_t cooldown_cycles = 128;
 
     Config() {
       pid_dq.kp = 0.005f;
@@ -205,6 +206,7 @@ class BldcServo {
       a->Visit(MJ_NVP(max_current_A));
       a->Visit(MJ_NVP(derate_current_A));
       a->Visit(MJ_NVP(velocity_filter_length));
+      a->Visit(MJ_NVP(cooldown_cycles));
     }
   };
 
@@ -334,6 +336,7 @@ class BldcServo {
 
     float sin = 0.0f;
     float cos = 0.0f;
+    uint16_t cooldown_count = 0;
     uint32_t final_timer = 0;
     uint32_t total_timer = 0;
 
@@ -418,6 +421,7 @@ class BldcServo {
 
       a->Visit(MJ_NVP(sin));
       a->Visit(MJ_NVP(cos));
+      a->Visit(MJ_NVP(cooldown_count));
       a->Visit(MJ_NVP(final_timer));
       a->Visit(MJ_NVP(total_timer));
 

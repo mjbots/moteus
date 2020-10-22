@@ -1202,6 +1202,10 @@ class BldcServo::Impl {
     status_.dwt.control_sel_mode = DWT->CYCCNT;
 #endif
 
+    if (torque_on()) {
+      status_.cooldown_count = config_.cooldown_cycles;
+    }
+
     switch (status_.mode) {
       case kNumModes:
       case kStopped: {
@@ -1259,15 +1263,23 @@ class BldcServo::Impl {
   }
 
   void ISR_DoStopped() MOTEUS_CCM_ATTRIBUTE {
-    motor_driver_->Enable(false);
-    motor_driver_->Power(false);
+    if (status_.cooldown_count == 0) {
+      motor_driver_->Enable(false);
+      motor_driver_->Power(false);
+    } else {
+      status_.cooldown_count--;
+    }
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
   }
 
   void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
-    motor_driver_->Power(false);
+    if (status_.cooldown_count == 0) {
+      motor_driver_->Power(false);
+    } else {
+      status_.cooldown_count--;
+    }
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
