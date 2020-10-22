@@ -134,7 +134,9 @@ class BldcServo {
     float pwm_min = 0.006f;  // value below which PWM has no effect
     float pwm_min_blend = 0.01f;  // blend into the full PWM over this region
 
-    float max_voltage = 37.0f;
+    // We pick a default maximum voltage based on the board revision.
+    float max_voltage = (g_measured_hw_rev <= 5) ? 37.0f : 46.0f;
+
     float derate_temperature = 50.0f;
     float fault_temperature = 75.0f;
 
@@ -161,7 +163,9 @@ class BldcServo {
     float default_timeout_s = 0.1f;
     float timeout_max_torque_Nm = 5.0f;
 
-    float flux_brake_min_voltage = 34.5f;
+    // Similar to 'max_voltage', the flux braking default voltage is
+    // board rev dependent.
+    float flux_brake_min_voltage = (g_measured_hw_rev <= 5) ? 34.5f : 43.5f;
     float flux_brake_resistance_ohm = 0.1f;
 
     float max_current_A = 100.0f;
