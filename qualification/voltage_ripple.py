@@ -16,8 +16,10 @@
 
 import pylab
 
-# The following data was captured on 2020-08-11 with an r4.3 board, a
-# 5008 motor, and firmware version
+# Phase voltage, phase current, peak-peak ripple measured at XT30
+
+# The following data was captured on 2020-08-11 at 24V w/ eXtreme with
+# an r4.3 board, a 5008 motor, and firmware version
 # 3db3983b8a60bab0750ddd07eec0aebe3222c3cc
 DATA = [
     (0.8, 15, 0.50),
@@ -33,6 +35,22 @@ DATA = [
     (5.5, 100, 8.96),
     (6.0, 107, 10.7),
     (6.5, 114, 13.2),
+]
+
+# The following data was captured on 2020-10-22 at 40V w/ Chroma with
+# a r4.5 board, a 5008 motor, and firmware version
+# 56a9bf61bb8873ae9df84bae69fad4d589e947ab
+DATA_40V = [
+    (0.8, 14, 0.50),
+    (1.0, 17.5, 0.61),
+    (1.5, 26, 0.860),
+    (2.0, 35, 1.40),
+    (2.5, 43, 1.97),
+    (3.0, 52, 2.72),
+    (3.5, 59, 3.26),
+    (4.0, 65, 4.02),
+    (4.5, 74, 5.00),
+    (5.0, 84, 6.76),
 ]
 
 power = [x[0] * x[1] for x in DATA]
