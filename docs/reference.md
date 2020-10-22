@@ -897,7 +897,7 @@ Where `tc` is the torque constant derived from `motor.v_per_hz`.
 This model is not automatically calibrated, and needs to be determined
 and configured manually.
 
-## `servo.default.timeout_s` ##
+## `servo.default_timeout_s` ##
 
 When sending position mode commands over CAN, there is an optional
 watchdog timeout.  If commands are not received at a certain rate,
