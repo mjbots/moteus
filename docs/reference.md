@@ -178,6 +178,12 @@ values.
 - int16 => 1 LSB => 0.0001 rotation => 0.036 degrees (range of -3.2767 to 3.2767)
 - int32 => 1 LSB => 0.00001 rotation => 0.0036 degrees
 
+#### A.2.a.7 Velocity (measured in revolutions / s) ####
+
+- int8 => 1 LSB => 0.1Hz / 36 dps
+- int16 => 1 LSB => 0.00025 Hz > 0.36 dps
+- int32 => 1 LSB => 0.00001 Hz => 0.0036 dps
+
 ### A.2.b Registers ###
 
 #### 0x000 - Mode ####
@@ -213,11 +219,6 @@ reported.
 Mode: Read only
 
 The current velocity of the servo, measured in Hz at the output shaft.
-Mapping:
-
-- int8 => 1 LSB => 0.1Hz / 36 dps
-- int16 => 1 LSB => 0.00025 Hz > 0.36 dps
-- int32 => 1 LSB => 0.00001 Hz => 0.0036 dps
 
 #### 0x003 - Torque ####
 
