@@ -24,6 +24,7 @@
 
 #include "moteus/millisecond_timer.h"
 #include "moteus/motor_driver.h"
+#include "moteus/moteus_hw.h"
 
 namespace moteus {
 
@@ -185,7 +186,11 @@ class Drv8323 : public MotorDriver {
     uint16_t dead_time_ns = 50;
     OcpMode ocp_mode = OcpMode::kLatchedFault;
     uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
-    uint16_t vds_lvl_mv = 260;
+
+    // hw rev 6 boards and later use a FET with roughly double the
+    // Rdson.  We set a threshold that will trip only if we get well
+    // over the rated 100A limit.
+    uint16_t vds_lvl_mv = (g_measured_hw_rev <= 5) ? 260 : 450;
 
 
     // CSA Control Register
