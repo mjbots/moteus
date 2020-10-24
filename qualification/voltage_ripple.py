@@ -53,6 +53,20 @@ DATA_40V = [
     (5.0, 84, 6.76),
 ]
 
+# The following data was captured on 2020-10-24 at 44V w/ Chroma with
+# a r4.5 board w/ double caps, a 5008 motor
+DATA_40V = [
+    (1.0, 18, 0.330),
+    (1.5, 26, 0.650),
+    (2.0, 35, 0.930),
+    (2.5, 43, 1.43),
+    (3.0, 52, 1.90),
+    (3.5, 59, 2.50),
+    (4.0, 65, 3.28),
+    (4.5, 74, 4.30),
+    (5.0, 84, 4.40),
+]
+
 power = [x[0] * x[1] for x in DATA]
 
 pylab.plot(power, [x[2] for x in DATA])
