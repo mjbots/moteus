@@ -1,35 +1,34 @@
+build --incompatible_enable_cc_toolchain_resolution
 build --experimental_allow_incremental_repository_updates
-query --experimental_allow_incremental_repository_updates
-test --experimental_allow_incremental_repository_updates
 
+build --features=c++20
+build --features=-c++17
 build --compiler=compiler
-test --compiler=compiler
-
-build --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
-test --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
-
-# build --auto_cpu_environment_group=@com_github_mjbots_rules_mbed//tools:cpus
-# test --auto_cpu_environment_group=@com_github_mjbots_rules_mbed//tools:cpus
 
 build --nostart_end_lib
-test --nostart_end_lib
 
 build --experimental_dont_emit_static_libgcc
-test --experimental_dont_emit_static_libgcc
 
 build --strip never
-test --strip never
 
 test --test_output=errors
 
 build --workspace_status_command=tools/workspace_status.sh
-test --workspace_status_command=tools/workspace_status.sh
 
 build -c opt
-test -c opt
 
 build --cpu k8
-test --cpu k8
 
 build --stamp
-test --stamp
+
+build:host --platforms=@local_config_platform//:host
+build:host --linkopt=-lrt
+
+build:target --platforms=@com_github_mjbots_rules_mbed//:stm32g4
+
+# The following are used to work around
+# https://github.com/bazelbuild/bazel/issues/12036 as there is
+# otherwise no way to get the bazel-out directory to be different
+# across platforms.
+build:target --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
+build:target --cpu=stm32g4

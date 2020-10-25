@@ -949,7 +949,7 @@ Or using a bazel rule, which first ensures that all firmware sources
 are built correctly.
 
 ```
-tools/bazel test //moteus:flash
+tools/bazel build --config=target //moteus:flash
 ```
 
 # F. Mechanical #

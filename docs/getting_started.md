@@ -20,8 +20,8 @@ This will build the host and target binaries for the latest version of
 the moteus controller.
 
 ```
-tools/bazel test -c opt --cpu=stm32g4 //:target
-tools/bazel test --cpu=k8 //:host
+tools/bazel test --config=target //:target
+tools/bazel test --config=host //:host
 ```
 
 ## fdcanusb ##
@@ -131,7 +131,7 @@ cd openocd.git
 Then you can either flash using bazel:
 
 ```
-tools/bazel test -c opt --cpu=stm32g4 //moteus:flash
+tools/bazel test --config=target //moteus:flash
 ```
 
 Or re-flash the same file using:
