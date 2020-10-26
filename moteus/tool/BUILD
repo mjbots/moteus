@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@com_github_mjbots_rules_wix//:rules.bzl", "pkg_msi")
+
 package(default_visibility = ["//visibility:public"])
 
 py_binary(
@@ -152,5 +154,18 @@ py_binary(
         ":moteus_tool",
         ":dynamometer_drive",
         ":dyno_static_torque_ripple",
+    ],
+)
+
+pkg_msi(
+    name = "moteus_host_tools.msi",
+    src = "moteus_host_tools.wxs",
+    deps = [
+        ":moteus_tool",
+        "apache2.rtf",
+    ],
+    arch = "x64",
+    exts = [
+        "WixUiExtension",
     ],
 )

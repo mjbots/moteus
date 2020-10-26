@@ -21,6 +21,7 @@ load("//tools/workspace/elfio:repository.bzl", "elfio_repository")
 load("//tools/workspace/mjlib:repository.bzl", "mjlib_repository")
 load("//tools/workspace/rules_mbed:repository.bzl", "rules_mbed_repository")
 load("//tools/workspace/rules_nodejs:repository.bzl", "rules_nodejs_repository")
+load("//tools/workspace/rules_wix:repository.bzl", "rules_wix_repository")
 
 def add_default_repositories(excludes = []):
     if "com_github_mjbots_rules_mbed" not in excludes:
@@ -37,3 +38,5 @@ def add_default_repositories(excludes = []):
         elfio_repository()
     if "mjlib" not in excludes:
         mjlib_repository(name = "com_github_mjbots_mjlib")
+    if "rules_wix" not in excludes:
+        rules_wix_repository(name = "com_github_mjbots_rules_wix")
