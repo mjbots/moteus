@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <set>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/asio.hpp>
@@ -75,7 +76,7 @@ std::string GetLogDirectory() {
   if (home != NULL) {
     fs::path maybe_dir = fs::path(home) / "moteus-cal";
     if (fs::exists(maybe_dir)) {
-      return maybe_dir.native();
+      return maybe_dir.make_preferred().string();
     }
   }
 
@@ -288,7 +289,7 @@ ElfData ReadElf(const std::string& filename,
 
     auto make_data = [](auto section) {
       return (section->get_data() == nullptr) ?
-        std::string(static_cast<char>(0), section->get_size()) :
+        std::string(section->get_size(), static_cast<char>(0)) :
         std::string(section->get_data(), section->get_size());
     };
 
