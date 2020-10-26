@@ -52,6 +52,10 @@
 #include "moteus/tool/moteus_subset.h"
 #include "moteus/tool/run_for.h"
 
+#ifdef _WIN32
+#include "moteus/tool/win32_serial_enum.h"
+#endif  // _WIN32
+
 namespace pl = std::placeholders;
 namespace fs = boost::filesystem;
 namespace base = mjlib::base;
@@ -1311,7 +1315,26 @@ int moteus_tool_main(boost::asio::io_context& context,
     // Set some convenient defaults.
     mp::StreamAsioClientBuilder::Options default_stream_options;
     default_stream_options.stream.type = io::StreamFactory::Type::kSerial;
+#ifndef _WIN32
     default_stream_options.stream.serial_port = "/dev/fdcanusb";
+#else  // _WIN32
+    default_stream_options.stream.serial_port = []() -> std::string {
+      const auto port_list = Win32SerialEnum();
+      for (const auto& item : port_list) {
+        // Windows doesn't make it particularly easy to get at the USB
+        // mfg or description, so we just rely on the VID/PID to identify
+        // a random attached fdcanusb.
+        if (item.usb_vid == 0x0483 && item.usb_pid == 0x5740) {
+          return item.device_name;
+        }
+      }
+      // No ports at all, just default to COM1.
+      if (port_list.empty()) { return "COM1"; }
+
+      // No fdcanusb, so pick the last port.
+      return port_list.back().device_name;
+    }();
+#endif  // _WIN32
     // If the baud rate does matter, 3mbit is a good one.
     default_stream_options.stream.serial_baud = 3000000;
 

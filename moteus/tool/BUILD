@@ -45,7 +45,13 @@ cc_library(
         "moteus_subset.h",
         "moteus_tool.cc",
         "run_for.h",
-    ],
+    ] + select({
+        "@bazel_tools//src/conditions:windows" : [
+            "win32_serial_enum.h",
+            "win32_serial_enum.cc",
+        ],
+        "//conditions:default" : [],
+    }),
     deps = [
         "@com_github_mjbots_mjlib//mjlib/base:clipp",
         "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
