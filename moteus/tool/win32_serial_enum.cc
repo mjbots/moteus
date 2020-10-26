@@ -85,7 +85,7 @@ std::vector<Win32SerialInfo> Win32SerialEnum() {
             char buffer[1024] = {};
             DWORD type = 0;
             DWORD size = sizeof(buffer);
-            const auto success = RegQueryValueEx(
+            RegQueryValueEx(
                 device_registry_key, "PortName", nullptr, &type,
                 reinterpret_cast<unsigned char*>(buffer), &size);
             return buffer;
