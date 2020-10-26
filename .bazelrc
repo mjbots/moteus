@@ -17,8 +17,6 @@ build --workspace_status_command=tools/workspace_status.sh
 
 build -c opt
 
-build --cpu k8
-
 build --stamp
 
 build:host --platforms=@local_config_platform//:host
@@ -32,3 +30,12 @@ build:target --platforms=@com_github_mjbots_rules_mbed//:stm32g4
 # across platforms.
 build:target --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
 build:target --cpu=stm32g4
+
+
+# Because something still tries to use the legacy cc_toolchain_suite (and I
+# can't figure out what, we manually specify it).
+build:windows --crosstool_top=@llvm_toolchain//:toolchain
+build:windows --compiler=clang
+build:windows --copt=-D_CRT_SECURE_NO_WARNINGS
+build:windows --copt -fms-compatibility-version=20
+build:windows --features=vendored_libc++

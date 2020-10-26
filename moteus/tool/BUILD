@@ -93,7 +93,12 @@ cc_test(
 cc_binary(
     name = "moteus_tool",
     srcs = ["moteus_tool_main.cc"],
-    deps = [":moteus_tool_lib"],
+    deps = [":moteus_tool_lib"] + select({
+        "@bazel_tools//src/conditions:windows" : [
+            "@org_llvm_libcxx//:libcxx",
+        ],
+        "//conditions:default" : [],
+    }),
 )
 
 cc_binary(
