@@ -20,6 +20,6 @@ def mjlib_repository(name):
     github_archive(
         name = name,
         repo = "mjbots/mjlib",
-        commit = "6d15fb8529419d765b5f13d44c1aabe47fa4a927",
-        sha256 = "25fc4aa5e458fd7d0c6fdccaaed501b986b73dc93eb763329c8f52d8392e8864",
+        commit = "0e40cf1cdc47a0b67682d088f48cd50a4fbbb978",
+        sha256 = "338c6dce9f03dadc79116b8e28ab217ba2da68ea7bb30955f19ccb67737e4cae",
     )
