@@ -24,19 +24,19 @@ load("//tools/workspace/rules_nodejs:repository.bzl", "rules_nodejs_repository")
 load("//tools/workspace/rules_wix:repository.bzl", "rules_wix_repository")
 
 def add_default_repositories(excludes = []):
-    if "com_github_mjbots_rules_mbed" not in excludes:
+    if not native.existing_rule("com_github_mjbots_rules_mbed"):
         rules_mbed_repository()
-    if "com_github_mjbots_bazel_toolchain" not in excludes:
+    if not native.existing_rule("com_github_mjbots_bazel_toolchain"):
         bazel_toolchain_repository()
-    if "bazel" not in excludes:
+    if not native.existing_rule("bazel"):
         bazel_repository()
-    if "bazel_deps" not in excludes:
+    if not native.existing_rule("com_github_mjbots_bazel_deps"):
         bazel_deps_repository(name = "com_github_mjbots_bazel_deps")
-    if "build_bazel_rules_nodejs" not in excludes:
+    if not native.existing_rule("build_bazel_rules_nodejs"):
         rules_nodejs_repository()
-    if "elfio" not in excludes:
+    if not native.existing_rule("elfio"):
         elfio_repository()
-    if "mjlib" not in excludes:
+    if not native.existing_rule("com_github_mjbots_mjlib"):
         mjlib_repository(name = "com_github_mjbots_mjlib")
     if "rules_wix" not in excludes:
         rules_wix_repository(name = "com_github_mjbots_rules_wix")
