@@ -21,6 +21,8 @@
 #include <windows.h>
 #include <setupapi.h>
 
+#include <fmt/format.h>
+
 namespace moteus {
 namespace tool {
 
@@ -37,7 +39,8 @@ std::pair<uint16_t, uint16_t> ParseVidPid(const std::string& name) {
 }
 }
 
-std::vector<Win32SerialInfo> Win32SerialEnum() {
+std::vector<Win32SerialInfo> Win32SerialEnum(
+        const SerialEnumOptions& options) {
     const auto device_info_set =
         SetupDiGetClassDevs(nullptr, "USB", nullptr,
                             DIGCF_ALLCLASSES | DIGCF_PRESENT);
@@ -73,6 +76,11 @@ std::vector<Win32SerialInfo> Win32SerialEnum() {
         const auto friendly_name = get_property(SPDRP_FRIENDLYNAME);
         const auto device_description = get_property(SPDRP_DEVICEDESC);
 
+        if (options.verbose) {
+            fmt::print("Win32SerialEnum: {}  hwid={} fn={}\n",
+                       device_index, hardwareid, friendly_name);
+        }
+
 
         HKEY device_registry_key = SetupDiOpenDevRegKey(
             device_info_set, &device_info_data,
@@ -99,7 +107,17 @@ std::vector<Win32SerialInfo> Win32SerialEnum() {
         info.usb_vid = vid_pid.first;
         info.usb_pid = vid_pid.second;
 
-        result.push_back(info);
+        if (options.verbose) {
+            fmt::print("  vid={:04X} pid={:04X} port_name={}\n",
+                       info.usb_vid, info.usb_pid, port_name);
+        }
+
+        if (!port_name.empty()) {
+            if (options.verbose) {
+                fmt::print("  INCLUDING\n");
+            }
+            result.push_back(info);
+        }
 
         RegCloseKey(device_registry_key);
     }

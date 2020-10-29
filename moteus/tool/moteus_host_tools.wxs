@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='windows-1252'?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <Product Name='moteus host tools' Id='*' UpgradeCode='22a7d7e9-c5cd-4245-9c04-09e615a46df4'
-    Language='1033' Codepage='1252' Version='0.1.2020.1027' Manufacturer='mjbots Robotic Systems'>
+    Language='1033' Codepage='1252' Version='0.1.2020.1028' Manufacturer='mjbots Robotic Systems'>
 
     <Package Id='*' Keywords='Installer'
       Description="moteus host tools"

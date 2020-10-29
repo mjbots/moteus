@@ -1328,11 +1328,14 @@ int moteus_tool_main(boost::asio::io_context& context,
           return item.device_name;
         }
       }
-      // No ports at all, just default to COM1.
-      if (port_list.empty()) { return "COM1"; }
 
-      // No fdcanusb, so pick the last port.
-      return port_list.back().device_name;
+      // Return the first one.
+      if (!port_list.empty()) {
+        return port_list.front().device_name;
+      }
+
+      // No ports at all, just default to COM1.
+      return "COM1";
     }();
 #endif  // _WIN32
     // If the baud rate does matter, 3mbit is a good one.

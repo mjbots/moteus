@@ -36,8 +36,14 @@ struct Win32SerialInfo {
     uint16_t usb_pid = 0;
 };
 
+struct SerialEnumOptions {
+    bool verbose = false;
+
+    SerialEnumOptions() {}
+};
+
 // Enumerate serial ports on Windows.
-std::vector<Win32SerialInfo> Win32SerialEnum();
+std::vector<Win32SerialInfo> Win32SerialEnum(const SerialEnumOptions& = {});
 
 }
 }
