@@ -44,7 +44,7 @@ def main():
     print()
 
     run('tools/bazel clean --expunge')
-    run('tools/bazel build --cpu stm32g4 -c opt //:target')
+    run('tools/bazel build --config=target -c opt //:target')
 
     run(f'cp bazel-bin/moteus/moteus.elf {outdir}/{datestr}-moteus-{git_hash}.elf')
     run(f'cp bazel-bin/moteus/can_bootloader.elf {outdir}/{datestr}-bootloader-{git_hash}.elf')
