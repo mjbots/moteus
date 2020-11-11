@@ -111,8 +111,6 @@ int main(void) {
   State state = kPowerOff;
   uint32_t precharge_start = 0;
 
-  // Set up an interrupt to trigger every 50ms just to kick us out of sleep mode.
-
   uint32_t last_can = 0;
 
   char can_status_data[8] = {
