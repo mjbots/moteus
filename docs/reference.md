@@ -960,7 +960,7 @@ The current mechanical drawing for the controller can be found at:
 The current mechanical drawing for the qdd100 servo can be found at:
 [20200315-qdd100-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/qdd100/20200315-qdd100-mechanical.pdf)
 
-# G. Pinout #
+# G. Electrical / Pinout #
 
 ## JST PH-3 CAN ##
 
@@ -971,7 +971,17 @@ the pins are numbered 1 to 3 from left to right.
  - 2 - CAN_L
  - 3 - GND
 
-NOTE: Ground may not be necessary, only one path through ground in a
+NOTE 1: CAN connections should be terminated by a 120 ohm resistor at
+both ends of a bus.  Some mjbots products have built in termination
+resistors, such as the pi3hat.  The fdcanusb has a software
+configurable termination resistor that is by default on.  moteus
+controllers have no termination resistors.  For very short runs, the
+system will work terminated only on one side.  However, when runs
+become longer than 0.5m, you will likely need to terminate both ends.
+This can be done by crimping a 120 ohm resistor into a JST PH3
+connector and connecting it to the open data connector.
+
+NOTE 2: Ground may not be necessary, only one path through ground in a
 system should exist to avoid ground loops.  In a typical robot
 application with a common ground, that role is filled by the power
 ground.  However, in desktop applications, it may be appropriate to
