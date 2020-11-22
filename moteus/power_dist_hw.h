@@ -34,3 +34,7 @@
 #define CAN_TX PA_12
 #define CAN_RX PA_11
 #define CAN_SHDN PA_10
+
+// Only reworked boards r2/r3/r3.1 boards have this divider, but
+// non-reworked versions have an older firmware installed.
+#define VSAMP_DIVIDE (4.7f / (10.0f + 100.0f))
