@@ -121,7 +121,7 @@ A larger set of parameters is documented in the reference manual.
 If you want to re-flash the firmware using the debugging port, a custom openocd is currently required.  Clone and install from mjbots/openocde
 
 ```
-sudo apt install autotools-dev automake autogen autoconf libtool
+sudo apt install autotools-dev automake autogen autoconf libtool libusb-1.0-0-dev
 git clone https://github.com/mjbots/openocd
 cd openocd.git
 ./bootstrap
