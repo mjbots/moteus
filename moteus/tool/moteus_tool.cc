@@ -333,6 +333,7 @@ struct Options {
   double resistance_voltage = 0.45;
 
   std::string restore_calibration;
+  int poll_rate_ms = mp::AsioClient::TunnelOptions().poll_rate.total_milliseconds();
 };
 
 std::string Base64SerialNumber(
@@ -856,7 +857,10 @@ class Runner {
   }
 
   boost::asio::awaitable<bool> FindTarget(int target_id) {
-    auto stream = client_->MakeTunnel(target_id, kDebugTunnel);
+    mp::AsioClient::TunnelOptions tunnel_options;
+    tunnel_options.poll_rate =
+        boost::posix_time::milliseconds(options_.poll_rate_ms);
+    auto stream = client_->MakeTunnel(target_id, kDebugTunnel, tunnel_options);
 
     Controller controller(*stream, options_);
     auto maybe_result = co_await controller.Command(
@@ -1391,7 +1395,9 @@ int moteus_tool_main(boost::asio::io_context& context,
           "maximum voltage when measuring resistance"),
       clipp::option("restore-calibration") &
       clipp::value("FILE", options.restore_calibration).doc(
-          "restore calibration from logged data")
+          "restore calibration from logged data"),
+      clipp::option("", "poll-rate-ms") &
+      clipp::integer("MS", options.poll_rate_ms)
   );
   group.merge(clipp::with_prefix("client.", selector->program_options()));
 
