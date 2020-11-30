@@ -21,6 +21,7 @@
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/streambuf.hpp>
 
+#include "mjlib/base/assert.h"
 #include "mjlib/base/system_error.h"
 #include "mjlib/io/async_stream.h"
 
