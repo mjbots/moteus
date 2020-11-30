@@ -9,7 +9,7 @@ quadruped robot.
 for moderately high power electronics.  It has not yet burned down my
 (or anyone's that I know of) house, but there are no guarantees.
 
- * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=master)](https://travis-ci.org/mjbots/moteus)
+ * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=main)](https://travis-ci.org/mjbots/moteus)
 
 # LICENSE #
 
@@ -21,12 +21,8 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 * hw/ - hardware (mechanical and electrical designs)
   * controller/ - PCB design for servo controller
-  * qdd100/ - integrated servo
-  * mk2_chassis/ - quadruped chassis
-  * mk2_leg/ - quadruped leg
-  * power_dist/ - power distribution for quadruped
-* moteus/ - firmware for brushless controller
-* moteus/tool/ - diagnostic tools
+* fw/ - firmware for brushless controller
+* utils/ - diagnostic tools
 * tools/ - bazel build configure
 * docs/ - documentation
 
