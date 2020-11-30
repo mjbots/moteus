@@ -1,6 +1,6 @@
-# -*- python -*-
+#!/usr/bin/python3 -B
 
-# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,24 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
 
-test_suite(
-    name = "host",
-    tests = [
-        "//fw:host",
-        "//utils:host",
-        "//lib:host",
-    ],
-)
+import io
+import unittest
 
-filegroup(
-    name = "target",
-    srcs = [
-        "//fw:moteus",
-        "//fw:power_dist",
-        "//fw:can_bootloader",
-    ],
-)
+import moteus.multiplex as mp
 
-exports_files(["tsconfig.json"])
+
+class MultiplexTest(unittest.TestCase):
+    def test_basic(self):
+        self.assertEqual(mp.INT8, 0)
+
+
+if __name__ == '__main__':
+    unittest.main()

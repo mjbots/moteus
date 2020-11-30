@@ -1,6 +1,4 @@
-# -*- python -*-
-
-# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,24 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(default_visibility = ["//visibility:public"])
+from moteus.fdcanusb import Fdcanusb
 
-test_suite(
-    name = "host",
-    tests = [
-        "//fw:host",
-        "//utils:host",
-        "//lib:host",
-    ],
-)
-
-filegroup(
-    name = "target",
-    srcs = [
-        "//fw:moteus",
-        "//fw:power_dist",
-        "//fw:can_bootloader",
-    ],
-)
-
-exports_files(["tsconfig.json"])
+VERSION = "0.0.1"

@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,22 +16,30 @@
 
 package(default_visibility = ["//visibility:public"])
 
-test_suite(
-    name = "host",
-    tests = [
-        "//fw:host",
-        "//utils:host",
-        "//lib:host",
-    ],
-)
-
-filegroup(
-    name = "target",
+py_library(
+    name = "moteus",
     srcs = [
-        "//fw:moteus",
-        "//fw:power_dist",
-        "//fw:can_bootloader",
+        "__init__.py",
+        "aioserial.py",
+        "command.py",
+        "fdcanusb.py",
+        "moteus.py",
+        "multiplex.py",
+    ],
+    imports = [
+        "..",
     ],
 )
 
-exports_files(["tsconfig.json"])
+py_test(
+    name = "multiplex_test",
+    srcs = ["test/multiplex_test.py"],
+    deps = [":moteus"],
+)
+
+test_suite(
+    name = "test",
+    tests = [
+        ":multiplex_test",
+    ],
+)
