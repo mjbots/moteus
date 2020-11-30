@@ -14,10 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-workspace(name = "com_github_mjbots_moteus",
-          managed_directories = {
-              "@npm": ["node_modules"],
-          })
+workspace(name = "com_github_mjbots_moteus")
 
 BAZEL_VERSION = "3.4.1"
 BAZEL_VERSION_SHA = "1a64c807716e10c872f1618852d95f4893d81667fe6e691ef696489103c9b460"
@@ -34,18 +31,7 @@ mjlib_add(excludes = [
     "com_github_mjbots_rules_mbed",
     "bazel",
     "bazel_deps",
-    "build_bazel_rules_nodejs",
 ])
-
-# Do the Javascript part of our initialization.
-load("//tools/workspace:npm_stage1.bzl", "setup_npm_stage1")
-setup_npm_stage1()
-
-load("//tools/workspace:npm_stage2.bzl", "setup_npm_stage2")
-setup_npm_stage2()
-
-load("//tools/workspace:npm_stage3.bzl", "setup_npm_stage3")
-setup_npm_stage3()
 
 # Now bazel-toolchain
 load("@com_github_mjbots_bazel_toolchain//toolchain:deps.bzl", "bazel_toolchain_dependencies")
