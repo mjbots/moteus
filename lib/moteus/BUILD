@@ -37,9 +37,16 @@ py_test(
     deps = [":moteus"],
 )
 
+py_test(
+    name = "moteus_test",
+    srcs = ["test/moteus_test.py"],
+    deps = [":moteus"],
+)
+
 test_suite(
     name = "test",
     tests = [
+        ":moteus_test",
         ":multiplex_test",
     ],
 )

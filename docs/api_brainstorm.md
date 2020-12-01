@@ -40,8 +40,8 @@ async def main():
 
     while True:
         data = await delegate.cycle(
-          c1.write_position(position = 0.1 * math.sin(time.time()), query=True),
-          c2.write_position(position = 0.1 * math.cos(time.time()), query={}),
+          c1.make_position(position = 0.1 * math.sin(time.time()), query=True),
+          c2.make_position(position = 0.1 * math.cos(time.time()), query={}),
         )
         print("1: {}, 2: {}", data[1].position, data[2].position)
 
