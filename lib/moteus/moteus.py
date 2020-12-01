@@ -307,6 +307,38 @@ class Controller:
 
         return buf.getvalue()
 
+    def _make_command(self, *, query):
+        result = cmd.Command()
+
+        result.destination = self.id
+        result.source = 0
+        result.reply_required = query
+        result.parse = self._parser
+
+        return result
+
+    def make_query(self):
+        result = self._make_command(query=True)
+        result.data = self._query_data
+        return result;
+
+    async def query(self, **kwargs):
+        return await self._get_router().cycle([self.make_query(**kwargs)])
+
+    def make_stop(self, *, query=False):
+        """Return a moteus.Command structure with data necessary to send a
+        stop mode command."""
+
+        result = self._make_command(query=query)
+
+        if query:
+            result.data = self._query_data
+
+        return result
+
+    async def set_stop(self, *args, **kwargs):
+        return await self._get_router().cycle([self.make_stop(**kwargs)])
+
     def make_position(self,
                       *,
                       position=None,
@@ -321,12 +353,7 @@ class Controller:
         """Return a moteus.Command structure with data necessary to send a
         position mode command with the given values."""
 
-        result = cmd.Command()
-
-        result.destination = self.id
-        result.source = 0
-        result.reply_required = query
-        result.parse = self._parser
+        result = self._make_command(query=query)
 
         pr = self.position_resolution
         resolutions = [
@@ -375,5 +402,4 @@ class Controller:
         return result
 
     async def set_position(self, *args, **kwargs):
-        router = self._get_router()
-        await router.cycle([self.make_position(**kwargs)])
+        return await self._get_router().cycle([self.make_position(**kwargs)])
