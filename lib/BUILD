@@ -40,8 +40,12 @@ genrule(
         "mkdir -p $$(dirname $(location moteus-{ver}.tar.gz)) && " +
         "RELOUT=$$(realpath --relative-to $$(dirname $(location setup.cfg)) " +
         "          $$(dirname $(location moteus-{ver}.tar.gz))) && " +
-        "python3 -m pep517.build $$(dirname $(location setup.cfg)) " +
-        "        --out-dir $$RELOUT"
+        "python3 -m pep517.build " +
+        "        $$(dirname $(location setup.cfg)) " +
+        "        --out-dir $$RELOUT 1>/dev/null" +
+        # For now, we silence all warnings, because pep517.build isn't
+        # mature enough to let us turn off the cache at least.
+        "        2>/dev/null"
     ).format(ver=VER),
 )
 
