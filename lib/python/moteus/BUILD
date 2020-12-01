@@ -16,16 +16,23 @@
 
 package(default_visibility = ["//visibility:public"])
 
-py_library(
-    name = "moteus",
+filegroup(
+    name = "libfiles",
     srcs = [
-        "__init__.py",
         "aioserial.py",
         "command.py",
         "fdcanusb.py",
         "moteus.py",
         "multiplex.py",
         "router.py",
+    ]
+)
+
+py_library(
+    name = "moteus",
+    srcs = [
+        "__init__.py",
+        ":libfiles",
     ],
     imports = [
         "..",
