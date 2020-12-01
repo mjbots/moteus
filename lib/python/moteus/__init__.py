@@ -15,7 +15,11 @@
 """Classes and functions for interoperating with the moteus brushless
 controller."""
 
+__all__ = ['Fdcanusb', 'Router', 'Controller', 'Register',
+           'Mode', 'QueryResolution', 'PositionResolution', 'Command']
+from moteus.command import Command
 from moteus.fdcanusb import Fdcanusb
+from moteus.router import Router
 from moteus.moteus import (Controller, Register, Mode, QueryResolution, PositionResolution)
 
 

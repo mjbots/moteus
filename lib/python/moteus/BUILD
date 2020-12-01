@@ -25,6 +25,7 @@ py_library(
         "fdcanusb.py",
         "moteus.py",
         "multiplex.py",
+        "router.py",
     ],
     imports = [
         "..",
@@ -43,10 +44,17 @@ py_test(
     deps = [":moteus"],
 )
 
+py_test(
+    name = "router_test",
+    srcs = ["test/router_test.py"],
+    deps = [":moteus"],
+)
+
 test_suite(
     name = "test",
     tests = [
         ":moteus_test",
         ":multiplex_test",
+        ":router_test",
     ],
 )
