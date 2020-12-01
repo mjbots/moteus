@@ -20,6 +20,10 @@ class Router:
     """
 
     def __init__(self, destinations):
+        """Args:
+
+          destinations: A list of tuples, (target, [list, of, ids])
+        """
         self._destinations = destinations
 
     async def cycle(self, commands):
