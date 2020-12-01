@@ -331,8 +331,16 @@ class Controller:
 
         result = self._make_command(query=query)
 
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_int8(int(Register.MODE))
+        writer.write_int8(int(Mode.STOPPED))
+
         if query:
-            result.data = self._query_data
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
 
         return result
 
