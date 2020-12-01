@@ -29,8 +29,8 @@ async def main():
     fdcanusb1 = moteus.Fdcanusb(path='/dev/fdcanusb')
     fdcanusb2 = moteus.Fdcanusb(path='/dev/ttyACM1')
 
-    delegate = moteus.Router([(fdcanusb1, [1, 2]),
-                              (fdcanusb2, [3, 5])])
+    router = moteus.Router([(fdcanusb1, [1, 2]),
+                            (fdcanusb2, [3, 5])])
 
     c1 = moteus.Controller(id=1)  # Will use a default router if any action calls are made
     c2 = moteus.Controller(id=2,
@@ -39,7 +39,7 @@ async def main():
                            router=router)
 
     while True:
-        data = await delegate.cycle(
+        data = await router.cycle(
           c1.make_position(position = 0.1 * math.sin(time.time()), query=True),
           c2.make_position(position = 0.1 * math.cos(time.time()), query={}),
         )

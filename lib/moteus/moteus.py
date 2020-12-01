@@ -17,12 +17,32 @@ import io
 
 from . import multiplex as mp
 from . import command as cmd
+from . import fdcanusb
+
+_global_router = None
+
+def get_singleton_router():
+    """Return a single per-process instance of something that models a
+    Router.  This is intended to be monkey-patched in environments
+    where the default Fdcanusb isn't appropriate.
+    """
+
+    global _global_router
+
+    if _global_router:
+        return _global_router
+
+    _global_router = fdcanusb.Fdcanusb()
+    return _global_router
+
 
 class Register(enum.IntEnum):
     """These are the registers which are exposed for reading or writing
     from the moteus controller.
 
-    The full list can be found at: https://github.com/mjbots/moteus/blob/main/docs/reference.md#a2b-registers
+    The full list can be found at:
+    https://github.com/mjbots/moteus/blob/main/docs/reference.md#a2b-registers
+
     """
 
     MODE = 0x000
@@ -147,29 +167,29 @@ class Parser(mp.RegisterParser):
 
 
 class Writer(mp.WriteFrame):
-    def write_position(value, resolution):
+    def write_position(self, value, resolution):
         self.write_mapped(value, 0.01, 0.0001, 0.00001, resolution)
 
-    def write_velocity(value, resolution):
+    def write_velocity(self, value, resolution):
         self.write_mapped(value, 0.1, 0.00025, 0.00001, resolution)
 
-    def write_torque(value, resolution):
+    def write_torque(self, value, resolution):
         self.write_mapped(value, 0.5, 0.01, 0.001, resolution)
 
-    def write_pwm(value, resolution):
+    def write_pwm(self, value, resolution):
         self.write_mapped(value,
                           1.0 / 127.0,
                           1.0 / 32767.0,
                           1.0 / 2147483647.0,
                           resolution)
 
-    def write_voltage(value, resolution):
+    def write_voltage(self, value, resolution):
         self.write_mapped(value, 0.5, 0.1, 0.001, resolution)
 
-    def write_temperature(value, resolution):
+    def write_temperature(self, value, resolution):
         self.write_mapped(value, 1.0, 0.1, 0.001, resolution)
 
-    def write_time(value, resolution):
+    def write_time(self, value, resolution):
         self.write_mapped(value, 0.01, 0.001, 0.000001, resolution)
 
 
@@ -250,6 +270,15 @@ class Controller:
         # Pre-compute our query string.
         self._query_data = self._make_query_data()
 
+    def _get_router(self):
+        if self.router:
+            return self.router
+
+        # Try to construct a global singleton using some agreed upon
+        # method that is hookable.
+        self.router = get_singleton_router()
+        return self.router
+
     def _make_query_data(self):
         buf = io.BytesIO()
         writer = Writer(buf)
@@ -277,6 +306,7 @@ class Controller:
         return buf.getvalue()
 
     def make_position(self,
+                      *,
                       position=None,
                       velocity=None,
                       feedforward_torque=None,
@@ -341,3 +371,7 @@ class Controller:
         result.data = data_buf.getvalue()
 
         return result
+
+    async def set_position(self, *args, **kwargs):
+        router = self._get_router()
+        await router.cycle([self.make_position(**kwargs)])

@@ -28,7 +28,7 @@ def _dehexify(data):
     return result
 
 
-async def _readline(serial):
+async def _readline(stream):
     result = bytearray()
     while True:
         char = await stream.read(1)
@@ -74,12 +74,13 @@ class Fdcanusb:
         reply_required = command.reply_required
 
         bus_id = command.destination + (0x8000 if reply_required else 0)
-        await self._serial.write(
+        self._serial.write(
             "can send {:04x} {}\n".format(
                 bus_id, _hexify(command.data)).encode('latin1'))
+        await self._serial.drain()
 
         # Get the OK response.
-        ok_response = await self._serial.readline()
+        ok_response = await _readline(self._serial)
         if not ok_response.startswith(b"OK"):
             raise RuntimeError("fdcanusb lost synchronization, got: " +
                                ok_response.decode('latin1'))

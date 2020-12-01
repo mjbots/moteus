@@ -16,5 +16,7 @@
 controller."""
 
 from moteus.fdcanusb import Fdcanusb
+from moteus.moteus import (Controller, Register, Mode, QueryResolution, PositionResolution)
+
 
 VERSION = "0.0.1"
