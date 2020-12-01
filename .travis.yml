@@ -1,6 +1,10 @@
 script: ./travis-ci.sh
-dist: bionic
+dist: focal
 language: cpp
+addons:
+  apt:
+    packages:
+    - python3-pep517
 cache:
    directories:
     - $HOME/.cache/bazel/
