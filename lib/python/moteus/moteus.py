@@ -19,9 +19,7 @@ from . import multiplex as mp
 from . import command as cmd
 from . import fdcanusb
 
-_global_router = None
-
-def get_singleton_router():
+def get_fdcanusb_router():
     """Return a single per-process instance of something that models a
     Router.  This is intended to be monkey-patched in environments
     where the default Fdcanusb isn't appropriate.
@@ -34,6 +32,22 @@ def get_singleton_router():
 
     _global_router = fdcanusb.Fdcanusb()
     return _global_router
+
+
+_global_router = None
+_global_router_factory = get_fdcanusb_router
+
+
+def get_singleton_router():
+    return _global_router_factory()
+
+
+def set_router_factory(x):
+    """Platform specific modules can use this to change the default router
+    factory."""
+
+    global _global_router_factory
+    _global_router_factory = x
 
 
 class Register(enum.IntEnum):
