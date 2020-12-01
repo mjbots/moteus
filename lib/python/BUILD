@@ -31,21 +31,19 @@ VER="0.0.1"
 
 genrule(
     name = "bdist_wheel",
-    srcs = ["setup.cfg", "pyproject.toml", "//lib/python/moteus"],
+    srcs = ["setup.py", "README.md", "//lib/python/moteus"],
     outs = [
         "moteus-{ver}-py3-none-any.whl".format(ver=VER),
         "moteus-{ver}.tar.gz".format(ver=VER),
     ],
     cmd = (
         "mkdir -p $$(dirname $(location moteus-{ver}.tar.gz)) && " +
-        "RELOUT=$$(realpath --relative-to $$(dirname $(location setup.cfg)) " +
+        "RELOUT=$$(realpath --relative-to $$(dirname $(location setup.py)) " +
         "          $$(dirname $(location moteus-{ver}.tar.gz))) && " +
-        "python3 -m pep517.build " +
-        "        $$(dirname $(location setup.cfg)) " +
-        "        --out-dir $$RELOUT 1>/dev/null" +
-        # For now, we silence all warnings, because pep517.build isn't
-        # mature enough to let us turn off the cache at least.
-        "        2>/dev/null"
+        "cd $$(dirname $(location setup.py)) && " +
+        "python3 setup.py sdist --dist-dir $$RELOUT 1>/dev/null && " +
+        "python3 setup.py bdist_wheel --dist-dir $$RELOUT 1> /dev/null " +
+        ""
     ).format(ver=VER),
 )
 
