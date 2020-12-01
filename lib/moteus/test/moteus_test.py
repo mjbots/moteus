@@ -67,6 +67,8 @@ class MoteusTest(unittest.TestCase):
                 15: 64,
             })
 
+        self.assertEqual(repr(parsed), '1/{MODE(0x000): 10, POSITION(0x001): 0.0528, VELOCITY(0x002): -0.128, TORQUE(0x003): 0.32, VOLTAGE(0x00d): 16.0, TEMPERATURE(0x00e): 48.0, FAULT(0x00f): 64}')
+
 
 if __name__ == '__main__':
     unittest.main()

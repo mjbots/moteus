@@ -234,7 +234,9 @@ class Result:
     values = []
 
     def __repr__(self):
-        return f'{self.id}/{self.values}'
+        value_str = ', '.join(['{}(0x{:03x}): {}'.format(Register(key).name, key, value)
+                              for key, value in self.values.items()])
+        return f'{self.id}/{{{value_str}}}'
 
 
 def make_parser(id):
