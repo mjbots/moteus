@@ -1014,7 +1014,7 @@ class TviewMainWindow():
 
         r = runfiles.Create()
         uifilename = r.Rlocation(
-            "com_github_mjbots_moteus/moteus/tool/tview_main_window.ui")
+            "com_github_mjbots_moteus/utils/tview_main_window.ui")
         loader = QtUiTools.QUiLoader()
         uifile = QtCore.QFile(uifilename)
         uifile.open(QtCore.QFile.ReadOnly)
