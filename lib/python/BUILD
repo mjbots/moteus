@@ -19,7 +19,7 @@ package(default_visibility = ["//visibility:public"])
 test_suite(
     name = "host",
     tests = [
-        "//lib/moteus:test",
+        "//lib/python/moteus:test",
         ":bdist_test",
     ],
 )
@@ -31,7 +31,7 @@ VER="0.0.1"
 
 genrule(
     name = "bdist_wheel",
-    srcs = ["setup.cfg", "pyproject.toml", "//lib/moteus"],
+    srcs = ["setup.cfg", "pyproject.toml", "//lib/python/moteus"],
     outs = [
         "moteus-{ver}-py3-none-any.whl".format(ver=VER),
         "moteus-{ver}.tar.gz".format(ver=VER),

@@ -21,7 +21,7 @@ test_suite(
     tests = [
         "//fw:host",
         "//utils:host",
-        "//lib:host",
+        "//lib/python:host",
     ],
 )
 
