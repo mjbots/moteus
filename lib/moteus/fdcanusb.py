@@ -88,8 +88,8 @@ class Fdcanusb:
         if reply_required:
             line = await _readline(self._serial)
 
-            if not line.startswith("rcv"):
+            if not line.startswith(b"rcv"):
                 raise RuntimeError("unexpected fdcanusb response, got: " + line)
 
             fields = line.split(b" ")
-            return command.parse(id=fields[1], data=fields[2])
+            return command.parse(_dehexify(fields[2]))
