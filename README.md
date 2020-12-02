@@ -22,6 +22,7 @@ https://www.apache.org/licenses/LICENSE-2.0
 * hw/ - hardware (mechanical and electrical designs)
   * controller/ - PCB design for servo controller
 * fw/ - firmware for brushless controller
+* lib/ - client side software
 * utils/ - diagnostic tools
 * tools/ - bazel build configure
 * docs/ - documentation
