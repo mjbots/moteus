@@ -251,6 +251,15 @@ class WriteFrame:
     def write_int8(self, value):
         self._buf.write(TYPES[INT8].pack(value))
 
+    def write_int16(self, value):
+        self._buf.write(TYPES[INT16].pack(value))
+
+    def write_int32(self, value):
+        self._buf.write(TYPES[INT32].pack(value))
+
+    def write_f32(self, value):
+        self._buf.write(TYPES[F32].pack(value))
+
     def write_varuint(self, value):
         while True:
             this_byte = value & 0x7f

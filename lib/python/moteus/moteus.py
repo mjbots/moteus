@@ -366,6 +366,29 @@ class Controller:
     async def set_stop(self, *args, **kwargs):
         return self._extract(await self._get_router().cycle([self.make_stop(**kwargs)]))
 
+    def make_rezero(self, *,
+                    rezero=0.0,
+                    query=False):
+        """Return a moteus.Command structure with data necessary to send a
+        rezero command."""
+
+        result = self._make_command(query=query)
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_F32 | 0x01)
+        writer.write_varuint(Register.REZERO)
+        writer.write_f32(rezero)
+
+        if query:
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def set_rezero(self, *args, **kwargs):
+        return self._extract(await self._get_router().cycle([self.make_rezero(**kwargs)]))
+
     def make_position(self,
                       *,
                       position=None,
