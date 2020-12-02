@@ -1,9 +1,7 @@
 # moteus brushless servo #
 
 This contains full designs for the moteus brushless servo actuator,
-including firmware and PCBs, along with additional mechanical and
-electrical designs allowing one to combine the actuators into a
-quadruped robot.
+including firmware and PCBs.
 
 **WARNING**: This is not just a software project.  It includes designs
 for moderately high power electronics.  It has not yet burned down my
