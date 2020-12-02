@@ -321,6 +321,11 @@ class Controller:
 
         return buf.getvalue()
 
+    def _extract(self, value):
+        if len(value):
+            return value[0]
+        return None
+
     def _make_command(self, *, query):
         result = cmd.Command()
 
@@ -337,7 +342,7 @@ class Controller:
         return result;
 
     async def query(self, **kwargs):
-        return await self._get_router().cycle([self.make_query(**kwargs)])
+        return self._extract(await self._get_router().cycle([self.make_query(**kwargs)]))
 
     def make_stop(self, *, query=False):
         """Return a moteus.Command structure with data necessary to send a
@@ -359,7 +364,7 @@ class Controller:
         return result
 
     async def set_stop(self, *args, **kwargs):
-        return await self._get_router().cycle([self.make_stop(**kwargs)])
+        return self._extract(await self._get_router().cycle([self.make_stop(**kwargs)]))
 
     def make_position(self,
                       *,
@@ -424,4 +429,4 @@ class Controller:
         return result
 
     async def set_position(self, *args, **kwargs):
-        return await self._get_router().cycle([self.make_position(**kwargs)])
+        return self._extract(await self._get_router().cycle([self.make_position(**kwargs)]))
