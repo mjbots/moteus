@@ -51,22 +51,6 @@ cc_library(
 )
 
 g4_bootloader_mbed_binary(
-    name = "power_dist",
-    srcs = [
-        "fdcan.cc",
-        "fdcan.h",
-        "millisecond_timer.h",
-        "power_dist.cc",
-        "power_dist_hw.h",
-    ],
-    deps = [
-        ":git_info",
-        "@com_github_mjbots_mjlib//mjlib/base:string_span",
-    ],
-    copts = COPTS,
-)
-
-g4_bootloader_mbed_binary(
     name = "can_bootloader",
     srcs = [
         "bootloader.h",
@@ -181,14 +165,6 @@ genrule(
     srcs = ["moteus.08000000.bin", "moteus.0800c000.bin", "moteus.08010000.bin"],
     outs = ["flash.stamp"],
     cmd = (OCD_G4 + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
-)
-
-genrule(
-    name = "power_dist_flash",
-    tags = ["manual"],
-    srcs = ["power_dist.bin"],
-    outs = ["power_dist.stamp"],
-    cmd = (OCD_G4 + "-c init -c \"reset_config none separate; program $(location power_dist.bin) verify 0x8000000 reset exit 0x8000000\" && touch $@"),
 )
 
 cc_test(

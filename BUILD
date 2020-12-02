@@ -29,7 +29,6 @@ filegroup(
     name = "target",
     srcs = [
         "//fw:moteus",
-        "//fw:power_dist",
         "//fw:can_bootloader",
     ],
 )
