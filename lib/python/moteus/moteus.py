@@ -379,14 +379,14 @@ class Controller:
 
         pr = self.position_resolution
         resolutions = [
-            pr.position if position else mp.IGNORE,
-            pr.velocity if velocity else mp.IGNORE,
-            pr.feedforward_torque if feedforward_torque else mp.IGNORE,
-            pr.kp_scale if kp_scale else mp.IGNORE,
-            pr.kd_scale if kd_scale else mp.IGNORE,
-            pr.maximum_torque if maximum_torque else mp.IGNORE,
-            pr.stop_position if stop_position else mp.IGNORE,
-            pr.watchdog_timeout if watchdog_timeout else mp.IGNORE,
+            pr.position if position is not None else mp.IGNORE,
+            pr.velocity if velocity is not None else mp.IGNORE,
+            pr.feedforward_torque if feedforward_torque is not None else mp.IGNORE,
+            pr.kp_scale if kp_scale is not None else mp.IGNORE,
+            pr.kd_scale if kd_scale is not None else mp.IGNORE,
+            pr.maximum_torque if maximum_torque is not None else mp.IGNORE,
+            pr.stop_position if stop_position is not None else mp.IGNORE,
+            pr.watchdog_timeout if watchdog_timeout is not None else mp.IGNORE,
         ]
 
         data_buf = io.BytesIO()
