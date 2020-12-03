@@ -16,11 +16,13 @@
 controller."""
 
 __all__ = ['Fdcanusb', 'Router', 'Controller', 'Register',
-           'Mode', 'QueryResolution', 'PositionResolution', 'Command']
+           'Mode', 'QueryResolution', 'PositionResolution', 'Command',
+           'INT8', 'INT16', 'INT32', 'F32', 'IGNORE']
 from moteus.command import Command
 from moteus.fdcanusb import Fdcanusb
 from moteus.router import Router
 from moteus.moteus import (Controller, Register, Mode, QueryResolution, PositionResolution)
+from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
 
 
 VERSION = "0.0.1"
