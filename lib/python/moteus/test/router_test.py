@@ -50,7 +50,7 @@ class RouterTest(unittest.TestCase):
         self.assertEqual(result, [('n1', cmd1), ('n2', cmd2), ('n2', cmd3)])
 
     def test_basic(self):
-        asyncio.run(self.run_basic())
+        asyncio.get_event_loop().run_until_complete(self.run_basic())
 
 
 if __name__ == '__main__':
