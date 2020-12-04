@@ -25,11 +25,11 @@ from bazel_tools.tools.python.runfiles import runfiles
 
 RUNFILES = runfiles.Create()
 MOTEUS_TOOL = RUNFILES.Rlocation(
-    "com_github_mjbots_moteus/moteus/tool/moteus_tool")
+    "com_github_mjbots_moteus/utils/moteus_tool")
 DYNAMOMETER_DRIVE = RUNFILES.Rlocation(
-    "com_github_mjbots_moteus/moteus/tool/dynamometer_drive")
+    "com_github_mjbots_moteus/utils/dynamometer_drive")
 TORQUE_RIPPLE = RUNFILES.Rlocation(
-    "com_github_mjbots_moteus/moteus/tool/dyno_static_torque_ripple")
+    "com_github_mjbots_moteus/utils/dyno_static_torque_ripple")
 
 def dyno(*args, keep_log=False):
     tmp = tempfile.NamedTemporaryFile(

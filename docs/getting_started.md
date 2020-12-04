@@ -36,7 +36,7 @@ tview lets you configure and inspect the state of the controller.  It
 can be run like:
 
 ```
-./bazel-out/k8-opt/bin/moteus/tool/tview --devices=1
+./bazel-out/k8-opt/bin/utils/tview --devices=1
 ```
 
 By default, it uses `/dev/fdcanusb` to communicate with targets.
@@ -113,7 +113,7 @@ A larger set of parameters is documented in the reference manual.
 ## Flashing over CAN ##
 
 ```
-./bazel-out/k8-opt/bin/moteus/tool/moteus_tool -t 1 --flash path/to/file.elf
+./bazel-out/k8-opt/bin/utils/moteus_tool -t 1 --flash path/to/file.elf
 ```
 
 ## Flashing from the debug port ##

@@ -931,7 +931,7 @@ calibrate the controller using the following procedure.
 2. Run the calibration tool:
 
 ```
-./bazel-bin/moteus/tool/moteus_tool --target 1 --calibrate
+./bazel-bin/utils/moteus_tool --target 1 --calibrate
 ```
 
 WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
