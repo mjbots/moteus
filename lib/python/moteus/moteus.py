@@ -145,7 +145,7 @@ class PositionResolution:
     feedforward_torque = mp.F32
     kp_scale = mp.F32
     kd_scale = mp.F32
-    maximum_torque = mp.IGNORE
+    maximum_torque = mp.F32
     stop_position = mp.F32
     watchdog_timeout = mp.F32
 
