@@ -25,4 +25,4 @@ from moteus.moteus import (Controller, Register, Mode, QueryResolution, Position
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
 
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
