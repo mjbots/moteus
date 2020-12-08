@@ -1,12 +1,12 @@
 # Python bindings for moteus brushless controller #
 
-This bindings permit communication and control of moteus brushless
+These bindings permit communication and control of moteus brushless
 controllers.
 
 ## To use ##
 
 ```
-pip install moteus
+pip3 install moteus  # or 'moteus-pi3hat' on a pi3hat
 ```
 
 The following will report the status of a single controller at the
@@ -35,8 +35,8 @@ argument `router=None` (the default) it attempts to find some suitable
 link on your host system, typically the first fdcanusb it locates.
 
 Single controller imperative operation can be conducted by using
-`await Controller.set_stop()`, `await Controller.set_position()`, (and
-optionally `await Controller.query()`.
+`await Controller.set_stop()`, `await Controller.set_position()`, and
+`await Controller.query()`.
 
 ## Bus-optimized usage ##
 
