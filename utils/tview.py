@@ -1267,7 +1267,7 @@ def main():
     usage, description = __doc__.split('\n\n', 1)
     parser = optparse.OptionParser(usage=usage, description=description)
 
-    parser.add_option('--serial', '-s', default='/dev/ttyACM0')
+    parser.add_option('--serial', '-s', default='/dev/fdcanusb')
     parser.add_option('--baudrate', '-b', type='int', default=115200)
     parser.add_option('--devices', '-d', type='str', default='1')
     parser.add_option('--target', '-t', default=None)
