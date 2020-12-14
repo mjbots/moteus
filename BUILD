@@ -29,6 +29,7 @@ filegroup(
     name = "target",
     srcs = [
         "//fw:moteus",
+        "//fw:bin",
         "//fw:can_bootloader",
     ],
 )
