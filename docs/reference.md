@@ -1044,10 +1044,11 @@ may be desired.
 
 Linux in particular appears to select very poor bit-timings for CAN-FD
 when running at 5 MBps data rate.  The primary symptom is that no
-communcation is possible with a moteus controller or fdcanusb unless
-you clock them slower than the requisite 5Mbps.  This can be resolved
-by specifying custom bit timings to the linux socketcan subsystem.
-The following timings are known to work for at least some systems:
+communication is possible with a moteus controller or fdcanusb unless
+you clock them a few percent slower than the requisite 5Mbps.  This
+can be resolved by specifying custom bit timings to the linux
+socketcan subsystem.  The following timings are known to work for at
+least some systems:
 
 ### 40MHz clock systems ###
 
