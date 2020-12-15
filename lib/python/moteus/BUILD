@@ -25,6 +25,7 @@ filegroup(
         "moteus.py",
         "multiplex.py",
         "router.py",
+        "transport.py",
     ]
 )
 

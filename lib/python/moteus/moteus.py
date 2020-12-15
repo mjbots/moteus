@@ -19,35 +19,35 @@ from . import multiplex as mp
 from . import command as cmd
 from . import fdcanusb
 
-def get_fdcanusb_router():
+def get_fdcanusb_transport():
     """Return a single per-process instance of something that models a
-    Router.  This is intended to be monkey-patched in environments
+    Transport.  This is intended to be monkey-patched in environments
     where the default Fdcanusb isn't appropriate.
     """
 
-    global _global_router
+    global _global_transport
 
-    if _global_router:
-        return _global_router
+    if _global_transport:
+        return _global_transport
 
-    _global_router = fdcanusb.Fdcanusb()
-    return _global_router
-
-
-_global_router = None
-_global_router_factory = get_fdcanusb_router
+    _global_transport = fdcanusb.Fdcanusb()
+    return _global_transport
 
 
-def get_singleton_router():
-    return _global_router_factory()
+_global_transport = None
+_global_transport_factory = get_fdcanusb_transport
 
 
-def set_router_factory(x):
-    """Platform specific modules can use this to change the default router
+def get_singleton_transport():
+    return _global_transport_factory()
+
+
+def set_transport_factory(x):
+    """Platform specific modules can use this to change the default transport
     factory."""
 
-    global _global_router_factory
-    _global_router_factory = x
+    global _global_transport_factory
+    _global_transport_factory = x
 
 
 class Register(enum.IntEnum):
@@ -270,30 +270,30 @@ class Controller:
       id: bus ID of the controller
       query_resolution: an instance of moteus.QueryResolution
       position_resolution: an instance of moteus.PositionResolution
-      router: something modeling moteus.Router to send commands through
+      transport: something modeling moteus.Transport to send commands through
     """
 
     def __init__(self, id=1,
                  query_resolution=QueryResolution(),
                  position_resolution=PositionResolution(),
-                 router=None):
+                 transport=None):
         self.id = id
         self.query_resolution = query_resolution
         self.position_resolution = position_resolution
-        self.router = router
+        self.transport = transport
         self._parser = make_parser(id)
 
         # Pre-compute our query string.
         self._query_data = self._make_query_data()
 
-    def _get_router(self):
-        if self.router:
-            return self.router
+    def _get_transport(self):
+        if self.transport:
+            return self.transport
 
         # Try to construct a global singleton using some agreed upon
         # method that is hookable.
-        self.router = get_singleton_router()
-        return self.router
+        self.transport = get_singleton_transport()
+        return self.transport
 
     def _make_query_data(self):
         buf = io.BytesIO()
@@ -342,7 +342,8 @@ class Controller:
         return result;
 
     async def query(self, **kwargs):
-        return self._extract(await self._get_router().cycle([self.make_query(**kwargs)]))
+        return self._extract(await self._get_transport().cycle(
+            [self.make_query(**kwargs)]))
 
     def make_stop(self, *, query=False):
         """Return a moteus.Command structure with data necessary to send a
@@ -364,7 +365,8 @@ class Controller:
         return result
 
     async def set_stop(self, *args, **kwargs):
-        return self._extract(await self._get_router().cycle([self.make_stop(**kwargs)]))
+        return self._extract(await self._get_transport().cycle(
+            [self.make_stop(**kwargs)]))
 
     def make_rezero(self, *,
                     rezero=0.0,
@@ -387,7 +389,8 @@ class Controller:
         return result
 
     async def set_rezero(self, *args, **kwargs):
-        return self._extract(await self._get_router().cycle([self.make_rezero(**kwargs)]))
+        return self._extract(await self._get_transport().cycle(
+            [self.make_rezero(**kwargs)]))
 
     def make_position(self,
                       *,
@@ -452,4 +455,5 @@ class Controller:
         return result
 
     async def set_position(self, *args, **kwargs):
-        return self._extract(await self._get_router().cycle([self.make_position(**kwargs)]))
+        return self._extract(await self._get_transport().cycle(
+            [self.make_position(**kwargs)]))

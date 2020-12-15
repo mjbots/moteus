@@ -31,8 +31,9 @@ asyncio.run(main())
 
 Interactions with a controller are mediated through the
 `moteus.Controller` object.  When constructed with the constructor
-argument `router=None` (the default) it attempts to find some suitable
-link on your host system, typically the first fdcanusb it locates.
+argument `transport=None` (the default) it attempts to find some
+suitable link on your host system, typically the first fdcanusb it
+locates.
 
 Single controller imperative operation can be conducted by using
 `await Controller.set_stop()`, `await Controller.set_position()`, and
@@ -41,7 +42,7 @@ Single controller imperative operation can be conducted by using
 ## Bus-optimized usage ##
 
 To optimize bus usage, it is possible to command multiple controllers
-simultaneously.  In this mode, a "router" must be manually
+simultaneously.  In this mode, a "transport" must be manually
 constructed.
 
 ```
@@ -50,12 +51,12 @@ import math
 import moteus
 
 async def main():
-    router = moteus.Fdcanusb()
+    transport = moteus.Fdcanusb()
     c1 = moteus.Controller(id = 1)
     c2 = moteus.Controller(id = 2)
 
     while True:
-        print(await router.cycle([
+        print(await transport.cycle([
           c1.make_position(position=math.nan, query=True),
           c2.make_position(position=math.nan, query=True),
         ]))
@@ -64,7 +65,7 @@ asyncio.run(main())
 ```
 
 All of the "set_" methods have a "make_" variant which is suitable to
-pass to a Router's `cycle` method.
+pass to a Transport's `cycle` method.
 
 This mechanism only improves performance for non-fdcanusb links, such
 as a pi3hat.
