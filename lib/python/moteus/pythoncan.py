@@ -13,13 +13,21 @@
 # limitations under the License.
 
 import asyncio
-import can
+import sys
+
+can = None
 
 class PythonCan:
     '''Implements a 'Transport' on top of python-can.'''
 
     def __init__(self, *args, **kwargs):
         '''All arguments pass through to can.Bus'''
+
+        # We delay importing this until we need it, as it can take a
+        # while.
+        global can
+        if not can:
+            import can
 
         # We provide some defaults if they are not already
         # provided... this makes it more likely to just work out of
