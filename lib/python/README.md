@@ -32,8 +32,8 @@ asyncio.run(main())
 Interactions with a controller are mediated through the
 `moteus.Controller` object.  When constructed with the constructor
 argument `transport=None` (the default) it attempts to find some
-suitable link on your host system, typically the first fdcanusb it
-locates.
+suitable link on your host system, typically the first fdcanusb or
+socketcan bus it locates.
 
 Single controller imperative operation can be conducted by using
 `await Controller.set_stop()`, `await Controller.set_position()`, and

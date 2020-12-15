@@ -18,36 +18,53 @@ import io
 from . import multiplex as mp
 from . import command as cmd
 from . import fdcanusb
+from . import pythoncan
 
-def get_fdcanusb_transport():
-    """Return a single per-process instance of something that models a
-    Transport.  This is intended to be monkey-patched in environments
-    where the default Fdcanusb isn't appropriate.
-    """
+class FdcanusbFactory:
+    PRIORITY = 10
 
-    global _global_transport
-
-    if _global_transport:
-        return _global_transport
-
-    _global_transport = fdcanusb.Fdcanusb()
-    return _global_transport
+    def __call__(self):
+        return fdcanusb.Fdcanusb()
 
 
-_global_transport = None
-_global_transport_factory = get_fdcanusb_transport
+class PythonCanFactory:
+    PRIORITY = 11
+
+    def __call__(self):
+        return pythoncan.PythonCan()
+
+
+'''External callers may insert additional factories into this list.'''
+TRANSPORT_FACTORIES = [
+    FdcanusbFactory(),
+    PythonCanFactory(),
+]
+
+
+GLOBAL_TRANSPORT = None
 
 
 def get_singleton_transport():
-    return _global_transport_factory()
+    global GLOBAL_TRANSPORT
 
+    if GLOBAL_TRANSPORT:
+        return GLOBAL_TRANSPORT
 
-def set_transport_factory(x):
-    """Platform specific modules can use this to change the default transport
-    factory."""
+    maybe_result = None
+    to_try = sorted(TRANSPORT_FACTORIES, key=lambda x: x.PRIORITY)
+    for factory in to_try:
+        try:
+            maybe_result = factory()
+            break
+        except:
+            pass
 
-    global _global_transport_factory
-    _global_transport_factory = x
+    if maybe_result is None:
+        raise RuntimeError("Unable to find a default transport, tried: {}".format(
+            ','.join([str(x) for x in to_try])))
+
+    GLOBAL_TRANSPORT = maybe_result
+    return GLOBAL_TRANSPORT
 
 
 class Register(enum.IntEnum):

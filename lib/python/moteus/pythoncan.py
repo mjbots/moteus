@@ -20,6 +20,17 @@ class PythonCan:
 
     def __init__(self, *args, **kwargs):
         '''All arguments pass through to can.Bus'''
+
+        # We provide some defaults if they are not already
+        # provided... this makes it more likely to just work out of
+        # the box and can still be easily override with either
+        # constructor arguments, or a config file.
+        if 'interface' not in can.rc:
+            can.rc['interface'] = 'socketcan'
+        if 'channel' not in can.rc:
+            can.rc['channel'] = 'can0'
+        if 'fd' not in can.rc:
+            can.rc['fd'] = True
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
 
