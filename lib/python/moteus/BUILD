@@ -24,6 +24,7 @@ filegroup(
         "fdcanusb.py",
         "moteus.py",
         "multiplex.py",
+        "pythoncan.py",
         "router.py",
         "transport.py",
     ]
