@@ -1015,3 +1015,60 @@ the pins are numbered 1 to 4 from left to right.
 Looking at the pins of the power connector with the top of the board
 up, the ground pin is to the left with the chamfered corner and the
 positive supply is to the right with the square corner.
+
+# H. CAN-FD communication #
+
+## moteus_tool configuration ##
+
+`moteus_tool` can be configured to communicate with a moteus
+controller through a variety of transports.  To use an attached
+`fdcanusb` no options are required.
+
+```
+moteus_tool
+```
+
+To use socketcan, the following options will work:
+
+```
+moteus_tool \
+  --client.client_type stream \
+  --client.stream.frame_type socketcan \
+  --client.stream.can.interface can0
+```
+
+Note, these are in addition to any other `moteus_tool` options that
+may be desired.
+
+## Bit timings ##
+
+Linux in particular appears to select very poor bit-timings for CAN-FD
+when running at 5 MBps data rate.  The primary symptom is that no
+communcation is possible with a moteus controller or fdcanusb unless
+you clock them slower than the requisite 5Mbps.  This can be resolved
+by specifying custom bit timings to the linux socketcan subsystem.
+The following timings are known to work for at least some systems:
+
+### 40MHz clock systems ###
+
+Chips such as the MCP2517/8 often use a 40MHz system clock.  The
+following timings have been observed to work:
+
+```
+ip link set can0 up type can \
+  tq 25 prop-seg 13 phase-seg1 12 phase-seg2 14 sjw 5 \
+  dtq 25 dprop-seg 3 dphase-seg1 1 dphase-seg2 3 dsjw 3 \
+  restart-ms 1000 fd on
+```
+
+### 80 MHz clock systems ###
+
+Adapter such as the PEAK-CAN-FD use a 80MHz clock.  The following
+timings have been observed to work:
+
+```
+ip link set can0 up type can \
+  tq 12 prop-seg 25 phase-seg1 25 phase-seg2 29 sjw 10 \
+  dtq 12 dprop-seg 6 dphase-seg1 2 dphase-seg2 7 dsjw 12 \
+  restart-ms 1000 fd on
+```
