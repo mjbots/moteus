@@ -5,6 +5,8 @@ addons:
   apt:
     packages:
     - python3-pep517
+    - python3-can
+    - python3-serial
     - libtinfo5
 cache:
    directories:
