@@ -27,11 +27,7 @@ add_default_repositories()
 load("@com_github_mjbots_mjlib//tools/workspace:default.bzl",
      mjlib_add = "add_default_repositories")
 
-mjlib_add(excludes = [
-    "com_github_mjbots_rules_mbed",
-    "bazel",
-    "bazel_deps",
-])
+mjlib_add()
 
 # Now bazel-toolchain
 load("@com_github_mjbots_bazel_toolchain//toolchain:deps.bzl", "bazel_toolchain_dependencies")
