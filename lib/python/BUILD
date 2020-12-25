@@ -16,6 +16,9 @@
 
 package(default_visibility = ["//visibility:public"])
 
+load("//tools/workspace:template_file.bzl", "template_file")
+load("//tools:python.bzl", "VERSION")
+
 test_suite(
     name = "host",
     tests = [
@@ -24,27 +27,35 @@ test_suite(
     ],
 )
 
-# It would be nice to pull this from the python source.  As it is, the
-# below genrule will fail if they don't match, so at least there is
-# some verification.
-VER="0.3.0"
+template_file(
+    name = "setup.py",
+    src = "setup.py.TPL",
+    substitutions = {
+        "{{VERSION}}" : '"{}"'.format(VERSION),
+    },
+)
 
 genrule(
     name = "bdist_wheel",
-    srcs = ["setup.py", "README.md", "//lib/python/moteus"],
+    srcs = ["setup.py", "README.md", "//lib/python/moteus",
+            "//lib/python/moteus:version.py",
+    ],
     outs = [
-        "moteus-{ver}-py3-none-any.whl".format(ver=VER),
-        "moteus-{ver}.tar.gz".format(ver=VER),
+        "moteus-{ver}-py3-none-any.whl".format(ver=VERSION),
+        "moteus-{ver}.tar.gz".format(ver=VERSION),
     ],
     cmd = (
         "mkdir -p $$(dirname $(location moteus-{ver}.tar.gz)) && " +
-        "RELOUT=$$(realpath --relative-to $$(dirname $(location setup.py)) " +
+        "RELOUT=$$(realpath --relative-to $$(dirname $(location README.md)) " +
         "          $$(dirname $(location moteus-{ver}.tar.gz))) && " +
-        "cd $$(dirname $(location setup.py)) && " +
+        "SRCROOT=$$(dirname $(location README.md)) && " +
+        "ln -s $$(realpath $(location setup.py)) $$SRCROOT/setup.py && " +
+        "ln -s $$(realpath $(location //lib/python/moteus:version.py)) $$SRCROOT/moteus/version.py && " +
+        "cd $$SRCROOT && " +
         "python3 setup.py sdist --dist-dir $$RELOUT 1>/dev/null && " +
         "python3 setup.py bdist_wheel --dist-dir $$RELOUT 1> /dev/null " +
         ""
-    ).format(ver=VER),
+    ).format(ver=VERSION),
 )
 
 sh_test(

@@ -1,3 +1,5 @@
+# -*- python -*-
+
 # Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +27,7 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setuptools.setup(
     name = 'moteus',
-    version = moteus.VERSION,
+    version = {{VERSION}},
     description = 'moteus brushless controller library and tools',
     long_description = long_description,
     long_description_content_type = 'text/markdown',

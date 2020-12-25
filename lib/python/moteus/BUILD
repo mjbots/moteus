@@ -16,6 +16,17 @@
 
 package(default_visibility = ["//visibility:public"])
 
+load("//tools:python.bzl", "VERSION")
+load("//tools/workspace:template_file.bzl", "template_file")
+
+template_file(
+    name = "version.py",
+    src = "version.py.TPL",
+    substitutions = {
+        "{{VERSION}}": '"{}"'.format(VERSION),
+    },
+)
+
 filegroup(
     name = "libfiles",
     srcs = [
@@ -28,6 +39,7 @@ filegroup(
         "reader.py",
         "router.py",
         "transport.py",
+        "version.py",
     ]
 )
 

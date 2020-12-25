@@ -29,6 +29,4 @@ from moteus.pythoncan import PythonCan
 from moteus.moteus import (Controller, Register, Mode, QueryResolution, PositionResolution, TRANSPORT_FACTORIES)
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
 import moteus.reader as reader
-
-
-VERSION = "0.3.0"
+from moteus.version import VERSION
