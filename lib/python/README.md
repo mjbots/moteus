@@ -22,7 +22,7 @@ async def main():
     c = moteus.Controller()
     while True:
         print(await c.set_position(position=math.nan, query=True))
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.02)
 
 asyncio.run(main())
 ```
