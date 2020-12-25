@@ -28,10 +28,8 @@ py_binary(
     srcs = ["tview.py"],
     main = "tview.py",
     deps = [
-        "@com_github_mjbots_mjlib//mjlib/telemetry:py_reader",
-        "@bazel_tools//tools/python/runfiles",
+        "//utils/gui/moteus_gui:tview"
     ],
-    data = ["tview_main_window.ui"],
     imports = [
         "../../mjlib",
     ],
@@ -199,5 +197,6 @@ test_suite(
     name = "host",
     tests = [
         "test",
+        "//utils/gui:host",
     ],
 )

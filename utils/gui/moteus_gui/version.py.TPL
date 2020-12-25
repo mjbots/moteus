@@ -1,5 +1,3 @@
-#!/usr/bin/python3 -B
-
 # Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import runpy
-import sys
-
-def main():
-    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-    sys.path.append(os.path.join(SCRIPT_DIR, 'gui'))  # for tview
-    sys.path.append(os.path.join(SCRIPT_DIR, '..', 'lib', 'python'))  # for moteus
-    runpy.run_module('moteus_gui.tview', run_name='__main__')
-
-if __name__ == '__main__':
-    main()
+VERSION={{VERSION}}
