@@ -27,7 +27,7 @@ test_suite(
 # It would be nice to pull this from the python source.  As it is, the
 # below genrule will fail if they don't match, so at least there is
 # some verification.
-VER="0.2.0"
+VER="0.3.0"
 
 genrule(
     name = "bdist_wheel",

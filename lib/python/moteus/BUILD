@@ -25,6 +25,7 @@ filegroup(
         "moteus.py",
         "multiplex.py",
         "pythoncan.py",
+        "reader.py",
         "router.py",
         "transport.py",
     ]
@@ -54,6 +55,12 @@ py_test(
 )
 
 py_test(
+    name = "reader_test",
+    srcs = ["test/reader_test.py"],
+    deps = [":moteus"],
+)
+
+py_test(
     name = "router_test",
     srcs = ["test/router_test.py"],
     deps = [":moteus"],
@@ -64,6 +71,7 @@ test_suite(
     tests = [
         ":moteus_test",
         ":multiplex_test",
+        ":reader_test",
         ":router_test",
     ],
 )

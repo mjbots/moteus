@@ -19,7 +19,8 @@ __all__ = ['Fdcanusb', 'Router', 'Controller', 'Register', 'Transport',
            'PythonCan',
            'Mode', 'QueryResolution', 'PositionResolution', 'Command',
            'TRANSPORT_FACTORIES',
-           'INT8', 'INT16', 'INT32', 'F32', 'IGNORE']
+           'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
+           'reader']
 from moteus.command import Command
 from moteus.fdcanusb import Fdcanusb
 from moteus.router import Router
@@ -27,6 +28,7 @@ from moteus.transport import Transport
 from moteus.pythoncan import PythonCan
 from moteus.moteus import (Controller, Register, Mode, QueryResolution, PositionResolution, TRANSPORT_FACTORIES)
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
+import moteus.reader as reader
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
