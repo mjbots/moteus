@@ -16,11 +16,14 @@ import asyncio
 import argparse
 import enum
 import io
+import struct
 
 from . import multiplex as mp
 from . import command as cmd
 from . import fdcanusb
 from . import pythoncan
+
+import moteus.reader
 
 class FdcanusbFactory:
     PRIORITY = 10
@@ -614,6 +617,8 @@ class Stream:
         self._read_data = b''
         self._write_data = b''
 
+        self._readers = {}
+
     def write(self, data):
         self._write_data += data
 
@@ -687,3 +692,38 @@ class Stream:
 
         self.write(data + b'\n')
         await self.drain()
+
+    async def read_binary_blob(self):
+        size_bytes = await self.read(5, block=True)
+        if size_bytes[0] != 0x0a:
+            raise RuntimeError("missing newline before blob")
+        size, = struct.unpack('<I', size_bytes[1:])
+        return await self.read(size, block=True)
+
+    async def read_data(self, name):
+        if name not in self._readers:
+            await self.write_message(f"tel schema {name}".encode('latin1'))
+
+            maybe_schema_announce = await self.readline()
+            if maybe_schema_announce != f"schema {name}".encode('latin1'):
+                raise RuntimeError(
+                    f"Unexpected schema announce for '{name}' " +
+                    f": '{maybe_schema_announce}'")
+
+            schema = await self.read_binary_blob()
+            self._readers[name] = moteus.reader.Type.from_binary(io.BytesIO(schema))
+
+            # Set this to be emitted as binary
+            await self.command(f"tel fmt {name} 0".encode('latin1'))
+
+        reader = self._readers[name]
+        await self.write_message(f"tel get {name}".encode('latin1'))
+        maybe_data_announce = await self.readline()
+
+        if maybe_data_announce != f"emit {name}".encode('latin1'):
+            raise RuntimeError(
+                f"Invalid data announce for '{name}' : " +
+                f"'{maybe_data_announce}'")
+
+        data = await self.read_binary_blob()
+        return reader.read(moteus.reader.Stream(io.BytesIO(data)))

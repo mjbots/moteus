@@ -18,6 +18,7 @@
 
 import argparse
 import asyncio
+import json
 import sys
 
 from . import moteus
@@ -36,6 +37,25 @@ def _expand_targets(targets):
                 result |= { int(field) }
 
     return sorted(list(result))
+
+
+def _base64_serial_number(s1, s2, s3):
+    serial_num = (s1 << 64) | (s2 << 32) | s3;
+    digits = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    assert len(digits) == 64
+
+    result = [0] * 16
+
+    for i in range(16):
+        digit_num = serial_num % 64
+        result[15 - i] = digits[digit_num]
+        serial_num //= 64
+
+    return ''.join(result)
+
+
+def _make_git_hash(hash):
+    return ''.join(f"{x:02x}" for x in hash)
 
 
 async def _copy_stream(inp, out):
@@ -59,6 +79,25 @@ class Stream:
 
     async def command(self, message):
         return await self.stream.command(message)
+
+    async def read_data(self, name):
+        return await self.stream.read_data(name)
+
+    async def info(self):
+        firmware = await self.read_data("firmware")
+        git = await self.read_data("git")
+
+        result = {}
+        result['serial_number'] = _base64_serial_number(
+            firmware.serial_number[0],
+            firmware.serial_number[1],
+            firmware.serial_number[2])
+        result['model'] = f"{firmware.model:x}"
+        result['git_hash'] = _make_git_hash(git.hash)
+        result['git_dirty'] = getattr(git, 'dirty', 0) != 0
+        result['git_timestamp'] = getattr(git, 'timestamp', 0)
+
+        print(json.dumps(result, indent=2))
 
 
 class Runner:
@@ -104,6 +143,8 @@ class Runner:
             await stream.command(b'd stop')
         elif self.args.dump_config:
             print((await stream.command(b'conf enumerate')).decode('latin1'))
+        elif self.args.info:
+            await stream.info()
         else:
             raise RuntimeError("No action specified")
 
