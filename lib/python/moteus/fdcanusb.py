@@ -15,6 +15,7 @@
 import asyncio
 import glob
 import os
+import sys
 
 from . import aioserial
 
@@ -59,11 +60,23 @@ class Fdcanusb:
         self._serial = aioserial.AioSerial(port=path, baudrate=9600)
 
     def detect_fdcanusb(self):
+        if sys.platform == 'win32':
+            return self.win32_detect_fdcanusb()
+
         if os.path.exists('/dev/fdcanusb'):
             return '/dev/fdcanusb'
         maybe_list = glob.glob('/dev/serial/by-id/*fdcanusb*')
         if len(maybe_list):
             return sorted(maybe_list)[0]
+
+        raise RuntimeError('Could not detect fdcanusb')
+
+    def win32_detect_fdcanusb(self):
+        import serial.tools.list_ports
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            if port.vid == 0x0483 and port.pid == 0x5740:
+                return port.name
 
         raise RuntimeError('Could not detect fdcanusb')
 

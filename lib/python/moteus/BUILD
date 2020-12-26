@@ -35,11 +35,13 @@ filegroup(
         "fdcanusb.py",
         "moteus.py",
         "multiplex.py",
+        "posix_aioserial.py",
         "pythoncan.py",
         "reader.py",
         "router.py",
         "transport.py",
         "version.py",
+        "win32_aioserial.py",
     ]
 )
 

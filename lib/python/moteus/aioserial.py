@@ -1,91 +1,29 @@
-# Copyright 2018 Henry Chang
+# Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-import array
-import asyncio
-import concurrent.futures
+'''This is a low-performance implementation of an asyncio serial
+wrapper that is compatible with windows which does not allow
+non-blocking serial connections.  It uses threads and busy-looping to
+emulate non-blocking operations while still supporting cancellation.
+
+'''
+
+import os
 import sys
-from typing import List, Optional, Union
 
-import serial
-
-
-class AioSerial:
-
-    def __init__(
-            self,
-            port: Optional[str] = None,
-            baudrate: int = 9600,
-            bytesize: int = serial.EIGHTBITS,
-            parity: str = serial.PARITY_NONE,
-            stopbits: Union[float, int] = serial.STOPBITS_ONE,
-            xonxoff: bool = False,
-            rtscts: bool = False,
-            write_timeout: Optional[float] = None,
-            dsrdtr: bool = False,
-            inter_byte_timeout: Optional[float] = None,
-            exclusive: Optional[bool] = None,
-            loop: Optional[asyncio.AbstractEventLoop] = None,
-            **kwargs):
-        self.serial = serial.Serial(
-            port=port,
-            baudrate=baudrate,
-            bytesize=bytesize,
-            parity=parity,
-            stopbits=stopbits,
-            timeout=0,
-            xonxoff=xonxoff,
-            rtscts=rtscts,
-            write_timeout=write_timeout,
-            dsrdtr=dsrdtr,
-            inter_byte_timeout=inter_byte_timeout,
-            exclusive=exclusive,
-            **kwargs)
-        self._loop: Optional[asyncio.AbstractEventLoop] = loop
-
-        self.loop.add_reader(self.serial.fileno(), self._handle_read)
-        self._read_event = asyncio.Event()
-        self._read_data = bytearray()
-        self._write_data = bytearray()
-        self.fd = self.serial.fileno()
-
-    @property
-    def loop(self) -> Optional[asyncio.AbstractEventLoop]:
-        return self._loop if self._loop else asyncio.get_running_loop() \
-                if sys.version_info >= (3, 7) else asyncio.get_event_loop()
-
-    @loop.setter
-    def loop(self, value: Optional[asyncio.AbstractEventLoop]):
-        self.loop = value
-
-    async def read(self, size: int = 1, block=True) -> bytes:
-        result = bytearray()
-
-        while True:
-            while len(self._read_data) == 0:
-                await self._read_event.wait()
-                self._read_event.clear()
-
-            read_size = min(size - len(result), len(self._read_data))
-            assert read_size > 0
-            to_return, self._read_data = (
-                self._read_data[0:read_size], self._read_data[read_size:])
-
-            result += to_return
-
-            if not block or len(result) == size:
-                return result
-
-    def write(self, data: Union[bytearray, bytes, memoryview]) -> int:
-        self._write_data += data
-
-    async def drain(self, ) -> int:
-        to_write, self._write_data = self._write_data, bytearray()
-        self.serial.write(to_write)
-
-    def _handle_read(self):
-        self._read_data += self.serial.read(8192)
-        self._read_event.set()
+if (sys.platform == 'win32' or
+    os.environ.get('MOTEUS_FORCE_WIN32_SERIAL', False)):
+    from moteus.win32_aioserial import *
+else:
+    from moteus.posix_aioserial import *
