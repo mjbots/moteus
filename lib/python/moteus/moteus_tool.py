@@ -58,7 +58,7 @@ class Stream:
         await asyncio.wait([dir1, dir2], return_when=asyncio.FIRST_COMPLETED)
 
     async def command(self, message):
-        await self.stream.command(message)
+        return await self.stream.command(message)
 
 
 class Runner:
@@ -102,6 +102,8 @@ class Runner:
             await stream.do_console()
         elif self.args.stop:
             await stream.command(b'd stop')
+        elif self.args.dump_config:
+            print((await stream.command(b'conf enumerate')).decode('latin1'))
         else:
             raise RuntimeError("No action specified")
 

@@ -676,9 +676,10 @@ class Stream:
         await self.write_message(data)
 
         if allow_any_response:
-            return await self.readline()
+            result = await self.readline()
         else:
-            return await self.read_until_OK()
+            result = await self.read_until_OK()
+        return result
 
     async def write_message(self, data):
         if self.verbose:
