@@ -295,7 +295,7 @@ def parse_diagnostic_data(message):
     if datalen is None:
         return None
 
-    if datalen < (len(data) - nextoff):
+    if datalen > (len(data) - nextoff):
         return None
     return data[nextoff:nextoff+datalen]
 

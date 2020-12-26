@@ -53,7 +53,8 @@ class AioSerial:
         self._write_thread = threading.Thread(
             target=self._write_child, daemon=True)
         self._write_thread.start()
-        self._aio_poll_period = 0.05
+        self._aio_poll_period = aioserial_poll_period
+        self.serial.timeout = aioserial_poll_period
 
     async def read(self, size: int = 1, block=True) -> bytes:
         loop = asyncio.get_event_loop()
@@ -64,21 +65,11 @@ class AioSerial:
             f = loop.create_future()
 
             def do_read():
-                # First try to get anything.
-                self.serial.timeout = 0.0
-
                 result = self.serial.read(remaining)
                 if len(result):
                     asyncio.run_coroutine_threadsafe(
                         _async_set_future(f, result), loop)
                     return
-
-                # Now try waiting the full polling period.
-                self.serial.timeout = self._aio_poll_period
-
-                result = self.serial.read(remaining)
-                asyncio.run_coroutine_threadsafe(
-                    _async_set_future(f, result), loop)
 
             self._read_queue.put_nowait(do_read)
             this_round = await f

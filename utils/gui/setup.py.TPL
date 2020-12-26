@@ -50,8 +50,11 @@ setuptools.setup(
     },
     python_requires = '>=3.7, <4',
     install_requires = [
+        'asyncqt>=0.8',
         'moteus>=0.3',
         'matplotlib',
+        'numpy<=1.19.3;platform_system=="Windows"',
+        'numpy;platform_system=="Linux"',
         'PySide2',
         'qtconsole<4.7,>=4.3',
     ],

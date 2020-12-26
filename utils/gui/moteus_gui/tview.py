@@ -19,17 +19,17 @@
 Interactively display and update values from an embedded device.
 '''
 
-import binascii
+import asyncio
 import io
+import moteus
 import numpy
 import optparse
 import os
 import re
-import serial
-import socket
 import struct
 import sys
 import time
+import traceback
 import matplotlib
 import matplotlib.figure
 
@@ -46,6 +46,8 @@ from PySide2 import QtUiTools
 from qtconsole.history_console_widget import HistoryConsoleWidget
 from qtconsole.qt import QtCore, QtGui
 
+import asyncqt
+
 import moteus.reader as reader
 
 
@@ -54,283 +56,7 @@ RIGHT_LEGEND_LOC = 2
 
 DEFAULT_RATE = 100
 MAX_HISTORY_SIZE = 100
-
-def readline(stream):
-    result = b''
-    while True:
-        c = stream.read(1)
-        if len(c) == 0:
-            return result
-        result += c
-        if c == b'\n':
-            return result
-
-def dehexify(data):
-    result = b''
-    for i in range(0, len(data), 2):
-        result += bytes([int(data[i:i+2], 16)])
-    return result
-
-
-def read_varuint(data, offset):
-    '''Return (varuint, next_offset)'''
-
-    result = 0
-    shift = 0
-    for i in range(5):
-        if offset >= len(data):
-            return None, offset
-        this_byte, = struct.unpack('<B', data[offset:offset+1])
-        result |= (this_byte & 0x7f) << shift
-        shift += 7
-        offset += 1
-
-        if (this_byte & 0x80) == 0:
-            return result, offset
-
-    assert False
-
-
-class NetworkPort:
-    def __init__(self, port):
-        self._port = port
-
-    def write(self, data):
-        self._port.send(data)
-
-    def read(self, size):
-        try:
-            return self._port.recv(size)
-        except socket.timeout:
-            return b''
-
-    @property
-    def timeout(self):
-        return self._port.gettimeout()
-
-    @timeout.setter
-    def timeout(self, value):
-        self._port.settimeout(value)
-
-
-class BufferedSerial:
-    def __init__(self, port):
-        self.port = port
-        self._write_buffer = b''
-
-    def queue(self, data):
-        self._write_buffer += data
-
-    def poll(self):
-        if len(self._write_buffer):
-            self.write(b'')
-
-    def write(self, data):
-        to_write = self._write_buffer + data
-        self._write_buffer = b''
-
-        self.port.write(to_write)
-
-    def read(self, size):
-        return self.port.read(size)
-
-    def set_timeout(self, value):
-        self.port.timeout = value
-
-    def get_timeout(self):
-        return self.port.timeout
-
-    timeout = property(get_timeout, set_timeout)
-
-
-class StreamBase:
-    def __init__(self, stream, destination_id, max_receive_bytes):
-        self._stream = stream
-        self._destination_id = destination_id
-        self._max_receive_bytes = max_receive_bytes
-        self._read_buffer = b''
-        self._write_buffer = b''
-
-    def read(self, max_bytes):
-        to_return, self._read_buffer = self._read_buffer[0:max_bytes], self._read_buffer[max_bytes:]
-        return to_return
-
-    def write(self, data):
-        self._write_buffer += data
-
-    def flush(self):
-        if len(self._write_buffer):
-            self.poll()
-
-
-class FdcanUsbStream(StreamBase):
-    def __init__(self, *args, **kwargs):
-        super(FdcanUsbStream, self).__init__(*args, **kwargs)
-
-    def poll(self):
-        wait_for_response = len(self._write_buffer) == 0
-
-        to_write = min(len(self._write_buffer), 100)
-        payload = struct.pack(
-            '<BBB', 0x42 if wait_for_response else 0x40,
-            1, self._max_receive_bytes if wait_for_response else to_write)
-
-        this_write, self._write_buffer = self._write_buffer[0:to_write], self._write_buffer[to_write:]
-        payload += this_write
-
-        assert len(payload) < 127
-        self._stream.queue(
-            'can send {:x} {}\n'.format(
-                (0x8000 if wait_for_response else 0x0) | self._destination_id,
-                ''.join(['{:02x}'.format(x) for x in payload]))
-            .encode('latin1'))
-
-        try:
-            self._stream.poll()
-            self._stream.timeout = 0.10
-
-            while True:
-                maybe_response = readline(self._stream)
-                if maybe_response == b'':
-                    return
-                if maybe_response.startswith(b"OK"):
-                    if not wait_for_response:
-                        # This is all we need here.
-                        return
-                    continue
-                if maybe_response.startswith(b"rcv "):
-                    break
-
-        finally:
-            self._stream.timeout = 0.0
-
-        fields = maybe_response.decode('latin1').strip().split(' ')
-        address = int(fields[1], 16)
-        dest = address & 0xff
-        source = (address >> 8) & 0xff
-
-        if dest != 0x00:
-            return
-
-        if source != self._destination_id:
-            return
-
-        payload = dehexify(fields[2])
-
-        sbo = 0
-        subframe_id, sbo = read_varuint(payload, sbo)
-        channel, sbo = read_varuint(payload, sbo)
-        server_len, sbo = read_varuint(payload, sbo)
-
-        if subframe_id is None or channel is None or server_len is None:
-            return
-
-        if subframe_id != 0x41:
-            return
-
-        if channel != 1:
-            return
-
-        payload_rest = payload[sbo:]
-        to_add = payload_rest[0:server_len]
-        self._read_buffer += to_add
-
-
-class MultiplexStream(StreamBase):
-    def __init__(self, *args, **kwargs):
-        super(FdcanUsbStream, self).__init__(*args, **kwargs)
-
-    def poll(self):
-        # We only ask for a response if we're not writing immediately.
-        # That way we can get multiple writes out nearly
-        # simultaneously.
-        wait_for_response = len(self._write_buffer) == 0
-
-        header = struct.pack('<HBB', 0xab54,
-                             0x80 if wait_for_response else 0x00,
-                             self._destination_id)
-
-        to_write = min(len(self._write_buffer), 100)
-        payload = struct.pack(
-            '<BBB', 0x42 if wait_for_response else 0x40,
-            1, self._max_receive_bytes if wait_for_response else to_write)
-
-        this_write, self._write_buffer = self._write_buffer[0:to_write], self._write_buffer[to_write:]
-        payload += this_write
-
-        # So we don't need varuint
-        assert len(payload) < 127
-
-        frame = header + struct.pack('<B', len(payload)) + payload
-
-        crc = binascii.crc_hqx(frame, 0xffff)
-        frame += struct.pack('<H', crc)
-
-        self._stream.queue(frame)
-
-        if not wait_for_response:
-            return
-
-        try:
-            self._stream.poll()
-            self._stream.timeout = 0.02
-
-            result_frame_start = self._stream.read(7)
-            if len(result_frame_start) < 7:
-                return
-
-            header, source, dest = struct.unpack(
-                '<HBB', result_frame_start[:4])
-            if header != 0xab54:
-                # TODO: resynchronize
-                print("Resynchronizing! hdr={:x}".format(header), flush=True)
-                self._stream.read(8192)
-                return
-
-            payload_len, payload_offset = read_varuint(result_frame_start, 4)
-            if payload_len is None:
-                print("No payload!", flush=True)
-
-                # We don't yet have enough
-                return
-
-            result_frame_remainder = self._stream.read(
-                6 + (payload_offset - 4) + payload_len - len(result_frame_start))
-        finally:
-            self._stream.timeout = 0.0
-
-        result_frame = result_frame_start + result_frame_remainder
-
-        if dest != 0x00:
-            return
-
-        if source != self._destination_id:
-            return
-
-        payload = result_frame[payload_offset:-2]
-        if len(payload) < 3:
-            return
-
-        sbo = 0
-        subframe_id, sbo = read_varuint(payload, sbo)
-        channel, sbo = read_varuint(payload, sbo)
-        server_len, sbo = read_varuint(payload, sbo)
-
-        if subframe_id is None or channel is None or server_len is None:
-            return
-
-        if subframe_id != 0x41:
-            return
-
-        if channel != 1:
-            return
-
-        payload_rest = payload[sbo:]
-        if server_len != len(payload_rest):
-            return
-
-        self._read_buffer += payload_rest
-
+MAX_SEND = 61
 
 # TODO jpieper: Factor these out of tplot.py
 def _get_data(value, name):
@@ -363,6 +89,12 @@ def _set_tree_widget_data(item, struct,
                                   required_size=len(field))
         else:
             child.setText(1, repr(field))
+
+
+def _console_escape(value):
+    if '\x00' in value:
+        return value.replace('\x00', '*')
+    return value
 
 
 class RecordSignal(object):
@@ -571,7 +303,7 @@ class TviewConsoleWidget(HistoryConsoleWidget):
 
     def add_text(self, data):
         assert data.endswith('\n') or data.endswith('\r')
-        self._append_plain_text(data, before_prompt=True)
+        self._append_plain_text(_console_escape(data), before_prompt=True)
         self._control.moveCursor(QtGui.QTextCursor.End)
 
     def _handle_timeout(self):
@@ -646,6 +378,81 @@ def _get_item_root(item):
     return item.text(0)
 
 
+class DeviceStream:
+    def __init__(self, transport, controller):
+        self._write_data = b''
+        self._read_data = b''
+        self.transport = transport
+        self.controller = controller
+
+    def ignore_all(self):
+        self._read_data = b''
+
+    def write(self, data):
+        self._write_data += data
+
+    async def maybe_emit_one(self):
+        if len(self._write_data) == 0:
+            return
+
+        to_write, self._write_data = (
+            self._write_data[0:MAX_SEND], self._write_data[MAX_SEND:])
+        await self.transport.write(self.controller.make_diagnostic_write(to_write))
+
+    def process_message(self, message):
+        data = message.data
+
+        if len(data) < 3:
+            return
+
+        if data[0] != 0x41:
+            return
+        if data[1] != 1:
+            return
+        if data[2] > MAX_SEND:
+            return
+        datalen = data[2]
+        if datalen > (len(data) - 3):
+            return
+
+        self._read_data += data[3:3+datalen]
+
+    def _read_maybe_empty_line(self):
+        first_newline = min((self._read_data.find(c) for c in b'\r\n'
+                             if c in self._read_data), default=None)
+        if first_newline is None:
+            return
+        to_return, self._read_data = (
+            self._read_data[0:first_newline+1],
+            self._read_data[first_newline+1:])
+        return to_return
+
+    def read_line(self):
+        while True:
+            maybe_line = self._read_maybe_empty_line()
+            if maybe_line is None:
+                return
+            maybe_line = maybe_line.rstrip()
+            if len(maybe_line) == 0:
+                continue
+            return maybe_line
+
+    def read_sized_block(self):
+        if len(self._read_data) < 5:
+            return
+
+        size = struct.unpack('<I', self._read_data[1:5])[0]
+        if size > 2 ** 24:
+            return False
+
+        if len(self._read_data) < 5 + size:
+            return
+
+        block = self._read_data[5:5+size]
+        self._read_data = self._read_data[5+size:]
+        return block
+
+
 class Device:
     STATE_LINE = 0
     STATE_CONFIG = 1
@@ -653,16 +460,18 @@ class Device:
     STATE_SCHEMA = 3
     STATE_DATA = 4
 
-    def __init__(self, number, stream, console, prefix,
+    def __init__(self, number, transport, console, prefix,
                  config_tree_item, data_tree_item):
         self.number = number
-        self._stream = stream
+        self.controller = moteus.Controller(number)
+        self._transport = transport
+        self._stream = DeviceStream(transport, self.controller)
+
         self._console = console
         self._prefix = prefix
         self._config_tree_item = config_tree_item
         self._data_tree_item = data_tree_item
 
-        self._buffer = b''
         self._serial_state = self.STATE_LINE
         self._telemetry_records = {}
         self._schema_name = None
@@ -671,10 +480,9 @@ class Device:
 
         self._start_time = None
 
-    def start(self):
+    async def start(self):
         # Stop the spew.
-        self._stream.write('\r\n'.encode('latin1'))
-        self._stream.write('tel stop\r\n'.encode('latin1'))
+        self.write('\r\ntel stop\r\n'.encode('latin1'))
 
         # We want to wait a little bit, discard everything we have
         # received, and then initialize the device.
@@ -687,31 +495,34 @@ class Device:
             self.update_telemetry(callback)
         self.update_config(after_config)
 
-    def poll(self):
-        self._stream.poll()
+    def process_message(self, message):
+        now = time.time()
+        if self._start_time and (now - self._start_time < 0.2):
+            return
+
+        self._stream.process_message(message)
+
+        while True:
+            old_len = len(self._stream._read_data)
+            try:
+                self._handle_serial_data()
+            except Exception as e:
+                traceback.print_exc()
+                print("Error parsing:", e)
+            if len(self._stream._read_data) == old_len:
+                break
+
+
+    async def poll(self):
+        await self._stream.maybe_emit_one()
+        await self._transport.write(self.controller.make_diagnostic_read())
 
         if self._start_time is not None:
             now = time.time()
-            if now - self._start_time < 0.2:
-                return
-            # Discard any junk that may be there.
-            self._stream.read(8192)
-            self._start_time = None
-
-            self._setup_device(None)
-
-
-        data = self._stream.read(8192)
-
-        self._buffer += data
-
-        while True:
-            old_len = len(self._buffer)
-            self._handle_serial_data()
-            if len(self._buffer) == old_len:
-                break
-
-        self._stream.flush()
+            if now - self._start_time > 0.2:
+                self._stream.ignore_all()
+                self._setup_device(None)
+                self._start_time = None
 
     def write(self, data):
         self._stream.write(data)
@@ -759,23 +570,8 @@ class Device:
             self._console.add_text(self._prefix + line + '\n')
 
     def _get_serial_line(self):
-        # Consume any newlines at the start of our buffer.
-        pos = 0
-        while pos < len(self._buffer) and self._buffer[pos] in b'\r\n':
-            pos += 1
-        self._buffer = self._buffer[pos:]
-
-        # Look for a trailing newline
-        end = 0
-        while end < len(self._buffer) and self._buffer[end] not in b'\r\n':
-            end += 1
-
-        if end >= len(self._buffer):
-            return
-
-        line, self._buffer = self._buffer[:end], self._buffer[end+1:]
-
-        return line
+        result = self._stream.read_line()
+        return result
 
     def update_config(self, callback):
         # Clear out our config tree.
@@ -855,7 +651,7 @@ class Device:
 
     def write_line(self, line):
         self._console.add_text(self._prefix + line)
-        self._stream.write(line.encode('latin1'))
+        self.write(line.encode('latin1'))
 
     def _handle_telemetry(self):
         line = self._get_serial_line()
@@ -932,23 +728,16 @@ class Device:
         self._serial_state = self.STATE_LINE
 
     def _handle_sized_block(self):
-        # Wait until we have the complete schema in the buffer.  It
-        # will start with the final newline from the first line.
-        if len(self._buffer) < 5:
+        block = self._stream.read_sized_block()
+
+        if block is None:
             return
 
-        size = struct.unpack('<I', self._buffer[1:5])[0]
-        if size > 2 ** 24:
-            # Whoops, probably bogus.
+        if block == False:
             print('Invalid schema size, skipping whatever we were doing.')
             self._serial_state = self.STATE_LINE
             return
 
-        if len(self._buffer) < 5 + size:
-            return
-
-        block = self._buffer[5:5+size]
-        self._buffer = self._buffer[5+size:]
         return block
 
     class Schema:
@@ -994,9 +783,9 @@ class TviewMainWindow():
         self.devices = []
         self.default_rate = 100
 
-        self._serial_timer = QtCore.QTimer()
-        self._serial_timer.timeout.connect(self._poll_serial)
-        self._serial_timer.start(10)
+        self._poll_timer = QtCore.QTimer()
+        self._poll_timer.timeout.connect(self._poll)
+        self._poll_timer.start(10)
 
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
         uifilename = os.path.join(current_script_dir, "tview_main_window.ui")
@@ -1055,34 +844,23 @@ class TviewMainWindow():
     def show(self):
         self.ui.show()
 
+    def _make_transport(self):
+        if self.options.serial:
+            # Assume we are a fdcanusb.
+            return moteus.Fdcanusb(self.options.serial)
+
+        # Just try something.
+        return moteus.get_singleton_transport()
+
     def _open(self):
-        if self.options.target:
-            target_fields = self.options.target.split(':')
-            try:
-                port = NetworkPort(socket.create_connection(
-                    (target_fields[0], int(target_fields[1])), timeout=2.0))
-            except OSError:
-                print("could not connect to: ", self.options.target)
-                exit(1)
-            self.port = BufferedSerial(port)
-        else:
-            self.port = BufferedSerial(serial.Serial(
-                port=self.options.serial,
-                baudrate=self.options.baudrate,
-                timeout=0.0))
+        self.transport = self._make_transport()
+        asyncio.create_task(self._read_transport())
 
         self.devices = []
         self.ui.configTreeWidget.clear()
         self.ui.telemetryTreeWidget.clear()
 
         for device_id in [int(x) for x in self.options.devices.split(',')]:
-            if self.options.rs485:
-                stream = MultiplexStream(
-                    self.port, device_id, self.options.max_receive_bytes)
-            else:
-                stream = FdcanUsbStream(
-                    self.port, device_id, self.options.max_receive_bytes)
-
             config_item = QtGui.QTreeWidgetItem()
             config_item.setText(0, str(device_id))
             self.ui.configTreeWidget.addTopLevelItem(config_item)
@@ -1091,27 +869,33 @@ class TviewMainWindow():
             data_item.setText(0, str(device_id))
             self.ui.telemetryTreeWidget.addTopLevelItem(data_item)
 
-            device = Device(device_id, stream,
+            device = Device(device_id, self.transport,
                             self.console, '{}>'.format(device_id),
                             config_item,
                             data_item)
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
-            device.start()
+            asyncio.create_task(device.start())
 
             self.devices.append(device)
 
+    async def _read_transport(self):
+        while True:
+            message = await self.transport.read()
+            source_id = (message.arbitration_id >> 8) & 0xff
+            for device in self.devices:
+                if device.number == source_id:
+                    device.process_message(message)
+                    break
+
     def _handle_startup(self):
         self.console._control.setFocus()
+        self._open()
 
-    def _poll_serial(self):
-        if self.port is None:
-            if os.path.exists(self.options.serial) or self.options.target:
-                self._open()
-            else:
-                return
-        else:
-            [x.poll() for x in self.devices]
+    @asyncqt.asyncSlot()
+    async def _poll(self):
+        for device in self.devices:
+            await device.poll()
 
     def make_writer(self, devices, line):
         def write():
@@ -1253,17 +1037,17 @@ def main():
     usage, description = __doc__.split('\n\n', 1)
     parser = optparse.OptionParser(usage=usage, description=description)
 
-    parser.add_option('--serial', '-s', default='/dev/fdcanusb')
+    parser.add_option('--serial', '-s', default=None)
     parser.add_option('--baudrate', '-b', type='int', default=115200)
     parser.add_option('--devices', '-d', type='str', default='1')
-    parser.add_option('--target', '-t', default=None)
-    parser.add_option('--rs485', '-c', action='store_true')
     parser.add_option('--max-receive-bytes', default=127, type=int)
 
     options, args = parser.parse_args()
     assert len(args) == 0
 
     app = QtGui.QApplication(sys.argv)
+    loop = asyncqt.QEventLoop(app)
+    asyncio.set_event_loop(loop)
 
     # To work around https://bugreports.qt.io/browse/PYSIDE-88
     app.aboutToQuit.connect(lambda: os._exit(0))
