@@ -78,4 +78,4 @@ class PythonCan:
 
         reply = await self._reader.get_message()
 
-        return command.parse(reply.data)
+        return command.parse(reply)

@@ -21,6 +21,12 @@ import unittest
 import moteus.moteus as mot
 
 
+class CanMessage:
+    def __init__(self, arbitration_id=0, data=b''):
+        self.arbitration_id = arbitration_id
+        self.data = data
+
+
 class MoteusTest(unittest.TestCase):
     def test_make_position_empty(self):
         dut = mot.Controller()
@@ -73,11 +79,11 @@ class MoteusTest(unittest.TestCase):
                    0x13, 0x0d]))
         self.assertEqual(result.reply_required, True)
 
-        parsed = result.parse(bytes([]))
+        parsed = result.parse(CanMessage())
         self.assertEqual(parsed.id, 1)
         self.assertEqual(len(parsed.values), 0)
 
-        parsed = result.parse(bytes([
+        parsed = result.parse(CanMessage(data=bytes([
             0x24, 0x04, 0x00,
             0x0a, 0x00, # mode
             0x10, 0x02, # position
@@ -87,7 +93,7 @@ class MoteusTest(unittest.TestCase):
             0x20,  # voltage
             0x30,  # temperature
             0x40,  # fault
-        ]))
+        ])))
 
         self.assertEqual(
             parsed.values,
@@ -112,13 +118,13 @@ class MoteusTest(unittest.TestCase):
             bytes([0x42, 0x01, 0x30]))
         self.assertEqual(result.reply_required, True)
 
-        parsed = result.parse(bytes([]))
+        parsed = result.parse(CanMessage())
         self.assertEqual(parsed.id, 1)
         self.assertEqual(parsed.data, None)
 
-        parsed = result.parse(bytes([
+        parsed = result.parse(CanMessage(data=bytes([
             0x41, 0x01, 0x04,
-            0x44, 0x45, 0x46, 0x47]))
+            0x44, 0x45, 0x46, 0x47])))
         self.assertEqual(parsed.id, 1)
         self.assertEqual(parsed.data, b'DEFG')
 

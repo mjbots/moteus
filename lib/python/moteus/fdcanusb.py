@@ -31,6 +31,15 @@ def _dehexify(data):
     return result
 
 
+class CanMessage:
+    arbitration_id = 0
+    is_extended_id = False
+    dlc = 0
+    data = b''
+    is_fd = False
+    bitrate_switch = False
+
+
 class Fdcanusb:
     """Connects to a single mjbots fdcanusb."""
 
@@ -121,4 +130,8 @@ class Fdcanusb:
                 raise RuntimeError("unexpected fdcanusb response, got: " + line)
 
             fields = line.split(b" ")
-            return command.parse(_dehexify(fields[2]))
+            message = CanMessage()
+            message.data = _dehexify(fields[2])
+            message.arbitration_id = int(fields[1], 16)
+
+            return command.parse(message)

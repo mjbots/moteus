@@ -273,15 +273,17 @@ class Result:
 
 
 def make_parser(id):
-    def parse(data):
+    def parse(message):
         result = Result()
         result.id = id
-        result.values = parse_reply(data)
+        result.values = parse_reply(message.data)
         return result
     return parse
 
 
-def parse_diagnostic_data(data):
+def parse_diagnostic_data(message):
+    data = message.data
+
     if len(data) < 3:
         return None
 
