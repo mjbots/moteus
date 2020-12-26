@@ -31,9 +31,11 @@ filegroup(
     name = "libfiles",
     srcs = [
         "aioserial.py",
+        "aiostream.py",
         "command.py",
         "fdcanusb.py",
         "moteus.py",
+        "moteus_tool.py",
         "multiplex.py",
         "posix_aioserial.py",
         "pythoncan.py",

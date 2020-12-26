@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import argparse
 import enum
 import io
@@ -580,7 +581,7 @@ class Controller:
         return result
 
     async def send_diagnostic_write(self, *args, **kwargs):
-        await self.get_transport().cycle([self.make_diagnostic_write(**kwargs)])
+        await self._get_transport().cycle([self.make_diagnostic_write(**kwargs)])
 
     def make_diagnostic_read(self, max_length=48, source=0):
         result = self._make_command(query=True)
@@ -599,3 +600,62 @@ class Controller:
     async def diagnostic_read(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_diagnostic_read(**kwargs)]))
+
+
+class Stream:
+    """Presents a python file-like interface to the diagnostic stream of a
+    moteus controller."""
+
+    def __init__(self, controller):
+        self.controller = controller
+        self.lock = asyncio.Lock()
+        self._read_data = b''
+        self._write_data = b''
+
+    def write(self, data):
+        self._write_data += data
+
+    async def drain(self):
+        while len(self._write_data):
+            to_write, self._write_data = self._write_data[0:61], self._write_data[61:]
+
+            async with self.lock:
+                await self.controller.send_diagnostic_write(data=to_write)
+
+    async def read(self, size, block=True):
+        while ((block == True and len(self._read_data) < size)
+               or len(self._read_data) == 0):
+            bytes_to_request = min(61, size - len(self._read_data))
+
+            async with self.lock:
+                this_result = await self.controller.diagnostic_read(bytes_to_request)
+            self._read_data += this_result.data
+
+            if len(this_result.data) == 0:
+                # Wait a bit before asking again.
+                await asyncio.sleep(0.01)
+
+        to_return, self._read_data = self._read_data[0:size], self._read_data[size:]
+        return to_return
+
+    async def _read_maybe_empty_line(self):
+        while b'\n' not in self._read_data and b'\r' not in self._read_data:
+            async with self.lock:
+                this_result = await self.controller.diagnostic_read(61)
+            self._read_data += this_result.data
+
+            if len(this_result.data) == 0:
+                asyncio.sleep(0.01)
+
+        first_newline = min((self._read_data.find(c) for c in b'\r\n'
+                             if c in self._read_data), default=None)
+        to_return, self._read_data = (
+            self._read_data[0:first_newline+1],
+            self._read_data[first_newline+1:])
+        return to_return
+
+    async def readline(self):
+        while True:
+            line = await self._read_maybe_empty_line().rstrip()
+            if len(line) > 0:
+                return line
