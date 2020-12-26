@@ -26,15 +26,18 @@ struct GitInfo {
 
   std::array<uint8_t, 20> hash = {{}};
   bool dirty = false;
+  uint64_t timestamp = 0;
 
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(hash));
     a->Visit(MJ_NVP(dirty));
+    a->Visit(MJ_NVP(timestamp));
   }
 };
 
 extern char kGitHash[41];
 extern char kGitDirty[10];
+extern uint64_t kGitTimestamp;
 
 }

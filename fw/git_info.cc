@@ -43,8 +43,10 @@ GitInfo::GitInfo() {
 
     dirty = kGitDirty[0] != '0';
   }
+  timestamp = kGitTimestamp;
 }
 
 char kGitHash[41] __attribute__((weak)) = {};
 char kGitDirty[10] __attribute__((weak)) = {};
+uint64_t kGitTimestamp __attribute__((weak)) = 0;
 }

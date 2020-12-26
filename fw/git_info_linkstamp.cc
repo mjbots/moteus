@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdint>
+
 namespace moteus {
 
 char kGitHash[41] = BUILD_SCM_REVISION;
 char kGitDirty[10] = BUILD_SCM_STATUS;
+uint64_t kGitTimestamp = BUILD_TIMESTAMP;
 
 }
