@@ -57,6 +57,7 @@ RIGHT_LEGEND_LOC = 2
 DEFAULT_RATE = 100
 MAX_HISTORY_SIZE = 100
 MAX_SEND = 61
+POLL_TIMEOUT_S = 0.1
 
 # TODO jpieper: Factor these out of tplot.py
 def _get_data(value, name):
@@ -403,19 +404,20 @@ class DeviceStream:
         data = message.data
 
         if len(data) < 3:
-            return
+            return False
 
         if data[0] != 0x41:
-            return
+            return False
         if data[1] != 1:
-            return
+            return False
         if data[2] > MAX_SEND:
-            return
+            return False
         datalen = data[2]
         if datalen > (len(data) - 3):
-            return
+            return False
 
         self._read_data += data[3:3+datalen]
+        return datalen > 0
 
     def _read_maybe_empty_line(self):
         first_newline = min((self._read_data.find(c) for c in b'\r\n'
@@ -462,6 +464,9 @@ class Device:
 
     def __init__(self, number, transport, console, prefix,
                  config_tree_item, data_tree_item):
+        self.error_count = 0
+        self.poll_count = 0
+
         self.number = number
         self.controller = moteus.Controller(number)
         self._transport = transport
@@ -498,9 +503,9 @@ class Device:
     def process_message(self, message):
         now = time.time()
         if self._start_time and (now - self._start_time < 0.2):
-            return
+            return False
 
-        self._stream.process_message(message)
+        any_data_read = self._stream.process_message(message)
 
         while True:
             old_len = len(self._stream._read_data)
@@ -512,9 +517,12 @@ class Device:
             if len(self._stream._read_data) == old_len:
                 break
 
+        return any_data_read
+
+    async def emit_any_writes(self):
+        await self._stream.maybe_emit_one()
 
     async def poll(self):
-        await self._stream.maybe_emit_one()
         await self._transport.write(self.controller.make_diagnostic_read())
 
         if self._start_time is not None:
@@ -783,10 +791,6 @@ class TviewMainWindow():
         self.devices = []
         self.default_rate = 100
 
-        self._poll_timer = QtCore.QTimer()
-        self._poll_timer.timeout.connect(self._poll)
-        self._poll_timer.start(10)
-
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
         uifilename = os.path.join(current_script_dir, "tview_main_window.ui")
 
@@ -854,7 +858,7 @@ class TviewMainWindow():
 
     def _open(self):
         self.transport = self._make_transport()
-        asyncio.create_task(self._read_transport())
+        asyncio.create_task(self._run_transport())
 
         self.devices = []
         self.ui.configTreeWidget.clear()
@@ -879,23 +883,66 @@ class TviewMainWindow():
 
             self.devices.append(device)
 
-    async def _read_transport(self):
-        while True:
-            message = await self.transport.read()
-            source_id = (message.arbitration_id >> 8) & 0xff
-            for device in self.devices:
-                if device.number == source_id:
-                    device.process_message(message)
-                    break
-
     def _handle_startup(self):
         self.console._control.setFocus()
         self._open()
 
-    @asyncqt.asyncSlot()
-    async def _poll(self):
+    async def _dispatch_until(self, predicate):
+        while True:
+            message = await self.transport.read()
+            source_id = (message.arbitration_id >> 8) & 0xff
+            any_data_read = False
+            for device in self.devices:
+                if device.number == source_id:
+                    any_data_read = device.process_message(message)
+                    break
+            if predicate(message):
+                return any_data_read
+
+    async def _run_transport(self):
+        any_data_read = False
+        while True:
+            # We only sleep if no devices had anything to report the last cycle.
+            if not any_data_read:
+                await asyncio.sleep(0.01)
+
+            any_data_read = await self._run_transport_iteration()
+
+    async def _run_transport_iteration(self):
+        any_data_read = False
+
+        # First, do writes from all devices.  This ensures that the
+        # writes will go out at approximately the same time.
         for device in self.devices:
+            await device.emit_any_writes()
+
+        # Then poll for new data.  Back off from unresponsive devices
+        # so that they don't disrupt everything.
+        for device in self.devices:
+            if device.poll_count:
+                device.poll_count -= 1
+                continue
+
             await device.poll()
+
+            try:
+                this_data_read = await asyncio.wait_for(
+                    self._dispatch_until(
+                        lambda x: (x.arbitration_id >> 8) & 0xff == device.number),
+                    timeout = POLL_TIMEOUT_S)
+
+                device.error_count = 0
+                device.poll_count = 0
+
+                if this_data_read:
+                    any_data_read = True
+            except asyncio.TimeoutError:
+                # Mark this device as error-full, which will then
+                # result in backoff in polling.
+                device.error_count = min(1000, device.error_count + 1)
+                device.poll_count = device.error_count
+
+        return any_data_read
 
     def make_writer(self, devices, line):
         def write():
