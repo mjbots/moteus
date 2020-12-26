@@ -31,17 +31,6 @@ def _dehexify(data):
     return result
 
 
-async def _readline(stream):
-    result = bytearray()
-    while True:
-        char = await stream.read(1)
-        if char == b'\r' or char == b'\n':
-            if len(result):
-                return result
-        else:
-            result += char
-
-
 class Fdcanusb:
     """Connects to a single mjbots fdcanusb."""
 
@@ -58,6 +47,22 @@ class Fdcanusb:
         # A fdcanusb ignores the requested baudrate, so we'll just
         # pick something nice and random.
         self._serial = aioserial.AioSerial(port=path, baudrate=9600)
+        self._stream_data = b''
+
+    async def _readline(self, stream):
+        while True:
+            offset = min((self._stream_data.find(c) for c in b"\r\n"
+                          if c in self._stream_data), default=None)
+            if offset is not None:
+                to_return, self._stream_data = (
+                    self._stream_data[0:offset+1],
+                    self._stream_data[offset+1:])
+                if offset > 0:
+                    return to_return
+                else:
+                    continue
+            else:
+                self._stream_data += await stream.read(8192, block=False)
 
     def detect_fdcanusb(self):
         if sys.platform == 'win32':
@@ -104,13 +109,13 @@ class Fdcanusb:
         await self._serial.drain()
 
         # Get the OK response.
-        ok_response = await _readline(self._serial)
+        ok_response = await self._readline(self._serial)
         if not ok_response.startswith(b"OK"):
             raise RuntimeError("fdcanusb lost synchronization, got: " +
                                ok_response.decode('latin1'))
 
         if reply_required:
-            line = await _readline(self._serial)
+            line = await self._readline(self._serial)
 
             if not line.startswith(b"rcv"):
                 raise RuntimeError("unexpected fdcanusb response, got: " + line)
