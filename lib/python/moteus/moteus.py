@@ -281,6 +281,40 @@ def make_parser(id):
     return parse
 
 
+def parse_diagnostic_data(data):
+    if len(data) < 3:
+        return None
+
+    if data[0] != mp.STREAM_SERVER_DATA:
+        return None
+    if data[1] != 1:
+        return None
+    datalen, nextoff = mp.read_varuint(2, data)
+    if datalen is None:
+        return None
+
+    if datalen < (len(data) - nextoff):
+        return None
+    return data[nextoff:nextoff+datalen]
+
+
+class DiagnosticResult:
+    id = None
+    data = b''
+
+    def __repr__(self):
+        return f'{self.id}/{self.data}'
+
+
+def make_diagnostic_parser(id):
+    def parse(data):
+        result = DiagnosticResult()
+        result.id = id
+        result.data = parse_diagnostic_data(data)
+        return result
+    return parse
+
+
 class Controller:
     """Operates a single moteus controller across some communication
     medium.
@@ -301,6 +335,7 @@ class Controller:
         self.position_resolution = position_resolution
         self.transport = transport
         self._parser = make_parser(id)
+        self._diagnostic_parser = make_diagnostic_parser(id)
 
         # Pre-compute our query string.
         self._query_data = self._make_query_data()
@@ -345,11 +380,11 @@ class Controller:
             return value[0]
         return None
 
-    def _make_command(self, *, query):
+    def _make_command(self, *, query, source=0):
         result = cmd.Command()
 
         result.destination = self.id
-        result.source = 0
+        result.source = source
         result.reply_required = query
         result.parse = self._parser
 
@@ -476,3 +511,40 @@ class Controller:
     async def set_position(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_position(**kwargs)]))
+
+    def make_diagnostic_write(self, data):
+        result = self._make_command(query=False)
+
+        # CAN-FD frames can be at most 64 bytes long
+        assert len(data) <= 61
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.STREAM_CLIENT_DATA)
+        writer.write_int8(1)  # channel
+        writer.write_int8(len(data))
+        data_buf.write(data)
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def send_diagnostic_write(self, *args, **kwargs):
+        await self.get_transport().cycle([self.make_diagnostic_write(**kwargs)])
+
+    def make_diagnostic_read(self, max_length=48, source=0):
+        result = self._make_command(query=True)
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.STREAM_CLIENT_POLL)
+        writer.write_int8(1)
+        writer.write_int8(max_length)
+
+        result.parse = self._diagnostic_parser
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def diagnostic_read(self, *args, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_diagnostic_read(**kwargs)]))

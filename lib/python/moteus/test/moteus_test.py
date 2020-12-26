@@ -104,5 +104,24 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(repr(parsed), '1/{MODE(0x000): 10, POSITION(0x001): 0.0528, VELOCITY(0x002): -0.128, TORQUE(0x003): 0.32, VOLTAGE(0x00d): 16.0, TEMPERATURE(0x00e): 48.0, FAULT(0x00f): 64}')
 
 
+    def test_make_diagnostic_read(self):
+        dut = mot.Controller()
+        result = dut.make_diagnostic_read()
+        self.assertEqual(
+            result.data,
+            bytes([0x42, 0x01, 0x30]))
+        self.assertEqual(result.reply_required, True)
+
+        parsed = result.parse(bytes([]))
+        self.assertEqual(parsed.id, 1)
+        self.assertEqual(parsed.data, None)
+
+        parsed = result.parse(bytes([
+            0x41, 0x01, 0x04,
+            0x44, 0x45, 0x46, 0x47]))
+        self.assertEqual(parsed.id, 1)
+        self.assertEqual(parsed.data, b'DEFG')
+
+
 if __name__ == '__main__':
     unittest.main()
