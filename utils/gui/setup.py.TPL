@@ -53,6 +53,9 @@ setuptools.setup(
         'asyncqt>=0.8',
         'moteus>=0.3',
         'matplotlib',
+        # For some reason, matplotlib can barf without this, but
+        # doesn't actually list it as a dependency on Windows.
+        'msvc-runtime;platform_system=="Windows"',
         'numpy<=1.19.3;platform_system=="Windows"',
         'numpy;platform_system=="Linux"',
         'PySide2',
