@@ -16,7 +16,7 @@
 controller."""
 
 __all__ = [
-    'get_singleton_transport',
+    'make_transport_args', 'get_singleton_transport',
     'Fdcanusb', 'Router', 'Controller', 'Register', 'Transport',
     'PythonCan',
     'Mode', 'QueryResolution', 'PositionResolution', 'Command',
@@ -31,7 +31,7 @@ from moteus.transport import Transport
 from moteus.pythoncan import PythonCan
 from moteus.moteus import (
     Controller, Register, Mode, QueryResolution, PositionResolution,
-    get_singleton_transport,
+    make_transport_args, get_singleton_transport,
     TRANSPORT_FACTORIES)
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
 import moteus.reader as reader

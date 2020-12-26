@@ -14,16 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-'''%prog [options]
-
-Interactively display and update values from an embedded device.
+'''Interactively display and update values from an embedded device.
 '''
 
+import argparse
 import asyncio
 import io
 import moteus
 import numpy
-import optparse
 import os
 import re
 import struct
@@ -849,12 +847,8 @@ class TviewMainWindow():
         self.ui.show()
 
     def _make_transport(self):
-        if self.options.serial:
-            # Assume we are a fdcanusb.
-            return moteus.Fdcanusb(self.options.serial)
-
-        # Just try something.
-        return moteus.get_singleton_transport()
+        # Get a transport as configured.
+        return moteus.get_singleton_transport(self.options)
 
     def _open(self):
         self.transport = self._make_transport()
@@ -1081,16 +1075,14 @@ class TviewMainWindow():
 
 
 def main():
-    usage, description = __doc__.split('\n\n', 1)
-    parser = optparse.OptionParser(usage=usage, description=description)
+    parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_option('--serial', '-s', default=None)
-    parser.add_option('--baudrate', '-b', type='int', default=115200)
-    parser.add_option('--devices', '-d', type='str', default='1')
-    parser.add_option('--max-receive-bytes', default=127, type=int)
+    parser.add_argument('-d', '--devices', type=str, default='1')
+    parser.add_argument('--max-receive-bytes', default=48, type=int)
 
-    options, args = parser.parse_args()
-    assert len(args) == 0
+    moteus.make_transport_args(parser)
+
+    args = parser.parse_args()
 
     app = QtGui.QApplication(sys.argv)
     loop = asyncqt.QEventLoop(app)
@@ -1099,7 +1091,7 @@ def main():
     # To work around https://bugreports.qt.io/browse/PYSIDE-88
     app.aboutToQuit.connect(lambda: os._exit(0))
 
-    tv = TviewMainWindow(options)
+    tv = TviewMainWindow(args)
     tv.show()
 
     app.exec_()

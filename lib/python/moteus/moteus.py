@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import enum
 import io
 
@@ -23,15 +24,44 @@ from . import pythoncan
 class FdcanusbFactory:
     PRIORITY = 10
 
-    def __call__(self):
-        return fdcanusb.Fdcanusb()
+    name = 'fdcanusb'
+
+    def add_args(self, parser):
+        parser.add_argument('--fdcanusb', type=str, metavar='FILE',
+                            help='path to fdcanusb device')
+
+    def is_args_set(self, args):
+        return args and args.fdcanusb
+
+    def __call__(self, args):
+        kwargs = {}
+        if args and args.fdcanusb:
+            kwargs['path'] = args.fdcanusb
+        return fdcanusb.Fdcanusb(**kwargs)
 
 
 class PythonCanFactory:
     PRIORITY = 11
 
-    def __call__(self):
-        return pythoncan.PythonCan()
+    name = 'pythoncan'
+
+    def add_args(self, parser):
+        parser.add_argument('--can-iface', type=str, metavar='IFACE',
+                            help='pythoncan "interface" (default: socketcan)')
+        parser.add_argument('--can-chan', type=str, metavar='CHAN',
+                            help='pythoncan "channel" (default: can0)')
+
+    def is_args_set(self, args):
+        return args and (args.can_iface or args.can_chan)
+
+    def __call__(self, args):
+        kwargs = {}
+        if args:
+            if args.can_iface:
+                kwargs['interface'] = args.can_iface
+            if args.can_chan:
+                kwargs['channel'] = args.can_chan
+        return pythoncan.PythonCan(**kwargs)
 
 
 '''External callers may insert additional factories into this list.'''
@@ -44,7 +74,18 @@ TRANSPORT_FACTORIES = [
 GLOBAL_TRANSPORT = None
 
 
-def get_singleton_transport():
+def make_transport_args(parser):
+    for factory in TRANSPORT_FACTORIES:
+        if hasattr(factory, 'add_args'):
+            factory.add_args(parser)
+
+    parser.add_argument(
+        '--force-transport', type=str,
+        choices=[x.name for x in TRANSPORT_FACTORIES],
+        help='Force the given transport type to be used')
+
+
+def get_singleton_transport(args=None):
     global GLOBAL_TRANSPORT
 
     if GLOBAL_TRANSPORT:
@@ -52,10 +93,18 @@ def get_singleton_transport():
 
     maybe_result = None
     to_try = sorted(TRANSPORT_FACTORIES, key=lambda x: x.PRIORITY)
+    if args and args.force_transport:
+        to_try = [x for x in to_try if x.name == args.force_transport]
+    elif args:
+        # See if any transports have options set.  If so, then limit
+        # to just those that do.
+        if any([x.is_args_set(args) for x in TRANSPORT_FACTORIES]):
+            to_try = [x for x in to_try if x.is_args_set(args)]
+
     errors = []
     for factory in to_try:
         try:
-            maybe_result = factory()
+            maybe_result = factory(args)
             break
         except Exception as e:
             errors.append((factory, str(e)))

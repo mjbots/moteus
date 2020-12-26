@@ -85,4 +85,5 @@ class PythonCan:
         self._can.send(message)
 
     async def read(self):
+        self._maybe_setup()
         return await self._reader.get_message()
