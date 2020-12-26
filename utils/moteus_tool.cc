@@ -151,6 +151,7 @@ struct DeviceInfo {
   std::string model;
   std::string git_hash;
   bool git_dirty = false;
+  uint64_t git_timestamp = 0;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -158,6 +159,7 @@ struct DeviceInfo {
     a->Visit(MJ_NVP(model));
     a->Visit(MJ_NVP(git_hash));
     a->Visit(MJ_NVP(git_dirty));
+    a->Visit(MJ_NVP(git_timestamp));
   }
 };
 
@@ -572,6 +574,7 @@ class Controller {
 
     result.git_hash = MakeGitHash(git.hash);
     result.git_dirty = git.dirty != 0;
+    result.git_timestamp = git.timestamp;
 
     co_return result;
   }
