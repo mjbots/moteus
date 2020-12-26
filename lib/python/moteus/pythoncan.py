@@ -63,6 +63,16 @@ class PythonCan:
         return result
 
     async def _do_command(self, command):
+        self.write(command)
+
+        if not command.reply_required:
+            return None
+
+        reply = await self._reader.get_message()
+
+        return command.parse(reply)
+
+    async def write(self, command):
         reply_required = command.reply_required
         arbitration_id = command.destination + (0x8000 if reply_required else 0)
         message = can.Message(arbitration_id=arbitration_id,
@@ -73,9 +83,6 @@ class PythonCan:
                               bitrate_switch=True)
 
         self._can.send(message)
-        if not command.reply_required:
-            return None
 
-        reply = await self._reader.get_message()
-
-        return command.parse(reply)
+    async def read(self):
+        return await self._reader.get_message()

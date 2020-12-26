@@ -25,6 +25,12 @@ class Router:
           destinations: A list of tuples, (target, [list, of, ids])
         """
         self._destinations = destinations
+        self._id_map = {}
+        for target, ids in self._destinations:
+            for id_num in ids:
+                self._id_map[id_num] = target
+
+        self._readers = []
 
     async def cycle(self, commands):
         arguments = [
@@ -35,3 +41,20 @@ class Router:
         tasks = [x[0].cycle(x[1]) for x in arguments]
         results = await asyncio.gather(*tasks)
         return sum(results, [])
+
+    async def write(self, command):
+        await self._id_map[command.id].write(command)
+
+    async def read(self):
+        targets = list(self._destinations.keys())
+        for reader in self._readers:
+            del(targets[targets.find(reader.target)])
+
+        for target in targets:
+            self._readers.append(
+                ayncio.create_task(target.read()))
+            self._readers[-1].target = target
+
+        done, self._readers = asyncio.wait(
+            self._readers, return_when=asyncio.FIRST_COMPLETED)
+        return done[0].result()

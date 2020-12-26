@@ -108,14 +108,8 @@ class Fdcanusb:
         return [await self._do_command(x) for x in commands]
 
     async def _do_command(self, command):
-        destination = command.destination
+        await self.write(command)
         reply_required = command.reply_required
-
-        bus_id = command.destination + (0x8000 if reply_required else 0)
-        self._serial.write(
-            "can send {:04x} {}\n".format(
-                bus_id, _hexify(command.data)).encode('latin1'))
-        await self._serial.drain()
 
         # Get the OK response.
         ok_response = await self._readline(self._serial)
@@ -135,3 +129,26 @@ class Fdcanusb:
             message.arbitration_id = int(fields[1], 16)
 
             return command.parse(message)
+
+    async def write(self, command):
+        # This merely sends a command and doesn't even wait for an OK
+        # to come back.  It can *not* be intermixed with calls to
+        # 'cycle'.
+        bus_id = command.destination + (0x8000 if command.reply_required else 0)
+        self._serial.write(
+            "can send {:04x} {}\n".format(
+                bus_id, _hexify(command.data)).encode('latin1'))
+        await self._serial.drain()
+
+    async def read(self):
+        # Read a single CAN message and do not parse it.
+        while True:
+            line = await self._readline(self._serial)
+            if not line.startswith(b"rcv"):
+                continue
+
+            fields = line.split(b" ")
+            message = CanMessage()
+            message.data = _dehexify(fields[2])
+            message.arbitration_id = int(fields[1], 16)
+            return message
