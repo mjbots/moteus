@@ -20,8 +20,8 @@ import sys
 
 def main():
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-    sys.path.append(os.path.join(SCRIPT_DIR, 'gui'))  # for tview
-    sys.path.append(os.path.join(SCRIPT_DIR, '..', 'lib', 'python'))  # for moteus
+    sys.path.insert(0, os.path.join(SCRIPT_DIR, 'gui'))  # for tview
+    sys.path.insert(0, os.path.join(SCRIPT_DIR, '..', 'lib', 'python'))  # for moteus
     runpy.run_module('moteus_gui.tview', run_name='__main__')
 
 if __name__ == '__main__':
