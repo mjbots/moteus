@@ -830,9 +830,10 @@ class Device:
             def add_config(item, key, value):
                 if key == '':
                     item.setText(1, value)
-                    item.setFlags(QtCore.Qt.ItemIsEditable |
-                                  QtCore.Qt.ItemIsSelectable |
-                                  QtCore.Qt.ItemIsEnabled)
+                    item.setFlags(QtCore.Qt.ItemFlags(
+                        int(QtCore.Qt.ItemIsEditable) |
+                        int(QtCore.Qt.ItemIsSelectable) |
+                        int(QtCore.Qt.ItemIsEnabled)))
                     return
 
                 fields = key.split('.', 1)
