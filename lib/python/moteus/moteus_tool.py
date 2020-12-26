@@ -99,6 +99,13 @@ class Stream:
 
         print(json.dumps(result, indent=2))
 
+    async def do_zero_offset(self):
+        servo_stats = await self.read_data("servo_stats")
+        position_raw = servo_stats.position_raw
+        await self.command("conf set motor.position_offset {:d}".format(-position_raw).encode('latin1'))
+        await self.command(b'conf write')
+        await self.command(b'd rezero')
+
 
 class Runner:
     def __init__(self, args):
@@ -145,6 +152,8 @@ class Runner:
             print((await stream.command(b'conf enumerate')).decode('latin1'))
         elif self.args.info:
             await stream.info()
+        elif self.args.zero_offset:
+            await stream.do_zero_offset()
         else:
             raise RuntimeError("No action specified")
 
