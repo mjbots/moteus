@@ -605,6 +605,12 @@ class Controller:
             [self.make_diagnostic_read(**kwargs)]))
 
 
+class CommandError(RuntimeError):
+    def __init__(self, message):
+        super(CommandError, self).__init__("Error response:" + message)
+        self.message = message
+
+
 class Stream:
     """Presents a python file-like interface to the diagnostic stream of a
     moteus controller."""
@@ -675,6 +681,8 @@ class Stream:
             line = await self.readline()
             if line.startswith(b'OK'):
                 return result
+            if line.startswith(b'ERR'):
+                raise CommandError(line.decode('latin1'))
             result += (line + b'\n')
 
     async def command(self, data, allow_any_response=False):

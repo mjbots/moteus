@@ -106,6 +106,29 @@ class Stream:
         await self.command(b'conf write')
         await self.command(b'd rezero')
 
+    async def do_write_config(self, config_file):
+        fp = open(config_file, "rb")
+        await self.write_config_stream(fp)
+
+    async def write_config_stream(self, fp):
+        errors = []
+
+        for line in fp.readlines():
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+
+            try:
+                await self.command(line)
+            except moteus.CommandError as ce:
+                errors.append(line.decode('latin1'))
+
+        if len(errors):
+            print("\nSome config could not be set:")
+            for line in errors:
+                print(f" {line}")
+            print()
+
 
 class Runner:
     def __init__(self, args):
@@ -154,6 +177,8 @@ class Runner:
             await stream.info()
         elif self.args.zero_offset:
             await stream.do_zero_offset()
+        elif self.args.write_config:
+            await stream.do_write_config(self.args.write_config)
         else:
             raise RuntimeError("No action specified")
 
