@@ -46,9 +46,9 @@ async def _copy_stream(inp, out):
 
 
 class Stream:
-    def __init__(self, target_id, transport):
+    def __init__(self, args, target_id, transport):
         self.controller = moteus.Controller(target_id, transport=transport)
-        self.stream = moteus.Stream(self.controller)
+        self.stream = moteus.Stream(self.controller, verbose=args.verbose)
 
     async def do_console(self):
         console_stdin = aiostream.AioStream(sys.stdin.buffer.raw)
@@ -56,6 +56,9 @@ class Stream:
         dir1 = asyncio.create_task(_copy_stream(self.stream, console_stdout))
         dir2 = asyncio.create_task(_copy_stream(console_stdin, self.stream))
         await asyncio.wait([dir1, dir2], return_when=asyncio.FIRST_COMPLETED)
+
+    async def command(self, message):
+        await self.stream.command(message)
 
 
 class Runner:
@@ -93,10 +96,12 @@ class Runner:
         return result
 
     async def run_action(self, target_id):
-        stream = Stream(target_id, self.transport)
+        stream = Stream(self.args, target_id, self.transport)
 
         if self.args.console:
             await stream.do_console()
+        elif self.args.stop:
+            await stream.command(b'd stop')
         else:
             raise RuntimeError("No action specified")
 

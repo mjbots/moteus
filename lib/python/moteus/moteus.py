@@ -606,8 +606,10 @@ class Stream:
     """Presents a python file-like interface to the diagnostic stream of a
     moteus controller."""
 
-    def __init__(self, controller):
+    def __init__(self, controller, verbose=False):
         self.controller = controller
+        self.verbose = verbose
+
         self.lock = asyncio.Lock()
         self._read_data = b''
         self._write_data = b''
@@ -656,6 +658,31 @@ class Stream:
 
     async def readline(self):
         while True:
-            line = await self._read_maybe_empty_line().rstrip()
+            line = (await self._read_maybe_empty_line()).rstrip()
             if len(line) > 0:
+                if self.verbose:
+                    print(f"< {line}")
                 return line
+
+    async def read_until_OK(self):
+        result = b''
+        while True:
+            line = await self.readline()
+            if line.startswith(b'OK'):
+                return result
+            result += (line + b'\n')
+
+    async def command(self, data, allow_any_response=False):
+        await self.write_message(data)
+
+        if allow_any_response:
+            return await self.readline()
+        else:
+            return await self.read_until_OK()
+
+    async def write_message(self, data):
+        if self.verbose:
+            print(f"> {data}")
+
+        self.write(data + b'\n')
+        await self.drain()
