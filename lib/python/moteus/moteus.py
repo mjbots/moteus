@@ -52,16 +52,18 @@ def get_singleton_transport():
 
     maybe_result = None
     to_try = sorted(TRANSPORT_FACTORIES, key=lambda x: x.PRIORITY)
+    errors = []
     for factory in to_try:
         try:
             maybe_result = factory()
             break
-        except:
+        except Exception as e:
+            errors.append((factory, str(e)))
             pass
 
     if maybe_result is None:
         raise RuntimeError("Unable to find a default transport, tried: {}".format(
-            ','.join([str(x) for x in to_try])))
+            ','.join([str(x) for x in errors])))
 
     GLOBAL_TRANSPORT = maybe_result
     return GLOBAL_TRANSPORT

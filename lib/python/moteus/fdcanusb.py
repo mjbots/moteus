@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import asyncio
+import glob
+import os
 
 from . import aioserial
 
@@ -50,11 +52,20 @@ class Fdcanusb:
         """
         if path is None:
             # TODO: Handle windows.
-            path = '/dev/fdcanusb'
+            path = self.detect_fdcanusb()
 
         # A fdcanusb ignores the requested baudrate, so we'll just
         # pick something nice and random.
         self._serial = aioserial.AioSerial(port=path, baudrate=9600)
+
+    def detect_fdcanusb(self):
+        if os.path.exists('/dev/fdcanusb'):
+            return '/dev/fdcanusb'
+        maybe_list = glob.glob('/dev/serial/by-id/*fdcanusb*')
+        if len(maybe_list):
+            return sorted(maybe_list)[0]
+
+        raise RuntimeError('Could not detect fdcanusb')
 
     async def cycle(self, commands):
         """Request that the given set of commands be sent to the fdcanusb, and
