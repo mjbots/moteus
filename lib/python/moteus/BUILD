@@ -32,6 +32,7 @@ filegroup(
     srcs = [
         "aioserial.py",
         "aiostream.py",
+        "calibrate_encoder.py",
         "command.py",
         "fdcanusb.py",
         "moteus.py",
@@ -56,6 +57,12 @@ py_library(
     imports = [
         "..",
     ],
+)
+
+py_test(
+    name = "calibrate_encoder_test",
+    srcs = ["test/calibrate_encoder_test.py"],
+    deps = ["moteus"],
 )
 
 py_test(
@@ -85,6 +92,7 @@ py_test(
 test_suite(
     name = "test",
     tests = [
+        ":calibrate_encoder_test",
         ":moteus_test",
         ":multiplex_test",
         ":reader_test",
