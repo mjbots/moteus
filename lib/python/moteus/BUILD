@@ -34,6 +34,7 @@ filegroup(
         "aiostream.py",
         "calibrate_encoder.py",
         "command.py",
+        "export.py",
         "fdcanusb.py",
         "moteus.py",
         "moteus_tool.py",
