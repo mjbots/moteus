@@ -214,7 +214,7 @@ class BoardDebug::Impl {
       const auto state = tokenizer.next();
 
       if (which_led.empty() || state.empty()) {
-        WriteMessage(response, "invalid led command\r\n");
+        WriteMessage(response, "ERR invalid led command\r\n");
         return;
       }
 
@@ -245,7 +245,7 @@ class BoardDebug::Impl {
       const auto pwm3_str = tokenizer.next();
 
       if (pwm1_str.empty() || pwm2_str.empty() || pwm3_str.empty()) {
-        WriteMessage(response, "missing pwm value\r\n");
+        WriteMessage(response, "ERR missing pwm value\r\n");
         return;
       }
 
@@ -265,7 +265,7 @@ class BoardDebug::Impl {
       const auto magnitude_str = tokenizer.next();
 
       if (phase_str.empty() || magnitude_str.empty()) {
-        WriteMessage(response, "missing phase or mag\r\n");
+        WriteMessage(response, "ERR missing phase or mag\r\n");
         return;
       }
 
@@ -287,7 +287,7 @@ class BoardDebug::Impl {
       const auto magnitude_str = tokenizer.next();
 
       if (magnitude_str.empty()) {
-        WriteMessage(response, "missing mag\r\n");
+        WriteMessage(response, "ERR missing mag\r\n");
         return;
       }
 
@@ -308,7 +308,7 @@ class BoardDebug::Impl {
             break;
           }
           default: {
-            WriteMessage(response, "unknown cal option\r\n");
+            WriteMessage(response, "ERR unknown cal option\r\n");
             return;
           }
         }
@@ -336,7 +336,7 @@ class BoardDebug::Impl {
       const auto q_str = tokenizer.next();
 
       if (d_str.empty() || q_str.empty()) {
-        WriteMessage(response, "missing d/q voltage\r\n");
+        WriteMessage(response, "ERR missing d/q voltage\r\n");
         return;
       }
 
@@ -359,7 +359,7 @@ class BoardDebug::Impl {
       const auto q_str = tokenizer.next();
 
       if (d_str.empty() || q_str.empty()) {
-        WriteMessage(response, "missing d/q current\r\n");
+        WriteMessage(response, "ERR missing d/q current\r\n");
         return;
       }
 
@@ -385,7 +385,7 @@ class BoardDebug::Impl {
       if (pos_str.empty() ||
           vel_str.empty() ||
           max_t_str.empty()) {
-        WriteMessage(response, "missing p/v/i\r\n");
+        WriteMessage(response, "ERR missing p/v/i\r\n");
         return;
       }
 
@@ -398,7 +398,7 @@ class BoardDebug::Impl {
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
       if (!ParseOptions(&command, &tokenizer, "pdsft")) {
-        WriteMessage(response, "unknown option\r\n");
+        WriteMessage(response, "ERR unknown option\r\n");
         return;
       }
 
@@ -425,7 +425,7 @@ class BoardDebug::Impl {
       if (min_str.empty() ||
           max_str.empty() ||
           max_t_str.empty()) {
-        WriteMessage(response, "missing min/max/t\r\n");
+        WriteMessage(response, "ERR missing min/max/t\r\n");
         return;
       }
 
@@ -437,7 +437,7 @@ class BoardDebug::Impl {
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
       if (!ParseOptions(&command, &tokenizer, "pdtf")) {
-        WriteMessage(response, "unknown option\r\n");
+        WriteMessage(response, "ERR unknown option\r\n");
         return;
       }
 
@@ -456,7 +456,7 @@ class BoardDebug::Impl {
     if (cmd_text == "index") {
       const auto pos_value = tokenizer.next();
       if (pos_value.empty()) {
-        WriteMessage(response, "missing index value\r\n");
+        WriteMessage(response, "ERR missing index value\r\n");
         return;
       }
 
@@ -517,7 +517,7 @@ class BoardDebug::Impl {
       MJ_ASSERT(false);
     }
 
-    WriteMessage(response, "unknown command\r\n");
+    WriteMessage(response, "ERR unknown command\r\n");
   }
 
   void Recurse(int count) {
