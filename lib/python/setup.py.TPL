@@ -44,6 +44,9 @@ setuptools.setup(
     packages = [
         'moteus',
     ],
+    entry_points = {
+        'console_scripts': ['moteus_tool=moteus.moteus_tool:main'],
+    },
     python_requires = '>=3.7, <4',
     install_requires = [
         'pyserial>=3.5',

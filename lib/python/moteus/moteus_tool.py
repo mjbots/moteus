@@ -639,7 +639,7 @@ class Runner:
             raise RuntimeError("No action specified")
 
 
-async def main():
+async def async_main():
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
@@ -691,5 +691,9 @@ async def main():
     await runner.start()
 
 
+def main():
+    asyncio.run(async_main())
+
+
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
