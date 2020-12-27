@@ -95,10 +95,6 @@ mbed_repository(
     },
 )
 
-load("@com_github_mjbots_rules_wix//:deps.bzl", "add_wix_deps")
-add_wix_deps()
-
-
 # And finally, bazel_deps
 load("@com_github_mjbots_bazel_deps//tools/workspace:default.bzl",
      bazel_deps_add = "add_default_repositories")

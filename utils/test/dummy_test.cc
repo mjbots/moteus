@@ -1,4 +1,4 @@
-// Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2020 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "utils/moteus_tool.h"
+#include <boost/test/auto_unit_test.hpp>
 
-extern "C" {
-int main(int argc, char** argv) {
-  boost::asio::io_context context;
-  moteus::tool::moteus_tool_main(context, argc, argv);
-}
+BOOST_AUTO_TEST_CASE(DummyTest) {
 }

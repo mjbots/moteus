@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@com_github_mjbots_rules_wix//:rules.bzl", "pkg_msi")
-
 package(default_visibility = ["//visibility:public"])
 
 py_binary(
@@ -30,60 +28,23 @@ py_binary(
     deps = [
         "//utils/gui/moteus_gui:tview"
     ],
-    imports = [
-        "../../mjlib",
-    ],
 )
 
-cc_library(
-    name = "moteus_tool_lib",
-    hdrs = ["moteus_tool.h"],
-    srcs = [
-        "calibrate.h",
-        "calibrate.cc",
-        "line_reader.h",
-        "moteus_subset.h",
-        "moteus_tool.cc",
-        "run_for.h",
-    ] + select({
-        "@bazel_tools//src/conditions:windows" : [
-            "win32_serial_enum.h",
-            "win32_serial_enum.cc",
-        ],
-        "//conditions:default" : [],
-    }),
+py_binary(
+    name = "moteus_tool",
+    srcs = ["moteus_tool.py"],
     deps = [
-        "@com_github_mjbots_mjlib//mjlib/base:clipp",
-        "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
-        "@com_github_mjbots_mjlib//mjlib/base:json5_read_archive",
-        "@com_github_mjbots_mjlib//mjlib/base:json5_write_archive",
-        "@com_github_mjbots_mjlib//mjlib/base:program_options_archive",
-        "@com_github_mjbots_mjlib//mjlib/base:time_conversions",
-        "@com_github_mjbots_mjlib//mjlib/io:async_sequence",
-        "@com_github_mjbots_mjlib//mjlib/io:debug_time",
-        "@com_github_mjbots_mjlib//mjlib/io:now",
-        "@com_github_mjbots_mjlib//mjlib/io:selector",
-        "@com_github_mjbots_mjlib//mjlib/io:stream_copy",
-        "@com_github_mjbots_mjlib//mjlib/io:stream_factory",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:stream_asio_client_builder",
-        "@com_github_mjbots_mjlib//mjlib/telemetry:binary_schema_parser",
-        "@com_github_mjbots_mjlib//mjlib/telemetry:mapped_binary_reader",
-        "@boost//:filesystem",
-        "@boost//:system",
-        "@com_github_serge1_elfio//:elfio",
-        "@eigen",
-        "@fmt",
+        "//lib/python/moteus",
     ],
 )
 
 cc_test(
     name = "test",
     srcs = [
-        "test/calibrate_test.cc",
+        "test/dummy_test.cc",
         "test/test_main.cc",
     ],
     deps = [
-        ":moteus_tool_lib",
         "@boost//:test",
     ],
     data = [
@@ -97,17 +58,6 @@ cc_test(
         ":tview",
     ],
     size = "small",
-)
-
-cc_binary(
-    name = "moteus_tool",
-    srcs = ["moteus_tool_main.cc"],
-    deps = [":moteus_tool_lib"] + select({
-        "@bazel_tools//src/conditions:windows" : [
-            "@org_llvm_libcxx//:libcxx",
-        ],
-        "//conditions:default" : [],
-    }),
 )
 
 cc_binary(
@@ -174,22 +124,8 @@ py_binary(
         "@bazel_tools//tools/python/runfiles",
     ],
     data = [
-        ":moteus_tool",
         ":dynamometer_drive",
         ":dyno_static_torque_ripple",
-    ],
-)
-
-pkg_msi(
-    name = "moteus_host_tools.msi",
-    src = "moteus_host_tools.wxs",
-    deps = [
-        ":moteus_tool",
-        "apache2.rtf",
-    ],
-    arch = "x64",
-    exts = [
-        "WixUiExtension",
     ],
 )
 

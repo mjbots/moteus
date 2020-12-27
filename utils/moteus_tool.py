@@ -1,4 +1,4 @@
-# -*- python -*-
+#!/usr/bin/python3 -B
 
 # Copyright 2020 Josh Pieper, jjp@pobox.com.
 #
@@ -14,12 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//tools/workspace:github_archive.bzl", "github_archive")
+import os
+import runpy
+import sys
 
-def rules_wix_repository(name):
-    github_archive(
-        name = name,
-        repo = "mjbots/rules_wix",
-        commit = "8678d0e2c714d5dc0ab92b3acbf667771694f9fa",
-        sha256 = "d9679e7b879371764fd1d4b9b634c7c4b62c755de7477998b237396b245dd2ab",
-    )
+def main():
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    sys.path.insert(0, os.path.join(SCRIPT_DIR, '..', 'lib', 'python'))  # for moteus
+    runpy.run_module('moteus.moteus_tool', run_name='__main__')
+
+if __name__ == '__main__':
+    main()
