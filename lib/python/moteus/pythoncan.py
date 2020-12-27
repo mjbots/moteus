@@ -63,7 +63,7 @@ class PythonCan:
         return result
 
     async def _do_command(self, command):
-        self.write(command)
+        await self.write(command)
 
         if not command.reply_required:
             return None
