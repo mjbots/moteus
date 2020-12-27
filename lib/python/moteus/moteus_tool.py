@@ -383,7 +383,7 @@ class Stream:
         now = datetime.datetime.utcnow()
 
         report = {
-            'timestamp' : now.isoformat().replace('T', ' '),
+            'timestamp' : now.strftime('%Y-%m-%d %H:%M:%S.%f'),
             'device_info' : device_info,
             'calibration' : cal_result.to_json(),
             'winding_resistance' : winding_resistance,
@@ -394,17 +394,17 @@ class Stream:
             'unwrapped_position_scale' : unwrapped_position_scale
         }
 
-        log_filename = f"moteus-cal-{device_info['serial_number']}-{now.isoformat()}.log"
+        log_filename = f"moteus-cal-{device_info['serial_number']}-{now.strftime('%Y%m%dT%H%M%S.%f')}.log"
 
         print(f"REPORT: {log_filename}")
         print(f"------------------------")
 
-        print(json.dumps(report, indent=4))
+        print(json.dumps(report, indent=2))
 
         print()
 
         with open(os.path.join(_get_log_directory(), log_filename), "w") as fp:
-            json.dump(report, fp, indent=4)
+            json.dump(report, fp, indent=2)
             fp.write("\n")
 
     async def calibrate_encoder_mapping(self):
@@ -446,8 +446,9 @@ class Stream:
         if not self.args.cal_no_update:
             print("\nStoring encoder config")
             await self.command(f"conf set motor.poles {cal_result.poles}".encode('latin1'))
-            await self.command("conf set motor.invert {}".format(1 if cal_result.invert else 0).encode('latin1'))
-            for i, offset in enumerate(cal_result.offsets):
+            await self.command("conf set motor.invert {}".format(
+                1 if cal_result.invert else 0).encode('latin1'))
+            for i, offset in enumerate(cal_result.offset):
                 await self.command(f"conf set motor.offset.{i} {offset}".encode('latin1'))
 
         return cal_result
@@ -539,6 +540,31 @@ class Stream:
 
         return v_per_hz
 
+    async def do_restore_calibration(self, filename):
+        report = json.load(open(filename, "r"))
+
+        # Verify that the serial number matches.
+        device_info = await self.get_device_info()
+        if device_info['serial_number'] != report['device_info']['serial_number']:
+            raise RuntimeError(
+                f"Serial number in calibration ({report['serial_number']}) " +
+                f"does not match device ({device_info['serial_number']})")
+
+        cal_result = report['calibration']
+
+        await self.command(
+            f"conf set motor.poles {cal_result['poles']}".encode('latin1'))
+        await self.command(
+            f"conf set motor.invert {1 if cal_result['invert'] else 0}".encode('latin1'))
+        for index, offset in enumerate(cal_result['offset']):
+            await self.command(f"conf set motor.offset.{index} {offset}".encode('latin1'))
+
+        await self.command(f"conf set motor.resistance_ohm {report['winding_resistance']}".encode('latin1'))
+        await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}".encode('latin1'))
+        await self.command(b'conf write')
+
+        print("Calibration restored")
+
 
 class Runner:
     def __init__(self, args):
@@ -593,6 +619,8 @@ class Runner:
             await stream.do_flash(self.args.flash)
         elif self.args.calibrate:
             await stream.do_calibrate()
+        elif self.args.restore_cal:
+            await stream.do_restore_calibration(self.args.restore_cal)
         else:
             raise RuntimeError("No action specified")
 

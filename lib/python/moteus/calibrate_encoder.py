@@ -161,7 +161,7 @@ class CalibrationResult:
     def __init__(self):
         self.invert = None
         self.poles = None
-        self.offsets = None
+        self.offset = None
 
         self.total_phase = None
         self.total_delta = None
@@ -173,7 +173,7 @@ class CalibrationResult:
         return json.dumps({
             "invert": self.invert,
             "poles": self.poles,
-            "offsets": self.offsets,
+            "offset": self.offset,
             "errors": self.errors,
             })
 
@@ -181,7 +181,7 @@ class CalibrationResult:
         return {
             'invert': self.invert,
             'poles': self.poles,
-            'offsets': self.offsets,
+            'offset': self.offset,
         }
 
 
@@ -274,9 +274,9 @@ def calibrate(parsed):
     avg_err = _window_average(err, avg_window)
 
     offset_x = list(range(0, 65536, 1024))
-    offsets = _interpolate(offset_x, xpos, avg_err)
+    offset = _interpolate(offset_x, xpos, avg_err)
 
-    result.offsets = offsets
+    result.offset = offset
 
     result.debug = {
         'phase_up_encoder': phase_up_encoder,
