@@ -177,6 +177,13 @@ class CalibrationResult:
             "errors": self.errors,
             })
 
+    def to_json(self):
+        return {
+            'invert': self.invert,
+            'poles': self.poles,
+            'offsets': self.offsets,
+        }
+
 
 def calibrate(parsed):
     if (len(parsed.phase_up) < 2 or
@@ -266,7 +273,7 @@ def calibrate(parsed):
     avg_window = int(len(err) / result.poles)
     avg_err = _window_average(err, avg_window)
 
-    offset_x = list(range(0, 65536, 64))
+    offset_x = list(range(0, 65536, 1024))
     offsets = _interpolate(offset_x, xpos, avg_err)
 
     result.offsets = offsets

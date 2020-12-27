@@ -18,15 +18,36 @@
 
 import argparse
 import asyncio
+import datetime
 import elftools
 import elftools.elf.elffile
 import json
+import io
+import math
+import os
 import sys
 
 from . import moteus
 from . import aiostream
+from . import regression
+from . import calibrate_encoder as ce
 
 MAX_FLASH_BLOCK_SIZE = 32
+
+
+def _get_log_directory():
+    moteus_cal_dir = os.environ.get("MOTEUS_CAL_DIR", None)
+    if moteus_cal_dir:
+        return moteus_cal_dir
+
+    home = os.environ.get("HOME")
+    if home:
+        maybe_dir = os.path.join(home, "moteus-cal")
+        if os.path.exists(maybe_dir):
+            return maybe_dir
+
+    return "."
+
 
 def _expand_targets(targets):
     result = set()
@@ -123,6 +144,14 @@ async def _copy_stream(inp, out):
         await out.drain()
 
 
+def _calculate_slope(x, y):
+    return regression.linear_regression(x, y)[1]
+
+
+def _calculate_winding_resistance(voltages, currents):
+    return 1.0 / _calculate_slope(voltages, currents)
+
+
 class FlashDataBlock:
     def __init__(self, address=-1, data=b""):
         self.address = address
@@ -191,7 +220,12 @@ class Stream:
     async def read_data(self, *args, **kwargs):
         return await self.stream.read_data(*args, **kwargs)
 
-    async def info(self):
+    async def read_config_double(self, name):
+        result = await self.command(
+            f"conf get {name}".encode('latin1'), allow_any_response=True)
+        return float(result)
+
+    async def get_device_info(self):
         firmware = await self.read_data("firmware")
         git = await self.read_data("git")
 
@@ -205,7 +239,10 @@ class Stream:
         result['git_dirty'] = getattr(git, 'dirty', 0) != 0
         result['git_timestamp'] = getattr(git, 'timestamp', 0)
 
-        print(json.dumps(result, indent=2))
+        return result
+
+    async def info(self):
+        print(json.dumps(await self.get_device_info(), indent=2))
 
     async def do_zero_offset(self):
         servo_stats = await self.read_data("servo_stats")
@@ -268,7 +305,7 @@ class Stream:
     def _emit_flash_progress(self, ctx, type):
         if self.args.verbose:
             return
-        print(f"flash: {type:15s}  {ctx.current_address:08x}", end="\r")
+        print(f"flash: {type:15s}  {ctx.current_address:08x}", end="\r", flush=True)
 
     async def write_flash(self, elfs):
         write_ctx = FlashContext(elfs)
@@ -295,11 +332,212 @@ class Stream:
             if done:
                 break
 
+    async def check_for_fault(self):
+        servo_stats = await self.read_data("servo_stats")
+        if servo_stats.mode == 1:
+            raise RuntimeError(f"Controller reported fault: {int(servo_stats.fault)}")
+
     async def restore_config(self, old_config):
         new_config = []
         for line in old_config.split(b'\n'):
+            if len(line.strip()) == 0:
+                continue
             new_config.append(b'conf set ' + line + b'\n')
         await self.write_config_stream(io.BytesIO(b''.join(new_config)))
+
+    async def do_calibrate(self):
+        print("This will move the motor, ensure it can spin freely!")
+        await asyncio.sleep(2.0)
+
+        unwrapped_position_scale = \
+            await self.read_config_double("motor.unwrapped_position_scale")
+
+        # We have 3 things to calibrate.
+        #  1) The encoder to phase mapping
+        #  2) The winding resistance
+        #  3) The Kv rating of the motor.
+
+        print("Starting calibration process")
+        await self.check_for_fault()
+
+        cal_result = await self.calibrate_encoder_mapping()
+        await self.check_for_fault()
+
+        winding_resistance = await self.calibrate_winding_resistance()
+        await self.check_for_fault()
+
+        v_per_hz = await self.calibrate_kv_rating(unwrapped_position_scale)
+        await self.check_for_fault()
+
+        # Rezero the servo since we just spun it a lot.
+        await self.command(b'd rezero')
+
+        if not self.args.cal_no_update:
+            print("Saving to persistent storage")
+            await self.command(b'conf write')
+
+        print("Calibration complete")
+
+        device_info = await self.get_device_info()
+
+        now = datetime.datetime.utcnow()
+
+        report = {
+            'timestamp' : now.isoformat().replace('T', ' '),
+            'device_info' : device_info,
+            'calibration' : cal_result.to_json(),
+            'winding_resistance' : winding_resistance,
+            'v_per_hz' : v_per_hz,
+            # We measure voltage to the center, not peak-to-peak, thus
+            # the extra 0.5.
+            'kv' : (0.5 * 60.0 / v_per_hz),
+            'unwrapped_position_scale' : unwrapped_position_scale
+        }
+
+        log_filename = f"moteus-cal-{device_info['serial_number']}-{now.isoformat()}.log"
+
+        print(f"REPORT: {log_filename}")
+        print(f"------------------------")
+
+        print(json.dumps(report, indent=4))
+
+        print()
+
+        with open(os.path.join(_get_log_directory(), log_filename), "w") as fp:
+            json.dump(report, fp, indent=4)
+            fp.write("\n")
+
+    async def calibrate_encoder_mapping(self):
+        await self.command(f"d pwm 0 {self.args.cal_power}".encode('latin1'))
+        await asyncio.sleep(3.0)
+
+        await self.command(b"d stop")
+        await asyncio.sleep(0.1)
+        await self.stream.write_message(
+            (f"d cal {self.args.cal_power} " +
+             f"s{self.args.cal_speed}").encode('latin1'))
+
+        cal_data = b''
+        index = 0
+        while True:
+            line = (await self.stream.readline()).strip()
+            if not self.args.verbose:
+                print("Calibrating {} ".format("/-\\|"[index]), end='\r', flush=True)
+                index = (index + 1) % 4
+            cal_data += (line + b'\n')
+            if line.startswith(b'CAL done'):
+                break
+            if line.startswith(b'CAL start'):
+                continue
+            if line.startswith(b'CAL'):
+                # Some problem
+                raise RuntimeError(f'Error calibrating: {line}')
+
+        if self.args.cal_raw:
+            with open(self.args.calibration_raw, "wb") as f:
+                f.write(cal_data)
+
+        cal_file = ce.parse_file(io.BytesIO(cal_data))
+        cal_result = ce.calibrate(cal_file)
+
+        if cal_result.errors:
+            raise RuntimeError(f"Error(s) calibrating: {cal_result.errors}")
+
+        if not self.args.cal_no_update:
+            print("\nStoring encoder config")
+            await self.command(f"conf set motor.poles {cal_result.poles}".encode('latin1'))
+            await self.command("conf set motor.invert {}".format(1 if cal_result.invert else 0).encode('latin1'))
+            for i, offset in enumerate(cal_result.offsets):
+                await self.command(f"conf set motor.offset.{i} {offset}".encode('latin1'))
+
+        return cal_result
+
+    async def find_current(self, voltage):
+        assert voltage < 3.0
+        assert voltage >= 0.0
+
+        await self.command(f"d pwm 0 {voltage:.3f}".encode('latin1'))
+
+        # Wait a bit for it to stabilize.
+        await asyncio.sleep(0.3)
+
+        # Now get the servo_stats telemetry channel to read the D and Q
+        # currents.
+        data = await self.read_data("servo_stats")
+
+        # Stop the current.
+        await self.command(b"d stop");
+
+        # Sleep a tiny bit before returning.
+        await asyncio.sleep(0.1);
+
+        d_cur = data.d_A;
+        q_cur = data.q_A;
+
+        current_A = math.hypot(d_cur, q_cur)
+        print(f"{voltage}V - {current_A}A")
+
+        return current_A
+
+    async def calibrate_winding_resistance(self):
+        print("Calculating winding resistance")
+
+        ratios = [ 0.5, 0.6, 0.7, 0.85, 1.0 ]
+        voltages = [x * self.args.cal_voltage for x in ratios]
+        currents = [await self.find_current(voltage) for voltage in voltages]
+
+        winding_resistance = _calculate_winding_resistance(voltages, currents)
+
+        if not self.args.cal_no_update:
+            await self.command(f"conf set motor.resistance_ohm {winding_resistance}".encode('latin1'))
+
+        return winding_resistance
+
+    async def find_speed(self, voltage):
+        assert voltage < 1.0
+        assert voltage >= 0.0
+
+        await self.command(f"d vdq 0 {voltage:.3f}".encode('latin1'))
+
+        # Wait for it to stabilize.
+        await asyncio.sleep(1.0)
+
+        data = await self.read_data("servo_stats")
+        velocity = data.velocity
+
+        print(f"{voltage}V - {velocity}Hz")
+
+        return velocity
+
+    async def calibrate_kv_rating(self, unwrapped_position_scale):
+        print("Calculating Kv rating")
+
+        original_position_min = await self.read_config_double("servopos.position_min")
+        original_position_max = await self.read_config_double("servopos.position_max")
+
+        await self.command(b"conf set servopos.position_min NaN")
+        await self.command(b"conf set servopos.position_max NaN")
+        await self.command(b"d index 0")
+
+        voltages = [ 0.0, 0.2, 0.4, 0.6, 0.8 ]
+        speed_hzs = [ await self.find_speed(voltage) for voltage in voltages]
+
+        await self.command(b"d stop")
+
+        await asyncio.sleep(0.5)
+
+        geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
+
+        v_per_hz = geared_v_per_hz * unwrapped_position_scale
+        print(f"v_per_hz (pre-gearbox)={v_per_hz}")
+
+        if not self.args.cal_no_update:
+            await self.command(f"conf set motor.v_per_hz {v_per_hz}".encode('latin1'))
+
+        await self.command(f"conf set servopos.position_min {original_position_min}".encode('latin1'))
+        await self.command(f"conf set servopos.position_max {original_position_max}".encode('latin1'))
+
+        return v_per_hz
 
 
 class Runner:
@@ -353,6 +591,8 @@ class Runner:
             await stream.do_write_config(self.args.write_config)
         elif self.args.flash:
             await stream.do_flash(self.args.flash)
+        elif self.args.calibrate:
+            await stream.do_calibrate()
         else:
             raise RuntimeError("No action specified")
 
@@ -389,11 +629,11 @@ async def main():
                         help='calibrate the motor, requires full freedom of motion')
     parser.add_argument('--cal-no-update', action='store_true',
                         help='do not store calibration results on motor')
-    parser.add_argument('--cal-power', metavar='V', type=float,
+    parser.add_argument('--cal-power', metavar='V', type=float, default=0.4,
                         help='voltage to use during calibration')
-    parser.add_argument('--cal-speed', metavar='HZ', type=float,
+    parser.add_argument('--cal-speed', metavar='HZ', type=float, default=1.0,
                         help='speed in electrical rps')
-    parser.add_argument('--cal-voltage', metavar='V', type=float,
+    parser.add_argument('--cal-voltage', metavar='V', type=float, default=0.45,
                         help='maximum voltage when measuring resistance')
     parser.add_argument('--cal-raw', metavar='FILE', type=str,
                         help='write raw calibration data')

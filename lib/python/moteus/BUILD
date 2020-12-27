@@ -41,6 +41,7 @@ filegroup(
         "posix_aioserial.py",
         "pythoncan.py",
         "reader.py",
+        "regression.py",
         "router.py",
         "transport.py",
         "version.py",
@@ -96,6 +97,12 @@ py_test(
 )
 
 py_test(
+    name = "regression_test",
+    srcs = ["test/regression_test.py"],
+    deps = [":moteus"],
+)
+
+py_test(
     name = "router_test",
     srcs = ["test/router_test.py"],
     deps = [":moteus"],
@@ -108,6 +115,7 @@ test_suite(
         ":moteus_test",
         ":multiplex_test",
         ":reader_test",
+        ":regression_test",
         ":router_test",
     ],
 )
