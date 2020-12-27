@@ -214,15 +214,21 @@ class Stream:
         dir2 = asyncio.create_task(_copy_stream(console_stdin, self.stream))
         await asyncio.wait([dir1, dir2], return_when=asyncio.FIRST_COMPLETED)
 
-    async def command(self, *args, **kwargs):
-        return await self.stream.command(*args, **kwargs)
+    async def command(self, command_str, **kwargs):
+        command_bytes = (command_str if type(command_str) == bytes else
+                         command_str.encode('latin1'))
+        return await self.stream.command(command_bytes, **kwargs)
+
+    async def write_message(self, command_str, **kwargs):
+        command_bytes = (command_str if type(command_str) == bytes else
+                         command_str.encode('latin1'))
+        return await self.stream.write_message(command_bytes, **kwargs)
 
     async def read_data(self, *args, **kwargs):
         return await self.stream.read_data(*args, **kwargs)
 
     async def read_config_double(self, name):
-        result = await self.command(
-            f"conf get {name}".encode('latin1'), allow_any_response=True)
+        result = await self.command(f"conf get {name}", allow_any_response=True)
         return float(result)
 
     async def get_device_info(self):
@@ -247,9 +253,9 @@ class Stream:
     async def do_zero_offset(self):
         servo_stats = await self.read_data("servo_stats")
         position_raw = servo_stats.position_raw
-        await self.command("conf set motor.position_offset {:d}".format(-position_raw).encode('latin1'))
-        await self.command(b'conf write')
-        await self.command(b'd rezero')
+        await self.command(f"conf set motor.position_offset {-position_raw:d}")
+        await self.command("conf write")
+        await self.command("d rezero")
 
     async def do_write_config(self, config_file):
         fp = open(config_file, "rb")
@@ -283,19 +289,19 @@ class Stream:
 
         if not self.args.no_restore_config:
             # Read our old config.
-            old_config = await self.command(b"conf enumerate")
+            old_config = await self.command("conf enumerate")
 
             print("Captured old config")
 
         # This will enter the bootloader.
-        await self.stream.write_message(b"d flash")
+        await self.write_message("d flash")
         await self.stream.readline()
 
-        await self.command(b"unlock")
+        await self.command("unlock")
         await self.write_flash(elfs)
-        await self.command(b"lock")
+        await self.command("lock")
         # This will reset the controller, so we don't expect a response.
-        await self.stream.write_message(b"reset")
+        await self.write_message("reset")
 
         await asyncio.sleep(1.0)
 
@@ -311,7 +317,7 @@ class Stream:
         write_ctx = FlashContext(elfs)
         while True:
             next_block = write_ctx.get_next_block()
-            cmd = f"w {next_block.address:x} {next_block.data.hex()}".encode('latin1')
+            cmd = f"w {next_block.address:x} {next_block.data.hex()}"
 
             result = await self.command(cmd)
             self._emit_flash_progress(write_ctx, "flashing")
@@ -322,7 +328,7 @@ class Stream:
         verify_ctx = FlashContext(elfs)
         while True:
             expected_block = verify_ctx.get_next_block()
-            cmd = f"r {expected_block.address:x} {len(expected_block.data):x}".encode('latin1')
+            cmd = f"r {expected_block.address:x} {len(expected_block.data):x}"
             result = await self.command(cmd, allow_any_response=True)
             # Emit progress first, to make it easier to see where
             # things go wrong.
@@ -370,11 +376,11 @@ class Stream:
         await self.check_for_fault()
 
         # Rezero the servo since we just spun it a lot.
-        await self.command(b'd rezero')
+        await self.command("d rezero")
 
         if not self.args.cal_no_update:
             print("Saving to persistent storage")
-            await self.command(b'conf write')
+            await self.command("conf write")
 
         print("Calibration complete")
 
@@ -408,14 +414,13 @@ class Stream:
             fp.write("\n")
 
     async def calibrate_encoder_mapping(self):
-        await self.command(f"d pwm 0 {self.args.cal_power}".encode('latin1'))
+        await self.command(f"d pwm 0 {self.args.cal_power}")
         await asyncio.sleep(3.0)
 
-        await self.command(b"d stop")
+        await self.command("d stop")
         await asyncio.sleep(0.1)
-        await self.stream.write_message(
-            (f"d cal {self.args.cal_power} " +
-             f"s{self.args.cal_speed}").encode('latin1'))
+        await self.write_message(
+            (f"d cal {self.args.cal_power} s{self.args.cal_speed}"))
 
         cal_data = b''
         index = 0
@@ -434,7 +439,7 @@ class Stream:
                 raise RuntimeError(f'Error calibrating: {line}')
 
         if self.args.cal_raw:
-            with open(self.args.calibration_raw, "wb") as f:
+            with open(self.args.cal_raw, "wb") as f:
                 f.write(cal_data)
 
         cal_file = ce.parse_file(io.BytesIO(cal_data))
@@ -445,11 +450,11 @@ class Stream:
 
         if not self.args.cal_no_update:
             print("\nStoring encoder config")
-            await self.command(f"conf set motor.poles {cal_result.poles}".encode('latin1'))
+            await self.command(f"conf set motor.poles {cal_result.poles}")
             await self.command("conf set motor.invert {}".format(
-                1 if cal_result.invert else 0).encode('latin1'))
+                1 if cal_result.invert else 0))
             for i, offset in enumerate(cal_result.offset):
-                await self.command(f"conf set motor.offset.{i} {offset}".encode('latin1'))
+                await self.command(f"conf set motor.offset.{i} {offset}")
 
         return cal_result
 
@@ -457,7 +462,7 @@ class Stream:
         assert voltage < 3.0
         assert voltage >= 0.0
 
-        await self.command(f"d pwm 0 {voltage:.3f}".encode('latin1'))
+        await self.command(f"d pwm 0 {voltage:.3f}")
 
         # Wait a bit for it to stabilize.
         await asyncio.sleep(0.3)
@@ -467,7 +472,7 @@ class Stream:
         data = await self.read_data("servo_stats")
 
         # Stop the current.
-        await self.command(b"d stop");
+        await self.command("d stop");
 
         # Sleep a tiny bit before returning.
         await asyncio.sleep(0.1);
@@ -490,7 +495,7 @@ class Stream:
         winding_resistance = _calculate_winding_resistance(voltages, currents)
 
         if not self.args.cal_no_update:
-            await self.command(f"conf set motor.resistance_ohm {winding_resistance}".encode('latin1'))
+            await self.command(f"conf set motor.resistance_ohm {winding_resistance}")
 
         return winding_resistance
 
@@ -498,7 +503,7 @@ class Stream:
         assert voltage < 1.0
         assert voltage >= 0.0
 
-        await self.command(f"d vdq 0 {voltage:.3f}".encode('latin1'))
+        await self.command(f"d vdq 0 {voltage:.3f}")
 
         # Wait for it to stabilize.
         await asyncio.sleep(1.0)
@@ -516,14 +521,14 @@ class Stream:
         original_position_min = await self.read_config_double("servopos.position_min")
         original_position_max = await self.read_config_double("servopos.position_max")
 
-        await self.command(b"conf set servopos.position_min NaN")
-        await self.command(b"conf set servopos.position_max NaN")
-        await self.command(b"d index 0")
+        await self.command("conf set servopos.position_min NaN")
+        await self.command("conf set servopos.position_max NaN")
+        await self.command("d index 0")
 
         voltages = [ 0.0, 0.2, 0.4, 0.6, 0.8 ]
         speed_hzs = [ await self.find_speed(voltage) for voltage in voltages]
 
-        await self.command(b"d stop")
+        await self.command("d stop")
 
         await asyncio.sleep(0.5)
 
@@ -533,10 +538,10 @@ class Stream:
         print(f"v_per_hz (pre-gearbox)={v_per_hz}")
 
         if not self.args.cal_no_update:
-            await self.command(f"conf set motor.v_per_hz {v_per_hz}".encode('latin1'))
+            await self.command(f"conf set motor.v_per_hz {v_per_hz}")
 
-        await self.command(f"conf set servopos.position_min {original_position_min}".encode('latin1'))
-        await self.command(f"conf set servopos.position_max {original_position_max}".encode('latin1'))
+        await self.command(f"conf set servopos.position_min {original_position_min}")
+        await self.command(f"conf set servopos.position_max {original_position_max}")
 
         return v_per_hz
 
@@ -553,15 +558,15 @@ class Stream:
         cal_result = report['calibration']
 
         await self.command(
-            f"conf set motor.poles {cal_result['poles']}".encode('latin1'))
+            f"conf set motor.poles {cal_result['poles']}")
         await self.command(
-            f"conf set motor.invert {1 if cal_result['invert'] else 0}".encode('latin1'))
+            f"conf set motor.invert {1 if cal_result['invert'] else 0}")
         for index, offset in enumerate(cal_result['offset']):
-            await self.command(f"conf set motor.offset.{index} {offset}".encode('latin1'))
+            await self.command(f"conf set motor.offset.{index} {offset}")
 
-        await self.command(f"conf set motor.resistance_ohm {report['winding_resistance']}".encode('latin1'))
-        await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}".encode('latin1'))
-        await self.command(b'conf write')
+        await self.command(f"conf set motor.resistance_ohm {report['winding_resistance']}")
+        await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}")
+        await self.command("conf write")
 
         print("Calibration restored")
 
@@ -606,9 +611,9 @@ class Runner:
         if self.args.console:
             await stream.do_console()
         elif self.args.stop:
-            await stream.command(b'd stop')
+            await stream.command("d stop")
         elif self.args.dump_config:
-            print((await stream.command(b'conf enumerate')).decode('latin1'))
+            print((await stream.command("conf enumerate")).decode('latin1'))
         elif self.args.info:
             await stream.info()
         elif self.args.zero_offset:
