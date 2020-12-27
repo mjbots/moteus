@@ -26,6 +26,7 @@ import io
 import math
 import os
 import sys
+import tempfile
 
 from . import moteus
 from . import aiostream
@@ -291,7 +292,15 @@ class Stream:
             # Read our old config.
             old_config = await self.command("conf enumerate")
 
-            print("Captured old config")
+            # We will just leave this around in a temporary location.
+            # Who knows, maybe it will be useful before the temp
+            # directory gets erased?
+            captured_config_file = tempfile.NamedTemporaryFile(
+                prefix='moteus-config-', suffix='.cfg', delete=False)
+            captured_config_file.write(old_config)
+            captured_config_file.close()
+
+            print(f"Captured old config to {captured_config_file.name}")
 
         # This will enter the bootloader.
         await self.write_message("d flash")
