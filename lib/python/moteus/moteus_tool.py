@@ -18,11 +18,15 @@
 
 import argparse
 import asyncio
+import elftools
+import elftools.elf.elffile
 import json
 import sys
 
 from . import moteus
 from . import aiostream
+
+MAX_FLASH_BLOCK_SIZE = 32
 
 def _expand_targets(targets):
     result = set()
@@ -58,6 +62,60 @@ def _make_git_hash(hash):
     return ''.join(f"{x:02x}" for x in hash)
 
 
+class ElfMapping:
+    virtual_address = 0
+    physical_address = 0
+    size = 0
+
+
+class ElfMappings:
+    def __init__(self, fp):
+        self._mappings = []
+
+        for segment in fp.iter_segments():
+            mapping = ElfMapping()
+            mapping.virtual_address = segment['p_vaddr']
+            mapping.physical_address = segment['p_paddr']
+            mapping.size = segment['p_memsz']
+
+            self._mappings.append(mapping)
+
+    def logical_to_physical(self, address, size):
+        for mapping in self._mappings:
+            if (address >= mapping.virtual_address and
+                (address + size) <= (mapping.virtual_address + mapping.size)):
+                return address - mapping.virtual_address + mapping.physical_address
+        raise RuntimeError(f"no mapping found for {address:x}")
+
+
+def _read_elf(filename, sections):
+    fp = elftools.elf.elffile.ELFFile(open(filename, "rb"))
+
+    mappings = ElfMappings(fp)
+
+    sections_to_find = set(sections)
+
+    sections = {}
+
+    for section in fp.iter_sections():
+        if section.name not in sections_to_find:
+            continue
+
+        sections_to_find -= { section.name }
+
+        data = section.data()
+
+        physical_address = mappings.logical_to_physical(
+            section['sh_addr'], section['sh_size'])
+        sections[physical_address] = data
+
+    result = []
+    for key in sorted(sections.keys()):
+        result.append((key, sections[key]))
+
+    return result
+
+
 async def _copy_stream(inp, out):
     while True:
         data = await inp.read(4096, block=False)
@@ -65,8 +123,58 @@ async def _copy_stream(inp, out):
         await out.drain()
 
 
+class FlashDataBlock:
+    def __init__(self, address=-1, data=b""):
+        self.address = address
+        self.data = data
+
+
+class FlashContext:
+    def __init__(self, elf):
+        self.elf = elf
+        self.current_address = -1
+
+    def get_next_block(self):
+        # Find the next pair which contains something greater than
+        # the current address.
+        for address, data in self.elf:
+            if address > self.current_address:
+                # This is definitely it.
+                return FlashDataBlock(
+                    address, data[0:MAX_FLASH_BLOCK_SIZE])
+            # We might be inside a block that has more data.
+            end_of_this_block = address + len(data)
+            if end_of_this_block > self.current_address:
+                begin = self.current_address - address
+                end = min(end_of_this_block - self.current_address,
+                          MAX_FLASH_BLOCK_SIZE)
+                return FlashDataBlock(
+                    self.current_address, data[begin:begin+end])
+        return FlashDataBlock()
+
+    def advance_block(self):
+        this_block = self.get_next_block()
+        self.current_address = this_block.address + len(this_block.data)
+        return self.get_next_block().address < 0
+
+
+def _verify_blocks(expected, message):
+    fields = message.decode('latin1').split(' ')
+    if len(fields) != 2:
+        raise RuntimeError(f"verify returned wrong field count {len(fields)} != 2")
+
+    actual_address = int(fields[0], 16)
+    if actual_address != expected.address:
+        raise RuntimeError(f"verify returned wrong address {actual_address:x} != {expected.address:x}")
+
+    actual_data = fields[1].strip().lower()
+    if expected.data.hex() != actual_data:
+        raise RuntimeError(f"verify returned wrong data at {expected.address:x}, {expected.data.hex()} != {actual_data}")
+
+
 class Stream:
     def __init__(self, args, target_id, transport):
+        self.args = args
         self.controller = moteus.Controller(target_id, transport=transport)
         self.stream = moteus.Stream(self.controller, verbose=args.verbose)
 
@@ -77,11 +185,11 @@ class Stream:
         dir2 = asyncio.create_task(_copy_stream(console_stdin, self.stream))
         await asyncio.wait([dir1, dir2], return_when=asyncio.FIRST_COMPLETED)
 
-    async def command(self, message):
-        return await self.stream.command(message)
+    async def command(self, *args, **kwargs):
+        return await self.stream.command(*args, **kwargs)
 
-    async def read_data(self, name):
-        return await self.stream.read_data(name)
+    async def read_data(self, *args, **kwargs):
+        return await self.stream.read_data(*args, **kwargs)
 
     async def info(self):
         firmware = await self.read_data("firmware")
@@ -128,6 +236,70 @@ class Stream:
             for line in errors:
                 print(f" {line}")
             print()
+
+    async def do_flash(self, elffile):
+        elfs = _read_elf(elffile, [".text", ".ARM.extab", ".ARM.exidx",
+                                   ".data", ".ccmram", ".isr_vector"])
+        count_bytes = sum([len(section) for address, section in elfs])
+
+        print(f"Read ELF file: {count_bytes} bytes")
+
+        if not self.args.no_restore_config:
+            # Read our old config.
+            old_config = await self.command(b"conf enumerate")
+
+            print("Captured old config")
+
+        # This will enter the bootloader.
+        await self.stream.write_message(b"d flash")
+        await self.stream.readline()
+
+        await self.command(b"unlock")
+        await self.write_flash(elfs)
+        await self.command(b"lock")
+        # This will reset the controller, so we don't expect a response.
+        await self.stream.write_message(b"reset")
+
+        await asyncio.sleep(1.0)
+
+        if not self.args.no_restore_config:
+            await self.restore_config(old_config)
+
+    def _emit_flash_progress(self, ctx, type):
+        if self.args.verbose:
+            return
+        print(f"flash: {type:15s}  {ctx.current_address:08x}", end="\r")
+
+    async def write_flash(self, elfs):
+        write_ctx = FlashContext(elfs)
+        while True:
+            next_block = write_ctx.get_next_block()
+            cmd = f"w {next_block.address:x} {next_block.data.hex()}".encode('latin1')
+
+            result = await self.command(cmd)
+            self._emit_flash_progress(write_ctx, "flashing")
+            done = write_ctx.advance_block()
+            if done:
+                break
+
+        verify_ctx = FlashContext(elfs)
+        while True:
+            expected_block = verify_ctx.get_next_block()
+            cmd = f"r {expected_block.address:x} {len(expected_block.data):x}".encode('latin1')
+            result = await self.command(cmd, allow_any_response=True)
+            # Emit progress first, to make it easier to see where
+            # things go wrong.
+            self._emit_flash_progress(verify_ctx, "verifying")
+            _verify_blocks(expected_block, result)
+            done = verify_ctx.advance_block()
+            if done:
+                break
+
+    async def restore_config(self, old_config):
+        new_config = []
+        for line in old_config.split(b'\n'):
+            new_config.append(b'conf set ' + line + b'\n')
+        await self.write_config_stream(io.BytesIO(b''.join(new_config)))
 
 
 class Runner:
@@ -179,6 +351,8 @@ class Runner:
             await stream.do_zero_offset()
         elif self.args.write_config:
             await stream.do_write_config(self.args.write_config)
+        elif self.args.flash:
+            await stream.do_flash(self.args.flash)
         else:
             raise RuntimeError("No action specified")
 

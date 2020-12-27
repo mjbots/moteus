@@ -48,5 +48,6 @@ setuptools.setup(
     install_requires = [
         'pyserial>=3.5',
         'python-can>=3.3',
+        'pyelftools>=0.26',
     ],
 )

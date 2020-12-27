@@ -658,7 +658,7 @@ class Stream:
             self._read_data += this_result.data
 
             if len(this_result.data) == 0:
-                asyncio.sleep(0.01)
+                await asyncio.sleep(0.01)
 
         first_newline = min((self._read_data.find(c) for c in b'\r\n'
                              if c in self._read_data), default=None)
