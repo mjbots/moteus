@@ -31,7 +31,6 @@ def wrap_negpi_pi(x):
 def read_line(fd):
     line = fd.readline().strip()
 
-    line = line.split('>', 1)[1]
     return line
 
 
@@ -45,7 +44,7 @@ def wrap_int16(value):
 
 def read_file(fd):
     start = read_line(fd)
-    if start != 'CAL start':
+    if not start.startswith('CAL start'):
         raise RuntimeError('Does not start with magic line:' + start)
 
     phase_up = []
@@ -57,7 +56,7 @@ def read_file(fd):
         if line == 'CAL done':
             break
 
-        fields = [int(x) for x in line.strip().split(' ')]
+        fields = [int(x) for x in line.strip().split(' ')[0:3]]
         item = fields[1:]
         if fields[0] == 1:
             phase_up.append(item)
