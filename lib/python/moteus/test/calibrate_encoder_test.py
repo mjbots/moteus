@@ -2177,10 +2177,10 @@ class CalibrateEncoderTest(unittest.TestCase):
         f = ce.parse_file(io.BytesIO(source_data))
         r = ce.calibrate(f)
 
-        self.assertEqual(r.total_delta, 65508)
-        self.assertEqual(r.total_phase, 1375400)
+        self.assertEqual(r.total_delta, 65396)
+        self.assertEqual(r.total_phase, 1371500)
         self.assertEqual(r.poles, 42)
-        self.assertAlmostEqual(r.ratio, 20.9959, places=4)
+        self.assertAlmostEqual(r.ratio, 20.97223, places=4)
         self.assertEqual(r.invert, False)
 
         expected_offsets = [

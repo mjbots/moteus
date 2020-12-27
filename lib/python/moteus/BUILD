@@ -59,10 +59,22 @@ py_library(
     ],
 )
 
+py_binary(
+    name = "manual_calibrate_encoder",
+    srcs = [
+        "manual_calibrate_encoder.py",
+    ],
+    deps = [
+        ":moteus",
+    ],
+)
+
 py_test(
     name = "calibrate_encoder_test",
     srcs = ["test/calibrate_encoder_test.py"],
     deps = ["moteus"],
+    # Just so it is built.
+    data = [":manual_calibrate_encoder"],
 )
 
 py_test(

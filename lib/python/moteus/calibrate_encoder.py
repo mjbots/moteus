@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 # Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import math
-
 
 class Entry:
     direction = 0
@@ -160,13 +158,24 @@ def _window_average(values, window_size):
 
 
 class CalibrationResult:
-    invert = None
-    poles = None
-    offsets = None
+    def __init__(self):
+        self.invert = None
+        self.poles = None
+        self.offsets = None
 
-    total_phase = None
-    total_delta = None
-    ratio = None
+        self.total_phase = None
+        self.total_delta = None
+        self.ratio = None
+
+        self.errors = []
+
+    def __repr__(self):
+        return json.dumps({
+            "invert": self.invert,
+            "poles": self.poles,
+            "offsets": self.offsets,
+            "errors": self.errors,
+            })
 
 
 def calibrate(parsed):
@@ -174,16 +183,16 @@ def calibrate(parsed):
         len(parsed.phase_down) < 2):
         raise RuntimeError("one or more phases were empty")
 
-    # We discard the first entry from the phase up side, since it will
-    # be bogus.
-    del(parsed.phase_up[0])
+    # We discard the first few entries from the phase up side, since
+    # they will be bogus.
+    del(parsed.phase_up[0:4])
 
     total_delta = sum([
         _wrap_int16(b.encoder - a.encoder) for a, b in
         zip(parsed.phase_up[0:], parsed.phase_up[1:])])
 
     if abs(abs(total_delta)- 65536) > 5000:
-        raise RuntimeError("phase_up did not traverse appropriate encoder distance")
+        result.errors.append("phase_up did not traverse appropriate encoder distance")
 
     result = CalibrationResult()
 
@@ -209,8 +218,9 @@ def calibrate(parsed):
 
     MAX_REMAINDER_ERROR = 0.1
     if remainder > MAX_REMAINDER_ERROR:
-        raise RuntimeError(f"encoder not an integral multiple of phase, " +
-                           f"{remainer} > {MAX_REMAINDER_ERROR}")
+        result.errors.append(
+            f"encoder not an integral multiple of phase, " +
+            f"{remainder} > {MAX_REMAINDER_ERROR}")
 
     result.total_phase = total_phase
     result.total_delta = total_delta
@@ -260,5 +270,17 @@ def calibrate(parsed):
     offsets = _interpolate(offset_x, xpos, avg_err)
 
     result.offsets = offsets
+
+    result.debug = {
+        'phase_up_encoder': phase_up_encoder,
+        'phase_up_phase' : phase_up_phase,
+        'phase_down_encoder' : phase_down_encoder,
+        'phase_down_phase' : phase_down_phase,
+        'xpos' : xpos,
+        'expected' : expected,
+        'avg_interp' : avg_interp,
+        'err' : err,
+        'avg_err' : avg_err,
+    }
 
     return result
