@@ -1,45 +1,27 @@
 # Getting started with the moteus controller #
 
-## Dependencies ##
-
-Some dependencies are required for the graphical debugging UI.  Instructions for ubuntu 18.04 systems:
-
-```
-sudo apt install curl python3-matplotlib python3-pyside python3-qtconsole python3-serial python3-snappy python
-```
-
-For ubuntu 20.04 systems:
+Binary versions of `tview` and `moteus_tool` can be installed for most
+platforms (desktop Linux, Windows, Mac) via python using the
+`moteus_gui` package.
 
 ```
-sudo apt install libc6-dev libtinfo5 gcc curl libc6-dev python3-matplotlib python3-pyside2.qtgui python3-pyside2.qtwidgets python3-pyside2.qtsvg python3-pyside2.qtprintsupport python3-pyside2.qtuitools python3-qtconsole python3-serial python3-snappy python-is-python3
+pip3 install moteus_gui
 ```
 
-## Building the software ##
-
-This will build the host and target binaries for the latest version of
-the moteus controller.
-
-```
-tools/bazel test --config=target //:target
-tools/bazel test --config=host //:host
-```
-
-## fdcanusb ##
-
-You can make life more convenient by installing the fdcanusb udev rule
-so that it appears as `/dev/fdcanusb`.  See:
-https://github.com/mjbots/fdcanusb/blob/master/70-fdcanusb.rules
-
-## Running tview ##
+# Running tview #
 
 tview lets you configure and inspect the state of the controller.  It
 can be run like:
 
 ```
-./bazel-out/k8-opt/bin/utils/tview --devices=1
+python3 -m moteus_gui.tview --devices=1
 ```
 
-By default, it uses `/dev/fdcanusb` to communicate with targets.
+(Your pip may have installed a `tview` script into your path which you
+could also use).
+
+By default, it attempts to detect an attached fdcanusb to communicate
+with the target.
 
 tview has three panes, left, right, and bottom.  Further, the left
 pane has two tabs.
@@ -113,7 +95,7 @@ A larger set of parameters is documented in the reference manual.
 ## Flashing over CAN ##
 
 ```
-./bazel-out/k8-opt/bin/utils/moteus_tool -t 1 --flash path/to/file.elf
+python3 -m moteus.moteus_tool --target 1 --flash path/to/file.elf
 ```
 
 ## Flashing from the debug port ##
@@ -131,11 +113,11 @@ cd openocd.git
 Then you can either flash using bazel:
 
 ```
-tools/bazel test --config=target //moteus:flash
+tools/bazel test --config=target //fw:flash
 ```
 
 Or re-flash the same file using:
 
 ```
-./moteus/flash.sh
+./fw/flash.sh
 ```

@@ -931,7 +931,7 @@ calibrate the controller using the following procedure.
 2. Run the calibration tool:
 
 ```
-./bazel-bin/utils/moteus_tool --target 1 --calibrate
+python3 -m moteus.moteus_tool --target 1 --calibrate
 ```
 
 WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
@@ -939,26 +939,26 @@ WARNING: Any attached motor must be able to spin freely.  It will be spun in bot
 
 # E. Flashing firwmare #
 
-The firmware can be flashed either using:
+The firmware can be built and flashed using:
 
 ```
-./moteus/flash.sh
+tools/bazel build --config=target //fw:flash
 ```
 
-Or using a bazel rule, which first ensures that all firmware sources
-are built correctly.
+Or, if already built, flashed using:
 
 ```
-tools/bazel build --config=target //moteus:flash
+./fw/flash.sh
 ```
+
 
 # F. Mechanical #
 
 The current mechanical drawing for the controller can be found at:
-[20200115-moteus-controller-r42-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.2/20200115-moteus-controller-r42-mechanical.pdf)
+[20200403-moteus-controller-r43-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.3/20200403-moteus-controller-r43-mechanical.pdf)
 
 The current mechanical drawing for the qdd100 servo can be found at:
-[20200315-qdd100-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/qdd100/20200315-qdd100-mechanical.pdf)
+[20200315-qdd100-mechanical.pdf](https://drive.google.com/file/d/1KUQyR853e2uw8WOVrQHaeskWYHGSm3nI/view?usp=sharing)
 
 # G. Electrical / Pinout #
 
@@ -1018,27 +1018,29 @@ positive supply is to the right with the square corner.
 
 # H. CAN-FD communication #
 
-## moteus_tool configuration ##
+## moteus_tool and tview configuration ##
 
-`moteus_tool` can be configured to communicate with a moteus
-controller through a variety of transports.  To use an attached
-`fdcanusb` no options are required.
+`moteus_tool` and `tview can be configured to communicate with a
+moteus controller through a variety of transports.  By default, it
+will attempt to autodetect either a fdcanusb or socketcan interface.
 
-```
-moteus_tool
-```
-
-To use socketcan, the following options will work:
+To force usage of a particular fdcanusb, you can use:
 
 ```
-moteus_tool \
-  --client.client_type stream \
-  --client.stream.frame_type socketcan \
-  --client.stream.can.interface can0
+python3 -m moteus.moteus_tool --fdcanusb /path/to/fdcanusb
 ```
 
-Note, these are in addition to any other `moteus_tool` options that
-may be desired.
+To force a particular python-can method, you can use:
+
+```
+python3 -m moteus.moteus_tool --can-iface socketcan --can-chan can0
+```
+
+where `--can-iface` specifies the "interface" for python-can and
+`--can-chan` specifies the "channel".
+
+Note, these are in addition to any other `moteus_tool` or `tview`
+options that may be desired.
 
 ## Bit timings ##
 
