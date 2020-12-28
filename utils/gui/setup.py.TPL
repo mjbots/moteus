@@ -59,6 +59,7 @@ setuptools.setup(
         'numpy<=1.19.3;platform_system=="Windows"',
         'numpy;platform_system=="Linux"',
         'PySide2',
-        'qtconsole<4.7,>=4.3',
+        'qtconsole',
+        'qtpy',
     ],
 )

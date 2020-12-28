@@ -41,8 +41,13 @@ qt_backend = matplotlib.backends.backend_qt5agg
 
 from PySide2 import QtUiTools
 
+import qtconsole
 from qtconsole.history_console_widget import HistoryConsoleWidget
-from qtconsole.qt import QtCore, QtGui
+if getattr(qtconsole, "qt", None):
+    from qtconsole.qt import QtCore, QtGui
+    QtWidgets = QtGui
+else:
+    from qtpy import QtCore, QtGui, QtWidgets
 
 import asyncqt
 
@@ -73,7 +78,7 @@ def _set_tree_widget_data(item, struct,
                           required_size=0):
     if item.childCount() < required_size:
         for i in range(item.childCount(), required_size):
-            subitem = QtGui.QTreeWidgetItem(item)
+            subitem = QtWidgets.QTreeWidgetItem(item)
             subitem.setText(0, str(i))
     for i in range(item.childCount()):
         child = item.child(i)
@@ -187,11 +192,11 @@ class PlotItem(object):
         self.plot_widget.data_update()
 
 
-class PlotWidget(QtGui.QWidget):
+class PlotWidget(QtWidgets.QWidget):
     COLORS = 'rbgcmyk'
 
     def __init__(self, parent=None):
-        QtGui.QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
         self.history_s = 20.0
         self.next_color = 0
@@ -214,12 +219,12 @@ class PlotWidget(QtGui.QWidget):
         self.right_axis = None
 
         self.toolbar = qt_backend.NavigationToolbar2QT(self.canvas, self)
-        self.pause_action = QtGui.QAction(u'Pause', self)
+        self.pause_action = QtWidgets.QAction(u'Pause', self)
         self.pause_action.setCheckable(True)
         self.pause_action.toggled.connect(self._handle_pause)
         self.toolbar.addAction(self.pause_action)
 
-        layout = QtGui.QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.addWidget(self.toolbar, 0)
         layout.addWidget(self.canvas, 1)
 
@@ -271,9 +276,9 @@ class PlotWidget(QtGui.QWidget):
             axis.set_navigate(True)
 
 
-class SizedTreeWidget(QtGui.QTreeWidget):
+class SizedTreeWidget(QtWidgets.QTreeWidget):
     def __init__(self, parent=None):
-        QtGui.QTreeWidget.__init__(self, parent)
+        QtWidgets.QTreeWidget.__init__(self, parent)
         self.setColumnCount(2)
         self.headerItem().setText(0, 'Name')
         self.headerItem().setText(1, 'Value')
@@ -354,9 +359,9 @@ class Record:
         return count != 0
 
 
-class NoEditDelegate(QtGui.QStyledItemDelegate):
+class NoEditDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
-        QtGui.QStyledItemDelegate.__init__(self, parent=parent)
+        QtWidgets.QStyledItemDelegate.__init__(self, parent=parent)
 
     def createEditor(self, parent, option, index):
         return None
@@ -611,7 +616,7 @@ class Device:
             key, value = line.split(' ', 1)
             name, rest = key.split('.', 1)
             if name not in self._config_tree_items:
-                item = QtGui.QTreeWidgetItem(self._config_tree_item)
+                item = QtWidgets.QTreeWidgetItem(self._config_tree_item)
                 item.setText(0, name)
                 self._config_tree_items[name] = item
 
@@ -637,7 +642,7 @@ class Device:
                         child = item.child(i)
                         break
                 if child is None:
-                    child = QtGui.QTreeWidgetItem(item)
+                    child = QtWidgets.QTreeWidgetItem(item)
                     child.setText(0, this_field)
                 add_config(child, next_key, value)
 
@@ -762,7 +767,7 @@ class Device:
 
 
     def _add_schema_to_tree(self, name, schema_data, record):
-        item = QtGui.QTreeWidgetItem(self._data_tree_item)
+        item = QtWidgets.QTreeWidgetItem(self._data_tree_item)
         item.setText(0, name)
 
         schema = Device.Schema(name, self, record)
@@ -773,7 +778,7 @@ class Device:
                 for field in element.fields:
                     name = field.name
 
-                    item = QtGui.QTreeWidgetItem(parent)
+                    item = QtWidgets.QTreeWidgetItem(parent)
                     item.setText(0, name)
 
                     add_item(item, field.type_class)
@@ -830,7 +835,7 @@ class TviewMainWindow():
 
         self.ui.tabifyDockWidget(self.ui.configDock, self.ui.telemetryDock)
 
-        layout = QtGui.QVBoxLayout(self.ui.plotHolderWidget)
+        layout = QtWidgets.QVBoxLayout(self.ui.plotHolderWidget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.ui.plotHolderWidget.setLayout(layout)
@@ -859,11 +864,11 @@ class TviewMainWindow():
         self.ui.telemetryTreeWidget.clear()
 
         for device_id in [int(x) for x in self.options.devices.split(',')]:
-            config_item = QtGui.QTreeWidgetItem()
+            config_item = QtWidgets.QTreeWidgetItem()
             config_item.setText(0, str(device_id))
             self.ui.configTreeWidget.addTopLevelItem(config_item)
 
-            data_item = QtGui.QTreeWidgetItem()
+            data_item = QtWidgets.QTreeWidgetItem()
             data_item.setText(0, str(device_id))
             self.ui.telemetryTreeWidget.addTopLevelItem(data_item)
 
@@ -987,7 +992,7 @@ class TviewMainWindow():
         if item.childCount() > 0:
             return
 
-        menu = QtGui.QMenu(self.ui)
+        menu = QtWidgets.QMenu(self.ui)
         left_action = menu.addAction('Plot Left')
         right_action = menu.addAction('Plot Right')
         left_std_action = menu.addAction('Plot StdDev Left')
@@ -1042,9 +1047,9 @@ class TviewMainWindow():
                 name, record.get_signal(leaf), axis)
             self.ui.plotItemCombo.addItem(name, plot_item)
         elif requested == copy_name:
-            QtGui.QApplication.clipboard().setText(item.text(0))
+            QtWidgets.QApplication.clipboard().setText(item.text(0))
         elif requested == copy_value:
-            QtGui.QApplication.clipboard().setText(item.text(1))
+            QtWidgets.QApplication.clipboard().setText(item.text(1))
         else:
             # The user cancelled.
             pass
@@ -1084,7 +1089,7 @@ def main():
 
     args = parser.parse_args()
 
-    app = QtGui.QApplication(sys.argv)
+    app = QtWidgets.QApplication(sys.argv)
     loop = asyncqt.QEventLoop(app)
     asyncio.set_event_loop(loop)
 

@@ -8,6 +8,7 @@ addons:
     - python3-can
     - python3-serial
     - python3-pyelftools
+    - python3-qtpy
     - libtinfo5
 cache:
    directories:
