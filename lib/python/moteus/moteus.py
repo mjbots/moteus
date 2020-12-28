@@ -15,6 +15,7 @@
 import asyncio
 import argparse
 import enum
+import importlib_metadata
 import io
 import struct
 
@@ -72,7 +73,8 @@ class PythonCanFactory:
 TRANSPORT_FACTORIES = [
     FdcanusbFactory(),
     PythonCanFactory(),
-]
+] + [ep.load()() for ep in
+     importlib_metadata.entry_points().get('moteus.transports', [])]
 
 
 GLOBAL_TRANSPORT = None

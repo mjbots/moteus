@@ -52,6 +52,7 @@ setuptools.setup(
         'pyserial>=3.5',
         'python-can>=3.3',
         'pyelftools>=0.26',
+        'importlib_metadata',
         'pywin32;platform_system=="Windows"',
     ],
 )

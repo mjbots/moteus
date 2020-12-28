@@ -37,8 +37,11 @@ template_file(
 
 genrule(
     name = "bdist_wheel",
-    srcs = ["setup.py", "README.md", "//lib/python/moteus",
-            "//lib/python/moteus:version.py",
+    srcs = [
+        "setup.py",
+        "README.md",
+        "//lib/python/moteus",
+        "//lib/python/moteus:version.py",
     ],
     outs = [
         "moteus-{ver}-py3-none-any.whl".format(ver=VERSION),
