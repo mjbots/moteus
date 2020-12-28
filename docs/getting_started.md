@@ -8,6 +8,8 @@ platforms (desktop Linux, Windows, Mac) via python using the
 pip3 install moteus_gui
 ```
 
+If you have a Raspberry Pi, see the [instructions here](raspberry_pi.md).
+
 # Running tview #
 
 tview lets you configure and inspect the state of the controller.  It
