@@ -141,6 +141,9 @@ def _read_elf(filename, sections):
 async def _copy_stream(inp, out):
     while True:
         data = await inp.read(4096, block=False)
+        if len(data) == 0:
+            # EOF
+            exit(0)
         out.write(data)
         await out.drain()
 
@@ -213,7 +216,8 @@ class Stream:
         console_stdout = aiostream.AioStream(sys.stdout.buffer.raw)
         dir1 = asyncio.create_task(_copy_stream(self.stream, console_stdout))
         dir2 = asyncio.create_task(_copy_stream(console_stdin, self.stream))
-        await asyncio.wait([dir1, dir2], return_when=asyncio.FIRST_COMPLETED)
+        done, pending = await asyncio.wait(
+            [dir1, dir2], return_when=asyncio.FIRST_EXCEPTION)
 
     async def command(self, command_str, **kwargs):
         command_bytes = (command_str if type(command_str) == bytes else
