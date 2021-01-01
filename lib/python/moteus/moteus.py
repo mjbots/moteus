@@ -644,9 +644,11 @@ class Stream:
 
             async with self.lock:
                 this_result = await self.controller.diagnostic_read(bytes_to_request)
-            self._read_data += this_result.data
 
-            if len(this_result.data) == 0:
+            if this_result:
+                self._read_data += this_result.data
+
+            if this_result is None or len(this_result.data) == 0:
                 # Wait a bit before asking again.
                 await asyncio.sleep(0.01)
 
