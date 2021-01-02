@@ -187,26 +187,8 @@ cc_test(
 )
 
 py_binary(
-    name = "jump_test",
-    srcs = ["jump_test.py"],
-    deps = [
-        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
-    ],
-)
-
-py_binary(
     name = "throw_test",
     srcs = ["throw_test.py"],
-    deps = [
-        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
-    ],
-)
-
-py_binary(
-    name = "fdcanusb_register_example",
-    srcs = ["fdcanusb_register_example.py"],
     deps = [
         "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
         "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
@@ -229,8 +211,6 @@ py_test(
         "test/dummy_host_test.py",
     ],
     deps = [
-        "fdcanusb_register_example",
-        "jump_test",
         "throw_test",
     ],
     size = "small",
