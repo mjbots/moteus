@@ -186,15 +186,6 @@ cc_test(
     size = "small",
 )
 
-py_binary(
-    name = "throw_test",
-    srcs = ["throw_test.py"],
-    deps = [
-        "@com_github_mjbots_mjlib//mjlib/multiplex:py_multiplex_protocol",
-        "@com_github_mjbots_mjlib//mjlib/multiplex:aioserial",
-    ],
-)
-
 cc_binary(
     name = "multiplex_tool",
     srcs = ["multiplex_tool_main.cc"],
@@ -211,7 +202,6 @@ py_test(
         "test/dummy_host_test.py",
     ],
     deps = [
-        "throw_test",
     ],
     size = "small",
 )
