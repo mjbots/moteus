@@ -844,6 +844,14 @@ These configure the position mode PID controller.
 * `max_desired_rate` - If non-zero, the commanded position is
   limited to change at this rate in Hz.
 
+Note, these values are in physical units.  Thus a `kp` value of 1,
+means that for 1 revolution of error at the output, 1 Nm of corrective
+torque will be applied.  Similarly, with a `kd` value of 1, 1
+revolution per second of error will result in 1 Nm of corrective
+torque.  Doubly note that these values are measured at the output,
+thus *after* any scaling in position, velocity, and torque implied by
+`motor.unwrapped_position_scale`.
+
 ## `servo.pid_dq` ##
 
 These have the same semantics as the position mode PID controller, and
