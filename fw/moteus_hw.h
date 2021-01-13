@@ -214,6 +214,15 @@ constexpr int kCompatibleHwRev[] = {
 
 
 #define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
-#define MOTEUS_FIRMWARE_VERSION 0x000100
+#define MOTEUS_FIRMWARE_VERSION 0x000101
+
+// Version history:
+
+// # 0x0101 #
+//
+// * Fixed the calculation of feedforward voltage to have the correct
+//   sign for the velocity component.  Previous firmwares,
+//   inappropriately applied a negative feedforward term, which
+//   counteracted rotation instead of being an actual feedforward.
 
 }

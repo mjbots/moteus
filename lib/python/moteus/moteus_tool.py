@@ -47,12 +47,45 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        if new > 0x0100:
+        if new > 0x0101:
             raise RuntimeError("Firmware to be flashed has a newer version than we support")
 
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
+        items = dict([line.split(b' ') for line in lines if b' ' in line])
 
+        #### 0x0101
+        #
+        # This version was the first to have the correct sign applied
+        # to the velocity component of servo.feedforward_scale.  The
+        # old versions applied a negative value, which acted opposite
+        # to its desired intention.  The default value of the scale
+        # was 1.0, which could cause velocity instability when used
+        # with the new correct algorithm.
+        #
+        # So, when upgrading, if the value was at its default, we move
+        # it to the new default value.  If it had been modified in any
+        # way, we zero it out, which is safe, although it will result
+        # in decreased performance.
+
+        if self.new >= 0x0101 and self.old <= 0x0100:
+            # If the old firmware had the default feedforward term of
+            # 1.0, then switch it to be the new default of 0.5.
+            if float(items[b'servo.feedforward_scale']) == 1.0:
+                items[b'servo.feedforward_scale'] = b'0.5'
+                print("Changing servo.feedforward_scale from 1.0 to 0.5 for version 0x0101")
+            else:
+                items[b'servo.feedforward_scale'] = b'0.0'
+                print("Changing servo.feedforward_scale to 0.0 for version 0x0101")
+
+        if self.new <= 0x0100 and self.old >= 0x0101:
+            # To get back to identical behavior, we apply the inverse
+            # mapping.
+            if float(items[b'servo.feedforward_scale']) == 0.5:
+                items[b'servo.feedforward_scale'] = b'1.0'
+                print("Reverting servo.feedforward_scale from 0.5 to 1.0 for version 0x0101")
+
+        lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
 
 

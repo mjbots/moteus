@@ -1422,7 +1422,7 @@ class BldcServo::Impl {
 
     const float q_V =
         (config_.feedforward_scale * (
-            i_q_A * motor_.resistance_ohm -
+            i_q_A * motor_.resistance_ohm +
             status_.velocity * motor_.v_per_hz /
             motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);

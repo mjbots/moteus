@@ -140,7 +140,7 @@ class BldcServo {
     float derate_temperature = 50.0f;
     float fault_temperature = 75.0f;
 
-    float feedforward_scale = 1.0f;
+    float feedforward_scale = 0.5f;
     float velocity_threshold = 0.09f;
     float position_derate = 0.02f;
 
