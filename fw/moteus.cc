@@ -43,6 +43,10 @@
 #error "Unknown target"
 #endif
 
+extern "C" {
+  uint32_t kMoteusFirmwareVersion = MOTEUS_FIRMWARE_VERSION;
+}
+
 auto* const MyDWT = DWT;
 auto* const MyFLASH = FLASH;
 
@@ -265,7 +269,7 @@ int main(void) {
 
   SystemInfo system_info(pool, telemetry_manager);
   FirmwareInfo firmware_info(pool, telemetry_manager,
-                             MOTEUS_FIRMWARE_VERSION, MOTEUS_MODEL_NUMBER);
+                             kMoteusFirmwareVersion, MOTEUS_MODEL_NUMBER);
   ClockManager clock(&timer, persistent_config, command_manager);
 
   MoteusController moteus_controller(

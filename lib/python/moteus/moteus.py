@@ -655,6 +655,18 @@ class Stream:
         to_return, self._read_data = self._read_data[0:size], self._read_data[size:]
         return to_return
 
+    async def flush_read(self, timeout=0.01):
+        self._read_data = b''
+
+        try:
+            await asyncio.wait_for(self.read(65536), timeout)
+            raise RuntimeError("More data to flush than expected")
+        except asyncio.TimeoutError:
+            # This is the expected path.
+            pass
+
+        self._read_data = b''
+
     async def _read_maybe_empty_line(self):
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
             async with self.lock:

@@ -25,6 +25,7 @@ import json
 import io
 import math
 import os
+import struct
 import sys
 import tempfile
 
@@ -34,6 +35,25 @@ from . import regression
 from . import calibrate_encoder as ce
 
 MAX_FLASH_BLOCK_SIZE = 32
+
+
+class FirmwareUpgrade:
+    '''This encodes "magic" rules about upgrading firmware, largely about
+    how to munge configuration options so as to not cause behavior
+    change upon firmware changes.
+    '''
+
+    def __init__(self, old, new):
+        self.old = old
+        self.new = new
+
+        if new > 0x0100:
+            raise RuntimeError("Firmware to be flashed has a newer version than we support")
+
+    def fix_config(self, old_config):
+        lines = old_config.split(b'\n')
+
+        return b'\n'.join(lines)
 
 
 def _get_log_directory():
@@ -110,6 +130,11 @@ class ElfMappings:
         raise RuntimeError(f"no mapping found for {address:x}")
 
 
+class ElfData:
+    sections = []
+    firmware_version = None
+
+
 def _read_elf(filename, sections):
     fp = elftools.elf.elffile.ELFFile(open(filename, "rb"))
 
@@ -131,9 +156,33 @@ def _read_elf(filename, sections):
             section['sh_addr'], section['sh_size'])
         sections[physical_address] = data
 
-    result = []
+    result = ElfData()
+    result.sections = []
+
     for key in sorted(sections.keys()):
-        result.append((key, sections[key]))
+        result.sections.append((key, sections[key]))
+
+    # Try to find the firmware version.
+    symtab = fp.get_section_by_name('.symtab')
+    if symtab:
+        maybe_version = symtab.get_symbol_by_name('kMoteusFirmwareVersion')
+        if maybe_version:
+            version = maybe_version[0]
+            if version['st_size'] != 4:
+                raise RuntimeError('Version in firmware image corrupt')
+
+            symbol_address = version['st_value']
+            symbol_section = version['st_shndx']
+
+            sec = fp.get_section(symbol_section)
+            sec_start = symbol_address - sec['sh_addr']
+            ver, = struct.unpack('<i', sec.data()[sec_start:sec_start+4])
+
+            result.firmware_version = ver
+
+    if result.firmware_version is None:
+        print("WARNING: Could not find firmware version in elf file, assuming 0x00000100")
+        result.firmware_version = 0x00000100
 
     return result
 
@@ -286,11 +335,22 @@ class Stream:
             print()
 
     async def do_flash(self, elffile):
-        elfs = _read_elf(elffile, [".text", ".ARM.extab", ".ARM.exidx",
-                                   ".data", ".ccmram", ".isr_vector"])
-        count_bytes = sum([len(section) for address, section in elfs])
+        elf = _read_elf(elffile, [".text", ".ARM.extab", ".ARM.exidx",
+                                  ".data", ".ccmram", ".isr_vector"])
+        count_bytes = sum([len(section) for address, section in elf.sections])
 
-        print(f"Read ELF file: {count_bytes} bytes")
+        fw = '0x{:08x}'.format(elf.firmware_version)
+        print(f"Read ELF file version {fw}: {count_bytes} bytes")
+
+        await self.write_message("tel stop")
+
+        # Discard anything that might have been en route.
+        await self.stream.flush_read()
+
+        # Get the current firmware version.
+        old_firmware = await self.read_data("firmware")
+
+        upgrade = FirmwareUpgrade(old_firmware.version, elf.firmware_version)
 
         if not self.args.no_restore_config:
             # Read our old config.
@@ -311,7 +371,7 @@ class Stream:
         await self.stream.readline()
 
         await self.command("unlock")
-        await self.write_flash(elfs)
+        await self.write_flash(elf.sections)
         await self.command("lock")
         # This will reset the controller, so we don't expect a response.
         await self.write_message("reset")
@@ -319,7 +379,7 @@ class Stream:
         await asyncio.sleep(1.0)
 
         if not self.args.no_restore_config:
-            await self.restore_config(old_config)
+            await self.restore_config(upgrade.fix_config(old_config))
 
     def _emit_flash_progress(self, ctx, type):
         if self.args.verbose:
