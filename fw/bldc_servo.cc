@@ -898,16 +898,21 @@ class BldcServo::Impl {
           (temp2 - temp1) *
           static_cast<float>(status_.adc_fet_temp_raw - this_value) /
           static_cast<float>(next_value - this_value);
+      ISR_UpdateFilteredValue(status_.fet_temp_C, &status_.filt_fet_temp_C, 0.01f);
+    }
+  }
+
+  static void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) MOTEUS_CCM_ATTRIBUTE {
+    if (std::isnan(*filtered)) {
+      *filtered = input;
+    } else {
+      const float alpha = 1.0f / (kRateHz * period_s);
+      *filtered = alpha * input + (1.0f - alpha) * *filtered;
     }
   }
 
   void ISR_UpdateFilteredBusV(float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
-    if (std::isnan(*filtered)) {
-      *filtered = status_.bus_V;
-    } else {
-      const float alpha = 1.0f / (kRateHz * period_s);
-      *filtered = alpha * status_.bus_V + (1.0f - alpha) * *filtered;
-    }
+    ISR_UpdateFilteredValue(status_.bus_V, filtered, period_s);
   }
 
   // This is called from the ISR.
@@ -1179,7 +1184,7 @@ class BldcServo::Impl {
         status_.mode = kFault;
         status_.fault = errc::kUnderVoltage;
       }
-      if (status_.fet_temp_C > config_.fault_temperature) {
+      if (status_.filt_fet_temp_C > config_.fault_temperature) {
         status_.mode = kFault;
         status_.fault = errc::kOverTemperature;
       }
@@ -1388,7 +1393,7 @@ class BldcServo::Impl {
     };
 
     const float derate_fraction = (
-        status_.fet_temp_C - config_.derate_temperature) / (
+        status_.filt_fet_temp_C - config_.derate_temperature) / (
             config_.fault_temperature - config_.derate_temperature);
 
     const float derate_current_A =
