@@ -603,8 +603,8 @@ class Controller:
         return result
 
     async def diagnostic_read(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_diagnostic_read(**kwargs)]))
+        return await self._get_transport().cycle(
+            [self.make_diagnostic_read(**kwargs)])
 
 
 class CommandError(RuntimeError):
@@ -643,12 +643,13 @@ class Stream:
             bytes_to_request = min(61, size - len(self._read_data))
 
             async with self.lock:
-                this_result = await self.controller.diagnostic_read(bytes_to_request)
+                these_results = await self.controller.diagnostic_read(bytes_to_request)
 
-            if this_result:
-                self._read_data += this_result.data
+            this_data = b''.join(x.data for x in these_results)
 
-            if this_result is None or len(this_result.data) == 0:
+            self._read_data += this_data
+
+            if len(this_data) == 0:
                 # Wait a bit before asking again.
                 await asyncio.sleep(0.01)
 
@@ -670,12 +671,13 @@ class Stream:
     async def _read_maybe_empty_line(self):
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
             async with self.lock:
-                this_result = await self.controller.diagnostic_read(61)
+                these_results = await self.controller.diagnostic_read(61)
 
-            if this_result:
-                self._read_data += this_result.data
+            this_data = b''.join(x.data for x in these_results)
 
-            if this_result is None or len(this_result.data) == 0:
+            self._read_data += this_data
+
+            if len(this_data) == 0:
                 await asyncio.sleep(0.01)
 
         first_newline = min((self._read_data.find(c) for c in b'\r\n'
