@@ -46,9 +46,9 @@ def main():
     run('tools/bazel clean --expunge')
     run('tools/bazel build --config=target -c opt //:target')
 
-    run(f'cp bazel-bin/moteus/moteus.elf {outdir}/{datestr}-moteus-{git_hash}.elf')
-    run(f'cp bazel-bin/moteus/can_bootloader.elf {outdir}/{datestr}-bootloader-{git_hash}.elf')
-    run(f'cp bazel-bin/moteus/power_dist.elf {outdir}/{datestr}-power_dist-{git_hash}.elf')
+    run(f'cp bazel-bin/fw/moteus.elf {outdir}/{datestr}-moteus-{git_hash}.elf')
+    run(f'cp bazel-bin/fw/can_bootloader.elf {outdir}/{datestr}-bootloader-{git_hash}.elf')
+    run(f'cp bazel-bin/fw/power_dist.elf {outdir}/{datestr}-power_dist-{git_hash}.elf')
 
     print()
     print('DONE')
