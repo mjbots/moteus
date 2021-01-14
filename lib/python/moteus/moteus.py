@@ -671,9 +671,11 @@ class Stream:
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
             async with self.lock:
                 this_result = await self.controller.diagnostic_read(61)
-            self._read_data += this_result.data
 
-            if len(this_result.data) == 0:
+            if this_result:
+                self._read_data += this_result.data
+
+            if this_result is None or len(this_result.data) == 0:
                 await asyncio.sleep(0.01)
 
         first_newline = min((self._read_data.find(c) for c in b'\r\n'
