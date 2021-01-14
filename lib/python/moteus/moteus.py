@@ -645,7 +645,7 @@ class Stream:
             async with self.lock:
                 these_results = await self.controller.diagnostic_read(bytes_to_request)
 
-            this_data = b''.join(x.data for x in these_results)
+            this_data = b''.join(x.data for x in these_results if x.data)
 
             self._read_data += this_data
 
@@ -673,7 +673,7 @@ class Stream:
             async with self.lock:
                 these_results = await self.controller.diagnostic_read(61)
 
-            this_data = b''.join(x.data for x in these_results)
+            this_data = b''.join(x.data for x in these_results if x.data)
 
             self._read_data += this_data
 
