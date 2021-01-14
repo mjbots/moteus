@@ -375,17 +375,24 @@ class Stream:
         fw = '0x{:08x}'.format(elf.firmware_version)
         print(f"Read ELF file version {fw}: {count_bytes} bytes")
 
-        await self.write_message("tel stop")
+        old_firmware = None
 
-        # Discard anything that might have been en route.
-        await self.stream.flush_read()
+        if not self.args.bootloader_active:
+            await self.write_message("tel stop")
 
-        # Get the current firmware version.
-        old_firmware = await self.read_data("firmware")
+            # Discard anything that might have been en route.
+            await self.stream.flush_read()
 
-        upgrade = FirmwareUpgrade(old_firmware.version, elf.firmware_version)
+            # Get the current firmware version.
+            old_firmware = await self.read_data("firmware")
 
-        if not self.args.no_restore_config:
+        upgrade = FirmwareUpgrade(
+            elf.firmware_version
+            if old_firmware is None else
+            old_firmware.version,
+            elf.firmware_version)
+
+        if not self.args.bootloader_active and not self.args.no_restore_config:
             # Read our old config.
             old_config = await self.command("conf enumerate")
 
@@ -411,7 +418,7 @@ class Stream:
 
         await asyncio.sleep(1.0)
 
-        if not self.args.no_restore_config:
+        if not self.args.bootloader_active and not self.args.no_restore_config:
             await self.restore_config(upgrade.fix_config(old_config))
 
     def _emit_flash_progress(self, ctx, type):
@@ -763,6 +770,8 @@ async def async_main():
 
     parser.add_argument('--no-restore-config', action='store_true',
                         help='do not restore config after flash')
+    parser.add_argument('--bootloader-active', action='store_true',
+                        help='bootloader is already active')
 
     group.add_argument('--calibrate', action='store_true',
                         help='calibrate the motor, requires full freedom of motion')
