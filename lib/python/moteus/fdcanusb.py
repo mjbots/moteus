@@ -19,6 +19,7 @@ import serial
 import serial.tools
 import serial.tools.list_ports
 import sys
+import time
 
 from . import aioserial
 
@@ -46,14 +47,13 @@ class CanMessage:
 class Fdcanusb:
     """Connects to a single mjbots fdcanusb."""
 
-    def __init__(self, path=None):
+    def __init__(self, path=None, debug_log=None):
         """Constructor.
 
         Arguments:
           path: serial port where fdcanusb is located
         """
         if path is None:
-            # TODO: Handle windows.
             path = self.detect_fdcanusb()
 
         # A fdcanusb ignores the requested baudrate, so we'll just
@@ -62,6 +62,10 @@ class Fdcanusb:
         self._stream_data = b''
 
         self._cycle_lock = asyncio.Lock()
+
+        self._debug_log = None
+        if debug_log:
+            self._debug_log = open(debug_log, 'wb')
 
     async def _readline(self, stream):
         while True:
@@ -148,6 +152,10 @@ class Fdcanusb:
                 raise RuntimeError("unexpected fdcanusb response, got: " +
                                    line.decode('latin1'))
 
+            if self._debug_log:
+                self._debug_log.write(f'{time.time()} < '.encode('latin1') +
+                                      line.rstrip() + b'\n')
+
             fields = line.split(b" ")
             message = CanMessage()
             message.data = _dehexify(fields[2])
@@ -160,9 +168,12 @@ class Fdcanusb:
         # to come back.  It can *not* be intermixed with calls to
         # 'cycle'.
         bus_id = command.destination + (0x8000 if command.reply_required else 0)
-        self._serial.write(
-            "can send {:04x} {}\n".format(
-                bus_id, _hexify(command.data)).encode('latin1'))
+        cmd = "can send {:04x} {}\n".format(
+            bus_id, _hexify(command.data)).encode('latin1')
+        self._serial.write(cmd)
+        if self._debug_log:
+            self._debug_log.write(f'{time.time()} > '.encode('latin1') +
+                                  cmd.rstrip() + b'\n')
         await self._serial.drain()
 
     async def read(self):
@@ -171,6 +182,10 @@ class Fdcanusb:
             line = await self._readline(self._serial)
             if not line.startswith(b"rcv"):
                 continue
+
+            if self._debug_log:
+                self._debug_log.write(f'{time.time()} < '.encode('latin1') +
+                                      line.rstrip() + b'\n')
 
             fields = line.split(b" ")
             message = CanMessage()

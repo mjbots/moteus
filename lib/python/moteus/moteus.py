@@ -34,14 +34,18 @@ class FdcanusbFactory:
     def add_args(self, parser):
         parser.add_argument('--fdcanusb', type=str, metavar='FILE',
                             help='path to fdcanusb device')
+        parser.add_argument('--fdcanusb-debug', type=str, metavar='DEBUG',
+                            help='write debug log')
 
     def is_args_set(self, args):
-        return args and args.fdcanusb
+        return args and (args.fdcanusb or args.fdcanusb_debug)
 
     def __call__(self, args):
         kwargs = {}
         if args and args.fdcanusb:
             kwargs['path'] = args.fdcanusb
+        if args and args.fdcanusb_debug:
+            kwargs['debug_log'] = args.fdcanusb_debug
         return fdcanusb.Fdcanusb(**kwargs)
 
 

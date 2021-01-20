@@ -64,6 +64,11 @@ MAX_SEND = 61
 POLL_TIMEOUT_S = 0.1
 STARTUP_TIMEOUT_S = 0.5
 
+
+def _has_nonascii(data):
+    return any([ord(x) > 127 for x in data])
+
+
 # TODO jpieper: Factor these out of tplot.py
 def _get_data(value, name):
     fields = name.split('.')
@@ -391,6 +396,8 @@ class DeviceStream:
         self.transport = transport
         self.controller = controller
 
+        self._read_condition = asyncio.Condition()
+
     def ignore_all(self):
         self._read_data = b''
 
@@ -405,7 +412,7 @@ class DeviceStream:
             self._write_data[0:MAX_SEND], self._write_data[MAX_SEND:])
         await self.transport.write(self.controller.make_diagnostic_write(to_write))
 
-    def process_message(self, message):
+    async def process_message(self, message):
         data = message.data
 
         if len(data) < 3:
@@ -422,6 +429,10 @@ class DeviceStream:
             return False
 
         self._read_data += data[3:3+datalen]
+
+        async with self._read_condition:
+            self._read_condition.notify_all()
+
         return datalen > 0
 
     def _read_maybe_empty_line(self):
@@ -434,30 +445,40 @@ class DeviceStream:
             self._read_data[first_newline+1:])
         return to_return
 
-    def read_line(self):
+    async def readline(self):
         while True:
             maybe_line = self._read_maybe_empty_line()
-            if maybe_line is None:
+            if maybe_line:
+                maybe_line = maybe_line.rstrip()
+                if len(maybe_line) > 0:
+                    return maybe_line
+            async with self._read_condition:
+                await self._read_condition.wait()
+
+    async def resynchronize(self):
+        while True:
+            oldlen = len(self._read_data)
+            async with self._read_condition:
+                await self._read_condition.wait()
+            newlen = len(self._read_data)
+            if newlen == oldlen:
+                self._read_data = b''
                 return
-            maybe_line = maybe_line.rstrip()
-            if len(maybe_line) == 0:
-                continue
-            return maybe_line
 
-    def read_sized_block(self):
-        if len(self._read_data) < 5:
-            return
+    async def read_sized_block(self):
+        while True:
+            if len(self._read_data) >= 5:
+                size = struct.unpack('<I', self._read_data[1:5])[0]
+                if size > 2 ** 24:
+                    return False
 
-        size = struct.unpack('<I', self._read_data[1:5])[0]
-        if size > 2 ** 24:
-            return False
+                if len(self._read_data) >= (5 + size):
+                    block = self._read_data[5:5+size]
+                    self._read_data = self._read_data[5+size:]
+                    return block
 
-        if len(self._read_data) < 5 + size:
-            return
-
-        block = self._read_data[5:5+size]
-        self._read_data = self._read_data[5+size:]
-        return block
+            async with self._read_condition:
+                await self._read_condition.wait()
 
 
 class Device:
@@ -482,252 +503,94 @@ class Device:
         self._config_tree_item = config_tree_item
         self._data_tree_item = data_tree_item
 
-        self._serial_state = self.STATE_LINE
         self._telemetry_records = {}
         self._schema_name = None
         self._config_tree_items = {}
         self._config_callback = None
 
-        self._start_time = None
+        self._updating_config = False
 
     async def start(self):
         # Stop the spew.
         self.write('\r\ntel stop\r\n'.encode('latin1'))
 
-        # We want to wait a little bit, discard everything we have
-        # received, and then initialize the device.
-        self._start_time = time.time()
+        await asyncio.sleep(0.2)
 
-    def _setup_device(self, callback):
-        # When we start, get a listing of all configuration options
-        # and all available telemetry channels.
-        def after_config():
-            self.update_telemetry(callback)
-        self.update_config(after_config)
+        self._stream.ignore_all()
 
-    def process_message(self, message):
-        now = time.time()
-        if self._start_time and (now - self._start_time < STARTUP_TIMEOUT_S):
-            return False
+        await self.update_config()
+        await self.update_telemetry()
 
-        any_data_read = self._stream.process_message(message)
+        await self.run()
 
-        while True:
-            old_len = len(self._stream._read_data)
-            try:
-                self._handle_serial_data()
-            except Exception as e:
-                traceback.print_exc()
-                print("Error parsing:", e)
-            if len(self._stream._read_data) == old_len:
-                break
+    async def update_config(self):
+        self._updating_config = True
 
-        return any_data_read
+        try:
+            # Clear out our config tree.
+            self._config_tree_item.takeChildren()
+            self._config_tree_items = {}
 
-    async def emit_any_writes(self):
-        await self._stream.maybe_emit_one()
+            configs = await self.command('conf enumerate')
+            for config in configs.split('\n'):
+                if config.strip() == '':
+                    continue
+                self.add_config_line(config)
+        finally:
+            self._updating_config = False
 
-    async def poll(self):
-        await self._transport.write(self.controller.make_diagnostic_read())
-
-        if self._start_time is not None:
-            now = time.time()
-            if now - self._start_time > STARTUP_TIMEOUT_S:
-                self._stream.ignore_all()
-                self._setup_device(None)
-                self._start_time = None
-
-    def write(self, data):
-        self._stream.write(data)
-
-    def config_item_changed(self, name, value):
-        if self._serial_state == self.STATE_CONFIG:
-            return
-
-        self.write_line('conf set %s %s\r\n' % (name, value))
-
-    def _handle_serial_data(self):
-        if self._serial_state == self.STATE_LINE:
-            self._handle_serial_line()
-        elif self._serial_state == self.STATE_CONFIG:
-            self._handle_config()
-        elif self._serial_state == self.STATE_TELEMETRY:
-            self._handle_telemetry()
-        elif self._serial_state == self.STATE_SCHEMA:
-            self._handle_schema()
-        elif self._serial_state == self.STATE_DATA:
-            self._handle_data()
-        else:
-            assert False
-
-    def _handle_serial_line(self):
-        line = self._get_serial_line()
-        if line is None:
-            return
-
-        line = line.decode('latin1')
-
-        display = True
-        if line == '':
-            display = False
-
-        if line.startswith('schema '):
-            self._serial_state = self.STATE_SCHEMA
-            self._schema_name = line.split(' ', 1)[1].strip()
-        elif line.startswith('emit '):
-            self._serial_state = self.STATE_DATA
-            self._schema_name = line.split(' ', 1)[1].strip()
-            display = False
-
-        if display:
-            self._console.add_text(self._prefix + line + '\n')
-
-    def _get_serial_line(self):
-        result = self._stream.read_line()
-        return result
-
-    def update_config(self, callback):
-        # Clear out our config tree.
-        self._config_tree_item.takeChildren()
-        self._config_tree_items = {}
-
-        self._config_callback = callback
-        self.write_line('conf enumerate\r\n')
-
-        # TODO jpieper: In the current protocol this is racy, as there
-        # is no header on the config enumeration.  I should probably
-        # add one.
-        self._serial_state = self.STATE_CONFIG
-
-    def _handle_config(self):
-        line = self._get_serial_line()
-        if not line:
-            return
-
-        line = line.decode('latin1')
-        self._console.add_text(self._prefix + line + '\n')
-
-        if line.startswith('OK'):
-            # We're done with config now.
-            self._serial_state = self.STATE_LINE
-            cbk, self._config_callback = self._config_callback, None
-            if cbk:
-                cbk()
-        else:
-            # Add it into our tree view.
-            key, value = line.split(' ', 1)
-            name, rest = key.split('.', 1)
-            if name not in self._config_tree_items:
-                item = QtWidgets.QTreeWidgetItem(self._config_tree_item)
-                item.setText(0, name)
-                self._config_tree_items[name] = item
-
-            def add_config(item, key, value):
-                if key == '':
-                    item.setText(1, value)
-                    item.setFlags(QtCore.Qt.ItemFlags(
-                        int(QtCore.Qt.ItemIsEditable) |
-                        int(QtCore.Qt.ItemIsSelectable) |
-                        int(QtCore.Qt.ItemIsEnabled)))
-                    return
-
-                fields = key.split('.', 1)
-                this_field = fields[0]
-                next_key = ''
-                if len(fields) > 1:
-                    next_key = fields[1]
-
-                child = None
-                # See if we already have an appropriate child.
-                for i in range(item.childCount()):
-                    if item.child(i).text(0) == this_field:
-                        child = item.child(i)
-                        break
-                if child is None:
-                    child = QtWidgets.QTreeWidgetItem(item)
-                    child.setText(0, this_field)
-                add_config(child, next_key, value)
-
-            add_config(self._config_tree_items[name], rest, value)
-
-            # TODO(jpieper)
-            # self.ui.configTreeWidget.resizeColumnToContents(0)
-
-    def update_telemetry(self, callback):
+    async def update_telemetry(self):
         self._data_tree_item.takeChildren()
         self._telemetry_records = {}
 
-        self._telemetry_callback = callback
-        self.write_line('tel list\r\n')
+        channels = await self.command('tel list')
+        for name in channels.split('\n'):
+            if name.strip() == '':
+                continue
 
-        self._serial_state = self.STATE_TELEMETRY
+            self.write_line(f'tel schema {name}\r\n')
+            schema = await self.read_schema(name)
 
-    def write_line(self, line):
-        self._console.add_text(self._prefix + line)
-        self.write(line.encode('latin1'))
+            archive = reader.Type.from_binary(io.BytesIO(schema), name=name)
 
-    def _handle_telemetry(self):
-        line = self._get_serial_line()
-        if not line:
-            return
+            record = Record(archive)
+            self._telemetry_records[name] = record
+            record.tree_item = self._add_schema_to_tree(name, archive, record)
 
-        line = line.decode('latin1')
-        self._console.add_text(self._prefix + line + '\n')
+            self._add_text('<schema name=%s>\n' % name)
 
-        if line.startswith('OK'):
-            # Now we need to start getting schemas.
-            self._serial_state = self.STATE_LINE
-            self._update_schema()
-        else:
-            name = line.strip()
-            self._telemetry_records[name] = None
+    async def run(self):
+        while True:
+            line = await self.readline()
+            if _has_nonascii(line):
+                # We need to try and resynchronize.  Skip to a '\r\n'
+                # followed by at least 3 ASCII characters.
+                await self._stream.resynchronize()
+            if line.startswith('emit '):
+                try:
+                    await self.do_data(line.split(' ')[1])
+                except Exception as e:
+                    if (hasattr(self._stream.transport, '_debug_log') and
+                        self._stream.transport._debug_log):
+                        self._stream.transport._debug_log.write(
+                            f"Error reading data: {e}".encode('latin1'))
+                    print("Error reading data:", str(e))
+                    # Just keep going and try to read more.
 
-    def _update_schema(self):
-        # Find a channel we don't have a schema for and request it.
-        for name in self._telemetry_records.keys():
-            if self._telemetry_records[name] is None:
-                self.write_line('tel schema %s\r\n' % name)
-                self._serial_state = self.STATE_LINE
-                return
 
-        self._serial_state = self.STATE_LINE
-        # Guess we are done.  Update our tree view.
+    async def read_schema(self, name):
+        while True:
+            line = await self.readline()
+            if not line == f'schema {name}':
+                continue
+            break
+        schema = await self.read_sized_block()
+        return schema
 
-        # TODO(jpieper)
-        # self.ui.telemetryTreeWidget.resizeColumnToContents(0)
-
-        cbk, self._telemetry_callback = self._telemetry_callback, None
-        if cbk:
-            cbk()
-
-    def _handle_schema(self):
-        schema = self._handle_sized_block()
-        if not schema:
-            return
-
-        name, self._schema_name = self._schema_name, None
-
-        if name in self._telemetry_records:
-            if self._telemetry_records[name]:
-                return
-
-        archive = reader.Type.from_binary(io.BytesIO(schema), name=name)
-
-        record = Record(archive)
-        self._telemetry_records[name] = record
-        record.tree_item = self._add_schema_to_tree(name, archive, record)
-
-        self._console.add_text(self._prefix + '<schema name=%s>\n' % name)
-
-        # Now look to see if there are any more we should request.
-        self._update_schema()
-
-    def _handle_data(self):
-        data = self._handle_sized_block()
+    async def do_data(self, name):
+        data = await self.read_sized_block()
         if not data:
             return
-
-        name, self._schema_name = self._schema_name, None
 
         if name not in self._telemetry_records:
             return
@@ -738,20 +601,103 @@ class Device:
             record.update(struct)
             _set_tree_widget_data(record.tree_item, struct)
 
-        self._serial_state = self.STATE_LINE
+    async def read_sized_block(self):
+        return await self._stream.read_sized_block()
 
-    def _handle_sized_block(self):
-        block = self._stream.read_sized_block()
+    async def process_message(self, message):
+        any_data_read = await self._stream.process_message(message)
 
-        if block is None:
+        return any_data_read
+
+    async def emit_any_writes(self):
+        await self._stream.maybe_emit_one()
+
+    async def poll(self):
+        await self._transport.write(self.controller.make_diagnostic_read())
+
+    def write(self, data):
+        self._stream.write(data)
+
+    def config_item_changed(self, name, value):
+        if self._updating_config:
             return
+        self.write_line('conf set %s %s\r\n' % (name, value))
 
-        if block == False:
-            print('Invalid schema size, skipping whatever we were doing.')
-            self._serial_state = self.STATE_LINE
-            return
+    async def readline(self):
+        result = (await self._stream.readline()).decode('latin1')
+        if not result.startswith('emit '):
+            self._add_text(result + '\n')
+        return result
 
-        return block
+    async def command(self, message):
+        self.write_line(message + '\r\n')
+        result = io.StringIO()
+
+        # First, read until we get something that is not an 'emit'
+        # line.
+        while True:
+            line = await self.readline()
+            if line.startswith('emit ') or line.startswith('schema '):
+                continue
+            break
+
+        now = time.time()
+        while True:
+            if line.startswith('OK'):
+                return result.getvalue()
+
+            result.write(line + '\n')
+            line = await self.readline()
+            end = time.time()
+            now = end
+
+    def add_config_line(self, line):
+        # Add it into our tree view.
+        key, value = line.split(' ', 1)
+        name, rest = key.split('.', 1)
+        if name not in self._config_tree_items:
+            item = QtWidgets.QTreeWidgetItem(self._config_tree_item)
+            item.setText(0, name)
+            self._config_tree_items[name] = item
+
+        def add_config(item, key, value):
+            if key == '':
+                item.setText(1, value)
+                item.setFlags(QtCore.Qt.ItemFlags(
+                    int(QtCore.Qt.ItemIsEditable) |
+                    int(QtCore.Qt.ItemIsSelectable) |
+                    int(QtCore.Qt.ItemIsEnabled)))
+                return
+
+            fields = key.split('.', 1)
+            this_field = fields[0]
+            next_key = ''
+            if len(fields) > 1:
+                next_key = fields[1]
+
+            child = None
+            # See if we already have an appropriate child.
+            for i in range(item.childCount()):
+                if item.child(i).text(0) == this_field:
+                    child = item.child(i)
+                    break
+            if child is None:
+                child = QtWidgets.QTreeWidgetItem(item)
+                child.setText(0, this_field)
+            add_config(child, next_key, value)
+
+        add_config(self._config_tree_items[name], rest, value)
+
+    def _add_text(self, line):
+        self._console.add_text(self._prefix + line)
+        if (hasattr(self._stream.transport, '_debug_log') and
+            self._stream.transport._debug_log):
+            self._stream.transport._debug_log.write(
+                f"{time.time()} : {line}".encode('latin1'))
+
+    def write_line(self, line):
+        self._add_text(line)
+        self.write(line.encode('latin1'))
 
     class Schema:
         def __init__(self, name, parent, record):
@@ -898,7 +844,7 @@ class TviewMainWindow():
             any_data_read = False
             for device in self.devices:
                 if device.number == source_id:
-                    any_data_read = device.process_message(message)
+                    any_data_read = await device.process_message(message)
                     break
             if predicate(message):
                 return any_data_read
