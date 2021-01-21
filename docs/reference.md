@@ -947,6 +947,14 @@ WARNING: Any attached motor must be able to spin freely.  It will be spun in bot
 
 # E. Flashing firwmare #
 
+## Flashing over CAN ##
+
+```
+python3 -m moteus.moteus_tool --target 1 --flash path/to/file.elf
+```
+
+## From the debug port ##
+
 The firmware can be built and flashed using:
 
 ```
@@ -957,6 +965,18 @@ Or, if already built, flashed using:
 
 ```
 ./fw/flash.sh
+```
+
+## openocd ##
+
+You may need a custom openocd, a known working one can be had by:
+
+```
+sudo apt install autotools-dev automake autogen autoconf libtool libusb-1.0-0-dev
+git clone https://github.com/mjbots/openocd
+cd openocd.git
+./bootstrap
+./configure && make && sudo make install
 ```
 
 
@@ -1028,7 +1048,7 @@ positive supply is to the right with the square corner.
 
 ## moteus_tool and tview configuration ##
 
-`moteus_tool` and `tview can be configured to communicate with a
+`moteus_tool` and `tview` can be configured to communicate with a
 moteus controller through a variety of transports.  By default, it
 will attempt to autodetect either a fdcanusb or socketcan interface.
 

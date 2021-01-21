@@ -92,34 +92,7 @@ in your setup:
 
 A larger set of parameters is documented in the reference manual.
 
-# Upgrading the Firmware #
+# Learning more #
 
-## Flashing over CAN ##
-
-```
-python3 -m moteus.moteus_tool --target 1 --flash path/to/file.elf
-```
-
-## Flashing from the debug port ##
-
-If you want to re-flash the firmware using the debugging port, a custom openocd is currently required.  Clone and install from mjbots/openocde
-
-```
-sudo apt install autotools-dev automake autogen autoconf libtool libusb-1.0-0-dev
-git clone https://github.com/mjbots/openocd
-cd openocd.git
-./bootstrap
-./configure && make && sudo make install
-```
-
-Then you can either flash using bazel:
-
-```
-tools/bazel test --config=target //fw:flash
-```
-
-Or re-flash the same file using:
-
-```
-./fw/flash.sh
-```
+The complete reference documentation can be found at:
+[Reference](reference.md)
