@@ -528,18 +528,18 @@ following, encoded in hex with annotations.
  - `04` - read 4 registers
  - `00` - starting at 0x000 (so 0x000 Mode, 0x001 Position, 0x002
    Velocity, 0x003 Torque)
-- `17` - read 3x int8 registers
+- `13` - read 3x int8 registers
  - `0d` - starting at 0x00d (so 0x00d Voltage, 0x00e Temperature,
     0x00f Fault code)
 
 Thus the whole CAN-FD message would be (in hex):
 
-`01000a07206000200150ff140400170d`
+`01000a07206000200150ff140400130d`
 
 To send this using the fdcanusb converter to a device configured at
 the default address of 1, you could write.
 
-`can send 8001 01000a07206000200150ff140400170d`
+`can send 8001 01000a07206000200150ff140400130d`
 
 The `80` in ID is used for two purposes.  The high bit being set
 forces the device to respond (otherwise it will not respond, even if
