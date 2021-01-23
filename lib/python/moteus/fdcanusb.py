@@ -121,7 +121,8 @@ class Fdcanusb:
             line = await self._readline(self._serial)
 
             if not line.startswith(b"rcv"):
-                raise RuntimeError("unexpected fdcanusb response, got: " + line)
+                raise RuntimeError("unexpected fdcanusb response, got: " +
+                                   line.decode('latin1'))
 
             fields = line.split(b" ")
             message = CanMessage()
