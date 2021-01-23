@@ -656,7 +656,7 @@ class Stream:
         to_return, self._read_data = self._read_data[0:size], self._read_data[size:]
         return to_return
 
-    async def flush_read(self, timeout=0.01):
+    async def flush_read(self, timeout=0.2):
         self._read_data = b''
 
         try:
