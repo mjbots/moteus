@@ -983,7 +983,7 @@ cd openocd.git
 # F. Mechanical #
 
 The current mechanical drawing for the controller can be found at:
-[20200403-moteus-controller-r43-mechanical.pdf](https://github.com/mjbots/moteus/blob/master/hw/controller/r4.3/20200403-moteus-controller-r43-mechanical.pdf)
+[20210124-moteus-controller-r45-mechanical.pdf](https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.pdf)
 
 The current mechanical drawing for the qdd100 servo can be found at:
 [20200315-qdd100-mechanical.pdf](https://drive.google.com/file/d/1KUQyR853e2uw8WOVrQHaeskWYHGSm3nI/view?usp=sharing)
