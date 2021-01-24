@@ -109,7 +109,6 @@ class MoteusTest(unittest.TestCase):
 
         self.assertEqual(repr(parsed), '1/{MODE(0x000): 10, POSITION(0x001): 0.0528, VELOCITY(0x002): -0.128, TORQUE(0x003): 0.32, VOLTAGE(0x00d): 16.0, TEMPERATURE(0x00e): 48.0, FAULT(0x00f): 64}')
 
-
     def test_make_diagnostic_read(self):
         dut = mot.Controller()
         result = dut.make_diagnostic_read()
@@ -127,6 +126,17 @@ class MoteusTest(unittest.TestCase):
             0x44, 0x45, 0x46, 0x47])))
         self.assertEqual(parsed.id, 1)
         self.assertEqual(parsed.data, b'DEFG')
+
+    def test_make_current(self):
+        dut = mot.Controller()
+        result = dut.make_current(d_A = 1.0, q_A = 2.0)
+        self.assertEqual(
+            result.data,
+            bytes([0x01, 0x00, 0x09,
+                   0x0e, 0x1c,
+                   0x00, 0x00, 0x00, 0x40,
+                   0x00, 0x00, 0x80, 0x3f,
+            ]))
 
 
 if __name__ == '__main__':

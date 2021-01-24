@@ -224,6 +224,11 @@ class PositionResolution:
     watchdog_timeout = mp.F32
 
 
+class CurrentResolution:
+    d_A = mp.F32
+    q_A = mp.F32
+
+
 class Parser(mp.RegisterParser):
     def read_position(self, resolution):
         return self.read_mapped(resolution, 0.01, 0.0001, 0.00001)
@@ -279,6 +284,9 @@ class Writer(mp.WriteFrame):
 
     def write_time(self, value, resolution):
         self.write_mapped(value, 0.01, 0.001, 0.000001, resolution)
+
+    def write_current(self, value, resolution):
+        self.write_mapped(value, 1.0, 0.1, 0.001, resolution)
 
 
 def parse_register(parser, register, resolution):
@@ -386,10 +394,12 @@ class Controller:
     def __init__(self, id=1,
                  query_resolution=QueryResolution(),
                  position_resolution=PositionResolution(),
+                 current_resolution=CurrentResolution(),
                  transport=None):
         self.id = id
         self.query_resolution = query_resolution
         self.position_resolution = position_resolution
+        self.current_resolution = current_resolution
         self.transport = transport
         self._parser = make_parser(id)
         self._diagnostic_parser = make_diagnostic_parser(id)
@@ -568,6 +578,51 @@ class Controller:
     async def set_position(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_position(**kwargs)]))
+
+    def make_current(self,
+                     *,
+                     d_A,
+                     q_A,
+                     query=False):
+        """Return a moteus.Command structure with data necessary to send a
+        current mode command.
+        """
+
+        result = self._make_command(query=query)
+        cr = self.current_resolution
+        resolutions = [
+            cr.d_A if d_A is not None else mp.IGNORE,
+            cr.q_A if q_A is not None else mp.IGNORE,
+        ]
+
+        data_buf = io.BytesIO()
+
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_int8(int(Register.MODE))
+        writer.write_int8(int(Mode.CURRENT))
+
+        # Yes, annoyingly the register mapping as of version 4 still
+        # has the Q current first in this grouping, unlike everywhere
+        # else where D current is first.
+        combiner = mp.WriteCombiner(
+            writer, 0x00, int(Register.COMMAND_Q_CURRENT), resolutions)
+
+        if combiner.maybe_write():
+            writer.write_current(q_A, cr.q_A)
+        if combiner.maybe_write():
+            writer.write_current(d_A, cr.d_A)
+
+        if query:
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
+
+        return result
+
+    async def set_current(self, *args, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_current(**kwargs)]))
 
     def make_diagnostic_write(self, data):
         result = self._make_command(query=False)

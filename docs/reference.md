@@ -260,14 +260,14 @@ A fault code which will be set if the primary mode is 1 (Fault).
 
 Mode: Read/write
 
-When in kPwm mode, this controls the raw PWM value for phase A, B, and
+When in Pwm mode, this controls the raw PWM value for phase A, B, and
 C.  If unspecified, 0.0 is used.
 
 ### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ###
 
 Mode: Read/write
 
-When in kVoltage mode, this controls the voltage applied to phase A,
+When in Voltage mode, this controls the voltage applied to phase A,
 B, and C.  If unspecified, 0.0 is used.
 
 
@@ -275,21 +275,21 @@ B, and C.  If unspecified, 0.0 is used.
 
 Mode: Read/write
 
-When in kVoltageFoc mode, this controls the desired electrical phase.
+When in Voltage Foc mode, this controls the desired electrical phase.
 Integral types use the PWM mapping.  If unspecified, 0.0 is used.
 
 ### 0x019 - Voltage FOC Voltage ###
 
 Mode: Read/write
 
-When in kVoltageFoc mode, this controls the desired applied phase
+When in Voltage Foc mode, this controls the desired applied phase
 voltage.  If unspecified, 0.0 is used.
 
 ### 0x01a - D Voltage ###
 
 Mode: Read/write
 
-When in kVoltageDq mode, this controls the desired applied D voltage.
+When in Voltage Dq mode, this controls the desired applied D voltage.
 If unspecified, 0.0 is used.
 
 ### 0x01b - Q Voltage ###
@@ -303,14 +303,14 @@ If unspecified, 0.0 is used.
 
 Mode: Read/write
 
-When in kFoc mode, this controls the desired Q phase current.  If
+When in Current mode, this controls the desired Q phase current.  If
 unspecified, 0.0 is used.
 
 ### 0x01d - Commanded D Phase Current ###
 
 Mode: Read/write
 
-When in kFoc mode, this controls the desired D phase current.  Unless
+When in Current mode, this controls the desired D phase current.  Unless
 you like burning power, with a BLDC motor you will typically want this
 set to 0.  If unspecified, 0.0 is used.
 
