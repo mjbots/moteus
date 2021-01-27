@@ -181,7 +181,7 @@ values.
 #### A.2.a.7 Velocity (measured in revolutions / s) ####
 
 - int8 => 1 LSB => 0.1Hz / 36 dps
-- int16 => 1 LSB => 0.00025 Hz > 0.36 dps
+- int16 => 1 LSB => 0.00025 Hz > 0.09 dps
 - int32 => 1 LSB => 0.00001 Hz => 0.0036 dps
 
 ### A.2.b Registers ###
@@ -521,7 +521,7 @@ following, encoded in hex with annotations.
 - `07` - write 3x int16 registers (number of registers is encoded in
   the 2 LSBs)
  - `20` - register 0x020
- - `6000` - position = 0x0060 = 96 = 34.56 degrees
+ - `6000` - position = 0x0060 = 96 = 3.456 degrees
  - `2001` - velocity = 0x0120 = 288 = 103.68 dps
  - `50ff` - feedforward torque = 0xff50 = -176 = 1.76 N*m
 - `14` - read int16 registers
