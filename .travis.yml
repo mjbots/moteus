@@ -7,8 +7,10 @@ addons:
     - python3-pep517
     - python3-can
     - python3-serial
+    - python3-setuptools
     - python3-pyelftools
     - python3-qtpy
+    - python3-wheel
     - libtinfo5
 cache:
    directories:
