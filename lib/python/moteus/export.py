@@ -16,10 +16,11 @@
 controller."""
 
 ALL = [
+    'aiostream',
     'make_transport_args', 'get_singleton_transport',
     'Fdcanusb', 'Router', 'Controller', 'Register', 'Transport',
     'PythonCan',
-    'Mode', 'QueryResolution', 'PositionResolution', 'Command',
+    'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'Stream',
     'TRANSPORT_FACTORIES',
     'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
     'reader',
@@ -30,11 +31,12 @@ from moteus.router import Router
 from moteus.transport import Transport
 from moteus.pythoncan import PythonCan
 from moteus.moteus import (
-    Controller, Register, Mode, QueryResolution, PositionResolution,
+    Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
     make_transport_args, get_singleton_transport,
     TRANSPORT_FACTORIES)
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
 import moteus.reader as reader
+import moteus.aiostream as aiostream
 
 try:
     from moteus.version import VERSION
