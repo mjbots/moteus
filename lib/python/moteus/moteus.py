@@ -201,10 +201,10 @@ class Mode(enum.IntEnum):
 
 
 class QueryResolution:
-    mode = mp.INT16
-    position = mp.INT16
-    velocity = mp.INT16
-    torque = mp.INT16
+    mode = mp.INT8
+    position = mp.F32
+    velocity = mp.F32
+    torque = mp.F32
     q_current = mp.IGNORE
     d_current = mp.IGNORE
     rezero_state = mp.IGNORE

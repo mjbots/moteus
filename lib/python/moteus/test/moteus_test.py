@@ -75,7 +75,8 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x01, 0x00, 0x0a,
-                   0x14, 0x04, 0x00,
+                   0x11, 0x00,
+                   0x1f, 0x01,
                    0x13, 0x0d]))
         self.assertEqual(result.reply_required, True)
 
