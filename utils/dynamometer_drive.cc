@@ -116,6 +116,7 @@ struct TorqueTransducer {
   boost::posix_time::ptime timestamp;
 
   uint32_t time_code = 0;
+  double raw_value = 0.0;
   double torque_Nm = 0.0;
   double temperature_C = 0.0;
 
@@ -123,6 +124,7 @@ struct TorqueTransducer {
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(timestamp));
     a->Visit(MJ_NVP(time_code));
+    a->Visit(MJ_NVP(raw_value));
     a->Visit(MJ_NVP(torque_Nm));
     a->Visit(MJ_NVP(temperature_C));
   }
@@ -1578,8 +1580,9 @@ class Application {
     try {
       data.timestamp = mjlib::io::Now(executor_.context());
       data.time_code = std::stol(fields.at(0));
+      data.raw_value = std::stod(fields.at(1));
       data.torque_Nm =
-          options_.transducer_scale * (std::stod(fields.at(1)) - torque_tare_);
+          options_.transducer_scale * data.raw_value - torque_tare_;
       current_torque_Nm_ = data.torque_Nm;
       data.temperature_C = std::stod(fields.at(3));
 
