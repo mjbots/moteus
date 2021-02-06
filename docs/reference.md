@@ -945,7 +945,7 @@ python3 -m moteus.moteus_tool --target 1 --calibrate
 WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
 
 
-# E. Flashing firwmare #
+# E. Flashing and building firmware #
 
 ## Flashing over CAN ##
 
@@ -977,6 +977,16 @@ git clone https://github.com/mjbots/openocd
 cd openocd.git
 ./bootstrap
 ./configure && make && sudo make install
+```
+
+
+## Building firmware ##
+
+This will build, but not flash the firmware.  Only `curl` needs to be
+installed.
+
+```
+tools/bazel test --config=target //:target
 ```
 
 
