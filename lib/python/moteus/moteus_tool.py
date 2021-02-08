@@ -103,7 +103,7 @@ def _get_log_directory():
     return "."
 
 
-def _expand_targets(targets):
+def expand_targets(targets):
     result = set()
 
     for item in targets:
@@ -687,7 +687,7 @@ class Stream:
 class Runner:
     def __init__(self, args):
         self.args = args
-        self.cmdline_targets = _expand_targets(args.target)
+        self.cmdline_targets = expand_targets(args.target)
 
         # Was our target list found through discovery?
         self._discovered = False

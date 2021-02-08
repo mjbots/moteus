@@ -21,6 +21,7 @@ import argparse
 import asyncio
 import io
 import moteus
+import moteus.moteus_tool
 import numpy
 import os
 import re
@@ -863,7 +864,8 @@ class TviewMainWindow():
         self.ui.configTreeWidget.clear()
         self.ui.telemetryTreeWidget.clear()
 
-        for device_id in [int(x) for x in self.options.devices.split(',')]:
+        for device_id in moteus.moteus_tool.expand_targets(
+                self.options.devices or ['1']):
             config_item = QtWidgets.QTreeWidgetItem()
             config_item.setText(0, str(device_id))
             self.ui.configTreeWidget.addTopLevelItem(config_item)
@@ -1082,7 +1084,10 @@ class TviewMainWindow():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
-    parser.add_argument('-d', '--devices', type=str, default='1')
+    # These two commands are aliases.
+    parser.add_argument('-d', '--devices', '-t', '--target',
+                        action='append', type=str, default=[])
+
     parser.add_argument('--max-receive-bytes', default=48, type=int)
 
     moteus.make_transport_args(parser)

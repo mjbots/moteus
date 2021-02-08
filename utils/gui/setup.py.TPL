@@ -51,7 +51,7 @@ setuptools.setup(
     python_requires = '>=3.7, <4',
     install_requires = [
         'asyncqt>=0.8',
-        'moteus>=0.3',
+        'moteus>=0.3.12',
         'matplotlib',
         # For some reason, matplotlib can barf without this, but
         # doesn't actually list it as a dependency on Windows.
