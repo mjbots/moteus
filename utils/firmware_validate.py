@@ -82,6 +82,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_slip_stop_position(self):
         dyno('--validate_slip_stop_position', '1')
 
+    def test_validate_slip_bounds(self):
+        dyno('--validate_slip_bounds', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):

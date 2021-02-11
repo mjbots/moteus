@@ -87,6 +87,7 @@ struct Options {
   bool validate_stay_within = false;
   bool validate_max_slip = false;
   bool validate_slip_stop_position = false;
+  bool validate_slip_bounds = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -113,6 +114,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_stay_within));
     a->Visit(MJ_NVP(validate_max_slip));
     a->Visit(MJ_NVP(validate_slip_stop_position));
+    a->Visit(MJ_NVP(validate_slip_bounds));
   }
 };
 
@@ -580,6 +582,8 @@ class Application {
       co_await ValidateMaxSlip();
     } else if (options_.validate_slip_stop_position) {
       co_await ValidateSlipStopPosition();
+    } else if (options_.validate_slip_bounds) {
+      co_await ValidateSlipBounds();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1707,6 +1711,62 @@ class Application {
 
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
+  }
+
+  boost::asio::awaitable<void> ValidateSlipBounds() {
+    Controller::PidConstants pid;
+    pid.kp = 1.0;
+    pid.ki = 0.0;
+    pid.kd = 0.05;
+    pid.position_min = -0.3;
+    pid.position_max = 0.5;
+
+    for (const double slip : { std::numeric_limits<double>::quiet_NaN(), 0.03}) {
+      pid.max_position_slip = slip;
+
+      for (const double direction : { -0.6, 0.6}) {
+
+        co_await dut_->Command("d stop");
+        co_await fixture_->Command("d stop");
+
+        co_await dut_->Command("d index 0");
+        co_await fixture_->Command("d index 0");
+
+        co_await dut_->ConfigurePid(pid);
+        co_await CommandFixtureRigid();
+
+        // Tell the DUT to stay at 0.0
+        co_await dut_->Command(
+            fmt::format("d pos 0 0 {}", 0.5 * options_.max_torque_Nm));
+
+        // Now drag it away in one direction or the other.
+        co_await fixture_->Command(
+            fmt::format("d pos nan 0.5 {} s{}",
+                        options_.max_torque_Nm,
+                        options_.transducer_scale * direction));
+
+        co_await Sleep(2.0);
+
+        // Now release the fixture.  If slip is turned on, we should
+        // stay close to the bound, otherwise we should revert back to
+        // 0.
+        co_await fixture_->Command("d stop");
+        co_await Sleep(1.0);
+
+        const double desired =
+            (direction > 0.0) ? pid.position_max : pid.position_min;
+        const double last = dut_->servo_stats().unwrapped_position;
+        const double last_desired = std::isfinite(slip) ? desired : 0.0;
+
+        if (std::abs(last - last_desired) > 0.05) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("DUT in unexpected position {} != {}",
+                          last, last_desired));
+        }
+      }
+    }
+
+    co_return;
   }
 
   boost::asio::awaitable<void> Sleep(double seconds) {
