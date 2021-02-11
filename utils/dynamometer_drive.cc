@@ -85,6 +85,7 @@ struct Options {
   bool validate_position_lowspeed = false;
   bool validate_position_wraparound = false;
   bool validate_stay_within = false;
+  bool validate_max_slip = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -109,6 +110,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_position_lowspeed));
     a->Visit(MJ_NVP(validate_position_wraparound));
     a->Visit(MJ_NVP(validate_stay_within));
+    a->Visit(MJ_NVP(validate_max_slip));
   }
 };
 
@@ -323,6 +325,8 @@ class Controller {
 
     double position_min = std::numeric_limits<double>::quiet_NaN();
     double position_max = std::numeric_limits<double>::quiet_NaN();
+
+    double max_position_slip = std::numeric_limits<double>::quiet_NaN();
   };
 
   boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
@@ -339,6 +343,10 @@ class Controller {
         fmt::format("conf set servopos.position_min {}", pid.position_min));
     co_await Command(
         fmt::format("conf set servopos.position_max {}", pid.position_max));
+
+    co_await Command(
+        fmt::format("conf set servo.max_position_slip {}",
+                    pid.max_position_slip));
 
     co_return;
   }
@@ -566,6 +574,8 @@ class Application {
       co_await ValidatePositionWraparound();
     } else if (options_.validate_stay_within) {
       co_await ValidateStayWithin();
+    } else if (options_.validate_max_slip) {
+      co_await ValidateMaxSlip();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -639,6 +649,7 @@ class Application {
 
   boost::asio::awaitable<void> RunPwmCycleOverrun() {
     co_await fixture_->Command("d stop");
+    co_await dut_->ConfigurePid(Controller::PidConstants());
     co_await dut_->Command("conf set servopos.position_min -3.0");
     co_await dut_->Command("conf set servopos.position_max 3.0");
 
@@ -1497,6 +1508,103 @@ class Application {
     }
 
     fmt::print("SUCCESS\n");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateMaxSlip() {
+    for (double max_slip : { std::numeric_limits<double>::quiet_NaN(), 0.05 }) {
+      fmt::print("Testing max slip {}\n", max_slip);
+
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
+
+      // Start out with the fixture stopped and move the DUT at a fixed
+      // velocity.
+      auto pid = Controller::PidConstants();
+      pid.kp = 1.0;
+      pid.ki = 0.0;
+      pid.kd = 0.05;
+      pid.max_position_slip = max_slip;
+      co_await dut_->ConfigurePid(pid);
+      co_await CommandFixtureRigid();
+
+      co_await dut_->Command("d rezero");
+
+      co_await Sleep(0.5);
+
+      const auto initial_dut = dut_->servo_stats();
+
+      constexpr double kDesiredSpeed = 0.5;
+      co_await dut_->Command(fmt::format("d pos nan {} 0.2", kDesiredSpeed));
+
+      // Wait for a second, and verify that we're moving and that
+      // position is tracking properly.
+      co_await Sleep(1.0);
+      const auto spinning_dut = dut_->servo_stats();
+      const auto measured_speed =
+          spinning_dut.unwrapped_position - initial_dut.unwrapped_position;
+      if (std::abs(measured_speed - kDesiredSpeed) > 0.05) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("Base speed not achieved |{} - {}| > 0.05",
+                        measured_speed, kDesiredSpeed));
+      }
+
+      const auto position_error =
+          (*spinning_dut.control_position / 65536) -
+          spinning_dut.unwrapped_position_raw;
+      if (std::abs(position_error) > 4000) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("Base tracking not working |{}| > 4000",
+                        position_error));
+      }
+
+      // Now we command the fixture to go slower with a higher maximum
+      // torque.  That should cause the DUT to fall behind.
+      co_await fixture_->Command(
+          fmt::format("d pos nan {} 0.4",
+                      options_.transducer_scale * 0.5 * kDesiredSpeed));
+
+      co_await Sleep(2.0);
+
+      const auto slow_dut = dut_->servo_stats();
+      const auto slow_speed =
+          (slow_dut.unwrapped_position -
+           spinning_dut.unwrapped_position) / 2.0;
+      if (std::abs(slow_speed - 0.5 * kDesiredSpeed) > 0.05) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("DUT did not slow down |{} - {}| > 0.05",
+                        slow_speed, 0.5 * kDesiredSpeed));
+      }
+
+      // Now we release the fixture.  In the absence of slip limiting,
+      // the DUT will "catch up", making the overall velocity match what
+      // was requested.
+      co_await fixture_->Command("d stop");
+
+      co_await Sleep(1.0);
+      const auto final_dut = dut_->servo_stats();
+      const auto final_speed =
+          (final_dut.unwrapped_position -
+           slow_dut.unwrapped_position);
+
+      if (std::isfinite(max_slip)) {
+        if (final_speed > 1.15 * kDesiredSpeed) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("DUT inappropriately 'caught up' {} > {}",
+                          final_speed, 1.05 * kDesiredSpeed));
+        }
+      } else {
+        if (final_speed < 1.25 * kDesiredSpeed) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("DUT did not 'catch up' {} < {}",
+                          final_speed, 1.25 * kDesiredSpeed));
+        }
+      }
+    }
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
 
     co_return;
   }

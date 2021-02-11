@@ -76,6 +76,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_stay_within(self):
         dyno('--validate_stay_within', '1')
 
+    def test_validate_max_slip(self):
+        dyno('--validate_max_slip', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):

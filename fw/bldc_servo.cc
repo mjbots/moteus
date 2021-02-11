@@ -1504,7 +1504,6 @@ class BldcServo::Impl {
 
     auto velocity_command = velocity;
 
-    const auto old_position = *status_.control_position;
     // This limits our usable velocity to 20kHz modulo the position
     // scale at a 40kHz switching frequency.  1.2 million RPM should
     // be enough for anybody?
@@ -1514,6 +1513,25 @@ class BldcServo::Impl {
             (65536.0f * motor_scale16_ * velocity_command) /
             kRateHz);
 
+    if (std::isfinite(config_.max_position_slip)) {
+      const int32_t current_position = status_.unwrapped_position_raw;
+      const int32_t slip =
+          static_cast<int32_t>(65536.0f * config_.max_position_slip /
+                               motor_.unwrapped_position_scale);
+      const int32_t error =
+          current_position - (*status_.control_position / 65536);
+      if (error < -slip) {
+        *status_.control_position = static_cast<int64_t>(65536) *
+            (current_position + slip);
+      }
+      if (error > slip) {
+        *status_.control_position = static_cast<int64_t>(65536) *
+            (current_position - slip);
+      }
+    }
+
+    bool hit_limit = false;
+
     const auto saturate = [&](auto value, auto compare) MOTEUS_CCM_ATTRIBUTE {
       if (std::isnan(value)) { return; }
       const auto limit_value = (
@@ -1522,6 +1540,7 @@ class BldcServo::Impl {
               static_cast<int32_t>(motor_scale16_ * value)));
       if (compare(*status_.control_position, limit_value)) {
         status_.control_position = limit_value;
+        hit_limit = true;
       }
     };
     saturate(position_config_.position_min, [](auto l, auto r) { return l < r; });
@@ -1540,11 +1559,15 @@ class BldcServo::Impl {
       };
       if (sign(*status_.control_position -
                stop_position_raw) * velocity_command > 0.0f) {
-        // We are moving away from the stop position.  Force it to be there.
+        // We are moving away from the stop position.  Force it to be
+        // there and zero out our velocity command.
         status_.control_position = stop_position_raw;
+        data->velocity = 0.0f;
+        hit_limit = true;
       }
     }
-    if (*status_.control_position == old_position) {
+
+    if (hit_limit) {
       // We have hit a limit.  Assume a velocity of 0.
       velocity_command = 0.0f;
     }

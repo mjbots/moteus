@@ -160,6 +160,8 @@ class BldcServo {
     PID::Config pid_dq;
     PID::Config pid_position;
 
+    float max_position_slip = std::numeric_limits<float>::quiet_NaN();
+
     float default_timeout_s = 0.1f;
     float timeout_max_torque_Nm = 5.0f;
 
@@ -203,6 +205,7 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_aux_cycles));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
+      a->Visit(MJ_NVP(max_position_slip));
       a->Visit(MJ_NVP(default_timeout_s));
       a->Visit(MJ_NVP(timeout_max_torque_Nm));
       a->Visit(MJ_NVP(flux_brake_min_voltage));
