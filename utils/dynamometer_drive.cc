@@ -86,6 +86,7 @@ struct Options {
   bool validate_position_wraparound = false;
   bool validate_stay_within = false;
   bool validate_max_slip = false;
+  bool validate_slip_stop_position = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -111,6 +112,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_position_wraparound));
     a->Visit(MJ_NVP(validate_stay_within));
     a->Visit(MJ_NVP(validate_max_slip));
+    a->Visit(MJ_NVP(validate_slip_stop_position));
   }
 };
 
@@ -576,6 +578,8 @@ class Application {
       co_await ValidateStayWithin();
     } else if (options_.validate_max_slip) {
       co_await ValidateMaxSlip();
+    } else if (options_.validate_slip_stop_position) {
+      co_await ValidateSlipStopPosition();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1607,6 +1611,102 @@ class Application {
     co_await fixture_->Command("d stop");
 
     co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateSlipStopPosition() {
+    co_await CommandFixtureRigid();
+
+    for (const double slip : { std::numeric_limits<double>::quiet_NaN(), 0.04 }) {
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
+
+      co_await dut_->Command("d index 0");
+
+      Controller::PidConstants pid;
+      pid.kp = 1.0;
+      pid.ki = 0.0;
+      pid.kd = 0.05;
+      pid.max_position_slip = slip;
+      co_await dut_->ConfigurePid(pid);
+
+      // Start out holding the DUT in place.
+      co_await fixture_->Command(
+          fmt::format("d pos nan 0 {}", options_.max_torque_Nm));
+
+      // And command the DUT to move to a point far away.
+      constexpr double kVelocity = 0.1;
+      co_await dut_->Command(
+          fmt::format("d pos nan {} {} s0.5", kVelocity,
+                      0.5 * options_.max_torque_Nm));
+
+      // It shouldn't be able to go anywhere because the fixture is
+      // holding it in place.
+      co_await Sleep(3.0);
+
+      const auto before_letgo = dut_->servo_stats();
+
+      // Now we stop the fixture, which should allow the DUT to move
+      // once again.
+      co_await fixture_->Command("d stop");
+
+      co_await Sleep(1.0);
+      const auto after_letgo = dut_->servo_stats();
+
+      const double velocity =
+          after_letgo.unwrapped_position - before_letgo.unwrapped_position;
+      if (std::isfinite(slip)) {
+        if (velocity > 1.5 * kVelocity) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("DUT unexpectedly tried to catch up: {} > {}",
+                          velocity, 1.5 * kVelocity));
+        }
+      } else {
+        if (velocity < 2.0 * kVelocity) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("DUT did not catch up: {} < {}",
+                          velocity, 2.0 * kVelocity));
+        }
+      }
+
+      // Now wait long enough to reach the stop position no matter
+      // what.
+      co_await Sleep(5.0);
+
+      // Now try pulling in each direction.
+      for (const double target : { 0.3, -0.3 }) {
+        // Once we have reached the stop position, then the fixture can
+        // drag it away and the control position will "stick" if slip is
+        // enabled.
+        co_await fixture_->Command("d index 0");
+        co_await fixture_->Command(
+            fmt::format("d pos nan 0.5 {} s{}",
+                        options_.max_torque_Nm, target));
+        co_await Sleep(1.0);
+
+        co_await fixture_->Command("d stop");
+        co_await Sleep(1.0);
+
+        // Let's see if the fixture got pulled back to 0.0 or not.
+        const auto final_fixture =
+            std::abs(fixture_->servo_stats().unwrapped_position);
+        if (std::isfinite(slip)) {
+          if (final_fixture < 0.2) {
+            throw mjlib::base::system_error::einval(
+                fmt::format("Dragging DUT did not 'stick' {} < {}",
+                            final_fixture, 0.2));
+          }
+        } else {
+          if (final_fixture > 0.05) {
+            throw mjlib::base::system_error::einval(
+                fmt::format("DUT did not fully restore to target {} > {}",
+                            final_fixture, 0.05));
+          }
+        }
+      }
+    }
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
   }
 
   boost::asio::awaitable<void> Sleep(double seconds) {
