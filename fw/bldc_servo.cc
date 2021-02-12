@@ -1481,7 +1481,7 @@ class BldcServo::Impl {
       float feedforward_Nm,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
     // Note that status_.control_position is measured in terms of 1 /
-    // 65536th of unwrapped_position_raw.  This is so that velocities
+    // 2**32th of unwrapped_position_raw.  This is so that velocities
     // do not become so small as to result in no change whatsoever at
     // the control rate.
     //
@@ -1492,13 +1492,13 @@ class BldcServo::Impl {
 
     if (!std::isnan(data->position)) {
       status_.control_position =
-          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(65536ll * 65536ll) *
           static_cast<int64_t>(
               static_cast<int32_t>(motor_scale16_ * data->position));
       data->position = std::numeric_limits<float>::quiet_NaN();
     } else if (!status_.control_position) {
       status_.control_position =
-          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(65536ll * 65536ll) *
           static_cast<int64_t>(status_.unwrapped_position_raw);
     }
 
@@ -1509,33 +1509,26 @@ class BldcServo::Impl {
     // be enough for anybody?
     status_.control_position =
         (*status_.control_position +
-         static_cast<int32_t>(
+         65536ll * static_cast<int32_t>(
              (65536.0f * motor_scale16_ * velocity_command) /
              kRateHz));
 
     if (std::isfinite(config_.max_position_slip)) {
       const int32_t current_position = status_.unwrapped_position_raw;
       const int32_t slip =
-          static_cast<int32_t>(65536.0f * config_.max_position_slip /
-                               motor_.unwrapped_position_scale);
+          static_cast<int32_t>(motor_scale16_ * config_.max_position_slip);
+
       const int32_t error =
           current_position - static_cast<int32_t>(
-              *status_.control_position / 65536);
+              *status_.control_position / (65536ll * 65536ll));
       if (error < -slip) {
-        *status_.control_position = static_cast<int64_t>(65536) *
+        *status_.control_position = static_cast<int64_t>(65536ll * 65536ll) *
             (current_position + slip);
       }
       if (error > slip) {
-        *status_.control_position = static_cast<int64_t>(65536) *
+        *status_.control_position = static_cast<int64_t>(65536ll * 65536ll) *
             (current_position - slip);
       }
-    }
-
-    // Wrap around in the same place that unwrapped_position will.
-    if (*status_.control_position > 0x00007fffffffffffll) {
-      *status_.control_position -= 0x0001000000000000ll;
-    } else if (*status_.control_position < -0x0000800000000000ll) {
-      *status_.control_position += 0x0001000000000000ll;
     }
 
     bool hit_limit = false;
@@ -1543,7 +1536,7 @@ class BldcServo::Impl {
     const auto saturate = [&](auto value, auto compare) MOTEUS_CCM_ATTRIBUTE {
       if (std::isnan(value)) { return; }
       const auto limit_value = (
-          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(65536ll * 65536ll) *
           static_cast<int64_t>(
               static_cast<int32_t>(motor_scale16_ * value)));
       if (compare(*status_.control_position, limit_value)) {
@@ -1556,7 +1549,7 @@ class BldcServo::Impl {
 
     if (!std::isnan(data->stop_position)) {
       const int64_t stop_position_raw =
-          static_cast<int64_t>(65536) *
+          static_cast<int64_t>(65536ll * 65536ll) *
           static_cast<int64_t>(
               static_cast<int32_t>(motor_scale16_ * data->stop_position));
 
@@ -1588,7 +1581,7 @@ class BldcServo::Impl {
     // that we get equal performance across the entire viable integral
     // position range.
     const int32_t scaled_control =
-        static_cast<int32_t>(*status_.control_position / 65536);
+        static_cast<int32_t>(*status_.control_position / (65536ll * 65536ll));
     const float unlimited_torque_Nm =
         pid_position_.Apply(
             (status_.unwrapped_position_raw - scaled_control) /
@@ -1649,7 +1642,7 @@ class BldcServo::Impl {
 
     if (!target_position) {
       status_.pid_position.Clear();
-      status_.control_position = std::numeric_limits<float>::quiet_NaN();
+      status_.control_position = {};
 
       // In this region, we still apply feedforward torques if they
       // are present.
