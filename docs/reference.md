@@ -16,58 +16,112 @@ the switching frequency of 40kHz.  The outer stage is an integrated
 position/velocity PID controller with optional feedforward torque.
 The output of that loop is a desired torque/current for the Q phase of
 the FOC controller.  The inner stage is a current mode PI controller.
-Its output is the desired PWM value for the Q phase.  Then the
-magnetic encoder is used to map the D/Q phase PWM values to the 3
+Its output is the desired voltage value for the Q phase.  Then the
+magnetic encoder is used to map the D/Q phase voltage values to the 3
 phases of the motor.
 
-Since PID scaling for the integrated position mode loop can be
-adjusted on a cycle-by-cycle basis, this allows you to operate the
-controller with full position/velocity/torque control, or
-velocity/torque, or just torque, or any combination seamlessly
-throughout the control cycle.
+![Control Structure](control_structure.png)
 
-## Limits ##
+More precisely, the "Position Controller" implements the following
+control law:
 
-### Position ###
+```
+control_position = command_position OR control_position + control_velocity * dt
+control_velocity = command_velocity OR control_velocity OR 0.0
+position_error = control_position - feedback_position
+velocity_error = control_velocity - feedback_velocity
+position_integrator = limit(position_integrator + ki * position_error * dt, ilimit)
+torque = position_integrator +
+         kp * kp_scale * position_error +
+         kd * kd_scale * velocity_error +
+         command_torque
+```
 
-The commanded position is limited to +-32767.0 revolutions before any
-`unwrapped_position_scale` has been applied.  Reducers there will
-further limit the range of the commandable revolutions.  For instance,
-a 1/10 reducer configured as `unwrapped_position_scale=0.1` results in
-a available position command range of +-3276.7 revolutions.
+And the "Current Controller" implements the following control law:
 
-If either:
+```
+current_error = command_current - feedback_current
+current_integrator = limit(current_integrator + kp * current_error, ilimit)
+voltage = current_integrator + kp * current_error
+```
 
-a. the position is commanded as the special value (NaN or maximally negative), or
-b. the kp term is zero either through configuration or the "kp scale"
+Since PID scaling for the position mode loop can be adjusted on a
+cycle-by-cycle basis with the `kp_scale` and `kd_scale` terms, this
+allows you to operate the controller with full
+position/velocity/torque control, or velocity/torque, or just torque,
+or any combination seamlessly throughout the control cycle.
 
-Then it is safe for the controller to "wrap around" from the maximal
-possible position to the maximally negative position and vice versa.
-This is useful in velocity control applications.
+## Usage Modes ##
 
-The commanded position is internally treated as a 32 bit floating
-point value.  Thus the position resolution is reduced when the
-magnitude of the position is large.  Resolution equal to the full
-capabilities of the onboard encoder (~0.09degree) is maintained to
-positions of +-2048.0 revolutions.  At the maximum possible position,
-this resolution is reduced to ~1.44degrees.  Note, that this is only
-for the "commanded position".  Velocity control and PID feedback on
-the position works in an integral space and performs identically at
-all positions.
+The available knobs to the moteus controller allow it to implement a
+few different types of control schemes.  From the factory, the control
+gains are selected for optimal torque bandwidth.  For other
+applications, here are suggestions for gains and control options to
+use.
 
-### Velocity ###
+### Velocity Control ###
 
-The smallest usable mechanical velocity which can be commanded is
-0.0001 revolutions per second before any `unwrapped_position_scale`
-has been applied.  This corresponds to 0.036 degrees per second.
-Reducers will decrease the minimum usable velocity.
+To implement a velocity controller, each command should have the
+"position" set to NaN (or equivalent integral encoding).  It is
+recommended to configure `servo.max_position_slip` to a finite value
+greater than 0 ([reference](#servomax_position_slip)).  When it is
+larger, more external disturbances will be rejected, but the
+controller will also "catch up" when the magnitude of external
+disturbances is decreased.
 
-The maximum mechanical velocity which can be commanded is 28000 rpm,
-or ~467 revolutions per second before any reducers.  Note, most motors
-will be incapable of this speed either mechanically or electrically.
+### Low Speed or Precise Positioning ###
 
-The maximum electrical frequency is 5kHz.
+For either operation either a very low speeds, or when precise
+positioning performance is desired, it is recommended to configure a
+non-zero `ki` and `ilimit` term in the position controller
+([reference](#servopid_position)).  This will compensate
+for cogging torque (at the expense of overall torque bandwidth).
 
+### Internally Generated Trajectories ###
+
+moteus currently only supports constant velocity trajectories.
+Normally, the velocity commanded will continue indefinitely, either
+until a watchdog timeout occurs or the configured position limit is
+reached.
+
+Through the use of the optional "stop_position" of the position
+controller, moteus can set the velocity to zero when a specific
+control position is achieved.  This feature can be used in
+applications where the host commands the controller at a low update
+rate.
+
+### Constant Acceleration or Jerk ###
+
+moteus only supports constant velocity internal trajectories.  To
+approximate a constant acceleration or constant jerk trajectory, the
+host processor should send a sequence of piecewise linear constant
+velocity trajectories which approximate the desired one.  This would
+be done by sending commands consisting of at least a position and
+velocity at some moderate to high rate.
+
+### High Torque Bandwidth ###
+
+High torque bandwidth is desired for legged robots, or other
+applications where it is necessary to respond to external disturbances
+as rapidly as possible or accelerate the load maximally.  For these
+applications, it is recommended to have no integrative term in the
+position controller ([reference](#servopid_position)).  It may be
+necessary to increase the integrative term in the current controller
+([servo.pid_dq](#servopid_dq)).
+
+### Torque Control ###
+
+For a pure torque control application, configure the position control
+loop kp, kd, and ki to 0
+([reference](#servopid_position)). Alternately you can set the
+kp_scale and kd_scale to 0 in each command.
+
+Note, however, that external torque control will be much lower
+bandwidth than using the internal position controller of moteus (~50x
+lower bandwidth if maximal CAN-FD update rate is achieved).  Thus, a
+system will usually perform better if as much of the desired control
+law as possible is formulated in terms of the built in position
+controller.
 
 # A. register command set #
 
@@ -857,6 +911,13 @@ thus *after* any scaling in position, velocity, and torque implied by
 These have the same semantics as the position mode PID controller, and
 affect the current control loop.
 
+## `servo.max_position_slip` ##
+
+When finite, this enforces a limit on the difference between the
+control position and the current measured position measured in
+revolutions.  It can be used to prevent "catching up" when the
+controller is used in velocity mode.
+
 ## `servo.max_voltage` ##
 
 If the input voltage reaches this value, a fault is triggered and all
@@ -927,7 +988,9 @@ output.  This parameter controls the maximum torque available for such
 damping.
 
 
-# D. Calibration #
+# D. Maintenance #
+
+## Calibration ##
 
 Assuming your controller has firmware installed already, you can
 calibrate the controller using the following procedure.
@@ -945,15 +1008,15 @@ python3 -m moteus.moteus_tool --target 1 --calibrate
 WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
 
 
-# E. Flashing and building firmware #
+## Flashing and building firmware ##
 
-## Flashing over CAN ##
+### Flashing over CAN ###
 
 ```
 python3 -m moteus.moteus_tool --target 1 --flash path/to/file.elf
 ```
 
-## From the debug port ##
+### From the debug port ###
 
 The firmware can be built and flashed using:
 
@@ -967,7 +1030,7 @@ Or, if already built, flashed using:
 ./fw/flash.sh
 ```
 
-## openocd ##
+### openocd ###
 
 You may need a custom openocd, a known working one can be had by:
 
@@ -980,7 +1043,7 @@ cd openocd.git
 ```
 
 
-## Building firmware ##
+### Building firmware ###
 
 This will build, but not flash the firmware.  Only `curl` needs to be
 installed.
@@ -990,7 +1053,9 @@ tools/bazel test --config=target //:target
 ```
 
 
-# F. Mechanical #
+# E. Mechanical / Electrical #
+
+## Mechanical ##
 
 The current mechanical drawing for the controller can be found at:
 [20210124-moteus-controller-r45-mechanical.pdf](https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.pdf)
@@ -998,9 +1063,9 @@ The current mechanical drawing for the controller can be found at:
 The current mechanical drawing for the qdd100 servo can be found at:
 [20200315-qdd100-mechanical.pdf](https://drive.google.com/file/d/1KUQyR853e2uw8WOVrQHaeskWYHGSm3nI/view?usp=sharing)
 
-# G. Electrical / Pinout #
+## Electrical / Pinout ##
 
-## JST PH-3 CAN ##
+### JST PH-3 CAN ###
 
 Looking at the pins of the connector with the bottom of the board up
 the pins are numbered 1 to 3 from left to right.
@@ -1026,7 +1091,7 @@ ground.  However, in desktop applications, it may be appropriate to
 connect the CAN ground if the device power supply is otherwise
 isolated.
 
-## JST ZH-6 SWD ##
+### JST ZH-6 SWD ###
 
 Looking at the pins of the connector with the top of the board up the
 pins are numbered 1 to 6 from left to right.
@@ -1038,7 +1103,7 @@ pins are numbered 1 to 6 from left to right.
  - 5 - SWCLK
  - 6 - 3.3V
 
-## JST ZH-4 I2C ##
+### JST ZH-4 I2C ###
 
 Looking at the pins of the connector with the bottom of the board up
 the pins are numbered 1 to 4 from left to right.
@@ -1048,13 +1113,13 @@ the pins are numbered 1 to 4 from left to right.
  - 3 - SDA
  - 4 - GND
 
-## XT30PW-M ##
+### XT30PW-M ###
 
 Looking at the pins of the power connector with the top of the board
 up, the ground pin is to the left with the chamfered corner and the
 positive supply is to the right with the square corner.
 
-# H. CAN-FD communication #
+# F. CAN-FD communication #
 
 ## moteus_tool and tview configuration ##
 
@@ -1113,3 +1178,45 @@ ip link set can0 up type can \
   dtq 12 dprop-seg 6 dphase-seg1 2 dphase-seg2 7 dsjw 12 \
   restart-ms 1000 fd on
 ```
+
+# G. Limits #
+
+## Position ##
+
+The commanded position is limited to +-32767.0 revolutions before any
+`unwrapped_position_scale` has been applied.  Reducers there will
+further limit the range of the commandable revolutions.  For instance,
+a 1/10 reducer configured as `unwrapped_position_scale=0.1` results in
+a available position command range of +-3276.7 revolutions.
+
+If either:
+
+a. the position is commanded as the special value (NaN or maximally negative), or
+b. the kp term is zero either through configuration or the "kp scale"
+
+Then it is safe for the controller to "wrap around" from the maximal
+possible position to the maximally negative position and vice versa.
+This is useful in velocity control applications.
+
+The commanded position is internally treated as a 32 bit floating
+point value.  Thus the position resolution is reduced when the
+magnitude of the position is large.  Resolution equal to the full
+capabilities of the onboard encoder (~0.09degree) is maintained to
+positions of +-2048.0 revolutions.  At the maximum possible position,
+this resolution is reduced to ~1.44degrees.  Note, that this is only
+for the "commanded position".  Velocity control and PID feedback on
+the position works in an integral space and performs identically
+throughout the available control envelope.
+
+## Velocity ##
+
+The smallest usable mechanical velocity which can be commanded is
+0.0001 revolutions per second before any `unwrapped_position_scale`
+has been applied.  This corresponds to 0.036 degrees per second.
+Reducers will decrease the minimum usable velocity.
+
+The maximum mechanical velocity which can be commanded is 28000 rpm,
+or ~467 revolutions per second before any reducers.  Note, most motors
+will be incapable of this speed either mechanically or electrically.
+
+The maximum electrical frequency is 5kHz.
