@@ -1415,6 +1415,17 @@ class Application {
           fmt::format("position did not wrap {}", position));
     }
 
+    // And the control position should be negative.
+    const auto control_position = *dut_->servo_stats().control_position;
+    const auto expected_control =
+        static_cast<int64_t>(position * 65536.0) * 65536ll;
+    if (control_position > 0 ||
+        std::abs(control_position - expected_control) > 0x100000000) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("control position did not wrap {} != {}",
+                      control_position, expected_control));
+    }
+
     co_await dut_->Command("d stop");
 
     fmt::print("SUCCESS\n");

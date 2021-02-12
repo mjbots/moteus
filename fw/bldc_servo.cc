@@ -1508,10 +1508,10 @@ class BldcServo::Impl {
     // scale at a 40kHz switching frequency.  1.2 million RPM should
     // be enough for anybody?
     status_.control_position =
-        *status_.control_position +
-        static_cast<int32_t>(
-            (65536.0f * motor_scale16_ * velocity_command) /
-            kRateHz);
+        (*status_.control_position +
+         static_cast<int32_t>(
+             (65536.0f * motor_scale16_ * velocity_command) /
+             kRateHz));
 
     if (std::isfinite(config_.max_position_slip)) {
       const int32_t current_position = status_.unwrapped_position_raw;
@@ -1519,7 +1519,8 @@ class BldcServo::Impl {
           static_cast<int32_t>(65536.0f * config_.max_position_slip /
                                motor_.unwrapped_position_scale);
       const int32_t error =
-          current_position - (*status_.control_position / 65536);
+          current_position - static_cast<int32_t>(
+              *status_.control_position / 65536);
       if (error < -slip) {
         *status_.control_position = static_cast<int64_t>(65536) *
             (current_position + slip);
@@ -1528,6 +1529,13 @@ class BldcServo::Impl {
         *status_.control_position = static_cast<int64_t>(65536) *
             (current_position - slip);
       }
+    }
+
+    // Wrap around in the same place that unwrapped_position will.
+    if (*status_.control_position > 0x00007fffffffffffll) {
+      *status_.control_position -= 0x0001000000000000ll;
+    } else if (*status_.control_position < -0x0000800000000000ll) {
+      *status_.control_position += 0x0001000000000000ll;
     }
 
     bool hit_limit = false;
