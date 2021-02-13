@@ -522,7 +522,7 @@ following, encoded in hex with annotations.
   the 2 LSBs)
  - `20` - register 0x020
  - `6000` - position = 0x0060 = 96 = 3.456 degrees
- - `2001` - velocity = 0x0120 = 288 = 103.68 dps
+ - `2001` - velocity = 0x0120 = 288 = 25.92 dps
  - `50ff` - feedforward torque = 0xff50 = -176 = 1.76 N*m
 - `14` - read int16 registers
  - `04` - read 4 registers
