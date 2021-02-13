@@ -38,11 +38,11 @@ a available position command range of +-3276.7 revolutions.
 
 If either:
 
-a. the position is commanded as the special value (NaN or maximal negative), or
+a. the position is commanded as the special value (NaN or maximally negative), or
 b. the kp term is zero either through configuration or the "kp scale"
 
 Then it is safe for the controller to "wrap around" from the maximal
-possible position to the maximal negative position and vice versa.
+possible position to the maximally negative position and vice versa.
 This is useful in velocity control applications.
 
 The commanded position is internally treated as a 32 bit floating
@@ -320,7 +320,7 @@ set to 0.  If unspecified, 0.0 is used.
 Mode: Read/write
 
 When in Position mode, this controls the desired position.  The
-maximal negative integer, or NaN for float represents, "use the
+maximally negative integer, or NaN for float represents, "use the
 current position value".  If unspecified, 0.0 is used.  Note, the
 controller will attempt to achieve this position *right now* subject
 to the kp and kd constants.
@@ -370,8 +370,8 @@ torque.
 #### 0x026 - Commanded stop position ####
 
 When in Position mode, and a non-zero velocity is commanded, stop
-motion when reaching the given position.  NaN / maximal negative means
-no limit is applied.  If unspecified, NaN is used.
+motion when reaching the given position.  NaN / maximally negative
+means no limit is applied.  If unspecified, NaN is used.
 
 #### 0x027 - Watchdog timeout ####
 
@@ -380,7 +380,7 @@ Mode: Read/write
 This determines the length of time for which this command is valid.
 If this timeout expires before another command is received, the
 controller will enter the Timeout state.  The default is 0.0, which
-means to use the system-wide configured default.  NaN / maximal
+means to use the system-wide configured default.  NaN / maximally
 negative means apply no enforced timeout.
 
 ### 0x030 - Proportional torque ###
@@ -422,7 +422,7 @@ controller.
 Mode: Read/write
 
 When in Stay Within mode, this controls the minimum allowable
-position.  The maximal negative integer or NaN for float represents,
+position.  The maximally negative integer or NaN for float represents,
 "there is no lower bound".  When special or the position is above this
 bound (and also respecting the optional upper bound), only a
 feedforward torque is applied.  When outside this bound, the PID
@@ -434,10 +434,10 @@ unspecified, 0.0 is used.
 Mode: Read/write
 
 When in Stay Within mode, this controls the maximum allowable
-position.  The maximal negative integer, or NaN for float represents,
-"there is no upper bound". When special or the position is below this
-bound (and also respecting the optional lower bound), only a
-feedforward torque is applied.  When outside this bound, the PID
+position.  The maximally negative integer, or NaN for float
+represents, "there is no upper bound". When special or the position is
+below this bound (and also respecting the optional lower bound), only
+a feedforward torque is applied.  When outside this bound, the PID
 controller is used to force the position back to the bound.  If
 unspecified, 0.0 is used.
 
