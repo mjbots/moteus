@@ -141,14 +141,46 @@ Common definitions:
   maximum valid length.
 - *float*: An IEEE 754 32-bit floating point number.
 
-## A.1 Subframes ##
+## A.1 CAN Format ##
+
+Communication with moteus is conducted via CAN-FD frames with a 1Mbit
+standard bitrate and a 5Mbit data bitrate.
+
+### CAN ID ###
+
+The ID is structured as a 16 bit number, with the high 8 bits being
+the "source" and the low 8 bits being the "destination".  The
+destination is the 7 bit servo ID with 0 as the highest bit.  The
+source is an arbitrary 7 bit number, with the high bit being 1 if
+moteus should reply to the message.
+
+The CAN frame must be an extended one if the ID would be greater than
+0x7fff, but otherwise whether or not a frame is extended is not
+considered.
+
+Example:
+
+ID: 0x8001
+ * Send from source 0
+ * To destination 1
+ * 16th bit is set, so a reply is requested
+
+ID: 0x100
+ * Send from source 1
+ * To destination 0
+ * No reply is requested
+
+### Subframes ###
 
 Each CAN-FD frame contains one or more "subframes".  A short
 description of the allowable subframe types are described below.  The
 canonical reference is located at
 [multiplex/format.h](https://github.com/mjbots/mjlib/blob/master/mjlib/multiplex/format.h)
 
-### A.1.a Write Registers ###
+Any extra trailing padding bytes required in the CAN-FD frame should
+be set to NOP (0x50).
+
+#### A.1.a Write Registers ####
 
 *0x00, 0x04, 0x08, 0x0c* - write (int8|int16|int32|float)
 
@@ -157,14 +189,14 @@ canonical reference is located at
 - `varuint` => start register number
 - N x (int8|int16|int32|float) => values
 
-### A.1.b Read Registers ###
+#### A.1.b Read Registers ####
 
 *0x10, 0x14, 0x18, 0x1c* - read (int8|int16|int32|float)
 
 - `varuint` => number of registers (may be optionally encoded as a non-zero 2 LSBs)
 - `varuint` => start register number
 
-### A.1.c Reply ###
+#### A.1.c Reply ####
 
 *0x20, 0x24, 0x28, 0x2c* - reply (int8|int16|int32|float)
 
@@ -172,14 +204,14 @@ canonical reference is located at
 - `varuint` => start register number
 - N x (int8|int16|int32|float) => values
 
-### A.1.d Errors ###
+#### A.1.d Errors ####
 
 *0x30, 0x31* - read/write error
 
 - `varuint` => register number
 - `varuint` => error number
 
-### A.1.e NOP ###
+#### A.1.e NOP ####
 
 *0x50* - no operation
 
