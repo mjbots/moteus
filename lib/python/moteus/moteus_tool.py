@@ -556,7 +556,8 @@ class Stream:
                 f.write(cal_data)
 
         cal_file = ce.parse_file(io.BytesIO(cal_data))
-        cal_result = ce.calibrate(cal_file)
+        cal_result = ce.calibrate(
+            cal_file, max_remainder_error=self.args.cal_max_remainder)
 
         if cal_result.errors:
             raise RuntimeError(f"Error(s) calibrating: {cal_result.errors}")
@@ -783,6 +784,9 @@ async def async_main():
                         help='speed in electrical rps')
     parser.add_argument('--cal-voltage', metavar='V', type=float, default=0.45,
                         help='maximum voltage when measuring resistance')
+    parser.add_argument('--cal-max-remainder', metavar='F',
+                        type=float, default=0.1,
+                        help='maximum allowed error in calibration')
     parser.add_argument('--cal-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
 

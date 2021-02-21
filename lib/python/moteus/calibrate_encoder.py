@@ -185,7 +185,7 @@ class CalibrationResult:
         }
 
 
-def calibrate(parsed):
+def calibrate(parsed, max_remainder_error=0.1):
     if (len(parsed.phase_up) < 2 or
         len(parsed.phase_down) < 2):
         raise RuntimeError("one or more phases were empty")
@@ -223,11 +223,10 @@ def calibrate(parsed):
     ratio = total_phase / total_delta
     remainder = abs(round(ratio) - ratio);
 
-    MAX_REMAINDER_ERROR = 0.1
-    if remainder > MAX_REMAINDER_ERROR:
+    if remainder > max_remainder_error:
         result.errors.append(
             f"encoder not an integral multiple of phase, " +
-            f"{remainder} > {MAX_REMAINDER_ERROR}")
+            f"{remainder} > {max_remainder_error}")
 
     result.total_phase = total_phase
     result.total_delta = total_delta
