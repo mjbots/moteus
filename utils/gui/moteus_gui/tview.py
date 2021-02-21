@@ -62,6 +62,7 @@ DEFAULT_RATE = 100
 MAX_HISTORY_SIZE = 100
 MAX_SEND = 61
 POLL_TIMEOUT_S = 0.1
+STARTUP_TIMEOUT_S = 0.5
 
 # TODO jpieper: Factor these out of tplot.py
 def _get_data(value, name):
@@ -506,7 +507,7 @@ class Device:
 
     def process_message(self, message):
         now = time.time()
-        if self._start_time and (now - self._start_time < 0.2):
+        if self._start_time and (now - self._start_time < STARTUP_TIMEOUT_S):
             return False
 
         any_data_read = self._stream.process_message(message)
@@ -531,7 +532,7 @@ class Device:
 
         if self._start_time is not None:
             now = time.time()
-            if now - self._start_time > 0.2:
+            if now - self._start_time > STARTUP_TIMEOUT_S:
                 self._stream.ignore_all()
                 self._setup_device(None)
                 self._start_time = None
