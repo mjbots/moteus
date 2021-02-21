@@ -891,6 +891,8 @@ class TviewMainWindow():
     async def _dispatch_until(self, predicate):
         while True:
             message = await self.transport.read()
+            if message is None:
+                continue
             source_id = (message.arbitration_id >> 8) & 0xff
             any_data_read = False
             for device in self.devices:
