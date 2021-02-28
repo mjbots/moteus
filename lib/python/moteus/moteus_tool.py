@@ -614,7 +614,7 @@ class Stream:
         return winding_resistance
 
     async def find_speed(self, voltage):
-        assert voltage < 1.0
+        assert voltage < 20.0
         assert voltage >= 0.0
 
         await self.command(f"d vdq 0 {voltage:.3f}")
@@ -639,7 +639,8 @@ class Stream:
         await self.command("conf set servopos.position_max NaN")
         await self.command("d index 0")
 
-        voltages = [ 0.0, 0.2, 0.4, 0.6, 0.8 ]
+        voltages = [x * self.args.cal_kv_voltage for x in [
+            0.0, 0.25, 0.5, 0.75, 1.0 ]]
         speed_hzs = [ await self.find_speed(voltage) for voltage in voltages]
 
         await self.command("d stop")
@@ -784,6 +785,8 @@ async def async_main():
                         help='speed in electrical rps')
     parser.add_argument('--cal-voltage', metavar='V', type=float, default=0.45,
                         help='maximum voltage when measuring resistance')
+    parser.add_argument('--cal-kv-voltage', metavar='V', type=float, default=0.8,
+                        help='maximum voltage when measuring Kv')
     parser.add_argument('--cal-max-remainder', metavar='F',
                         type=float, default=0.1,
                         help='maximum allowed error in calibration')
