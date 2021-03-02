@@ -1027,17 +1027,16 @@ damping.
 Assuming your controller has firmware installed already, you can
 calibrate the controller using the following procedure.
 
-1. Set the `motor.unwrapped_position_scale` parameter using tview.
-   This is the gearbox ratio.  A direct drive system with no gearbox
-   should be 1.0.
-
-2. Run the calibration tool:
-
 ```
 python3 -m moteus.moteus_tool --target 1 --calibrate
 ```
 
-WARNING: Any attached motor must be able to spin freely.  It will be spun in both directions and at high speed.
+WARNING: Any attached motor must be able to spin freely.  It will be
+spun in both directions and at high speed.
+
+After calibrating for an entirely new type of motor, you may need to
+adjust PID gains before the motor will perform acceptably, and/or
+configure `motor.unwrapped_position_scale`.
 
 
 ## Flashing and building firmware ##
