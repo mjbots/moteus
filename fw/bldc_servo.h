@@ -174,6 +174,12 @@ class BldcServo {
     float max_current_A = 100.0f;
     float derate_current_A = -20.0f;
 
+    // When the maximum velocity exceeds this value, a current limit
+    // will begin to be applied.  When it reaches max_velocity +
+    // max_velocity_derate, the maximum allowed current will be 0.
+    float max_velocity = 500.0;
+    float max_velocity_derate = 2.0;
+
     uint16_t velocity_filter_length = 256;
     uint16_t cooldown_cycles = 128;
 
@@ -214,6 +220,8 @@ class BldcServo {
       a->Visit(MJ_NVP(flux_brake_resistance_ohm));
       a->Visit(MJ_NVP(max_current_A));
       a->Visit(MJ_NVP(derate_current_A));
+      a->Visit(MJ_NVP(max_velocity));
+      a->Visit(MJ_NVP(max_velocity_derate));
       a->Visit(MJ_NVP(velocity_filter_length));
       a->Visit(MJ_NVP(cooldown_cycles));
     }

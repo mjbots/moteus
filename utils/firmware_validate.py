@@ -91,6 +91,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_power_limit(self):
         dyno('--validate_power_limit', '1')
 
+    def test_validate_max_velocity(self):
+        dyno('--validate_max_velocity', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):

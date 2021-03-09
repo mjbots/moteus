@@ -1398,6 +1398,19 @@ class BldcServo::Impl {
       return in;
     };
 
+    auto limit_q_velocity = [&](float in) MOTEUS_CCM_ATTRIBUTE {
+      const float abs_velocity = std::abs(status_.velocity);
+      if (abs_velocity < config_.max_velocity) {
+        return in;
+      }
+      const float derate_fraction =
+          1.0f - ((abs_velocity - config_.max_velocity) /
+                  config_.max_velocity_derate);
+      const float current_limit =
+          std::max(0.0f, derate_fraction * config_.max_current_A);
+      return Limit(in, -current_limit, current_limit);
+    };
+
     const float derate_fraction = (
         status_.filt_fet_temp_C - config_.derate_temperature) / (
             config_.fault_temperature - config_.derate_temperature);
@@ -1416,7 +1429,10 @@ class BldcServo::Impl {
       return Limit(in, -temp_limit_A, temp_limit_A);
     };
 
-    const float i_q_A = limit_either_current(limit_q_current(i_q_A_in));
+    const float i_q_A =
+        limit_either_current(
+            limit_q_velocity(
+                limit_q_current(i_q_A_in)));
     const float i_d_A = limit_either_current(i_d_A_in);
 
     control_.i_d_A = i_d_A;

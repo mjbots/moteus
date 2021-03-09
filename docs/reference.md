@@ -983,6 +983,15 @@ Phase current will never be used more than this value.  It can be
 decreased to limit the total power used by the controller.  Increasing
 beyond the factory configured value can result in hardware damage.
 
+## `servo.max_velocity` ##
+
+Output power will be limited if the velocity exceeds this threshold.
+
+## `servo.max_velocity_derate` ##
+
+Once velocity reaches the max_velocity plus this value, allowed output
+power is reduced to 0.
+
 ## `servo.rotation_*` ##
 
 These values configure a higher order torque model for a motor.

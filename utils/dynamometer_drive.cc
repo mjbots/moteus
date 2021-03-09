@@ -90,6 +90,7 @@ struct Options {
   bool validate_slip_bounds = false;
   bool validate_dq_ilimit = false;
   bool validate_power_limit = false;
+  bool validate_max_velocity = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -119,6 +120,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_slip_bounds));
     a->Visit(MJ_NVP(validate_dq_ilimit));
     a->Visit(MJ_NVP(validate_power_limit));
+    a->Visit(MJ_NVP(validate_max_velocity));
   }
 };
 
@@ -340,6 +342,7 @@ class Controller {
 
     double max_position_slip = std::numeric_limits<double>::quiet_NaN();
     double max_power_W = 450.0;
+    double max_velocity = 500.0;
   };
 
   boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
@@ -364,6 +367,9 @@ class Controller {
     co_await Command(
         fmt::format("conf set servo.max_power_W {}",
                     pid.max_power_W));
+
+    co_await Command(
+        fmt::format("conf set servo.max_velocity {}", pid.max_velocity));
 
     co_return;
   }
@@ -601,6 +607,8 @@ class Application {
       co_await ValidateDqIlimit();
     } else if (options_.validate_power_limit) {
       co_await ValidatePowerLimit();
+    } else if (options_.validate_max_velocity) {
+      co_await ValidateMaxVelocity();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1882,6 +1890,54 @@ class Application {
 
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateMaxVelocity() {
+    co_await fixture_->Command("d stop");
+    co_await dut_->Command("d stop");
+    co_await dut_->Command("d rezero");
+
+    Controller::PidConstants pid;
+
+    // First, make sure it works in current mode.
+    for (double velocity : { 1.0, 3.0, 7.0, 10.0 }) {
+      for (double direction : { -1.0, 1.0 }) {
+        for (bool current_mode : { false, true } ) {
+          pid.max_velocity = velocity;
+          co_await dut_->ConfigurePid(pid);
+
+          if (current_mode) {
+            co_await dut_->Command(fmt::format("d dq 0.0 {}", direction));
+          } else {
+            co_await dut_->Command(
+                fmt::format("d pos nan {} 1.0", 25 * direction));
+          }
+          co_await Sleep(0.5);
+          const double start = dut_->servo_stats().unwrapped_position;
+          co_await Sleep(0.5);
+          const double end = dut_->servo_stats().unwrapped_position;
+          co_await dut_->Command("d stop");
+          co_await Sleep(2.0);
+
+          const double average_speed = std::abs((end - start) / 0.5);
+
+          fmt::print("velocity {} dir {}  current_mode {}  average_speed {}\n",
+                     velocity, direction, current_mode, average_speed);
+
+          constexpr double kVelocityDerate = 2.0;
+
+          if (RelativeError(average_speed, velocity +
+                            kVelocityDerate) > 0.2) {
+            throw mjlib::base::system_error::einval(
+                fmt::format(
+                    "Speed {} != {} (within {}%)",
+                    average_speed, velocity, 0.2 * 100));
+          }
+        }
+      }
+    }
 
     co_return;
   }
