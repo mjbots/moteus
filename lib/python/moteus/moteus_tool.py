@@ -319,6 +319,9 @@ class Stream:
     async def read_data(self, *args, **kwargs):
         return await self.stream.read_data(*args, **kwargs)
 
+    async def flush_read(self, *args, **kwargs):
+        return await self.stream.flush_read(*args, **kwargs)
+
     async def read_config_double(self, name):
         result = await self.command(f"conf get {name}", allow_any_response=True)
         return float(result)
@@ -383,11 +386,6 @@ class Stream:
         old_firmware = None
 
         if not self.args.bootloader_active:
-            await self.write_message("tel stop")
-
-            # Discard anything that might have been en route.
-            await self.stream.flush_read()
-
             # Get the current firmware version.
             old_firmware = await self.read_data("firmware")
 
@@ -725,8 +723,38 @@ class Runner:
 
         return result
 
+    def default_tel_stop(self):
+        # The user might want to see what the device is spewing.
+        if self.args.console:
+            return False
+
+        # If the bootloader is active, then it doesn't even know about
+        # "tel stop".
+        if self.args.flash and self.args.bootloader_active:
+            return False
+
+        # If we're just sending a "d stop" command, keep this simple so
+        # we are more likely to actually stop the device.
+        if self.args.stop:
+            return False
+
+        return True
+
     async def run_action(self, target_id):
         stream = Stream(self.args, target_id, self.transport)
+
+        tel_stop = self.default_tel_stop()
+        if self.args.tel_stop:
+            tel_stop = True
+        if self.args.no_tel_stop:
+            tel_stop = False
+
+        if tel_stop:
+            await stream.write_message("tel stop")
+
+            # Discard anything that might have been en route.
+            await stream.flush_read()
+
 
         if self.args.console:
             await stream.do_console()
@@ -757,6 +785,10 @@ async def async_main():
         '-t', '--target', type=str, action='append', default=[],
         help='destination address(es) (default: autodiscover)')
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--tel-stop', action='store_true',
+                        help='force sending a "tel stop"')
+    parser.add_argument('--no-tel-stop', action='store_true',
+                        help='prevent sending a "tel stop"')
 
     moteus.make_transport_args(parser)
 
