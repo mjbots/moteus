@@ -37,6 +37,11 @@ from . import calibrate_encoder as ce
 MAX_FLASH_BLOCK_SIZE = 32
 
 
+# For whatever reason, Windows can't reliably timeout with very
+# short intervals.
+FIND_TARGET_TIMEOUT = 0.01 if sys.platform != 'win32' else 0.05
+
+
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
     how to munge configuration options so as to not cause behavior
@@ -713,7 +718,7 @@ class Runner:
         for i in range(1, 127):
             c = moteus.Controller(id=i, transport=self.transport)
             try:
-                _ = await asyncio.wait_for(c.query(), 0.01)
+                _ = await asyncio.wait_for(c.query(), FIND_TARGET_TIMEOUT)
                 result.append(i)
             except asyncio.TimeoutError:
                 pass

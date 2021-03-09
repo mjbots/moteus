@@ -61,8 +61,6 @@ class Fdcanusb:
         self._serial = aioserial.AioSerial(port=path, baudrate=9600)
         self._stream_data = b''
 
-        self._cycle_lock = asyncio.Lock()
-
         self._debug_log = None
         if debug_log:
             self._debug_log = open(debug_log, 'wb')
@@ -122,16 +120,7 @@ class Fdcanusb:
         # Since the fdcanusb can't send multiple things at once, we
         # just go through the commands one at a time and handle them
         # individually.
-        #
-        # We do require that each command fully complete in between
-        # cancellation points, so that the overall device stays
-        # synchronized.
-        return [await asyncio.shield(self._do_command_shield(x)) for x in commands]
-
-    async def _do_command_shield(self, command):
-        # We only permit one outstanding cycle at a time.
-        async with self._cycle_lock:
-            return await self._do_command(command)
+        return [await self._do_command(x) for x in commands]
 
     async def _do_command(self, command):
         await self.write(command)
@@ -144,9 +133,7 @@ class Fdcanusb:
                                ok_response.decode('latin1'))
 
         if reply_required:
-            # Any device should definitely respond within this much
-            # time, otherwise it is having serious problems.
-            line = await asyncio.wait_for(self._readline(self._serial), 0.5)
+            line = await self._readline(self._serial)
 
             if not line.startswith(b"rcv"):
                 raise RuntimeError("unexpected fdcanusb response, got: " +

@@ -22,6 +22,9 @@ import threading
 from typing import List, Optional, Union
 
 async def _async_set_future(fut, value):
+    if fut.done():
+        # We must have been canceled.
+        return
     fut.set_result(value)
 
 
@@ -43,6 +46,8 @@ class AioStream:
         self._write_data = b''
         self._read_queue = queue.Queue()
         self._write_queue = queue.Queue()
+        self._read_lock = threading.Lock()
+        self._write_lock = threading.Lock()
 
         self._read_thread = threading.Thread(
             target=self._read_child, daemon=True)
@@ -58,13 +63,26 @@ class AioStream:
 
         while True:
             f = loop.create_future()
+            skip = [False]
 
             def do_read():
-                result = self.fd.read(remaining)
-                asyncio.run_coroutine_threadsafe(_async_set_future(f, result), loop)
+                # This will run in the background thread.
+                with self._read_lock:
+                    if skip[0]:
+                        return
+
+                    result = self.fd.read(remaining)
+                    asyncio.run_coroutine_threadsafe(_async_set_future(f, result), loop)
 
             self._read_queue.put_nowait(do_read)
-            this_round = await f
+            try:
+                this_round = await f
+            except asyncio.CancelledError:
+                with self._read_lock:
+                    skip[0] = True
+
+                raise
+
             accumulated_result += this_round
             remaining -= len(this_round)
             if not block or remaining == 0:
@@ -77,13 +95,22 @@ class AioStream:
         self._write_data, write_data = b'', self._write_data
         loop = asyncio.get_event_loop()
         f = loop.create_future()
+        skip = [False]
 
         def do_write():
-            self.fd.write(write_data)
-            asyncio.run_coroutine_threadsafe(_async_set_future(f, True), loop)
+            with self._write_lock:
+                if skip[0]:
+                    return
+                self.fd.write(write_data)
+                asyncio.run_coroutine_threadsafe(_async_set_future(f, True), loop)
 
         self._write_queue.put_nowait(do_write)
-        result = await f
+        try:
+            result = await f
+        except asyncio.CancelledError:
+            with self._write_lock:
+                skip[0] = True
+            raise
 
     def _read_child(self):
         _run_queue(self._read_queue)
