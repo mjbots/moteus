@@ -24,7 +24,6 @@
 #include "PeripheralPins.h"
 
 #include "mjlib/base/assert.h"
-#include "mjlib/base/limit.h"
 #include "mjlib/base/windowed_average.h"
 
 #include "fw/foc.h"
@@ -57,7 +56,13 @@ using HardwareUart = Stm32G4AsyncUart;
 #endif
 
 
-using mjlib::base::Limit;
+float Limit(float, float, float) MOTEUS_CCM_ATTRIBUTE;
+
+float Limit(float a, float min, float max) {
+  if (a < min) { return min; }
+  if (a > max) { return max; }
+  return a;
+}
 
 float Threshold(float, float, float) MOTEUS_CCM_ATTRIBUTE;
 
