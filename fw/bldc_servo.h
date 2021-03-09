@@ -136,6 +136,7 @@ class BldcServo {
 
     // We pick a default maximum voltage based on the board revision.
     float max_voltage = (g_measured_hw_rev <= 5) ? 37.0f : 46.0f;
+    float max_power_W = 450.0f;
 
     float derate_temperature = 50.0f;
     float fault_temperature = 75.0f;
@@ -196,6 +197,7 @@ class BldcServo {
       a->Visit(MJ_NVP(pwm_min));
       a->Visit(MJ_NVP(pwm_min_blend));
       a->Visit(MJ_NVP(max_voltage));
+      a->Visit(MJ_NVP(max_power_W));
       a->Visit(MJ_NVP(derate_temperature));
       a->Visit(MJ_NVP(fault_temperature));
       a->Visit(MJ_NVP(feedforward_scale));

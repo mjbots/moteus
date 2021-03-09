@@ -89,6 +89,7 @@ struct Options {
   bool validate_slip_stop_position = false;
   bool validate_slip_bounds = false;
   bool validate_dq_ilimit = false;
+  bool validate_power_limit = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -117,6 +118,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_slip_stop_position));
     a->Visit(MJ_NVP(validate_slip_bounds));
     a->Visit(MJ_NVP(validate_dq_ilimit));
+    a->Visit(MJ_NVP(validate_power_limit));
   }
 };
 
@@ -173,6 +175,10 @@ class LogRegistrar {
  private:
   mjlib::telemetry::FileWriter* const file_writer_;
 };
+
+double RelativeError(double a, double b) {
+  return std::abs((a - b) / b);
+}
 
 std::string StringValue(const std::string& line_in) {
   const auto line = boost::trim_copy(line_in);
@@ -333,6 +339,7 @@ class Controller {
     double position_max = std::numeric_limits<double>::quiet_NaN();
 
     double max_position_slip = std::numeric_limits<double>::quiet_NaN();
+    double max_power_W = 450.0;
   };
 
   boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
@@ -353,6 +360,10 @@ class Controller {
     co_await Command(
         fmt::format("conf set servo.max_position_slip {}",
                     pid.max_position_slip));
+
+    co_await Command(
+        fmt::format("conf set servo.max_power_W {}",
+                    pid.max_power_W));
 
     co_return;
   }
@@ -588,6 +599,8 @@ class Application {
       co_await ValidateSlipBounds();
     } else if (options_.validate_dq_ilimit) {
       co_await ValidateDqIlimit();
+    } else if (options_.validate_power_limit) {
+      co_await ValidatePowerLimit();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1806,6 +1819,69 @@ class Application {
     // isn't probably super advisable at the normal 24V run of these
     // tests.  When we have control over the voltage input, then we
     // could consider making an actual automated test for this.
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidatePowerLimit() {
+    // For this test, we'll configure the fixture a fixed resistance,
+    // ask the DUT to drive things at some speed, and then vary the
+    // configured power limit.
+
+    {
+      Controller::PidConstants pid;
+      pid.ki = 0.0;
+      pid.kp = 0.0;
+      pid.kd = 0.15;
+      co_await fixture_->ConfigurePid(pid);
+    }
+
+    Controller::PidConstants dut_pid;
+    dut_pid.ki = 0.0;
+    dut_pid.kp = 5.0;
+    dut_pid.kd = 0.1;
+    dut_pid.max_position_slip = 0.2;
+
+    struct Test {
+      double power_W;
+      double expected_speed_Hz;
+    } tests[] = {
+      { 100.0, 4.04 },
+      { 20.0, 2.34 },
+      { 10.0, 1.61 },
+      { 5.0, 1.11 },
+    };
+
+    for (const auto test : tests) {
+      dut_pid.max_power_W = test.power_W;
+      co_await dut_->ConfigurePid(dut_pid);
+
+      co_await fixture_->Command(
+          fmt::format("d pos nan 0 {}", options_.max_torque_Nm));
+
+      co_await dut_->Command("d pos nan 4.0 1.0");
+      co_await Sleep(0.5);
+      const double start_pos = dut_->servo_stats().unwrapped_position;
+      co_await Sleep(0.5);
+      const double end_pos = dut_->servo_stats().unwrapped_position;
+      const double average_speed = (end_pos - start_pos) / 0.5;
+
+      fmt::print("Power {} / Speed {}\n", test.power_W, average_speed);
+
+      if (RelativeError(average_speed, test.expected_speed_Hz) > 0.15) {
+        throw mjlib::base::system_error::einval(
+            fmt::format(
+                "Speed {} != {} (within {}%)",
+                average_speed, test.expected_speed_Hz, 0.15 * 100));
+      }
+
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
+      co_await Sleep(0.5);
+    }
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
 
     co_return;
   }

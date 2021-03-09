@@ -1422,9 +1422,17 @@ class BldcServo::Impl {
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
 
+    // This is conservative... we could use std::hypot(d, q), however
+    // that would take more CPU cycles, and most of the time we'll
+    // only be seeing q != 0.
+    const float max_V = config_.max_power_W /
+        (std::abs(status_.d_A) + std::abs(status_.q_A));
+
     const float d_V =
-        (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
-        pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz);
+        Limit(
+            (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
+            pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz),
+            -max_V, max_V);
 
     const float max_current_integral =
         kMaxVoltageRatio * 0.25f * status_.filt_bus_V;
@@ -1433,11 +1441,13 @@ class BldcServo::Impl {
         -max_current_integral, max_current_integral);
 
     const float q_V =
-        (config_.feedforward_scale * (
-            i_q_A * motor_.resistance_ohm +
-            status_.velocity * motor_.v_per_hz /
-            motor_.unwrapped_position_scale)) +
-        pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
+        Limit(
+            (config_.feedforward_scale * (
+                i_q_A * motor_.resistance_ohm +
+                status_.velocity * motor_.v_per_hz /
+                motor_.unwrapped_position_scale)) +
+            pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz),
+            -max_V, max_V);
     status_.pid_q.integral = Limit(
         status_.pid_q.integral,
         -max_current_integral, max_current_integral);

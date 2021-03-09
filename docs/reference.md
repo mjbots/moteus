@@ -955,6 +955,10 @@ controller is used in velocity mode.
 If the input voltage reaches this value, a fault is triggered and all
 torque is stopped.
 
+## `servo.max_power_W` ##
+
+The controller will limit the output power to this value.
+
 ## `servo.derate_temperature` ##
 
 Torque begins to be limited when the temperature reaches this value.
