@@ -88,6 +88,7 @@ struct Options {
   bool validate_max_slip = false;
   bool validate_slip_stop_position = false;
   bool validate_slip_bounds = false;
+  bool validate_dq_ilimit = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -115,6 +116,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_max_slip));
     a->Visit(MJ_NVP(validate_slip_stop_position));
     a->Visit(MJ_NVP(validate_slip_bounds));
+    a->Visit(MJ_NVP(validate_dq_ilimit));
   }
 };
 
@@ -584,6 +586,8 @@ class Application {
       co_await ValidateSlipStopPosition();
     } else if (options_.validate_slip_bounds) {
       co_await ValidateSlipBounds();
+    } else if (options_.validate_dq_ilimit) {
+      co_await ValidateDqIlimit();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -609,8 +613,8 @@ class Application {
   boost::asio::awaitable<void> CommandFixtureRigid() {
     Controller::PidConstants pid;
     pid.ki = 200.0;
-    pid.kd = 0.2;
-    pid.kp = 10.0;
+    pid.kd = 0.15;
+    pid.kp = 5.0;
     pid.ilimit = 0.3;
 
     co_await fixture_->ConfigurePid(pid);
@@ -906,7 +910,7 @@ class Application {
                     const std::string& message) -> boost::asio::awaitable<void> {
       fmt::print("Testing d={} q={}\n", d_A, q_A);
       co_await dut_->Command(fmt::format("d dq {} {}", d_A, q_A));
-      co_await Sleep(0.5);
+      co_await Sleep(1.0);
 
       try {
         if (dut_->servo_stats().mode != ServoStats::kCurrent) {
@@ -1776,6 +1780,32 @@ class Application {
         }
       }
     }
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateDqIlimit() {
+    Controller::PidConstants pid;
+    pid.position_min = kNaN;
+    pid.position_max = kNaN;
+
+    pid.kp = 1.0;
+    pid.ki = 0.0;
+    pid.kd = 0.05;
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    // The dq ilimit shouldn't be able to go larger than the input
+    // voltage permits.  Otherwise, it can wind-up, resulting in a
+    // long time before torque stops being applied after time spent at
+    // maximum speed.
+
+    // It would be nice to validate this in the normal run, but to do
+    // so we'd need to spin at maximum speed for some time, which
+    // isn't probably super advisable at the normal 24V run of these
+    // tests.  When we have control over the voltage input, then we
+    // could consider making an actual automated test for this.
 
     co_return;
   }

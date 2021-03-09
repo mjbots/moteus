@@ -150,6 +150,7 @@ constexpr float kCurrentSampleTime = 1.03e-6f;
 
 constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
 constexpr float kMaxPwm = 1.0f - kMinPwm;
+constexpr float kMaxVoltageRatio = (kMaxPwm - 0.5f) * 2.0f;
 
 constexpr float kRateHz = kIntRateHz;
 constexpr float kPeriodS = 1.0f / kRateHz;
@@ -1420,12 +1421,21 @@ class BldcServo::Impl {
         (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
         pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz);
 
+    const float max_current_integral =
+        kMaxVoltageRatio * 0.25f * status_.filt_bus_V;
+    status_.pid_d.integral = Limit(
+        status_.pid_d.integral,
+        -max_current_integral, max_current_integral);
+
     const float q_V =
         (config_.feedforward_scale * (
             i_q_A * motor_.resistance_ohm +
             status_.velocity * motor_.v_per_hz /
             motor_.unwrapped_position_scale)) +
         pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz);
+    status_.pid_q.integral = Limit(
+        status_.pid_q.integral,
+        -max_current_integral, max_current_integral);
 
     ISR_DoVoltageDQ(sin_cos, d_V, q_V);
   }
