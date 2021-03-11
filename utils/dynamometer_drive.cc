@@ -199,7 +199,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3000 ||
+        result.final_timer > 3020 ||
         result.total_timer < 4250) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -1362,8 +1362,6 @@ class Application {
           results.push_back({
               scale * fixture_->servo_stats().unwrapped_position,
                   scale * fixture_->servo_stats().velocity});
-          fmt::print("pos={} vel={}\n",
-                     results.back().position, results.back().velocity);
         }
 
         co_await dut_->Command("d stop");
