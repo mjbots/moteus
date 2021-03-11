@@ -17,6 +17,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/multiplex/micro_server.h"
 
+#include "fw/abs_port.h"
 #include "fw/as5047.h"
 #include "fw/bldc_servo.h"
 #include "fw/drv8323.h"
@@ -33,7 +34,8 @@ class MoteusController {
                    mjlib::micro::PersistentConfig* config,
                    mjlib::micro::TelemetryManager* telemetry_manager,
                    MillisecondTimer*,
-                   FirmwareInfo*);
+                   FirmwareInfo*,
+                   AbsPort*);
   ~MoteusController();
 
   void Start();

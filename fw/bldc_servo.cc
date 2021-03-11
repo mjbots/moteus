@@ -254,11 +254,13 @@ class BldcServo::Impl {
        MillisecondTimer* millisecond_timer,
        AS5047* position_sensor,
        MotorDriver* motor_driver,
+       AbsPort* abs_port,
        const Options& options)
       : options_(options),
         ms_timer_(millisecond_timer),
         position_sensor_(position_sensor),
         motor_driver_(motor_driver),
+        abs_port_(abs_port),
         pwm1_(options.pwm1),
         pwm2_(options.pwm2),
         pwm3_(options.pwm3),
@@ -398,7 +400,9 @@ class BldcServo::Impl {
       motor_driver_->Enable(true);
       *mode_volatile = kCalibrating;
     }
-    startup_count_++;
+    if (startup_count_.load() < 1000) {
+      startup_count_++;
+    }
   }
 
  private:
@@ -832,18 +836,34 @@ class BldcServo::Impl {
     // While we are in the first calibrating state, our unwrapped
     // position is forced to be within one rotation of 0.  Also, the
     // AS5047 isn't guaranteed to be valid until 10ms after startup.
-    if (!std::isnan(status_.position_to_set) && startup_count_.load() > 10) {
+    const bool can_rezero = startup_count_.load() > 10;
+    const bool need_rezero_because_command =
+        !std::isnan(status_.position_to_set);
+    const bool need_rezero_because_init =
+        !status_.rezeroed && config_.rezero_from_abs &&
+        abs_port_->status().encoder_valid;
+
+    if ((need_rezero_because_command || need_rezero_because_init) &&
+        can_rezero) {
+      const float position_to_set =
+          need_rezero_because_init ?
+          abs_port_->status().position : status_.position_to_set;
+
       const int16_t zero_position =
           static_cast<int16_t>(
               static_cast<int32_t>(status_.position) +
               motor_.position_offset * (motor_.invert ? -1 : 1));
-      const float error = status_.position_to_set -
-                          zero_position / motor_scale16_;
+      const float error =
+          position_to_set -
+          zero_position / motor_scale16_;
       const float integral_offsets =
           std::round(error / motor_.unwrapped_position_scale);
       status_.unwrapped_position_raw =
           zero_position + integral_offsets * 65536.0f;
       status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
+      if (need_rezero_because_init) {
+        status_.rezeroed = true;
+      }
     } else {
       status_.unwrapped_position_raw += delta_position;
     }
@@ -1767,6 +1787,7 @@ class BldcServo::Impl {
   MillisecondTimer* const ms_timer_;
   AS5047* const position_sensor_;
   MotorDriver* const motor_driver_;
+  AbsPort* const abs_port_;
 
   Motor motor_;
   Config config_;
@@ -1871,10 +1892,11 @@ BldcServo::BldcServo(micro::Pool* pool,
                      MillisecondTimer* millisecond_timer,
                      AS5047* position_sensor,
                      MotorDriver* motor_driver,
+                     AbsPort* abs_port,
                      const Options& options)
     : impl_(pool,
             persistent_config, telemetry_manager,
-            millisecond_timer, position_sensor, motor_driver,
+            millisecond_timer, position_sensor, motor_driver, abs_port,
             options) {}
 BldcServo::~BldcServo() {}
 

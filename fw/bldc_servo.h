@@ -24,6 +24,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "fw/abs_port.h"
 #include "fw/as5047.h"
 #include "fw/error.h"
 #include "fw/millisecond_timer.h"
@@ -66,6 +67,7 @@ class BldcServo {
             MillisecondTimer*,
             AS5047*,
             MotorDriver*,
+            AbsPort*,
             const Options&);
   ~BldcServo();
 
@@ -182,6 +184,10 @@ class BldcServo {
     uint16_t velocity_filter_length = 256;
     uint16_t cooldown_cycles = 128;
 
+    // If true, then the initial position will be taken from the ABS
+    // port's configured value shortly after startup.
+    bool rezero_from_abs = false;
+
     Config() {
       pid_dq.kp = 0.005f;
       pid_dq.ki = 30.0f;
@@ -222,6 +228,7 @@ class BldcServo {
       a->Visit(MJ_NVP(max_velocity_derate));
       a->Visit(MJ_NVP(velocity_filter_length));
       a->Visit(MJ_NVP(cooldown_cycles));
+      a->Visit(MJ_NVP(rezero_from_abs));
     }
   };
 

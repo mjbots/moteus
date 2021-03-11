@@ -327,6 +327,13 @@ Mode: Read only
 
 The current in the D phase measured in amperes.
 
+#### 0x006 - Measured absolution position ####
+
+Mode: Read only
+
+If an absolute encoder is configured on the ABS port, its value will
+be reported here in revolutions.
+
 #### 0x00d - Voltage ####
 
 Mode: Read only
@@ -1040,6 +1047,42 @@ When in the "position timeout" mode the controller acts to damp the
 output.  This parameter controls the maximum torque available for such
 damping.
 
+## `servo.rezero_from_abs` ##
+
+If set to one, then shortly after startup, the value of the position
+will be initialized to the closest one consistent with the position
+measured at the ABS port.
+
+## `abs_port.mode` ##
+
+Configures the mode of operation of the ABS port:
+* 0 - disabled
+* 1 - AS5048B
+
+## `abs_port.i2c_mode` ##
+
+Configures what I2C mode will be used:
+* 0 - standard <= 100kHz
+* 1 - fast <= 400kHz
+* 2 - fast+ <= 1Mhz (note the AS5048B encoder does not support fast+)
+
+## `abs_port.i2c_hz` ##
+
+What rate to operate the I2C bus at.
+
+## `abs_port.encoder_poll_ms` ##
+
+How often, in milliseconds to poll the auxiliary encoder.  Must be no
+less than 5.
+
+## `abs_port.position_offset` / `abs_port.position_scale` ##
+
+The reported position is calculated from the raw value as follows:
+
+```
+position = (raw + offset) / 65536 * scale
+```
+
 
 # D. Maintenance #
 
@@ -1157,8 +1200,7 @@ pins are numbered 1 to 6 from left to right.
 
 ### JST ZH-4 I2C ###
 
-Looking at the pins of the connector with the bottom of the board up
-the pins are numbered 1 to 4 from left to right.
+Pin 1 is closest to the ABS label.  They are assigned as follows:
 
  - 1 - 3.3V
  - 2 - SCL

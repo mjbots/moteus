@@ -143,6 +143,7 @@ class Register(enum.IntEnum):
     TORQUE = 0x003
     Q_CURRENT = 0x004
     D_CURRENT = 0x005
+    ABS_POSITION = 0x006
     REZERO_STATE = 0x00c
     VOLTAGE = 0x00d
     TEMPERATURE = 0x00e
@@ -211,6 +212,7 @@ class QueryResolution:
     torque = mp.F32
     q_current = mp.IGNORE
     d_current = mp.IGNORE
+    abs_position = mp.IGNORE
     rezero_state = mp.IGNORE
     voltage = mp.INT8
     temperature = mp.INT8
@@ -306,6 +308,8 @@ def parse_register(parser, register, resolution):
         return parser.read_current(resolution)
     elif register == Register.D_CURRENT:
         return parser.read_current(resolution)
+    elif register == Register.ABS_POSITION:
+        return parser.read_position(resolution)
     elif register == Register.REZERO_STATE:
         return parser.read_int(resolution)
     elif register == Register.VOLTAGE:
@@ -431,8 +435,9 @@ class Controller:
             qr.torque,
             qr.q_current,
             qr.d_current,
+            qr.abs_position,
             ])
-        for i in range(6):
+        for i in range(7):
             c1.maybe_write()
 
         c2 = mp.WriteCombiner(writer, 0x10, int(Register.REZERO_STATE), [

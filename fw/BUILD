@@ -29,6 +29,7 @@ cc_library(
         "foc.h",
         "math.h",
         "torque_model.h",
+        "stm32_i2c_timing.h",
     ],
     srcs = [
         "foc.cc",
@@ -71,6 +72,8 @@ g4_bootloader_mbed_binary(
 )
 
 MOTEUS_SOURCES = [
+    "abs_port.h",
+    "abs_port.cc",
     "as5047.h",
     "moteus_assert.cc",
     "bldc_servo.h",
@@ -92,6 +95,7 @@ MOTEUS_SOURCES = [
     "millisecond_timer.h",
     "motor_driver.h",
     "pid.h",
+    "stm32_i2c.h",
     "stm32_spi.h",
     "stm32_serial.h",
     "stm32_serial.cc",
@@ -172,6 +176,7 @@ cc_test(
     srcs = [
         "test/foc_test.cc",
         "test/math_test.cc",
+        "test/stm32_i2c_timing_test.cc",
         "test/torque_model_test.cc",
         "test/test_main.cc",
     ],

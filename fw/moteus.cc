@@ -26,6 +26,7 @@
 #include "mjlib/multiplex/micro_server.h"
 #include "mjlib/multiplex/micro_stream_datagram.h"
 
+#include "fw/abs_port.h"
 #include "fw/board_debug.h"
 #include "fw/firmware_info.h"
 #include "fw/git_info.h"
@@ -87,13 +88,15 @@ void SetupClock() {
         RCC_PERIPHCLK_USART2 |
         RCC_PERIPHCLK_USART3 |
         RCC_PERIPHCLK_ADC12 |
-        RCC_PERIPHCLK_ADC345
+        RCC_PERIPHCLK_ADC345 |
+        RCC_PERIPHCLK_I2C1
         ;
     PeriphClkInit.FdcanClockSelection = RCC_FDCANCLKSOURCE_PCLK1;
     PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
     PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
     PeriphClkInit.Adc12ClockSelection = RCC_ADC12CLKSOURCE_SYSCLK;
     PeriphClkInit.Adc345ClockSelection = RCC_ADC345CLKSOURCE_SYSCLK;
+    PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_SYSCLK;
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
       mbed_die();
     }
@@ -272,8 +275,20 @@ int main(void) {
                              kMoteusFirmwareVersion, MOTEUS_MODEL_NUMBER);
   ClockManager clock(&timer, persistent_config, command_manager);
 
+  AbsPort abs_port(
+      &pool, &persistent_config, &telemetry_manager, &timer,
+      [&]() {
+        AbsPort::Options options;
+
+        options.scl = MOTEUS_ABS_SCL;
+        options.sda = MOTEUS_ABS_SDA;
+
+        return options;
+      }());
+
   MoteusController moteus_controller(
-      &pool, &persistent_config, &telemetry_manager, &timer, &firmware_info);
+      &pool, &persistent_config, &telemetry_manager, &timer,
+      &firmware_info, &abs_port);
 
   BoardDebug board_debug(
       &pool, &command_manager, &telemetry_manager, &multiplex_protocol,
@@ -298,6 +313,7 @@ int main(void) {
     fdcan_micro_server.Poll();
 #endif
     moteus_controller.Poll();
+    abs_port.Poll();
 
     const auto new_time = timer.read_ms();
 
@@ -306,6 +322,7 @@ int main(void) {
       system_info.PollMillisecond();
       moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
+      abs_port.PollMillisecond();
 
       old_time = new_time;
     }

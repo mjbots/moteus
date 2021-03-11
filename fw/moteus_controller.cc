@@ -181,6 +181,7 @@ enum class Register {
   kTorque = 0x003,
   kQCurrent = 0x004,
   kDCurrent = 0x005,
+  kAbsPosition = 0x006,
 
   kRezeroState = 0x00c,
   kVoltage = 0x00d,
@@ -245,7 +246,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
        MillisecondTimer* timer,
-       FirmwareInfo* firmware)
+       FirmwareInfo* firmware,
+       AbsPort* abs_port)
       : as5047_([]() {
           AS5047::Options options;
           options.mosi = MOTEUS_AS5047_MOSI;
@@ -266,7 +268,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             return options;
           }()),
         bldc_(pool, persistent_config, telemetry_manager,
-              timer, &as5047_, &drv8323_, []() {
+              timer, &as5047_, &drv8323_, abs_port, []() {
             BldcServo::Options options;
             options.pwm1 = PA_0;
             options.pwm2 = PA_1;
@@ -291,7 +293,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
             return options;
           }()),
-        firmware_(firmware) {}
+        firmware_(firmware),
+        abs_port_(abs_port) {}
 
   void Start() {
     bldc_.Start();
@@ -432,6 +435,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kTemperature:
       case Register::kQCurrent:
       case Register::kDCurrent:
+      case Register::kAbsPosition:
       case Register::kRezeroState:
       case Register::kVoltage:
       case Register::kTorque:
@@ -481,6 +485,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kDCurrent: {
         return ScaleCurrent(bldc_.status().d_A, type);
+      }
+      case Register::kAbsPosition: {
+        return ScalePosition(abs_port_->status().position, type);
       }
       case Register::kRezeroState: {
         return IntMapping(bldc_.status().rezeroed ? 1 : 0, type);
@@ -626,6 +633,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   Drv8323 drv8323_;
   BldcServo bldc_;
   FirmwareInfo* const firmware_;
+  AbsPort* const abs_port_;
 
   bool command_valid_ = false;
   BldcServo::CommandData command_;
@@ -635,9 +643,10 @@ MoteusController::MoteusController(micro::Pool* pool,
                                    micro::PersistentConfig* persistent_config,
                                    micro::TelemetryManager* telemetry_manager,
                                    MillisecondTimer* timer,
-                                   FirmwareInfo* firmware)
+                                   FirmwareInfo* firmware,
+                                   AbsPort* abs_port)
     : impl_(pool, pool, persistent_config, telemetry_manager,
-            timer, firmware) {}
+            timer, firmware, abs_port) {}
 
 MoteusController::~MoteusController() {}
 

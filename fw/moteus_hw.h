@@ -206,6 +206,9 @@ constexpr int kCompatibleHwRev[] = {
 
 #define MOTEUS_DEBUG_DAC PA_4
 
+#define MOTEUS_ABS_SCL PB_8
+#define MOTEUS_ABS_SDA PB_9
+
 #if defined(TARGET_STM32G4)
 #define MOTEUS_CCM_ATTRIBUTE __attribute__ ((section (".ccmram")))
 #else
