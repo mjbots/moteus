@@ -1081,7 +1081,7 @@ You may need a custom openocd, a known working one can be had by:
 ```
 sudo apt install autotools-dev automake autogen autoconf libtool libusb-1.0-0-dev
 git clone https://github.com/mjbots/openocd
-cd openocd.git
+cd openocd
 ./bootstrap
 ./configure && make && sudo make install
 ```
