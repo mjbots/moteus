@@ -774,11 +774,12 @@ d rezero <position>
 
 ### `d cal` ###
 
-Enter the encoder calibration mode.  Upon starting this command, the
-controller will spin the motor in voltage-FOC mode until the encoder
-covers a full revolution, then repeat the process in the other
-direction.  During the process, the current commanded phase and
-encoder value are periodically emitted to the console.
+INTERNAL moteus_tool USE ONLY: Enter the encoder calibration mode.
+Upon starting this command, the controller will spin the motor in
+voltage-FOC mode until the encoder covers a full revolution, then
+repeat the process in the other direction.  During the process, the
+current commanded phase and encoder value are periodically emitted to
+the console.
 
 Syntax:
 
@@ -789,6 +790,10 @@ d cal <magnitude> [options...]
 Each optional element consists of a prefix character followed by a value.  Permissible options are:
 
 * `s` - calibration speed in electrical revolutions per second
+
+NOTE: This command is for internal moteus_tool use only.  It performs
+only part of the calibration process, and saves nothing to the
+persistent storage.
 
 
 ### `d flash` ###
