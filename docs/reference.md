@@ -242,7 +242,7 @@ values.
 
 #### A.2.a.3 Voltage (measured in Volts) ####
 
-- int8 => 1 LSB => 1V
+- int8 => 1 LSB => 0.5V
 - int16 => 1 LSB => 0.1V
 - int32 => 1 LSB => 0.001 V
 
