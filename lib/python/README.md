@@ -54,6 +54,9 @@ pass to a Transport's `cycle` method.
 This mechanism only improves performance for non-fdcanusb links, such
 as a pi3hat.
 
+An example use of this mechanism can be found at:
+[pi3hat_multiservo.py](examples/pi3hat_multiservo.py)
+
 ## Position mode commands ##
 
 `Controller.set_position` and `Controller.make_position` have
