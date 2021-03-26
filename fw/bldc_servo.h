@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2021 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -141,7 +141,6 @@ class BldcServo {
     float derate_temperature = 50.0f;
     float fault_temperature = 75.0f;
 
-    float feedforward_scale = 0.5f;
     float velocity_threshold = 0.09f;
     float position_derate = 0.02f;
 
@@ -206,7 +205,6 @@ class BldcServo {
       a->Visit(MJ_NVP(max_power_W));
       a->Visit(MJ_NVP(derate_temperature));
       a->Visit(MJ_NVP(fault_temperature));
-      a->Visit(MJ_NVP(feedforward_scale));
       a->Visit(MJ_NVP(velocity_threshold));
       a->Visit(MJ_NVP(position_derate));
       a->Visit(MJ_NVP(adc_cur_cycles));

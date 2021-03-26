@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2021 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1446,7 +1446,6 @@ class BldcServo::Impl {
 
     const float d_V =
         Limit(
-            (config_.feedforward_scale * i_d_A * motor_.resistance_ohm) +
             pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz),
             -max_V, max_V);
 
@@ -1458,10 +1457,6 @@ class BldcServo::Impl {
 
     const float q_V =
         Limit(
-            (config_.feedforward_scale * (
-                i_q_A * motor_.resistance_ohm +
-                status_.velocity * motor_.v_per_hz /
-                motor_.unwrapped_position_scale)) +
             pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz),
             -max_V, max_V);
     status_.pid_q.integral = Limit(

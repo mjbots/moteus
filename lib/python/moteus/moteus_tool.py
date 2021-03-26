@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -B
 
-# Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2019-2021 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ class FirmwareUpgrade:
         # way, we zero it out, which is safe, although it will result
         # in decreased performance.
 
-        if self.new >= 0x0101 and self.old <= 0x0100:
+        if self.new == 0x0101 and self.old <= 0x0100:
             # If the old firmware had the default feedforward term of
             # 1.0, then switch it to be the new default of 0.5.
             if float(items[b'servo.feedforward_scale']) == 1.0:
@@ -83,7 +83,7 @@ class FirmwareUpgrade:
                 items[b'servo.feedforward_scale'] = b'0.0'
                 print("Changing servo.feedforward_scale to 0.0 for version 0x0101")
 
-        if self.new <= 0x0100 and self.old >= 0x0101:
+        if self.new <= 0x0100 and self.old == 0x0101:
             # To get back to identical behavior, we apply the inverse
             # mapping.
             if float(items[b'servo.feedforward_scale']) == 0.5:

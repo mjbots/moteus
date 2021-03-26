@@ -214,7 +214,7 @@ constexpr int kCompatibleHwRev[] = {
 
 
 #define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
-#define MOTEUS_FIRMWARE_VERSION 0x000101
+#define MOTEUS_FIRMWARE_VERSION 0x000102
 
 // Version history:
 
@@ -224,5 +224,9 @@ constexpr int kCompatibleHwRev[] = {
 //   sign for the velocity component.  Previous firmwares,
 //   inappropriately applied a negative feedforward term, which
 //   counteracted rotation instead of being an actual feedforward.
+
+// # 0x0102 #
+//
+// * Removed servo.feedforward_scale entirely
 
 }
