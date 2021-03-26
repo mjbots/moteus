@@ -9,25 +9,7 @@ controllers.
 pip3 install moteus  # or 'moteus-pi3hat' on a pi3hat
 ```
 
-The following will report the status of a single controller at the
-default address of 1 at 1Hz while commanding it to hold the current
-position.
-
-```
-import asyncio
-import math
-import moteus
-
-async def main():
-    c = moteus.Controller()
-    await c.set_stop()  # in case there was a fault
-
-    while True:
-        print(await c.set_position(position=math.nan, query=True))
-        await asyncio.sleep(0.02)
-
-asyncio.run(main())
-```
+See a simple example of the API in use at: [simple.py](examples/simple.py)
 
 ## Theory ##
 
