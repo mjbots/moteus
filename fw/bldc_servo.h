@@ -299,6 +299,11 @@ class BldcServo {
     // that region.
     kStayWithinBounds = 13,
 
+    // This mode applies a fixed voltage square waveform in the D axis
+    // in order to measure inductance assuming a motor with
+    // approximately equal D/Q axis inductances.
+    kMeasureInductance = 14,
+
     kNumModes,
   };
 
@@ -355,6 +360,10 @@ class BldcServo {
     uint16_t cooldown_count = 0;
     uint32_t final_timer = 0;
     uint32_t total_timer = 0;
+
+    float meas_ind_old_d_A = 0.0f;
+    int8_t meas_ind_phase = 0;
+    float meas_ind_integrator = 0.0f;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     struct Dwt {
@@ -442,6 +451,10 @@ class BldcServo {
       a->Visit(MJ_NVP(final_timer));
       a->Visit(MJ_NVP(total_timer));
 
+      a->Visit(MJ_NVP(meas_ind_old_d_A));
+      a->Visit(MJ_NVP(meas_ind_phase));
+      a->Visit(MJ_NVP(meas_ind_integrator));
+
 #ifdef MOTEUS_PERFORMANCE_MEASURE
       a->Visit(MJ_NVP(dwt));
 #endif
@@ -505,7 +518,7 @@ class BldcServo {
     float theta = 0.0f;
     float voltage = 0.0f;
 
-    // For kVoltageDq
+    // For kVoltageDq and kMeasureInductance
     float d_V = 0.0f;
     float q_V = 0.0f;
 
@@ -529,6 +542,9 @@ class BldcServo {
     // For kStayWithinBounds
     float bounds_min = 0.0f;
     float bounds_max = 0.0f;
+
+    // For kMeasureInductance
+    int8_t meas_ind_period = 4;
 
     // If set, then force the position to be the given value.
     std::optional<float> set_position;
@@ -564,6 +580,7 @@ class BldcServo {
       a->Visit(MJ_NVP(timeout_s));
       a->Visit(MJ_NVP(bounds_min));
       a->Visit(MJ_NVP(bounds_max));
+      a->Visit(MJ_NVP(meas_ind_period));
 
       a->Visit(MJ_NVP(set_position));
       a->Visit(MJ_NVP(rezero_position));
@@ -609,6 +626,7 @@ struct IsEnum<moteus::BldcServo::Mode> {
         { M::kPositionTimeout, "pos_timeout" },
         { M::kZeroVelocity, "zero_vel" },
         { M::kStayWithinBounds, "within" },
+        { M::kMeasureInductance, "meas_ind" },
       }};
   }
 };

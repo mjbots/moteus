@@ -55,7 +55,7 @@ or any combination seamlessly throughout the control cycle.
 
 The available knobs to the moteus controller allow it to implement a
 few different types of control schemes.  From the factory, the control
-gains are selected for optimal torque bandwidth.  For other
+gains are selected for medium torque bandwidth.  For other
 applications, here are suggestions for gains and control options to
 use.
 
@@ -74,8 +74,10 @@ disturbances is decreased.
 For either operation either a very low speeds, or when precise
 positioning performance is desired, it is recommended to configure a
 non-zero `ki` and `ilimit` term in the position controller
-([reference](#servopid_position)).  This will compensate
-for cogging torque (at the expense of overall torque bandwidth).
+([reference](#servopid_position)).  This will compensate for cogging
+torque (at the expense of overall torque bandwidth).  It may also be
+beneficial to select a lower value than default for `moteus_tool
+--cal-bw-hz` during calibration.
 
 ### Internally Generated Trajectories ###
 
@@ -105,9 +107,10 @@ High torque bandwidth is desired for legged robots, or other
 applications where it is necessary to respond to external disturbances
 as rapidly as possible or accelerate the load maximally.  For these
 applications, it is recommended to have no integrative term in the
-position controller ([reference](#servopid_position)).  It may be
-necessary to increase the integrative term in the current controller
-([servo.pid_dq](#servopid_dq)).
+position controller ([reference](#servopid_position)).  When
+calibrating the motor, you may use the `moteus_tool --cal-bw-hz`
+option to select a bandwidth higher than the default of 50Hz (or
+manually select servo.pid_dq.kp/ki after calibration).
 
 ### Torque Control ###
 

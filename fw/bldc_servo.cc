@@ -941,6 +941,9 @@ class BldcServo::Impl {
     status_.torque_Nm = torque_on() ? (
         current_to_torque(status_.q_A) /
         motor_.unwrapped_position_scale) : 0.0f;
+#ifdef MOTEUS_EMIT_CURRENT_TO_DAC
+    DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
+#endif
   }
 
   bool torque_on() const {
@@ -964,7 +967,8 @@ class BldcServo::Impl {
       case kPosition:
       case kPositionTimeout:
       case kZeroVelocity:
-      case kStayWithinBounds: {
+      case kStayWithinBounds:
+      case kMeasureInductance: {
         return true;
       }
     }
@@ -1000,7 +1004,8 @@ class BldcServo::Impl {
       case kPosition:
       case kPositionTimeout:
       case kZeroVelocity:
-      case kStayWithinBounds: {
+      case kStayWithinBounds:
+      case kMeasureInductance: {
         switch (status_.mode) {
           case kNumModes: {
             MJ_ASSERT(false);
@@ -1030,7 +1035,8 @@ class BldcServo::Impl {
           case kCurrent:
           case kPosition:
           case kZeroVelocity:
-          case kStayWithinBounds: {
+          case kStayWithinBounds:
+          case kMeasureInductance: {
             if ((data->mode == kPosition || data->mode == kStayWithinBounds) &&
                 ISR_IsOutsideLimits()) {
               status_.mode = kFault;
@@ -1041,6 +1047,12 @@ class BldcServo::Impl {
 
               // Start from scratch if we are in a new mode.
               ISR_ClearPid(kAlwaysClear);
+            }
+
+            if (data->mode == kMeasureInductance) {
+              status_.meas_ind_phase = 0;
+              status_.meas_ind_integrator = 0.0f;
+              status_.meas_ind_old_d_A = status_.d_A;
             }
 
             return;
@@ -1099,6 +1111,7 @@ class BldcServo::Impl {
         case kVoltage:
         case kVoltageFoc:
         case kVoltageDq:
+        case kMeasureInductance:
           return false;
         case kCurrent:
         case kPosition:
@@ -1133,6 +1146,7 @@ class BldcServo::Impl {
         case kVoltageFoc:
         case kVoltageDq:
         case kCurrent:
+        case kMeasureInductance:
           return false;
         case kPosition:
         case kPositionTimeout:
@@ -1268,6 +1282,10 @@ class BldcServo::Impl {
       }
       case kStayWithinBounds: {
         ISR_DoStayWithinBounds(sin_cos, data);
+        break;
+      }
+      case kMeasureInductance: {
+        ISR_DoMeasureInductance(sin_cos, data);
         break;
       }
     }
@@ -1466,12 +1484,18 @@ class BldcServo::Impl {
     ISR_DoVoltageDQ(sin_cos, d_V, q_V);
   }
 
-  void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+  // The idiomatic thing to do in DoMeasureInductance would be to just
+  // call DoVoltageDQ.  However, because of
+  // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=41091 that results
+  // in a compile time error.  Instead, we construct a similar
+  // factorization by delegating most of the work to this helper
+  // function.
+  Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
       status_.fault = errc::kMotorNotConfigured;
-      return;
+      return Vec3{};
     }
 
     control_.d_V = d_V;
@@ -1488,7 +1512,11 @@ class BldcServo::Impl {
     status_.dwt.control_done_cur = DWT->CYCCNT;
 #endif
 
-    ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
+    return Vec3{idt.a, idt.b, idt.c};
+  }
+
+  void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+    ISR_DoVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
   }
 
   void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
@@ -1663,7 +1691,7 @@ class BldcServo::Impl {
     ISR_DoCurrent(sin_cos, d_A, q_A);
   }
 
-  void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) {
+  void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     const auto target_position = [&]() MOTEUS_CCM_ATTRIBUTE -> std::optional<float> {
       if (!std::isnan(data->bounds_min) &&
           status_.unwrapped_position < data->bounds_min) {
@@ -1703,6 +1731,30 @@ class BldcServo::Impl {
     ISR_DoPositionCommon(
         sin_cos, data, apply_options,
         data->max_torque_Nm, data->feedforward_Nm, 0.0f);
+  }
+
+  void ISR_DoMeasureInductance(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    const int8_t old_sign = status_.meas_ind_phase > 0 ? 1 : -1;
+    const float old_sign_float = old_sign > 0 ? 1.0f : -1.0f;
+
+    status_.meas_ind_phase += -old_sign;
+
+    // When measuring inductance, we just drive a 0 centered square
+    // wave at some integral multiple of the control period.
+    if (status_.meas_ind_phase == 0) {
+      status_.meas_ind_phase = -old_sign * data->meas_ind_period;
+    }
+
+    const float d_V =
+        data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f);
+
+    // We also integrate the difference in current.
+    status_.meas_ind_integrator +=
+        (status_.d_A - status_.meas_ind_old_d_A) *
+        old_sign_float;
+    status_.meas_ind_old_d_A = status_.d_A;
+
+    ISR_DoVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
   }
 
   float LimitPwm(float in) MOTEUS_CCM_ATTRIBUTE {

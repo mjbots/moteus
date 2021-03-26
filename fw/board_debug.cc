@@ -453,6 +453,36 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "ind") {
+      const auto volt_str = tokenizer.next();
+      const auto period_str = tokenizer.next();
+
+      if (volt_str.empty() ||
+          period_str.empty()) {
+        WriteMessage(response, "ERR missing volt/period\r\n");
+        return;
+      }
+
+      const float volt = std::strtof(volt_str.data(), nullptr);
+      const int8_t period = std::strtol(period_str.data(), nullptr, 10);
+      if (period <= 0) {
+        WriteMessage(response, "ERR period must > 0\r\n");
+        return;
+      }
+
+      BldcServo::CommandData command;
+
+      command.mode = BldcServo::kMeasureInductance;
+
+      command.d_V = volt;
+      command.meas_ind_period = period;
+
+      bldc_->Command(command);
+
+      WriteOk(response);
+      return;
+    }
+
     if (cmd_text == "index") {
       const auto pos_value = tokenizer.next();
       if (pos_value.empty()) {

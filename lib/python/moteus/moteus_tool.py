@@ -28,6 +28,7 @@ import os
 import struct
 import sys
 import tempfile
+import time
 
 from . import moteus
 from . import aiostream
@@ -488,6 +489,18 @@ class Stream:
         winding_resistance = await self.calibrate_winding_resistance()
         await self.check_for_fault()
 
+        inductance = await self.calibrate_inductance()
+        await self.check_for_fault()
+
+        kp, ki = None, None
+        if inductance:
+            kp, ki = self.calculate_bandwidth(winding_resistance, inductance)
+
+            await self.command(f"conf set servo.pid_dq.kp {kp}")
+            await self.command(f"conf set servo.pid_dq.ki {ki}")
+
+            await self.check_for_fault()
+
         v_per_hz = await self.calibrate_kv_rating(unwrapped_position_scale)
         await self.check_for_fault()
 
@@ -509,6 +522,9 @@ class Stream:
             'device_info' : device_info,
             'calibration' : cal_result.to_json(),
             'winding_resistance' : winding_resistance,
+            'inductance' : inductance,
+            'pid_dq_kp' : kp,
+            'pid_dq_ki' : ki,
             'v_per_hz' : v_per_hz,
             # We measure voltage to the center, not peak-to-peak, thus
             # the extra 0.5.
@@ -615,6 +631,75 @@ class Stream:
             await self.command(f"conf set motor.resistance_ohm {winding_resistance}")
 
         return winding_resistance
+
+    async def calibrate_inductance(self):
+        print("Calculating motor inductance")
+
+        try:
+            await asyncio.wait_for(
+                self.command(f"d ind {self.args.cal_voltage} 4"), 0.25)
+        except moteus.CommandError as e:
+            # It is possible this is an old firmware that does not
+            # support inductance measurement.
+            if not 'unknown command' in e.message:
+                raise
+            print("Firmware does not support inductance measurement")
+            return None
+        except asyncio.TimeoutError:
+            print("Firmware does not support inductance measurement")
+            return None
+
+        start = time.time()
+        await asyncio.sleep(1.0)
+        await self.command(f"d stop")
+        end = time.time()
+        data = await self.read_data("servo_stats")
+
+        delta_time = end - start
+        inductance = (self.args.cal_voltage /
+                      (data.meas_ind_integrator / delta_time))
+
+        print(f"Calculated inductance: {inductance}H")
+        return inductance
+
+    def calculate_bandwidth(self, resistance, inductance):
+        twopi = 2 * math.pi
+
+        # We have several factors that can limit the bandwidth:
+
+        # First, is that the controller operates its control loop at
+        # 40kHz.  We will limit the max bandwidth to 30x less than
+        # that for now, so that we do not need to consider
+        # discretization.  That limit is 1300Hz.
+        board_limit_rad_s = 1300 * 2 * math.pi
+
+        # Second, we limit the bandwidth such that the Kp value is not
+        # too large.  The current sense noise on the moteus controller
+        # limits how large Kp can get before the loop becomes unstable
+        # or very noisy.
+        kp_limit_rad_s = 0.20 / inductance
+
+        # Finally, we limit the bandwidth such that the Ki value is
+        # not too large.
+        ki_limit_rad_s = 500.0 / resistance
+
+        cal_bw_rad_s = self.args.cal_bw_hz * twopi
+
+        w_3db = min(board_limit_rad_s,
+                    kp_limit_rad_s,
+                    ki_limit_rad_s,
+                    cal_bw_rad_s)
+
+        if w_3db != cal_bw_rad_s:
+            print(f"Warning: using lower bandwidth " +
+                  f"than requested: {w_3db/twopi:.1f}Hz")
+
+        kp = w_3db * inductance
+        ki = w_3db * resistance
+
+        print(f"Calculated kp/ki: {kp}/{ki}")
+
+        return kp, ki
 
     async def find_speed(self, voltage):
         assert voltage < 20.0
@@ -814,6 +899,9 @@ async def async_main():
 
     group.add_argument('--calibrate', action='store_true',
                         help='calibrate the motor, requires full freedom of motion')
+    parser.add_argument('--cal-bw-hz', metavar='HZ', type=float,
+                        default=50.0,
+                        help='configure current loop bandwidth in Hz')
     parser.add_argument('--cal-no-update', action='store_true',
                         help='do not store calibration results on motor')
     parser.add_argument('--cal-power', metavar='V', type=float, default=0.4,
