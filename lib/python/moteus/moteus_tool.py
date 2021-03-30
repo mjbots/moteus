@@ -492,9 +492,10 @@ class Stream:
         inductance = await self.calibrate_inductance()
         await self.check_for_fault()
 
-        kp, ki = None, None
+        kp, ki, torque_bw_hz = None, None, None
         if inductance:
-            kp, ki = self.calculate_bandwidth(winding_resistance, inductance)
+            kp, ki, torque_bw_hz = \
+                self.calculate_bandwidth(winding_resistance, inductance)
 
             await self.command(f"conf set servo.pid_dq.kp {kp}")
             await self.command(f"conf set servo.pid_dq.ki {ki}")
@@ -525,6 +526,7 @@ class Stream:
             'inductance' : inductance,
             'pid_dq_kp' : kp,
             'pid_dq_ki' : ki,
+            'torque_bw_hz' : torque_bw_hz,
             'v_per_hz' : v_per_hz,
             # We measure voltage to the center, not peak-to-peak, thus
             # the extra 0.5.
@@ -699,7 +701,7 @@ class Stream:
 
         print(f"Calculated kp/ki: {kp}/{ki}")
 
-        return kp, ki
+        return kp, ki, w_3db / twopi
 
     async def find_speed(self, voltage):
         assert voltage < 20.0
@@ -769,6 +771,15 @@ class Stream:
 
         await self.command(f"conf set motor.resistance_ohm {report['winding_resistance']}")
         await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}")
+
+        pid_dq_kp = report.get('pid_dq_kp', None)
+        if pid_dq_kp:
+            await self.command(f"conf set servo.pid_dq.kp {pid_dq_kp}")
+
+        pid_dq_ki = report.get('pid_dq_ki', None)
+        if pid_dq_ki:
+            await self.command(f"conf set servo.pid_dq.ki {pid_dq_ki}")
+
         await self.command("conf write")
 
         print("Calibration restored")
