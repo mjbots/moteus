@@ -53,7 +53,7 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        if new > 0x0101:
+        if new > 0x0102:
             raise RuntimeError("Firmware to be flashed has a newer version than we support")
 
     def fix_config(self, old_config):
