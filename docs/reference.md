@@ -646,7 +646,7 @@ Decoded, that means:
  - `04` 4 registers
  - `00` starting at register 0
  - `0a00` in mode 10 - Position
- - `5000` position is 0x0050 = 80 = 28.8 degrees
+ - `5000` position is 0x0050 = 80 = 2.88 degrees
  - `0001` velocity is 0x0100 = 256 = 23.04 dps
  - `70ff` torque is 0xff70 = -144 = -1.44 Nm
 - `23` reply with 3 int8 values
