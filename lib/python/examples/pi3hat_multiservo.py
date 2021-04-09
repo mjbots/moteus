@@ -52,7 +52,7 @@ async def main():
 
     # We will start by sending a 'stop' to all servos, in the event
     # that any had a fault.
-    transport.cycle([x.make_stop() for x in servos.values()])
+    await transport.cycle([x.make_stop() for x in servos.values()])
 
     while True:
         # The 'cycle' method accepts a list of commands, each of which
