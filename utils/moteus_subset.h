@@ -47,7 +47,7 @@ struct ServoStats {
   Fault fault = kNone;
 
   uint16_t position_raw = 0;
-  int32_t unwrapped_position_raw = 0;
+  int64_t unwrapped_position_raw = 0;
   float unwrapped_position = 0.0f;
 
   float torque_Nm = 0.0f;

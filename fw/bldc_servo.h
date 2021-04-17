@@ -345,7 +345,10 @@ class BldcServo {
     float d_A = 0.0f;
     float q_A = 0.0f;
 
-    int32_t unwrapped_position_raw = 0;
+    // This is a fixed point number, with the upper 32 bits being
+    // measured in encoder ticks, and the bottom 32 bits being
+    // fractional.
+    int64_t unwrapped_position_raw = 0;
     float unwrapped_position = 0.0f;
     float velocity = 0.0f;
     float torque_Nm = 0.0f;
@@ -354,7 +357,7 @@ class BldcServo {
     SimplePI::State pid_q;
     PID::State pid_position;
 
-    // This is scaled to be 65536 larger than unwrapped_position_raw.
+    // This is measured in the same units as unwrapped_position_raw.
     std::optional<int64_t> control_position;
     float position_to_set = 0.0;
     float timeout_s = 0.0;

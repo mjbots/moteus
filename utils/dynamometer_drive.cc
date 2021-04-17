@@ -1594,7 +1594,7 @@ class Application {
 
       const auto position_error =
           (*spinning_dut.control_position / (65536ll * 65536ll)) -
-          spinning_dut.unwrapped_position_raw;
+          spinning_dut.unwrapped_position_raw / (65536ll * 65536ll);
       if (std::abs(position_error) > 4000) {
         throw mjlib::base::system_error::einval(
             fmt::format("Base tracking not working |{}| > 4000",

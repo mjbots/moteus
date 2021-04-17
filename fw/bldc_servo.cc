@@ -859,13 +859,15 @@ class BldcServo::Impl {
       const float integral_offsets =
           std::round(error / motor_.unwrapped_position_scale);
       status_.unwrapped_position_raw =
+          static_cast<int64_t>(65536ll * 65536ll) *
           zero_position + integral_offsets * 65536.0f;
       status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
       if (need_rezero_because_init) {
         status_.rezeroed = true;
       }
     } else {
-      status_.unwrapped_position_raw += delta_position;
+      status_.unwrapped_position_raw +=
+          static_cast<int64_t>(65536ll * 65536ll) * delta_position;
     }
 
     {
@@ -881,7 +883,7 @@ class BldcServo::Impl {
     }
 
     status_.unwrapped_position =
-        status_.unwrapped_position_raw / motor_scale16_;
+        (status_.unwrapped_position_raw >> 32) / motor_scale16_;
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -1192,6 +1194,7 @@ class BldcServo::Impl {
 
     if (data->set_position) {
       status_.unwrapped_position_raw =
+          static_cast<int64_t>(65536ll * 65536ll) *
           static_cast<int32_t>(*data->set_position * 65536.0f);
       data->set_position = {};
     }
@@ -1564,11 +1567,6 @@ class BldcServo::Impl {
       float max_torque_Nm,
       float feedforward_Nm,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
-    // Note that status_.control_position is measured in terms of 1 /
-    // 2**32th of unwrapped_position_raw.  This is so that velocities
-    // do not become so small as to result in no change whatsoever at
-    // the control rate.
-    //
     // We go to some lengths in our conversions to and from
     // control_position so as to avoid converting a float directly to
     // an int64, which calls out to a system library that is pretty
@@ -1581,9 +1579,7 @@ class BldcServo::Impl {
               static_cast<int32_t>(motor_scale16_ * data->position));
       data->position = std::numeric_limits<float>::quiet_NaN();
     } else if (!status_.control_position) {
-      status_.control_position =
-          static_cast<int64_t>(65536ll * 65536ll) *
-          static_cast<int64_t>(status_.unwrapped_position_raw);
+      status_.control_position = status_.unwrapped_position_raw;
     }
 
     auto velocity_command = velocity;
@@ -1598,20 +1594,18 @@ class BldcServo::Impl {
              kRateHz));
 
     if (std::isfinite(config_.max_position_slip)) {
-      const int32_t current_position = status_.unwrapped_position_raw;
-      const int32_t slip =
+      const int64_t current_position = status_.unwrapped_position_raw;
+      const int64_t slip =
+          static_cast<int64_t>(65536ll * 65536ll) *
           static_cast<int32_t>(motor_scale16_ * config_.max_position_slip);
 
-      const int32_t error =
-          current_position - static_cast<int32_t>(
-              *status_.control_position / (65536ll * 65536ll));
+      const int64_t error =
+          current_position - *status_.control_position;
       if (error < -slip) {
-        *status_.control_position = static_cast<int64_t>(65536ll * 65536ll) *
-            (current_position + slip);
+        *status_.control_position = current_position + slip;
       }
       if (error > slip) {
-        *status_.control_position = static_cast<int64_t>(65536ll * 65536ll) *
-            (current_position - slip);
+        *status_.control_position = current_position - slip;
       }
     }
 
@@ -1664,11 +1658,11 @@ class BldcServo::Impl {
     // We always control relative to the control position of 0, so
     // that we get equal performance across the entire viable integral
     // position range.
-    const int32_t scaled_control =
-        static_cast<int32_t>(*status_.control_position / (65536ll * 65536ll));
     const float unlimited_torque_Nm =
         pid_position_.Apply(
-            (status_.unwrapped_position_raw - scaled_control) /
+            static_cast<int32_t>(
+                (status_.unwrapped_position_raw -
+                 *status_.control_position) >> 32) /
             65536.0f * motor_.unwrapped_position_scale,
             0.0,
             measured_velocity, velocity_command,
