@@ -1,4 +1,4 @@
-# Copyright 2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020-2021 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -61,6 +61,8 @@ class Fdcanusb:
         self._serial = aioserial.AioSerial(port=path, baudrate=9600)
         self._stream_data = b''
 
+        self._cycle_lock = asyncio.Lock()
+
         self._debug_log = None
         if debug_log:
             self._debug_log = open(debug_log, 'wb')
@@ -117,10 +119,13 @@ class Fdcanusb:
         Each command instance must model moteus.Command
         """
 
-        # Since the fdcanusb can't send multiple things at once, we
-        # just go through the commands one at a time and handle them
-        # individually.
-        return [await self._do_command(x) for x in commands]
+        # Since the fdcanusb has state, we need to ensure it is kept
+        # consistent.  Only one call to cycle at a time please.
+        async with self._cycle_lock:
+            # Since the fdcanusb can't send multiple things at once, we
+            # just go through the commands one at a time and handle them
+            # individually.
+            return [await self._do_command(x) for x in commands]
 
     async def _do_command(self, command):
         await self.write(command)
