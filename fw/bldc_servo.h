@@ -189,6 +189,10 @@ class BldcServo {
     // port's configured value shortly after startup.
     bool rezero_from_abs = false;
 
+    // A bitfield that selects one of several things to emit from the
+    // debug UART at full control rate.
+    uint32_t emit_debug = 0;
+
     Config() {
       pid_dq.kp = 0.005f;
       pid_dq.ki = 30.0f;
@@ -227,6 +231,7 @@ class BldcServo {
       a->Visit(MJ_NVP(velocity_filter_length));
       a->Visit(MJ_NVP(cooldown_cycles));
       a->Visit(MJ_NVP(rezero_from_abs));
+      a->Visit(MJ_NVP(emit_debug));
     }
   };
 

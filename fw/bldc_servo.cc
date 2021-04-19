@@ -282,7 +282,7 @@ class BldcServo::Impl {
         debug_serial_([&]() {
             Stm32Serial::Options d_options;
             d_options.tx = options.debug_uart_out;
-            d_options.baud_rate = 5450000;
+            d_options.baud_rate = 3000000;
             return d_options;
           }()),
         vsense_adc_scale_((g_measured_hw_rev < 6) ?
@@ -308,6 +308,12 @@ class BldcServo::Impl {
   void Start() {
     ConfigureADC();
     ConfigurePwmTimer();
+
+    if (options_.debug_uart_out != NC) {
+      const auto uart = pinmap_peripheral(
+          options_.debug_uart_out, PinMap_UART_TX);
+      debug_uart_ = reinterpret_cast<USART_TypeDef*>(uart);
+    }
   }
 
   ~Impl() {
@@ -700,6 +706,8 @@ class BldcServo::Impl {
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control = DWT->CYCCNT;
 #endif
+
+    ISR_MaybeEmitDebug();
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done = DWT->CYCCNT;
@@ -1771,6 +1779,52 @@ class BldcServo::Impl {
     ISR_DoVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
   }
 
+  void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
+    if (config_.emit_debug == 0) { return; }
+
+    debug_buf_[0] = 0x5a;
+
+    int pos = 1;
+
+    auto write_scalar =
+        [&](auto value) {
+          if ((pos + sizeof(value)) > sizeof(debug_buf_)) {
+            return;
+          }
+          std::memcpy(&debug_buf_[pos], &value, sizeof(value));
+          pos += sizeof(value);
+        };
+
+    if (config_.emit_debug & (1 << 0)) {
+      write_scalar(static_cast<uint16_t>(status_.position));
+    }
+
+    if (config_.emit_debug & (1 << 2)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.d_A / 100.0f));
+    }
+    if (config_.emit_debug & (1 << 3)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.q_A / 100.0f));
+    }
+    if (config_.emit_debug & (1 << 4)) {
+      write_scalar(status_.adc_cur1_raw);
+    }
+    if (config_.emit_debug & (1 << 5)) {
+      write_scalar(status_.adc_cur2_raw);
+    }
+    if (config_.emit_debug & (1 << 6)) {
+      write_scalar(status_.adc_cur3_raw);
+    }
+
+    if (config_.emit_debug & (1 << 7)) {
+      write_scalar(static_cast<int16_t>(32767.0f * control_.torque_Nm / 30.0f));
+    }
+
+    // We rely on the FIFO to queue these things up.
+    for (int i = 0; i < pos; i++) {
+      debug_uart_->TDR = debug_buf_[i];
+    }
+  }
+
   float LimitPwm(float in) MOTEUS_CCM_ATTRIBUTE {
     // We can't go full duty cycle or we wouldn't have time to sample
     // the current.
@@ -1859,6 +1913,12 @@ class BldcServo::Impl {
   PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   Stm32Serial debug_serial_;
+
+  USART_TypeDef* debug_uart_ = nullptr;
+
+  // 7 bytes is the max that we can get out at 3Mbit running at
+  // 40000Hz.
+  uint8_t debug_buf_[7] = {};
 
   std::atomic<uint32_t> startup_count_{0};
 
