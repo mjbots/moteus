@@ -812,6 +812,16 @@ Enter the bootloader.
 
 ## B.2 `tel` - telemetry ##
 
+### `tel get` ###
+
+Retrieve the contents of a given channel.  Text or binary mode is
+determined via the `tel fmt` or `tel text` commands, and defaults to
+binary mode.
+
+```
+tel get <channel>
+```
+
 ### `tel list` ###
 
 List all available telemetry channels.
