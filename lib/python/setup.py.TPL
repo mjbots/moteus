@@ -31,7 +31,7 @@ setuptools.setup(
     description = 'moteus brushless controller library and tools',
     long_description = long_description,
     long_description_content_type = 'text/markdown',
-    url = 'https://github.com/mjbots/pi3hat',
+    url = 'https://github.com/mjbots/moteus',
     author = 'mjbots Robotic Systems',
     author_email = 'info@mjbots.com',
     classifiers = [
