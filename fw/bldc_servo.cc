@@ -1484,7 +1484,7 @@ class BldcServo::Impl {
 
     const float d_V =
         Limit(
-            pid_d_.Apply(status_.d_A, i_d_A, 1.0f, 0.0f, kRateHz),
+            pid_d_.Apply(status_.d_A, i_d_A, kRateHz),
             -max_V, max_V);
 
     const float max_current_integral =
@@ -1495,7 +1495,7 @@ class BldcServo::Impl {
 
     const float q_V =
         Limit(
-            pid_q_.Apply(status_.q_A, i_q_A, 0.0f, 0.0f, kRateHz),
+            pid_q_.Apply(status_.q_A, i_q_A, kRateHz),
             -max_V, max_V);
     status_.pid_q.integral = Limit(
         status_.pid_q.integral,
@@ -1860,8 +1860,8 @@ class BldcServo::Impl {
   uint32_t calibrate_adc3_ = 0;
   uint16_t calibrate_count_ = 0;
 
-  PID pid_d_{&config_.pid_dq, &status_.pid_d};
-  PID pid_q_{&config_.pid_dq, &status_.pid_q};
+  SimplePI pid_d_{&config_.pid_dq, &status_.pid_d};
+  SimplePI pid_q_{&config_.pid_dq, &status_.pid_q};
   PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   Stm32Serial debug_serial_;

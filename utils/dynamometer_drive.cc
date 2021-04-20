@@ -199,7 +199,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3050 ||
+        result.final_timer > 2950 ||
         result.total_timer < 4250) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",

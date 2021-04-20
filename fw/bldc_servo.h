@@ -31,6 +31,7 @@
 #include "fw/moteus_hw.h"
 #include "fw/motor_driver.h"
 #include "fw/pid.h"
+#include "fw/simple_pi.h"
 
 namespace moteus {
 
@@ -159,7 +160,7 @@ class BldcServo {
 
     // We use the same PID constants for D and Q current control
     // loops.
-    PID::Config pid_dq;
+    SimplePI::Config pid_dq;
     PID::Config pid_position;
 
     float max_position_slip = std::numeric_limits<float>::quiet_NaN();
@@ -191,9 +192,6 @@ class BldcServo {
     Config() {
       pid_dq.kp = 0.005f;
       pid_dq.ki = 30.0f;
-      pid_dq.ilimit = 20.0f;
-      pid_dq.sign = -1.0f;
-      pid_dq.max_desired_rate = 30000.0f;
 
       pid_position.kp = 4.0f;
       pid_position.ki = 1.0f;
@@ -352,8 +350,8 @@ class BldcServo {
     float velocity = 0.0f;
     float torque_Nm = 0.0f;
 
-    PID::State pid_d;
-    PID::State pid_q;
+    SimplePI::State pid_d;
+    SimplePI::State pid_q;
     PID::State pid_position;
 
     // This is scaled to be 65536 larger than unwrapped_position_raw.
