@@ -674,9 +674,9 @@ class Stream:
         if self.args.encoder_bw_hz:
             encoder_bw_hz = self.args.encoder_bw_hz
         else:
-            # We default to an encoder bandwidth of 200Hz, or 2x the
+            # We default to an encoder bandwidth of 100Hz, or 2x the
             # torque bw, whichever is larger.
-            encoder_bw_hz = max(200, 2 * torque_bw_hz)
+            encoder_bw_hz = max(100, 2 * torque_bw_hz)
 
         # And our bandwidth with the filter can be no larger than 4kHz
         # (this is dictated by the 40kHz control rate of moteus).
