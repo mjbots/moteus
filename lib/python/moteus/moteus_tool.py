@@ -502,6 +502,9 @@ class Stream:
 
             await self.check_for_fault()
 
+        enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(torque_bw_hz)
+        await self.check_for_fault()
+
         v_per_hz = await self.calibrate_kv_rating(unwrapped_position_scale)
         await self.check_for_fault()
 
@@ -527,6 +530,9 @@ class Stream:
             'pid_dq_kp' : kp,
             'pid_dq_ki' : ki,
             'torque_bw_hz' : torque_bw_hz,
+            'encoder_filter_bw_hz' : enc_bw_hz,
+            'encoder_filter_kp' : enc_kp,
+            'encoder_filter_ki' : enc_ki,
             'v_per_hz' : v_per_hz,
             # We measure voltage to the center, not peak-to-peak, thus
             # the extra 0.5.
@@ -664,6 +670,27 @@ class Stream:
         print(f"Calculated inductance: {inductance}H")
         return inductance
 
+    async def set_encoder_filter(self, torque_bw_hz):
+        if self.args.encoder_bw_hz:
+            encoder_bw_hz = self.args.encoder_bw_hz
+        else:
+            # We default to an encoder bandwidth of 200Hz, or 2x the
+            # torque bw, whichever is larger.
+            encoder_bw_hz = max(200, 2 * torque_bw_hz)
+
+        # And our bandwidth with the filter can be no larger than 4kHz
+        # (this is dictated by the 40kHz control rate of moteus).
+        encoder_bw_hz = min(4000, encoder_bw_hz)
+
+        w_3db = encoder_bw_hz * 2 * math.pi
+        kp = 2 * w_3db
+        ki = w_3db * w_3db
+
+        await self.command(f"conf set servo.encoder_filter.enabled 1")
+        await self.command(f"conf set servo.encoder_filter.kp {kp}")
+        await self.command(f"conf set servo.encoder_filter.ki {ki}")
+        return kp, ki, encoder_bw_hz
+
     def calculate_bandwidth(self, resistance, inductance):
         twopi = 2 * math.pi
 
@@ -773,12 +800,20 @@ class Stream:
         await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}")
 
         pid_dq_kp = report.get('pid_dq_kp', None)
-        if pid_dq_kp:
+        if pid_dq_kp is not None:
             await self.command(f"conf set servo.pid_dq.kp {pid_dq_kp}")
 
         pid_dq_ki = report.get('pid_dq_ki', None)
-        if pid_dq_ki:
+        if pid_dq_ki is not None:
             await self.command(f"conf set servo.pid_dq.ki {pid_dq_ki}")
+
+        enc_kp = report.get('encoder_filter_kp', None)
+        if enc_kp is not None:
+            await self.command(f"conf set servo.encoder_filter.kp {enc_kp}")
+
+        enc_ki = report.get('encoder_filter_ki', None)
+        if enc_ki is not None:
+            await self.command(f"conf set servo.encoder_filter.ki {enc_ki}")
 
         await self.command("conf write")
 
@@ -913,6 +948,9 @@ async def async_main():
     parser.add_argument('--cal-bw-hz', metavar='HZ', type=float,
                         default=50.0,
                         help='configure current loop bandwidth in Hz')
+    parser.add_argument('--encoder-bw-hz', metavar='HZ', type=float,
+                        default=None,
+                        help='override the encoder filter bandwidth in Hz')
     parser.add_argument('--cal-no-update', action='store_true',
                         help='do not store calibration results on motor')
     parser.add_argument('--cal-power', metavar='V', type=float, default=0.4,

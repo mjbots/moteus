@@ -819,21 +819,24 @@ class BldcServo::Impl {
     status_.dwt.done_pos_sample = DWT->CYCCNT;
 #endif
 
-    status_.position =
+    status_.position_unfilt =
         (motor_.invert ? (65536 - status_.position_raw) : status_.position_raw);
 
+    ISR_UpdatePosition();
+
     const int offset_size = motor_.offset.size();
-    const int offset_index = status_.position * offset_size / 65536;
+    const uint16_t int_position = static_cast<uint16_t>(status_.position);
+    const int offset_index = int_position * offset_size / 65536;
     MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
 
     constexpr float kU16ToTheta = k2Pi / 65536.0f;
     status_.electrical_theta =
         WrapZeroToTwoPi(
-            ((position_constant_ * status_.position) % 65536) * kU16ToTheta +
+            ((position_constant_ * int_position) % 65536) * kU16ToTheta +
             motor_.offset[offset_index]);
 
     const int16_t delta_position =
-        static_cast<int16_t>(status_.position - old_position);
+        static_cast<int16_t>(int_position - old_position);
     if ((status_.mode != kStopped && status_.mode != kFault) &&
         std::abs(delta_position) > kMaxPositionDelta) {
       // We probably had an error when reading the position.  We must fault.
@@ -859,7 +862,7 @@ class BldcServo::Impl {
 
       const int16_t zero_position =
           static_cast<int16_t>(
-              static_cast<int32_t>(status_.position) +
+              static_cast<int32_t>(int_position) +
               motor_.position_offset * (motor_.invert ? -1 : 1));
       const float error =
           position_to_set -
@@ -870,6 +873,8 @@ class BldcServo::Impl {
           static_cast<int64_t>(65536ll * 65536ll) *
           zero_position + integral_offsets * 65536.0f;
       status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
+      // In case we are in encoder PLL mode.
+      status_.velocity = 0.0f;
       if (need_rezero_because_init) {
         status_.rezeroed = true;
       }
@@ -878,7 +883,7 @@ class BldcServo::Impl {
           static_cast<int64_t>(65536ll * 65536ll) * delta_position;
     }
 
-    {
+    if (!config_.encoder_filter.enabled) {
       // We construct the velocity in a careful way so as to maximize
       // the available resolution.  The windowed filter is calculated
       // losslessly.  Then, the average is conducted in the floating
@@ -1567,6 +1572,26 @@ class BldcServo::Impl {
 
     ISR_DoPositionCommon(sin_cos, data, apply_options, data->max_torque_Nm,
                          data->feedforward_Nm, data->velocity);
+  }
+
+  void ISR_UpdatePosition() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
+    if (config_.encoder_filter.enabled) {
+      status_.position += kPeriodS * status_.velocity * motor_scale16_;
+
+      const float error =
+          -static_cast<int16_t>(
+              static_cast<int32_t>(status_.position) - status_.position_unfilt);
+
+      status_.position += kPeriodS * config_.encoder_filter.kp * error;
+      status_.position = ::fmodf(status_.position, 65536.0f);
+      if (status_.position < 0.0f) {
+        status_.position += 65536.0f;
+      }
+      status_.velocity += kPeriodS * config_.encoder_filter.ki *
+          error / motor_scale16_;
+    } else {
+      status_.position = status_.position_unfilt;
+    }
   }
 
   void ISR_DoPositionCommon(

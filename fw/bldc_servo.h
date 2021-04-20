@@ -193,6 +193,20 @@ class BldcServo {
     // debug UART at full control rate.
     uint32_t emit_debug = 0;
 
+    struct EncoderFilter {
+      bool enabled = false;
+      float kp = 0.0f;
+      float ki = 0.0f;
+
+      template <typename Archive>
+      void Serialize(Archive* a) {
+        a->Visit(MJ_NVP(enabled));
+        a->Visit(MJ_NVP(kp));
+        a->Visit(MJ_NVP(ki));
+      }
+    };
+    EncoderFilter encoder_filter;
+
     Config() {
       pid_dq.kp = 0.005f;
       pid_dq.ki = 30.0f;
@@ -232,6 +246,7 @@ class BldcServo {
       a->Visit(MJ_NVP(cooldown_cycles));
       a->Visit(MJ_NVP(rezero_from_abs));
       a->Visit(MJ_NVP(emit_debug));
+      a->Visit(MJ_NVP(encoder_filter));
     }
   };
 
@@ -329,6 +344,7 @@ class BldcServo {
     uint16_t adc_motor_temp_raw = 0;
 
     uint16_t position_raw = 0;
+    uint16_t position_unfilt = 0;
 
     uint16_t adc_cur1_offset = 2048;
     uint16_t adc_cur2_offset = 2048;
@@ -341,7 +357,7 @@ class BldcServo {
     float bus_V = 0.0f;
     float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
     float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
-    uint16_t position = 0;
+    float position = 0;
     float fet_temp_C = 0.0f;
     float filt_fet_temp_C = std::numeric_limits<float>::quiet_NaN();
 
@@ -424,6 +440,7 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_motor_temp_raw));
 
       a->Visit(MJ_NVP(position_raw));
+      a->Visit(MJ_NVP(position_unfilt));
 
       a->Visit(MJ_NVP(adc_cur1_offset));
       a->Visit(MJ_NVP(adc_cur2_offset));
