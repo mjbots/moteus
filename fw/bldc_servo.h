@@ -197,12 +197,14 @@ class BldcServo {
       bool enabled = false;
       float kp = 0.0f;
       float ki = 0.0f;
+      int32_t debug_override = -1;
 
       template <typename Archive>
       void Serialize(Archive* a) {
         a->Visit(MJ_NVP(enabled));
         a->Visit(MJ_NVP(kp));
         a->Visit(MJ_NVP(ki));
+        a->Visit(MJ_NVP(debug_override));
       }
     };
     EncoderFilter encoder_filter;

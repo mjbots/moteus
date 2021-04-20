@@ -1592,6 +1592,10 @@ class BldcServo::Impl {
     } else {
       status_.position = status_.position_unfilt;
     }
+
+    if (config_.encoder_filter.debug_override >= 0) {
+      status_.position = config_.encoder_filter.debug_override;
+    }
   }
 
   void ISR_DoPositionCommon(
