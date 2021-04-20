@@ -671,6 +671,16 @@ class Stream:
         return inductance
 
     async def set_encoder_filter(self, torque_bw_hz):
+        # Check to see if our firmware supports encoder filtering.
+        result = await self.command(
+            "conf get servo.encoder_filter.enabled",
+            allow_any_response=True)
+        if result.startswith(b'ERR'):
+            if not b'error reading' in result:
+                raise RuntimeError('Unknown error checking for encoder filter')
+            print("Firmware does not support encoder filtering")
+            return None, None, None
+
         if self.args.encoder_bw_hz:
             encoder_bw_hz = self.args.encoder_bw_hz
         else:
