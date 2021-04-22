@@ -600,7 +600,7 @@ class Stream:
         return cal_result
 
     async def find_current(self, voltage):
-        assert voltage < 3.0
+        assert voltage < 20.0
         assert voltage >= 0.0
 
         await self.command(f"d pwm 0 {voltage:.3f}")
@@ -635,6 +635,11 @@ class Stream:
 
         winding_resistance = _calculate_winding_resistance(voltages, currents)
 
+        if winding_resistance < 0.001:
+            raise RuntimeError(
+                f'Winding resistance too small ({winding_resistance} < 0.001)' +
+                f', try adjusting --cal-voltage')
+
         if not self.args.cal_no_update:
             await self.command(f"conf set motor.resistance_ohm {winding_resistance}")
 
@@ -666,6 +671,9 @@ class Stream:
         delta_time = end - start
         inductance = (self.args.cal_voltage /
                       (data.meas_ind_integrator / delta_time))
+
+        if inductance < 1e-6:
+            raise RuntimeError(f'Inductance too small ({inductance} < 1e-6)')
 
         print(f"Calculated inductance: {inductance}H")
         return inductance
