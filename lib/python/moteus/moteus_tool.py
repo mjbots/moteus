@@ -964,7 +964,7 @@ async def async_main():
     group.add_argument('--calibrate', action='store_true',
                         help='calibrate the motor, requires full freedom of motion')
     parser.add_argument('--cal-bw-hz', metavar='HZ', type=float,
-                        default=50.0,
+                        default=100.0,
                         help='configure current loop bandwidth in Hz')
     parser.add_argument('--encoder-bw-hz', metavar='HZ', type=float,
                         default=None,
