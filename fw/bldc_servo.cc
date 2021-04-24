@@ -1454,7 +1454,8 @@ class BldcServo::Impl {
 
     auto limit_q_velocity = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       const float abs_velocity = std::abs(status_.velocity);
-      if (abs_velocity < config_.max_velocity) {
+      if (abs_velocity < config_.max_velocity ||
+          status_.velocity * in < 0.0f) {
         return in;
       }
       const float derate_fraction =
