@@ -16,3 +16,7 @@ sudo apt install python3-pyside2* python3-serial python3-can python3-matplotlib 
 sudo pip3 install asyncqt importlib_metadata pyelftools
 sudo pip3 install --no-deps moteus moteus_gui
 ```
+
+# Running moteus_tool and tview #
+
+pi3hat specific options for these tools are documented at https://github.com/mjbots/pi3hat/blob/master/docs/reference.md#usage-with-client-side-tools
