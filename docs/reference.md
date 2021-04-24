@@ -810,6 +810,8 @@ persistent storage.
 
 Enter the bootloader.
 
+NOTE: This is only intended for internal use.  Users who want to flash new firmware should use `moteus_tool`.
+
 ## B.2 `tel` - telemetry ##
 
 ### `tel get` ###
@@ -1116,6 +1118,15 @@ configure `motor.unwrapped_position_scale`.
 ## Flashing and building firmware ##
 
 ### Flashing over CAN ###
+
+The latest firmware can be downloaded from: https://github.com/mjbots/moteus/releases
+
+You need the file named YYYYMMDD-moteus-HASH.elf NOT the one named
+"bootloader".
+
+Download that file and save it somewhere on your computer, then
+substitute its path in place of `path/to/file.elf` in the following
+command.
 
 ```
 python3 -m moteus.moteus_tool --target 1 --flash path/to/file.elf
