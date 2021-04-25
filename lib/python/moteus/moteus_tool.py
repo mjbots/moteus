@@ -29,6 +29,7 @@ import struct
 import sys
 import tempfile
 import time
+import uuid
 
 from . import moteus
 from . import aiostream
@@ -336,9 +337,21 @@ class Stream:
             return False
         return True
 
+    async def read_uuid(self):
+        try:
+            text_data = await self.command("conf enumerate uuid")
+            b = bytes([int(x.split(b' ')[1])
+                       for x in text_data.split(b'\n') if len(x)])
+            return uuid.UUID(bytes=b)
+        except moteus.CommandError as ce:
+            if not 'unknown group' in ce.message:
+                raise
+            return None
+
     async def get_device_info(self):
         firmware = await self.read_data("firmware")
         git = await self.read_data("git")
+        uuid = await self.read_uuid()
 
         result = {}
         result['serial_number'] = _base64_serial_number(
@@ -349,6 +362,7 @@ class Stream:
         result['git_hash'] = _make_git_hash(git.hash)
         result['git_dirty'] = getattr(git, 'dirty', 0) != 0
         result['git_timestamp'] = getattr(git, 'timestamp', 0)
+        result['uuid'] = str(uuid) if uuid is not None else ''
 
         return result
 

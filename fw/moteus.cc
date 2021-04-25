@@ -34,6 +34,7 @@
 #include "fw/moteus_controller.h"
 #include "fw/moteus_hw.h"
 #include "fw/system_info.h"
+#include "fw/uuid.h"
 
 #if defined(TARGET_STM32G4)
 #include "fw/fdcan.h"
@@ -273,6 +274,7 @@ int main(void) {
   SystemInfo system_info(pool, telemetry_manager);
   FirmwareInfo firmware_info(pool, telemetry_manager,
                              kMoteusFirmwareVersion, MOTEUS_MODEL_NUMBER);
+  Uuid uuid(persistent_config);
   ClockManager clock(&timer, persistent_config, command_manager);
 
   AbsPort abs_port(
