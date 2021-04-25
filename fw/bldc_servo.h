@@ -88,12 +88,18 @@ class BldcServo {
   };
 
   struct Motor {
-    uint8_t poles = 0;  // 14
+    uint8_t poles = 0;
+
+    // Invert the sense of the encoder.
     uint8_t invert = 0;
-    float resistance_ohm = 0.0f;  // 0.030
+
+    // Invert the order of phase movement.
+    uint8_t phase_invert = 0;
+
+    float resistance_ohm = 0.0f;
 
     // Hz is electrical
-    float v_per_hz = 0.0f;  // 0.15f / 5.0f;
+    float v_per_hz = 0.0f;
 
     float unwrapped_position_scale = 1.0f;
 
@@ -121,6 +127,7 @@ class BldcServo {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(poles));
       a->Visit(MJ_NVP(invert));
+      a->Visit(MJ_NVP(phase_invert));
       a->Visit(MJ_NVP(resistance_ohm));
       a->Visit(MJ_NVP(v_per_hz));
       a->Visit(MJ_NVP(unwrapped_position_scale));

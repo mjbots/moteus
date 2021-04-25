@@ -961,6 +961,9 @@ class BldcServo::Impl {
     status_.cur1_A = (status_.adc_cur1_raw - status_.adc_cur1_offset) * adc_scale_;
     status_.cur2_A = (status_.adc_cur2_raw - status_.adc_cur2_offset) * adc_scale_;
     status_.cur3_A = (status_.adc_cur3_raw - status_.adc_cur3_offset) * adc_scale_;
+    if (motor_.phase_invert) {
+      std::swap(status_.cur2_A, status_.cur3_A);
+    }
     status_.bus_V = status_.adc_voltage_sense_raw * vsense_adc_scale_;
 
     ISR_UpdateFilteredBusV(&status_.filt_bus_V, 0.5f);
@@ -1388,15 +1391,19 @@ class BldcServo::Impl {
     const uint16_t pwm2 = static_cast<uint16_t>(control_.pwm.b * pwm_counts_);
     const uint16_t pwm3 = static_cast<uint16_t>(control_.pwm.c * pwm_counts_);
 
-    // NOTE(jpieper): We flip pwm2 and pwm3 here, which changes the
-    // order of stepping.  Why you may ask?  No good reason.  It does
-    // require that the currents be similarly swapped in
-    // ISR_CalculateCurrentState.  Changing it back now would reverse
-    // the sign of position for any existing motor, so it isn't an
-    // easy change to make.
+    // NOTE(jpieper): The default ordering has pwm2 and pwm3 flipped.
+    // Why you may ask?  No good reason.  It does require that the
+    // currents be similarly swapped in ISR_CalculateCurrentState.
+    // Changing it back now would reverse the sign of position for any
+    // existing motor, so it isn't an easy change to make.
     *pwm1_ccr_ = pwm1;
-    *pwm2_ccr_ = pwm3;
-    *pwm3_ccr_ = pwm2;
+    if (!motor_.phase_invert) {
+      *pwm2_ccr_ = pwm3;
+      *pwm3_ccr_ = pwm2;
+    } else {
+      *pwm2_ccr_ = pwm2;
+      *pwm3_ccr_ = pwm3;
+    }
 
     motor_driver_->Power(true);
   }

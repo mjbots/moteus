@@ -327,6 +327,15 @@ class Stream:
         result = await self.command(f"conf get {name}", allow_any_response=True)
         return float(result)
 
+    async def is_config_supported(self, name):
+        result = await self.command(f"conf get {name}", allow_any_response=True)
+        if result.startswith(b'ERR'):
+            if not b'error reading' in result:
+                raise RuntimeError(
+                    f'Unknown error checking for {name}: {result}')
+            return False
+        return True
+
     async def get_device_info(self):
         firmware = await self.read_data("firmware")
         git = await self.read_data("git")
@@ -583,8 +592,16 @@ class Stream:
                 f.write(cal_data)
 
         cal_file = ce.parse_file(io.BytesIO(cal_data))
+
+        # See if we support phase_invert.
+        allow_phase_invert = \
+            await self.is_config_supported("motor.phase_invert")
+
         cal_result = ce.calibrate(
-            cal_file, max_remainder_error=self.args.cal_max_remainder)
+            cal_file,
+            desired_direction=1 if not self.args.cal_invert else -1,
+            max_remainder_error=self.args.cal_max_remainder,
+            allow_phase_invert=allow_phase_invert)
 
         if cal_result.errors:
             raise RuntimeError(f"Error(s) calibrating: {cal_result.errors}")
@@ -594,6 +611,9 @@ class Stream:
             await self.command(f"conf set motor.poles {cal_result.poles}")
             await self.command("conf set motor.invert {}".format(
                 1 if cal_result.invert else 0))
+            if allow_phase_invert:
+                await self.command("conf set motor.phase_invert {}".format(
+                    1 if cal_result.phase_invert else 0))
             for i, offset in enumerate(cal_result.offset):
                 await self.command(f"conf set motor.offset.{i} {offset}")
 
@@ -680,13 +700,7 @@ class Stream:
 
     async def set_encoder_filter(self, torque_bw_hz):
         # Check to see if our firmware supports encoder filtering.
-        result = await self.command(
-            "conf get servo.encoder_filter.enabled",
-            allow_any_response=True)
-        if result.startswith(b'ERR'):
-            if not b'error reading' in result:
-                raise RuntimeError('Unknown error checking for encoder filter')
-            print("Firmware does not support encoder filtering")
+        if not await self.is_config_supported("servo.encoder_filter.enabled"):
             return None, None, None
 
         if self.args.encoder_bw_hz:
@@ -811,6 +825,10 @@ class Stream:
             f"conf set motor.poles {cal_result['poles']}")
         await self.command(
             f"conf set motor.invert {1 if cal_result['invert'] else 0}")
+        if await self.is_config_supported("motor.phase_invert"):
+            phase_invert = cal_result.get('phase_invert', False)
+            await self.command(
+                f"conf set motor.phase_invert {1 if phase_invert else 0}")
         for index, offset in enumerate(cal_result['offset']):
             await self.command(f"conf set motor.offset.{index} {offset}")
 
@@ -963,6 +981,8 @@ async def async_main():
 
     group.add_argument('--calibrate', action='store_true',
                         help='calibrate the motor, requires full freedom of motion')
+    parser.add_argument('--cal-invert', action='store_true',
+                        help='if set, then commands and encoder will oppose')
     parser.add_argument('--cal-bw-hz', metavar='HZ', type=float,
                         default=100.0,
                         help='configure current loop bandwidth in Hz')

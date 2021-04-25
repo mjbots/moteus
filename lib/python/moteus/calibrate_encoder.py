@@ -68,6 +68,14 @@ def parse_file(fp):
     return result
 
 
+def _wrap_uint16(value):
+    while value < 0:
+        value += 65536
+    while value > 65535:
+        value -= 65536
+    return value
+
+
 def _wrap_int16(value):
     while value > 32767:
         value -= 65536
@@ -160,6 +168,7 @@ def _window_average(values, window_size):
 class CalibrationResult:
     def __init__(self):
         self.invert = None
+        self.phase_invert = None
         self.poles = None
         self.offset = None
 
@@ -172,6 +181,7 @@ class CalibrationResult:
     def __repr__(self):
         return json.dumps({
             "invert": self.invert,
+            "phase_invert": self.phase_invert,
             "poles": self.poles,
             "offset": self.offset,
             "errors": self.errors,
@@ -180,12 +190,25 @@ class CalibrationResult:
     def to_json(self):
         return {
             'invert': self.invert,
+            'phase_invert': self.phase_invert,
             'poles': self.poles,
             'offset': self.offset,
         }
 
 
-def calibrate(parsed, max_remainder_error=0.1):
+def calibrate(parsed,
+              desired_direction=1,
+              max_remainder_error=0.1,
+              allow_phase_invert=True):
+    '''Calibrate the motor.
+
+    :param desired_direction: For positive unwrapped_position, should
+      the encoder increase (positive value), or decrease (negative
+      value)
+
+    :param allow_phase_invert: If False, then phase_invert must remain
+      false (presumably because the firmware does not support it.
+    '''
     if (len(parsed.phase_up) < 2 or
         len(parsed.phase_down) < 2):
         raise RuntimeError("one or more phases were empty")
@@ -204,15 +227,43 @@ def calibrate(parsed, max_remainder_error=0.1):
     result = CalibrationResult()
 
     # Figure out inversion.
-    if total_delta < 0:
+    if desired_direction > 0 and total_delta > 0:
+        # This is the "norminal" case.
+        result.invert = False
+        result.phase_invert = False
+    elif desired_direction < 0 and total_delta < 0:
+        # Here, we want to be moving backwards, so we flip the encoder
+        # sign.
         result.invert = True
+        result.phase_invert = False
+    elif desired_direction < 0 and total_delta > 0:
+        result.invert = True
+        result.phase_invert = True
+    elif desired_direction > 0 and total_delta < 0:
+        result.invert = False
+        result.phase_invert = True
+    else:
+        assert False
+
+    if result.phase_invert:
+        # We need to flip phase.
+        if not allow_phase_invert:
+            raise RuntimeError(
+                "Requested motor direction not possible with " +
+                "current firmware version")
+        for item in parsed.phase_up:
+            item.phase = _wrap_uint16(-item.phase)
+            item.i2, item.i3 = item.i3, item.i2
+        for item in parsed.phase_down:
+            item.phase = _wrap_uint16(-item.phase)
+            item.i2, item.i3 = item.i3, item.i2
+
+    if result.invert:
         for item in parsed.phase_up:
             item.encoder = 65535 - item.encoder
         for item in parsed.phase_down:
             item.encoder = 65535 - item.encoder
         total_delta *= -1
-    else:
-        result.invert = False
 
     # Next, figure out the number of poles.  We compare the total
     # encoder delta to the total phase delta.
