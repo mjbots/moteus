@@ -1853,6 +1853,18 @@ class BldcServo::Impl {
     }
 
     if (config_.emit_debug & (1 << 7)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.cur1_A / 100.0f));
+    }
+
+    if (config_.emit_debug & (1 << 8)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.cur2_A / 100.0f));
+    }
+
+    if (config_.emit_debug & (1 << 9)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.cur3_A / 100.0f));
+    }
+
+    if (config_.emit_debug & (1 << 10)) {
       write_scalar(static_cast<int16_t>(32767.0f * control_.torque_Nm / 30.0f));
     }
 
