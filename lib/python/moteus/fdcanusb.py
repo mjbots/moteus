@@ -159,7 +159,12 @@ class Fdcanusb:
         # This merely sends a command and doesn't even wait for an OK
         # to come back.  It can *not* be intermixed with calls to
         # 'cycle'.
-        bus_id = command.destination + (0x8000 if command.reply_required else 0)
+        bus_id = None
+        if command.raw:
+            bus_id = command.arbitration_id
+        else:
+            bus_id = (command.destination +
+                      (0x8000 if command.reply_required else 0))
         cmd = "can send {:04x} {}\n".format(
             bus_id, _hexify(command.data)).encode('latin1')
         self._serial.write(cmd)

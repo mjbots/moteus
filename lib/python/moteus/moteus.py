@@ -335,6 +335,8 @@ def parse_reply(data):
 
 class Result:
     id = None
+    arbitration_id = None
+    bus = None
     values = []
 
     def __repr__(self):
@@ -348,6 +350,13 @@ def make_parser(id):
         result = Result()
         result.id = id
         result.values = parse_reply(message.data)
+
+        # We store these things just for reference, so that our
+        # results look a bit like CAN responses too.
+        result.arbitration_id = message.arbitration_id
+        result.bus = message.bus
+        result.data = message.data
+
         return result
     return parse
 

@@ -1,4 +1,4 @@
-# Copyright 2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020-2021 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,5 +19,13 @@ class Command():
     reply_required = False
     data = b''
 
-    def parse(self, data):
-        return None
+    # If True, then the following parameters are used directly instead
+    # of being calculated from destination and source (i.e. for
+    # non-moteus devices).
+    raw = False
+    arbitration_id = 0  # this is the name python-can gives
+    bus = None  # Only valid for pi3hat
+
+    def parse(self, message):
+        # By default, we just return the message as is.
+        return message
