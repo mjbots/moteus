@@ -907,6 +907,7 @@ persistent storage.
 Update the RAM values of all configurable parameters to their firmware
 default.
 
+In order to write this to persistent storage, use `conf write` after executing `conf default`. To update the GUI, restart the tview.  
 
 # C. Configurable values #
 
