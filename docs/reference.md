@@ -872,6 +872,11 @@ Switch all channels to text mode.
 
 ## B.3 `conf` - configuration ##
 
+NOTE: Any commands that change parameters, such as `conf set`, `conf
+load`, or `conf default`, if executed manually in `tview` will not
+automatically update the UI.  `tview` must be restarted to display the
+new parameters in the UI.
+
 ### `conf enumerate` ###
 
 Print the current value of all configurable parameters.
@@ -907,6 +912,8 @@ persistent storage.
 Update the RAM values of all configurable parameters to their firmware
 default.
 
+NOTE: This only updates RAM, not the persistent storage.  A `conf
+write` will be necessary to save these to persistant storage.
 
 # C. Configurable values #
 
