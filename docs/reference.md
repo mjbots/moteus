@@ -774,9 +774,9 @@ d index <position>
 
 ### `d rezero` ###
 
-Assuming that `motor.offset` is configured correctly, update the
-current position to the closest one which is consistent with a given
-output position.
+Assuming that `motor.position_offset` is configured correctly, update
+the current position to the closest one which is consistent with a
+given output position.
 
 ```
 d rezero <position>
