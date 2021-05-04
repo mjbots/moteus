@@ -1512,7 +1512,7 @@ class BldcServo::Impl {
             -max_V, max_V);
 
     const float max_current_integral =
-        kMaxVoltageRatio * 0.25f * status_.filt_bus_V;
+        kMaxVoltageRatio * 0.5f * status_.filt_bus_V;
     status_.pid_d.integral = Limit(
         status_.pid_d.integral,
         -max_current_integral, max_current_integral);
