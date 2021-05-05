@@ -8967,32 +8967,34 @@ Licensed under the Apache 2.0 License</text>
 </net>
 <net name="CAN_P" class="1">
 <segment>
-<wire x1="-223.52" y1="-83.82" x2="-200.66" y2="-83.82" width="0.1524" layer="91"/>
+<wire x1="-223.52" y1="-83.82" x2="-208.28" y2="-83.82" width="0.1524" layer="91"/>
 <pinref part="U2" gate="G$1" pin="CANH"/>
 <pinref part="CAN1" gate="A" pin="1"/>
 <pinref part="CAN2" gate="A" pin="1"/>
+<wire x1="-208.28" y1="-83.82" x2="-200.66" y2="-83.82" width="0.1524" layer="91"/>
 <wire x1="-200.66" y1="-83.82" x2="-182.88" y2="-83.82" width="0.1524" layer="91"/>
 <junction x="-200.66" y="-83.82"/>
-</segment>
-<segment>
+<wire x1="-208.28" y1="-83.82" x2="-208.28" y2="-40.64" width="0.1524" layer="91"/>
 <pinref part="D4" gate="G$1" pin="1"/>
-<wire x1="-190.5" y1="-40.64" x2="-198.12" y2="-40.64" width="0.1524" layer="91"/>
 <label x="-198.12" y="-40.64" size="1.778" layer="95"/>
+<wire x1="-208.28" y1="-40.64" x2="-190.5" y2="-40.64" width="0.1524" layer="91"/>
+<junction x="-208.28" y="-83.82"/>
 </segment>
 </net>
 <net name="CAN_N" class="1">
 <segment>
 <pinref part="U2" gate="G$1" pin="CANL"/>
-<wire x1="-223.52" y1="-86.36" x2="-200.66" y2="-86.36" width="0.1524" layer="91"/>
+<wire x1="-223.52" y1="-86.36" x2="-205.74" y2="-86.36" width="0.1524" layer="91"/>
 <pinref part="CAN1" gate="A" pin="2"/>
 <pinref part="CAN2" gate="A" pin="2"/>
+<wire x1="-205.74" y1="-86.36" x2="-200.66" y2="-86.36" width="0.1524" layer="91"/>
 <wire x1="-200.66" y1="-86.36" x2="-182.88" y2="-86.36" width="0.1524" layer="91"/>
 <junction x="-200.66" y="-86.36"/>
-</segment>
-<segment>
+<wire x1="-205.74" y1="-86.36" x2="-205.74" y2="-66.04" width="0.1524" layer="91"/>
+<junction x="-205.74" y="-86.36"/>
 <pinref part="D4" gate="G$1" pin="2"/>
-<wire x1="-190.5" y1="-66.04" x2="-195.58" y2="-66.04" width="0.1524" layer="91"/>
 <label x="-198.12" y="-66.04" size="1.778" layer="95"/>
+<wire x1="-205.74" y1="-66.04" x2="-190.5" y2="-66.04" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="DEBUG_RX" class="0">
