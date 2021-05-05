@@ -830,6 +830,22 @@ MAX3223-MAX3243.pdf</description>
 <text x="4.4" y="-3.9" size="0.8" layer="21" font="vector" ratio="10" rot="R180">&gt;NAME</text>
 <smd name="1" x="3.75" y="0" dx="7" dy="0.85" layer="1" rot="R90" cream="no"/>
 </package>
+<package name="IND_BOURNS_SRN4018">
+<smd name="1" x="-1.524" y="0" dx="1.4986" dy="3.6068" layer="1"/>
+<smd name="2" x="1.524" y="0" dx="1.4986" dy="3.6068" layer="1"/>
+<wire x1="-2.2352" y1="-2.2352" x2="2.2352" y2="-2.2352" width="0.1524" layer="21"/>
+<wire x1="2.2352" y1="2.2352" x2="-2.2352" y2="2.2352" width="0.1524" layer="21"/>
+<wire x1="-2.9464" y1="0" x2="-3.0988" y2="0" width="0.1524" layer="21" curve="-180"/>
+<wire x1="-3.0988" y1="0" x2="-2.9464" y2="0" width="0.1524" layer="21" curve="-180"/>
+<wire x1="-2.0828" y1="-2.0828" x2="2.0828" y2="-2.0828" width="0.1524" layer="51"/>
+<wire x1="2.0828" y1="-2.0828" x2="2.0828" y2="2.0828" width="0.1524" layer="51"/>
+<wire x1="2.0828" y1="2.0828" x2="-2.0828" y2="2.0828" width="0.1524" layer="51"/>
+<wire x1="-2.0828" y1="2.0828" x2="-2.0828" y2="0" width="0.1524" layer="51"/>
+<wire x1="-2.0828" y1="0" x2="-2.0828" y2="-2.0828" width="0.1524" layer="51"/>
+<wire x1="-1.9304" y1="0" x2="-2.0828" y2="0" width="0" layer="51" curve="-180"/>
+<wire x1="-2.0828" y1="0" x2="-1.9304" y2="0" width="0" layer="51" curve="-180"/>
+<text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
+</package>
 </packages>
 <symbols>
 <symbol name="AS5147">
@@ -1128,6 +1144,21 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-2.54" y1="-5.08" x2="-4.318" y2="-5.08" width="0.254" layer="94"/>
 <wire x1="-4.318" y1="-5.08" x2="-5.08" y2="-5.842" width="0.254" layer="94"/>
 <wire x1="-2.54" y1="-5.08" x2="-2.54" y2="0" width="0.254" layer="94"/>
+</symbol>
+<symbol name="IND">
+<pin name="1" x="15.24" y="0" visible="off" length="short" direction="pas" rot="R180"/>
+<pin name="2" x="0" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
+<wire x1="5.08" y1="0" x2="5.08" y2="1.27" width="0.2032" layer="94"/>
+<wire x1="7.62" y1="0" x2="7.62" y2="1.27" width="0.2032" layer="94"/>
+<wire x1="12.7" y1="0" x2="12.7" y2="1.27" width="0.2032" layer="94"/>
+<wire x1="2.54" y1="0" x2="2.54" y2="1.27" width="0.2032" layer="94"/>
+<wire x1="10.16" y1="0" x2="10.16" y2="1.27" width="0.2032" layer="94"/>
+<wire x1="5.08" y1="1.27" x2="7.62" y2="1.27" width="0.1524" layer="94" curve="-180"/>
+<wire x1="2.54" y1="1.27" x2="5.08" y2="1.27" width="0.1524" layer="94" curve="-180"/>
+<wire x1="7.62" y1="1.27" x2="10.16" y2="1.27" width="0.1524" layer="94" curve="-180"/>
+<wire x1="10.16" y1="1.27" x2="12.7" y2="1.27" width="0.1524" layer="94" curve="-180"/>
+<text x="-1.9812" y="-4.2672" size="3.4798" layer="96" ratio="10" rot="SR0">&gt;Value</text>
+<text x="-0.9144" y="3.3528" size="3.4798" layer="95" ratio="10" rot="SR0">&gt;Name</text>
 </symbol>
 </symbols>
 <devicesets>
@@ -1643,6 +1674,25 @@ Source: &lt;a href="https://componentsearchengine.com/Datasheets/1/STM32G474CEU6
 </connects>
 <technologies>
 <technology name=""/>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="SRN4018-220M" prefix="L">
+<gates>
+<gate name="A" symbol="IND" x="0" y="0" swaplevel="1"/>
+</gates>
+<devices>
+<device name="" package="IND_BOURNS_SRN4018">
+<connects>
+<connect gate="A" pin="1" pad="1"/>
+<connect gate="A" pin="2" pad="2"/>
+</connects>
+<technologies>
+<technology name="">
+<attribute name="MANUFACTURER_PART_NUMBER" value="SRN4018220M" constant="no"/>
+<attribute name="VENDOR" value="Bourns Electronics" constant="no"/>
+</technology>
 </technologies>
 </device>
 </devices>
@@ -5486,6 +5536,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <smd name="2" x="-0.635" y="0" dx="1.27" dy="1.27" layer="1" stop="no" cream="no"/>
 <text x="-1.27" y="-2.032" size="1.27" layer="25" ratio="16">&gt;NAME</text>
 </package>
+<package name="SHORT_TOP-MEDIUM">
+<smd name="1" x="0.3175" y="0" dx="0.635" dy="0.635" layer="1" stop="no" cream="no"/>
+<smd name="2" x="-0.3175" y="0" dx="0.635" dy="0.635" layer="1" stop="no" cream="no"/>
+<text x="-1.27" y="-2.032" size="1.27" layer="25" ratio="16">&gt;NAME</text>
+</package>
 </packages>
 <symbols>
 <symbol name="SHORT-H">
@@ -5525,6 +5580,15 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </technologies>
 </device>
 <device name="BIG" package="SHORT_TOP-BIG">
+<connects>
+<connect gate="G$1" pin="P$1" pad="1"/>
+<connect gate="G$1" pin="P$2" pad="2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="MEDIUM" package="SHORT_TOP-MEDIUM">
 <connects>
 <connect gate="G$1" pin="P$1" pad="1"/>
 <connect gate="G$1" pin="P$2" pad="2"/>
@@ -5769,29 +5833,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="-1.016" y1="1.016" x2="-1.016" y2="-1.016" width="0.1524" layer="51"/>
 <text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
 </package>
-<package name="IND_TAIYO_CBC3225_TAY">
-<smd name="1" x="-1.27635" y="0" dx="0.8509" dy="2.6924" layer="1"/>
-<smd name="2" x="1.27635" y="0" dx="0.8509" dy="2.6924" layer="1"/>
-<wire x1="-0.5334" y1="-1.4732" x2="0.5334" y2="-1.4732" width="0.1524" layer="21"/>
-<wire x1="0.5334" y1="1.4732" x2="-0.5334" y2="1.4732" width="0.1524" layer="21"/>
-<wire x1="-2.3876" y1="0" x2="-2.54" y2="0" width="0.1524" layer="21" curve="-180"/>
-<wire x1="-2.54" y1="0" x2="-2.3876" y2="0" width="0.1524" layer="21" curve="-180"/>
-<text x="-1.7272" y="-0.635" size="1.27" layer="21" ratio="6" rot="SR0">&gt;Value</text>
-<wire x1="-1.7272" y1="-1.3462" x2="1.7272" y2="-1.3462" width="0.1524" layer="51"/>
-<wire x1="1.7272" y1="-1.3462" x2="1.7272" y2="1.3462" width="0.1524" layer="51"/>
-<wire x1="1.7272" y1="1.3462" x2="-1.7272" y2="1.3462" width="0.1524" layer="51"/>
-<wire x1="-1.7272" y1="1.3462" x2="-1.7272" y2="0" width="0.1524" layer="51"/>
-<wire x1="-1.7272" y1="0" x2="-1.7272" y2="-1.3462" width="0.1524" layer="51"/>
-<wire x1="-1.5748" y1="0" x2="-1.7272" y2="0" width="0" layer="51" curve="-180"/>
-<wire x1="-1.7272" y1="0" x2="-1.5748" y2="0" width="0" layer="51" curve="-180"/>
-<polygon width="0.1524" layer="41">
-<vertex x="-0.8001" y="1.2954"/>
-<vertex x="0.8001" y="1.2954"/>
-<vertex x="0.8001" y="-1.2954"/>
-<vertex x="-0.8001" y="-1.2954"/>
-</polygon>
-<text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
-</package>
 </packages>
 <symbols>
 <symbol name="MAX15062AATA+T">
@@ -5809,21 +5850,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <wire x1="43.18" y1="5.08" x2="7.62" y2="5.08" width="0.1524" layer="94"/>
 <text x="20.6756" y="9.1186" size="2.0828" layer="95" ratio="6" rot="SR0">&gt;Name</text>
 <text x="20.0406" y="6.5786" size="2.0828" layer="96" ratio="6" rot="SR0">&gt;Value</text>
-</symbol>
-<symbol name="IND">
-<pin name="1" x="15.24" y="0" visible="off" length="short" direction="pas" rot="R180"/>
-<pin name="2" x="0" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
-<wire x1="5.08" y1="0" x2="5.08" y2="1.27" width="0.2032" layer="94"/>
-<wire x1="7.62" y1="0" x2="7.62" y2="1.27" width="0.2032" layer="94"/>
-<wire x1="12.7" y1="0" x2="12.7" y2="1.27" width="0.2032" layer="94"/>
-<wire x1="2.54" y1="0" x2="2.54" y2="1.27" width="0.2032" layer="94"/>
-<wire x1="10.16" y1="0" x2="10.16" y2="1.27" width="0.2032" layer="94"/>
-<wire x1="5.08" y1="1.27" x2="7.62" y2="1.27" width="0.1524" layer="94" curve="-180"/>
-<wire x1="2.54" y1="1.27" x2="5.08" y2="1.27" width="0.1524" layer="94" curve="-180"/>
-<wire x1="7.62" y1="1.27" x2="10.16" y2="1.27" width="0.1524" layer="94" curve="-180"/>
-<wire x1="10.16" y1="1.27" x2="12.7" y2="1.27" width="0.1524" layer="94" curve="-180"/>
-<text x="-1.9812" y="-4.2672" size="3.4798" layer="96" ratio="10" rot="SR0">&gt;Value</text>
-<text x="-0.9144" y="3.3528" size="3.4798" layer="95" ratio="10" rot="SR0">&gt;Name</text>
 </symbol>
 </symbols>
 <devicesets>
@@ -5895,27 +5921,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="REVISION" value="1" constant="no"/>
 <attribute name="SOURCELIBRARY" value="Maxim_DP_2018-06-12" constant="no"/>
 <attribute name="VENDOR" value="Maxim Integrated Products" constant="no"/>
-</technology>
-</technologies>
-</device>
-</devices>
-</deviceset>
-<deviceset name="CBC3225T330KR" prefix="L">
-<gates>
-<gate name="A" symbol="IND" x="0" y="0" swaplevel="1"/>
-</gates>
-<devices>
-<device name="" package="IND_TAIYO_CBC3225_TAY">
-<connects>
-<connect gate="A" pin="1" pad="1"/>
-<connect gate="A" pin="2" pad="2"/>
-</connects>
-<technologies>
-<technology name="">
-<attribute name="BUILT_BY" value="EMA_UL_Team" constant="no"/>
-<attribute name="MANUFACTURER_PART_NUMBER" value="CBC3225T330KR" constant="no"/>
-<attribute name="SOURCELIBRARY" value="TaiyoYuden_2011-01-01_IND_CB" constant="no"/>
-<attribute name="VENDOR" value="TAIYO YUDEN" constant="no"/>
 </technology>
 </technologies>
 </device>
@@ -6386,10 +6391,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="MF-CAP-0603-1uF"/>
 </part>
 <part name="GND24" library="supply1" deviceset="GND" device=""/>
-<part name="L1" library="power_dist" deviceset="CBC3225T330KR" device="">
-<attribute name="MPN" value="CBC3225T330KR"/>
-<attribute name="POPULATE" value="1"/>
-</part>
 <part name="C21" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF">
 <attribute name="HOUSEPART" value="1"/>
 <attribute name="MF" value=""/>
@@ -6491,6 +6492,21 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="GND12" library="supply1" deviceset="GND" device=""/>
+<part name="C56" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1uF">
+<attribute name="HOUSEPART" value="YES"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-CAP-0402-1uF"/>
+</part>
+<part name="SH4" library="shorts" deviceset="SHORT" device="MEDIUM" value="SHORTMEDIUM">
+<attribute name="POPULATE" value="0"/>
+</part>
+<part name="P-5" library="supply1" deviceset="V-" device=""/>
+<part name="GND26" library="supply1" deviceset="GND" device=""/>
+<part name="L1" library="controller" deviceset="SRN4018-220M" device="">
+<attribute name="MANUFACTURER_PART_NUMBER" value="SRN4018-330M"/>
+<attribute name="MPN" value="SRN4018-330M"/>
+<attribute name="POPULATE" value="1"/>
+</part>
 </parts>
 <sheets>
 <sheet>
@@ -6543,7 +6559,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.6
 (c) jjp@pobox.com 2021
 Licensed under the Apache 2.0 License</text>
-<text x="22.86" y="111.76" size="1.778" layer="91">PC13/PA15/PC6 Version
+<text x="22.86" y="111.76" size="1.778" layer="91">PA10/PA15/PC6 Version
 100</text>
 </plain>
 <instances>
@@ -7216,12 +7232,6 @@ Licensed under the Apache 2.0 License</text>
 <instance part="GND24" gate="1" x="104.14" y="-279.4" smashed="yes">
 <attribute name="VALUE" x="101.6" y="-281.94" size="1.778" layer="96"/>
 </instance>
-<instance part="L1" gate="A" x="170.18" y="-259.08" smashed="yes">
-<attribute name="VALUE" x="168.1988" y="-263.3472" size="3.4798" layer="96" ratio="10" rot="SR0"/>
-<attribute name="NAME" x="169.2656" y="-255.7272" size="3.4798" layer="95" ratio="10" rot="SR0"/>
-<attribute name="MPN" x="170.18" y="-259.08" size="1.778" layer="96" display="off"/>
-<attribute name="POPULATE" x="170.18" y="-259.08" size="1.778" layer="96" display="off"/>
-</instance>
 <instance part="C21" gate="G$1" x="213.36" y="-264.16" smashed="yes">
 <attribute name="MF" x="213.36" y="-264.16" size="1.778" layer="96" display="off"/>
 <attribute name="NAME" x="215.9" y="-262.636" size="1.016" layer="95" font="vector" align="top-left"/>
@@ -7380,6 +7390,27 @@ Licensed under the Apache 2.0 License</text>
 </instance>
 <instance part="GND12" gate="1" x="-162.56" y="-60.96" smashed="yes">
 <attribute name="VALUE" x="-165.1" y="-63.5" size="1.778" layer="96"/>
+</instance>
+<instance part="C56" gate="G$1" x="223.52" y="-264.16" smashed="yes">
+<attribute name="MPN" x="223.52" y="-264.16" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="223.52" y="-264.16" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="226.06" y="-262.636" size="1.016" layer="95" font="vector" align="top-left"/>
+<attribute name="VALUE" x="226.06" y="-265.684" size="1.016" layer="96" font="vector"/>
+</instance>
+<instance part="SH4" gate="G$1" x="-243.84" y="-312.42" smashed="yes">
+<attribute name="POPULATE" x="-243.84" y="-312.42" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="-246.0625" y="-311.15" size="1.778" layer="95"/>
+</instance>
+<instance part="P-5" gate="1" x="-251.46" y="-317.5" smashed="yes">
+<attribute name="VALUE" x="-256.54" y="-314.96" size="1.778" layer="96" rot="R270"/>
+</instance>
+<instance part="GND26" gate="1" x="-233.68" y="-317.5" smashed="yes">
+<attribute name="VALUE" x="-236.22" y="-320.04" size="1.778" layer="96"/>
+</instance>
+<instance part="L1" gate="A" x="170.18" y="-259.08" smashed="yes">
+<attribute name="NAME" x="169.2656" y="-255.7272" size="3.4798" layer="95" ratio="10" rot="SR0"/>
+<attribute name="MPN" x="170.18" y="-259.08" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="170.18" y="-259.08" size="1.778" layer="96" display="off"/>
 </instance>
 </instances>
 <busses>
@@ -7540,21 +7571,25 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-289.56" y1="-238.76" x2="-289.56" y2="-236.22" width="0.1524" layer="91"/>
 </segment>
 <segment>
-<pinref part="L1" gate="A" pin="1"/>
 <wire x1="185.42" y1="-259.08" x2="187.96" y2="-259.08" width="0.1524" layer="91"/>
 <wire x1="187.96" y1="-259.08" x2="187.96" y2="-248.92" width="0.1524" layer="91"/>
 <wire x1="187.96" y1="-259.08" x2="213.36" y2="-259.08" width="0.1524" layer="91"/>
 <junction x="187.96" y="-259.08"/>
 <pinref part="C21" gate="G$1" pin="P$1"/>
 <wire x1="213.36" y1="-259.08" x2="213.36" y2="-261.62" width="0.1524" layer="91"/>
-<wire x1="213.36" y1="-259.08" x2="226.06" y2="-259.08" width="0.1524" layer="91"/>
-<wire x1="226.06" y1="-259.08" x2="226.06" y2="-289.56" width="0.1524" layer="91"/>
+<wire x1="213.36" y1="-259.08" x2="223.52" y2="-259.08" width="0.1524" layer="91"/>
+<wire x1="223.52" y1="-259.08" x2="231.14" y2="-259.08" width="0.1524" layer="91"/>
+<wire x1="231.14" y1="-259.08" x2="231.14" y2="-289.56" width="0.1524" layer="91"/>
 <junction x="213.36" y="-259.08"/>
-<wire x1="226.06" y1="-289.56" x2="111.76" y2="-289.56" width="0.1524" layer="91"/>
+<wire x1="231.14" y1="-289.56" x2="111.76" y2="-289.56" width="0.1524" layer="91"/>
 <wire x1="111.76" y1="-289.56" x2="111.76" y2="-266.7" width="0.1524" layer="91"/>
 <pinref part="U4" gate="A" pin="FB/VOUT"/>
 <wire x1="111.76" y1="-266.7" x2="114.3" y2="-266.7" width="0.1524" layer="91"/>
 <pinref part="+3V3" gate="G$1" pin="+3V3"/>
+<pinref part="C56" gate="G$1" pin="P$1"/>
+<wire x1="223.52" y1="-261.62" x2="223.52" y2="-259.08" width="0.1524" layer="91"/>
+<junction x="223.52" y="-259.08"/>
+<pinref part="L1" gate="A" pin="1"/>
 </segment>
 <segment>
 <pinref part="ENC" gate="A" pin="1"/>
@@ -7741,6 +7776,10 @@ Licensed under the Apache 2.0 License</text>
 <pinref part="C21" gate="G$1" pin="P$2"/>
 <wire x1="213.36" y1="-276.86" x2="213.36" y2="-266.7" width="0.1524" layer="91"/>
 <junction x="165.1" y="-276.86"/>
+<wire x1="213.36" y1="-276.86" x2="223.52" y2="-276.86" width="0.1524" layer="91"/>
+<junction x="213.36" y="-276.86"/>
+<pinref part="C56" gate="G$1" pin="P$2"/>
+<wire x1="223.52" y1="-276.86" x2="223.52" y2="-266.7" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="GND24" gate="1" pin="GND"/>
@@ -7757,6 +7796,12 @@ Licensed under the Apache 2.0 License</text>
 <pinref part="D4" gate="G$1" pin="3"/>
 <pinref part="GND12" gate="1" pin="GND"/>
 <wire x1="-162.56" y1="-53.34" x2="-162.56" y2="-58.42" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="GND26" gate="1" pin="GND"/>
+<wire x1="-233.68" y1="-314.96" x2="-233.68" y2="-312.42" width="0.1524" layer="91"/>
+<pinref part="SH4" gate="G$1" pin="P$2"/>
+<wire x1="-233.68" y1="-312.42" x2="-241.3" y2="-312.42" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="NRST" class="0">
@@ -8689,6 +8734,12 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-228.6" y1="58.42" x2="-228.6" y2="63.5" width="0.1524" layer="91"/>
 <junction x="-228.6" y="63.5"/>
 </segment>
+<segment>
+<pinref part="P-5" gate="1" pin="V-"/>
+<wire x1="-251.46" y1="-314.96" x2="-251.46" y2="-312.42" width="0.1524" layer="91"/>
+<pinref part="SH4" gate="G$1" pin="P$1"/>
+<wire x1="-251.46" y1="-312.42" x2="-246.38" y2="-312.42" width="0.1524" layer="91"/>
+</segment>
 </net>
 <net name="CUR3" class="0">
 <segment>
@@ -9022,9 +9073,9 @@ Licensed under the Apache 2.0 License</text>
 <net name="VSW" class="0">
 <segment>
 <pinref part="U4" gate="A" pin="LX"/>
-<pinref part="L1" gate="A" pin="2"/>
 <wire x1="160.02" y1="-259.08" x2="170.18" y2="-259.08" width="0.1524" layer="91"/>
 <label x="162.56" y="-259.08" size="1.778" layer="95"/>
+<pinref part="L1" gate="A" pin="2"/>
 </segment>
 </net>
 <net name="SECONDARY_ENC_CS" class="0">
