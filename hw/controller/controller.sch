@@ -6036,7 +6036,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="P-2" library="supply1" deviceset="V-" device=""/>
 <part name="P-3" library="supply1" deviceset="V-" device=""/>
-<part name="GND5" library="supply1" deviceset="GND" device=""/>
 <part name="P+3" library="supply1" deviceset="V+" device=""/>
 <part name="C16" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.1uF 50V">
 <attribute name="MF" value="TDK"/>
@@ -6059,7 +6058,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value=""/>
 <attribute name="MPN" value="MF-CAP-0402-1uF"/>
 </part>
-<part name="GND9" library="supply1" deviceset="GND" device=""/>
 <part name="SWD" library="controller" deviceset="JST-ZH6" device="" value="JST-ZH6">
 <attribute name="MF" value="JST"/>
 <attribute name="MPN" value="S6B-ZR-SM4A-TF(LF)(SN)"/>
@@ -6507,6 +6505,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="SRN4018-330M"/>
 <attribute name="POPULATE" value="1"/>
 </part>
+<part name="P-11" library="supply1" deviceset="V-" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -6704,9 +6703,6 @@ Licensed under the Apache 2.0 License</text>
 <instance part="P-3" gate="1" x="-276.86" y="-187.96" smashed="yes">
 <attribute name="VALUE" x="-281.94" y="-185.42" size="1.778" layer="96" rot="R270"/>
 </instance>
-<instance part="GND5" gate="1" x="-231.14" y="-279.4" smashed="yes">
-<attribute name="VALUE" x="-233.68" y="-281.94" size="1.778" layer="96"/>
-</instance>
 <instance part="P+3" gate="1" x="-281.94" y="-254" smashed="yes">
 <attribute name="VALUE" x="-284.48" y="-256.54" size="1.778" layer="96" rot="R90"/>
 </instance>
@@ -6738,9 +6734,6 @@ Licensed under the Apache 2.0 License</text>
 <attribute name="MF" x="-195.58" y="-172.72" size="1.778" layer="96" rot="R270" display="off"/>
 <attribute name="NAME" x="-194.056" y="-175.26" size="1.016" layer="95" font="vector" rot="R270" align="top-left"/>
 <attribute name="VALUE" x="-197.104" y="-175.26" size="1.016" layer="96" font="vector" rot="R270"/>
-</instance>
-<instance part="GND9" gate="1" x="-180.34" y="-180.34" smashed="yes">
-<attribute name="VALUE" x="-182.88" y="-182.88" size="1.778" layer="96"/>
 </instance>
 <instance part="SWD" gate="A" x="88.9" y="109.22" smashed="yes">
 <attribute name="POPULATE" x="88.9" y="109.22" size="1.778" layer="96" display="off"/>
@@ -7412,6 +7405,9 @@ Licensed under the Apache 2.0 License</text>
 <attribute name="MPN" x="170.18" y="-259.08" size="1.778" layer="96" display="off"/>
 <attribute name="POPULATE" x="170.18" y="-259.08" size="1.778" layer="96" display="off"/>
 </instance>
+<instance part="P-11" gate="1" x="-180.34" y="-182.88" smashed="yes">
+<attribute name="VALUE" x="-185.42" y="-180.34" size="1.778" layer="96" rot="R270"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -7626,11 +7622,6 @@ Licensed under the Apache 2.0 License</text>
 <junction x="-50.8" y="-76.2"/>
 </segment>
 <segment>
-<pinref part="GND5" gate="1" pin="GND"/>
-<wire x1="-231.14" y1="-269.24" x2="-231.14" y2="-276.86" width="0.1524" layer="91"/>
-<pinref part="U5" gate="G$1" pin="GND"/>
-</segment>
-<segment>
 <pinref part="C18" gate="G$1" pin="P$1"/>
 <pinref part="GND8" gate="1" pin="GND"/>
 <wire x1="-266.7" y1="-228.6" x2="-281.94" y2="-228.6" width="0.1524" layer="91"/>
@@ -7760,12 +7751,6 @@ Licensed under the Apache 2.0 License</text>
 <pinref part="U1" gate="G$1" pin="PC6"/>
 <pinref part="GND23" gate="1" pin="GND"/>
 <wire x1="-22.86" y1="104.14" x2="20.32" y2="104.14" width="0.1524" layer="91"/>
-</segment>
-<segment>
-<pinref part="C17" gate="G$1" pin="P$1"/>
-<wire x1="-193.04" y1="-172.72" x2="-180.34" y2="-172.72" width="0.1524" layer="91"/>
-<pinref part="GND9" gate="1" pin="GND"/>
-<wire x1="-180.34" y1="-172.72" x2="-180.34" y2="-177.8" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="U4" gate="A" pin="GND"/>
@@ -8559,11 +8544,15 @@ Licensed under the Apache 2.0 License</text>
 <pinref part="P-2" gate="1" pin="V-"/>
 <wire x1="-238.76" y1="-289.56" x2="-238.76" y2="-294.64" width="0.1524" layer="91"/>
 <junction x="-238.76" y="-289.56"/>
-<wire x1="-226.06" y1="-289.56" x2="-238.76" y2="-289.56" width="0.1524" layer="91"/>
+<wire x1="-226.06" y1="-289.56" x2="-231.14" y2="-289.56" width="0.1524" layer="91"/>
 <pinref part="U5" gate="G$1" pin="PAD"/>
+<wire x1="-231.14" y1="-289.56" x2="-238.76" y2="-289.56" width="0.1524" layer="91"/>
 <wire x1="-238.76" y1="-289.56" x2="-238.76" y2="-269.24" width="0.1524" layer="91"/>
 <pinref part="U5" gate="G$1" pin="AGND"/>
 <wire x1="-226.06" y1="-289.56" x2="-226.06" y2="-269.24" width="0.1524" layer="91"/>
+<pinref part="U5" gate="G$1" pin="GND"/>
+<wire x1="-231.14" y1="-269.24" x2="-231.14" y2="-289.56" width="0.1524" layer="91"/>
+<junction x="-231.14" y="-289.56"/>
 </segment>
 <segment>
 <pinref part="P-3" gate="1" pin="V-"/>
@@ -8739,6 +8728,12 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-251.46" y1="-314.96" x2="-251.46" y2="-312.42" width="0.1524" layer="91"/>
 <pinref part="SH4" gate="G$1" pin="P$1"/>
 <wire x1="-251.46" y1="-312.42" x2="-246.38" y2="-312.42" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="C17" gate="G$1" pin="P$1"/>
+<wire x1="-193.04" y1="-172.72" x2="-180.34" y2="-172.72" width="0.1524" layer="91"/>
+<wire x1="-180.34" y1="-172.72" x2="-180.34" y2="-180.34" width="0.1524" layer="91"/>
+<pinref part="P-11" gate="1" pin="V-"/>
 </segment>
 </net>
 <net name="CUR3" class="0">

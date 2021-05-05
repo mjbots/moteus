@@ -4661,6 +4661,12 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="-15.2" y="-7.65" extent="1-16" drill="0.3048"/>
 <via x="-16.7" y="-8.3" extent="1-16" drill="0.3048"/>
 <via x="-16.7" y="-7.65" extent="1-16" drill="0.3048"/>
+<contactref element="U5" pad="39"/>
+<contactref element="C17" pad="P$1"/>
+<wire x1="-9.55" y1="-8.53" x2="-7.4" y2="-8.53" width="0.2159" layer="1"/>
+<wire x1="-7.4" y1="-8.53" x2="-7.35" y2="-8.48" width="0.254" layer="1"/>
+<via x="-11.85" y="-8.55" extent="1-16" drill="0.3048"/>
+<wire x1="-11.85" y1="-7.95" x2="-11.85" y2="-8.55" width="0.3048" layer="1"/>
 </signal>
 <signal name="CUR3">
 <contactref element="U1" pad="19"/>
@@ -5075,8 +5081,6 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="6" y1="-34" x2="7.15" y2="-32.85" width="0.4064" layer="16"/>
 <wire x1="7.15" y1="-32.85" x2="8.5328875" y2="-32.85" width="0.4064" layer="16"/>
 <contactref element="U1" pad="29"/>
-<contactref element="C17" pad="P$1"/>
-<contactref element="U5" pad="39"/>
 <contactref element="U4" pad="7"/>
 <contactref element="C21" pad="P$2"/>
 <contactref element="C20" pad="P$2"/>
@@ -5088,16 +5092,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="ENC" pad="3"/>
 <wire x1="-8.7" y1="4.75" x2="-9.3" y2="4.75" width="0.254" layer="1"/>
 <wire x1="-9.35" y1="4.7" x2="-9.3" y2="4.75" width="0.254" layer="1"/>
-<wire x1="-11.85" y1="-7.95" x2="-11.27" y2="-8.53" width="0.254" layer="1"/>
-<wire x1="-11.27" y1="-8.53" x2="-9.55" y2="-8.53" width="0.254" layer="1"/>
 <via x="12.7" y="2.15" extent="1-16" drill="0.3048"/>
 <wire x1="11.75" y1="2.15" x2="12.7" y2="2.15" width="0.254" layer="1"/>
 <via x="-15.4" y="-5.1" extent="1-16" drill="0.3048"/>
 <wire x1="-13.35" y1="-3.65" x2="-13.65" y2="-3.65" width="0.3048" layer="1"/>
-<wire x1="-11.85" y1="-7.95" x2="-11.85" y2="-7.55" width="0.4064" layer="1"/>
-<wire x1="-11.85" y1="-7.55" x2="-12.5" y2="-6.9" width="0.4064" layer="1"/>
-<wire x1="-12.5" y1="-4.5" x2="-13.35" y2="-3.65" width="0.4064" layer="1"/>
-<wire x1="-12.5" y1="-6.9" x2="-12.5" y2="-4.5" width="0.4064" layer="1"/>
 <wire x1="-9.35" y1="5.15" x2="-9.1" y2="5.15" width="0.254" layer="16"/>
 <wire x1="-9.1" y1="5.15" x2="-8.7" y2="4.75" width="0.254" layer="16"/>
 <wire x1="9.14" y1="-3.165" x2="8.585" y2="-3.165" width="0.3048" layer="1"/>
