@@ -170,20 +170,24 @@ class Drv8323 : public MotorDriver {
 
 
     // Gate Drive HS Register
-    uint16_t idrivep_hs_ma = 370;
-    uint16_t idriven_hs_ma = 740;
+
+    // hw rev 7 boards use a drv8353, which is sensitive to damage
+    // ringing on the gate drives.  This version requires lower gate
+    // drive strength to avoid damage.
+    uint16_t idrivep_hs_ma = (g_measured_hw_rev <= 6) ? 370 : 50;
+    uint16_t idriven_hs_ma = (g_measured_hw_rev <= 6) ? 740 : 100;
 
 
     // Gate Drive LS Register
     bool cbc = true;  // Cycle-by cycle operation.
     uint16_t tdrive_ns = 1000;  // peak gate-current drive time
-    uint16_t idrivep_ls_ma = 370;
-    uint16_t idriven_ls_ma = 740;
+    uint16_t idrivep_ls_ma = (g_measured_hw_rev <= 6) ? 370 : 50;
+    uint16_t idriven_ls_ma = (g_measured_hw_rev <= 6) ? 740 : 100;
 
 
     // OCP Control Register
     bool tretry = false;  // false = 4ms, true = 50us
-    uint16_t dead_time_ns = 50;
+    uint16_t dead_time_ns = (g_measured_hw_rev <= 6) ? 50 : 200;
     OcpMode ocp_mode = OcpMode::kLatchedFault;
     uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
 

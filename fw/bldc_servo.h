@@ -143,8 +143,8 @@ class BldcServo {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
 
     // PWM rise time compensation
-    float pwm_comp_off = 0.015;
-    float pwm_comp_mag = 0.005;
+    float pwm_comp_off = (g_measured_hw_rev <= 6) ? 0.015 : 0.048;
+    float pwm_comp_mag = (g_measured_hw_rev <= 6) ? 0.005 : 0.003;
 
     // We pick a default maximum voltage based on the board revision.
     float max_voltage = (g_measured_hw_rev <= 5) ? 37.0f : 46.0f;

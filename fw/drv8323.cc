@@ -163,6 +163,19 @@ class Drv8323::Impl {
   }
 
   void HandleConfigUpdate() {
+    if (g_measured_hw_rev == 7) {
+      // hw rev 7 (silk r4.8) can be damaged with higher gate drive
+      // strength than this.
+      config_.idrivep_hs_ma = std::min<uint16_t>(config_.idrivep_hs_ma, 50);
+      config_.idriven_hs_ma = std::min<uint16_t>(config_.idriven_hs_ma, 100);
+      config_.idrivep_ls_ma = std::min<uint16_t>(config_.idrivep_ls_ma, 50);
+      config_.idriven_ls_ma = std::min<uint16_t>(config_.idriven_ls_ma, 100);
+    } else if (g_measured_hw_rev > 7) {
+      // If the gate drive strength issue has been resolved, then this
+      // restriction can be removed in later versions.
+      MJ_ASSERT(false);
+    }
+
     WriteConfig();
   }
 
@@ -187,14 +200,26 @@ class Drv8323::Impl {
       return (val ? 1 : 0) << pos;
     };
 
-    constexpr uint16_t idrivep_table[] = {
+    const bool drv8323 = g_measured_hw_rev <= 6;
+
+    constexpr uint16_t idrivep_table_drv8323[] = {
       10, 30, 60, 80, 120, 140, 170, 190,
       260, 330, 370, 440, 570, 680, 820, 1000,
     };
 
-    constexpr uint16_t idriven_table[] = {
+    constexpr uint16_t idrivep_table_drv8353[] = {
+      50, 50, 100, 150, 300, 350, 400, 450,
+      550, 600, 650, 700, 850, 900, 950, 1000,
+    };
+
+    constexpr uint16_t idriven_table_drv8323[] = {
       20, 60, 120, 160, 240, 280, 340, 380,
       520, 660, 740, 880, 1140, 1360, 1640, 2000,
+    };
+
+    constexpr uint16_t idriven_table_drv8353[] = {
+      100, 100, 200, 300, 600, 700, 800, 900,
+      1100, 1200, 1300, 1400, 1700, 1800, 1900, 2000,
     };
 
     constexpr uint16_t tdrive_ns_table[] = {
@@ -205,13 +230,22 @@ class Drv8323::Impl {
       50, 100, 200, 400,
     };
 
-    constexpr uint16_t deglitch_table[] = {
+    constexpr uint16_t deglitch_table_drv8323[] = {
       2, 4, 6, 8,
     };
 
-    constexpr uint16_t vds_lvl_table[] = {
+    constexpr uint16_t deglitch_table_drv8353[] = {
+      1, 2, 4, 8,
+    };
+
+    constexpr uint16_t vds_lvl_table_drv8323[] = {
       60, 130, 200, 260, 310, 450, 530, 600,
       680, 750, 940, 1130, 1300, 1500, 1700, 1880,
+    };
+
+    constexpr uint16_t vds_lvl_table_drv8353[] = {
+      60, 70, 80, 90, 100, 200, 300, 400,
+      500, 600, 700, 800, 900, 1000, 1500, 2000,
     };
 
     constexpr uint16_t csa_gain_table[] = {
@@ -232,6 +266,11 @@ class Drv8323::Impl {
 
     // Drive Control Register
     const uint16_t reg2 =
+        // OCP_ACT, which needs to be set on the drv8353 so that all 3
+        // half-bridges are shut down in response to a fault.  That is
+        // the only possible behavior on the drv8323.
+        (drv8323 ? 0 : bit(true, 10)) |
+
         bit(config_.dis_cpuv, 9) |
         bit(config_.dis_gdf, 8) |
         bit(config_.otw_rep, 7) |
@@ -241,21 +280,27 @@ class Drv8323::Impl {
 
     const uint16_t reg3 =
         (3 << 8) |
-        (map_choice(idrivep_table, config_.idrivep_hs_ma) << 4) |
-        (map_choice(idriven_table, config_.idriven_hs_ma) << 0);
+        (map_choice(drv8323 ? idrivep_table_drv8323 : idrivep_table_drv8353,
+                    config_.idrivep_hs_ma) << 4) |
+        (map_choice(drv8323 ? idriven_table_drv8323 : idriven_table_drv8353,
+                    config_.idriven_hs_ma) << 0);
 
     const uint16_t reg4 =
         bit(config_.cbc, 10) |
         (map_choice(tdrive_ns_table, config_.tdrive_ns) << 8) |
-        (map_choice(idrivep_table, config_.idrivep_ls_ma) << 4) |
-        (map_choice(idriven_table, config_.idriven_ls_ma) << 0);
+        (map_choice(drv8323 ? idrivep_table_drv8323 : idrivep_table_drv8353,
+                    config_.idrivep_ls_ma) << 4) |
+        (map_choice(drv8323 ? idriven_table_drv8323 : idrivep_table_drv8353,
+                    config_.idriven_ls_ma) << 0);
 
     const uint16_t reg5 =
         bit(config_.tretry, 10) |
         (map_choice(dead_time_table, config_.dead_time_ns) << 8) |
         (static_cast<uint16_t>(config_.ocp_mode) << 6) |
-        (map_choice(deglitch_table, config_.ocp_deg_us) << 4) |
-        (map_choice(vds_lvl_table, config_.vds_lvl_mv) << 0);
+        (map_choice(drv8323 ? deglitch_table_drv8323 : deglitch_table_drv8353,
+                    config_.ocp_deg_us) << 4) |
+        (map_choice(drv8323 ? vds_lvl_table_drv8323 : vds_lvl_table_drv8353,
+                    config_.vds_lvl_mv) << 0);
 
     const uint16_t reg6 =
         bit(config_.csa_fet, 10) |
@@ -265,16 +310,21 @@ class Drv8323::Impl {
         bit(config_.dis_sen, 5) |
         (map_choice(sen_lvl_table, config_.sen_lvl_mv) << 0);
 
-    const uint16_t regs[] = { 0, 0, reg2, reg3, reg4, reg5, reg6 };
+    const uint16_t reg7 =
+        // This is the CAL_MODE bit, that must be 1 on the drv8353 to
+        // have equivalent behavior to the drv8323.
+        (drv8323 ? 0 : bit(true, 0));
+
+    const uint16_t regs[] = { 0, 0, reg2, reg3, reg4, reg5, reg6, reg7 };
 
     // First set all the registers.
-    for (int i = 2; i <= 6; i++) {
+    for (int i = 2; i <= 7; i++) {
       Write(i, regs[i]);
     }
 
     // Then verify that all registers got the value we want.
     uint8_t fault_config = 0;
-    for (int i = 2; i <= 6; i++) {
+    for (int i = 2; i <= 7; i++) {
       const auto result = Read(i);
 
       if (result != regs[i]) {
