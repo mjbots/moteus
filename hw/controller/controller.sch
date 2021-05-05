@@ -6506,6 +6506,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="POPULATE" value="1"/>
 </part>
 <part name="P-11" library="supply1" deviceset="V-" device=""/>
+<part name="GND5" library="supply1" deviceset="GND" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -7408,6 +7409,9 @@ Licensed under the Apache 2.0 License</text>
 <instance part="P-11" gate="1" x="-180.34" y="-182.88" smashed="yes">
 <attribute name="VALUE" x="-185.42" y="-180.34" size="1.778" layer="96" rot="R270"/>
 </instance>
+<instance part="GND5" gate="1" x="-226.06" y="-276.86" smashed="yes">
+<attribute name="VALUE" x="-228.6" y="-279.4" size="1.778" layer="96"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -7787,6 +7791,11 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-233.68" y1="-314.96" x2="-233.68" y2="-312.42" width="0.1524" layer="91"/>
 <pinref part="SH4" gate="G$1" pin="P$2"/>
 <wire x1="-233.68" y1="-312.42" x2="-241.3" y2="-312.42" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="U5" gate="G$1" pin="AGND"/>
+<pinref part="GND5" gate="1" pin="GND"/>
+<wire x1="-226.06" y1="-269.24" x2="-226.06" y2="-274.32" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="NRST" class="0">
@@ -8544,15 +8553,11 @@ Licensed under the Apache 2.0 License</text>
 <pinref part="P-2" gate="1" pin="V-"/>
 <wire x1="-238.76" y1="-289.56" x2="-238.76" y2="-294.64" width="0.1524" layer="91"/>
 <junction x="-238.76" y="-289.56"/>
-<wire x1="-226.06" y1="-289.56" x2="-231.14" y2="-289.56" width="0.1524" layer="91"/>
 <pinref part="U5" gate="G$1" pin="PAD"/>
 <wire x1="-231.14" y1="-289.56" x2="-238.76" y2="-289.56" width="0.1524" layer="91"/>
 <wire x1="-238.76" y1="-289.56" x2="-238.76" y2="-269.24" width="0.1524" layer="91"/>
-<pinref part="U5" gate="G$1" pin="AGND"/>
-<wire x1="-226.06" y1="-289.56" x2="-226.06" y2="-269.24" width="0.1524" layer="91"/>
 <pinref part="U5" gate="G$1" pin="GND"/>
 <wire x1="-231.14" y1="-269.24" x2="-231.14" y2="-289.56" width="0.1524" layer="91"/>
-<junction x="-231.14" y="-289.56"/>
 </segment>
 <segment>
 <pinref part="P-3" gate="1" pin="V-"/>
