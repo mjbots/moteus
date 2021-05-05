@@ -248,14 +248,17 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        MillisecondTimer* timer,
        FirmwareInfo* firmware,
        AbsPort* abs_port)
-      : as5047_([]() {
-          AS5047::Options options;
-          options.mosi = MOTEUS_AS5047_MOSI;
-          options.miso = MOTEUS_AS5047_MISO;
-          options.sck = MOTEUS_AS5047_SCK;
-          options.cs = MOTEUS_AS5047_CS;
-          return options;
-        }()),
+      : as5047_(
+          persistent_config,
+          []() {
+            AS5047::Options options;
+            options.mosi = MOTEUS_AS5047_MOSI;
+            options.miso = MOTEUS_AS5047_MISO;
+            options.sck = MOTEUS_AS5047_SCK;
+            options.cs = MOTEUS_AS5047_CS;
+            options.external_cs = MOTEUS_EXTERNAL_ENCODER_CS;
+            return options;
+          }()),
         drv8323_(pool, persistent_config, telemetry_manager, timer, []() {
             Drv8323::Options options;
             options.mosi = DRV8323_MOSI;

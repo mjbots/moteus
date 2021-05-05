@@ -122,7 +122,9 @@ constexpr int kCompatibleHwRev[] = {
 #elif MOTEUS_HW_REV >= 3
 #define HWREV_PIN0 PC_6
 #define HWREV_PIN1 PA_15
-#define HWREV_PIN2 PC_13
+// Previously this was documented as PC_13, however we never pulled it
+// down, and decided to use PC_13 for something else.
+#define HWREV_PIN2 PA_10
 #endif
 
 #if MOTEUS_HW_REV <= 2
@@ -196,6 +198,8 @@ constexpr int kCompatibleHwRev[] = {
 #elif MOTEUS_HW_REV >= 3
 #define MOTEUS_AS5047_CS PB_11
 #endif
+
+#define MOTEUS_EXTERNAL_ENCODER_CS PC_13
 
 #if MOTEUS_HW_REV >= 3
 #define MOTEUS_CAN_TD PA_12

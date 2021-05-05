@@ -18,6 +18,8 @@
 
 #include "hal/spi_api.h"
 
+#include "mjlib/micro/persistent_config.h"
+
 #include "fw/moteus_hw.h"
 #include "fw/stm32_spi.h"
 
@@ -25,16 +27,39 @@ namespace moteus {
 
 class AS5047 {
  public:
-  using Options = Stm32Spi::Options;
+  struct Options : Stm32Spi::Options {
+    PinName external_cs = NC;
+  };
 
-  AS5047(const Options& options)
-      : spi_([options]() {
+  enum Mode {
+    kIntegrated = 0,
+    kExternalSpi = 1,
+    kNumModes = 2,
+  };
+
+  struct Config {
+    Mode mode = kIntegrated;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(mode));
+    }
+  };
+
+  AS5047(mjlib::micro::PersistentConfig* persistent_config,
+         const Options& options)
+      : options_(options),
+        spi_([options]() {
           // The next frequency down is only 6MHz, so we run a bit out
           // of tolerance to save a fair amount of time.
           auto copy = options;
           copy.frequency = 12000000;
           return copy;
-        }()) {}
+        }()) {
+    persistent_config->Register(
+        "encoder", &config_,
+        std::bind(&AS5047::HandleConfigUpdate, this));
+  }
 
   uint16_t Sample() MOTEUS_CCM_ATTRIBUTE {
     return (spi_.write(0xffff) & 0x3fff) << 2;
@@ -49,7 +74,49 @@ class AS5047 {
   }
 
  private:
+  void HandleConfigUpdate() {
+    switch (config_.mode) {
+      case kIntegrated: {
+        spi_.set_cs(options_.cs);
+        return;
+      }
+      case kExternalSpi: {
+        spi_.set_cs(options_.external_cs);
+        return;
+      }
+      case kNumModes:{
+        break;
+      }
+    }
+
+    // Hmmm, guess we'll stick with integrated.
+    spi_.set_cs(options_.cs);
+  }
+
+  const Options options_;
+  Config config_;
   Stm32Spi spi_;
 };
 
+}
+
+
+namespace mjlib {
+namespace base {
+
+template <>
+struct IsEnum<moteus::AS5047::Mode> {
+  static constexpr bool value = true;
+
+  using M = moteus::AS5047::Mode;
+  static std::array<std::pair<M, const char*>,
+                    static_cast<int>(M::kNumModes)> map() {
+    return { {
+        { M::kIntegrated, "integrated" },
+        { M::kExternalSpi, "external_spi" },
+      } };
+  }
+};
+
+}
 }

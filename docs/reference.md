@@ -1111,6 +1111,14 @@ The reported position is calculated from the raw value as follows:
 position = (raw + offset) / 65536 * scale
 ```
 
+## `encoder.mode` ##
+
+Selects whether the onboard magnetic encoder or an external magnetic
+encoder is used.
+
+* 0 - onboard
+* 1 - external AS5047 compatible SPI encoder
+
 # D. Maintenance #
 
 ## tview usage ##
