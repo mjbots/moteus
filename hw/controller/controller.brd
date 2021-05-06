@@ -10,7 +10,7 @@
 <grid distance="0.05" unitdist="mm" unit="mm" style="lines" multiple="1" display="yes" altdistance="0.005" altunitdist="mm" altunit="mm"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
-<layer number="2" name="Route2" color="1" fill="3" visible="yes" active="yes"/>
+<layer number="2" name="Route2" color="1" fill="3" visible="no" active="yes"/>
 <layer number="3" name="Route3" color="4" fill="3" visible="no" active="no"/>
 <layer number="4" name="Route4" color="1" fill="4" visible="no" active="no"/>
 <layer number="5" name="Route5" color="4" fill="4" visible="no" active="no"/>
@@ -23,14 +23,14 @@
 <layer number="12" name="Route12" color="1" fill="5" visible="no" active="no"/>
 <layer number="13" name="Route13" color="4" fill="5" visible="no" active="no"/>
 <layer number="14" name="Route14" color="1" fill="6" visible="no" active="no"/>
-<layer number="15" name="Route15" color="4" fill="6" visible="yes" active="yes"/>
+<layer number="15" name="Route15" color="4" fill="6" visible="no" active="yes"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
 <layer number="17" name="Pads" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="18" name="Vias" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="19" name="Unrouted" color="6" fill="1" visible="yes" active="yes"/>
 <layer number="20" name="Dimension" color="15" fill="1" visible="yes" active="yes"/>
 <layer number="21" name="tPlace" color="7" fill="1" visible="yes" active="yes"/>
-<layer number="22" name="bPlace" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="22" name="bPlace" color="7" fill="1" visible="no" active="yes"/>
 <layer number="23" name="tOrigins" color="15" fill="1" visible="yes" active="yes"/>
 <layer number="24" name="bOrigins" color="15" fill="1" visible="no" active="yes"/>
 <layer number="25" name="tNames" color="7" fill="1" visible="yes" active="yes"/>
@@ -1057,6 +1057,17 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-1.9304" y1="0" x2="-2.0828" y2="0" width="0" layer="51" curve="-180"/>
 <wire x1="-2.0828" y1="0" x2="-1.9304" y2="0" width="0" layer="51" curve="-180"/>
 <text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
+</package>
+<package name="1812_COMMON_HALF">
+<smd name="P$1" x="-1.47" y="0" dx="1.75" dy="1.3" layer="1"/>
+<smd name="P$2" x="1.47" y="0" dx="1.75" dy="1.3" layer="1"/>
+<wire x1="-2.5" y1="0.1" x2="-2.5" y2="0.7" width="0.127" layer="21"/>
+<wire x1="-2.5" y1="0.7" x2="2.5" y2="0.7" width="0.127" layer="21"/>
+<wire x1="2.5" y1="0.7" x2="2.5" y2="0.1" width="0.127" layer="21"/>
+<text x="-2.5" y="1.6" size="0.6096" layer="25" font="vector" ratio="10">&gt;NAME</text>
+<wire x1="-2.5" y1="-0.1" x2="-2.5" y2="-0.7" width="0.127" layer="21"/>
+<wire x1="-2.5" y1="-0.7" x2="2.5" y2="-0.7" width="0.127" layer="21"/>
+<wire x1="2.5" y1="-0.7" x2="2.5" y2="-0.1" width="0.127" layer="21"/>
 </package>
 </packages>
 </library>
@@ -2959,7 +2970,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="TDK" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="C3216X7R1H106K160AE" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="18.75" y="-18.1" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="20.55" y="-20.95" size="0.5" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="POPULATE" value="1" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
@@ -3085,7 +3096,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="TDK" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="C3216X7R1H106K160AE" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="18.75" y="-13.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="16.75" y="-15.7" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
@@ -3348,6 +3359,16 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="-19.935" y="-2.6734" size="1.27" layer="25" ratio="6" rot="SR270"/>
 <attribute name="POPULATE" value="1" x="-19.3" y="-5.95" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="VENDOR" value="Bourns Electronics" x="-19.3" y="-5.95" size="1.778" layer="27" rot="R270" display="off"/>
+</element>
+<element name="L2" library="controller" package="1812_COMMON_HALF" value="HALF_CHOKE" x="19.5" y="-15.55" smashed="yes" rot="R90">
+<attribute name="MPN" value="MF-RES-0805-0" x="19.5" y="-15.55" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="19.045" y="-12.935" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="19.5" y="-15.55" size="1.778" layer="27" rot="R90" display="off"/>
+</element>
+<element name="L3" library="controller" package="1812_COMMON_HALF" value="HALF_CHOKE" x="21.23" y="-15.55" smashed="yes" rot="R90">
+<attribute name="MPN" value="MF-RES-0805-0" x="21.23" y="-15.55" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="20.8" y="-12.93" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="21.23" y="-15.55" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 </elements>
 <signals>
@@ -3817,7 +3838,6 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-2.65085625" y1="-1.4706" x2="-3.25125625" y2="-0.8702" width="0.1524" layer="1"/>
 <wire x1="-3.25125625" y1="-0.8702" x2="-4.1298" y2="-0.8702" width="0.1524" layer="1"/>
 <wire x1="5.59176875" y1="-1.4706" x2="-2.65085625" y2="-1.4706" width="0.1524" layer="1"/>
-<wire x1="-4.1" y1="0.05" x2="-4" y2="0.05" width="0.1524" layer="1"/>
 <wire x1="-4" y1="0.05" x2="-5.25" y2="0.05" width="0.2159" layer="1"/>
 <wire x1="-5.25" y1="0.05" x2="-5.3" y2="0.1" width="0.2159" layer="1"/>
 </signal>
@@ -4061,9 +4081,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="20.9" y="-24.45" extent="1-16" drill="0.5"/>
 <via x="20.9" y="-22.85" extent="1-16" drill="0.5"/>
 <via x="20.9" y="-21.25" extent="1-16" drill="0.5"/>
-<via x="20.9" y="-19.45" extent="1-16" drill="0.5"/>
-<via x="20.9" y="-17.75" extent="1-16" drill="0.5"/>
-<via x="19.4" y="-16" extent="1-16" drill="0.5"/>
+<via x="19.4" y="-15.55" extent="1-16" drill="0.5"/>
 <wire x1="14" y1="-7" x2="13.45" y2="-6.45" width="0.127" layer="1"/>
 <wire x1="14" y1="-11.2" x2="14" y2="-7" width="0.127" layer="1"/>
 <wire x1="14" y1="-11.2" x2="14.025" y2="-11.225" width="0.127" layer="1"/>
@@ -4102,7 +4120,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="C50" pad="P$1"/>
 <contactref element="C51" pad="P$1"/>
 <contactref element="C52" pad="P$1"/>
-<via x="20.9" y="-16.5" extent="1-16" drill="0.5"/>
+<via x="21" y="-15.55" extent="1-16" drill="0.5"/>
 <polygon width="0.1524" layer="1" thermals="no">
 <vertex x="-13.95" y="-8.8"/>
 <vertex x="-12.65" y="-8.8"/>
@@ -5233,13 +5251,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="20.1" y="-3.6" extent="1-16" drill="0.1016"/>
 </signal>
 <signal name="CAN_P" class="1">
-<contactref element="U2" pad="7"/>
 <contactref element="CAN1" pad="1"/>
 <contactref element="CAN2" pad="1"/>
-<via x="20.712515625" y="-13.16196875" extent="1-16" drill="0.1016"/>
-<wire x1="20.712515625" y1="-13.16196875" x2="20.662515625" y2="-13.11196875" width="0.2159" layer="1"/>
-<wire x1="20.675" y1="-11.45" x2="20.662515625" y2="-11.462484375" width="0.2159" layer="1"/>
-<wire x1="20.662515625" y1="-11.462484375" x2="20.662515625" y2="-13.11196875" width="0.2159" layer="1"/>
 <wire x1="9.40601875" y1="-33.18145" x2="9.28645" y2="-33.30101875" width="0.2159" layer="16"/>
 <wire x1="9.28645" y1="-33.30101875" x2="9.28645" y2="-34.915" width="0.2159" layer="16"/>
 <wire x1="9.28645" y1="-34.915" x2="9.79145" y2="-35.42" width="0.2159" layer="16"/>
@@ -5255,7 +5268,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-6.71355" y1="-33.38601875" x2="-6.71355" y2="-35.015" width="0.2159" layer="16"/>
 <wire x1="-6.71355" y1="-35.015" x2="-6.30855" y2="-35.42" width="0.2159" layer="16"/>
 <wire x1="-6.30855" y1="-35.42" x2="-6" y2="-35.42" width="0.2159" layer="16"/>
-<wire x1="22.04145" y1="-14.550903125" x2="22.04145" y2="-26.45601875" width="0.2159" layer="16"/>
+<wire x1="22.04145" y1="-26.45601875" x2="22.04145" y2="-19.900903125" width="0.2159" layer="16"/>
 <wire x1="22.04145" y1="-26.45601875" x2="20.85601875" y2="-27.64145" width="0.2159" layer="16"/>
 <wire x1="20.85601875" y1="-27.64145" x2="18.635096875" y2="-27.64145" width="0.2159" layer="16"/>
 <wire x1="18.635096875" y1="-27.64145" x2="16.5" y2="-29.785140625" width="0.2159" layer="16"/>
@@ -5263,9 +5276,6 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="16.5" y1="-32.7" x2="16.01855" y2="-33.18145" width="0.2159" layer="16"/>
 <wire x1="16.01855" y1="-33.18145" x2="15.04" y2="-33.18145" width="0.2159" layer="16"/>
 <wire x1="15.04" y1="-33.18145" x2="9.40601875" y2="-33.18145" width="0.2159" layer="16"/>
-<wire x1="22.04145" y1="-14.550903125" x2="20.7538625" y2="-13.263315625" width="0.2159" layer="16"/>
-<wire x1="20.712515625" y1="-13.16196875" x2="20.712515625" y2="-13.1823375" width="0.2159" layer="16"/>
-<wire x1="20.7538625" y1="-13.263315625" x2="20.712515625" y2="-13.1823375" width="0.2159" layer="16"/>
 <via x="15" y="-34" extent="1-16" drill="0.7"/>
 <wire x1="15" y1="-34" x2="15" y2="-33.22145" width="0.2159" layer="16"/>
 <wire x1="15" y1="-33.22145" x2="15.04" y2="-33.18145" width="0.2159" layer="16"/>
@@ -5277,16 +5287,22 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="0.98875" y1="-33.18645" x2="1" y2="-33.1977" width="0.2159" layer="16"/>
 <wire x1="1" y1="-33.1977" x2="1.01125" y2="-33.18645" width="0.2159" layer="16"/>
 <wire x1="1.01125" y1="-33.18645" x2="2.52898125" y2="-33.18645" width="0.2159" layer="16"/>
+<contactref element="L3" pad="P$1"/>
+<wire x1="22.04145" y1="-19.900903125" x2="22.0183" y2="-19.877753125" width="0.2159" layer="16"/>
+<wire x1="22.0183" y1="-19.877753125" x2="22.0183" y2="-19.74744375" width="0.2159" layer="16"/>
+<wire x1="22.0183" y1="-19.74744375" x2="21.45255625" y2="-19.1817" width="0.2159" layer="16"/>
+<wire x1="20.55" y1="-18.85" x2="20.55" y2="-18.55" width="0.2159" layer="16"/>
+<wire x1="20.8817" y1="-19.1817" x2="20.55" y2="-18.85" width="0.2159" layer="16"/>
+<wire x1="21.45255625" y1="-19.1817" x2="20.8817" y2="-19.1817" width="0.2159" layer="16"/>
+<wire x1="20.55" y1="-18.55" x2="20.776" y2="-18.324" width="0.2159" layer="16"/>
+<wire x1="20.776" y1="-18.324" x2="20.8" y2="-18.324" width="0.2159" layer="16"/>
+<via x="20.8" y="-18.324" extent="1-16" drill="0.35"/>
+<wire x1="20.8" y1="-18.324" x2="20.8" y2="-17.45" width="0.2159" layer="1"/>
+<wire x1="20.8" y1="-17.45" x2="21.23" y2="-17.02" width="0.2159" layer="1"/>
 </signal>
 <signal name="CAN_N" class="1">
-<contactref element="U2" pad="6"/>
 <contactref element="CAN1" pad="2"/>
 <contactref element="CAN2" pad="2"/>
-<wire x1="20.025" y1="-11.45" x2="20.01365625" y2="-13.07940625" width="0.2159" layer="1"/>
-<wire x1="20.01365625" y1="-13.07940625" x2="20.01278125" y2="-13.20525" width="0.2159" layer="1"/>
-<wire x1="20.3841" y1="-13.589428125" x2="20.3841" y2="-13.57656875" width="0.2159" layer="1"/>
-<wire x1="20.3841" y1="-13.57656875" x2="20.01278125" y2="-13.20525" width="0.2159" layer="1"/>
-<via x="20.3841" y="-13.589428125" extent="1-16" drill="0.1016"/>
 <wire x1="9.25398125" y1="-32.80355" x2="8.90855" y2="-33.14898125" width="0.2159" layer="16"/>
 <wire x1="8.90855" y1="-33.14898125" x2="8.90855" y2="-34.92" width="0.2159" layer="16"/>
 <wire x1="8.90855" y1="-34.92" x2="8.40855" y2="-35.42" width="0.2159" layer="16"/>
@@ -5301,16 +5317,14 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-7.09145" y1="-33.23398125" x2="-7.09145" y2="-35.02" width="0.2159" layer="16"/>
 <wire x1="-7.09145" y1="-35.02" x2="-7.49145" y2="-35.42" width="0.2159" layer="16"/>
 <wire x1="-7.49145" y1="-35.42" x2="-8" y2="-35.42" width="0.2159" layer="16"/>
-<wire x1="21.66855" y1="-14.733878125" x2="21.66855" y2="-26.28898125" width="0.2159" layer="16"/>
-<wire x1="21.66855" y1="-26.28898125" x2="20.69398125" y2="-27.26355" width="0.2159" layer="16"/>
+<wire x1="21.65" y1="-26.30753125" x2="21.65" y2="-19.9" width="0.2159" layer="16"/>
+<wire x1="21.65" y1="-26.30753125" x2="20.69398125" y2="-27.26355" width="0.2159" layer="16"/>
 <wire x1="20.69398125" y1="-27.26355" x2="18.471409375" y2="-27.26355" width="0.2159" layer="16"/>
 <wire x1="18.471409375" y1="-27.26355" x2="16.13" y2="-29.635734375" width="0.2159" layer="16"/>
 <wire x1="16.13" y1="-29.635734375" x2="16.13" y2="-32.52" width="0.2159" layer="16"/>
 <wire x1="16.13" y1="-32.52" x2="15.84645" y2="-32.80355" width="0.2159" layer="16"/>
 <wire x1="15.84645" y1="-32.80355" x2="15" y2="-32.80355" width="0.2159" layer="16"/>
 <wire x1="15" y1="-32.80355" x2="9.25398125" y2="-32.80355" width="0.2159" layer="16"/>
-<wire x1="20.3841" y1="-13.589428125" x2="20.5241" y2="-13.589428125" width="0.2159" layer="16"/>
-<wire x1="21.66855" y1="-14.733878125" x2="20.5241" y2="-13.589428125" width="0.2159" layer="16"/>
 <via x="15" y="-32" extent="1-16" drill="0.7"/>
 <wire x1="15" y1="-32" x2="15" y2="-32.80355" width="0.2159" layer="16"/>
 <contactref element="D4" pad="2"/>
@@ -5323,6 +5337,15 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="0.06335" y1="-32.81035" x2="0.1" y2="-32.7737" width="0.2159" layer="16"/>
 <wire x1="2.68781875" y1="-32.81035" x2="0.06335" y2="-32.81035" width="0.2159" layer="16"/>
 <wire x1="0.06335" y1="-32.81035" x2="0.06015" y2="-32.81355" width="0.2159" layer="16"/>
+<contactref element="L2" pad="P$1"/>
+<wire x1="21.65" y1="-19.9" x2="21.3" y2="-19.55" width="0.2159" layer="16"/>
+<wire x1="20.7291375" y1="-19.55" x2="20.1817" y2="-19.0025625" width="0.2159" layer="16"/>
+<wire x1="21.3" y1="-19.55" x2="20.7291375" y2="-19.55" width="0.2159" layer="16"/>
+<wire x1="20.1817" y1="-18.475" x2="20.02366875" y2="-18.31696875" width="0.2159" layer="16"/>
+<via x="20.02366875" y="-18.31696875" extent="1-16" drill="0.35"/>
+<wire x1="20.02366875" y1="-18.31696875" x2="20.02366875" y2="-17.54366875" width="0.2159" layer="1"/>
+<wire x1="20.02366875" y1="-17.54366875" x2="19.5" y2="-17.02" width="0.2159" layer="1"/>
+<wire x1="20.1817" y1="-19.0025625" x2="20.1817" y2="-18.475" width="0.2159" layer="16"/>
 </signal>
 <signal name="DAC">
 <contactref element="U1" pad="12"/>
@@ -5407,6 +5430,22 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-16.5" y1="-31.5" x2="-19.5" y2="-31.5" width="0.3048" layer="1"/>
 <wire x1="-19.5" y1="-31.5" x2="-20" y2="-31" width="0.3048" layer="1"/>
 <wire x1="-16.5" y1="-31.5" x2="-16.5" y2="-32.65" width="0.3048" layer="1"/>
+</signal>
+<signal name="CAN2_P">
+<contactref element="U2" pad="7"/>
+<contactref element="L3" pad="P$2"/>
+<wire x1="20.675" y1="-11.45" x2="20.675" y2="-12.4318" width="0.2159" layer="1"/>
+<wire x1="20.675" y1="-12.4318" x2="20.53415" y2="-12.57265" width="0.2159" layer="1"/>
+<wire x1="20.53415" y1="-13.38415" x2="21.23" y2="-14.08" width="0.2159" layer="1"/>
+<wire x1="20.53415" y1="-12.57265" x2="20.53415" y2="-13.38415" width="0.2159" layer="1"/>
+</signal>
+<signal name="CAN2_N">
+<contactref element="U2" pad="6"/>
+<contactref element="L2" pad="P$2"/>
+<wire x1="20.025" y1="-11.45" x2="20.025" y2="-12.4318" width="0.2159" layer="1"/>
+<wire x1="20.025" y1="-12.4318" x2="20.16585" y2="-12.57265" width="0.2159" layer="1"/>
+<wire x1="20.16585" y1="-13.41415" x2="19.5" y2="-14.08" width="0.2159" layer="1"/>
+<wire x1="20.16585" y1="-12.57265" x2="20.16585" y2="-13.41415" width="0.2159" layer="1"/>
 </signal>
 </signals>
 <mfgpreviewcolors>

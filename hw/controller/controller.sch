@@ -846,6 +846,17 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-2.0828" y1="0" x2="-1.9304" y2="0" width="0" layer="51" curve="-180"/>
 <text x="-3.2766" y="-0.635" size="1.27" layer="25" ratio="6" rot="SR0">&gt;Name</text>
 </package>
+<package name="1812_COMMON_HALF">
+<smd name="P$1" x="-1.47" y="0" dx="1.75" dy="1.3" layer="1"/>
+<smd name="P$2" x="1.47" y="0" dx="1.75" dy="1.3" layer="1"/>
+<wire x1="-2.5" y1="0.1" x2="-2.5" y2="0.7" width="0.127" layer="21"/>
+<wire x1="-2.5" y1="0.7" x2="2.5" y2="0.7" width="0.127" layer="21"/>
+<wire x1="2.5" y1="0.7" x2="2.5" y2="0.1" width="0.127" layer="21"/>
+<text x="-2.5" y="1.6" size="0.6096" layer="25" font="vector" ratio="10">&gt;NAME</text>
+<wire x1="-2.5" y1="-0.1" x2="-2.5" y2="-0.7" width="0.127" layer="21"/>
+<wire x1="-2.5" y1="-0.7" x2="2.5" y2="-0.7" width="0.127" layer="21"/>
+<wire x1="2.5" y1="-0.7" x2="2.5" y2="-0.1" width="0.127" layer="21"/>
+</package>
 </packages>
 <symbols>
 <symbol name="AS5147">
@@ -1693,6 +1704,22 @@ Source: &lt;a href="https://componentsearchengine.com/Datasheets/1/STM32G474CEU6
 <attribute name="MANUFACTURER_PART_NUMBER" value="SRN4018220M" constant="no"/>
 <attribute name="VENDOR" value="Bourns Electronics" constant="no"/>
 </technology>
+</technologies>
+</device>
+</devices>
+</deviceset>
+<deviceset name="HALF_CHOKE">
+<gates>
+<gate name="G$1" symbol="IND" x="-7.62" y="0"/>
+</gates>
+<devices>
+<device name="" package="1812_COMMON_HALF">
+<connects>
+<connect gate="G$1" pin="1" pad="P$1"/>
+<connect gate="G$1" pin="2" pad="P$2"/>
+</connects>
+<technologies>
+<technology name=""/>
 </technologies>
 </device>
 </devices>
@@ -6507,6 +6534,14 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="P-11" library="supply1" deviceset="V-" device=""/>
 <part name="GND5" library="supply1" deviceset="GND" device=""/>
+<part name="L2" library="controller" deviceset="HALF_CHOKE" device="">
+<attribute name="MPN" value="MF-RES-0805-0"/>
+<attribute name="POPULATE" value="1"/>
+</part>
+<part name="L3" library="controller" deviceset="HALF_CHOKE" device="">
+<attribute name="MPN" value="MF-RES-0805-0"/>
+<attribute name="POPULATE" value="1"/>
+</part>
 </parts>
 <sheets>
 <sheet>
@@ -6561,6 +6596,10 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 Licensed under the Apache 2.0 License</text>
 <text x="22.86" y="111.76" size="1.778" layer="91">PA10/PA15/PC6 Version
 100</text>
+<text x="-248.92" y="-119.38" size="1.778" layer="97">L2/L3 SIZED TO HOLD EITHER
+A) 2x 0805 0 OHM RESISTORS
+B) A COILCRAFT 1812CAN SERIES
+COMMON MODE CHOKE</text>
 </plain>
 <instances>
 <instance part="+3V9" gate="G$1" x="106.68" y="127" smashed="yes">
@@ -6899,12 +6938,12 @@ Licensed under the Apache 2.0 License</text>
 <instance part="GND6" gate="1" x="-104.14" y="93.98" smashed="yes">
 <attribute name="VALUE" x="-106.68" y="91.44" size="1.778" layer="96"/>
 </instance>
-<instance part="U2" gate="G$1" x="-261.62" y="-81.28" smashed="yes">
-<attribute name="POPULATE" x="-261.62" y="-81.28" size="7.62" layer="96" display="off"/>
-<attribute name="MPN" x="-261.62" y="-81.28" size="7.62" layer="96" display="off"/>
-<attribute name="MF" x="-261.62" y="-81.28" size="7.62" layer="96" display="off"/>
-<attribute name="NAME" x="-246.0244" y="-72.1614" size="2.0828" layer="95" ratio="6" rot="SR0"/>
-<attribute name="VALUE" x="-246.6594" y="-74.7014" size="2.0828" layer="96" ratio="6" rot="SR0"/>
+<instance part="U2" gate="G$1" x="-287.02" y="-81.28" smashed="yes">
+<attribute name="POPULATE" x="-287.02" y="-81.28" size="7.62" layer="96" display="off"/>
+<attribute name="MPN" x="-287.02" y="-81.28" size="7.62" layer="96" display="off"/>
+<attribute name="MF" x="-287.02" y="-81.28" size="7.62" layer="96" display="off"/>
+<attribute name="NAME" x="-271.4244" y="-72.1614" size="2.0828" layer="95" ratio="6" rot="SR0"/>
+<attribute name="VALUE" x="-272.0594" y="-74.7014" size="2.0828" layer="96" ratio="6" rot="SR0"/>
 </instance>
 <instance part="J1" gate="G$1" x="-261.62" y="137.16" smashed="yes">
 <attribute name="POPULATE" x="-261.62" y="137.16" size="7.62" layer="96" display="off"/>
@@ -6922,20 +6961,20 @@ Licensed under the Apache 2.0 License</text>
 <instance part="P-9" gate="1" x="-208.28" y="129.54" smashed="yes">
 <attribute name="VALUE" x="-213.36" y="132.08" size="1.778" layer="96" rot="R270"/>
 </instance>
-<instance part="+3V5" gate="G$1" x="-271.78" y="-71.12" smashed="yes">
-<attribute name="VALUE" x="-274.32" y="-76.2" size="1.778" layer="96" rot="R90"/>
+<instance part="+3V5" gate="G$1" x="-297.18" y="-71.12" smashed="yes">
+<attribute name="VALUE" x="-299.72" y="-76.2" size="1.778" layer="96" rot="R90"/>
 </instance>
-<instance part="GND10" gate="1" x="-274.32" y="-104.14" smashed="yes">
-<attribute name="VALUE" x="-276.86" y="-106.68" size="1.778" layer="96"/>
+<instance part="GND10" gate="1" x="-299.72" y="-104.14" smashed="yes">
+<attribute name="VALUE" x="-302.26" y="-106.68" size="1.778" layer="96"/>
 </instance>
-<instance part="C11" gate="G$1" x="-271.78" y="-91.44" smashed="yes">
-<attribute name="MPN" x="-271.78" y="-91.44" size="1.778" layer="96" display="off"/>
-<attribute name="MF" x="-271.78" y="-91.44" size="1.778" layer="96" display="off"/>
-<attribute name="NAME" x="-269.24" y="-89.916" size="1.016" layer="95" font="vector" align="top-left"/>
-<attribute name="VALUE" x="-269.24" y="-92.964" size="1.016" layer="96" font="vector"/>
+<instance part="C11" gate="G$1" x="-297.18" y="-91.44" smashed="yes">
+<attribute name="MPN" x="-297.18" y="-91.44" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-297.18" y="-91.44" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="-294.64" y="-89.916" size="1.016" layer="95" font="vector" align="top-left"/>
+<attribute name="VALUE" x="-294.64" y="-92.964" size="1.016" layer="96" font="vector"/>
 </instance>
-<instance part="GND13" gate="1" x="-220.98" y="-101.6" smashed="yes">
-<attribute name="VALUE" x="-223.52" y="-104.14" size="1.778" layer="96"/>
+<instance part="GND13" gate="1" x="-246.38" y="-101.6" smashed="yes">
+<attribute name="VALUE" x="-248.92" y="-104.14" size="1.778" layer="96"/>
 </instance>
 <instance part="CAN1" gate="A" x="-195.58" y="-86.36" smashed="yes" rot="MR0">
 <attribute name="MPN" x="-195.58" y="-86.36" size="7.62" layer="96" rot="MR0" display="off"/>
@@ -7412,6 +7451,16 @@ Licensed under the Apache 2.0 License</text>
 <instance part="GND5" gate="1" x="-226.06" y="-276.86" smashed="yes">
 <attribute name="VALUE" x="-228.6" y="-279.4" size="1.778" layer="96"/>
 </instance>
+<instance part="L2" gate="G$1" x="-233.68" y="-91.44" smashed="yes">
+<attribute name="NAME" x="-234.5944" y="-88.0872" size="3.4798" layer="95" ratio="10" rot="SR0"/>
+<attribute name="MPN" x="-233.68" y="-91.44" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="-233.68" y="-91.44" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="L3" gate="G$1" x="-233.68" y="-83.82" smashed="yes">
+<attribute name="NAME" x="-234.5944" y="-80.4672" size="3.4798" layer="95" ratio="10" rot="SR0"/>
+<attribute name="MPN" x="-233.68" y="-83.82" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="-233.68" y="-83.82" size="1.778" layer="96" display="off"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -7519,11 +7568,11 @@ Licensed under the Apache 2.0 License</text>
 <segment>
 <pinref part="U2" gate="G$1" pin="VCC"/>
 <pinref part="+3V5" gate="G$1" pin="+3V3"/>
-<wire x1="-259.08" y1="-86.36" x2="-271.78" y2="-86.36" width="0.1524" layer="91"/>
-<wire x1="-271.78" y1="-86.36" x2="-271.78" y2="-73.66" width="0.1524" layer="91"/>
+<wire x1="-284.48" y1="-86.36" x2="-297.18" y2="-86.36" width="0.1524" layer="91"/>
+<wire x1="-297.18" y1="-86.36" x2="-297.18" y2="-73.66" width="0.1524" layer="91"/>
 <pinref part="C11" gate="G$1" pin="P$1"/>
-<wire x1="-271.78" y1="-86.36" x2="-271.78" y2="-88.9" width="0.1524" layer="91"/>
-<junction x="-271.78" y="-86.36"/>
+<wire x1="-297.18" y1="-86.36" x2="-297.18" y2="-88.9" width="0.1524" layer="91"/>
+<junction x="-297.18" y="-86.36"/>
 </segment>
 <segment>
 <pinref part="ABS" gate="G$1" pin="1"/>
@@ -7685,23 +7734,23 @@ Licensed under the Apache 2.0 License</text>
 <segment>
 <pinref part="U2" gate="G$1" pin="GND"/>
 <pinref part="GND10" gate="1" pin="GND"/>
-<wire x1="-259.08" y1="-83.82" x2="-274.32" y2="-83.82" width="0.1524" layer="91"/>
-<wire x1="-274.32" y1="-83.82" x2="-274.32" y2="-99.06" width="0.1524" layer="91"/>
+<wire x1="-284.48" y1="-83.82" x2="-299.72" y2="-83.82" width="0.1524" layer="91"/>
+<wire x1="-299.72" y1="-83.82" x2="-299.72" y2="-99.06" width="0.1524" layer="91"/>
 <pinref part="C11" gate="G$1" pin="P$2"/>
-<wire x1="-274.32" y1="-99.06" x2="-274.32" y2="-101.6" width="0.1524" layer="91"/>
-<wire x1="-271.78" y1="-93.98" x2="-271.78" y2="-99.06" width="0.1524" layer="91"/>
-<wire x1="-271.78" y1="-99.06" x2="-274.32" y2="-99.06" width="0.1524" layer="91"/>
-<junction x="-274.32" y="-99.06"/>
+<wire x1="-299.72" y1="-99.06" x2="-299.72" y2="-101.6" width="0.1524" layer="91"/>
+<wire x1="-297.18" y1="-93.98" x2="-297.18" y2="-99.06" width="0.1524" layer="91"/>
+<wire x1="-297.18" y1="-99.06" x2="-299.72" y2="-99.06" width="0.1524" layer="91"/>
+<junction x="-299.72" y="-99.06"/>
 </segment>
 <segment>
 <pinref part="U2" gate="G$1" pin="SHDN"/>
 <pinref part="GND13" gate="1" pin="GND"/>
-<wire x1="-223.52" y1="-88.9" x2="-220.98" y2="-88.9" width="0.1524" layer="91"/>
-<wire x1="-220.98" y1="-88.9" x2="-220.98" y2="-99.06" width="0.1524" layer="91"/>
-<wire x1="-220.98" y1="-88.9" x2="-220.98" y2="-81.28" width="0.1524" layer="91"/>
-<junction x="-220.98" y="-88.9"/>
+<wire x1="-248.92" y1="-88.9" x2="-246.38" y2="-88.9" width="0.1524" layer="91"/>
+<wire x1="-246.38" y1="-88.9" x2="-246.38" y2="-99.06" width="0.1524" layer="91"/>
+<wire x1="-246.38" y1="-88.9" x2="-246.38" y2="-81.28" width="0.1524" layer="91"/>
+<junction x="-246.38" y="-88.9"/>
 <pinref part="U2" gate="G$1" pin="STB"/>
-<wire x1="-220.98" y1="-81.28" x2="-223.52" y2="-81.28" width="0.1524" layer="91"/>
+<wire x1="-246.38" y1="-81.28" x2="-248.92" y2="-81.28" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="ABS" gate="G$1" pin="4"/>
@@ -8949,8 +8998,8 @@ Licensed under the Apache 2.0 License</text>
 </segment>
 <segment>
 <pinref part="U2" gate="G$1" pin="RXD"/>
-<wire x1="-259.08" y1="-88.9" x2="-266.7" y2="-88.9" width="0.1524" layer="91"/>
-<label x="-266.7" y="-88.9" size="1.778" layer="95"/>
+<wire x1="-284.48" y1="-88.9" x2="-292.1" y2="-88.9" width="0.1524" layer="91"/>
+<label x="-292.1" y="-88.9" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="CAN_TX" class="0">
@@ -8961,14 +9010,12 @@ Licensed under the Apache 2.0 License</text>
 </segment>
 <segment>
 <pinref part="U2" gate="G$1" pin="TXD"/>
-<wire x1="-259.08" y1="-81.28" x2="-266.7" y2="-81.28" width="0.1524" layer="91"/>
-<label x="-266.7" y="-81.28" size="1.778" layer="95"/>
+<wire x1="-284.48" y1="-81.28" x2="-292.1" y2="-81.28" width="0.1524" layer="91"/>
+<label x="-292.1" y="-81.28" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="CAN_P" class="1">
 <segment>
-<wire x1="-223.52" y1="-83.82" x2="-208.28" y2="-83.82" width="0.1524" layer="91"/>
-<pinref part="U2" gate="G$1" pin="CANH"/>
 <pinref part="CAN1" gate="A" pin="1"/>
 <pinref part="CAN2" gate="A" pin="1"/>
 <wire x1="-208.28" y1="-83.82" x2="-200.66" y2="-83.82" width="0.1524" layer="91"/>
@@ -8978,23 +9025,27 @@ Licensed under the Apache 2.0 License</text>
 <pinref part="D4" gate="G$1" pin="1"/>
 <label x="-198.12" y="-40.64" size="1.778" layer="95"/>
 <wire x1="-208.28" y1="-40.64" x2="-190.5" y2="-40.64" width="0.1524" layer="91"/>
+<pinref part="L3" gate="G$1" pin="1"/>
+<wire x1="-218.44" y1="-83.82" x2="-208.28" y2="-83.82" width="0.1524" layer="91"/>
 <junction x="-208.28" y="-83.82"/>
 </segment>
 </net>
 <net name="CAN_N" class="1">
 <segment>
-<pinref part="U2" gate="G$1" pin="CANL"/>
-<wire x1="-223.52" y1="-86.36" x2="-205.74" y2="-86.36" width="0.1524" layer="91"/>
 <pinref part="CAN1" gate="A" pin="2"/>
 <pinref part="CAN2" gate="A" pin="2"/>
 <wire x1="-205.74" y1="-86.36" x2="-200.66" y2="-86.36" width="0.1524" layer="91"/>
 <wire x1="-200.66" y1="-86.36" x2="-182.88" y2="-86.36" width="0.1524" layer="91"/>
 <junction x="-200.66" y="-86.36"/>
 <wire x1="-205.74" y1="-86.36" x2="-205.74" y2="-66.04" width="0.1524" layer="91"/>
-<junction x="-205.74" y="-86.36"/>
 <pinref part="D4" gate="G$1" pin="2"/>
 <label x="-198.12" y="-66.04" size="1.778" layer="95"/>
 <wire x1="-205.74" y1="-66.04" x2="-190.5" y2="-66.04" width="0.1524" layer="91"/>
+<pinref part="L2" gate="G$1" pin="1"/>
+<wire x1="-218.44" y1="-91.44" x2="-213.36" y2="-91.44" width="0.1524" layer="91"/>
+<wire x1="-213.36" y1="-91.44" x2="-213.36" y2="-86.36" width="0.1524" layer="91"/>
+<wire x1="-213.36" y1="-86.36" x2="-205.74" y2="-86.36" width="0.1524" layer="91"/>
+<junction x="-205.74" y="-86.36"/>
 </segment>
 </net>
 <net name="DEBUG_RX" class="0">
@@ -9105,6 +9156,24 @@ Licensed under the Apache 2.0 License</text>
 <wire x1="-223.52" y1="78.74" x2="-223.52" y2="73.66" width="0.1524" layer="91"/>
 </segment>
 </net>
+<net name="CAN2_P" class="0">
+<segment>
+<pinref part="U2" gate="G$1" pin="CANH"/>
+<wire x1="-248.92" y1="-83.82" x2="-233.68" y2="-83.82" width="0.1524" layer="91"/>
+<pinref part="L3" gate="G$1" pin="2"/>
+<label x="-243.84" y="-83.82" size="1.778" layer="95"/>
+</segment>
+</net>
+<net name="CAN2_N" class="0">
+<segment>
+<pinref part="U2" gate="G$1" pin="CANL"/>
+<wire x1="-248.92" y1="-86.36" x2="-238.76" y2="-86.36" width="0.1524" layer="91"/>
+<wire x1="-238.76" y1="-86.36" x2="-238.76" y2="-91.44" width="0.1524" layer="91"/>
+<pinref part="L2" gate="G$1" pin="2"/>
+<wire x1="-238.76" y1="-91.44" x2="-233.68" y2="-91.44" width="0.1524" layer="91"/>
+<label x="-243.84" y="-86.36" size="1.778" layer="95"/>
+</segment>
+</net>
 </nets>
 </sheet>
 </sheets>
@@ -9116,7 +9185,7 @@ Licensed under the Apache 2.0 License</text>
 <approved hash="104,1,220.98,106.68,D2,CATHODE,LED2,,,"/>
 <approved hash="104,1,200.66,111.76,D3,ANODE,N$17,,,"/>
 <approved hash="104,1,200.66,106.68,D3,CATHODE,LED1,,,"/>
-<approved hash="104,1,-259.08,-86.36,U2,VCC,+3V3,,,"/>
+<approved hash="104,1,-284.48,-86.36,U2,VCC,+3V3,,,"/>
 <approved hash="104,1,114.3,-264.16,U4,VCC,N$4,,,"/>
 <approved hash="202,1,160.02,-266.7,U4,MODE,,,,"/>
 </errors>
