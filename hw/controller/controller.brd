@@ -180,9 +180,9 @@
 <text x="-7.5" y="-1.2" size="0.6096" layer="21" font="vector">MO</text>
 <text x="-6" y="-1.2" size="0.6096" layer="21" font="vector">MI</text>
 <text x="-12.85" y="-1.2" size="0.6096" layer="21" font="vector">1</text>
-<text x="-14.5" y="-1.2" size="0.6096" layer="21" font="vector">2</text>
+<text x="-14.45" y="-1.2" size="0.6096" layer="21" font="vector">2</text>
 <text x="-17.25" y="4.95" size="0.6096" layer="21" font="vector">3</text>
-<text x="-18.35" y="1" size="0.8" layer="21">MOT</text>
+<text x="-13.95" y="1" size="0.8" layer="21">MOT</text>
 <text x="11" y="7.9" size="0.6096" layer="21" font="vector">G</text>
 <text x="-21.1" y="3.5" size="0.8" layer="21" rot="R180">3V</text>
 <text x="-11.35" y="-1.2" size="0.6096" layer="21" font="vector">G</text>
@@ -616,6 +616,7 @@
 <text x="10.3" y="-33.55" size="0.8" layer="26" font="vector" ratio="10" rot="MR0">H</text>
 <text x="-7.7" y="-33.55" size="0.8" layer="26" font="vector" ratio="10" rot="MR0">L</text>
 <text x="-5.7" y="-33.55" size="0.8" layer="26" font="vector" ratio="10" rot="MR0">H</text>
+<text x="-15.9" y="-1.2" size="0.6096" layer="21" font="vector">3</text>
 </plain>
 <libraries>
 <library name="controller">
