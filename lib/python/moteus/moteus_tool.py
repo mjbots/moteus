@@ -642,9 +642,12 @@ class Stream:
         # Wait a bit for it to stabilize.
         await asyncio.sleep(0.3)
 
+        def extract(f):
+            return math.hypot(f.d_A, f.q_A)
+
         # Now get the servo_stats telemetry channel to read the D and Q
         # currents.
-        data = await self.read_data("servo_stats")
+        data = [extract(await self.read_data("servo_stats")) for _ in range(10)]
 
         # Stop the current.
         await self.command("d stop");
@@ -652,10 +655,7 @@ class Stream:
         # Sleep a tiny bit before returning.
         await asyncio.sleep(0.1);
 
-        d_cur = data.d_A;
-        q_cur = data.q_A;
-
-        current_A = math.hypot(d_cur, q_cur)
+        current_A = sum(data) / len(data)
         print(f"{voltage}V - {current_A}A")
 
         return current_A
