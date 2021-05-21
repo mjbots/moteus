@@ -163,6 +163,8 @@ class PlotItem(object):
         # legend.
         if len(self.axis.lines) == 0:
             self.axis.legend_ = None
+            self.axis.relim()
+            self.axis.autoscale()
         else:
             self.axis.legend(loc=self.axis.legend_loc)
         self.plot_widget.canvas.draw()
