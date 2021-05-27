@@ -6591,7 +6591,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-302.26" y="-142.24" size="5.08" layer="90">FET DRIVER</text>
 <text x="-132.08" y="-142.24" size="5.08" layer="90">POWER FETS</text>
 <text x="73.66" y="-142.24" size="5.08" layer="90">BULK CAPACITANCE / REGULATORS</text>
-<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.6
+<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.7
 (c) jjp@pobox.com 2021
 Licensed under the Apache 2.0 License</text>
 <text x="22.86" y="111.76" size="1.778" layer="91">PA10/PA15/PC6 Version
@@ -8349,90 +8349,6 @@ COMMON MODE CHOKE</text>
 <junction x="170.18" y="-190.5"/>
 </segment>
 </net>
-<net name="SPA" class="0">
-<segment>
-<pinref part="Q2" gate="G$1" pin="S"/>
-<pinref part="RA" gate="G$1" pin="2"/>
-<wire x1="-58.42" y1="-223.52" x2="-58.42" y2="-228.6" width="0.1524" layer="91"/>
-<wire x1="-58.42" y1="-228.6" x2="-58.42" y2="-231.14" width="0.1524" layer="91"/>
-<wire x1="-58.42" y1="-228.6" x2="-76.2" y2="-228.6" width="0.1524" layer="91"/>
-<junction x="-58.42" y="-228.6"/>
-<label x="-76.2" y="-228.6" size="1.778" layer="95"/>
-</segment>
-<segment>
-<wire x1="-205.74" y1="-193.04" x2="-187.96" y2="-193.04" width="0.1524" layer="91"/>
-<label x="-193.04" y="-193.04" size="1.778" layer="95"/>
-<pinref part="U5" gate="G$1" pin="SPA"/>
-</segment>
-</net>
-<net name="SPB" class="0">
-<segment>
-<pinref part="Q4" gate="G$1" pin="S"/>
-<wire x1="-27.94" y1="-223.52" x2="-27.94" y2="-228.6" width="0.1524" layer="91"/>
-<wire x1="-27.94" y1="-228.6" x2="-27.94" y2="-231.14" width="0.1524" layer="91"/>
-<wire x1="-27.94" y1="-228.6" x2="-48.26" y2="-228.6" width="0.1524" layer="91"/>
-<junction x="-27.94" y="-228.6"/>
-<label x="-48.26" y="-228.6" size="1.778" layer="95"/>
-<pinref part="RB" gate="G$1" pin="2"/>
-</segment>
-<segment>
-<wire x1="-205.74" y1="-215.9" x2="-187.96" y2="-215.9" width="0.1524" layer="91"/>
-<label x="-193.04" y="-215.9" size="1.778" layer="95"/>
-<pinref part="U5" gate="G$1" pin="SPB"/>
-</segment>
-</net>
-<net name="SPC" class="0">
-<segment>
-<pinref part="Q6" gate="G$1" pin="S"/>
-<wire x1="-2.54" y1="-223.52" x2="-2.54" y2="-228.6" width="0.1524" layer="91"/>
-<wire x1="-2.54" y1="-228.6" x2="-2.54" y2="-231.14" width="0.1524" layer="91"/>
-<wire x1="-2.54" y1="-228.6" x2="-20.32" y2="-228.6" width="0.1524" layer="91"/>
-<junction x="-2.54" y="-228.6"/>
-<label x="-20.32" y="-228.6" size="1.778" layer="95"/>
-<pinref part="RC" gate="G$1" pin="2"/>
-</segment>
-<segment>
-<wire x1="-205.74" y1="-238.76" x2="-187.96" y2="-238.76" width="0.1524" layer="91"/>
-<label x="-193.04" y="-238.76" size="1.778" layer="95"/>
-<pinref part="U5" gate="G$1" pin="SPC"/>
-</segment>
-</net>
-<net name="SNA" class="0">
-<segment>
-<pinref part="SH1" gate="G$1" pin="P$1"/>
-<wire x1="-66.04" y1="-246.38" x2="-76.2" y2="-246.38" width="0.1524" layer="91"/>
-<label x="-76.2" y="-246.38" size="1.778" layer="95"/>
-</segment>
-<segment>
-<wire x1="-205.74" y1="-195.58" x2="-187.96" y2="-195.58" width="0.1524" layer="91"/>
-<label x="-193.04" y="-195.58" size="1.778" layer="95"/>
-<pinref part="U5" gate="G$1" pin="SNA"/>
-</segment>
-</net>
-<net name="SNB" class="0">
-<segment>
-<pinref part="SH2" gate="G$1" pin="P$1"/>
-<wire x1="-35.56" y1="-246.38" x2="-48.26" y2="-246.38" width="0.1524" layer="91"/>
-<label x="-48.26" y="-246.38" size="1.778" layer="95"/>
-</segment>
-<segment>
-<wire x1="-205.74" y1="-218.44" x2="-187.96" y2="-218.44" width="0.1524" layer="91"/>
-<label x="-193.04" y="-218.44" size="1.778" layer="95"/>
-<pinref part="U5" gate="G$1" pin="SNB"/>
-</segment>
-</net>
-<net name="SNC" class="0">
-<segment>
-<pinref part="SH3" gate="G$1" pin="P$1"/>
-<wire x1="-10.16" y1="-246.38" x2="-20.32" y2="-246.38" width="0.1524" layer="91"/>
-<label x="-20.32" y="-246.38" size="1.778" layer="95"/>
-</segment>
-<segment>
-<wire x1="-205.74" y1="-241.3" x2="-187.96" y2="-241.3" width="0.1524" layer="91"/>
-<label x="-193.04" y="-241.3" size="1.778" layer="95"/>
-<pinref part="U5" gate="G$1" pin="SNC"/>
-</segment>
-</net>
 <net name="SHA" class="0">
 <segment>
 <pinref part="Q1" gate="G$1" pin="S"/>
@@ -9172,6 +9088,90 @@ COMMON MODE CHOKE</text>
 <pinref part="L2" gate="G$1" pin="2"/>
 <wire x1="-238.76" y1="-91.44" x2="-233.68" y2="-91.44" width="0.1524" layer="91"/>
 <label x="-243.84" y="-86.36" size="1.778" layer="95"/>
+</segment>
+</net>
+<net name="SXA_N" class="0">
+<segment>
+<pinref part="SH1" gate="G$1" pin="P$1"/>
+<wire x1="-66.04" y1="-246.38" x2="-76.2" y2="-246.38" width="0.1524" layer="91"/>
+<label x="-76.2" y="-246.38" size="1.778" layer="95"/>
+</segment>
+<segment>
+<wire x1="-205.74" y1="-195.58" x2="-187.96" y2="-195.58" width="0.1524" layer="91"/>
+<label x="-193.04" y="-195.58" size="1.778" layer="95"/>
+<pinref part="U5" gate="G$1" pin="SNA"/>
+</segment>
+</net>
+<net name="SXA_P" class="0">
+<segment>
+<pinref part="Q2" gate="G$1" pin="S"/>
+<pinref part="RA" gate="G$1" pin="2"/>
+<wire x1="-58.42" y1="-223.52" x2="-58.42" y2="-228.6" width="0.1524" layer="91"/>
+<wire x1="-58.42" y1="-228.6" x2="-58.42" y2="-231.14" width="0.1524" layer="91"/>
+<wire x1="-58.42" y1="-228.6" x2="-76.2" y2="-228.6" width="0.1524" layer="91"/>
+<junction x="-58.42" y="-228.6"/>
+<label x="-76.2" y="-228.6" size="1.778" layer="95"/>
+</segment>
+<segment>
+<wire x1="-205.74" y1="-193.04" x2="-187.96" y2="-193.04" width="0.1524" layer="91"/>
+<label x="-193.04" y="-193.04" size="1.778" layer="95"/>
+<pinref part="U5" gate="G$1" pin="SPA"/>
+</segment>
+</net>
+<net name="SXB_N" class="0">
+<segment>
+<pinref part="SH2" gate="G$1" pin="P$1"/>
+<wire x1="-35.56" y1="-246.38" x2="-48.26" y2="-246.38" width="0.1524" layer="91"/>
+<label x="-48.26" y="-246.38" size="1.778" layer="95"/>
+</segment>
+<segment>
+<wire x1="-205.74" y1="-218.44" x2="-187.96" y2="-218.44" width="0.1524" layer="91"/>
+<label x="-193.04" y="-218.44" size="1.778" layer="95"/>
+<pinref part="U5" gate="G$1" pin="SNB"/>
+</segment>
+</net>
+<net name="SXB_P" class="0">
+<segment>
+<pinref part="Q4" gate="G$1" pin="S"/>
+<wire x1="-27.94" y1="-223.52" x2="-27.94" y2="-228.6" width="0.1524" layer="91"/>
+<wire x1="-27.94" y1="-228.6" x2="-27.94" y2="-231.14" width="0.1524" layer="91"/>
+<wire x1="-27.94" y1="-228.6" x2="-48.26" y2="-228.6" width="0.1524" layer="91"/>
+<junction x="-27.94" y="-228.6"/>
+<label x="-48.26" y="-228.6" size="1.778" layer="95"/>
+<pinref part="RB" gate="G$1" pin="2"/>
+</segment>
+<segment>
+<wire x1="-205.74" y1="-215.9" x2="-187.96" y2="-215.9" width="0.1524" layer="91"/>
+<label x="-193.04" y="-215.9" size="1.778" layer="95"/>
+<pinref part="U5" gate="G$1" pin="SPB"/>
+</segment>
+</net>
+<net name="SXC_N" class="0">
+<segment>
+<pinref part="SH3" gate="G$1" pin="P$1"/>
+<wire x1="-10.16" y1="-246.38" x2="-20.32" y2="-246.38" width="0.1524" layer="91"/>
+<label x="-20.32" y="-246.38" size="1.778" layer="95"/>
+</segment>
+<segment>
+<wire x1="-205.74" y1="-241.3" x2="-187.96" y2="-241.3" width="0.1524" layer="91"/>
+<label x="-193.04" y="-241.3" size="1.778" layer="95"/>
+<pinref part="U5" gate="G$1" pin="SNC"/>
+</segment>
+</net>
+<net name="SXC_P" class="0">
+<segment>
+<pinref part="Q6" gate="G$1" pin="S"/>
+<wire x1="-2.54" y1="-223.52" x2="-2.54" y2="-228.6" width="0.1524" layer="91"/>
+<wire x1="-2.54" y1="-228.6" x2="-2.54" y2="-231.14" width="0.1524" layer="91"/>
+<wire x1="-2.54" y1="-228.6" x2="-20.32" y2="-228.6" width="0.1524" layer="91"/>
+<junction x="-2.54" y="-228.6"/>
+<label x="-20.32" y="-228.6" size="1.778" layer="95"/>
+<pinref part="RC" gate="G$1" pin="2"/>
+</segment>
+<segment>
+<wire x1="-205.74" y1="-238.76" x2="-187.96" y2="-238.76" width="0.1524" layer="91"/>
+<label x="-193.04" y="-238.76" size="1.778" layer="95"/>
+<pinref part="U5" gate="G$1" pin="SPC"/>
 </segment>
 </net>
 </nets>
