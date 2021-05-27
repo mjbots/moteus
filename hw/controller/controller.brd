@@ -29,11 +29,11 @@
 <layer number="18" name="Vias" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="19" name="Unrouted" color="6" fill="1" visible="yes" active="yes"/>
 <layer number="20" name="Dimension" color="15" fill="1" visible="yes" active="yes"/>
-<layer number="21" name="tPlace" color="7" fill="1" visible="no" active="yes"/>
+<layer number="21" name="tPlace" color="7" fill="1" visible="yes" active="yes"/>
 <layer number="22" name="bPlace" color="7" fill="1" visible="no" active="yes"/>
 <layer number="23" name="tOrigins" color="15" fill="1" visible="yes" active="yes"/>
 <layer number="24" name="bOrigins" color="15" fill="1" visible="no" active="yes"/>
-<layer number="25" name="tNames" color="7" fill="1" visible="no" active="yes"/>
+<layer number="25" name="tNames" color="7" fill="1" visible="yes" active="yes"/>
 <layer number="26" name="bNames" color="7" fill="1" visible="yes" active="yes"/>
 <layer number="27" name="tValues" color="7" fill="1" visible="no" active="yes"/>
 <layer number="28" name="bValues" color="7" fill="1" visible="no" active="yes"/>
@@ -609,7 +609,7 @@
 <text x="-5.95" y="1.7" size="0.8" layer="26" font="vector" ratio="10" rot="MR270">I</text>
 <text x="-4.45" y="1.7" size="0.8" layer="26" font="vector" ratio="10" rot="MR270">O</text>
 <text x="16" y="0.55" size="0.8" layer="25" font="vector" ratio="10">G</text>
-<text x="16" y="-6.05" size="0.8" layer="25" font="vector" ratio="10">3</text>
+<text x="16.05" y="-6.35" size="0.8" layer="25" font="vector" ratio="10">3</text>
 <text x="6.25" y="-33.55" size="0.8" layer="26" font="vector" ratio="10" rot="MR0">G</text>
 <text x="-9.7" y="-33.55" size="0.8" layer="26" font="vector" ratio="10" rot="MR0">G</text>
 <text x="8.25" y="-33.55" size="0.8" layer="26" font="vector" ratio="10" rot="MR0">L</text>
@@ -2447,7 +2447,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Yageo" x="13.29" y="-5.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MFG#" value="N/A" x="-27.35" y="-32.25" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="RC0402FR-07100KL" x="-27.35" y="-32.25" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="13.99" y="-5.58" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="13.94" y="-5.33" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
 <attribute name="POPULATE" value="1" x="13.29" y="-5.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="-27.35" y="-32.25" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" x="13.29" y="-5.58" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2459,7 +2459,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="MF" value="Yageo" x="12.06" y="-5.58" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MFG#" value="N/A" x="52.7" y="24.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="MPN" value="RC0402FR-074K7L" x="52.7" y="24.9" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="NAME" x="11.47" y="-4.36" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="NAME" x="11.07" y="-4.41" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="12.06" y="-5.58" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="TOLERANCE" value="" x="52.7" y="24.9" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="URL" x="12.06" y="-5.58" size="1.778" layer="27" rot="R90" display="off"/>
@@ -2764,7 +2764,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="10.98" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="" x="10.98" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF" x="10.98" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="11.68" y="-1.48" size="0.6096" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="NAME" x="10.605" y="-2.83" size="0.5" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="10.98" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="10.98" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="10.98" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2775,7 +2775,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="10.82" y="-3.9" size="0.5" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="10.22" y="-4" size="0.5" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2861,7 +2861,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="15.45" y="-3.25" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="" x="15.45" y="-3.25" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="MF-CAP-0402-1uF" x="15.45" y="-3.25" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="14" y="-3" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="14" y="-3.75" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="POPULATE" value="1" x="15.45" y="-3.25" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="15.45" y="-3.25" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="15.45" y="-3.25" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2872,7 +2872,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="15.45" y="-4.5" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MF" value="" x="15.45" y="-4.5" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF" x="15.45" y="-4.5" size="1.778" layer="27" rot="R180" display="off"/>
-<attribute name="NAME" x="14.35" y="-3.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="16.1" y="-5.15" size="0.5" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="15.45" y="-4.5" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="TOLERANCE" value="" x="15.45" y="-4.5" size="1.778" layer="27" rot="R180" display="off"/>
 <attribute name="URL" value="" x="15.45" y="-4.5" size="1.778" layer="27" rot="R180" display="off"/>
@@ -2882,7 +2882,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="15.45" y="-0.65" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="" x="15.45" y="-0.65" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="MF-RES-0402-2K" x="15.45" y="-0.65" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="14.1" y="-0.45" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="13.65" y="0.05" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="15.45" y="-0.65" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="15.45" y="-0.65" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="15.45" y="-0.65" size="1.778" layer="27" display="off"/>
@@ -2893,7 +2893,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="15.45" y="-2" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="" x="15.45" y="-2" size="1.778" layer="27" display="off"/>
 <attribute name="MPN" value="MF-RES-0402-2K" x="15.45" y="-2" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="14.1" y="-1.7" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="14" y="-2.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="POPULATE" value="1" x="15.45" y="-2" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="15.45" y="-2" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="15.45" y="-2" size="1.778" layer="27" display="off"/>
@@ -3371,6 +3371,17 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="20.8" y="-12.93" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="21.23" y="-15.55" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
+<element name="C57" library="mfpassives" package="C0402" value="0.01uF" x="12.7" y="-3.25" smashed="yes" rot="R90">
+<attribute name="DIELECTRIC" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MF" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.01uF" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="NAME" x="11.65" y="-1.95" size="0.5" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="TOLERANCE" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="URL" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="VOLTAGE" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
+</element>
 </elements>
 <signals>
 <signal name="+3V3">
@@ -3646,10 +3657,15 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="R6" pad="P$2"/>
 <contactref element="R5" pad="P$1"/>
 <contactref element="U1" pad="25"/>
-<wire x1="11.75" y1="0.15" x2="11.95" y2="-0.05" width="0.127" layer="1"/>
+<wire x1="11.95" y1="-0.05" x2="11.75" y2="0.15" width="0.127" layer="1"/>
 <wire x1="12.06" y1="-5.03" x2="11.95" y2="-4.92" width="0.127" layer="1"/>
-<wire x1="11.95" y1="-0.05" x2="11.95" y2="-4.92" width="0.127" layer="1"/>
 <wire x1="13.29" y1="-5.03" x2="12.06" y2="-5.03" width="0.254" layer="1"/>
+<contactref element="C57" pad="P$1"/>
+<wire x1="12.7" y1="-3.8" x2="12.06" y2="-4.44" width="0.254" layer="1"/>
+<wire x1="12.06" y1="-4.44" x2="12.06" y2="-5.03" width="0.254" layer="1"/>
+<wire x1="12.7" y1="-3.8" x2="12" y2="-3.1" width="0.254" layer="1"/>
+<wire x1="12" y1="-0.1" x2="11.75" y2="0.15" width="0.254" layer="1"/>
+<wire x1="12" y1="-3.1" x2="12" y2="-0.1" width="0.254" layer="1"/>
 </signal>
 <signal name="AS5047_CS">
 <contactref element="U3" pad="1"/>
@@ -3672,11 +3688,12 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="11.75" y1="0.65" x2="11.7918" y2="0.6082" width="0.1524" layer="1"/>
 <wire x1="11.7918" y1="0.6082" x2="12.19416875" y2="0.6082" width="0.1524" layer="1"/>
 <wire x1="12.19416875" y1="0.6082" x2="12.535" y2="0.26736875" width="0.1524" layer="1"/>
-<wire x1="12.535" y1="0.26736875" x2="12.535" y2="-1.785" width="0.1524" layer="1"/>
-<wire x1="12.535" y1="-1.785" x2="12.65" y2="-1.9" width="0.1524" layer="1"/>
-<via x="12.65" y="-1.9" extent="1-16" drill="0.35"/>
-<wire x1="12.65" y1="-1.9" x2="12.65" y2="-3.5" width="0.1524" layer="16"/>
-<wire x1="12.65" y1="-3.5" x2="9.1" y2="-7.05" width="0.1524" layer="16"/>
+<wire x1="12.535" y1="0.26736875" x2="12.535" y2="-0.685" width="0.1524" layer="1"/>
+<wire x1="12.535" y1="-0.685" x2="13.1" y2="-1.25" width="0.1524" layer="1"/>
+<via x="13.1" y="-1.25" extent="1-16" drill="0.35"/>
+<wire x1="13.1" y1="-1.25" x2="13.15" y2="-1.3" width="0.1524" layer="16"/>
+<wire x1="13.15" y1="-1.3" x2="13.15" y2="-3" width="0.1524" layer="16"/>
+<wire x1="13.15" y1="-3" x2="9.1" y2="-7.05" width="0.1524" layer="16"/>
 <wire x1="9.1" y1="-7.05" x2="-0.65" y2="-7.05" width="0.1524" layer="16"/>
 <wire x1="-0.65" y1="-7.05" x2="-1.3" y2="-6.4" width="0.1524" layer="16"/>
 <wire x1="-1.3" y1="-6.4" x2="-1.3" y2="-5.0822" width="0.1524" layer="16"/>
@@ -4053,11 +4070,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="-20.9" y="-10.6" extent="1-16" drill="0.3048"/>
 <via x="20.95" y="-24.35" extent="1-16" drill="0.3048"/>
 <wire x1="14" y1="-7" x2="13.45" y2="-6.45" width="0.127" layer="1"/>
-<wire x1="14" y1="-11.2" x2="14" y2="-7" width="0.127" layer="1"/>
-<wire x1="14" y1="-11.2" x2="14.025" y2="-11.225" width="0.127" layer="1"/>
+<wire x1="14" y1="-10.725" x2="14" y2="-7" width="0.127" layer="1"/>
 <wire x1="13.45" y1="-6.45" x2="13.29" y2="-6.13" width="0.127" layer="1"/>
-<wire x1="14.025" y1="-11.225" x2="14.175" y2="-11.225" width="0.127" layer="1"/>
-<wire x1="14.175" y1="-11.225" x2="14.55" y2="-10.85" width="0.127" layer="1"/>
+<wire x1="14.55" y1="-10.85" x2="14.425" y2="-10.725" width="0.127" layer="1"/>
+<wire x1="14.425" y1="-10.725" x2="14" y2="-10.725" width="0.127" layer="1"/>
 <contactref element="U5" pad="4"/>
 <contactref element="U5" pad="3"/>
 <contactref element="U4" pad="1"/>
@@ -5237,6 +5253,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-6.35" y1="-2.35" x2="-6.35" y2="-2.95" width="0.3048" layer="1"/>
 <wire x1="-6.35" y1="-2.95" x2="-6.4" y2="-3" width="0.3048" layer="1"/>
 <wire x1="-6.4" y1="-3" x2="-6.4" y2="-3.88" width="0.2159" layer="1"/>
+<contactref element="C57" pad="P$2"/>
+<via x="12.65" y="-2.2" extent="1-16" drill="0.3048"/>
+<wire x1="12.7" y1="-2.7" x2="12.65" y2="-2.65" width="0.254" layer="1"/>
+<wire x1="12.65" y1="-2.65" x2="12.65" y2="-2.2" width="0.254" layer="1"/>
 </signal>
 <signal name="VTEMP_FET">
 <contactref element="R8" pad="P$2"/>

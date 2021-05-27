@@ -6542,6 +6542,11 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MPN" value="MF-RES-0805-0"/>
 <attribute name="POPULATE" value="1"/>
 </part>
+<part name="C57" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="0.01uF">
+<attribute name="HOUSEPART" value="YES"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-CAP-0402-0.01uF"/>
+</part>
 </parts>
 <sheets>
 <sheet>
@@ -7461,6 +7466,12 @@ COMMON MODE CHOKE</text>
 <attribute name="MPN" x="-233.68" y="-83.82" size="1.778" layer="96" display="off"/>
 <attribute name="POPULATE" x="-233.68" y="-83.82" size="1.778" layer="96" display="off"/>
 </instance>
+<instance part="C57" gate="G$1" x="124.46" y="-93.98" smashed="yes">
+<attribute name="MPN" x="124.46" y="-93.98" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="124.46" y="-93.98" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="127" y="-92.456" size="1.016" layer="95" font="vector" align="top-left"/>
+<attribute name="VALUE" x="127" y="-95.504" size="1.016" layer="96" font="vector"/>
+</instance>
 </instances>
 <busses>
 </busses>
@@ -7657,7 +7668,12 @@ COMMON MODE CHOKE</text>
 <segment>
 <pinref part="GND18" gate="1" pin="GND"/>
 <pinref part="R6" gate="G$1" pin="P$1"/>
-<wire x1="116.84" y1="-104.14" x2="116.84" y2="-96.52" width="0.1524" layer="91"/>
+<wire x1="116.84" y1="-104.14" x2="116.84" y2="-101.6" width="0.1524" layer="91"/>
+<wire x1="116.84" y1="-101.6" x2="116.84" y2="-96.52" width="0.1524" layer="91"/>
+<wire x1="116.84" y1="-101.6" x2="124.46" y2="-101.6" width="0.1524" layer="91"/>
+<junction x="116.84" y="-101.6"/>
+<pinref part="C57" gate="G$1" pin="P$2"/>
+<wire x1="124.46" y1="-101.6" x2="124.46" y2="-96.52" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="U3" gate="G$1" pin="TEST"/>
@@ -7927,9 +7943,13 @@ COMMON MODE CHOKE</text>
 <pinref part="R6" gate="G$1" pin="P$2"/>
 <pinref part="R5" gate="G$1" pin="P$1"/>
 <wire x1="116.84" y1="-86.36" x2="116.84" y2="-81.28" width="0.1524" layer="91"/>
-<wire x1="116.84" y1="-86.36" x2="132.08" y2="-86.36" width="0.1524" layer="91"/>
+<wire x1="116.84" y1="-86.36" x2="124.46" y2="-86.36" width="0.1524" layer="91"/>
 <junction x="116.84" y="-86.36"/>
 <label x="127" y="-86.36" size="1.778" layer="95"/>
+<pinref part="C57" gate="G$1" pin="P$1"/>
+<wire x1="124.46" y1="-86.36" x2="132.08" y2="-86.36" width="0.1524" layer="91"/>
+<wire x1="124.46" y1="-91.44" x2="124.46" y2="-86.36" width="0.1524" layer="91"/>
+<junction x="124.46" y="-86.36"/>
 </segment>
 <segment>
 <pinref part="U1" gate="G$1" pin="PB12"/>
