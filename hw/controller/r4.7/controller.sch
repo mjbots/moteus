@@ -806,8 +806,8 @@ MAX3223-MAX3243.pdf</description>
 </package>
 <package name="SOT23-3">
 <smd name="3" x="0" y="1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
-<smd name="1" x="-1.35" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
-<smd name="2" x="1.35" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
+<smd name="1" x="-0.95" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
+<smd name="2" x="0.95" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
 <text x="-1.84" y="1.94" size="0.6096" layer="21" font="vector" ratio="10">&gt;NAME</text>
 <wire x1="-2" y1="1" x2="2" y2="1" width="0.127" layer="21"/>
 <wire x1="2" y1="1" x2="2" y2="-1.1" width="0.127" layer="21"/>

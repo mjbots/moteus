@@ -1035,8 +1035,8 @@ MAX3223-MAX3243.pdf</description>
 </package>
 <package name="SOT23-3">
 <smd name="3" x="0" y="1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
-<smd name="1" x="-1.35" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
-<smd name="2" x="1.35" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
+<smd name="1" x="-0.95" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
+<smd name="2" x="0.95" y="-1" dx="0.9" dy="0.8" layer="1" rot="R90"/>
 <text x="-1.84" y="1.94" size="0.6096" layer="21" font="vector" ratio="10">&gt;NAME</text>
 <wire x1="-2" y1="1" x2="2" y2="1" width="0.127" layer="21"/>
 <wire x1="2" y1="1" x2="2" y2="-1.1" width="0.127" layer="21"/>
@@ -5380,13 +5380,13 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="15" y1="-34" x2="15" y2="-33.22145" width="0.2159" layer="16"/>
 <wire x1="15" y1="-33.22145" x2="15.04" y2="-33.18145" width="0.2159" layer="16"/>
 <contactref element="D4" pad="1"/>
-<via x="1" y="-33.75" extent="1-16" drill="0.35"/>
-<wire x1="1" y1="-34.65" x2="1" y2="-33.75" width="0.3048" layer="1"/>
-<wire x1="1" y1="-33.75" x2="1" y2="-33.1977" width="0.2159" layer="16"/>
-<wire x1="-6.51398125" y1="-33.18645" x2="0.98875" y2="-33.18645" width="0.2159" layer="16"/>
-<wire x1="0.98875" y1="-33.18645" x2="1" y2="-33.1977" width="0.2159" layer="16"/>
-<wire x1="1" y1="-33.1977" x2="1.01125" y2="-33.18645" width="0.2159" layer="16"/>
-<wire x1="1.01125" y1="-33.18645" x2="2.52898125" y2="-33.18645" width="0.2159" layer="16"/>
+<via x="0.2" y="-33.7" extent="1-16" drill="0.35"/>
+<wire x1="0.2" y1="-33.7" x2="0.2" y2="-34.25" width="0.3048" layer="1"/>
+<wire x1="1" y1="-34.25" x2="0.2" y2="-34.25" width="0.3048" layer="1"/>
+<wire x1="0.2" y1="-33.7" x2="0.2" y2="-33.1977" width="0.2159" layer="16"/>
+<wire x1="0.21125" y1="-33.18645" x2="0.2" y2="-33.1977" width="0.2159" layer="16"/>
+<wire x1="-6.51398125" y1="-33.18645" x2="0.21125" y2="-33.18645" width="0.2159" layer="16"/>
+<wire x1="2.52898125" y1="-33.18645" x2="0.21125" y2="-33.18645" width="0.2159" layer="16"/>
 <contactref element="L3" pad="P$1"/>
 <wire x1="22.04145" y1="-26.45601875" x2="22.04145" y2="-19.77059375" width="0.2159" layer="16"/>
 <wire x1="22.04145" y1="-19.77059375" x2="21.45255625" y2="-19.1817" width="0.2159" layer="16"/>
@@ -5427,10 +5427,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="15" y="-32" extent="1-16" drill="0.7"/>
 <wire x1="15" y1="-32" x2="15" y2="-32.80355" width="0.2159" layer="16"/>
 <contactref element="D4" pad="2"/>
-<wire x1="1" y1="-31.95" x2="0.75" y2="-32.2" width="0.3048" layer="1"/>
+<wire x1="1" y1="-32.35" x2="0.75" y2="-32.2" width="0.3048" layer="1"/>
 <wire x1="0.75" y1="-32.2" x2="0.1" y2="-32.2" width="0.3048" layer="1"/>
 <via x="0.1" y="-32.2" extent="1-16" drill="0.35"/>
-<wire x1="0.1" y1="-32.7737" x2="0.1" y2="-32.2" width="0.3048" layer="16"/>
+<wire x1="0.1" y1="-32.7737" x2="0.1" y2="-32.2" width="0.2159" layer="16"/>
 <wire x1="-6.67101875" y1="-32.81355" x2="0.06015" y2="-32.81355" width="0.2159" layer="16"/>
 <wire x1="3.88645" y1="-34.00898125" x2="2.68781875" y2="-32.81035" width="0.2159" layer="16"/>
 <wire x1="0.06335" y1="-32.81035" x2="0.1" y2="-32.7737" width="0.2159" layer="16"/>
