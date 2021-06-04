@@ -942,11 +942,13 @@ A reducing gearbox will need a value between 0 and 1, so `0.25` for a
 
 ## `servopos.position_min` ##
 
-The minimum allowed control position value, measured in rotations.
+The minimum allowed control position value, measured in rotations.  If
+NaN, then no limit is applied.
 
 ## `servopos.position_max` ##
 
-The maximum allowed control position value, measured in rotations.
+The maximum allowed control position value, measured in rotations.  If
+NaN, then no limit is applied.
 
 ## `servo.pid_position` ##
 
