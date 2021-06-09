@@ -871,7 +871,9 @@ class BldcServo::Impl {
           std::round(error / motor_.unwrapped_position_scale);
       status_.unwrapped_position_raw =
           static_cast<int64_t>(65536ll * 65536ll) *
-          zero_position + integral_offsets * 65536.0f;
+          zero_position +
+          static_cast<int32_t>(integral_offsets * 65536.0f) *
+          65536ll * 65536ll;
       status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
       // In case we are in encoder PLL mode.
       status_.velocity = 0.0f;

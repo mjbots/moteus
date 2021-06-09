@@ -91,6 +91,7 @@ struct Options {
   bool validate_dq_ilimit = false;
   bool validate_power_limit = false;
   bool validate_max_velocity = false;
+  bool validate_rezero = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -121,6 +122,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_dq_ilimit));
     a->Visit(MJ_NVP(validate_power_limit));
     a->Visit(MJ_NVP(validate_max_velocity));
+    a->Visit(MJ_NVP(validate_rezero));
   }
 };
 
@@ -609,6 +611,8 @@ class Application {
       co_await ValidatePowerLimit();
     } else if (options_.validate_max_velocity) {
       co_await ValidateMaxVelocity();
+    } else if (options_.validate_rezero) {
+      co_await ValidateRezero();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -1936,6 +1940,32 @@ class Application {
         }
       }
     }
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> DoRezeroTest(double value) {
+    co_await dut_->Command(fmt::format("d rezero {}", value));
+    co_await Sleep(0.5);
+
+    {
+      // We should be within 0.5 of the desired.
+      const auto pos = dut_->servo_stats().unwrapped_position;
+      if (std::abs(pos - value) > 0.5) {
+        throw mjlib::base::system_error::einval(
+            fmt::format(
+                "DUT rezero != {} ({})",
+                value, pos));
+      }
+    }
+  }
+  boost::asio::awaitable<void> ValidateRezero() {
+    co_await fixture_->Command("d stop");
+    co_await dut_->Command("d stop");
+
+    co_await DoRezeroTest(0.0);
+    co_await DoRezeroTest(4.2);
+    co_await DoRezeroTest(-7.9);
 
     co_return;
   }

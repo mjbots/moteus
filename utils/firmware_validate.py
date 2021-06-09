@@ -94,6 +94,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_max_velocity(self):
         dyno('--validate_max_velocity', '1')
 
+    def test_rezero(self):
+        dyno('--validate_rezero', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):
