@@ -1857,9 +1857,9 @@ class Application {
       double expected_speed_Hz;
     } tests[] = {
       { 100.0, 4.04 },
-      { 20.0, 2.34 },
-      { 10.0, 1.61 },
-      { 5.0, 1.11 },
+      { 20.0, 3.0 },
+      { 10.0, 2.09 },
+      { 5.0, 1.45 },
     };
 
     for (const auto test : tests) {
@@ -1966,6 +1966,10 @@ class Application {
     co_await DoRezeroTest(0.0);
     co_await DoRezeroTest(4.2);
     co_await DoRezeroTest(-7.9);
+    co_await DoRezeroTest(-32764.0);
+    co_await DoRezeroTest(-32767.0);
+    co_await DoRezeroTest(32763.0);
+    co_await DoRezeroTest(32767.0);
 
     co_return;
   }
