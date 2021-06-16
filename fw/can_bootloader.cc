@@ -149,28 +149,26 @@ class FlashWriter {
     locked_ = false;
   }
 
-  bool Lock() {
-    if (locked_) { return true; }
+  uint32_t Lock() {
+    if (locked_) { return 0; }
 
     if (shadow_bits_) {
-      if (!FlushWord()) {
-        return false;
-      }
+      const auto err = FlushWord();
+      if (err) { return err; }
     }
 
     FLASH->CR |= FLASH_CR_LOCK;
     locked_ = true;
-    return true;
+    return 0;
   }
 
-  bool ProgramByte(uint32_t intaddr, uint8_t value) {
+  uint32_t ProgramByte(uint32_t intaddr, uint8_t value) {
     const uint32_t this_shadow = intaddr & ~(0x7);
     const uint32_t offset = intaddr & 0x7;
 
     if (this_shadow != shadow_start_ && shadow_start_ != 0) {
-      if (!FlushWord()) {
-        return false;
-      }
+      const auto err = FlushWord();
+      if (err) { return err; }
     }
 
     shadow_start_ = this_shadow;
@@ -181,42 +179,49 @@ class FlashWriter {
     shadow_bits_ |= mask;
 
     if (shadow_bits_ == 0xffffffffffffffffull) {
-      if (!FlushWord()) {
-        return false;
-      }
+      const auto err = FlushWord();
+      if (err) { return err; }
     }
 
-    return true;
+    return 0;
   }
 
  private:
-  bool FlushWord() {
-    if (!MaybeEraseSector(shadow_start_)) {
-      return false;
+  uint32_t FlushWord() {
+    const auto err = MaybeEraseSector(shadow_start_);
+    if (err) { return err; }
+
+    uint32_t result = 0;
+
+    if (*reinterpret_cast<uint32_t*>(shadow_start_) ==
+        static_cast<uint32_t>(shadow_ & 0xffffffff) &&
+        *reinterpret_cast<uint32_t*>(shadow_start_ + 4u) ==
+        static_cast<uint32_t>(shadow_ >> 32u)) {
+      // nothing to do
+    } else {
+      FLASH->CR |= FLASH_CR_PG;
+
+      *reinterpret_cast<uint32_t*>(shadow_start_) =
+          static_cast<uint32_t>(shadow_ & 0xffffffff);
+
+      __ISB();
+
+      *reinterpret_cast<uint32_t*>(shadow_start_ + 4u) =
+          static_cast<uint32_t>(shadow_ >> 32u);
+
+      result = Wait();
+
+      FLASH->CR &= ~FLASH_CR_PG;
     }
-
-    FLASH->CR |= FLASH_CR_PG;
-
-    *reinterpret_cast<uint32_t*>(shadow_start_) =
-        static_cast<uint32_t>(shadow_ & 0xffffffff);
-
-    __ISB();
-
-    *reinterpret_cast<uint32_t*>(shadow_start_ + 4u) =
-        static_cast<uint32_t>(shadow_ >> 32u);
 
     shadow_start_ = 0;
     shadow_ = ~0;
     shadow_bits_ = 0;
 
-    const bool result = Wait();
-
-    FLASH->CR &= ~FLASH_CR_PG;
-
     return result;
   }
 
-  bool MaybeEraseSector(uint32_t address) {
+  uint32_t MaybeEraseSector(uint32_t address) {
     // Figure out which bank and sector we are in.
     const int bank = (address < 0x08040000) ? 1 : 2;
     const uint32_t bank_start = [&]() {
@@ -230,16 +235,15 @@ class FlashWriter {
 
     const int sector_index = (bank - 1) * 128 + sector;
     if (!sectors_erased_[sector_index]) {
-      if (!EraseSector(bank, sector)) {
-        return false;
-      }
+      const auto err = EraseSector(bank, sector);
+      if (err) { return err; }
       sectors_erased_[sector_index] = true;
     }
 
-    return true;
+    return 0;
   }
 
-  bool EraseSector(int bank, int sector) {
+  uint32_t EraseSector(int bank, int sector) {
     switch (bank) {
       case 1: {
         FLASH->CR &= ~FLASH_CR_BKER;
@@ -256,25 +260,25 @@ class FlashWriter {
     FLASH->CR |= FLASH_CR_PER;
     FLASH->CR |= FLASH_CR_STRT;
 
-    const bool result = Wait();
+    const auto result = Wait();
     FLASH->CR &= ~FLASH_CR_PER;
     return result;
   }
 
-  bool Wait() {
+  uint32_t Wait() {
     while (FLASH->SR & FLASH_FLAG_BSY);
 
     const uint32_t error = (FLASH->SR & FLASH_FLAG_SR_ERRORS);
     if (error != 0u) {
       FLASH->SR |= error;
-      return false;
+      return error;
     }
 
     if (FLASH->SR & FLASH_FLAG_EOP) {
       FLASH->SR |= FLASH_FLAG_EOP;
     }
 
-    return true;
+    return 0;
   }
 
   bool locked_ = true;
@@ -575,8 +579,8 @@ class BootloaderServer {
       Unlock();
       writer.write("OK\r\n");
     } else if (next == "lock") {
-      if (!Lock()) {
-        writer.write("error locking\r\n");
+      if (Lock()) {
+        writer.write("ERR error locking\r\n");
       } else {
         writer.write("OK\r\n");
       }
@@ -584,7 +588,7 @@ class BootloaderServer {
       const auto address = tokenizer.next();
       const auto data = tokenizer.next();
       if (address.empty() || data.empty()) {
-        writer.write("malformed write\r\n");
+        writer.write("ERR malformed write\r\n");
       } else {
         WriteFlash(address, data, writer);
       }
@@ -592,14 +596,14 @@ class BootloaderServer {
       const auto address = tokenizer.next();
       const auto size = tokenizer.next();
       if (address.empty() || size.empty()) {
-        writer.write("malformed read\r\n");
+        writer.write("ERR malformed read\r\n");
       } else {
         ReadFlash(address, size, writer);
       }
     } else if (next == "reset") {
       // Make sure flash is back in the locked state before resetting.
-      if (!Lock()) {
-        writer.write("error locking\r\n");
+      if (Lock()) {
+        writer.write("ERR error locking\r\n");
       } else {
         NVIC_SystemReset();
       }
@@ -607,7 +611,7 @@ class BootloaderServer {
       uint32_t* const value = reinterpret_cast<uint32_t*>(0x00200002);
       *value = 1;
     } else {
-      writer.write("unknown command\r\n");
+      writer.write("ERR unknown command\r\n");
     }
 
     response_.pos += writer.offset();
@@ -622,7 +626,7 @@ class BootloaderServer {
     flash_.Unlock();
   }
 
-  bool Lock() {
+  uint32_t Lock() {
     return flash_.Lock();
   }
 
@@ -676,24 +680,29 @@ class BootloaderServer {
 
   bool WriteByte(uint32_t address, uint8_t byte, mjlib::base::WriteStream& writer) {
     if (flash_.locked()) {
-      writer.write("flash is locked\r\n");
+      writer.write("ERR flash is locked\r\n");
       return false;
     }
 
     if (address < 0x08000000 ||
         address >= 0x08080000) {
-      writer.write("address not in flash\r\n");
+      writer.write("ERR address not in flash\r\n");
       return false;
     }
 
     if (address >= 0x0800c000 &&
         address < 0x08010000) {
-      writer.write("address not writable\r\n");
+      writer.write("ERR address not writable\r\n");
       return false;
     }
 
-    if (!flash_.ProgramByte(address, byte)) {
-      writer.write("program error\r\n");
+    const auto err = flash_.ProgramByte(address, byte);
+    if (err) {
+      writer.write("ERR program error ");
+      char buf[5] = {};
+      uint32_hex(err, buf);
+      writer.write(buf);
+      writer.write("\r\n");
       return false;
     }
     return true;
