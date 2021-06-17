@@ -1152,7 +1152,7 @@ tools/bazel build --config=target //fw:flash
 Or, if already built, flashed using:
 
 ```
-./fw/flash.sh
+./fw/flash.py
 ```
 
 ### openocd ###
