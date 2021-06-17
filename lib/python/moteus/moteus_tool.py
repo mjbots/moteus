@@ -490,6 +490,7 @@ class Stream:
                 continue
             new_config.append(b'conf set ' + line + b'\n')
         await self.write_config_stream(io.BytesIO(b''.join(new_config)))
+        await self.command("conf write")
 
     async def do_calibrate(self):
         print("This will move the motor, ensure it can spin freely!")
