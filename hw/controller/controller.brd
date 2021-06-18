@@ -28,19 +28,19 @@
 <layer number="17" name="Pads" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="18" name="Vias" color="2" fill="1" visible="yes" active="yes"/>
 <layer number="19" name="Unrouted" color="6" fill="1" visible="yes" active="yes"/>
-<layer number="20" name="Dimension" color="15" fill="1" visible="yes" active="yes"/>
+<layer number="20" name="Dimension" color="15" fill="1" visible="no" active="yes"/>
 <layer number="21" name="tPlace" color="7" fill="1" visible="yes" active="yes"/>
-<layer number="22" name="bPlace" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="22" name="bPlace" color="7" fill="1" visible="no" active="yes"/>
 <layer number="23" name="tOrigins" color="15" fill="1" visible="yes" active="yes"/>
 <layer number="24" name="bOrigins" color="15" fill="1" visible="no" active="yes"/>
 <layer number="25" name="tNames" color="7" fill="1" visible="yes" active="yes"/>
-<layer number="26" name="bNames" color="7" fill="1" visible="yes" active="yes"/>
+<layer number="26" name="bNames" color="7" fill="1" visible="no" active="yes"/>
 <layer number="27" name="tValues" color="7" fill="1" visible="no" active="yes"/>
 <layer number="28" name="bValues" color="7" fill="1" visible="no" active="yes"/>
 <layer number="29" name="tStop" color="7" fill="3" visible="no" active="yes"/>
 <layer number="30" name="bStop" color="7" fill="6" visible="no" active="yes"/>
-<layer number="31" name="tCream" color="7" fill="4" visible="yes" active="yes"/>
-<layer number="32" name="bCream" color="7" fill="5" visible="yes" active="yes"/>
+<layer number="31" name="tCream" color="7" fill="4" visible="no" active="yes"/>
+<layer number="32" name="bCream" color="7" fill="5" visible="no" active="yes"/>
 <layer number="33" name="tFinish" color="6" fill="3" visible="no" active="yes"/>
 <layer number="34" name="bFinish" color="6" fill="6" visible="no" active="yes"/>
 <layer number="35" name="tGlue" color="7" fill="4" visible="no" active="yes"/>
@@ -162,8 +162,8 @@
 <wire x1="16" y1="-37" x2="17" y2="-35.5" width="0" layer="20" curve="-68.198574"/>
 <wire x1="17" y1="-35.5" x2="21" y2="-34" width="0" layer="20"/>
 <wire x1="21" y1="-34" x2="23" y2="-31" width="0" layer="20" curve="66.801417"/>
-<text x="4.08" y="-6.84" size="1.3" layer="21" align="top-left">moteus r4.7</text>
-<text x="4.06" y="-8.67" size="1.3" layer="21" align="top-left">(c) 2021</text>
+<text x="4.08" y="-7.24" size="1.3" layer="21" align="top-left">moteus r4.8</text>
+<text x="4.06" y="-8.97" size="1.3" layer="21" align="top-left">(c) 2021</text>
 <text x="-12.75" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">A</text>
 <text x="1.6" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">B</text>
 <text x="16.05" y="-27.4" size="1.016" layer="21" font="vector" ratio="10">C</text>
@@ -186,417 +186,417 @@
 <text x="11" y="7.9" size="0.6096" layer="21" font="vector">G</text>
 <text x="-21.1" y="3.5" size="0.8" layer="21" rot="R180">3V</text>
 <text x="-11.35" y="-1.2" size="0.6096" layer="21" font="vector">G</text>
-<text x="4.2" y="-0.9" size="0.6096" layer="21" font="vector" rot="R180">DAC</text>
+<text x="2.55" y="0.2" size="0.6096" layer="21" font="vector" rot="R180">DAC</text>
 <polygon width="0.05" layer="25">
-<vertex x="3.47" y="-4.49"/>
-<vertex x="3.56" y="-4.4"/>
-<vertex x="3.5" y="-4.24"/>
-<vertex x="3.43" y="-4.08"/>
-<vertex x="3.34" y="-3.94"/>
-<vertex x="3.24" y="-3.8"/>
-<vertex x="3.11" y="-3.71"/>
-<vertex x="2.57" y="-3.9"/>
-<vertex x="2.48" y="-3.8"/>
-<vertex x="2.39" y="-3.71"/>
-<vertex x="2.33" y="-3.66"/>
-<vertex x="2.44" y="-3.04"/>
-<vertex x="2.29" y="-2.95"/>
-<vertex x="2.07" y="-2.82"/>
-<vertex x="1.89" y="-2.73"/>
-<vertex x="1.75" y="-2.67"/>
-<vertex x="1.33" y="-3.13"/>
-<vertex x="1.13" y="-3.06"/>
-<vertex x="0.97" y="-3.02"/>
-<vertex x="0.82" y="-2.45"/>
-<vertex x="0.43" y="-2.44"/>
-<vertex x="-0.01" y="-2.47"/>
-<vertex x="-0.11" y="-3.08"/>
-<vertex x="-0.05" y="-3.51"/>
-<vertex x="0.29" y="-3.47"/>
-<vertex x="0.69" y="-3.45"/>
-<vertex x="0.89" y="-3.47"/>
-<vertex x="1.07" y="-3.51"/>
-<vertex x="1.32" y="-3.58"/>
-<vertex x="1.62" y="-3.71"/>
-<vertex x="1.87" y="-3.86"/>
-<vertex x="2.07" y="-4.03"/>
-<vertex x="2.21" y="-4.17"/>
-<vertex x="2.39" y="-4.36"/>
-<vertex x="2.47" y="-4.49"/>
+<vertex x="3.32" y="-4.99"/>
+<vertex x="3.41" y="-4.9"/>
+<vertex x="3.35" y="-4.74"/>
+<vertex x="3.28" y="-4.58"/>
+<vertex x="3.19" y="-4.44"/>
+<vertex x="3.09" y="-4.3"/>
+<vertex x="2.96" y="-4.21"/>
+<vertex x="2.42" y="-4.4"/>
+<vertex x="2.33" y="-4.3"/>
+<vertex x="2.24" y="-4.21"/>
+<vertex x="2.18" y="-4.16"/>
+<vertex x="2.29" y="-3.54"/>
+<vertex x="2.14" y="-3.45"/>
+<vertex x="1.92" y="-3.32"/>
+<vertex x="1.74" y="-3.23"/>
+<vertex x="1.6" y="-3.17"/>
+<vertex x="1.18" y="-3.63"/>
+<vertex x="0.98" y="-3.56"/>
+<vertex x="0.82" y="-3.52"/>
+<vertex x="0.67" y="-2.95"/>
+<vertex x="0.28" y="-2.94"/>
+<vertex x="-0.16" y="-2.97"/>
+<vertex x="-0.26" y="-3.58"/>
+<vertex x="-0.2" y="-4.01"/>
+<vertex x="0.14" y="-3.97"/>
+<vertex x="0.54" y="-3.95"/>
+<vertex x="0.74" y="-3.97"/>
+<vertex x="0.92" y="-4.01"/>
+<vertex x="1.17" y="-4.08"/>
+<vertex x="1.47" y="-4.21"/>
+<vertex x="1.72" y="-4.36"/>
+<vertex x="1.92" y="-4.53"/>
+<vertex x="2.06" y="-4.67"/>
+<vertex x="2.24" y="-4.86"/>
+<vertex x="2.32" y="-4.99"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="-0.05" y="-3.51"/>
-<vertex x="-0.11" y="-3.07"/>
-<vertex x="-0.29" y="-3.12"/>
-<vertex x="-0.48" y="-3.19"/>
-<vertex x="-0.9" y="-2.76"/>
-<vertex x="-1.13" y="-2.88"/>
-<vertex x="-1.38" y="-3.03"/>
-<vertex x="-1.59" y="-3.18"/>
-<vertex x="-1.4" y="-3.77"/>
-<vertex x="-1.5" y="-3.85"/>
-<vertex x="-1.65" y="-4.03"/>
-<vertex x="-2.25" y="-3.89"/>
-<vertex x="-2.4" y="-4.13"/>
-<vertex x="-2.53" y="-4.35"/>
-<vertex x="-2.62" y="-4.59"/>
-<vertex x="-2.17" y="-5"/>
-<vertex x="-2.23" y="-5.23"/>
-<vertex x="-2.24" y="-5.35"/>
-<vertex x="-2.84" y="-5.56"/>
-<vertex x="-2.85" y="-6"/>
-<vertex x="-2.81" y="-6.34"/>
-<vertex x="-2.18" y="-6.5"/>
-<vertex x="-2.15" y="-6.71"/>
-<vertex x="-2.12" y="-6.85"/>
-<vertex x="-2.54" y="-7.24"/>
-<vertex x="-2.39" y="-7.51"/>
-<vertex x="-2.25" y="-7.73"/>
-<vertex x="-2.08" y="-7.93"/>
-<vertex x="-1.51" y="-7.72"/>
-<vertex x="-1.4" y="-7.86"/>
-<vertex x="-1.26" y="-7.99"/>
-<vertex x="-0.94" y="-7.67"/>
-<vertex x="-1.16" y="-7.45"/>
-<vertex x="-1.39" y="-7.18"/>
-<vertex x="-1.61" y="-6.82"/>
-<vertex x="-1.74" y="-6.47"/>
-<vertex x="-1.84" y="-6.06"/>
-<vertex x="-1.84" y="-5.5"/>
-<vertex x="-1.79" y="-5.25"/>
-<vertex x="-1.71" y="-5.03"/>
-<vertex x="-1.48" y="-4.57"/>
-<vertex x="-1.32" y="-4.34"/>
-<vertex x="-1.12" y="-4.13"/>
-<vertex x="-0.93" y="-3.96"/>
-<vertex x="-0.68" y="-3.77"/>
-<vertex x="-0.36" y="-3.62"/>
+<vertex x="-0.2" y="-4.01"/>
+<vertex x="-0.26" y="-3.57"/>
+<vertex x="-0.44" y="-3.62"/>
+<vertex x="-0.63" y="-3.69"/>
+<vertex x="-1.05" y="-3.26"/>
+<vertex x="-1.28" y="-3.38"/>
+<vertex x="-1.53" y="-3.53"/>
+<vertex x="-1.74" y="-3.68"/>
+<vertex x="-1.55" y="-4.27"/>
+<vertex x="-1.65" y="-4.35"/>
+<vertex x="-1.8" y="-4.53"/>
+<vertex x="-2.4" y="-4.39"/>
+<vertex x="-2.55" y="-4.63"/>
+<vertex x="-2.68" y="-4.85"/>
+<vertex x="-2.77" y="-5.09"/>
+<vertex x="-2.32" y="-5.5"/>
+<vertex x="-2.38" y="-5.73"/>
+<vertex x="-2.39" y="-5.85"/>
+<vertex x="-2.99" y="-6.06"/>
+<vertex x="-3" y="-6.5"/>
+<vertex x="-2.96" y="-6.84"/>
+<vertex x="-2.33" y="-7"/>
+<vertex x="-2.3" y="-7.21"/>
+<vertex x="-2.27" y="-7.35"/>
+<vertex x="-2.69" y="-7.74"/>
+<vertex x="-2.54" y="-8.01"/>
+<vertex x="-2.4" y="-8.23"/>
+<vertex x="-2.23" y="-8.43"/>
+<vertex x="-1.66" y="-8.22"/>
+<vertex x="-1.55" y="-8.36"/>
+<vertex x="-1.41" y="-8.49"/>
+<vertex x="-1.09" y="-8.17"/>
+<vertex x="-1.31" y="-7.95"/>
+<vertex x="-1.54" y="-7.68"/>
+<vertex x="-1.76" y="-7.32"/>
+<vertex x="-1.89" y="-6.97"/>
+<vertex x="-1.99" y="-6.56"/>
+<vertex x="-1.99" y="-6"/>
+<vertex x="-1.94" y="-5.75"/>
+<vertex x="-1.86" y="-5.53"/>
+<vertex x="-1.63" y="-5.07"/>
+<vertex x="-1.47" y="-4.84"/>
+<vertex x="-1.27" y="-4.63"/>
+<vertex x="-1.08" y="-4.46"/>
+<vertex x="-0.83" y="-4.27"/>
+<vertex x="-0.51" y="-4.12"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="-0.94" y="-7.67"/>
-<vertex x="-1.26" y="-7.99"/>
-<vertex x="-1.41" y="-8.59"/>
-<vertex x="-1.18" y="-8.73"/>
-<vertex x="-0.94" y="-8.86"/>
-<vertex x="-0.67" y="-8.95"/>
-<vertex x="-0.29" y="-8.49"/>
-<vertex x="-0.03" y="-8.59"/>
-<vertex x="0.1" y="-8.63"/>
-<vertex x="0.25" y="-9.17"/>
-<vertex x="0.57" y="-9.18"/>
-<vertex x="0.91" y="-9.17"/>
-<vertex x="1.04" y="-9.15"/>
-<vertex x="1.14" y="-8.54"/>
-<vertex x="1.32" y="-8.49"/>
-<vertex x="1.56" y="-8.43"/>
-<vertex x="1.95" y="-8.87"/>
-<vertex x="2.16" y="-8.77"/>
-<vertex x="2.4" y="-8.63"/>
-<vertex x="2.62" y="-8.45"/>
-<vertex x="2.43" y="-7.87"/>
-<vertex x="2.58" y="-7.72"/>
-<vertex x="2.7" y="-7.58"/>
-<vertex x="3.3" y="-7.74"/>
-<vertex x="3.44" y="-7.53"/>
-<vertex x="3.52" y="-7.36"/>
-<vertex x="3.61" y="-7.13"/>
-<vertex x="2.46" y="-7.13"/>
-<vertex x="2.19" y="-7.45"/>
-<vertex x="1.88" y="-7.71"/>
-<vertex x="1.52" y="-7.94"/>
-<vertex x="1.05" y="-8.11"/>
-<vertex x="0.54" y="-8.16"/>
-<vertex x="0.06" y="-8.13"/>
-<vertex x="-0.37" y="-7.99"/>
-<vertex x="-0.67" y="-7.86"/>
+<vertex x="-1.09" y="-8.17"/>
+<vertex x="-1.41" y="-8.49"/>
+<vertex x="-1.56" y="-9.09"/>
+<vertex x="-1.33" y="-9.23"/>
+<vertex x="-1.09" y="-9.36"/>
+<vertex x="-0.82" y="-9.45"/>
+<vertex x="-0.44" y="-8.99"/>
+<vertex x="-0.18" y="-9.09"/>
+<vertex x="-0.05" y="-9.13"/>
+<vertex x="0.1" y="-9.67"/>
+<vertex x="0.42" y="-9.68"/>
+<vertex x="0.76" y="-9.67"/>
+<vertex x="0.89" y="-9.65"/>
+<vertex x="0.99" y="-9.04"/>
+<vertex x="1.17" y="-8.99"/>
+<vertex x="1.41" y="-8.93"/>
+<vertex x="1.8" y="-9.37"/>
+<vertex x="2.01" y="-9.27"/>
+<vertex x="2.25" y="-9.13"/>
+<vertex x="2.47" y="-8.95"/>
+<vertex x="2.28" y="-8.37"/>
+<vertex x="2.43" y="-8.22"/>
+<vertex x="2.55" y="-8.08"/>
+<vertex x="3.15" y="-8.24"/>
+<vertex x="3.29" y="-8.03"/>
+<vertex x="3.37" y="-7.86"/>
+<vertex x="3.46" y="-7.63"/>
+<vertex x="2.31" y="-7.63"/>
+<vertex x="2.04" y="-7.95"/>
+<vertex x="1.73" y="-8.21"/>
+<vertex x="1.37" y="-8.44"/>
+<vertex x="0.9" y="-8.61"/>
+<vertex x="0.39" y="-8.66"/>
+<vertex x="-0.09" y="-8.63"/>
+<vertex x="-0.52" y="-8.49"/>
+<vertex x="-0.82" y="-8.36"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="-0.87" y="-6.65"/>
-<vertex x="-0.64" y="-6.02"/>
-<vertex x="-0.45" y="-5.52"/>
-<vertex x="-0.31" y="-5.15"/>
-<vertex x="-0.21" y="-4.99"/>
-<vertex x="-0.1" y="-4.93"/>
-<vertex x="0.2" y="-4.93"/>
-<vertex x="0.31" y="-4.95"/>
-<vertex x="0.37" y="-5.02"/>
-<vertex x="0.42" y="-5.13"/>
-<vertex x="0.46" y="-5.3"/>
-<vertex x="0.46" y="-6.37"/>
-<vertex x="0.16" y="-6.37"/>
-<vertex x="0.16" y="-5.35"/>
-<vertex x="0.14" y="-5.27"/>
-<vertex x="0.09" y="-5.21"/>
-<vertex x="0.04" y="-5.19"/>
-<vertex x="0" y="-5.2"/>
-<vertex x="-0.04" y="-5.25"/>
-<vertex x="-0.13" y="-5.49"/>
-<vertex x="-0.26" y="-5.89"/>
-<vertex x="-0.44" y="-6.33"/>
-<vertex x="-0.58" y="-6.65"/>
+<vertex x="-1.02" y="-7.15"/>
+<vertex x="-0.79" y="-6.52"/>
+<vertex x="-0.6" y="-6.02"/>
+<vertex x="-0.46" y="-5.65"/>
+<vertex x="-0.36" y="-5.49"/>
+<vertex x="-0.25" y="-5.43"/>
+<vertex x="0.05" y="-5.43"/>
+<vertex x="0.16" y="-5.45"/>
+<vertex x="0.22" y="-5.52"/>
+<vertex x="0.27" y="-5.63"/>
+<vertex x="0.31" y="-5.8"/>
+<vertex x="0.31" y="-6.87"/>
+<vertex x="0.01" y="-6.87"/>
+<vertex x="0.01" y="-5.85"/>
+<vertex x="-0.01" y="-5.77"/>
+<vertex x="-0.06" y="-5.71"/>
+<vertex x="-0.11" y="-5.69"/>
+<vertex x="-0.15" y="-5.7"/>
+<vertex x="-0.19" y="-5.75"/>
+<vertex x="-0.28" y="-5.99"/>
+<vertex x="-0.41" y="-6.39"/>
+<vertex x="-0.59" y="-6.83"/>
+<vertex x="-0.73" y="-7.15"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="0.46" y="-6.37"/>
-<vertex x="0.16" y="-6.37"/>
-<vertex x="0.17" y="-6.48"/>
-<vertex x="0.22" y="-6.57"/>
-<vertex x="0.27" y="-6.62"/>
-<vertex x="0.37" y="-6.66"/>
-<vertex x="0.54" y="-6.67"/>
-<vertex x="0.72" y="-6.66"/>
-<vertex x="0.83" y="-6.56"/>
-<vertex x="0.92" y="-6.41"/>
-<vertex x="1.01" y="-6.24"/>
-<vertex x="1.13" y="-5.89"/>
-<vertex x="1.22" y="-5.61"/>
-<vertex x="1.32" y="-5.36"/>
-<vertex x="1.39" y="-5.21"/>
-<vertex x="1.43" y="-5.18"/>
-<vertex x="1.45" y="-5.18"/>
-<vertex x="1.45" y="-4.91"/>
-<vertex x="1.3" y="-4.92"/>
-<vertex x="1.2" y="-4.97"/>
-<vertex x="1.11" y="-5.1"/>
-<vertex x="1.02" y="-5.29"/>
-<vertex x="0.93" y="-5.52"/>
-<vertex x="0.84" y="-5.79"/>
-<vertex x="0.74" y="-6.05"/>
-<vertex x="0.66" y="-6.26"/>
-<vertex x="0.62" y="-6.35"/>
-<vertex x="0.56" y="-6.4"/>
-<vertex x="0.51" y="-6.41"/>
-<vertex x="0.47" y="-6.4"/>
+<vertex x="0.31" y="-6.87"/>
+<vertex x="0.01" y="-6.87"/>
+<vertex x="0.02" y="-6.98"/>
+<vertex x="0.07" y="-7.07"/>
+<vertex x="0.12" y="-7.12"/>
+<vertex x="0.22" y="-7.16"/>
+<vertex x="0.39" y="-7.17"/>
+<vertex x="0.57" y="-7.16"/>
+<vertex x="0.68" y="-7.06"/>
+<vertex x="0.77" y="-6.91"/>
+<vertex x="0.86" y="-6.74"/>
+<vertex x="0.98" y="-6.39"/>
+<vertex x="1.07" y="-6.11"/>
+<vertex x="1.17" y="-5.86"/>
+<vertex x="1.24" y="-5.71"/>
+<vertex x="1.28" y="-5.68"/>
+<vertex x="1.3" y="-5.68"/>
+<vertex x="1.3" y="-5.41"/>
+<vertex x="1.15" y="-5.42"/>
+<vertex x="1.05" y="-5.47"/>
+<vertex x="0.96" y="-5.6"/>
+<vertex x="0.87" y="-5.79"/>
+<vertex x="0.78" y="-6.02"/>
+<vertex x="0.69" y="-6.29"/>
+<vertex x="0.59" y="-6.55"/>
+<vertex x="0.51" y="-6.76"/>
+<vertex x="0.47" y="-6.85"/>
+<vertex x="0.41" y="-6.9"/>
+<vertex x="0.36" y="-6.91"/>
+<vertex x="0.32" y="-6.9"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="1.45" y="-5.18"/>
-<vertex x="1.45" y="-4.91"/>
-<vertex x="1.62" y="-4.92"/>
-<vertex x="1.72" y="-4.96"/>
-<vertex x="1.78" y="-5.02"/>
-<vertex x="1.82" y="-5.11"/>
-<vertex x="1.82" y="-6.66"/>
-<vertex x="1.55" y="-6.66"/>
-<vertex x="1.55" y="-5.29"/>
-<vertex x="1.53" y="-5.24"/>
-<vertex x="1.5" y="-5.2"/>
-<vertex x="1.47" y="-5.18"/>
+<vertex x="1.3" y="-5.68"/>
+<vertex x="1.3" y="-5.41"/>
+<vertex x="1.47" y="-5.42"/>
+<vertex x="1.57" y="-5.46"/>
+<vertex x="1.63" y="-5.52"/>
+<vertex x="1.67" y="-5.61"/>
+<vertex x="1.67" y="-7.16"/>
+<vertex x="1.4" y="-7.16"/>
+<vertex x="1.4" y="-5.79"/>
+<vertex x="1.38" y="-5.74"/>
+<vertex x="1.35" y="-5.7"/>
+<vertex x="1.32" y="-5.68"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="2.14" y="-6.66"/>
-<vertex x="2.14" y="-6.36"/>
-<vertex x="2.85" y="-6.36"/>
-<vertex x="2.97" y="-6.29"/>
-<vertex x="3.05" y="-6.19"/>
-<vertex x="3.05" y="-4.93"/>
-<vertex x="3.35" y="-4.93"/>
-<vertex x="3.35" y="-6.2"/>
-<vertex x="3.33" y="-6.29"/>
-<vertex x="3.27" y="-6.4"/>
-<vertex x="3.15" y="-6.54"/>
-<vertex x="3.01" y="-6.62"/>
-<vertex x="2.88" y="-6.66"/>
+<vertex x="1.99" y="-7.16"/>
+<vertex x="1.99" y="-6.86"/>
+<vertex x="2.7" y="-6.86"/>
+<vertex x="2.82" y="-6.79"/>
+<vertex x="2.9" y="-6.69"/>
+<vertex x="2.9" y="-5.43"/>
+<vertex x="3.2" y="-5.43"/>
+<vertex x="3.2" y="-6.7"/>
+<vertex x="3.18" y="-6.79"/>
+<vertex x="3.12" y="-6.9"/>
+<vertex x="3" y="-7.04"/>
+<vertex x="2.86" y="-7.12"/>
+<vertex x="2.73" y="-7.16"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="3.77" y="-5.01"/>
-<vertex x="3.82" y="-4.96"/>
-<vertex x="3.94" y="-4.91"/>
-<vertex x="4.73" y="-4.91"/>
-<vertex x="4.95" y="-4.95"/>
-<vertex x="5.08" y="-5.03"/>
-<vertex x="5.15" y="-5.11"/>
-<vertex x="5.21" y="-5.24"/>
-<vertex x="5.24" y="-5.39"/>
-<vertex x="5.24" y="-5.54"/>
-<vertex x="5.19" y="-5.62"/>
-<vertex x="5.15" y="-5.67"/>
-<vertex x="4.69" y="-5.67"/>
-<vertex x="4.84" y="-5.62"/>
-<vertex x="4.94" y="-5.57"/>
-<vertex x="4.95" y="-5.46"/>
-<vertex x="4.95" y="-5.38"/>
-<vertex x="4.92" y="-5.31"/>
-<vertex x="4.83" y="-5.24"/>
-<vertex x="4.74" y="-5.22"/>
-<vertex x="4.14" y="-5.22"/>
-<vertex x="4.08" y="-5.23"/>
-<vertex x="4.07" y="-5.27"/>
-<vertex x="4.07" y="-5.68"/>
-<vertex x="3.77" y="-5.68"/>
+<vertex x="3.62" y="-5.51"/>
+<vertex x="3.67" y="-5.46"/>
+<vertex x="3.79" y="-5.41"/>
+<vertex x="4.58" y="-5.41"/>
+<vertex x="4.8" y="-5.45"/>
+<vertex x="4.93" y="-5.53"/>
+<vertex x="5" y="-5.61"/>
+<vertex x="5.06" y="-5.74"/>
+<vertex x="5.09" y="-5.89"/>
+<vertex x="5.09" y="-6.04"/>
+<vertex x="5.04" y="-6.12"/>
+<vertex x="5" y="-6.17"/>
+<vertex x="4.54" y="-6.17"/>
+<vertex x="4.69" y="-6.12"/>
+<vertex x="4.79" y="-6.07"/>
+<vertex x="4.8" y="-5.96"/>
+<vertex x="4.8" y="-5.88"/>
+<vertex x="4.77" y="-5.81"/>
+<vertex x="4.68" y="-5.74"/>
+<vertex x="4.59" y="-5.72"/>
+<vertex x="3.99" y="-5.72"/>
+<vertex x="3.93" y="-5.73"/>
+<vertex x="3.92" y="-5.77"/>
+<vertex x="3.92" y="-6.18"/>
+<vertex x="3.62" y="-6.18"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="5.15" y="-5.67"/>
-<vertex x="3.77" y="-5.67"/>
-<vertex x="3.77" y="-5.91"/>
-<vertex x="5.16" y="-5.91"/>
-<vertex x="5.01" y="-5.79"/>
-<vertex x="5.07" y="-5.75"/>
+<vertex x="5" y="-6.17"/>
+<vertex x="3.62" y="-6.17"/>
+<vertex x="3.62" y="-6.41"/>
+<vertex x="5.01" y="-6.41"/>
+<vertex x="4.86" y="-6.29"/>
+<vertex x="4.92" y="-6.25"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="3.77" y="-5.91"/>
-<vertex x="3.77" y="-6.57"/>
-<vertex x="3.81" y="-6.62"/>
-<vertex x="3.87" y="-6.67"/>
-<vertex x="4.8" y="-6.67"/>
-<vertex x="4.96" y="-6.61"/>
-<vertex x="5.11" y="-6.5"/>
-<vertex x="5.19" y="-6.4"/>
-<vertex x="5.24" y="-6.27"/>
-<vertex x="5.24" y="-6.11"/>
-<vertex x="5.23" y="-6.03"/>
-<vertex x="5.19" y="-5.94"/>
-<vertex x="5.16" y="-5.91"/>
-<vertex x="4.79" y="-5.91"/>
-<vertex x="4.87" y="-5.97"/>
-<vertex x="4.93" y="-6.03"/>
-<vertex x="4.94" y="-6.16"/>
-<vertex x="4.92" y="-6.27"/>
-<vertex x="4.85" y="-6.34"/>
-<vertex x="4.78" y="-6.36"/>
-<vertex x="4.09" y="-6.36"/>
-<vertex x="4.06" y="-6.34"/>
-<vertex x="4.06" y="-5.91"/>
+<vertex x="3.62" y="-6.41"/>
+<vertex x="3.62" y="-7.07"/>
+<vertex x="3.66" y="-7.12"/>
+<vertex x="3.72" y="-7.17"/>
+<vertex x="4.65" y="-7.17"/>
+<vertex x="4.81" y="-7.11"/>
+<vertex x="4.96" y="-7"/>
+<vertex x="5.04" y="-6.9"/>
+<vertex x="5.09" y="-6.77"/>
+<vertex x="5.09" y="-6.61"/>
+<vertex x="5.08" y="-6.53"/>
+<vertex x="5.04" y="-6.44"/>
+<vertex x="5.01" y="-6.41"/>
+<vertex x="4.64" y="-6.41"/>
+<vertex x="4.72" y="-6.47"/>
+<vertex x="4.78" y="-6.53"/>
+<vertex x="4.79" y="-6.66"/>
+<vertex x="4.77" y="-6.77"/>
+<vertex x="4.7" y="-6.84"/>
+<vertex x="4.63" y="-6.86"/>
+<vertex x="3.94" y="-6.86"/>
+<vertex x="3.91" y="-6.84"/>
+<vertex x="3.91" y="-6.41"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="5.55" y="-5.8"/>
-<vertex x="5.56" y="-5.56"/>
-<vertex x="5.57" y="-5.47"/>
-<vertex x="5.6" y="-5.36"/>
-<vertex x="5.67" y="-5.24"/>
-<vertex x="5.77" y="-5.13"/>
-<vertex x="5.87" y="-5.05"/>
-<vertex x="6.01" y="-4.97"/>
-<vertex x="6.17" y="-4.94"/>
-<vertex x="6.32" y="-4.92"/>
-<vertex x="6.58" y="-4.92"/>
-<vertex x="6.71" y="-4.93"/>
-<vertex x="6.83" y="-4.96"/>
-<vertex x="7.03" y="-5.06"/>
-<vertex x="7.11" y="-5.13"/>
-<vertex x="7.18" y="-5.21"/>
-<vertex x="7.26" y="-5.39"/>
-<vertex x="7.29" y="-5.48"/>
-<vertex x="7.31" y="-5.57"/>
-<vertex x="7.32" y="-5.68"/>
-<vertex x="7.33" y="-5.82"/>
-<vertex x="7.03" y="-5.82"/>
-<vertex x="7" y="-5.55"/>
-<vertex x="6.95" y="-5.44"/>
-<vertex x="6.9" y="-5.36"/>
-<vertex x="6.85" y="-5.31"/>
-<vertex x="6.79" y="-5.27"/>
-<vertex x="6.69" y="-5.23"/>
-<vertex x="6.62" y="-5.22"/>
-<vertex x="6.22" y="-5.22"/>
-<vertex x="6.15" y="-5.24"/>
-<vertex x="6.04" y="-5.29"/>
-<vertex x="5.98" y="-5.34"/>
-<vertex x="5.93" y="-5.4"/>
-<vertex x="5.9" y="-5.44"/>
-<vertex x="5.86" y="-5.51"/>
-<vertex x="5.84" y="-5.6"/>
-<vertex x="5.83" y="-5.68"/>
-<vertex x="5.83" y="-5.8"/>
+<vertex x="5.4" y="-6.3"/>
+<vertex x="5.41" y="-6.06"/>
+<vertex x="5.42" y="-5.97"/>
+<vertex x="5.45" y="-5.86"/>
+<vertex x="5.52" y="-5.74"/>
+<vertex x="5.62" y="-5.63"/>
+<vertex x="5.72" y="-5.55"/>
+<vertex x="5.86" y="-5.47"/>
+<vertex x="6.02" y="-5.44"/>
+<vertex x="6.17" y="-5.42"/>
+<vertex x="6.43" y="-5.42"/>
+<vertex x="6.56" y="-5.43"/>
+<vertex x="6.68" y="-5.46"/>
+<vertex x="6.88" y="-5.56"/>
+<vertex x="6.96" y="-5.63"/>
+<vertex x="7.03" y="-5.71"/>
+<vertex x="7.11" y="-5.89"/>
+<vertex x="7.14" y="-5.98"/>
+<vertex x="7.16" y="-6.07"/>
+<vertex x="7.17" y="-6.18"/>
+<vertex x="7.18" y="-6.32"/>
+<vertex x="6.88" y="-6.32"/>
+<vertex x="6.85" y="-6.05"/>
+<vertex x="6.8" y="-5.94"/>
+<vertex x="6.75" y="-5.86"/>
+<vertex x="6.7" y="-5.81"/>
+<vertex x="6.64" y="-5.77"/>
+<vertex x="6.54" y="-5.73"/>
+<vertex x="6.47" y="-5.72"/>
+<vertex x="6.07" y="-5.72"/>
+<vertex x="6" y="-5.74"/>
+<vertex x="5.89" y="-5.79"/>
+<vertex x="5.83" y="-5.84"/>
+<vertex x="5.78" y="-5.9"/>
+<vertex x="5.75" y="-5.94"/>
+<vertex x="5.71" y="-6.01"/>
+<vertex x="5.69" y="-6.1"/>
+<vertex x="5.68" y="-6.18"/>
+<vertex x="5.68" y="-6.3"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="5.83" y="-5.8"/>
-<vertex x="5.55" y="-5.8"/>
-<vertex x="5.56" y="-6.06"/>
-<vertex x="5.61" y="-6.26"/>
-<vertex x="5.7" y="-6.39"/>
-<vertex x="5.8" y="-6.5"/>
-<vertex x="5.9" y="-6.57"/>
-<vertex x="6.05" y="-6.63"/>
-<vertex x="6.23" y="-6.66"/>
-<vertex x="6.72" y="-6.66"/>
-<vertex x="6.81" y="-6.65"/>
-<vertex x="6.92" y="-6.61"/>
-<vertex x="7.04" y="-6.54"/>
-<vertex x="7.15" y="-6.44"/>
-<vertex x="7.23" y="-6.29"/>
-<vertex x="7.29" y="-6.15"/>
-<vertex x="7.32" y="-6.01"/>
-<vertex x="7.33" y="-5.9"/>
-<vertex x="7.33" y="-5.82"/>
-<vertex x="7.03" y="-5.82"/>
-<vertex x="7.03" y="-5.88"/>
-<vertex x="7.02" y="-5.94"/>
-<vertex x="7" y="-6.05"/>
-<vertex x="6.97" y="-6.13"/>
-<vertex x="6.92" y="-6.23"/>
-<vertex x="6.84" y="-6.29"/>
-<vertex x="6.73" y="-6.34"/>
-<vertex x="6.67" y="-6.35"/>
-<vertex x="6.58" y="-6.36"/>
-<vertex x="6.21" y="-6.36"/>
-<vertex x="6.17" y="-6.35"/>
-<vertex x="6.1" y="-6.32"/>
-<vertex x="5.99" y="-6.26"/>
-<vertex x="5.91" y="-6.19"/>
-<vertex x="5.86" y="-6.08"/>
-<vertex x="5.83" y="-5.91"/>
+<vertex x="5.68" y="-6.3"/>
+<vertex x="5.4" y="-6.3"/>
+<vertex x="5.41" y="-6.56"/>
+<vertex x="5.46" y="-6.76"/>
+<vertex x="5.55" y="-6.89"/>
+<vertex x="5.65" y="-7"/>
+<vertex x="5.75" y="-7.07"/>
+<vertex x="5.9" y="-7.13"/>
+<vertex x="6.08" y="-7.16"/>
+<vertex x="6.57" y="-7.16"/>
+<vertex x="6.66" y="-7.15"/>
+<vertex x="6.77" y="-7.11"/>
+<vertex x="6.89" y="-7.04"/>
+<vertex x="7" y="-6.94"/>
+<vertex x="7.08" y="-6.79"/>
+<vertex x="7.14" y="-6.65"/>
+<vertex x="7.17" y="-6.51"/>
+<vertex x="7.18" y="-6.4"/>
+<vertex x="7.18" y="-6.32"/>
+<vertex x="6.88" y="-6.32"/>
+<vertex x="6.88" y="-6.38"/>
+<vertex x="6.87" y="-6.44"/>
+<vertex x="6.85" y="-6.55"/>
+<vertex x="6.82" y="-6.63"/>
+<vertex x="6.77" y="-6.73"/>
+<vertex x="6.69" y="-6.79"/>
+<vertex x="6.58" y="-6.84"/>
+<vertex x="6.52" y="-6.85"/>
+<vertex x="6.43" y="-6.86"/>
+<vertex x="6.06" y="-6.86"/>
+<vertex x="6.02" y="-6.85"/>
+<vertex x="5.95" y="-6.82"/>
+<vertex x="5.84" y="-6.76"/>
+<vertex x="5.76" y="-6.69"/>
+<vertex x="5.71" y="-6.58"/>
+<vertex x="5.68" y="-6.41"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="7.5" y="-4.92"/>
-<vertex x="8.84" y="-4.92"/>
-<vertex x="8.84" y="-5.23"/>
-<vertex x="8.3" y="-5.23"/>
-<vertex x="8.3" y="-6.67"/>
-<vertex x="8.03" y="-6.67"/>
-<vertex x="8.03" y="-5.23"/>
-<vertex x="7.5" y="-5.23"/>
+<vertex x="7.35" y="-5.42"/>
+<vertex x="8.69" y="-5.42"/>
+<vertex x="8.69" y="-5.73"/>
+<vertex x="8.15" y="-5.73"/>
+<vertex x="8.15" y="-7.17"/>
+<vertex x="7.88" y="-7.17"/>
+<vertex x="7.88" y="-5.73"/>
+<vertex x="7.35" y="-5.73"/>
 </polygon>
 <polygon width="0.05" layer="25">
-<vertex x="10.42" y="-5.23"/>
-<vertex x="10.42" y="-4.92"/>
-<vertex x="9.52" y="-4.92"/>
-<vertex x="9.3" y="-4.95"/>
-<vertex x="9.22" y="-5"/>
-<vertex x="9.15" y="-5.05"/>
-<vertex x="9.1" y="-5.1"/>
-<vertex x="9.05" y="-5.16"/>
-<vertex x="9.03" y="-5.2"/>
-<vertex x="9.02" y="-5.42"/>
-<vertex x="9.03" y="-5.6"/>
-<vertex x="9.06" y="-5.7"/>
-<vertex x="9.13" y="-5.78"/>
-<vertex x="9.22" y="-5.86"/>
-<vertex x="9.34" y="-5.91"/>
-<vertex x="9.58" y="-5.93"/>
-<vertex x="10.06" y="-5.93"/>
-<vertex x="10.12" y="-5.94"/>
-<vertex x="10.19" y="-5.98"/>
-<vertex x="10.23" y="-6.02"/>
-<vertex x="10.25" y="-6.12"/>
-<vertex x="10.25" y="-6.22"/>
-<vertex x="10.23" y="-6.26"/>
-<vertex x="10.19" y="-6.31"/>
-<vertex x="10.14" y="-6.34"/>
-<vertex x="10.05" y="-6.36"/>
-<vertex x="9.02" y="-6.36"/>
-<vertex x="9.02" y="-6.67"/>
-<vertex x="10.14" y="-6.67"/>
-<vertex x="10.21" y="-6.65"/>
-<vertex x="10.31" y="-6.59"/>
-<vertex x="10.41" y="-6.51"/>
-<vertex x="10.5" y="-6.41"/>
-<vertex x="10.54" y="-6.31"/>
-<vertex x="10.55" y="-6.18"/>
-<vertex x="10.55" y="-6.07"/>
-<vertex x="10.54" y="-6"/>
-<vertex x="10.5" y="-5.88"/>
-<vertex x="10.44" y="-5.81"/>
-<vertex x="10.34" y="-5.73"/>
-<vertex x="10.25" y="-5.69"/>
-<vertex x="10.11" y="-5.65"/>
-<vertex x="10.04" y="-5.64"/>
-<vertex x="9.48" y="-5.64"/>
-<vertex x="9.39" y="-5.61"/>
-<vertex x="9.33" y="-5.55"/>
-<vertex x="9.3" y="-5.47"/>
-<vertex x="9.3" y="-5.4"/>
-<vertex x="9.32" y="-5.34"/>
-<vertex x="9.4" y="-5.26"/>
-<vertex x="9.48" y="-5.23"/>
+<vertex x="10.27" y="-5.73"/>
+<vertex x="10.27" y="-5.42"/>
+<vertex x="9.37" y="-5.42"/>
+<vertex x="9.15" y="-5.45"/>
+<vertex x="9.07" y="-5.5"/>
+<vertex x="9" y="-5.55"/>
+<vertex x="8.95" y="-5.6"/>
+<vertex x="8.9" y="-5.66"/>
+<vertex x="8.88" y="-5.7"/>
+<vertex x="8.87" y="-5.92"/>
+<vertex x="8.88" y="-6.1"/>
+<vertex x="8.91" y="-6.2"/>
+<vertex x="8.98" y="-6.28"/>
+<vertex x="9.07" y="-6.36"/>
+<vertex x="9.19" y="-6.41"/>
+<vertex x="9.43" y="-6.43"/>
+<vertex x="9.91" y="-6.43"/>
+<vertex x="9.97" y="-6.44"/>
+<vertex x="10.04" y="-6.48"/>
+<vertex x="10.08" y="-6.52"/>
+<vertex x="10.1" y="-6.62"/>
+<vertex x="10.1" y="-6.72"/>
+<vertex x="10.08" y="-6.76"/>
+<vertex x="10.04" y="-6.81"/>
+<vertex x="9.99" y="-6.84"/>
+<vertex x="9.9" y="-6.86"/>
+<vertex x="8.87" y="-6.86"/>
+<vertex x="8.87" y="-7.17"/>
+<vertex x="9.99" y="-7.17"/>
+<vertex x="10.06" y="-7.15"/>
+<vertex x="10.16" y="-7.09"/>
+<vertex x="10.26" y="-7.01"/>
+<vertex x="10.35" y="-6.91"/>
+<vertex x="10.39" y="-6.81"/>
+<vertex x="10.4" y="-6.68"/>
+<vertex x="10.4" y="-6.57"/>
+<vertex x="10.39" y="-6.5"/>
+<vertex x="10.35" y="-6.38"/>
+<vertex x="10.29" y="-6.31"/>
+<vertex x="10.19" y="-6.23"/>
+<vertex x="10.1" y="-6.19"/>
+<vertex x="9.96" y="-6.15"/>
+<vertex x="9.89" y="-6.14"/>
+<vertex x="9.33" y="-6.14"/>
+<vertex x="9.24" y="-6.11"/>
+<vertex x="9.18" y="-6.05"/>
+<vertex x="9.15" y="-5.97"/>
+<vertex x="9.15" y="-5.9"/>
+<vertex x="9.17" y="-5.84"/>
+<vertex x="9.25" y="-5.76"/>
+<vertex x="9.33" y="-5.73"/>
 </polygon>
 <text x="15.75" y="-32.05" size="0.6096" layer="21" font="vector">L</text>
 <text x="15.75" y="-34.05" size="0.6096" layer="21" font="vector">H</text>
@@ -1069,6 +1069,12 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-2.5" y1="-0.1" x2="-2.5" y2="-0.7" width="0.127" layer="21"/>
 <wire x1="-2.5" y1="-0.7" x2="2.5" y2="-0.7" width="0.127" layer="21"/>
 <wire x1="2.5" y1="-0.7" x2="2.5" y2="-0.1" width="0.127" layer="21"/>
+</package>
+<package name="C1206_NOBORDER">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1206 Package for Capacitors&lt;br/&gt;</description>
+<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<smd name="P$2" x="1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<text x="-2.2" y="1.3" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
 </package>
 </packages>
 </library>
@@ -2472,16 +2478,16 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="-2.6956" y="-5.9172" size="0.6096" layer="26" ratio="10" rot="MR270"/>
 <attribute name="POPULATE" value="1" x="0" y="-8" size="1.778" layer="28" rot="MR180" display="off"/>
 </element>
-<element name="C12" library="mfpassives" package="C0402" value="0.1uF" x="-0.1" y="-10.68" smashed="yes">
-<attribute name="DIELECTRIC" value="" x="-0.1" y="-10.68" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="YES" x="-0.1" y="-10.68" size="1.778" layer="27" display="off"/>
-<attribute name="MF" value="" x="-0.1" y="-10.68" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="18.95" y="-51.32" size="1.778" layer="27" display="off"/>
-<attribute name="NAME" x="0.03" y="-11.39" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
-<attribute name="POPULATE" value="1" x="-0.1" y="-10.68" size="1.778" layer="27" display="off"/>
-<attribute name="TOLERANCE" value="" x="18.95" y="-51.32" size="1.778" layer="27" display="off"/>
-<attribute name="URL" value="" x="-0.1" y="-10.68" size="1.778" layer="27" display="off"/>
-<attribute name="VOLTAGE" value="" x="18.95" y="-51.32" size="1.778" layer="27" display="off"/>
+<element name="C12" library="mfpassives" package="C0402" value="0.1uF" x="-0.1" y="-10.98" smashed="yes">
+<attribute name="DIELECTRIC" value="" x="-0.1" y="-10.98" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="YES" x="-0.1" y="-10.98" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="" x="-0.1" y="-10.98" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-0.1uF" x="18.95" y="-51.62" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="0.03" y="-11.69" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="POPULATE" value="1" x="-0.1" y="-10.98" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="18.95" y="-51.62" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="-0.1" y="-10.98" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="18.95" y="-51.62" size="1.778" layer="27" display="off"/>
 </element>
 <element name="Q1" library="controller" package="SOP_ADVANCE_8" value="TPH1R204PLSOP_ADVANCE_8" x="-15" y="-22" smashed="yes">
 <attribute name="MF" value="Toshiba" x="-15" y="-22" size="1.778" layer="27" display="off"/>
@@ -2775,7 +2781,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="MF-CAP-0402-0.1uF" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="10.22" y="-4" size="0.5" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="10.62" y="-4" size="0.5" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="9.75" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2796,7 +2802,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="HOUSEPART" value="YES" x="8.55" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MF" value="" x="8.55" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="MPN" value="MF-CAP-0402-1uF" x="8.55" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
-<attribute name="NAME" x="7.94" y="-2.34" size="0.6096" layer="25" font="vector" ratio="10" rot="R180"/>
+<attribute name="NAME" x="9.49" y="-3.79" size="0.5" layer="25" font="vector" ratio="10" rot="R180"/>
 <attribute name="POPULATE" value="1" x="8.55" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="TOLERANCE" value="" x="8.55" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
 <attribute name="URL" value="" x="8.55" y="-2.58" size="1.778" layer="27" rot="R270" display="off"/>
@@ -2955,16 +2961,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="" x="-13.8" y="-15.8" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="-13.8" y="-15.8" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="C35" library="mfpassives" package="C1206" value="10uF 50V" x="15.2" y="-10.55" smashed="yes" rot="R90">
-<attribute name="DIELECTRIC" value="" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="HOUSEPART" value="" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
+<element name="C35" library="controller" package="C1206_NOBORDER" value="10uF 50V" x="15.2" y="-10.55" smashed="yes" rot="R90">
 <attribute name="MF" value="TDK" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="MPN" value="C3216X7R1H106K160AE" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="14" y="-11.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
-<attribute name="POPULATE" value="1" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="TOLERANCE" value="" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="URL" value="" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
-<attribute name="VOLTAGE" value="" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C36" library="mfpassives" package="C1206" value="10uF 50V" x="18.85" y="-20.45" smashed="yes" rot="R270">
 <attribute name="DIELECTRIC" value="" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
@@ -3089,8 +3088,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <element name="DBG2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="1.25" y="4.55" smashed="yes" rot="R270">
 <attribute name="POPULATE" value="0" x="1.25" y="4.55" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
-<element name="DAC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="3.5" y="-0.2" smashed="yes" rot="R270">
-<attribute name="POPULATE" value="0" x="3.5" y="-0.2" size="1.778" layer="27" rot="R270" display="off"/>
+<element name="DAC" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="3.15" y="-0.05" smashed="yes" rot="R270">
+<attribute name="POPULATE" value="0" x="3.15" y="-0.05" size="1.778" layer="27" rot="R270" display="off"/>
 </element>
 <element name="C33" library="mfpassives" package="C1206" value="10uF 50V" x="17.5" y="-15.95" smashed="yes" rot="R270">
 <attribute name="DIELECTRIC" value="" x="17.5" y="-15.95" size="1.778" layer="27" rot="R270" display="off"/>
@@ -3326,15 +3325,6 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="" x="-15.95" y="-32.65" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="-15.95" y="-32.65" size="1.778" layer="27" display="off"/>
 </element>
-<element name="CUR1" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="4.2" y="-2.95" smashed="yes">
-<attribute name="POPULATE" value="0" x="4.2" y="-2.95" size="1.778" layer="27" display="off"/>
-</element>
-<element name="CUR2" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="6.6" y="-3.6" smashed="yes">
-<attribute name="POPULATE" value="0" x="6.6" y="-3.6" size="1.778" layer="27" display="off"/>
-</element>
-<element name="CUR3" library="controller" package="24AWG_PAD" value="PAD24AWG_PAD" x="8.565" y="-4.06" smashed="yes">
-<attribute name="POPULATE" value="0" x="8.565" y="-4.06" size="1.778" layer="27" display="off"/>
-</element>
 <element name="D4" library="controller" package="SOT23-3" value="DUAL_TVS" x="0" y="-33.3" smashed="yes" rot="R90">
 <attribute name="MPN" value="CDSOT23-0502B" x="0" y="-33.3" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="1.51" y="-33.26" size="0.6096" layer="21" font="vector" ratio="10"/>
@@ -3382,6 +3372,69 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
+<element name="C58" library="mfpassives" package="C0402" value="100pF" x="5.5" y="-2.45" smashed="yes">
+<attribute name="DIELECTRIC" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="NO" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="4.6" y="-1.75" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+</element>
+<element name="R15" library="mfpassives" package="R0402" value="560" x="3.3" y="-2.45" smashed="yes">
+<attribute name="HOUSEPART" value="1" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-560" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="2.45" y="-1.75" size="0.6096" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="WATTAGE" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+</element>
+<element name="R16" library="mfpassives" package="R0402" value="560" x="4.65" y="-3.55" smashed="yes">
+<attribute name="HOUSEPART" value="1" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-560" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="3.05" y="-3" size="0.4" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="POPULATE" value="1" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="WATTAGE" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+</element>
+<element name="R17" library="mfpassives" package="R0402" value="560" x="5.15" y="-4.65" smashed="yes">
+<attribute name="HOUSEPART" value="1" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-560" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="3.55" y="-4.15" size="0.4" layer="25" font="vector" ratio="10" rot="R270"/>
+<attribute name="POPULATE" value="1" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="WATTAGE" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+</element>
+<element name="C59" library="mfpassives" package="C0402" value="100pF" x="6.85" y="-3.55" smashed="yes">
+<attribute name="DIELECTRIC" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="NO" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="7.75" y="-2.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="POPULATE" value="1" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+</element>
+<element name="C60" library="mfpassives" package="C0402" value="100pF" x="7.35" y="-4.65" smashed="yes">
+<attribute name="DIELECTRIC" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="NO" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="MF" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="NAME" x="8.75" y="-5.1" size="0.5" layer="25" font="vector" ratio="10"/>
+<attribute name="POPULATE" value="1" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="TOLERANCE" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="URL" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="VOLTAGE" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+</element>
 </elements>
 <signals>
 <signal name="+3V3">
@@ -3425,7 +3478,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </polygon>
 <via x="18.7" y="-3.55" extent="1-16" drill="0.3048"/>
 <via x="19.85" y="-6.75" extent="1-16" drill="0.3048"/>
-<via x="-0.65" y="-9.55" extent="1-16" drill="0.3048"/>
+<via x="-0.65" y="-10" extent="1-16" drill="0.3048"/>
 <via x="-13.4" y="4.8" extent="1-16" drill="0.3048"/>
 <wire x1="-12.35" y1="4.7" x2="-12.45" y2="4.7" width="0.254" layer="1"/>
 <wire x1="-12.45" y1="4.7" x2="-12.538" y2="4.788" width="0.254" layer="1"/>
@@ -3488,10 +3541,10 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="U1" pad="35"/>
 <contactref element="U1" pad="1"/>
 <contactref element="U1" pad="23"/>
-<wire x1="-0.65" y1="-10.9178" x2="-0.65" y2="-9.55" width="0.3048" layer="16"/>
-<wire x1="-0.65" y1="-10.68" x2="-0.65" y2="-10.57509375" width="0.3048" layer="1"/>
+<wire x1="-0.65" y1="-10.9178" x2="-0.65" y2="-10" width="0.3048" layer="16"/>
+<wire x1="-0.65" y1="-10.98" x2="-0.65" y2="-10.57509375" width="0.3048" layer="1"/>
 <wire x1="-0.647546875" y1="-10.577546875" x2="-0.65" y2="-10.57509375" width="0.3048" layer="1"/>
-<wire x1="-0.65" y1="-9.55" x2="-0.65" y2="-10.553809375" width="0.3048" layer="1"/>
+<wire x1="-0.65" y1="-10" x2="-0.65" y2="-10.553809375" width="0.3048" layer="1"/>
 <wire x1="-0.647546875" y1="-10.577546875" x2="-0.65" y2="-10.553809375" width="0.3048" layer="1"/>
 <wire x1="10.55" y1="-0.55" x2="10.55" y2="-1.6" width="0.254" layer="1"/>
 <wire x1="10.55" y1="-1.6" x2="10.98" y2="-2.03" width="0.254" layer="1"/>
@@ -3619,39 +3672,22 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-2.1" y1="6.5" x2="-6" y2="6.5" width="0.1524" layer="1"/>
 </signal>
 <signal name="CUR1">
-<contactref element="U1" pad="17"/>
-<wire x1="7.5" y1="-0.625" x2="7.55" y2="-0.55" width="0.127" layer="1"/>
 <contactref element="U5" pad="23"/>
+<contactref element="R15" pad="P$1"/>
 <wire x1="-5.4" y1="-3.88" x2="-5.4" y2="-3.35" width="0.2032" layer="1"/>
-<wire x1="5.68125" y1="-2.9598" x2="7.533025" y2="-1.108025" width="0.2032" layer="1"/>
-<wire x1="7.533025" y1="-1.108025" x2="7.533025" y2="-0.658025" width="0.2032" layer="1"/>
-<wire x1="7.533025" y1="-0.658025" x2="7.5" y2="-0.625" width="0.2032" layer="1"/>
-<wire x1="-5.4" y1="-3.35" x2="-5.0098" y2="-2.9598" width="0.2032" layer="1"/>
-<wire x1="-5.0098" y1="-2.9598" x2="2.3098" y2="-2.9598" width="0.2032" layer="1"/>
-<wire x1="2.3098" y1="-2.9598" x2="3.05" y2="-3.7" width="0.2032" layer="1"/>
-<wire x1="3.05" y1="-3.7" x2="4.2" y2="-3.7" width="0.2032" layer="1"/>
-<wire x1="4.2" y1="-3.7" x2="4.9" y2="-3.7" width="0.2032" layer="1"/>
-<wire x1="4.9" y1="-3.7" x2="5" y2="-3.6" width="0.2032" layer="1"/>
-<wire x1="5" y1="-3.6" x2="5.68125" y2="-2.9598" width="0.2032" layer="1"/>
-<contactref element="CUR1" pad="P$1"/>
-<wire x1="4.2" y1="-2.95" x2="4.2" y2="-3.7" width="0.1524" layer="1"/>
+<wire x1="1.1556" y1="-2.9444" x2="1.65" y2="-2.45" width="0.2032" layer="1"/>
+<wire x1="1.65" y1="-2.45" x2="2.75" y2="-2.45" width="0.2032" layer="1"/>
+<wire x1="-5.4" y1="-3.35" x2="-4.9944" y2="-2.9444" width="0.2032" layer="1"/>
+<wire x1="-4.9944" y1="-2.9444" x2="1.1556" y2="-2.9444" width="0.2032" layer="1"/>
 </signal>
 <signal name="CUR2">
-<contactref element="U1" pad="18"/>
 <contactref element="U5" pad="22"/>
-<wire x1="-4.9" y1="-3.88" x2="-4.8886" y2="-3.8686" width="0.2032" layer="1"/>
-<wire x1="-4.8886" y1="-3.8686" x2="-4.8886" y2="-3.61753125" width="0.2032" layer="1"/>
-<wire x1="-4.8886" y1="-3.61753125" x2="-4.59106875" y2="-3.32" width="0.2032" layer="1"/>
-<wire x1="5.84" y1="-3.32" x2="6.08" y2="-3.08" width="0.2032" layer="1"/>
-<wire x1="6.08" y1="-3.08" x2="8.05" y2="-1.11" width="0.2032" layer="1"/>
-<wire x1="8.05" y1="-1.11" x2="8.05" y2="-0.55" width="0.2032" layer="1"/>
-<wire x1="-4.59106875" y1="-3.32" x2="2.02" y2="-3.32" width="0.2032" layer="1"/>
-<wire x1="2.02" y1="-3.32" x2="2.8" y2="-4.1" width="0.2032" layer="1"/>
-<wire x1="2.8" y1="-4.1" x2="5.075" y2="-4.1" width="0.2032" layer="1"/>
-<wire x1="5.075" y1="-4.1" x2="5.155" y2="-4.02" width="0.2032" layer="1"/>
-<wire x1="5.155" y1="-4.02" x2="5.84" y2="-3.32" width="0.2032" layer="1"/>
-<contactref element="CUR2" pad="P$1"/>
-<wire x1="6.6" y1="-3.6" x2="6.08" y2="-3.08" width="0.1524" layer="1"/>
+<contactref element="R16" pad="P$1"/>
+<wire x1="-4.9" y1="-3.88" x2="-4.9" y2="-3.55" width="0.2032" layer="1"/>
+<wire x1="-4.9" y1="-3.55" x2="-4.65" y2="-3.3" width="0.2032" layer="1"/>
+<wire x1="-4.65" y1="-3.3" x2="2" y2="-3.3" width="0.2032" layer="1"/>
+<wire x1="2" y1="-3.3" x2="2.25" y2="-3.55" width="0.2032" layer="1"/>
+<wire x1="2.25" y1="-3.55" x2="4.1" y2="-3.55" width="0.2032" layer="1"/>
 </signal>
 <signal name="VBAT_SENSE">
 <contactref element="R6" pad="P$2"/>
@@ -3830,15 +3866,13 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-7.9" y1="-3.88" x2="-7.9" y2="-0.8" width="0.1524" layer="1"/>
 <wire x1="-7.9" y1="-0.8" x2="-6.8" y2="0.1" width="0.1524" layer="1"/>
 <wire x1="6.5" y1="-0.625" x2="6.5" y2="-1.145" width="0.1524" layer="1"/>
-<wire x1="6.5" y1="-1.145" x2="5.845" y2="-1.8" width="0.1524" layer="1"/>
-<wire x1="-3" y1="-1.8" x2="-3.25" y2="-1.55" width="0.1524" layer="1"/>
-<wire x1="-3.25" y1="-1.55" x2="-3.5" y2="-1.55" width="0.1524" layer="1"/>
+<wire x1="6.5" y1="-1.145" x2="6.095" y2="-1.55" width="0.1524" layer="1"/>
 <via x="-3.5" y="-1.55" extent="1-16" drill="0.35"/>
 <wire x1="-3.5" y1="-1.55" x2="-6.35" y2="-1.55" width="0.1524" layer="16"/>
 <wire x1="-6.35" y1="-1.55" x2="-6.9" y2="-1" width="0.1524" layer="16"/>
 <wire x1="-6.9" y1="-1" x2="-6.9" y2="0.2" width="0.1524" layer="16"/>
 <wire x1="-6.9" y1="0.2" x2="-6.8" y2="0.1" width="0.1524" layer="16"/>
-<wire x1="5.845" y1="-1.8" x2="-3" y2="-1.8" width="0.1524" layer="1"/>
+<wire x1="6.095" y1="-1.55" x2="-3.5" y2="-1.55" width="0.1524" layer="1"/>
 </signal>
 <signal name="DRV8323_MISO">
 <contactref element="U1" pad="14"/>
@@ -3850,11 +3884,11 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-5.39658125" y1="0.3" x2="-5.3" y2="0.1" width="0.1524" layer="1"/>
 <wire x1="-7.4" y1="-3.88" x2="-7.4" y2="-1.70341875" width="0.1524" layer="1"/>
 <wire x1="6.0032" y1="-0.6202" x2="6.0032" y2="-1.05916875" width="0.1524" layer="1"/>
-<wire x1="6.0032" y1="-1.05916875" x2="5.59176875" y2="-1.4706" width="0.1524" layer="1"/>
+<wire x1="6.0032" y1="-1.05916875" x2="5.84176875" y2="-1.2206" width="0.1524" layer="1"/>
 <wire x1="-4.1298" y1="-0.8702" x2="-5.3" y2="0.1" width="0.1524" layer="1"/>
-<wire x1="-2.65085625" y1="-1.4706" x2="-3.25125625" y2="-0.8702" width="0.1524" layer="1"/>
+<wire x1="-2.90085625" y1="-1.2206" x2="-3.25125625" y2="-0.8702" width="0.1524" layer="1"/>
 <wire x1="-3.25125625" y1="-0.8702" x2="-4.1298" y2="-0.8702" width="0.1524" layer="1"/>
-<wire x1="5.59176875" y1="-1.4706" x2="-2.65085625" y2="-1.4706" width="0.1524" layer="1"/>
+<wire x1="5.84176875" y1="-1.2206" x2="-2.90085625" y2="-1.2206" width="0.1524" layer="1"/>
 <wire x1="-4" y1="0.05" x2="-5.25" y2="0.05" width="0.2159" layer="1"/>
 <wire x1="-5.25" y1="0.05" x2="-5.3" y2="0.1" width="0.2159" layer="1"/>
 </signal>
@@ -3862,18 +3896,17 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="U1" pad="13"/>
 <contactref element="DRV_SCK" pad="P$1"/>
 <wire x1="5.55" y1="-0.55" x2="5.55" y2="-0.85" width="0.127" layer="1"/>
-<wire x1="5.55" y1="-0.85" x2="5.35" y2="-1.15" width="0.127" layer="1"/>
 <contactref element="U5" pad="29"/>
 <wire x1="-8.4" y1="-3.88" x2="-8.4" y2="0.1" width="0.1524" layer="1"/>
 <wire x1="-8.4" y1="0.1" x2="-8.2" y2="0.1" width="0.1524" layer="1"/>
 <wire x1="-7.4" y1="1.1" x2="-8.2" y2="0.1" width="0.1524" layer="1"/>
-<wire x1="-2.53736875" y1="-1.15" x2="-3.1" y2="-0.55" width="0.1524" layer="1"/>
+<wire x1="-2.818684375" y1="-0.85" x2="-3.1" y2="-0.55" width="0.1524" layer="1"/>
 <wire x1="-3.1" y1="-0.55" x2="-3.45" y2="-0.55" width="0.1524" layer="1"/>
 <wire x1="-3.45" y1="-0.55" x2="-3.45" y2="-0.23736875" width="0.1524" layer="1"/>
 <wire x1="-3.45" y1="-0.23736875" x2="-3.455" y2="-0.23236875" width="0.1524" layer="1"/>
 <wire x1="-3.455" y1="-0.23236875" x2="-3.455" y2="0.655" width="0.1524" layer="1"/>
 <wire x1="-3.455" y1="0.655" x2="-3.9" y2="1.1" width="0.1524" layer="1"/>
-<wire x1="5.35" y1="-1.15" x2="-2.53736875" y2="-1.15" width="0.1524" layer="1"/>
+<wire x1="5.55" y1="-0.85" x2="-2.818684375" y2="-0.85" width="0.1524" layer="1"/>
 <wire x1="-3.9" y1="1.1" x2="-7.4" y2="1.1" width="0.1524" layer="1"/>
 </signal>
 <signal name="DRV8323_CS">
@@ -3885,9 +3918,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="-8.879165625" y1="-0.620834375" x2="-9.6" y2="0.1" width="0.1524" layer="1"/>
 <wire x1="-8.879165625" y1="-0.620834375" x2="-8.9" y2="-0.65" width="0.1524" layer="1"/>
 <wire x1="7" y1="-0.625" x2="7" y2="-1.125" width="0.1524" layer="1"/>
-<wire x1="7" y1="-1.125" x2="5.975" y2="-2.15" width="0.1524" layer="1"/>
-<wire x1="5.975" y1="-2.15" x2="-3.05" y2="-2.15" width="0.1524" layer="1"/>
-<wire x1="-3.05" y1="-2.15" x2="-3.225" y2="-2.325" width="0.1524" layer="1"/>
+<wire x1="7" y1="-1.125" x2="6.225" y2="-1.9" width="0.1524" layer="1"/>
+<wire x1="6.225" y1="-1.9" x2="-2.8" y2="-1.9" width="0.1524" layer="1"/>
+<wire x1="-2.8" y1="-1.9" x2="-3.225" y2="-2.325" width="0.1524" layer="1"/>
 <via x="-3.225" y="-2.325" extent="1-16" drill="0.35"/>
 <wire x1="-3.225" y1="-2.325" x2="-3.725" y2="-2.325" width="0.1524" layer="16"/>
 <wire x1="-3.725" y1="-2.325" x2="-4.125" y2="-1.925" width="0.1524" layer="16"/>
@@ -4292,11 +4325,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="B" pad="1"/>
 <contactref element="DB" pad="P$1"/>
 <wire x1="-1.075" y1="-25.05" x2="0.15" y2="-24.107640625" width="0.254" layer="1"/>
-<wire x1="0.15" y1="-24.107640625" x2="0.15" y2="-13.600246875" width="0.254" layer="1"/>
-<wire x1="0.15" y1="-13.600246875" x2="0.15" y2="-13.3" width="0.254" layer="1"/>
-<wire x1="0.15" y1="-13.3" x2="0.15" y2="-11.6" width="0.254" layer="1"/>
-<wire x1="0.15" y1="-11.6" x2="-0.1" y2="-11.35" width="0.254" layer="1"/>
-<wire x1="-0.1" y1="-11.35" x2="-0.1" y2="-9.2" width="0.254" layer="1"/>
+<wire x1="0.15" y1="-24.107640625" x2="0.15" y2="-11.8" width="0.254" layer="1"/>
+<wire x1="0.15" y1="-11.8" x2="-0.1" y2="-11.55" width="0.254" layer="1"/>
+<wire x1="-0.1" y1="-11.55" x2="-0.1" y2="-9.2" width="0.254" layer="1"/>
 <wire x1="-0.1" y1="-9.2" x2="-1.77" y2="-7.53" width="0.254" layer="1"/>
 <polygon width="0.127" layer="1" thermals="no">
 <vertex x="-5.4" y="-24.3"/>
@@ -4387,17 +4418,18 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <signal name="GLB">
 <contactref element="Q4" pad="4"/>
 <contactref element="U5" pad="13"/>
-<wire x1="-3.75" y1="-8.03" x2="-2.27" y2="-8.03" width="0.254" layer="1"/>
-<via x="-1.4" y="-8.9" extent="1-16" drill="0.35"/>
-<wire x1="-1.4" y1="-8.9" x2="-3.65" y2="-11.15" width="0.254" layer="16"/>
-<wire x1="-3.65" y1="-11.15" x2="-3.65" y2="-11.2" width="0.254" layer="16"/>
+<wire x1="-3.75" y1="-8.03" x2="-2.47" y2="-8.03" width="0.254" layer="1"/>
+<via x="-1.85" y="-8.65" extent="1-16" drill="0.35"/>
+<wire x1="-1.85" y1="-8.65" x2="-1.85" y2="-9.3" width="0.254" layer="16"/>
+<wire x1="-1.85" y1="-9.3" x2="-3.65" y2="-11.1" width="0.254" layer="16"/>
+<wire x1="-3.65" y1="-11.2" x2="-3.65" y2="-11.1" width="0.254" layer="16"/>
 <via x="-3.65" y="-11.2" extent="1-16" drill="0.35"/>
 <wire x1="-3.65" y1="-11.2" x2="-3.65" y2="-13" width="0.254" layer="1"/>
 <wire x1="-3.65" y1="-13" x2="-4.3" y2="-13.65" width="0.254" layer="1"/>
 <wire x1="-4.3" y1="-13.65" x2="-4.3" y2="-18.25" width="0.254" layer="1"/>
 <wire x1="-4.3" y1="-18.25" x2="-4.905" y2="-18.855" width="0.254" layer="1"/>
 <wire x1="-4.905" y1="-18.855" x2="-4.905" y2="-19.35" width="0.254" layer="1"/>
-<wire x1="-2.27" y1="-8.03" x2="-1.4" y2="-8.9" width="0.254" layer="1"/>
+<wire x1="-2.47" y1="-8.03" x2="-1.85" y2="-8.65" width="0.254" layer="1"/>
 </signal>
 <signal name="GHC">
 <contactref element="Q5" pad="4"/>
@@ -4774,20 +4806,12 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="-15" y="-8.9" extent="1-16" drill="0.3048"/>
 </signal>
 <signal name="CUR3">
-<contactref element="U1" pad="19"/>
 <contactref element="U5" pad="21"/>
-<wire x1="-4.4" y1="-3.88" x2="-4.205" y2="-3.685" width="0.2032" layer="1"/>
-<wire x1="8.55" y1="-0.55" x2="8.55" y2="-1.12" width="0.2032" layer="1"/>
-<wire x1="-4.205" y1="-3.685" x2="1.635" y2="-3.685" width="0.2032" layer="1"/>
-<wire x1="1.635" y1="-3.685" x2="2.55" y2="-4.6" width="0.2032" layer="1"/>
-<wire x1="2.55" y1="-4.6" x2="6.9" y2="-4.6" width="0.2032" layer="1"/>
-<wire x1="7.95" y1="-3.55" x2="7.375" y2="-4.125" width="0.2032" layer="1"/>
-<wire x1="7.375" y1="-4.125" x2="6.9" y2="-4.6" width="0.2032" layer="1"/>
-<wire x1="7.95" y1="-3.55" x2="7.95" y2="-1.72" width="0.2032" layer="1"/>
-<wire x1="7.95" y1="-1.72" x2="8.55" y2="-1.12" width="0.2032" layer="1"/>
-<contactref element="CUR3" pad="P$1"/>
-<wire x1="8.565" y1="-4.06" x2="7.44" y2="-4.06" width="0.1524" layer="1"/>
-<wire x1="7.44" y1="-4.06" x2="7.375" y2="-4.125" width="0.1524" layer="1"/>
+<contactref element="R17" pad="P$1"/>
+<wire x1="-4.4" y1="-3.88" x2="-4.212" y2="-3.692" width="0.2032" layer="1"/>
+<wire x1="1.492" y1="-3.692" x2="-4.212" y2="-3.692" width="0.2032" layer="1"/>
+<wire x1="1.492" y1="-3.692" x2="2.45" y2="-4.65" width="0.2032" layer="1"/>
+<wire x1="2.45" y1="-4.65" x2="4.6" y2="-4.65" width="0.2032" layer="1"/>
 </signal>
 <signal name="MOTOR_HIZ">
 <contactref element="U1" pad="45"/>
@@ -4829,8 +4853,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <signal name="MOTOR_ENABLE">
 <contactref element="U1" pad="11"/>
 <contactref element="U5" pad="31"/>
-<wire x1="4.85" y1="0.65" x2="-2.8" y2="0.65" width="0.1524" layer="1"/>
-<wire x1="-2.8" y1="0.65" x2="-3.6" y2="1.45" width="0.1524" layer="1"/>
+<wire x1="4.85" y1="0.65" x2="4.75" y2="0.75" width="0.1524" layer="1"/>
+<wire x1="4.75" y1="0.75" x2="-2.9" y2="0.75" width="0.1524" layer="1"/>
+<wire x1="-2.9" y1="0.75" x2="-3.6" y2="1.45" width="0.1524" layer="1"/>
 <wire x1="-3.6" y1="1.45" x2="-9.57983125" y2="1.45" width="0.1524" layer="1"/>
 <wire x1="-9.57983125" y1="1.45" x2="-10.3782" y2="0.65163125" width="0.1524" layer="1"/>
 <wire x1="-10.3782" y1="-3.7018" x2="-9.55" y2="-4.53" width="0.1524" layer="1"/>
@@ -5093,7 +5118,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="19.37726875" y1="-10.3575875" x2="20.55" y2="-10.35" width="0.2159" layer="1"/>
 <wire x1="21.325" y1="-11.45" x2="21.325" y2="-11.35" width="0.2159" layer="1"/>
 <wire x1="21.325" y1="-11.35" x2="21.3" y2="-10.35" width="0.2159" layer="1"/>
-<via x="-1.25" y="-9.9" extent="1-16" drill="0.3048"/>
+<via x="-1.45" y="-10" extent="1-16" drill="0.3048"/>
 <via x="-8.7" y="4.75" extent="1-16" drill="0.3048"/>
 <via x="15.7" y="6.99" extent="1-16" drill="0.4"/>
 <via x="14.85" y="6.99" extent="1-16" drill="0.4"/>
@@ -5150,11 +5175,11 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="4.8" y1="-27.65" x2="6" y2="-27.65" width="0.254" layer="1"/>
 <contactref element="DG2" pad="P$1"/>
 <contactref element="DG1" pad="P$1"/>
-<via x="0.45" y="-9.8" extent="1-16" drill="0.3048"/>
+<via x="0.45" y="-10" extent="1-16" drill="0.3048"/>
 <wire x1="-1.3" y1="-10.9178" x2="-1.2822" y2="-11" width="0.3048" layer="16"/>
-<wire x1="-1.2822" y1="-11" x2="-1.312965625" y2="-9.962965625" width="0.3048" layer="16"/>
-<wire x1="-1.312965625" y1="-9.962965625" x2="-1.25" y2="-9.9" width="0.3048" layer="16"/>
-<wire x1="0.45" y1="-10.68" x2="0.45" y2="-9.8" width="0.3048" layer="1"/>
+<wire x1="-1.2822" y1="-11" x2="-1.30813125" y2="-10.12598125" width="0.3048" layer="16"/>
+<wire x1="-1.30813125" y1="-10.12598125" x2="-1.45" y2="-10" width="0.3048" layer="16"/>
+<wire x1="0.45" y1="-10.98" x2="0.45" y2="-10" width="0.3048" layer="1"/>
 <via x="8.3" y="5.2" extent="1-16" drill="0.3048"/>
 <via x="6" y="2.9" extent="1-16" drill="0.3048"/>
 <via x="8.3" y="0.6" extent="1-16" drill="0.3048"/>
@@ -5276,6 +5301,18 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <via x="12.65" y="-2.2" extent="1-16" drill="0.3048"/>
 <wire x1="12.7" y1="-2.7" x2="12.65" y2="-2.65" width="0.254" layer="1"/>
 <wire x1="12.65" y1="-2.65" x2="12.65" y2="-2.2" width="0.254" layer="1"/>
+<contactref element="C60" pad="P$2"/>
+<contactref element="C59" pad="P$2"/>
+<contactref element="C58" pad="P$2"/>
+<via x="8.44" y="-4.715" extent="1-16" drill="0.3048"/>
+<via x="6.95" y="-3.925" extent="1-16" drill="0.3048"/>
+<via x="6.57" y="-2.245" extent="1-16" drill="0.3048"/>
+<wire x1="6.05" y1="-2.45" x2="6.365" y2="-2.45" width="0.2032" layer="1"/>
+<wire x1="6.57" y1="-2.245" x2="6.365" y2="-2.45" width="0.2032" layer="1"/>
+<wire x1="7.4" y1="-3.55" x2="7.020740625" y2="-3.925" width="0.2032" layer="1"/>
+<wire x1="7.020740625" y1="-3.925" x2="6.95" y2="-3.925" width="0.2032" layer="1"/>
+<wire x1="7.9" y1="-4.65" x2="8.375" y2="-4.65" width="0.2032" layer="1"/>
+<wire x1="8.375" y1="-4.65" x2="8.44" y2="-4.715" width="0.2032" layer="1"/>
 </signal>
 <signal name="VTEMP_FET">
 <contactref element="R8" pad="P$2"/>
@@ -5450,9 +5487,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <contactref element="U1" pad="12"/>
 <contactref element="DAC" pad="P$1"/>
 <wire x1="3.6" y1="0.2" x2="4.8" y2="0.2" width="0.127" layer="1"/>
-<wire x1="3.6" y1="-0.2" x2="3.6" y2="0.2" width="0.127" layer="1"/>
+<wire x1="3.6" y1="-0.05" x2="3.6" y2="0.2" width="0.127" layer="1"/>
 <wire x1="4.8" y1="0.2" x2="4.85" y2="0.15" width="0.127" layer="1"/>
-<wire x1="3.6" y1="-0.2" x2="3.5" y2="-0.2" width="0.127" layer="1"/>
+<wire x1="3.6" y1="-0.05" x2="3.15" y2="-0.05" width="0.127" layer="1"/>
 </signal>
 <signal name="DEBUG_TX">
 <contactref element="DTX" pad="P$1"/>
@@ -5609,10 +5646,8 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <vertex x="-4" y="-20"/>
 </polygon>
 <contactref element="U5" pad="12"/>
-<wire x1="-3.75" y1="-8.53" x2="-2.942" y2="-8.53" width="0.254" layer="1"/>
-<wire x1="-2.942" y1="-8.53" x2="-2.8484" y2="-8.6236" width="0.254" layer="1"/>
-<wire x1="-2.8484" y1="-8.6236" x2="-2.7736625" y2="-8.6236" width="0.254" layer="1"/>
-<wire x1="-2.7736625" y1="-8.6236" x2="-2.0436" y2="-9.3536625" width="0.254" layer="1"/>
+<wire x1="-3.75" y1="-8.53" x2="-2.8672625" y2="-8.53" width="0.254" layer="1"/>
+<wire x1="-2.8672625" y1="-8.53" x2="-2.0436" y2="-9.3536625" width="0.254" layer="1"/>
 <wire x1="-0.9316625" y1="-16.5064" x2="-1.5" y2="-16.5064" width="0.254" layer="1"/>
 <wire x1="-0.4064" y1="-15.9811375" x2="-0.9316625" y2="-16.5064" width="0.254" layer="1"/>
 <wire x1="-1.5" y1="-16.5064" x2="-2.15" y2="-17.1564" width="0.254" layer="1"/>
@@ -5659,6 +5694,46 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <wire x1="13.8764" y1="-16.4764" x2="14.9" y2="-17.5" width="0.254" layer="1"/>
 <wire x1="13.7516625" y1="-16.4764" x2="13.8764" y2="-16.4764" width="0.254" layer="1"/>
 <wire x1="13.05" y1="-15.7747375" x2="13.7516625" y2="-16.4764" width="0.254" layer="1"/>
+</signal>
+<signal name="FCUR1">
+<contactref element="R15" pad="P$2"/>
+<contactref element="C58" pad="P$1"/>
+<contactref element="U1" pad="17"/>
+<wire x1="7.5" y1="-0.6" x2="7.55" y2="-0.55" width="0.2032" layer="1"/>
+<wire x1="4.95" y1="-2.45" x2="5.4786" y2="-2.9786" width="0.1524" layer="1"/>
+<wire x1="6.5189" y1="-2.9786" x2="7.15" y2="-2.3475" width="0.1524" layer="1"/>
+<wire x1="7.5" y1="-1.1" x2="7.5" y2="-0.6" width="0.1524" layer="1"/>
+<wire x1="5.4786" y1="-2.9786" x2="6.5189" y2="-2.9786" width="0.1524" layer="1"/>
+<wire x1="7.15" y1="-2.3475" x2="7.15" y2="-1.45" width="0.1524" layer="1"/>
+<wire x1="7.15" y1="-1.45" x2="7.5" y2="-1.1" width="0.1524" layer="1"/>
+<wire x1="3.85" y1="-2.45" x2="4.95" y2="-2.45" width="0.2032" layer="1"/>
+</signal>
+<signal name="FCUR2">
+<contactref element="R16" pad="P$2"/>
+<contactref element="C59" pad="P$1"/>
+<contactref element="U1" pad="18"/>
+<wire x1="6.3" y1="-3.55" x2="6.5616" y2="-3.2834" width="0.1524" layer="1"/>
+<wire x1="6.5616" y1="-3.2834" x2="6.74515625" y2="-3.2834" width="0.1524" layer="1"/>
+<wire x1="6.74515625" y1="-3.2834" x2="7.6048" y2="-2.42375625" width="0.1524" layer="1"/>
+<wire x1="7.6048" y1="-2.42375625" x2="7.6048" y2="-1.47625625" width="0.1524" layer="1"/>
+<wire x1="8.05" y1="-1.03105625" x2="8.05" y2="-0.55" width="0.1524" layer="1"/>
+<wire x1="7.6048" y1="-1.47625625" x2="8.05" y2="-1.03105625" width="0.1524" layer="1"/>
+<wire x1="6.3" y1="-3.55" x2="5.205" y2="-3.545" width="0.2032" layer="1"/>
+<wire x1="5.2" y1="-3.55" x2="5.205" y2="-3.545" width="0.2032" layer="1"/>
+</signal>
+<signal name="FCUR3">
+<contactref element="R17" pad="P$2"/>
+<contactref element="C60" pad="P$1"/>
+<contactref element="U1" pad="19"/>
+<wire x1="6.8" y1="-4.65" x2="6.9774" y2="-4.4726" width="0.1524" layer="1"/>
+<wire x1="6.9774" y1="-4.4726" x2="7.2041125" y2="-4.4726" width="0.1524" layer="1"/>
+<wire x1="7.2041125" y1="-4.4726" x2="7.5553125" y2="-4.1214" width="0.1524" layer="1"/>
+<wire x1="7.7468875" y1="-4.1214" x2="8" y2="-3.8682875" width="0.1524" layer="1"/>
+<wire x1="8.55" y1="-1.1" x2="8.55" y2="-0.55" width="0.1524" layer="1"/>
+<wire x1="7.5553125" y1="-4.1214" x2="7.7468875" y2="-4.1214" width="0.1524" layer="1"/>
+<wire x1="8" y1="-3.8682875" x2="8" y2="-1.65" width="0.1524" layer="1"/>
+<wire x1="8" y1="-1.65" x2="8.55" y2="-1.1" width="0.1524" layer="1"/>
+<wire x1="6.8" y1="-4.65" x2="5.7" y2="-4.65" width="0.2032" layer="1"/>
 </signal>
 </signals>
 <mfgpreviewcolors>

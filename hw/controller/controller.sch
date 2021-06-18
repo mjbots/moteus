@@ -857,6 +857,12 @@ MAX3223-MAX3243.pdf</description>
 <wire x1="-2.5" y1="-0.7" x2="2.5" y2="-0.7" width="0.127" layer="21"/>
 <wire x1="2.5" y1="-0.7" x2="2.5" y2="-0.1" width="0.127" layer="21"/>
 </package>
+<package name="C1206_NOBORDER">
+<description>&lt;b&gt;Description:&lt;/b&gt; Standard 1206 Package for Capacitors&lt;br/&gt;</description>
+<smd name="P$1" x="-1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<smd name="P$2" x="1.45" y="0" dx="0.9" dy="1.6" layer="1" rot="R180"/>
+<text x="-2.2" y="1.3" size="1.016" layer="25" font="vector" ratio="16">&gt;NAME</text>
+</package>
 </packages>
 <symbols>
 <symbol name="AS5147">
@@ -1662,6 +1668,15 @@ Source: &lt;a href="https://componentsearchengine.com/Datasheets/1/STM32G474CEU6
 </technologies>
 </device>
 <device name="_1206_NOCREAM" package="C1206_NOCREAM">
+<connects>
+<connect gate="G$1" pin="P$1" pad="P$1"/>
+<connect gate="G$1" pin="P$2" pad="P$2"/>
+</connects>
+<technologies>
+<technology name=""/>
+</technologies>
+</device>
+<device name="_1206_NOBORDER" package="C1206_NOBORDER">
 <connects>
 <connect gate="G$1" pin="P$1" pad="P$1"/>
 <connect gate="G$1" pin="P$2" pad="P$2"/>
@@ -6268,9 +6283,8 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value="TDK"/>
 <attribute name="MPN" value="C3216X7R1H106K160AE"/>
 </part>
-<part name="C35" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF 50V">
+<part name="C35" library="controller" deviceset="CAPACITOR_NP" device="_1206_NOBORDER" value="10uF 50V">
 <attribute name="MF" value="TDK"/>
-<attribute name="MPN" value="C3216X7R1H106K160AE"/>
 </part>
 <part name="C36" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF 50V">
 <attribute name="MF" value="TDK"/>
@@ -6503,15 +6517,6 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="POPULATE" value="0"/>
 </part>
 <part name="P-7" library="supply1" deviceset="V-" device=""/>
-<part name="CUR1" library="controller" deviceset="PAD" device="24AWG_PAD">
-<attribute name="POPULATE" value="0"/>
-</part>
-<part name="CUR2" library="controller" deviceset="PAD" device="24AWG_PAD">
-<attribute name="POPULATE" value="0"/>
-</part>
-<part name="CUR3" library="controller" deviceset="PAD" device="24AWG_PAD">
-<attribute name="POPULATE" value="0"/>
-</part>
 <part name="D4" library="controller" deviceset="DUAL_TVS" device="">
 <attribute name="MPN" value="CDSOT23-0502B"/>
 <attribute name="POPULATE" value="1"/>
@@ -6547,6 +6552,33 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value=""/>
 <attribute name="MPN" value="MF-CAP-0402-0.01uF"/>
 </part>
+<part name="C58" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="100pF">
+<attribute name="HOUSEPART" value="NO"/>
+<attribute name="MF" value=""/>
+</part>
+<part name="R15" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-560"/>
+</part>
+<part name="R16" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-560"/>
+</part>
+<part name="R17" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-560"/>
+</part>
+<part name="C59" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="100pF">
+<attribute name="HOUSEPART" value="NO"/>
+<attribute name="MF" value=""/>
+</part>
+<part name="C60" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="100pF">
+<attribute name="HOUSEPART" value="NO"/>
+<attribute name="MF" value=""/>
+</part>
+<part name="GND9" library="supply1" deviceset="GND" device=""/>
+<part name="GND27" library="supply1" deviceset="GND" device=""/>
+<part name="GND28" library="supply1" deviceset="GND" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -6596,7 +6628,7 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <text x="-302.26" y="-142.24" size="5.08" layer="90">FET DRIVER</text>
 <text x="-132.08" y="-142.24" size="5.08" layer="90">POWER FETS</text>
 <text x="73.66" y="-142.24" size="5.08" layer="90">BULK CAPACITANCE / REGULATORS</text>
-<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.7
+<text x="-307.34" y="200.66" size="7.62" layer="90">moteus r4.8
 (c) jjp@pobox.com 2021
 Licensed under the Apache 2.0 License</text>
 <text x="22.86" y="111.76" size="1.778" layer="91">PA10/PA15/PC6 Version
@@ -7410,18 +7442,6 @@ COMMON MODE CHOKE</text>
 <instance part="P-7" gate="1" x="-228.6" y="55.88" smashed="yes">
 <attribute name="VALUE" x="-233.68" y="58.42" size="1.778" layer="96" rot="R270"/>
 </instance>
-<instance part="CUR1" gate="G$1" x="243.84" y="60.96" smashed="yes">
-<attribute name="POPULATE" x="243.84" y="60.96" size="7.62" layer="96" display="off"/>
-<attribute name="NAME" x="236.22" y="66.04" size="1.6764" layer="94"/>
-</instance>
-<instance part="CUR2" gate="G$1" x="243.84" y="48.26" smashed="yes">
-<attribute name="POPULATE" x="243.84" y="48.26" size="7.62" layer="96" display="off"/>
-<attribute name="NAME" x="236.22" y="53.34" size="1.6764" layer="94"/>
-</instance>
-<instance part="CUR3" gate="G$1" x="243.84" y="35.56" smashed="yes">
-<attribute name="POPULATE" x="243.84" y="35.56" size="7.62" layer="96" display="off"/>
-<attribute name="NAME" x="236.22" y="40.64" size="1.6764" layer="94"/>
-</instance>
 <instance part="D4" gate="G$1" x="-175.26" y="-53.34" smashed="yes">
 <attribute name="MPN" x="-175.26" y="-53.34" size="1.778" layer="96" display="off"/>
 <attribute name="POPULATE" x="-175.26" y="-53.34" size="1.778" layer="96" display="off"/>
@@ -7471,6 +7491,48 @@ COMMON MODE CHOKE</text>
 <attribute name="MF" x="124.46" y="-93.98" size="1.778" layer="96" display="off"/>
 <attribute name="NAME" x="127" y="-92.456" size="1.016" layer="95" font="vector" align="top-left"/>
 <attribute name="VALUE" x="127" y="-95.504" size="1.016" layer="96" font="vector"/>
+</instance>
+<instance part="C58" gate="G$1" x="-83.82" y="60.96" smashed="yes">
+<attribute name="MPN" x="-83.82" y="60.96" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-83.82" y="60.96" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="-81.28" y="62.484" size="1.016" layer="95" font="vector" align="top-left"/>
+<attribute name="VALUE" x="-81.28" y="59.436" size="1.016" layer="96" font="vector"/>
+</instance>
+<instance part="R15" gate="G$1" x="-91.44" y="63.5" smashed="yes" rot="R90">
+<attribute name="MPN" x="-91.44" y="63.5" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="NAME" x="-92.964" y="66.04" size="1.016" layer="95" font="vector" rot="R90" align="top-left"/>
+<attribute name="VALUE" x="-89.916" y="66.04" size="1.016" layer="96" font="vector" rot="R90"/>
+</instance>
+<instance part="R16" gate="G$1" x="-91.44" y="50.8" smashed="yes" rot="R90">
+<attribute name="MPN" x="-91.44" y="50.8" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="NAME" x="-92.964" y="53.34" size="1.016" layer="95" font="vector" rot="R90" align="top-left"/>
+<attribute name="VALUE" x="-89.916" y="53.34" size="1.016" layer="96" font="vector" rot="R90"/>
+</instance>
+<instance part="R17" gate="G$1" x="-91.44" y="38.1" smashed="yes" rot="R90">
+<attribute name="MPN" x="-91.44" y="38.1" size="1.778" layer="96" rot="R90" display="off"/>
+<attribute name="NAME" x="-92.964" y="40.64" size="1.016" layer="95" font="vector" rot="R90" align="top-left"/>
+<attribute name="VALUE" x="-89.916" y="40.64" size="1.016" layer="96" font="vector" rot="R90"/>
+</instance>
+<instance part="C59" gate="G$1" x="-83.82" y="48.26" smashed="yes">
+<attribute name="MPN" x="-83.82" y="48.26" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-83.82" y="48.26" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="-81.28" y="49.784" size="1.016" layer="95" font="vector" align="top-left"/>
+<attribute name="VALUE" x="-81.28" y="46.736" size="1.016" layer="96" font="vector"/>
+</instance>
+<instance part="C60" gate="G$1" x="-83.82" y="35.56" smashed="yes">
+<attribute name="MPN" x="-83.82" y="35.56" size="1.778" layer="96" display="off"/>
+<attribute name="MF" x="-83.82" y="35.56" size="1.778" layer="96" display="off"/>
+<attribute name="NAME" x="-81.28" y="37.084" size="1.016" layer="95" font="vector" align="top-left"/>
+<attribute name="VALUE" x="-81.28" y="34.036" size="1.016" layer="96" font="vector"/>
+</instance>
+<instance part="GND9" gate="1" x="-83.82" y="30.48" smashed="yes">
+<attribute name="VALUE" x="-86.36" y="27.94" size="1.778" layer="96"/>
+</instance>
+<instance part="GND27" gate="1" x="-83.82" y="43.18" smashed="yes">
+<attribute name="VALUE" x="-86.36" y="40.64" size="1.778" layer="96"/>
+</instance>
+<instance part="GND28" gate="1" x="-83.82" y="55.88" smashed="yes">
+<attribute name="VALUE" x="-86.36" y="53.34" size="1.778" layer="96"/>
 </instance>
 </instances>
 <busses>
@@ -7862,6 +7924,18 @@ COMMON MODE CHOKE</text>
 <pinref part="GND5" gate="1" pin="GND"/>
 <wire x1="-226.06" y1="-269.24" x2="-226.06" y2="-274.32" width="0.1524" layer="91"/>
 </segment>
+<segment>
+<pinref part="C60" gate="G$1" pin="P$2"/>
+<pinref part="GND9" gate="1" pin="GND"/>
+</segment>
+<segment>
+<pinref part="C59" gate="G$1" pin="P$2"/>
+<pinref part="GND27" gate="1" pin="GND"/>
+</segment>
+<segment>
+<pinref part="C58" gate="G$1" pin="P$2"/>
+<pinref part="GND28" gate="1" pin="GND"/>
+</segment>
 </net>
 <net name="NRST" class="0">
 <segment>
@@ -7911,14 +7985,9 @@ COMMON MODE CHOKE</text>
 <pinref part="U5" gate="G$1" pin="SOA"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PB0"/>
-<wire x1="-50.8" y1="76.2" x2="-50.8" y2="58.42" width="0.1524" layer="91"/>
-<label x="-50.8" y="58.42" size="1.778" layer="95" rot="R90"/>
-</segment>
-<segment>
-<pinref part="CUR1" gate="G$1" pin="P$1"/>
-<wire x1="236.22" y1="60.96" x2="226.06" y2="60.96" width="0.1524" layer="91"/>
-<label x="226.06" y="60.96" size="1.778" layer="95"/>
+<wire x1="-111.76" y1="63.5" x2="-96.52" y2="63.5" width="0.1524" layer="91"/>
+<label x="-109.22" y="63.5" size="1.778" layer="95"/>
+<pinref part="R15" gate="G$1" pin="P$1"/>
 </segment>
 </net>
 <net name="CUR2" class="0">
@@ -7928,14 +7997,9 @@ COMMON MODE CHOKE</text>
 <pinref part="U5" gate="G$1" pin="SOB"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PB1"/>
-<wire x1="-48.26" y1="76.2" x2="-48.26" y2="58.42" width="0.1524" layer="91"/>
-<label x="-48.26" y="58.42" size="1.778" layer="95" rot="R90"/>
-</segment>
-<segment>
-<pinref part="CUR2" gate="G$1" pin="P$1"/>
-<wire x1="236.22" y1="48.26" x2="226.06" y2="48.26" width="0.1524" layer="91"/>
-<label x="226.06" y="48.26" size="1.778" layer="95"/>
+<wire x1="-111.76" y1="50.8" x2="-96.52" y2="50.8" width="0.1524" layer="91"/>
+<label x="-109.22" y="50.8" size="1.778" layer="95"/>
+<pinref part="R16" gate="G$1" pin="P$1"/>
 </segment>
 </net>
 <net name="VBAT_SENSE" class="0">
@@ -8733,14 +8797,9 @@ COMMON MODE CHOKE</text>
 <pinref part="U5" gate="G$1" pin="SOC"/>
 </segment>
 <segment>
-<pinref part="U1" gate="G$1" pin="PB2"/>
-<wire x1="-45.72" y1="76.2" x2="-45.72" y2="58.42" width="0.1524" layer="91"/>
-<label x="-45.72" y="58.42" size="1.778" layer="95" rot="R90"/>
-</segment>
-<segment>
-<pinref part="CUR3" gate="G$1" pin="P$1"/>
-<wire x1="236.22" y1="35.56" x2="226.06" y2="35.56" width="0.1524" layer="91"/>
-<label x="226.06" y="35.56" size="1.778" layer="95"/>
+<wire x1="-111.76" y1="38.1" x2="-96.52" y2="38.1" width="0.1524" layer="91"/>
+<label x="-109.22" y="38.1" size="1.778" layer="95"/>
+<pinref part="R17" gate="G$1" pin="P$1"/>
 </segment>
 </net>
 <net name="MOTOR_HIZ" class="0">
@@ -9192,6 +9251,46 @@ COMMON MODE CHOKE</text>
 <wire x1="-205.74" y1="-238.76" x2="-187.96" y2="-238.76" width="0.1524" layer="91"/>
 <label x="-193.04" y="-238.76" size="1.778" layer="95"/>
 <pinref part="U5" gate="G$1" pin="SPC"/>
+</segment>
+</net>
+<net name="FCUR1" class="0">
+<segment>
+<pinref part="R15" gate="G$1" pin="P$2"/>
+<pinref part="C58" gate="G$1" pin="P$1"/>
+<wire x1="-86.36" y1="63.5" x2="-83.82" y2="63.5" width="0.1524" layer="91"/>
+<wire x1="-83.82" y1="63.5" x2="-50.8" y2="63.5" width="0.1524" layer="91"/>
+<junction x="-83.82" y="63.5"/>
+<pinref part="U1" gate="G$1" pin="PB0"/>
+<wire x1="-50.8" y1="63.5" x2="-50.8" y2="76.2" width="0.1524" layer="91"/>
+<label x="-76.2" y="63.5" size="1.778" layer="95"/>
+</segment>
+</net>
+<net name="FCUR2" class="0">
+<segment>
+<pinref part="R16" gate="G$1" pin="P$2"/>
+<pinref part="C59" gate="G$1" pin="P$1"/>
+<wire x1="-86.36" y1="50.8" x2="-83.82" y2="50.8" width="0.1524" layer="91"/>
+<wire x1="-83.82" y1="50.8" x2="-73.66" y2="50.8" width="0.1524" layer="91"/>
+<wire x1="-73.66" y1="50.8" x2="-73.66" y2="53.34" width="0.1524" layer="91"/>
+<junction x="-83.82" y="50.8"/>
+<pinref part="U1" gate="G$1" pin="PB1"/>
+<wire x1="-73.66" y1="53.34" x2="-48.26" y2="53.34" width="0.1524" layer="91"/>
+<wire x1="-48.26" y1="53.34" x2="-48.26" y2="76.2" width="0.1524" layer="91"/>
+<label x="-76.2" y="53.34" size="1.778" layer="95"/>
+</segment>
+</net>
+<net name="FCUR3" class="0">
+<segment>
+<pinref part="R17" gate="G$1" pin="P$2"/>
+<pinref part="C60" gate="G$1" pin="P$1"/>
+<wire x1="-86.36" y1="38.1" x2="-83.82" y2="38.1" width="0.1524" layer="91"/>
+<wire x1="-83.82" y1="38.1" x2="-68.58" y2="38.1" width="0.1524" layer="91"/>
+<wire x1="-68.58" y1="38.1" x2="-68.58" y2="50.8" width="0.1524" layer="91"/>
+<junction x="-83.82" y="38.1"/>
+<wire x1="-68.58" y1="50.8" x2="-45.72" y2="50.8" width="0.1524" layer="91"/>
+<pinref part="U1" gate="G$1" pin="PB2"/>
+<wire x1="-45.72" y1="50.8" x2="-45.72" y2="76.2" width="0.1524" layer="91"/>
+<label x="-76.2" y="38.1" size="1.778" layer="95"/>
 </segment>
 </net>
 </nets>
