@@ -499,6 +499,10 @@ class Stream:
         unwrapped_position_scale = \
             await self.read_config_double("motor.unwrapped_position_scale")
 
+        # The rest of the calibration procedure assumes that
+        # phase_invert is 0.
+        await self.command("conf set motor.phase_invert 0")
+
         # We have 3 things to calibrate.
         #  1) The encoder to phase mapping
         #  2) The winding resistance
