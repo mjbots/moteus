@@ -331,6 +331,27 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "v") {
+      const auto a_str = tokenizer.next();
+      const auto b_str = tokenizer.next();
+      const auto c_str = tokenizer.next();
+
+      if (a_str.empty() || b_str.empty() || c_str.empty()) {
+        WriteMessage(response, "ERR missing a/b/c voltage\r\n");
+        return;
+      }
+
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kVoltage;
+      command.phase_v.a = std::strtof(a_str.data(), nullptr);
+      command.phase_v.b = std::strtof(b_str.data(), nullptr);
+      command.phase_v.c = std::strtof(c_str.data(), nullptr);
+
+      bldc_->Command(command);
+      WriteOk(response);
+      return;
+    }
+
     if (cmd_text == "vdq") {
       const auto d_str = tokenizer.next();
       const auto q_str = tokenizer.next();
