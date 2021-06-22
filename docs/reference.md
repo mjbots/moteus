@@ -1123,6 +1123,13 @@ After calibrating for an entirely new type of motor, you may need to
 adjust PID gains before the motor will perform acceptably, and/or
 configure `motor.unwrapped_position_scale`.
 
+## Setting the "zero offset" ##
+
+The moteus controller can locate positions within one revolution after being power cycled, and will start with the reported position being between -0.5 and 0.5.  The physical zero position can be set using the following command:
+
+```
+python3 -m moteus.moteus_tool --target 1 --zero-offset
+```
 
 ## Flashing and building firmware ##
 
