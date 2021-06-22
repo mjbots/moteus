@@ -3372,20 +3372,20 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="URL" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="VOLTAGE" value="" x="12.7" y="-3.25" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
-<element name="C58" library="mfpassives" package="C0402" value="100pF" x="5.5" y="-2.45" smashed="yes">
+<element name="C58" library="mfpassives" package="C0402" value="1000pF" x="5.5" y="-2.45" smashed="yes">
 <attribute name="DIELECTRIC" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="NO" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="C0603C101M5RAC7867" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1nF" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="4.6" y="-1.75" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="5.5" y="-2.45" size="1.778" layer="27" display="off"/>
 </element>
-<element name="R15" library="mfpassives" package="R0402" value="560" x="3.3" y="-2.45" smashed="yes">
+<element name="R15" library="mfpassives" package="R0402" value="22" x="3.3" y="-2.45" smashed="yes">
 <attribute name="HOUSEPART" value="1" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-RES-0402-560" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-22" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="2.45" y="-1.75" size="0.6096" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
@@ -3393,9 +3393,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
 <attribute name="WATTAGE" value="" x="3.3" y="-2.45" size="1.778" layer="27" display="off"/>
 </element>
-<element name="R16" library="mfpassives" package="R0402" value="560" x="4.65" y="-3.55" smashed="yes">
+<element name="R16" library="mfpassives" package="R0402" value="22" x="4.65" y="-3.55" smashed="yes">
 <attribute name="HOUSEPART" value="1" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-RES-0402-560" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-22" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="3.05" y="-3" size="0.4" layer="25" font="vector" ratio="10" rot="R270"/>
 <attribute name="POPULATE" value="1" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
@@ -3403,9 +3403,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="WATTAGE" value="" x="4.65" y="-3.55" size="1.778" layer="27" display="off"/>
 </element>
-<element name="R17" library="mfpassives" package="R0402" value="560" x="5.15" y="-4.65" smashed="yes">
+<element name="R17" library="mfpassives" package="R0402" value="22" x="5.15" y="-4.65" smashed="yes">
 <attribute name="HOUSEPART" value="1" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="MF-RES-0402-560" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-RES-0402-22" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="3.55" y="-4.15" size="0.4" layer="25" font="vector" ratio="10" rot="R270"/>
 <attribute name="POPULATE" value="1" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
@@ -3413,22 +3413,22 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="VOLTAGE" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
 <attribute name="WATTAGE" value="" x="5.15" y="-4.65" size="1.778" layer="27" display="off"/>
 </element>
-<element name="C59" library="mfpassives" package="C0402" value="100pF" x="6.85" y="-3.55" smashed="yes">
+<element name="C59" library="mfpassives" package="C0402" value="1000pF" x="6.85" y="-3.55" smashed="yes">
 <attribute name="DIELECTRIC" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="NO" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="C0603C101M5RAC7867" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1nF" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="7.75" y="-2.9" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
 <attribute name="POPULATE" value="1" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="URL" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
 <attribute name="VOLTAGE" value="" x="6.85" y="-3.55" size="1.778" layer="27" display="off"/>
 </element>
-<element name="C60" library="mfpassives" package="C0402" value="100pF" x="7.35" y="-4.65" smashed="yes">
+<element name="C60" library="mfpassives" package="C0402" value="1000pF" x="7.35" y="-4.65" smashed="yes">
 <attribute name="DIELECTRIC" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
-<attribute name="HOUSEPART" value="NO" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="HOUSEPART" value="1" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
 <attribute name="MF" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
-<attribute name="MPN" value="C0603C101M5RAC7867" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
+<attribute name="MPN" value="MF-CAP-0402-1nF" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="8.75" y="-5.1" size="0.5" layer="25" font="vector" ratio="10"/>
 <attribute name="POPULATE" value="1" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>
 <attribute name="TOLERANCE" value="" x="7.35" y="-4.65" size="1.778" layer="27" display="off"/>

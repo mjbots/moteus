@@ -6552,32 +6552,32 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 <attribute name="MF" value=""/>
 <attribute name="MPN" value="MF-CAP-0402-0.01uF"/>
 </part>
-<part name="C58" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="100pF">
-<attribute name="HOUSEPART" value="NO"/>
-<attribute name="MF" value=""/>
-<attribute name="MPN" value="C0603C101M5RAC7867"/>
-</part>
-<part name="R15" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
+<part name="C58" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1000pF">
 <attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-RES-0402-560"/>
-</part>
-<part name="R16" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
-<attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-RES-0402-560"/>
-</part>
-<part name="R17" library="mfpassives" deviceset="RESISTOR" device="_0402" value="560">
-<attribute name="HOUSEPART" value="1"/>
-<attribute name="MPN" value="MF-RES-0402-560"/>
-</part>
-<part name="C59" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="100pF">
-<attribute name="HOUSEPART" value="NO"/>
 <attribute name="MF" value=""/>
-<attribute name="MPN" value="C0603C101M5RAC7867"/>
+<attribute name="MPN" value="MF-CAP-0402-1nF"/>
 </part>
-<part name="C60" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="100pF">
-<attribute name="HOUSEPART" value="NO"/>
+<part name="R15" library="mfpassives" deviceset="RESISTOR" device="_0402" value="22">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-22"/>
+</part>
+<part name="R16" library="mfpassives" deviceset="RESISTOR" device="_0402" value="22">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-22"/>
+</part>
+<part name="R17" library="mfpassives" deviceset="RESISTOR" device="_0402" value="22">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MPN" value="MF-RES-0402-22"/>
+</part>
+<part name="C59" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1000pF">
+<attribute name="HOUSEPART" value="1"/>
 <attribute name="MF" value=""/>
-<attribute name="MPN" value="C0603C101M5RAC7867"/>
+<attribute name="MPN" value="MF-CAP-0402-1nF"/>
+</part>
+<part name="C60" library="mfpassives" deviceset="CAPACITOR_NP" device="_0402" value="1000pF">
+<attribute name="HOUSEPART" value="1"/>
+<attribute name="MF" value=""/>
+<attribute name="MPN" value="MF-CAP-0402-1nF"/>
 </part>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
 <part name="GND27" library="supply1" deviceset="GND" device=""/>
