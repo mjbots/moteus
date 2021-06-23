@@ -6285,6 +6285,8 @@ Source: http://www.murata.com .. GRM43DR72E224KW01.pdf</description>
 </part>
 <part name="C35" library="controller" deviceset="CAPACITOR_NP" device="_1206_NOBORDER" value="10uF 50V">
 <attribute name="MF" value="TDK"/>
+<attribute name="MPN" value="C3216X7R1H106K160AE"/>
+<attribute name="POPULATE" value="1"/>
 </part>
 <part name="C36" library="mfpassives" deviceset="CAPACITOR_NP" device="_1206" value="10uF 50V">
 <attribute name="MF" value="TDK"/>
@@ -7096,6 +7098,8 @@ COMMON MODE CHOKE</text>
 <attribute name="MF" x="213.36" y="-175.26" size="1.778" layer="96" display="off"/>
 <attribute name="NAME" x="215.9" y="-173.736" size="1.016" layer="95" font="vector" align="top-left"/>
 <attribute name="VALUE" x="215.9" y="-176.784" size="1.016" layer="96" font="vector"/>
+<attribute name="MPN" x="213.36" y="-175.26" size="1.778" layer="96" display="off"/>
+<attribute name="POPULATE" x="213.36" y="-175.26" size="1.778" layer="96" display="off"/>
 </instance>
 <instance part="C36" gate="G$1" x="220.98" y="-175.26" smashed="yes">
 <attribute name="MF" x="220.98" y="-175.26" size="1.778" layer="96" display="off"/>

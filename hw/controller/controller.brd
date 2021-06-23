@@ -2963,7 +2963,9 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 </element>
 <element name="C35" library="controller" package="C1206_NOBORDER" value="10uF 50V" x="15.2" y="-10.55" smashed="yes" rot="R90">
 <attribute name="MF" value="TDK" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
+<attribute name="MPN" value="C3216X7R1H106K160AE" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
 <attribute name="NAME" x="14" y="-11.5" size="0.6096" layer="25" font="vector" ratio="10" rot="R90"/>
+<attribute name="POPULATE" value="1" x="15.2" y="-10.55" size="1.778" layer="27" rot="R90" display="off"/>
 </element>
 <element name="C36" library="mfpassives" package="C1206" value="10uF 50V" x="18.85" y="-20.45" smashed="yes" rot="R270">
 <attribute name="DIELECTRIC" value="" x="18.85" y="-20.45" size="1.778" layer="27" rot="R270" display="off"/>
