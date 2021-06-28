@@ -93,6 +93,20 @@ in your setup:
 
 A larger set of parameters is documented in the reference manual.
 
+## Calibration ##
+
+If you are not using a development, which comes pre-calibrated, you will need to calibrate the controller before using any control mode.
+
+Assuming your controller has firmware installed already, you can
+calibrate the controller using the following procedure.
+
+```
+python3 -m moteus.moteus_tool --target 1 --calibrate
+```
+
+WARNING: Any attached motor must be able to spin freely.  It will be
+spun in both directions and at high speed.
+
 # Learning more #
 
 The complete reference documentation can be found at:
