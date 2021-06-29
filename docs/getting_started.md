@@ -81,8 +81,13 @@ permanently so by configuring the kp constant to 0).
 
 # Initial Configuration #
 
+Depending upon your starting point, there are few things you may want
+to do to configure the system.
+
+## Parameters ##
+
 There are a few parameters you will likely want to configure early on
-in your setup:
+in your setup regardless:
 
 * `servopos.position_min` and `servopos.position_max` these define the bounds of motion which the controller will allow when in position control mode.  Attempting to start beyond this region will fault, and if outside the region in operation, no torque will be applied to go further outside.
 * `servo.max_current_A` the maximum phase current to apply to the motor.  This can be used to limit the maximum torque that the system is capable of regardless of any command sent.
@@ -92,6 +97,18 @@ in your setup:
 * `id.id` the CAN-FD id used by this device
 
 A larger set of parameters is documented in the reference manual.
+
+## Calibration ##
+
+If you started from a bare moteus board, you will need to calibrate it
+for the attached motor before any control modes are possible.
+
+```
+python3 -m moteus.moteus_tool --target 1 --calibrate
+```
+
+WARNING: Any attached motor must be able to spin freely.  It will be
+spun in both directions and at high speed.
 
 # Learning more #
 
