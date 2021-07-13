@@ -1350,4 +1350,4 @@ The maximum mechanical velocity which can be commanded is 28000 rpm,
 or ~467 revolutions per second before any reducers.  Note, most motors
 will be incapable of this speed either mechanically or electrically.
 
-The maximum electrical frequency is 5kHz.
+The maximum electrical frequency is 4kHz.
