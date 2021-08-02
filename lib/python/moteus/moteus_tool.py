@@ -893,7 +893,7 @@ class Runner:
         targets = await self.find_targets()
 
         for target in targets:
-            if self._discovered:
+            if self._discovered or len(targets) > 1:
                 print(f"Target: {target}")
             await self.run_action(target)
 
