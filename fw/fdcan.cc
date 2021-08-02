@@ -92,6 +92,17 @@ FDCan::Rate ApplyRateOverride(FDCan::Rate base, FDCan::Rate overlay) {
 
 FDCan::FDCan(const Options& options)
     : options_(options) {
+  Init();
+}
+
+void FDCan::ConfigureFilters(const FilterConfig& filters) {
+  options_.filters = filters;
+  Init();
+}
+
+void FDCan::Init() {
+  const auto& options = options_;
+
   __HAL_RCC_FDCAN_CLK_ENABLE();
 
   {
@@ -150,14 +161,14 @@ FDCan::FDCan(const Options& options)
 
   can.Init.StdFiltersNbr =
       std::count_if(
-          options.filter_begin, options.filter_end,
+          options.filters.begin, options.filters.end,
           [](const auto& filter) {
             return (filter.action != FilterAction::kDisable &&
                     filter.type == FilterType::kStandard);
           });
   can.Init.ExtFiltersNbr =
       std::count_if(
-          options.filter_begin, options.filter_end,
+          options.filters.begin, options.filters.end,
           [](const auto& filter) {
             return (filter.action != FilterAction::kDisable &&
                     filter.type == FilterType::kExtended);
@@ -170,7 +181,7 @@ FDCan::FDCan(const Options& options)
   int standard_index = 0;
   int extended_index = 0;
   std::for_each(
-      options.filter_begin, options.filter_end,
+      options.filters.begin, options.filters.end,
       [&](const auto& filter) {
         if (filter.action == FilterAction::kDisable) {
           return;
@@ -253,10 +264,10 @@ FDCan::FDCan(const Options& options)
      Reject non matching frames with STD ID and EXT ID */
   if (HAL_FDCAN_ConfigGlobalFilter(
           &can,
-          map_filter_action(options.global_std_action),
-          map_filter_action(options.global_ext_action),
-          map_remote_action(options.global_remote_std_action),
-          map_remote_action(options.global_remote_ext_action)) != HAL_OK) {
+          map_filter_action(options.filters.global_std_action),
+          map_filter_action(options.filters.global_ext_action),
+          map_remote_action(options.filters.global_remote_std_action),
+          map_remote_action(options.filters.global_remote_ext_action)) != HAL_OK) {
     mbed_die();
   }
 

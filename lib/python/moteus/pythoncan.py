@@ -70,11 +70,17 @@ class PythonCan:
 
         reply = await self._reader.get_message()
 
+        # We're assuming only one device will respond, so the source,
+        # destination, and CAN prefix should all match without
+        # checking.
+
         return command.parse(reply)
 
     async def write(self, command):
         reply_required = command.reply_required
-        arbitration_id = command.destination + (0x8000 if reply_required else 0)
+        arbitration_id = (command.destination |
+                          (0x8000 if reply_required else 0) |
+                          (command.can_prefix << 16))
         message = can.Message(arbitration_id=arbitration_id,
                               is_extended_id=(arbitration_id >= 0x7ff),
                               dlc=len(command.data),

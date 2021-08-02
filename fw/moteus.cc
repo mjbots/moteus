@@ -172,6 +172,17 @@ volatile uint8_t g_measured_hw_pins;
 volatile uint8_t g_measured_hw_rev;
 }
 
+namespace {
+struct CanConfig {
+  uint32_t prefix = 0;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(prefix));
+  }
+};
+}
+
 int main(void) {
 #if defined(TARGET_STM32G4)
   std::memcpy(&_sccmram, &_siccmram, &_eccmram - &_sccmram);
@@ -300,6 +311,27 @@ int main(void) {
 
   GitInfo git_info;
   telemetry_manager.Register("git", &git_info);
+
+  CanConfig can_config;
+
+  persistent_config.Register(
+      "can", &can_config,
+      [&can_config, &fdcan, &fdcan_micro_server]() {
+        FDCan::Filter filters[1] = {};
+        filters[0].id1 = can_config.prefix << 16;
+        filters[0].id2 = 0x1fff0000u;
+        filters[0].mode = FDCan::FilterMode::kMask;
+        filters[0].action = FDCan::FilterAction::kAccept;
+        filters[0].type = FDCan::FilterType::kExtended;
+        FDCan::FilterConfig filter_config;
+        filter_config.begin = std::begin(filters);
+        filter_config.end = std::end(filters);
+        filter_config.global_std_action = FDCan::FilterAction::kAccept;
+        filter_config.global_ext_action = FDCan::FilterAction::kReject;
+        fdcan.ConfigureFilters(filter_config);
+
+        fdcan_micro_server.SetPrefix(can_config.prefix);
+      });
 
   persistent_config.Load();
 

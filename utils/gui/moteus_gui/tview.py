@@ -500,12 +500,12 @@ class Device:
     STATE_DATA = 4
 
     def __init__(self, number, transport, console, prefix,
-                 config_tree_item, data_tree_item):
+                 config_tree_item, data_tree_item, can_prefix=None):
         self.error_count = 0
         self.poll_count = 0
 
         self.number = number
-        self.controller = moteus.Controller(number)
+        self.controller = moteus.Controller(number, can_prefix=can_prefix)
         self._transport = transport
         self._stream = DeviceStream(transport, self.controller)
 
@@ -837,7 +837,8 @@ class TviewMainWindow():
             device = Device(device_id, self.transport,
                             self.console, '{}>'.format(device_id),
                             config_item,
-                            data_item)
+                            data_item,
+                            self.options.can_prefix)
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
             asyncio.create_task(device.start())
@@ -1049,6 +1050,7 @@ def main():
     # These two commands are aliases.
     parser.add_argument('-d', '--devices', '-t', '--target',
                         action='append', type=str, default=[])
+    parser.add_argument('--can-prefix', type=int, default=0)
 
     parser.add_argument('--max-receive-bytes', default=48, type=int)
 

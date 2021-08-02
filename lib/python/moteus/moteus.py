@@ -415,7 +415,8 @@ class Controller:
                  query_resolution=QueryResolution(),
                  position_resolution=PositionResolution(),
                  current_resolution=CurrentResolution(),
-                 transport=None):
+                 transport=None,
+                 can_prefix=0x0000):
         self.id = id
         self.query_resolution = query_resolution
         self.position_resolution = position_resolution
@@ -423,6 +424,7 @@ class Controller:
         self.transport = transport
         self._parser = make_parser(id)
         self._diagnostic_parser = make_diagnostic_parser(id)
+        self._can_prefix = can_prefix
 
         # Pre-compute our query string.
         self._query_data = self._make_query_data()
@@ -475,6 +477,7 @@ class Controller:
         result.source = source
         result.reply_required = query
         result.parse = self._parser
+        result.can_prefix = self._can_prefix
 
         return result
 

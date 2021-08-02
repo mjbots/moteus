@@ -153,6 +153,10 @@ class Fdcanusb:
             message.data = _dehexify(fields[2])
             message.arbitration_id = int(fields[1], 16)
 
+            # We are assuming that only one device is responding at a
+            # time, thus we don't even need to look at the
+            # source/destination or CAN prefix.
+
             return command.parse(message)
 
     async def write(self, command):
@@ -163,8 +167,9 @@ class Fdcanusb:
         if command.raw:
             bus_id = command.arbitration_id
         else:
-            bus_id = (command.destination +
-                      (0x8000 if command.reply_required else 0))
+            bus_id = (command.destination |
+                      (0x8000 if command.reply_required else 0) |
+                      (command.can_prefix << 16))
         cmd = "can send {:04x} {}\n".format(
             bus_id, _hexify(command.data)).encode('latin1')
         self._serial.write(cmd)

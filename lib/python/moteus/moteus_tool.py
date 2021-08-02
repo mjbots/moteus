@@ -297,7 +297,8 @@ def _verify_blocks(expected, message):
 class Stream:
     def __init__(self, args, target_id, transport):
         self.args = args
-        self.controller = moteus.Controller(target_id, transport=transport)
+        self.controller = moteus.Controller(target_id, transport=transport,
+                                            can_prefix=args.can_prefix)
         self.stream = moteus.Stream(self.controller, verbose=args.verbose)
 
     async def do_console(self):
@@ -974,6 +975,7 @@ async def async_main():
     parser.add_argument(
         '-t', '--target', type=str, action='append', default=[],
         help='destination address(es) (default: autodiscover)')
+    parser.add_argument('--can-prefix', type=int, default=0)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--tel-stop', action='store_true',
                         help='force sending a "tel stop"')

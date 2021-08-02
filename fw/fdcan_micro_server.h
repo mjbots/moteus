@@ -24,6 +24,10 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
  public:
   FDCanMicroServer(FDCan* can) : fdcan_(can) {}
 
+  void SetPrefix(uint32_t can_prefix) {
+    can_prefix_ = can_prefix;
+  }
+
   void AsyncRead(Header* header,
                  const mjlib::base::string_span& data,
                  const mjlib::micro::SizeCallback& callback) override {
@@ -38,7 +42,9 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
                   const mjlib::micro::SizeCallback& callback) override {
     const auto actual_dlc = RoundUpDlc(data.size());
     const uint32_t id =
-        ((header.source & 0xff) << 8) | (header.destination & 0xff);
+        ((header.source & 0xff) << 8) |
+        (header.destination & 0xff) |
+        (can_prefix_ << 16);
 
     if (actual_dlc == data.size()) {
       fdcan_->Send(id, data, {});
@@ -64,6 +70,15 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
 
     const bool got_data = fdcan_->Poll(&fdcan_header_, current_read_data_);
     if (!got_data) { return; }
+
+    // We could check the prefix here as below:
+    //
+    //   const uint16_t prefix = (fdcan_header_.Identifier >> 16) & 0x1fff;
+    //   if (prefix != can_prefix_) { return; }
+    //
+    // However, we should be excluding prefix based on the hardware
+    // CAN filter, and having the check here would mask if the filter
+    // wasn't working.
 
     current_read_header_->destination = fdcan_header_.Identifier & 0xff;
     current_read_header_->source = (fdcan_header_.Identifier >> 8) & 0xff;
@@ -108,6 +123,7 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
 
   FDCAN_RxHeaderTypeDef fdcan_header_ = {};
   char buf_[64] = {};
+  uint32_t can_prefix_ = 0;
 };
 
 }
