@@ -180,6 +180,10 @@ struct CanConfig {
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(prefix));
   }
+
+  bool operator==(const CanConfig& rhs) const {
+    return prefix == rhs.prefix;
+  }
 };
 }
 
@@ -312,11 +316,19 @@ int main(void) {
   GitInfo git_info;
   telemetry_manager.Register("git", &git_info);
 
-  CanConfig can_config;
+  CanConfig can_config, old_can_config;
 
   persistent_config.Register(
       "can", &can_config,
-      [&can_config, &fdcan, &fdcan_micro_server]() {
+      [&can_config, &fdcan, &fdcan_micro_server, &old_can_config]() {
+        // We only update our config if it has actually changed.
+        // Re-initializing the CAN-FD controller can cause packets to
+        // be lost, so don't do it unless actually necessary.
+        if (can_config == old_can_config) {
+          return;
+        }
+        old_can_config = can_config;
+
         FDCan::Filter filters[1] = {};
         filters[0].id1 = can_config.prefix << 16;
         filters[0].id2 = 0x1fff0000u;
