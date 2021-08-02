@@ -307,6 +307,10 @@ class Stream:
         dir2 = asyncio.create_task(_copy_stream(console_stdin, self.stream))
         done, pending = await asyncio.wait(
             [dir1, dir2], return_when=asyncio.FIRST_EXCEPTION)
+        for i in done:
+            e = i.exception()
+            if e:
+                raise e
 
     async def command(self, command_str, **kwargs):
         command_bytes = (command_str if type(command_str) == bytes else
