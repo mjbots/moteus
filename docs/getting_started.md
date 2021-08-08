@@ -110,6 +110,16 @@ python3 -m moteus.moteus_tool --target 1 --calibrate
 WARNING: Any attached motor must be able to spin freely.  It will be
 spun in both directions and at high speed.
 
+# WARNING: Regenerative Braking!!! #
+
+* Are you deploying moteus in a quadruped?
+* Are you using sharp regenerative braking (decelerating loads)?
+* Do you have a system voltage > 30V?
+
+If you answered yes to any of these questions, be sure to read the section of the reference manual on regenerative braking safety:
+
+[Reference](reference.md#regenerative-braking-safety)
+
 # Learning more #
 
 The complete reference documentation can be found at:
