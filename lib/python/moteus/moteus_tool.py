@@ -907,8 +907,10 @@ class Runner:
         for i in range(1, 127):
             c = moteus.Controller(id=i, transport=self.transport)
             try:
-                _ = await asyncio.wait_for(c.query(), FIND_TARGET_TIMEOUT)
-                result.append(i)
+                response = await asyncio.wait_for(
+                    c.query(), FIND_TARGET_TIMEOUT)
+                if response:
+                    result.append(i)
             except asyncio.TimeoutError:
                 pass
 
