@@ -180,6 +180,14 @@ class Register(enum.IntEnum):
     POSITION_FEEDFORWARD = 0x033
     POSITION_COMMAND = 0x034
 
+    COMMAND_WITHIN_LOWER_BOUND = 0x040
+    COMMAND_WITHIN_UPPER_BOUND = 0x041
+    COMMAND_WITHIN_FEEDFORWARD_TORQUE = 0x042
+    COMMAND_WITHIN_KP_SCALE = 0x043
+    COMMAND_WITHIN_KD_SCALE = 0x044
+    COMMAND_WITHIN_MAX_TORQUE = 0x045
+    COMMAND_WITHIN_TIMEOUT = 0x046
+
     REGISTER_MAP_VERSION = 0x102
     SERIAL_NUMBER = 0x120
     SERIAL_NUMBER1 = 0x120
@@ -647,6 +655,71 @@ class Controller:
     async def set_current(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_current(**kwargs)]))
+
+    def make_stay_within(
+            self,
+            *,
+            lower_bound=None,
+            upper_bound=None,
+            feedforward_torque=None,
+            kp_scale=None,
+            kd_scale=None,
+            maximum_torque=None,
+            stop_position=None,
+            watchdog_timeout=None,
+            query=False):
+        """Return a moteus.Command structure with data necessary to send a
+        within mode command with the given values."""
+
+        result = self._make_command(query=query)
+
+        pr = self.position_resolution
+        resolutions = [
+            pr.position if lower_bound is not None else mp.IGNORE,
+            pr.position if upper_bound is not None else mp.IGNORE,
+            pr.feedforward_torque if feedforward_torque is not None else mp.IGNORE,
+            pr.kp_scale if kp_scale is not None else mp.IGNORE,
+            pr.kd_scale if kd_scale is not None else mp.IGNORE,
+            pr.maximum_torque if maximum_torque is not None else mp.IGNORE,
+            pr.watchdog_timeout if watchdog_timeout is not None else mp.IGNORE,
+        ]
+
+        data_buf = io.BytesIO()
+
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_int8(int(Register.MODE))
+        writer.write_int8(int(Mode.STAY_WITHIN))
+
+        combiner = mp.WriteCombiner(
+            writer, 0x00, int(Register.COMMAND_WITHIN_LOWER_BOUND),
+            resolutions)
+
+        if combiner.maybe_write():
+            writer.write_position(lower_bound, pr.position)
+        if combiner.maybe_write():
+            writer.write_position(upper_bound, pr.position)
+        if combiner.maybe_write():
+            writer.write_torque(feedforward_torque, pr.feedforward_torque)
+        if combiner.maybe_write():
+            writer.write_pwm(kp_scale, pr.kp_scale)
+        if combiner.maybe_write():
+            writer.write_pwm(kd_scale, pr.kd_scale)
+        if combiner.maybe_write():
+            writer.write_torque(maximum_torque, pr.maximum_torque)
+        if combiner.maybe_write():
+            writer.write_time(watchdog_timeout, pr.watchdog_timeout)
+
+        if query:
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
+
+        return result
+
+    async def set_stay_within(self, *args, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_stay_within(**kwargs)]))
 
     def make_diagnostic_write(self, data):
         result = self._make_command(query=False)
