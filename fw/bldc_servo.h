@@ -180,7 +180,7 @@ class BldcServo {
     // Similar to 'max_voltage', the flux braking default voltage is
     // board rev dependent.
     float flux_brake_min_voltage = (g_measured_hw_rev <= 5) ? 34.5f : 43.5f;
-    float flux_brake_resistance_ohm = 0.1f;
+    float flux_brake_resistance_ohm = 0.025f;
 
     float max_current_A = 100.0f;
     float derate_current_A = -20.0f;
