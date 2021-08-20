@@ -71,15 +71,15 @@ float Threshold(float value, float lower, float upper) {
   return value;
 }
 
-float Offset(float minval, float blend, float val) MOTEUS_CCM_ATTRIBUTE;
+float BilinearRate(float offset, float mag, float val) MOTEUS_CCM_ATTRIBUTE;
 
-float Offset(float minval, float blend, float val) {
-  if (val == 0.0f) { return 0.0f; }
-  if (std::abs(val) >= blend) {
-    return (val < 0.0f) ? (-minval + val) : (minval + val);
+float BilinearRate(float offset, float mag, float val) {
+  const float sign = val < 0.0f ? -1.0f : 1.0f;
+  if (std::abs(val) < mag) {
+    return val / mag * offset;
+  } else {
+    return sign * ((0.5f - offset) * (std::abs(val) - mag) / (0.5f - mag) + offset);
   }
-  const float ratio = val / blend;
-  return ratio * (blend + minval);
 }
 
 // From make_thermistor_table.py
@@ -1297,7 +1297,7 @@ class BldcServo::Impl {
         break;
       }
       case kVoltage: {
-        ISR_DoVoltageControl(data->phase_v);
+        ISR_DoBalancedVoltageControl(data->phase_v);
         break;
       }
       case kVoltageFoc: {
@@ -1410,25 +1410,77 @@ class BldcServo::Impl {
     motor_driver_->Power(true);
   }
 
-  float ISR_VoltageToPwm(float v) const MOTEUS_CCM_ATTRIBUTE {
-    return 0.5f + Offset(config_.pwm_min, config_.pwm_min_blend,
-                         v / status_.filt_bus_V);
+  void ISR_DoBalancedVoltageControlRotated(const Vec3& voltage, int shift) MOTEUS_CCM_ATTRIBUTE {
+    // We can assume that voltage.a is the smallest of the three.
+    const float db = voltage.b - voltage.a;
+    const float dc = voltage.c - voltage.a;
+
+    // Switch into full scale ratios.
+    const float fdb = db / status_.filt_bus_V;
+    const float fdc = dc / status_.filt_bus_V;
+
+    constexpr float blend_min = 0.2f;
+    constexpr float blend_max = 0.6f;
+    constexpr float blend_region = blend_max - blend_min;
+
+    // TODO: explain
+    const auto scale =
+        [&](float fdx, float fd_other) {
+          if (fdx < blend_min * fd_other) {
+            return fdx;
+          }
+          const float scaled = BilinearRate(
+              config_.pwm_comp_off,
+              config_.pwm_comp_mag,
+              fdx);
+          if (fdx < blend_max * fd_other) {
+            const float frac = (fdx - blend_min * fd_other) /
+                (blend_region * fd_other);
+            return fdx + frac * (scaled - fdx);
+          }
+          return scaled;
+        };
+
+    // Apply a correction to get these B and C phases relative to the A
+    // phase.
+    const float dpb = scale(fdb, fdc);
+    const float dpc = scale(fdc, fdb);
+
+    // And then balance them.
+    const float avg = (dpb + dpc) / 3.0f;
+    const float pwm1 = 0.5f - avg;
+    const float pwm2 = pwm1 + dpb;
+    const float pwm3 = pwm1 + dpc;
+
+    // Finally, unshift things.
+    if (shift == 0) {
+      ISR_DoPwmControl(Vec3{pwm1, pwm2, pwm3});
+    } else if (shift == 1) {
+      ISR_DoPwmControl(Vec3{pwm3, pwm1, pwm2});
+    } else {
+      ISR_DoPwmControl(Vec3{pwm2, pwm3, pwm1});
+    }
   }
 
-  void ISR_DoVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
+  /// Assume that the voltages are intended to be balanced around the
+  /// midpoint and can be shifted accordingly.
+  void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     control_.voltage = voltage;
 
-    ISR_DoPwmControl(Vec3{
-        ISR_VoltageToPwm(voltage.a),
-            ISR_VoltageToPwm(voltage.b),
-            ISR_VoltageToPwm(voltage.c)});
+    if (voltage.a <= voltage.b && voltage.a <= voltage.c) {
+      ISR_DoBalancedVoltageControlRotated(voltage, 0);
+    } else if (voltage.b <= voltage.a && voltage.b <= voltage.c) {
+      ISR_DoBalancedVoltageControlRotated(Vec3{voltage.b, voltage.c, voltage.a}, 1);
+    } else {
+      ISR_DoBalancedVoltageControlRotated(Vec3{voltage.c, voltage.a, voltage.b}, 2);
+    }
   }
 
   void ISR_DoVoltageFOC(float theta, float voltage) MOTEUS_CCM_ATTRIBUTE {
     SinCos sc = cordic_(RadiansToQ31(theta));
     const float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
     InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
-    ISR_DoVoltageControl(Vec3{idt.a, idt.b, idt.c});
+    ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
@@ -1562,7 +1614,7 @@ class BldcServo::Impl {
   }
 
   void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    ISR_DoVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
   }
 
   void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
@@ -1815,7 +1867,7 @@ class BldcServo::Impl {
         old_sign_float;
     status_.meas_ind_old_d_A = status_.d_A;
 
-    ISR_DoVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
+    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {

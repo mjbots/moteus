@@ -141,8 +141,10 @@ class BldcServo {
 
   struct Config {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
-    float pwm_min = 0.006f;  // value below which PWM has no effect
-    float pwm_min_blend = 0.01f;  // blend into the full PWM over this region
+
+    // PWM rise time compensation
+    float pwm_comp_off = 0.015;
+    float pwm_comp_mag = 0.005;
 
     // We pick a default maximum voltage based on the board revision.
     float max_voltage = (g_measured_hw_rev <= 5) ? 37.0f : 46.0f;
@@ -230,8 +232,8 @@ class BldcServo {
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(i_gain));
-      a->Visit(MJ_NVP(pwm_min));
-      a->Visit(MJ_NVP(pwm_min_blend));
+      a->Visit(MJ_NVP(pwm_comp_off));
+      a->Visit(MJ_NVP(pwm_comp_mag));
       a->Visit(MJ_NVP(max_voltage));
       a->Visit(MJ_NVP(max_power_W));
       a->Visit(MJ_NVP(derate_temperature));
