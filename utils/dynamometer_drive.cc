@@ -637,8 +637,8 @@ class Application {
 
   boost::asio::awaitable<void> CommandFixtureRigid() {
     Controller::PidConstants pid;
-    pid.ki = 200.0;
-    pid.kd = 0.15;
+    pid.ki = 300.0;
+    pid.kd = 0.35;
     pid.kp = 5.0;
     pid.ilimit = 0.3;
 
@@ -737,7 +737,7 @@ class Application {
   boost::asio::awaitable<PwmResult> RunPwmVoltage(double phase, double voltage) {
     co_await dut_->Command(fmt::format("d pwm {} {}",
                                        WrapZeroToTwoPi(phase), voltage));
-    co_await Sleep(0.3);
+    co_await Sleep(0.5);
 
     PwmResult result;
     result.phase = phase;
@@ -1332,7 +1332,7 @@ class Application {
     // We purposefully use no I term to see how good we are with just
     // PD.
     Controller::PidConstants pid;
-    pid.kp = 1.0;
+    pid.kp = 2.0;
     pid.kd = 0.05;
     co_await dut_->ConfigurePid(pid);
 
