@@ -927,6 +927,13 @@ maybe not, it depends upon your goals.
 
 The servo ID presented on the CAN bus.  After this is modified, you need to immediately adjust which servo ID you communicate with in order to continue communication or save the parameters.
 
+## `can.prefix` ##
+
+A 13 bit integer used as the upper 13 bits for the ID of all CAN
+communication.  As with `id.id` this takes effect immediately, so
+after changing it, communication must be restarted with the correct
+prefix in order to do things like save the configuration.
+
 ## `motor.position_offset` ##
 
 This value is added to `servo_stats.position` before reporting
@@ -1103,7 +1110,6 @@ The reported position is calculated from the raw value as follows:
 ```
 position = (raw + offset) / 65536 * scale
 ```
-
 
 # D. Maintenance #
 
