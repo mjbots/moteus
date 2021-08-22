@@ -506,7 +506,14 @@ class Stream:
 
         # The rest of the calibration procedure assumes that
         # phase_invert is 0.
-        await self.command("conf set motor.phase_invert 0")
+        try:
+            await self.command("conf set motor.phase_invert 0")
+        except moteus.CommandError as e:
+            # It is possible this firmware is too old to support
+            # selecting the phase inversion.
+            if not 'error setting' in e.message:
+                raise
+            pass
 
         # We have 3 things to calibrate.
         #  1) The encoder to phase mapping
