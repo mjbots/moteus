@@ -1113,6 +1113,52 @@ position = (raw + offset) / 65536 * scale
 
 # D. Maintenance #
 
+## tview usage ##
+
+tview can monitor and control 1 or more devices simultaneously.  It can be started with:
+
+```
+python3 -m moteus_gui.tview --target 1[,2,3]...
+```
+
+When running, the configuration for each can be modified in the left hand tab, and live telemetry values can be displayed or plotted from the right hand tab.  diagnostic mode commands may be issued in the bottom terminal window.
+
+A simple command and scripting language beyond the diagnostic protocol is available within the tview terminal window.
+
+### Communicating with a specific device ###
+
+If more than one device is available, commands can be sent to a specific device by prefixing the command with `ID>`.  For instance, to send a stop command to ID #2, you can do:
+
+```
+2>d stop
+```
+
+The 'A' character can be used to send to all devices simultaneously.
+
+```
+A>d stop
+```
+
+### Sending multiple commands at once ###
+
+The `&&` token may be used to separate individual commands, which will be issued back to back.  For instance:
+
+```
+1>d stop && 2>d stop
+```
+
+Will send the command to both devices.
+
+### Delays ###
+
+A delay may be inserted into a sequence of commands by entering an integer number of milliseconds prefixed by the colon (':') character.  For instance:
+
+```
+d pos nan 0.5 1 s0.5 && :1000 && d stop
+```
+
+Will command a position mode, wait 1s, then command a stop.
+
 ## Calibration ##
 
 Assuming your controller has firmware installed already, you can
