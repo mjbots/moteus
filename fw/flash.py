@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import platform
 import subprocess
 import sys
@@ -27,17 +28,21 @@ OPENOCD = 'openocd -f interface/stlink.cfg -f target/stm32g4x.cfg '
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--erase', action='store_true')
+    parser.add_argument(
+        'elffile', nargs='?',
+        default='bazel-out/stm32g4-opt/bin/fw/moteus.elf')
+    parser.add_argument(
+        'bootloader', nargs='?',
+        default='bazel-out/stm32g4-opt/bin/fw/can_bootloader.elf')
+
+    args = parser.parse_args()
+
     tmpdir = tempfile.TemporaryDirectory()
 
-    moteus_elffile = (
-        sys.argv[1]
-        if len(sys.argv) > 1 else
-        'bazel-out/stm32g4-opt/bin/fw/moteus.elf')
-
-    bootloader_elffile = (
-        sys.argv[2]
-        if len(sys.argv) > 2 else
-        'bazel-out/stm32g4-opt/bin/fw/can_bootloader.elf')
+    moteus_elffile = args.elffile
+    bootloader_elffile = args.bootloader
 
     subprocess.check_call(
         f'{OBJCOPY} -Obinary ' +
@@ -60,6 +65,8 @@ def main():
     subprocess.check_call(
         f'{OPENOCD} -c "init" ' +
         f'-c "reset_config none separate; ' +
+        f' halt; ' +
+        (f' stm32l4x mass_erase 0; ' if args.erase else '') +
         f' program {tmpdir.name}/out.08000000.bin verify 0x8000000; ' +
         f' program {tmpdir.name}/out.0800c000.bin verify 0x800c000; ' +
         f' program {tmpdir.name}/out.08010000.bin verify  ' +
