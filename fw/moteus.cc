@@ -213,6 +213,16 @@ int main(void) {
   }
 #endif
 
+  // I initially used a Ticker here to enqueue events at 1ms
+  // intervals.  However, it introduced jitter into the current
+  // sampling interrupt, and I couldn't figure out how to get the
+  // interrupt priorities right.  Thus for now we just poll to look
+  // for millisecond turnover.
+  MillisecondTimer timer;
+
+  // Wait to ensure the pullups are sufficiently pulled up.
+  timer.wait_us(100);
+
   const uint8_t this_hw_pins =
       0x07 & (~(hwrev0.read() |
                 (hwrev1.read() << 1) |
@@ -236,13 +246,6 @@ int main(void) {
     return false;
   }();
   MJ_ASSERT(compatible);
-
-  // I initially used a Ticker here to enqueue events at 1ms
-  // intervals.  However, it introduced jitter into the current
-  // sampling interrupt, and I couldn't figure out how to get the
-  // interrupt priorities right.  Thus for now we just poll to look
-  // for millisecond turnover.
-  MillisecondTimer timer;
 
   micro::SizedPool<14000> pool;
 
