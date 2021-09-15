@@ -352,6 +352,30 @@ Mode: Read only
 
 A fault code which will be set if the primary mode is 1 (Fault).
 
+* 32 - *calibration fault* - the encoder was not able to sense a
+  magnet during calibration
+* 33 - *motor driver fault* - the most common reason for this is
+  undervoltage, moteus attempted to draw more current than the supply
+  could provide.  Other electrical faults may also report this error,
+  the `drv8323` diagnostic tree has more information.
+* 34 - *over voltage* - the bus voltage exceeded `servo.max_voltage`.
+  This can happen due to misconfiguration, or if the controller
+  regenerated power with a supply that cannot sink power and no flux
+  braking was configured.
+* 35 - *encoder fault* - the encoder readings are not consistent with
+  a magnet being present.
+* 36 - *motor not configured* - the `moteus_tool --calibrate`
+  procedure has not been run on this motor.
+* 37 - *pwm cycle overrung* - an internal firmware error
+* 38 - *over temperature* - the maximum configured temperature has
+  been exceeded
+* 39 - *outside limit* - an attempt was made to start position control
+  while outside the bounds configured by `servopos.position_min` and
+  `servopos.position_max`.
+
+The full list can be found at: [fw/error.h](../fw/error.h#25)
+
+
 ### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ###
 
 Mode: Read/write
