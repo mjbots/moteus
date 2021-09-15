@@ -373,7 +373,7 @@ A fault code which will be set if the primary mode is 1 (Fault).
   while outside the bounds configured by `servopos.position_min` and
   `servopos.position_max`.
 
-The full list can be found at: [fw/error.h](../fw/error.h#25)
+The full list can be found at: [fw/error.h](../fw/error.h#L25)
 
 
 ### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ###
