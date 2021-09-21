@@ -144,7 +144,8 @@ class BldcServo {
 
     // PWM rise time compensation
     float pwm_comp_off = (g_measured_hw_rev <= 6) ? 0.015 : 0.048;
-    float pwm_comp_mag = (g_measured_hw_rev <= 6) ? 0.005 : 0.003;
+    float pwm_comp_mag = (g_measured_hw_rev <= 6) ? 0.005 : 0.011;
+    float pwm_scale = (g_measured_hw_rev <= 6 ) ? 1.0f : 1.15f;
 
     // We pick a default maximum voltage based on the board revision.
     float max_voltage = (g_measured_hw_rev <= 5) ? 37.0f : 46.0f;
@@ -234,6 +235,7 @@ class BldcServo {
       a->Visit(MJ_NVP(i_gain));
       a->Visit(MJ_NVP(pwm_comp_off));
       a->Visit(MJ_NVP(pwm_comp_mag));
+      a->Visit(MJ_NVP(pwm_scale));
       a->Visit(MJ_NVP(max_voltage));
       a->Visit(MJ_NVP(max_power_W));
       a->Visit(MJ_NVP(derate_temperature));

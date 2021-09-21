@@ -54,7 +54,7 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        if new > 0x0102:
+        if new > 0x0103:
             raise RuntimeError("Firmware to be flashed has a newer version than we support")
 
     def fix_config(self, old_config):
@@ -91,6 +91,21 @@ class FirmwareUpgrade:
             if float(items[b'servo.feedforward_scale']) == 0.5:
                 items[b'servo.feedforward_scale'] = b'1.0'
                 print("Reverting servo.feedforward_scale from 0.5 to 1.0 for version 0x0101")
+
+        if self.new >= 0x0103 and self.old <= 0x0102:
+            if float(items.get(b'servo.pwm_comp_mag', 0.0)) == 0.003:
+                items[b'servo.pwm_scale'] = b'1.15'
+                items[b'servo.pwm_comp_off'] = b'0.048'
+                items[b'servo.pwm_comp_mag'] = b'0.011'
+                print("Upgrading servo.pwm_scale to 1.15 for version 0x0103")
+
+        if self.new <= 0x0102 and self.old >= 0x0103:
+            if (float(items.get(b'servo.pwm_scale', 0.0)) == 1.15 and
+                float(items.get(b'servo.pwm_comp_off', 0.0)) == 0.048):
+                items[b'servo.pwm_comp_off'] = b'0.048'
+                items[b'servo.pwm_comp_mag'] = b'0.003'
+                # servo.pwm_scale doesn't exist in version 0x0102 and earlier
+                print("Reverting servo.pwm_comp_mag from 0.011 to 0.003 for version 0x0102")
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)

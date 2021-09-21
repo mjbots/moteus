@@ -1443,8 +1443,8 @@ class BldcServo::Impl {
 
     // Apply a correction to get these B and C phases relative to the A
     // phase.
-    const float dpb = scale(fdb, fdc);
-    const float dpc = scale(fdc, fdb);
+    const float dpb = scale(fdb, fdc) * config_.pwm_scale;
+    const float dpc = scale(fdc, fdb) * config_.pwm_scale;
 
     // And then balance them.
     const float avg = (dpb + dpc) / 3.0f;

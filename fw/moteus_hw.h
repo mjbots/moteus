@@ -226,7 +226,7 @@ constexpr int kCompatibleHwRev[] = {
 
 
 #define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
-#define MOTEUS_FIRMWARE_VERSION 0x000102
+#define MOTEUS_FIRMWARE_VERSION 0x000103
 
 // Version history:
 
@@ -240,5 +240,10 @@ constexpr int kCompatibleHwRev[] = {
 // # 0x0102 #
 //
 // * Removed servo.feedforward_scale entirely
+
+// # 0x0103 #
+//
+// * Added servo.pwm_scale, and for r4.8 boards changed the default
+//   value of pwm_comp_off / pwm_comp_mag.
 
 }
