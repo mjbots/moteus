@@ -47,14 +47,14 @@ def main():
                     raise RuntimeError(f"Key {desired_key} not found")
         return result
 
-    ax1 = plt.subplot(121 if args.plot_encoder else 111)
+    ax1 = plt.subplot(211 if args.plot_encoder else 111)
     ax1.plot(get("i1", fields), label='cur1')
     ax1.plot(get("i2", fields), label='cur2')
     ax1.plot(get("i3", fields), label='cur3')
     ax1.legend()
 
     if args.plot_encoder:
-        ax2 = plt.subplot(122)
+        ax2 = plt.subplot(212)
         ax2.plot(get(2, fields), label='enc')
         ax2.legend()
 
