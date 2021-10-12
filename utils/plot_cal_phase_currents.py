@@ -14,33 +14,51 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import matplotlib.pylab as pylab
+import argparse
+import matplotlib.pyplot as plt
 import sys
 
 
 def main():
-    data = [x.strip() for x in open(sys.argv[1]).readlines()[1:-1]]
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--plot-encoder', action='store_true')
+    parser.add_argument('file')
+
+    args = parser.parse_args()
+
+    data = [x.strip() for x in open(args.file).readlines()[1:-1]]
 
     fields = [x.split(' ') for x in data]
 
     def get(desired_key, data):
         result = []
         for line in data:
-            for field in line:
-                if '=' not in field:
-                    continue
-                key, val = field.split('=')
-                if key == desired_key:
-                    result.append(int(val))
-                    break
+            if isinstance(desired_key, int):
+                result.append(int(line[desired_key]))
             else:
-                raise RuntimeError(f"Key {desired_key} not found")
+                for field in line:
+                    if '=' not in field:
+                        continue
+                    key, val = field.split('=')
+                    if key == desired_key:
+                        result.append(int(val))
+                        break
+                else:
+                    raise RuntimeError(f"Key {desired_key} not found")
         return result
-    pylab.plot(get("i1", fields), label='cur1')
-    pylab.plot(get("i2", fields), label='cur2')
-    pylab.plot(get("i3", fields), label='cur3')
-    pylab.legend()
-    pylab.show()
+
+    ax1 = plt.subplot(121 if args.plot_encoder else 111)
+    ax1.plot(get("i1", fields), label='cur1')
+    ax1.plot(get("i2", fields), label='cur2')
+    ax1.plot(get("i3", fields), label='cur3')
+    ax1.legend()
+
+    if args.plot_encoder:
+        ax2 = plt.subplot(122)
+        ax2.plot(get(2, fields), label='enc')
+        ax2.legend()
+
+    plt.show()
 
 
 if __name__ == '__main__':
