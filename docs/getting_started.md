@@ -124,3 +124,16 @@ If you answered yes to any of these questions, be sure to read the section of th
 
 The complete reference documentation can be found at:
 [Reference](reference.md)
+
+
+# Connection Issues #
+
+If on you are using Linux, and not seeing any telemetry updates (in the terminal you will see error message like  `RuntimeError: Unable to find a default transport`, `Permission denied:`, and `[Errno 19] No such device`), its likely that you dont have your `udev` rules set up correctly. Do the following:
+
+1. Create a file called `70-fdcanusb.rules` in the directory `/etc/udev/rules.d`
+2. Insert the text `SUBSYSTEM=="tty", ATTRS{manufacturer}=="mjbots", ATTRS{product}=="fdcanusb", MODE="0666", SYMLINK+="fdcanusb"` into the file. Save.
+3. Run `udevadm control --reload-rules`
+4. Run `udevadm trigger --subsystem-match=tty`
+
+If you run `python3 -m moteus_gui.tview --devices=1` it should be able to connect now.
+Reference: https://github.com/mjbots/moteus/issues/7
