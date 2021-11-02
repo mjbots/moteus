@@ -8,7 +8,15 @@ platforms (desktop Linux, Windows, Mac) via python using the
 pip3 install moteus_gui
 ```
 
+# Platform Specific Requirements #
+
+## Raspberry Pi ##
+
 If you have a Raspberry Pi, see the [instructions here](raspberry_pi.md).
+
+## Linux ##
+
+If using the fdcanusb, you will need to have udev rules set up in order for regular users to access the device.  Follow the instructions at: https://github.com/mjbots/fdcanusb/blob/master/70-fdcanusb.rules
 
 # Running tview #
 
