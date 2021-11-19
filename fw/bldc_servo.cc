@@ -697,6 +697,15 @@ class BldcServo::Impl {
     status_.cos = sin_cos.c;
 
     ISR_CalculateCurrentState(sin_cos);
+
+    if (config_.fixed_voltage_mode) {
+      // Don't pretend we know where we are.
+      status_.unwrapped_position_raw = 0;
+      status_.unwrapped_position = 0.0f;
+      status_.velocity = 0.0f;
+      status_.torque_Nm = 0.0f;
+    }
+
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.curstate = DWT->CYCCNT;
 #endif
@@ -837,11 +846,16 @@ class BldcServo::Impl {
 
     const int16_t delta_position =
         static_cast<int16_t>(int_position - old_position);
-    if ((status_.mode != kStopped && status_.mode != kFault) &&
-        std::abs(delta_position) > kMaxPositionDelta) {
-      // We probably had an error when reading the position.  We must fault.
-      status_.mode = kFault;
-      status_.fault = errc::kEncoderFault;
+    if (!config_.fixed_voltage_mode) {
+      if ((status_.mode != kStopped && status_.mode != kFault) &&
+          std::abs(delta_position) > kMaxPositionDelta) {
+        // We probably had an error when reading the position.  We must fault.
+        status_.mode = kFault;
+        status_.fault = errc::kEncoderFault;
+      }
+    } else {
+      // In fixed voltage mode, we don't need the encoder at all, so
+      // don't fault if it isn't present.
     }
 
     // While we are in the first calibrating state, our unwrapped
@@ -1754,6 +1768,32 @@ class BldcServo::Impl {
     if (hit_limit) {
       // We have hit a limit.  Assume a velocity of 0.
       velocity_command = 0.0f;
+    }
+
+    // At this point, our control position and velocity are known.
+
+    if (config_.fixed_voltage_mode) {
+      status_.unwrapped_position =
+          static_cast<float>(
+              static_cast<int32_t>(
+                  *status_.control_position >> 32)) /
+          65536.0f;
+      status_.velocity = velocity_command;
+
+      // For "fixed voltage" mode, we skip all position and current
+      // PID loops and all their associated calculations, including
+      // everything that uses the encoder.  Instead we just burn power
+      // with a fixed voltage drive based on the desired position.
+      const float synthetic_electrical_theta =
+          WrapZeroToTwoPi(
+              status_.unwrapped_position
+              / motor_.unwrapped_position_scale
+              * position_constant_
+              * k2Pi);
+      const SinCos synthetic_sin_cos =
+          cordic_(RadiansToQ31(synthetic_electrical_theta));
+      ISR_DoVoltageDQ(synthetic_sin_cos, config_.fixed_voltage_control_V, 0.0f);
+      return;
     }
 
     const float measured_velocity = Threshold(

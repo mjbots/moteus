@@ -1026,6 +1026,34 @@ external disturbances.
 When set, the `servo.pid_dq` configuration values no longer affect
 anything.
 
+## `servo.fixed_voltage_mode` ##
+
+If non-zero, then no feedback based control of either position or
+current is done.  Instead, a fixed voltage is applied to the phase
+terminals based on the current commanded position and the configured
+number of motor poles.  In this mode, the encoder and current sense
+resistors are not used at all for control.
+
+This is a similar control mode to inexpensive brushless gimbal
+controllers, and relies on burning a fixed amount of power in the
+motor windings continuously.
+
+When this mode is active, the reported position and velocity will be 0
+when the drive is disabled, and exactly equal to the control position
+when it is enabled.
+
+Various derating limits are inoperative in this mode:
+ * torque derating for temperature
+ * torque derating when outside position bounds
+ * the maximum current limit
+ * the commanded maximum torque
+
+A fault will still be triggered for over-temperature.
+
+## `servo.fixed_voltage_control_V` ##
+
+In the fixed voltage control mode, the voltage to apply to the output.
+
 
 ## `servo.max_position_slip` ##
 
