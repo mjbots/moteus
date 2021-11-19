@@ -1560,26 +1560,32 @@ class BldcServo::Impl {
     const float max_V = config_.max_power_W /
         (std::abs(status_.d_A) + std::abs(status_.q_A));
 
-    const float d_V =
-        Limit(
-            pid_d_.Apply(status_.d_A, i_d_A, kRateHz),
-            -max_V, max_V);
+    if (!config_.voltage_mode_control) {
+      const float d_V =
+          Limit(
+              pid_d_.Apply(status_.d_A, i_d_A, kRateHz),
+              -max_V, max_V);
 
-    const float max_current_integral =
-        kMaxVoltageRatio * 0.5f * status_.filt_bus_V;
-    status_.pid_d.integral = Limit(
-        status_.pid_d.integral,
-        -max_current_integral, max_current_integral);
+      const float max_current_integral =
+          kMaxVoltageRatio * 0.5f * status_.filt_bus_V;
+      status_.pid_d.integral = Limit(
+          status_.pid_d.integral,
+          -max_current_integral, max_current_integral);
 
-    const float q_V =
-        Limit(
-            pid_q_.Apply(status_.q_A, i_q_A, kRateHz),
-            -max_V, max_V);
-    status_.pid_q.integral = Limit(
-        status_.pid_q.integral,
-        -max_current_integral, max_current_integral);
+      const float q_V =
+          Limit(
+              pid_q_.Apply(status_.q_A, i_q_A, kRateHz),
+              -max_V, max_V);
+      status_.pid_q.integral = Limit(
+          status_.pid_q.integral,
+          -max_current_integral, max_current_integral);
 
-    ISR_DoVoltageDQ(sin_cos, d_V, q_V);
+      ISR_DoVoltageDQ(sin_cos, d_V, q_V);
+    } else {
+      ISR_DoVoltageDQ(sin_cos,
+                      i_d_A * motor_.resistance_ohm,
+                      i_q_A * motor_.resistance_ohm);
+    }
   }
 
   // The idiomatic thing to do in DoMeasureInductance would be to just

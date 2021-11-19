@@ -174,6 +174,13 @@ class BldcServo {
     SimplePI::Config pid_dq;
     PID::Config pid_position;
 
+    // If true, then the currents in A that are calculated for the D
+    // and Q phase are instead directly commanded as voltages on the
+    // phase terminals.  This is primarily useful for high resistance
+    // motors like gimbal motors when the sense resistors are
+    // configured for a low resistance motor.
+    bool voltage_mode_control = false;
+
     float max_position_slip = std::numeric_limits<float>::quiet_NaN();
 
     float default_timeout_s = 0.1f;
@@ -248,6 +255,7 @@ class BldcServo {
       a->Visit(MJ_NVP(adc_aux_cycles));
       a->Visit(MJ_NVP(pid_dq));
       a->Visit(MJ_NVP(pid_position));
+      a->Visit(MJ_NVP(voltage_mode_control));
       a->Visit(MJ_NVP(max_position_slip));
       a->Visit(MJ_NVP(default_timeout_s));
       a->Visit(MJ_NVP(timeout_max_torque_Nm));

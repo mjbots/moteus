@@ -1010,6 +1010,23 @@ thus *after* any scaling in position, velocity, and torque implied by
 These have the same semantics as the position mode PID controller, and
 affect the current control loop.
 
+## `servo.voltage_mode_control` ##
+
+When set to non-zero, the current control loop is not closed, and all
+current commands in amperes are instead treated as voltage mode
+commands in volts related by the calibrated phase resistance.  For
+high winding resistance motors, the default current sense resistors
+are too small for accurate current sensing, resulting in significant
+cogging torque and current sense noise.  If replacing the current
+sense resistors is not an option, this flag can be used to achieve
+smooth control.  The downside is that the actual torque will no longer
+follow the applied torque accurately at speed, or in the face of
+external disturbances.
+
+When set, the `servo.pid_dq` configuration values no longer affect
+anything.
+
+
 ## `servo.max_position_slip` ##
 
 When finite, this enforces a limit on the difference between the
