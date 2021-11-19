@@ -45,7 +45,8 @@ class AbsPort {
   enum Mode {
     kDisabled = 0,
     kAs5048 = 1,
-    kNumModes = 2,
+    kAs5600 = 2,
+    kNumModes = 3,
   };
 
   struct Config {
@@ -83,20 +84,22 @@ class AbsPort {
     uint16_t encoder_raw = 0;
     bool encoder_valid = false;
 
-    uint8_t as5048_agc = 0;
-    uint8_t as5048_diag = 0;
-    uint16_t as5048_mag = 0;
-    uint32_t as5048_error_count = 0;
+    // Status and diagnostic values for AMS style encoders.
+    uint8_t ams_agc = 0;
+    uint8_t ams_diag = 0;
+    uint16_t ams_mag = 0;
+
+    uint32_t encoder_error_count = 0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(encoder_raw));
       a->Visit(MJ_NVP(encoder_valid));
-      a->Visit(MJ_NVP(as5048_agc));
-      a->Visit(MJ_NVP(as5048_diag));
-      a->Visit(MJ_NVP(as5048_mag));
-      a->Visit(MJ_NVP(as5048_error_count));
+      a->Visit(MJ_NVP(ams_agc));
+      a->Visit(MJ_NVP(ams_diag));
+      a->Visit(MJ_NVP(ams_mag));
+      a->Visit(MJ_NVP(encoder_error_count));
     }
   };
 
@@ -121,6 +124,7 @@ struct IsEnum<moteus::AbsPort::Mode> {
     return { {
         { M::kDisabled, "disabled" },
         { M::kAs5048, "as5048" },
+        { M::kAs5600, "as5600" },
     } };
   }
 };

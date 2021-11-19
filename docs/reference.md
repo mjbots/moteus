@@ -1109,7 +1109,8 @@ measured at the ABS port.
 
 Configures the mode of operation of the ABS port:
 * 0 - disabled
-* 1 - AS5048B
+* 1 - AS5048B (I2C address is default 64)
+* 2 - AS5600  (I2C address is default 54)
 
 ## `abs_port.i2c_mode` ##
 
@@ -1121,6 +1122,10 @@ Configures what I2C mode will be used:
 ## `abs_port.i2c_hz` ##
 
 What rate to operate the I2C bus at.
+
+## `abs_port.encoder_i2c_address` ##
+
+The I2C address to communicate with the auxiliary encoder.
 
 ## `abs_port.encoder_poll_ms` ##
 

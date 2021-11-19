@@ -25,6 +25,15 @@ const uint8_t AS5048_REG_MAG_HIGH = 0xFC;
 const uint8_t AS5048_REG_MAG_LOW = 0xFD;
 const uint8_t AS5048_REG_ANGLE_HIGH = 0xFE;
 const uint8_t AS5048_REG_ANGLE_LOW = 0xFF;
+
+const uint8_t AS5600_REG_STATUS = 0x0B;
+const uint8_t AS5600_REG_RAW_ANGLE_HIGH = 0x0C;
+const uint8_t AS5600_REG_RAW_ANGLE_LOW = 0x0D;
+const uint8_t AS5600_REG_ANGLE_HIGH = 0x0E;
+const uint8_t AS5600_REG_ANGLE_LOW = 0x0F;
+const uint8_t AS5600_REG_AGC = 0x1A;
+const uint8_t AS5600_REG_MAG_HIGH = 0x1B;
+const uint8_t AS5600_REG_MAG_LOW = 0x1C;
 }
 
 namespace moteus {
@@ -48,10 +57,11 @@ class AbsPort::Impl {
         status_.encoder_valid = false;
         break;
       }
-      case kAs5048: {
-        // We don't read for the first 10ms of operation, since the
-        // AS5048 documents that long of a turn on time before valid
-        // results are produced.
+      case kAs5048:
+      case kAs5600: {
+        // We don't read for the first 10ms of operation, since both
+        // the AS5048 and AS5600 document that long of a turn on time
+        // before valid results are produced.
         if (!status_.encoder_valid && timer_->read_ms() < 10) {
           break;
         }
@@ -60,7 +70,11 @@ class AbsPort::Impl {
         if (encoder_count_ >= std::max<int32_t>(5, config_.encoder_poll_ms)) {
           encoder_count_ = 0;
 
-          StartAs5048Read();
+          if (config_.mode == kAs5048) {
+            StartAs5048Read();
+          } else if (config_.mode == kAs5600) {
+            StartAs5600Read();
+          }
         }
         break;
       }
@@ -76,39 +90,70 @@ class AbsPort::Impl {
       const auto read_status = i2c_->CheckRead();
 
       if (read_status == Stm32I2c::ReadStatus::kComplete) {
-        // We got new data, publish it.
-        status_.encoder_raw =
-            (encoder_raw_data_[4] << 8) |
-            (encoder_raw_data_[5]);
-        status_.encoder_valid = true;
-
-        status_.as5048_agc = encoder_raw_data_[0];
-        status_.as5048_diag = encoder_raw_data_[1];
-        status_.as5048_mag =
-            (encoder_raw_data_[2] << 8) |
-            (encoder_raw_data_[3]);
-
-        status_.position =
-            static_cast<float>(
-                static_cast<int16_t>(
-                    status_.encoder_raw +
-                    config_.position_offset)) /
-            65536.0f *
-            config_.position_scale;
+        if (config_.mode == kAs5048) {
+          ParseAs5048();
+        } else if (config_.mode == kAs5600) {
+          ParseAs5600();
+        }
       } else if (read_status == Stm32I2c::ReadStatus::kError) {
-        status_.as5048_error_count++;
+        status_.encoder_error_count++;
       }
+
+      status_.position =
+          static_cast<float>(
+              static_cast<int16_t>(
+                  status_.encoder_raw +
+                  config_.position_offset)) /
+          65536.0f *
+          config_.position_scale;
     }
+  }
+
+  void ParseAs5048() {
+    // We got new data, publish it.
+    status_.encoder_raw =
+        (encoder_raw_data_[4] << 8) |
+        (encoder_raw_data_[5]);
+    status_.encoder_valid = true;
+
+    status_.ams_agc = encoder_raw_data_[0];
+    status_.ams_diag = encoder_raw_data_[1];
+    status_.ams_mag =
+        (encoder_raw_data_[2] << 8) |
+        (encoder_raw_data_[3]);
+  }
+
+  void ParseAs5600() {
+    status_.encoder_raw =
+        (encoder_raw_data_[1] << 12) |
+        (encoder_raw_data_[0] << 4);
+    status_.encoder_valid = true;
+
+    status_.ams_agc = 0;
+    status_.ams_diag = encoder_raw_data_[0];
+    status_.ams_mag = 0;
   }
 
   void StartAs5048Read() {
     MJ_ASSERT(!!i2c_);
+    static_assert(sizeof(encoder_raw_data_) >= 6);
     i2c_->StartReadMemory(
         config_.encoder_i2c_address,
         AS5048_REG_AGC,
         mjlib::base::string_span(
             reinterpret_cast<char*>(&encoder_raw_data_[0]),
-            sizeof(encoder_raw_data_)));
+            6));
+  }
+
+  void StartAs5600Read() {
+    MJ_ASSERT(!!i2c_);
+    static_assert(sizeof(encoder_raw_data_) >= 3);
+    i2c_->StartReadMemory(
+        config_.encoder_i2c_address,
+        AS5600_REG_STATUS,
+        mjlib::base::string_span(
+            reinterpret_cast<char*>(&encoder_raw_data_[0]),
+            3));
   }
 
   void HandleConfigUpdate() {
@@ -117,7 +162,8 @@ class AbsPort::Impl {
         i2c_.reset();
         break;
       }
-      case kAs5048: {
+      case kAs5048:
+      case kAs5600: {
         i2c_.emplace(
             [&]() {
               Stm32I2c::Options options;
