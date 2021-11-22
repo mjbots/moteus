@@ -125,6 +125,13 @@ def _get_log_directory():
     return "."
 
 
+def _round_nearest_4v(input_V):
+    # We assume a minimum of 12V.
+    if input_V < 14.0:
+        return 12.0
+    return round(input_V / 4) * 4
+
+
 def expand_targets(targets):
     result = set()
 
@@ -512,7 +519,53 @@ class Stream:
         await self.write_config_stream(io.BytesIO(b''.join(new_config)))
         await self.command("conf write")
 
+    def calculate_calibration_parameters(self):
+        # Check for deprecated arguments.
+        def handle_deprecated(new_name, old_name):
+            old_attr_name = old_name.replace('-', '_')
+            new_attr_name = new_name.replace('-', '_')
+
+            if ((getattr(self.args, old_attr_name) is not None) and
+                (getattr(self.args, new_attr_name) is not None)):
+                raise RuntimeError(f'Both the old deprecated --{old_name} and the new --{new_name} were specified')
+
+            if (getattr(self.args, old_attr_name) is not None):
+                print(f'WARNING: Using deprecated --{old_name}.  It will be removed soon, prefer --{new_name}')
+                setattr(self.args, new_attr_name,
+                        getattr(self.args, old_attr_name))
+
+        handle_deprecated('cal-ll-encoder-voltage', 'cal-power')
+        handle_deprecated('cal-ll-encoder-speed', 'cal-speed')
+        handle_deprecated('cal-ll-resistance-voltage', 'cal-voltage')
+        handle_deprecated('cal-ll-kv-voltage', 'cal-kv-voltage')
+
+    async def find_resistance_cal_voltage(self, input_V):
+        if self.args.cal_ll_resistance_voltage:
+            return self.args.cal_ll_resistance_voltage
+        elif self.args.cal_ll_encoder_voltage:
+            # Nothing should need this value, so don't calculate it.
+            return None
+        else:
+            # Progressively increase this value to roughly achieve our
+            # desired power.
+            cal_voltage = 0.01
+            while True:
+                print(f"Testing {cal_voltage:.3f}V for resistance",
+                      end='\r', flush=True)
+                this_current = await self.find_current(cal_voltage)
+                power = this_current * cal_voltage
+                if (power > self.args.cal_motor_power or
+                    cal_voltage > (0.4 * input_V)):
+                    break
+                cal_voltage *= 1.1
+            print()
+
+            return cal_voltage
+
     async def do_calibrate(self):
+        # Determine what our calibration parameters are.
+        self.calculate_calibration_parameters()
+
         print("This will move the motor, ensure it can spin freely!")
         await asyncio.sleep(2.0)
 
@@ -534,17 +587,23 @@ class Stream:
         #  1) The encoder to phase mapping
         #  2) The winding resistance
         #  3) The Kv rating of the motor.
+        input_V = _round_nearest_4v(
+            (await self.read_data("servo_stats")).filt_bus_V)
 
         print("Starting calibration process")
         await self.check_for_fault()
 
-        cal_result = await self.calibrate_encoder_mapping()
+        resistance_cal_voltage = await self.find_resistance_cal_voltage(input_V)
+        print(f"Using {resistance_cal_voltage:.3f} V for resistance and inductance calibration")
+
+        winding_resistance = await self.calibrate_winding_resistance(resistance_cal_voltage)
         await self.check_for_fault()
 
-        winding_resistance = await self.calibrate_winding_resistance()
+        cal_result = await self.calibrate_encoder_mapping(
+            input_V, winding_resistance)
         await self.check_for_fault()
 
-        inductance = await self.calibrate_inductance()
+        inductance = await self.calibrate_inductance(resistance_cal_voltage)
         await self.check_for_fault()
 
         kp, ki, torque_bw_hz = None, None, None
@@ -560,7 +619,8 @@ class Stream:
         enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(torque_bw_hz)
         await self.check_for_fault()
 
-        v_per_hz = await self.calibrate_kv_rating(unwrapped_position_scale)
+        v_per_hz = await self.calibrate_kv_rating(
+            input_V, unwrapped_position_scale)
         await self.check_for_fault()
 
         # Rezero the servo since we just spun it a lot.
@@ -608,14 +668,27 @@ class Stream:
             json.dump(report, fp, indent=2)
             fp.write("\n")
 
-    async def calibrate_encoder_mapping(self):
-        await self.command(f"d pwm 0 {self.args.cal_power}")
+    async def find_encoder_cal_voltage(self, input_V, winding_resistance):
+        if self.args.cal_ll_encoder_voltage:
+            return self.args.cal_ll_encoder_voltage
+
+        # We're going to try and select a voltage to roughly achieve
+        # "--cal-motor-power".
+        return min(0.4 * input_V,
+                   math.sqrt(self.args.cal_motor_power * winding_resistance))
+
+    async def calibrate_encoder_mapping(self, input_V, winding_resistance):
+        # Figure out what voltage to use for encoder calibration.
+        encoder_cal_voltage = await self.find_encoder_cal_voltage(
+            input_V, winding_resistance)
+
+        await self.command(f"d pwm 0 {encoder_cal_voltage}")
         await asyncio.sleep(3.0)
 
         await self.command("d stop")
         await asyncio.sleep(0.1)
         await self.write_message(
-            (f"d cal {self.args.cal_power} s{self.args.cal_speed}"))
+            (f"d cal {encoder_cal_voltage} s{self.args.cal_ll_encoder_speed}"))
 
         cal_data = b''
         index = 0
@@ -672,7 +745,7 @@ class Stream:
         await self.command(f"d pwm 0 {voltage:.3f}")
 
         # Wait a bit for it to stabilize.
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.15)
 
         def extract(f):
             return math.hypot(f.d_A, f.q_A)
@@ -685,19 +758,24 @@ class Stream:
         await self.command("d stop");
 
         # Sleep a tiny bit before returning.
-        await asyncio.sleep(0.1);
+        await asyncio.sleep(0.05);
 
         current_A = sum(data) / len(data)
-        print(f"{voltage}V - {current_A}A")
 
         return current_A
 
-    async def calibrate_winding_resistance(self):
+    async def find_current_and_print(self, voltage):
+        result = await self.find_current(voltage)
+        print(f"{voltage:.3f}V - {result:.3f}A")
+        return result
+
+    async def calibrate_winding_resistance(self, cal_voltage):
         print("Calculating winding resistance")
 
         ratios = [ 0.5, 0.6, 0.7, 0.85, 1.0 ]
-        voltages = [x * self.args.cal_voltage for x in ratios]
-        currents = [await self.find_current(voltage) for voltage in voltages]
+        voltages = [x * cal_voltage for x in ratios]
+        currents = [await self.find_current_and_print(voltage)
+                    for voltage in voltages]
 
         winding_resistance = _calculate_winding_resistance(voltages, currents)
 
@@ -711,12 +789,12 @@ class Stream:
 
         return winding_resistance
 
-    async def calibrate_inductance(self):
+    async def calibrate_inductance(self, cal_voltage):
         print("Calculating motor inductance")
 
         try:
             await asyncio.wait_for(
-                self.command(f"d ind {self.args.cal_voltage} 4"), 0.25)
+                self.command(f"d ind {cal_voltage} 4"), 0.25)
         except moteus.CommandError as e:
             # It is possible this is an old firmware that does not
             # support inductance measurement.
@@ -735,7 +813,7 @@ class Stream:
         data = await self.read_data("servo_stats")
 
         delta_time = end - start
-        inductance = (self.args.cal_voltage /
+        inductance = (cal_voltage /
                       (data.meas_ind_integrator / delta_time))
 
         if inductance < 1e-6:
@@ -808,23 +886,48 @@ class Stream:
 
         return kp, ki, w_3db / twopi
 
-    async def find_speed(self, voltage):
+    async def find_speed(self, voltage, sleep_time=0.5):
         assert voltage < 20.0
         assert voltage >= 0.0
 
         await self.command(f"d vdq 0 {voltage:.3f}")
 
         # Wait for it to stabilize.
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(sleep_time)
 
         data = await self.read_data("servo_stats")
         velocity = data.velocity
 
-        print(f"{voltage}V - {velocity}Hz")
-
         return velocity
 
-    async def calibrate_kv_rating(self, unwrapped_position_scale):
+    async def find_speed_and_print(self, voltage, **kwargs):
+        result = await self.find_speed(voltage, **kwargs)
+        print(f"{voltage:.3f}V - {result:.3f}Hz")
+        return result
+
+    async def find_kv_cal_voltage(self, input_V, unwrapped_position_scale):
+        if self.args.cal_ll_kv_voltage:
+            return self.args.cal_ll_kv_voltage
+
+        # Otherwise, we start small, and increase until we hit a
+        # reasonable speed.
+        maybe_result = 0.01
+        while True:
+            print(f"Testing {maybe_result:.3f}V for Kv",
+                  end='\r', flush=True)
+            if maybe_result > (0.3 * input_V):
+                return maybe_result
+
+            this_speed = await self.find_speed(maybe_result) / unwrapped_position_scale
+            # Aim for this many Hz
+            if abs(this_speed) > self.args.cal_motor_speed:
+                break
+            maybe_result *= 1.1
+
+        print()
+        return maybe_result
+
+    async def calibrate_kv_rating(self, input_V, unwrapped_position_scale):
         print("Calculating Kv rating")
 
         original_position_min = await self.read_config_double("servopos.position_min")
@@ -834,9 +937,13 @@ class Stream:
         await self.command("conf set servopos.position_max NaN")
         await self.command("d index 0")
 
-        voltages = [x * self.args.cal_kv_voltage for x in [
+        kv_cal_voltage = await self.find_kv_cal_voltage(input_V, unwrapped_position_scale)
+
+        voltages = [x * kv_cal_voltage for x in [
             0.0, 0.25, 0.5, 0.75, 1.0 ]]
-        speed_hzs = [ await self.find_speed(voltage) for voltage in voltages]
+        speed_hzs = [ await self.find_speed_and_print(voltage,
+                                                      sleep_time=1.0)
+                      for voltage in voltages]
 
         await self.command("d stop")
 
@@ -1040,14 +1147,50 @@ async def async_main():
                         help='override the encoder filter bandwidth in Hz')
     parser.add_argument('--cal-no-update', action='store_true',
                         help='do not store calibration results on motor')
-    parser.add_argument('--cal-power', metavar='V', type=float, default=0.4,
+
+    # These calibration values are low-level ones.  They are mostly
+    # all correlated, and it is not that easy for users to even know
+    # which of these would be useful to change.  We're leaving them
+    # here for now so that the defaults can be overridden if
+    # necessary.
+    parser.add_argument('--cal-ll-encoder-voltage',
+                        metavar='V', type=float,
                         help='voltage to use during calibration')
-    parser.add_argument('--cal-speed', metavar='HZ', type=float, default=1.0,
+    parser.add_argument('--cal-ll-encoder-speed',
+                        metavar='HZ', type=float, default=1.0,
                         help='speed in electrical rps')
-    parser.add_argument('--cal-voltage', metavar='V', type=float, default=0.45,
+    parser.add_argument('--cal-ll-resistance-voltage',
+                        metavar='V', type=float,
                         help='maximum voltage when measuring resistance')
-    parser.add_argument('--cal-kv-voltage', metavar='V', type=float, default=0.8,
+    parser.add_argument('--cal-ll-kv-voltage',
+                        metavar='V', type=float,
                         help='maximum voltage when measuring Kv')
+
+
+    # These are the "legacy" names of the low-level parameters.
+    parser.add_argument('--cal-power', metavar='V', type=float,
+                        help='[DEPRECATED] voltage to use during calibration')
+    parser.add_argument('--cal-speed',
+                        metavar='HZ', type=float,
+                        help='[DEPRECATED] speed in electrical rps')
+    parser.add_argument('--cal-voltage', metavar='V', type=float,
+                        help='[DEPRECATED] maximum voltage when measuring resistance')
+    parser.add_argument('--cal-kv-voltage', metavar='V', type=float,
+                        help='[DEPRECATED] maximum voltage when measuring Kv')
+
+
+
+    # These calibration are intended to be "higher level".
+    # Internally, the above values are derived from these, combined
+    # with the approximate input voltage to the controller.
+    parser.add_argument('--cal-motor-power', metavar='W', type=float,
+                        default=5.0,
+                        help='motor power in W to use for encoder cal')
+    parser.add_argument('--cal-motor-speed', metavar='Hz', type=float,
+                        default=6.0,
+                        help='max motor mechanical speed to use for kv cal')
+
+
     parser.add_argument('--cal-max-remainder', metavar='F',
                         type=float, default=0.1,
                         help='maximum allowed error in calibration')
