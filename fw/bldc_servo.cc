@@ -391,7 +391,7 @@ class BldcServo::Impl {
 
     position_constant_ = motor_.poles / 2;
 
-    adc_scale_ = 3.3f / (4096.0f * MOTEUS_CURRENT_SENSE_OHM * config_.i_gain);
+    adc_scale_ = 3.3f / (4096.0f * config_.current_sense_ohm * config_.i_gain);
 
     velocity_filter_ = {std::min<size_t>(
           kMaxVelocityFilter, config_.velocity_filter_length)};

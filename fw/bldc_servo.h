@@ -141,6 +141,7 @@ class BldcServo {
 
   struct Config {
     float i_gain = 20.0f;  // should match csa_gain from drv8323
+    float current_sense_ohm = 0.0005;
 
     // PWM rise time compensation
     float pwm_comp_off = (g_measured_hw_rev <= 6) ? 0.015 : 0.048;
@@ -233,6 +234,7 @@ class BldcServo {
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(i_gain));
+      a->Visit(MJ_NVP(current_sense_ohm));
       a->Visit(MJ_NVP(pwm_comp_off));
       a->Visit(MJ_NVP(pwm_comp_mag));
       a->Visit(MJ_NVP(pwm_scale));
