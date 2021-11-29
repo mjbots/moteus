@@ -1253,15 +1253,8 @@ Or, if already built, flashed using:
 
 ### openocd ###
 
-You may need a custom openocd, a known working one can be had by:
-
-```
-sudo apt install autotools-dev automake autogen autoconf libtool libusb-1.0-0-dev
-git clone https://github.com/mjbots/openocd
-cd openocd
-./bootstrap
-./configure && make && sudo make install
-```
+openocd 0.11.0 or newer is required.  You can find binaries for many
+platforms at: https://xpack.github.io/openocd/releases/
 
 
 ### Building firmware ###
