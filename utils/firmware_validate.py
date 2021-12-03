@@ -97,6 +97,9 @@ class TestDynoFast(unittest.TestCase):
     def test_rezero(self):
         dyno('--validate_rezero', '1')
 
+    def test_voltage_mode_control(self):
+        dyno('--validate_voltage_mode_control', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):

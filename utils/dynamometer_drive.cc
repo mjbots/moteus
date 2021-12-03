@@ -92,6 +92,7 @@ struct Options {
   bool validate_power_limit = false;
   bool validate_max_velocity = false;
   bool validate_rezero = false;
+  bool validate_voltage_mode_control = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -123,6 +124,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_power_limit));
     a->Visit(MJ_NVP(validate_max_velocity));
     a->Visit(MJ_NVP(validate_rezero));
+    a->Visit(MJ_NVP(validate_voltage_mode_control));
   }
 };
 
@@ -345,6 +347,8 @@ class Controller {
     double max_position_slip = std::numeric_limits<double>::quiet_NaN();
     double max_power_W = 450.0;
     double max_velocity = 500.0;
+
+    bool voltage_mode_control = false;
   };
 
   boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
@@ -372,6 +376,9 @@ class Controller {
 
     co_await Command(
         fmt::format("conf set servo.max_velocity {}", pid.max_velocity));
+
+    co_await Command(
+        fmt::format("conf set servo.voltage_mode_control {}", pid.voltage_mode_control ? 1 : 0));
 
     co_return;
   }
@@ -613,6 +620,8 @@ class Application {
       co_await ValidateMaxVelocity();
     } else if (options_.validate_rezero) {
       co_await ValidateRezero();
+    } else if (options_.validate_voltage_mode_control) {
+      co_await ValidateVoltageModeControl();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -998,19 +1007,7 @@ class Application {
     co_return;
   }
 
-  boost::asio::awaitable<void> ValidatePositionBasic() {
-    co_await dut_->Command("d stop");
-    co_await fixture_->Command("d stop");
-    co_await fixture_->Command("d index 0");
-    co_await dut_->Command("d index 0");
-
-    // Set some constants that should work for basic position control.
-    Controller::PidConstants pid;
-    pid.kp = 1.0;
-    pid.ki = 0.0;
-    pid.kd = 0.05;
-    co_await dut_->ConfigurePid(pid);
-
+  boost::asio::awaitable<void> RunBasicPositionTest(Controller::PidConstants pid) {
     // Move to a few different positions.
     for (const double position : {0.0, -0.2, 0.3}) {
       fmt::print("Moving to position {}\n", position);
@@ -1123,6 +1120,22 @@ class Application {
 
     // Get back to our default config.
     co_await dut_->ConfigurePid(pid);
+  }
+
+  boost::asio::awaitable<void> ValidatePositionBasic() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+
+    // Set some constants that should work for basic position control.
+    Controller::PidConstants pid;
+    pid.kp = 1.0;
+    pid.ki = 0.0;
+    pid.kd = 0.05;
+    co_await dut_->ConfigurePid(pid);
+
+    co_await RunBasicPositionTest(pid);
 
     // Now we'll do the basic tests with the fixture locked rigidly in
     // place.
@@ -1959,6 +1972,7 @@ class Application {
       }
     }
   }
+
   boost::asio::awaitable<void> ValidateRezero() {
     co_await fixture_->Command("d stop");
     co_await dut_->Command("d stop");
@@ -1970,6 +1984,27 @@ class Application {
     co_await DoRezeroTest(-32767.0);
     co_await DoRezeroTest(32763.0);
     co_await DoRezeroTest(32767.0);
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateVoltageModeControl() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+
+    Controller::PidConstants pid;
+    pid.voltage_mode_control = true;
+    pid.kp = 1.0;
+    pid.ki = 0.0;
+    pid.kd = 0.01;
+
+    co_await dut_->ConfigurePid(pid);
+
+    // With voltage mode control turned on, basic operation should
+    // work as before modulo different position PID values.
+    co_await RunBasicPositionTest(pid);
 
     co_return;
   }
