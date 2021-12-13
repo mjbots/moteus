@@ -226,6 +226,12 @@ class QueryResolution:
     temperature = mp.INT8
     fault = mp.INT8
 
+    # Additional registers can be queried by enumerating them as keys
+    # in this dictionary, with the resolution as the matching value.
+    _extra = {
+        # 0x020 : mp.F32, ...
+    }
+
 
 class PositionResolution:
     position = mp.F32
@@ -326,6 +332,20 @@ def parse_register(parser, register, resolution):
         return parser.read_temperature(resolution)
     elif register == Register.FAULT:
         return parser.read_int(resolution)
+    elif register == Register.POSITION_KP:
+        return parser.read_torque(resolution)
+    elif register == Register.POSITION_KI:
+        return parser.read_torque(resolution)
+    elif register == Register.POSITION_KD:
+        return parser.read_torque(resolution)
+    elif register == Register.POSITION_FEEDFORWARD:
+        return parser.read_torque(resolution)
+    elif register == Register.POSITION_COMMAND:
+        return parser.read_torque(resolution)
+    else:
+        # We don't know what kind of value this is, so we don't know
+        # the units.
+        return parser.read(resolution)
 
 
 def parse_reply(data):
@@ -470,6 +490,14 @@ class Controller:
         ])
         for i in range(4):
             c2.maybe_write()
+
+        if len(qr._extra):
+            c3 = mp.WriteCombiner(
+                writer, 0x10, int(min(qr._extra.keys())),
+                [qr._extra[y] for y in
+                 sorted(list([int(x) for x in qr._extra.keys()]))])
+            for _ in qr._extra.keys():
+                c3.maybe_write()
 
         return buf.getvalue()
 
