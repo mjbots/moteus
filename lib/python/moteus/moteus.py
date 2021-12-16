@@ -848,6 +848,13 @@ class Stream:
 
         self._read_data = b''
 
+        # Now flush anything from the underlying transport if applicable.
+        try:
+            await asyncio.wait_for(self.controller._get_transport().read(), 0.02)
+        except asyncio.TimeoutError:
+            # This is the expected path.
+            pass
+
     async def _read_maybe_empty_line(self):
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
             async with self.lock:
