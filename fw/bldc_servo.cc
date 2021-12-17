@@ -846,16 +846,18 @@ class BldcServo::Impl {
 
     const int16_t delta_position =
         static_cast<int16_t>(int_position - old_position);
-    if (!config_.fixed_voltage_mode) {
-      if ((status_.mode != kStopped && status_.mode != kFault) &&
+    if (!config_.fixed_voltage_mode &&
+        !config_.encoder_filter.debug_override) {
+      if (status_.mode >= kVoltageFoc &&
           std::abs(delta_position) > kMaxPositionDelta) {
         // We probably had an error when reading the position.  We must fault.
         status_.mode = kFault;
         status_.fault = errc::kEncoderFault;
       }
     } else {
-      // In fixed voltage mode, we don't need the encoder at all, so
-      // don't fault if it isn't present.
+      // In fixed voltage mode or with the encoder debug override, we
+      // don't need the encoder at all, so don't fault if it isn't
+      // present.
     }
 
     // While we are in the first calibrating state, our unwrapped
