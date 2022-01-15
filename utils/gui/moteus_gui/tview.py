@@ -215,6 +215,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         self.figure = matplotlib.figure.Figure()
         self.canvas = FigureCanvas(self.figure)
+        self.canvas.setMinimumSize(10, 10)
 
         self.canvas.mpl_connect('key_press_event', self.handle_key_press)
         self.canvas.mpl_connect('key_release_event', self.handle_key_release)
