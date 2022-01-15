@@ -174,28 +174,48 @@ class Drv8323 : public MotorDriver {
 
     // hw rev 7 boards use a drv8353, which is sensitive to damage
     // ringing on the gate drives.  This version requires lower gate
-    // drive strength to avoid damage.
-    uint16_t idrivep_hs_ma = (g_measured_hw_rev <= 6) ? 370 : 50;
-    uint16_t idriven_hs_ma = (g_measured_hw_rev <= 6) ? 740 : 100;
+    // drive strength to avoid damage.  hw rev 8 boards have a better
+    // layout and an additional gate drive resistor which allows them
+    // to go higher.
+    uint16_t idrivep_hs_ma =
+        (g_measured_hw_rev <= 6) ? 370 :
+        (g_measured_hw_rev <= 7) ? 50 :
+        100;
+    uint16_t idriven_hs_ma =
+        (g_measured_hw_rev <= 6) ? 740 :
+        (g_measured_hw_rev <= 7) ? 100 :
+        200;
 
 
     // Gate Drive LS Register
     bool cbc = true;  // Cycle-by cycle operation.
     uint16_t tdrive_ns = 1000;  // peak gate-current drive time
-    uint16_t idrivep_ls_ma = (g_measured_hw_rev <= 6) ? 370 : 50;
-    uint16_t idriven_ls_ma = (g_measured_hw_rev <= 6) ? 740 : 100;
+    uint16_t idrivep_ls_ma =
+        (g_measured_hw_rev <= 6) ? 370 :
+        (g_measured_hw_rev <= 7) ? 50 :
+        100;
+    uint16_t idriven_ls_ma =
+        (g_measured_hw_rev <= 6) ? 740 :
+        (g_measured_hw_rev <= 7) ? 100 :
+        200;
 
 
     // OCP Control Register
     bool tretry = false;  // false = 4ms, true = 50us
-    uint16_t dead_time_ns = (g_measured_hw_rev <= 6) ? 50 : 200;
+    uint16_t dead_time_ns =
+        (g_measured_hw_rev <= 6) ? 50 :
+        (g_measured_hw_rev <= 7) ? 200 :
+        50;
     OcpMode ocp_mode = OcpMode::kLatchedFault;
     uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
 
     // hw rev 6 boards and later use a FET with roughly double the
     // Rdson.  We set a threshold that will trip only if we get well
     // over the rated 100A limit.
-    uint16_t vds_lvl_mv = (g_measured_hw_rev <= 5) ? 260 : 450;
+    uint16_t vds_lvl_mv =
+        (g_measured_hw_rev <= 5) ? 260 :
+        (g_measured_hw_rev <= 7) ? 450 :
+        700;
 
 
     // CSA Control Register

@@ -37,10 +37,14 @@ namespace moteus {
 // r4.5 silk
 // #define MOTEUS_HW_REV 6
 
+// r4.5b-r4.8 silk
+// #define MOTEUS_HW_REV 7
+
+
 // The most recent version of the HW.
 #ifndef MOTEUS_HW_REV
-// r4.5b-r4.8 silk
-#define MOTEUS_HW_REV 7
+// r4.11 silk
+#define MOTEUS_HW_REV 8
 #endif
 
 // The mapping between MOTEUS_HW_REV and the version pins on the
@@ -54,13 +58,15 @@ constexpr int kHardwareInterlock[] = {
   0,   // r4.2/r4.3 (unfortunately, indistinguishable from the interlock)
   1,   // r4.4
   2,   // r4.5
-  3,   // r4.5b
+  3,   // r4.5b-r4.8
+  4,   // r4.10
 };
 #else
 constexpr int kHardwareInterlock[] = {
   0,   // r1
   1,   // r2
   2,   // r3 & r3.1
+  -1,  // never printed for f4
   -1,  // never printed for f4
   -1,  // never printed for f4
   -1,  // never printed for f4
@@ -74,7 +80,8 @@ constexpr int kCompatibleHwRev[] = {
   // 3 isn't compatible, but we forgot to rev the version pins
   3,
   4, 5,
-  6, 7
+  6, 7,
+  8
 };
 
 #define DRV8323_ENABLE PA_3

@@ -422,11 +422,17 @@ struct BldcServoConfig {
       40000;
 
   float i_gain = 20.0f;  // should match csa_gain from drv8323
-  float current_sense_ohm = 0.0005;
+  float current_sense_ohm = 0.0005f;
 
   // PWM rise time compensation
-  float pwm_comp_off = (g_measured_hw_rev <= 6) ? 0.015 : 0.055;
-  float pwm_comp_mag = (g_measured_hw_rev <= 6) ? 0.005 : 0.005;
+  float pwm_comp_off =
+      (g_measured_hw_rev <= 6) ? 0.015f :
+      (g_measured_hw_rev <= 7) ? 0.055f :
+      0.027f;
+  float pwm_comp_mag =
+      (g_measured_hw_rev <= 6) ? 0.005f :
+      (g_measured_hw_rev <= 7) ? 0.005f :
+      0.005f;
   float pwm_scale = (g_measured_hw_rev <= 6 ) ? 1.0f : 1.0f;
 
   // We pick a default maximum voltage based on the board revision.

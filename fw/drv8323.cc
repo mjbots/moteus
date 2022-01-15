@@ -172,9 +172,10 @@ class Drv8323::Impl {
       config_.idrivep_ls_ma = std::min<uint16_t>(config_.idrivep_ls_ma, 50);
       config_.idriven_ls_ma = std::min<uint16_t>(config_.idriven_ls_ma, 100);
     } else if (g_measured_hw_rev > 7) {
-      // If the gate drive strength issue has been resolved, then this
-      // restriction can be removed in later versions.
-      MJ_ASSERT(false);
+      // hw rev 8 (silk 4.10) has improved layout and an additional
+      // gate drive resistor, it will likely not be damaged at up to
+      // 100/200, and higher may be possible in some situations.
+      // Thus, the above limitation is now removed.
     }
 
     WriteConfig();
