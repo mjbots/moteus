@@ -321,10 +321,14 @@ class BldcServo::Impl {
   }
 
   void Command(const CommandData& data) {
-    MJ_ASSERT(data.mode != kFault);
-    MJ_ASSERT(data.mode != kEnabling);
-    MJ_ASSERT(data.mode != kCalibrating);
-    MJ_ASSERT(data.mode != kCalibrationComplete);
+    if (data.mode == kFault ||
+        data.mode == kEnabling ||
+        data.mode == kCalibrating ||
+        data.mode == kCalibrationComplete) {
+      // These are not valid states to command.  Ignore the command
+      // entirely.
+      return;
+    }
 
     // Actually setting values will happen in the interrupt routine,
     // so we need to update this atomically.
