@@ -221,10 +221,10 @@ def calibrate(parsed,
         _wrap_int16(b.encoder - a.encoder) for a, b in
         zip(parsed.phase_up[0:], parsed.phase_up[1:])])
 
+    result = CalibrationResult()
+
     if abs(abs(total_delta)- 65536) > 5000:
         result.errors.append("phase_up did not traverse appropriate encoder distance")
-
-    result = CalibrationResult()
 
     # Figure out inversion.
     if desired_direction > 0 and total_delta > 0:
