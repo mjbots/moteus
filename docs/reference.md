@@ -71,9 +71,9 @@ disturbances is decreased.
 
 ### Low Speed or Precise Positioning ###
 
-For either operation either a very low speeds, or when precise
-positioning performance is desired, it is recommended to configure a
-non-zero `ki` and `ilimit` term in the position controller
+For either operation at very low speeds, or when precise positioning
+performance is desired, it is recommended to configure a non-zero `ki`
+and `ilimit` term in the position controller
 ([reference](#servopid_position)).  This will compensate for cogging
 torque (at the expense of overall torque bandwidth).  It may also be
 beneficial to select a lower value than default for `moteus_tool
