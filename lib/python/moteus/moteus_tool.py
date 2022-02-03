@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -B
 
-# Copyright 2019-2021 Josh Pieper, jjp@pobox.com.
+# Copyright 2019-2022 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        if new > 0x0103:
+        if new > 0x0104:
             raise RuntimeError("Firmware to be flashed has a newer version than we support")
 
     def fix_config(self, old_config):
@@ -106,6 +106,22 @@ class FirmwareUpgrade:
                 items[b'servo.pwm_comp_mag'] = b'0.003'
                 # servo.pwm_scale doesn't exist in version 0x0102 and earlier
                 print("Reverting servo.pwm_comp_mag from 0.011 to 0.003 for version 0x0102")
+
+        if self.new >= 0x0104 and self.old <= 0x0103:
+            if (float(items.get(b'servo.pwm_comp_mag', 0.0)) == 0.011 and
+                float(items.get(b'servo.pwm_comp_off', 0.0)) == 0.048):
+                items[b'servo.pwm_comp_off'] = b'0.055'
+                items[b'servo.pwm_comp_mag'] = b'0.005'
+                items[b'servo.pwm_scale'] = b'1.00'
+                print("Upgrading PWM compensation for version 0x0104")
+
+        if self.new <= 0x0103 and self.old >= 0x0104:
+            if (float(items.get(b'servo.pwm_comp_mag', 0.0)) == 0.005 and
+                float(items.get(b'servo.pwm_comp_off', 0.0)) == 0.055):
+                items[b'servo.pwm_comp_off'] = b'0.048'
+                items[b'servo.pwm_comp_mag'] = b'0.011'
+                items[b'servo.pwm_scale'] = b'1.15'
+                print("Reverting PWM compensation for version 0x0103")
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
@@ -569,6 +585,14 @@ class Stream:
         unwrapped_position_scale = \
             await self.read_config_double("motor.unwrapped_position_scale")
 
+        if await self.is_config_supported("servo.pwm_rate_hz"):
+            pwm_rate_hz = await self.read_config_double("servo.pwm_rate_hz")
+            control_rate_hz = pwm_rate_hz if pwm_rate_hz <= 40000 else pwm_rate_hz / 2
+        else:
+            # Supported firmware versions that are not configurable
+            # are all 40kHz.
+            control_rate_hz = 40000
+
         # The rest of the calibration procedure assumes that
         # phase_invert is 0.
         try:
@@ -600,20 +624,26 @@ class Stream:
             input_V, winding_resistance)
         await self.check_for_fault()
 
-        inductance = await self.calibrate_inductance(resistance_cal_voltage)
+        # We use a larger voltage for inductance measurement to get a
+        # more accurate value.  Since we switch back and forth at a
+        # high rate, this doesn't actually use all that much power no
+        # matter what we choose.
+        inductance = await self.calibrate_inductance(2.0 * resistance_cal_voltage)
         await self.check_for_fault()
 
         kp, ki, torque_bw_hz = None, None, None
         if inductance:
             kp, ki, torque_bw_hz = \
-                self.calculate_bandwidth(winding_resistance, inductance)
+                self.calculate_bandwidth(winding_resistance, inductance,
+                                         control_rate_hz)
 
             await self.command(f"conf set servo.pid_dq.kp {kp}")
             await self.command(f"conf set servo.pid_dq.ki {ki}")
 
             await self.check_for_fault()
 
-        enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(torque_bw_hz)
+        enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(
+            torque_bw_hz, control_rate_hz=control_rate_hz)
         await self.check_for_fault()
 
         v_per_hz = await self.calibrate_kv_rating(
@@ -819,21 +849,25 @@ class Stream:
         print(f"Calculated inductance: {inductance}H")
         return inductance
 
-    async def set_encoder_filter(self, torque_bw_hz):
+    async def set_encoder_filter(self, torque_bw_hz, control_rate_hz = None):
         # Check to see if our firmware supports encoder filtering.
         if not await self.is_config_supported("servo.encoder_filter.enabled"):
             return None, None, None
 
         if self.args.encoder_bw_hz:
-            encoder_bw_hz = self.args.encoder_bw_hz
+            desired_encoder_bw_hz = self.args.encoder_bw_hz
         else:
             # We default to an encoder bandwidth of 100Hz, or 2x the
             # torque bw, whichever is larger.
-            encoder_bw_hz = max(100, 2 * torque_bw_hz)
+            desired_encoder_bw_hz = max(100, 2 * torque_bw_hz)
 
-        # And our bandwidth with the filter can be no larger than 4kHz
-        # (this is dictated by the 40kHz control rate of moteus).
-        encoder_bw_hz = min(4000, encoder_bw_hz)
+        # And our bandwidth with the filter can be no larger than
+        # 1/10th the control rate.
+        encoder_bw_hz = min(control_rate_hz / 10, desired_encoder_bw_hz)
+
+        if encoder_bw_hz != desired_encoder_bw_hz:
+            print(f"Warning: using lower encoder filter than "+
+                  f"requested: {encoder_bw_hz:.1f}Hz")
 
         w_3db = encoder_bw_hz * 2 * math.pi
         kp = 2 * w_3db
@@ -844,16 +878,16 @@ class Stream:
         await self.command(f"conf set servo.encoder_filter.ki {ki}")
         return kp, ki, encoder_bw_hz
 
-    def calculate_bandwidth(self, resistance, inductance):
+    def calculate_bandwidth(self, resistance, inductance, control_rate_hz = None):
         twopi = 2 * math.pi
 
         # We have several factors that can limit the bandwidth:
 
-        # First, is that the controller operates its control loop at
-        # 40kHz.  We will limit the max bandwidth to 30x less than
-        # that for now, so that we do not need to consider
-        # discretization.  That limit is 1300Hz.
-        board_limit_rad_s = 1300 * 2 * math.pi
+        # First, is that the controller operates its control loop at a
+        # fixed rate.  We will limit the max bandwidth to 30x less
+        # than that for now, so that we do not need to consider
+        # discretization.
+        board_limit_rad_s = (control_rate_hz / 30) * 2 * math.pi
 
         # Second, we limit the bandwidth such that the Kp value is not
         # too large.  The current sense noise on the moteus controller

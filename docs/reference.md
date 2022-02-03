@@ -1067,7 +1067,15 @@ torque is stopped.
 
 ## `servo.max_power_W` ##
 
-The controller will limit the output power to this value.
+The controller will limit the output power to this value.  The value
+is defined relative to a PWM rate of 40kHz and is scaled linearly with
+respect to the PWM rate.
+
+## `servo.pwm_rate_hz` ##
+
+The PWM rate to use, defaulting to 40000.  Allowable values are
+between 15000 and 60000.  Lower values increase efficiency, but limit
+peak power and reduce the maximum speed and control bandwidth.
 
 ## `servo.derate_temperature` ##
 

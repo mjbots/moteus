@@ -1,4 +1,4 @@
-// Copyright 2018-2021 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,13 +140,17 @@ class BldcServo {
   };
 
   struct Config {
+    uint16_t pwm_rate_hz =
+        (g_measured_hw_rev <= 2) ? 60000 :
+        40000;
+
     float i_gain = 20.0f;  // should match csa_gain from drv8323
     float current_sense_ohm = 0.0005;
 
     // PWM rise time compensation
-    float pwm_comp_off = (g_measured_hw_rev <= 6) ? 0.015 : 0.048;
-    float pwm_comp_mag = (g_measured_hw_rev <= 6) ? 0.005 : 0.011;
-    float pwm_scale = (g_measured_hw_rev <= 6 ) ? 1.0f : 1.15f;
+    float pwm_comp_off = (g_measured_hw_rev <= 6) ? 0.015 : 0.055;
+    float pwm_comp_mag = (g_measured_hw_rev <= 6) ? 0.005 : 0.005;
+    float pwm_scale = (g_measured_hw_rev <= 6 ) ? 1.0f : 1.0f;
 
     // We pick a default maximum voltage based on the board revision.
     float max_voltage = (g_measured_hw_rev <= 5) ? 37.0f : 46.0f;
@@ -246,6 +250,7 @@ class BldcServo {
 
     template <typename Archive>
     void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(pwm_rate_hz));
       a->Visit(MJ_NVP(i_gain));
       a->Visit(MJ_NVP(current_sense_ohm));
       a->Visit(MJ_NVP(pwm_comp_off));

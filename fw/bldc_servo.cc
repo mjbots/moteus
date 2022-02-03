@@ -1,4 +1,4 @@
-// Copyright 2018-2021 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -130,18 +130,6 @@ int MapConfig(const Array& array, int value) {
   return result - 1;
 }
 
-#if MOTEUS_HW_REV >= 3
-// r4.1 and above have more DC-link capacitance and can run at the
-// slower 40kHz PWM frequency.
-constexpr int kIntRateHz = 40000;
-constexpr int kPwmRateHz = 40000;
-#elif MOTEUS_HW_REV <= 2
-constexpr int kIntRateHz = 30000;
-constexpr int kPwmRateHz = 60000;
-#endif
-constexpr int kInterruptDivisor = kPwmRateHz / kIntRateHz;
-static_assert(kPwmRateHz % kIntRateHz == 0);
-
 // This is used to determine the maximum allowable PWM value so that
 // the current sampling is guaranteed to occur while the FETs are
 // still low.  It was calibrated using the scope and trial and error.
@@ -153,22 +141,60 @@ static_assert(kPwmRateHz % kIntRateHz == 0);
 // As of 2020-09-13, 0.98 was the highest value that failed.
 constexpr float kCurrentSampleTime = 1.03e-6f;
 
-constexpr float kMinPwm = kCurrentSampleTime / (0.5f / static_cast<float>(kPwmRateHz));
-constexpr float kMaxPwm = 1.0f - kMinPwm;
-constexpr float kMaxVoltageRatio = (kMaxPwm - 0.5f) * 2.0f;
 
-constexpr float kRateHz = kIntRateHz;
-constexpr float kPeriodS = 1.0f / kRateHz;
+// All of these constants depend upon the pwm rate.
+struct RateConfig {
+  int int_rate_hz;
+  int interrupt_divisor;
+  uint32_t interrupt_mask;
+  int pwm_rate_hz;
+  float min_pwm;
+  float max_pwm;
+  float max_voltage_ratio;
+  float rate_hz;
+  float period_s;
+  int16_t max_position_delta;
+
+  RateConfig(int pwm_rate_hz_in = 40000) {
+    const int board_min_pwm_rate_hz =
+        (g_measured_hw_rev == 2) ? 60000 : 15000;
+
+    // Limit our PWM rate to even frequencies between 15kHz and 60kHz.
+    pwm_rate_hz =
+        ((std::max(board_min_pwm_rate_hz,
+                   std::min(60000, pwm_rate_hz_in))) / 2) * 2;
+
+    interrupt_divisor = (pwm_rate_hz > 40000) ? 2 : 1;
+    interrupt_mask = [&]() {
+                       switch (interrupt_divisor) {
+                         case 1: return 0;
+                         case 2: return 1;
+                         default: mbed_die();
+                       }
+                     }();
+
+    // The maximum interrupt rate is 40kHz, so if our PWM rate is
+    // higher than that, then set up the interrupt at half rate.
+    int_rate_hz = pwm_rate_hz / interrupt_divisor;
+
+    min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
+    max_pwm = 1.0f - min_pwm;
+    max_voltage_ratio = (max_pwm - 0.5f) * 2.0f;
+
+    rate_hz = int_rate_hz;
+    period_s = 1.0f / rate_hz;
+
+    // The maximum amount the absolute encoder can change in one cycle
+    // without triggering a fault.  Measured as a fraction of a uint16_t
+    // and corresponds to roughly 28krpm, which is the limit of the AS5047
+    // encoder.
+    //  28000 / 60 = 467 Hz
+    //  467 Hz * 65536 / kIntRate ~= 763
+    max_position_delta = 28000 / 60 * 65536 / int_rate_hz;
+  }
+};
 
 constexpr int kCalibrateCount = 256;
-
-// The maximum amount the absolute encoder can change in one cycle
-// without triggering a fault.  Measured as a fraction of a uint16_t
-// and corresponds to roughly 28krpm, which is the limit of the AS5047
-// encoder.
-//  28000 / 60 = 467 Hz
-//  467 Hz * 65536 / kIntRate ~= 763
-constexpr int16_t kMaxPositionDelta = 28000 / 60 * 65536 / kIntRateHz;
 
 constexpr float kDefaultTorqueConstant = 0.1f;
 constexpr float kMaxUnconfiguredCurrent = 5.0f;
@@ -307,7 +333,7 @@ class BldcServo::Impl {
 
   void Start() {
     ConfigureADC();
-    ConfigurePwmTimer();
+    ConfigurePwmIrq();
 
     if (options_.debug_uart_out != NC) {
       const auto uart = pinmap_peripheral(
@@ -382,6 +408,12 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
+    rate_config_ = RateConfig(config_.pwm_rate_hz);
+    // Update the saved config to match our limits.
+    config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
+
+    ConfigurePwmTimer();
+
     const float kv = 0.5f * 60.0f / motor_.v_per_hz;
 
     // I have no idea why this fudge is necessary, but it seems to be
@@ -401,6 +433,11 @@ class BldcServo::Impl {
           kMaxVelocityFilter, config_.velocity_filter_length)};
 
     motor_scale16_ = 65536.0f / motor_.unwrapped_position_scale;
+
+    const float pwm_derate =
+        (static_cast<float>(config_.pwm_rate_hz) / 40000.0f);
+    adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate;
+    adjusted_max_power_W_ = config_.max_power_W * pwm_derate;
   }
 
   void PollMillisecond() {
@@ -416,6 +453,15 @@ class BldcServo::Impl {
   }
 
  private:
+  void ConfigurePwmIrq() {
+    // NOTE: We don't use micro::CallbackTable here because we need the
+    // absolute minimum latency possible.
+    const auto irqn = FindUpdateIrq(timer_);
+    NVIC_SetVector(irqn, reinterpret_cast<uint32_t>(&Impl::GlobalInterrupt));
+    HAL_NVIC_SetPriority(irqn, 0, 0);
+    NVIC_EnableIRQ(irqn);
+  }
+
   void ConfigurePwmTimer() {
     const auto pwm1_timer = pinmap_peripheral(options_.pwm1, PinMap_PWM);
     const auto pwm2_timer = pinmap_peripheral(options_.pwm2, PinMap_PWM);
@@ -455,15 +501,8 @@ class BldcServo::Impl {
     // Set up PWM.
 
     timer_->PSC = 0; // No prescaler.
-    pwm_counts_ = HAL_RCC_GetPCLK1Freq() * 2 / (2 * kPwmRateHz);
+    pwm_counts_ = HAL_RCC_GetPCLK1Freq() * 2 / (2 * rate_config_.pwm_rate_hz);
     timer_->ARR = pwm_counts_;
-
-    // NOTE: We don't use micro::CallbackTable here because we need the
-    // absolute minimum latency possible.
-    const auto irqn = FindUpdateIrq(timer_);
-    NVIC_SetVector(irqn, reinterpret_cast<uint32_t>(&Impl::GlobalInterrupt));
-    HAL_NVIC_SetPriority(irqn, 0, 0);
-    NVIC_EnableIRQ(irqn);
 
     // Reinitialize the counter and update all registers.
     timer_->EGR |= TIM_EGR_UG;
@@ -534,9 +573,11 @@ class BldcServo::Impl {
     };
 
     ADC12_COMMON->CCR =
-        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos);
+        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos) |
+        (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
     ADC345_COMMON->CCR =
-        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos);
+        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos) |
+        (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
 
     // 20.4.6: ADC Deep power-down mode startup procedure
     ADC1->CR &= ~ADC_CR_DEEPPWD;
@@ -674,16 +715,13 @@ class BldcServo::Impl {
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
     ADC1->CR |= ADC_CR_ADSTART;
-    ADC2->CR |= ADC_CR_ADSTART;
+    // ADC2->CR |= ADC_CR_ADSTART;  // we are in dual mode
     ADC3->CR |= ADC_CR_ADSTART;
-    ADC4->CR |= ADC_CR_ADSTART;
+    // ADC4->CR |= ADC_CR_ADSTART;  // we are in dual mode
     ADC5->CR |= ADC_CR_ADSTART;
 
-    if constexpr (kInterruptDivisor != 1) {
-      phase_ = (phase_ + 1) % kInterruptDivisor;
-
-      if (phase_ != 0) { return; }
-    }
+    phase_ = (phase_ + 1) & rate_config_.interrupt_mask;
+    if (phase_) { return; }
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     DWT->CYCCNT = 0;
@@ -853,7 +891,7 @@ class BldcServo::Impl {
     if (!config_.fixed_voltage_mode &&
         !config_.encoder_filter.debug_override) {
       if (status_.mode >= kVoltageFoc &&
-          std::abs(delta_position) > kMaxPositionDelta) {
+          std::abs(delta_position) > rate_config_.max_position_delta) {
         // We probably had an error when reading the position.  We must fault.
         status_.mode = kFault;
         status_.fault = errc::kEncoderFault;
@@ -913,7 +951,7 @@ class BldcServo::Impl {
       velocity_filter_.Add(delta_position);
       status_.velocity =
           ((static_cast<float>(velocity_filter_.total()) / motor_scale16_) *
-           kRateHz) /
+           rate_config_.rate_hz) /
           static_cast<float>(velocity_filter_.size());
     }
 
@@ -965,11 +1003,11 @@ class BldcServo::Impl {
     }
   }
 
-  static void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
     if (std::isnan(*filtered)) {
       *filtered = input;
     } else {
-      const float alpha = 1.0f / (kRateHz * period_s);
+      const float alpha = 1.0f / (rate_config_.rate_hz * period_s);
       *filtered = alpha * input + (1.0f - alpha) * *filtered;
     }
   }
@@ -1238,7 +1276,8 @@ class BldcServo::Impl {
     }
 
     if (!std::isnan(status_.timeout_s) && status_.timeout_s > 0.0f) {
-      status_.timeout_s = std::max(0.0f, status_.timeout_s - kPeriodS);
+      status_.timeout_s =
+          std::max(0.0f, status_.timeout_s - rate_config_.period_s);
     }
 
     // See if we need to update our current mode.
@@ -1450,7 +1489,7 @@ class BldcServo::Impl {
             return fdx;
           }
           const float scaled = BilinearRate(
-              config_.pwm_comp_off,
+              adjusted_pwm_comp_off_,
               config_.pwm_comp_mag,
               fdx);
           if (fdx < blend_max * fd_other) {
@@ -1498,7 +1537,7 @@ class BldcServo::Impl {
 
   void ISR_DoVoltageFOC(float theta, float voltage) MOTEUS_CCM_ATTRIBUTE {
     SinCos sc = cordic_(RadiansToQ31(theta));
-    const float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
+    const float max_voltage = (0.5f - rate_config_.min_pwm) * status_.filt_bus_V;
     InverseDqTransform idt(sc, Limit(voltage, -max_voltage, max_voltage), 0);
     ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
@@ -1577,24 +1616,24 @@ class BldcServo::Impl {
     // This is conservative... we could use std::hypot(d, q), however
     // that would take more CPU cycles, and most of the time we'll
     // only be seeing q != 0.
-    const float max_V = config_.max_power_W /
+    const float max_V = adjusted_max_power_W_ /
         (std::abs(status_.d_A) + std::abs(status_.q_A));
 
     if (!config_.voltage_mode_control) {
       const float d_V =
           Limit(
-              pid_d_.Apply(status_.d_A, i_d_A, kRateHz),
+              pid_d_.Apply(status_.d_A, i_d_A, rate_config_.rate_hz),
               -max_V, max_V);
 
       const float max_current_integral =
-          kMaxVoltageRatio * 0.5f * status_.filt_bus_V;
+          rate_config_.max_voltage_ratio * 0.5f * status_.filt_bus_V;
       status_.pid_d.integral = Limit(
           status_.pid_d.integral,
           -max_current_integral, max_current_integral);
 
       const float q_V =
           Limit(
-              pid_q_.Apply(status_.q_A, i_q_A, kRateHz),
+              pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz),
               -max_V, max_V);
       status_.pid_q.integral = Limit(
           status_.pid_q.integral,
@@ -1626,7 +1665,7 @@ class BldcServo::Impl {
     control_.d_V = d_V;
     control_.q_V = q_V;
 
-    const float max_voltage = (0.5f - kMinPwm) * status_.filt_bus_V;
+    const float max_voltage = (0.5f - rate_config_.min_pwm) * status_.filt_bus_V;
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
@@ -1681,18 +1720,21 @@ class BldcServo::Impl {
 
   void ISR_UpdatePosition() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     if (config_.encoder_filter.enabled) {
-      status_.position += kPeriodS * status_.velocity * motor_scale16_;
+      status_.position +=
+          rate_config_.period_s * status_.velocity * motor_scale16_;
 
       const float error =
           -static_cast<int16_t>(
               static_cast<int32_t>(status_.position) - status_.position_unfilt);
 
-      status_.position += kPeriodS * config_.encoder_filter.kp * error;
+      status_.position +=
+          rate_config_.period_s * config_.encoder_filter.kp * error;
       status_.position = ::fmodf(status_.position, 65536.0f);
       if (status_.position < 0.0f) {
         status_.position += 65536.0f;
       }
-      status_.velocity += kPeriodS * config_.encoder_filter.ki *
+      status_.velocity +=
+          rate_config_.period_s * config_.encoder_filter.ki *
           error / motor_scale16_;
     } else {
       status_.position = status_.position_unfilt;
@@ -1733,7 +1775,7 @@ class BldcServo::Impl {
         (*status_.control_position +
          65536ll * static_cast<int32_t>(
              (65536.0f * motor_scale16_ * velocity_command) /
-             kRateHz));
+             rate_config_.rate_hz));
 
     if (std::isfinite(config_.max_position_slip)) {
       const int64_t current_position = status_.unwrapped_position_raw;
@@ -1834,7 +1876,7 @@ class BldcServo::Impl {
             65536.0f * motor_.unwrapped_position_scale,
             0.0,
             measured_velocity, velocity_command,
-            kRateHz,
+            rate_config_.rate_hz,
             pid_options) +
         feedforward_Nm;
 
@@ -2000,7 +2042,7 @@ class BldcServo::Impl {
   float LimitPwm(float in) MOTEUS_CCM_ATTRIBUTE {
     // We can't go full duty cycle or we wouldn't have time to sample
     // the current.
-    return Limit(in, kMinPwm, kMaxPwm);
+    return Limit(in, rate_config_.min_pwm, rate_config_.max_pwm);
   }
 
   const Options options_;
@@ -2056,6 +2098,8 @@ class BldcServo::Impl {
   DigitalOut debug_out_;
   DigitalOut debug_out2_;
 
+  RateConfig rate_config_;
+
   int32_t phase_ = 0;
 
   CommandData data_buffers_[2] = {};
@@ -2099,6 +2143,8 @@ class BldcServo::Impl {
   // 65536.0f / unwrapped_position_scale_
   float motor_scale16_ = 0;
   float adc_scale_ = 0.0f;
+  float adjusted_pwm_comp_off_ = 0.0f;
+  float adjusted_max_power_W_ = 0.0f;
 
   float vsense_adc_scale_ = 0.0f;
 
