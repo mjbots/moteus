@@ -366,7 +366,7 @@ A fault code which will be set if the primary mode is 1 (Fault).
   a magnet being present.
 * 36 - *motor not configured* - the `moteus_tool --calibrate`
   procedure has not been run on this motor.
-* 37 - *pwm cycle overrung* - an internal firmware error
+* 37 - *pwm cycle overrun* - an internal firmware error
 * 38 - *over temperature* - the maximum configured temperature has
   been exceeded
 * 39 - *outside limit* - an attempt was made to start position control
