@@ -89,8 +89,14 @@ permanently so by configuring the kp constant to 0).
 
 # Initial Configuration #
 
-Depending upon your starting point, there are few things you may want
-to do to configure the system.
+## IMPORTANT NOTE ON ELECTRICAL DAMAGE ##
+
+moteus uses moderately large currents and moderately high voltages.  It is important to take many factors in consideration when deploying it to avoid electrical damage to the controller.  Before soldering cables, or attaching moteus to a new motor, be sure to read and understand each of the following sections in the reference manual:
+
+ * [Phase Wire Soldering](reference.md#phase-wire-soldering)
+ * [Cable Construction](reference.md#power-cable-construction)
+ * [Power Connectorization](reference.md#power-connectorization)
+ * [Regenerative Braking Safety](reference.md#regenerative-braking-safety)
 
 ## Parameters ##
 
@@ -117,16 +123,6 @@ python3 -m moteus.moteus_tool --target 1 --calibrate
 
 WARNING: Any attached motor must be able to spin freely.  It will be
 spun in both directions and at high speed.
-
-# WARNING: Regenerative Braking!!! #
-
-* Are you deploying moteus in a quadruped?
-* Are you using sharp regenerative braking (decelerating loads)?
-* Do you have a system voltage > 30V?
-
-If you answered yes to any of these questions, be sure to read the section of the reference manual on regenerative braking safety:
-
-[Reference](reference.md#regenerative-braking-safety)
 
 # Learning more #
 

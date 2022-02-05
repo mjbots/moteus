@@ -1479,6 +1479,40 @@ will be incapable of this speed either mechanically or electrically.
 
 The maximum electrical frequency is 4kHz.
 
+# Deployment Considerations #
+
+## Phase Wire Soldering ##
+
+The connections between moteus and the motor under control must be high quality.  Poor quality solder joints can cause intermittent changes in resistance, sparking, and high voltage transients.  High quality solder joints require:
+
+A. Sufficient flux to clean oxides off of the wire and the via
+B. Sufficient temperature so that the entire wire and via is hot enough for the solder to wet all surfaces
+
+For the former, it is often necessary to add copious amounts of additional flux in addition to the rosin core inside many solders.  For the latter, a high power soldering iron, with a fat tip, and what seems like a long time may be necessary.  The temperature is definitely insufficient if solder touched to any part of the via or wire does not melt and wick instantly.  Usually a small amount of solder is placed between the tip and wire to act as a heat transfer agent.  Then the iron rests on the via and wire for between 5-30s until it looks like the initial solder has wicked fully into the via.  Then additional solder can be added until it forms a clean smooth fillet around the entire via wicking up to the wire.
+
+When complete, the back side of the hole can be examined, and if successful, solder will have wicked partially down out of the via onto the other side forming a clean, smooth fillet.
+
+A demonstration of this can be found in the following video: https://www.youtube.com/watch?v=mZ9w_TaWmjQ
+
+## Power Cable Construction ##
+
+When constructing power cables using XT30 connectors, it is critical that solder joints be sound, otherwise intermittent connectivity can result.  This can cause sparking and high voltage transients.  The soldering principles are the same as in the phase wire soldering section above.
+
+A demonstration of XT30 soldering can be found in the following video:
+https://www.youtube.com/watch?v=f6WtDFWuxuQ
+
+## Power Connectorization ##
+
+For moteus to operate without damage, the XT30 connectors used to transmit power must make a solid connection that is non-intermittent.  As with poor soldering, an intermittent connection can cause inductive spikes, which will destroy components on the controller.
+
+When connectors are functional, moderate insertion force should be required and the connectors should not "wiggle" too much after insertion.  Strain relief and mechanical capturing may be required if the cables are able to move during system motion.
+
+The XT30 is not rated for any significant amount of mechanical force when mated, and may be damaged if a system goes "out of control" even in one instance, although milder mechanical stress may cause accelerated fatigue and failure.
+
+If sparks are observed, that is *definitely* a problem and the system should be powered off until the connectors can be replaced and mitigations made for what led to that event.
+
+Genuine AMASS connectors are rated for 1000 insertions assuming no other mechanical damage, however off-brand connectors may have worse tolerances and may not make a reliable connection for even one insertion.
+
 ## Regenerative Braking Safety ##
 
 moteus can be commanded to sharply decelerate loads, either directly in response to commands, or due to external disturbances.  When braking a load, moteus by default applies the generated power to the input DC bus.
