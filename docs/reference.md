@@ -1485,8 +1485,8 @@ The maximum electrical frequency is 4kHz.
 
 The connections between moteus and the motor under control must be high quality.  Poor quality solder joints can cause intermittent changes in resistance, sparking, and high voltage transients.  High quality solder joints require:
 
-A. Sufficient flux to clean oxides off of the wire and the via
-B. Sufficient temperature so that the entire wire and via is hot enough for the solder to wet all surfaces
+* Sufficient flux to clean oxides off of the wire and the via
+* Sufficient temperature so that the entire wire and via is hot enough for the solder to wet all surfaces
 
 For the former, it is often necessary to add copious amounts of additional flux in addition to the rosin core inside many solders.  For the latter, a high power soldering iron, with a fat tip, and what seems like a long time may be necessary.  The temperature is definitely insufficient if solder touched to any part of the via or wire does not melt and wick instantly.  Usually a small amount of solder is placed between the tip and wire to act as a heat transfer agent.  Then the iron rests on the via and wire for between 5-30s until it looks like the initial solder has wicked fully into the via.  Then additional solder can be added until it forms a clean smooth fillet around the entire via wicking up to the wire.
 
