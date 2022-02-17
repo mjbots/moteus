@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020-2022 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,14 +52,15 @@ setuptools.setup(
     install_requires = [
         'asyncqt>=0.8',
         'moteus>=0.3.12',
-        'matplotlib',
+        'matplotlib>=3.5',
         # For some reason, matplotlib can barf without this, but
         # doesn't actually list it as a dependency on Windows.
         'msvc-runtime;platform_system=="Windows"',
         'numpy<=1.19.3;platform_system=="Windows"',
-        'numpy;platform_system=="Linux"',
-        'PySide2',
-        'qtconsole',
-        'qtpy',
+        'numpy;platform_system!="Windows"',
+        'PySide2;platform_system!="Darwin"',
+        'PySide6>=6.2;platform_system=="Darwin"',
+        'qtconsole>=0.5.2',
+        'qtpy>=2.0.1',
     ],
 )

@@ -1,6 +1,6 @@
 #!/usr/bin/python3 -B
 
-# Copyright 2015-2020 Josh Pieper, jjp@pobox.com.  All rights reserved.
+# Copyright 2015-2022 Josh Pieper, jjp@pobox.com.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,15 +32,24 @@ import traceback
 import matplotlib
 import matplotlib.figure
 
-import PySide2
+try:
+    import PySide6
+    from PySide6 import QtGui
 
-os.environ['QT_API'] = 'pyside2'
+    os.environ['PYSIDE_DESIGNER_PLUGINS'] = os.path.dirname(os.path.abspath(__file__))
+    os.environ['QT_API'] = 'PySide6'
+    from PySide6 import QtUiTools
+except ImportError:
+    import PySide2
+    from PySide2 import QtGui
+    os.environ['QT_API'] = 'PySide2'
+    from PySide2 import QtUiTools
+
 
 from matplotlib.backends import backend_qt5agg
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 qt_backend = matplotlib.backends.backend_qt5agg
 
-from PySide2 import QtUiTools
 
 import qtconsole
 from qtconsole.history_console_widget import HistoryConsoleWidget
@@ -49,6 +58,11 @@ if getattr(qtconsole, "qt", None):
     QtWidgets = QtGui
 else:
     from qtpy import QtCore, QtGui, QtWidgets
+
+# Why this is necessary and not just the default, I don't know, but
+# otherwise we get a warning about "Qt WebEngine seems to be
+# initialized from a plugin..."
+QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
 
 import asyncqt
 
@@ -204,8 +218,8 @@ class PlotItem(object):
 class PlotWidget(QtWidgets.QWidget):
     COLORS = 'rbgcmyk'
 
-    def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
+    def __init__(self, *args, **kwargs):
+        QtWidgets.QWidget.__init__(self, *args, **kwargs)
 
         self.history_s = 20.0
         self.next_color = 0
