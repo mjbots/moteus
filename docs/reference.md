@@ -992,8 +992,6 @@ These configure the position mode PID controller.
 * `iratelimit` - The maximum rate at which the integral term can
    wind up, in N*m/s.  <0 means "no limit"
 * `ilimit` - The total maximum I term, in Nm
-* `kpkd_limit` - The total maximum combined P and D terms, in Nm.
-   <0 means "no limit"
 * `max_desired_rate` - If non-zero, the commanded position is
   limited to change at this rate in Hz.
 
