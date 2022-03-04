@@ -542,9 +542,6 @@ class Stream:
     async def find_resistance_cal_voltage(self, input_V):
         if self.args.cal_ll_resistance_voltage:
             return self.args.cal_ll_resistance_voltage
-        elif self.args.cal_ll_encoder_voltage:
-            # Nothing should need this value, so don't calculate it.
-            return None
         else:
             # Progressively increase this value to roughly achieve our
             # desired power.
