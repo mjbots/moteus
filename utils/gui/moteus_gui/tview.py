@@ -42,7 +42,7 @@ try:
 except ImportError:
     import PySide2
     from PySide2 import QtGui
-    os.environ['QT_API'] = 'PySide2'
+    os.environ['QT_API'] = 'pyside2'
     from PySide2 import QtUiTools
 
 
