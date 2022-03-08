@@ -1375,6 +1375,21 @@ Looking at the pins of the power connector with the top of the board
 up, the ground pin is to the left with the chamfered corner and the
 positive supply is to the right with the square corner.
 
+### Pico-SPOX 6 ENC ###
+
+Looking at the back of the board with the ENC connector at the top,
+pins are numbered 1 as the rightmost, and 6 as the leftmost.
+
+ - 1 - 3.3V
+ - 2 - CS
+ - 3 - GND
+ - 4 - SCLK
+ - 5 - MISO
+ - 6 - MOSI
+
+These pads can be populated with a Molex Pico-SPOX 6 connector PN
+0874380643, or as an alternate, TE 5-1775444-6.
+
 # F. CAN-FD communication #
 
 ## moteus_tool and tview configuration ##
