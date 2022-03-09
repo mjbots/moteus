@@ -1329,16 +1329,16 @@ class Application {
         co_await dut_->Command(
             fmt::format("d pos {} 0 {}", position, options_.max_torque_Nm));
 
-        const double kDelayS = 1.0;
+        const double kDelayS = 2.0;
         co_await Sleep(kDelayS);
 
         const double expected_torque = kDelayS * pid.ki * position;
 
         verify_position_mode();
-        if (std::abs(current_torque_Nm_ - expected_torque) > 0.16) {
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.24) {
           throw mjlib::base::system_error::einval(
               fmt::format("ki torque not as expected {} != {} (within {})",
-                          current_torque_Nm_, expected_torque, 0.16));
+                          current_torque_Nm_, expected_torque, 0.24));
         }
 
         // Stop the DUT to clear out the I term.
@@ -1891,7 +1891,7 @@ class Application {
       { 100.0, 4.04 },
       { 20.0, 3.0 },
       { 10.0, 2.09 },
-      { 5.0, 1.55 },
+      { 5.0, 1.3 },
     };
 
     for (const auto test : tests) {

@@ -1600,11 +1600,12 @@ class BldcServo::Impl {
           status_.pid_q.integral,
           -max_current_integral, max_current_integral);
 
-      ISR_DoVoltageDQ(sin_cos, d_V, q_V);
+      ISR_DoVoltageDQUncompensated(sin_cos, d_V, q_V);
     } else {
-      ISR_DoVoltageDQ(sin_cos,
-                      i_d_A * motor_.resistance_ohm,
-                      i_q_A * motor_.resistance_ohm);
+      ISR_DoVoltageDQ(
+          sin_cos,
+          i_d_A * motor_.resistance_ohm,
+          i_q_A * motor_.resistance_ohm);
     }
   }
 
@@ -1637,6 +1638,22 @@ class BldcServo::Impl {
 #endif
 
     return Vec3{idt.a, idt.b, idt.c};
+  }
+
+  void ISR_DoVoltageDQUncompensated(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+    ISR_DoVoltageUncompensated(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+  }
+
+  void ISR_DoVoltageUncompensated(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
+    const auto scale =
+        [&](float phase_voltage) {
+          return 0.5f + phase_voltage / status_.filt_bus_V;
+        };
+
+    ISR_DoPwmControl(Vec3{
+        scale(voltage.a),
+        scale(voltage.b),
+        scale(voltage.c)});
   }
 
   void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
