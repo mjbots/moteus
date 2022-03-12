@@ -493,6 +493,11 @@ When in Position mode, and a non-zero velocity is commanded, stop
 motion when reaching the given position.  NaN / maximally negative
 means no limit is applied.  If unspecified, NaN is used.
 
+Note, if the controller is ever commanded to move *away* from the stop
+position, say with a velocity command that is inconsistent with the
+start and stop position, then it will act as if a 0 velocity has been
+commanded and the current command position equals the stop position.
+
 #### 0x027 - Watchdog timeout ####
 
 Mode: Read/write
