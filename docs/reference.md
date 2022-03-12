@@ -1162,6 +1162,15 @@ When in the "position timeout" mode the controller acts to damp the
 output.  This parameter controls the maximum torque available for such
 damping.
 
+## `servo.timeout_mode` ##
+
+Selects what behavior will take place in the position timeout mode.
+The allowable values are a subset of the top level modes.
+
+* 0 - "stopped" - the driver is disengaged
+* 12 - "zero velocity"
+* 15 - "brake"
+
 ## `servo.rezero_from_abs` ##
 
 If set to one, then shortly after startup, the value of the position

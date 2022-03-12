@@ -1063,12 +1063,14 @@ class BldcServo::Impl {
       case kVoltageDq:
       case kCurrent:
       case kPosition:
-      case kPositionTimeout:
       case kZeroVelocity:
       case kStayWithinBounds:
       case kMeasureInductance:
       case kBrake: {
         return true;
+      }
+      case kPositionTimeout: {
+        return config_.timeout_mode != 0;
       }
     }
     return false;
@@ -1380,7 +1382,10 @@ class BldcServo::Impl {
         ISR_DoPosition(sin_cos, data);
         break;
       }
-      case kPositionTimeout:
+      case kPositionTimeout: {
+        ISR_DoPositionTimeout(sin_cos, data);
+        break;
+      }
       case kZeroVelocity: {
         ISR_DoZeroVelocity(sin_cos, data);
         break;
@@ -1706,6 +1711,18 @@ class BldcServo::Impl {
 
   void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
     ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+  }
+
+  void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    if (config_.timeout_mode == kStopped) {
+      ISR_DoStopped();
+    } else if (config_.timeout_mode == kZeroVelocity) {
+      ISR_DoZeroVelocity(sin_cos, data);
+    } else if (config_.timeout_mode == kBrake) {
+      ISR_DoBrake();
+    } else {
+      ISR_DoStopped();
+    }
   }
 
   void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {

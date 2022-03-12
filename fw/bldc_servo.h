@@ -196,6 +196,14 @@ class BldcServo {
     float default_timeout_s = 0.1f;
     float timeout_max_torque_Nm = 5.0f;
 
+    // Selects the behavior when in the timeout mode.  The available
+    // options map to top level modes, although only the following are
+    // valid:
+    //  0 - "stopped" - motor driver disengaged
+    //  12 - "zero velocity" - derivative only position control
+    //  15 - "brake" - all motor phases shorted to ground
+    uint8_t timeout_mode = 12;
+
     // Similar to 'max_voltage', the flux braking default voltage is
     // board rev dependent.
     float flux_brake_min_voltage = (g_measured_hw_rev <= 5) ? 34.5f : 43.5f;
@@ -272,6 +280,7 @@ class BldcServo {
       a->Visit(MJ_NVP(max_position_slip));
       a->Visit(MJ_NVP(default_timeout_s));
       a->Visit(MJ_NVP(timeout_max_torque_Nm));
+      a->Visit(MJ_NVP(timeout_mode));
       a->Visit(MJ_NVP(flux_brake_min_voltage));
       a->Visit(MJ_NVP(flux_brake_resistance_ohm));
       a->Visit(MJ_NVP(max_current_A));
@@ -345,14 +354,14 @@ class BldcServo {
 
     // This state can be commanded directly, and will also be entered
     // automatically upon a watchdog timeout from kPosition.  When in
-    // this state, the controller will apply a derivative only
-    // position control to slowly bring the servos to a resting
-    // position.
+    // this state, the controller will apply the selected fallback
+    // control mode.
     //
     // The only way to exit this state is through a stop command.
     kPositionTimeout = 11,
 
-    // This is just like kPositionTimeout, but is not latching.
+    // Control to zero velocity through a derivative only version of
+    // the position mode.
     kZeroVelocity = 12,
 
     // This applies the PID controller only to stay within a
