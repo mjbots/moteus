@@ -100,6 +100,7 @@ class PID {
   struct ApplyOptions {
     float kp_scale = 1.0f;
     float kd_scale = 1.0f;
+    float ki_scale = 1.0f;
 
     ApplyOptions() {}
   };
@@ -153,7 +154,8 @@ class PID {
     state_->d = apply_options.kd_scale * config_->kd * state_->error_rate;
     state_->pd = state_->p + state_->d;
 
-    state_->command = config_->sign * (state_->pd + state_->integral);
+    state_->command = config_->sign *
+        (state_->pd + apply_options.ki_scale * state_->integral);
 
     return state_->command;
   }
