@@ -365,6 +365,9 @@ class BldcServo {
     // approximately equal D/Q axis inductances.
     kMeasureInductance = 14,
 
+    // All phases are pulled to ground.
+    kBrake = 15,
+
     kNumModes,
   };
 
@@ -693,6 +696,7 @@ struct IsEnum<moteus::BldcServo::Mode> {
         { M::kZeroVelocity, "zero_vel" },
         { M::kStayWithinBounds, "within" },
         { M::kMeasureInductance, "meas_ind" },
+        { M::kBrake, "brake" },
       }};
   }
 };

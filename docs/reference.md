@@ -294,6 +294,8 @@ to write.
 - 11 => timeout
 - 12 => zero velocity
 - 13 => stay within
+- 14 => measure inductance
+- 15 => brake
 
 #### 0x001 - Position ####
 
@@ -792,6 +794,11 @@ d within <lowbound> <highbound> <max_torque> [options...]
 The fields have the same semantics as for the register protocol
 documented above.  The options are the same as for `d pos`, with the
 exception of stop position which is not supported.
+
+### `d brake` ###
+
+Enter the "brake" state.  In this mode, all motor phases are shorted
+to ground, resulting in a passive "braking" action.
 
 ### `d index` ###
 

@@ -504,6 +504,14 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "brake") {
+      BldcServo::CommandData command;
+      command.mode = BldcServo::kBrake;
+      bldc_->Command(command);
+      WriteOk(response);
+      return;
+    }
+
     if (cmd_text == "index") {
       const auto pos_value = tokenizer.next();
       if (pos_value.empty()) {

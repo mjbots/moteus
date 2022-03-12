@@ -94,6 +94,7 @@ struct Options {
   bool validate_rezero = false;
   bool validate_voltage_mode_control = false;
   bool validate_fixed_voltage_mode = false;
+  bool validate_brake_mode = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -127,6 +128,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_rezero));
     a->Visit(MJ_NVP(validate_voltage_mode_control));
     a->Visit(MJ_NVP(validate_fixed_voltage_mode));
+    a->Visit(MJ_NVP(validate_brake_mode));
   }
 };
 
@@ -635,6 +637,8 @@ class Application {
       co_await ValidateVoltageModeControl();
     } else if (options_.validate_fixed_voltage_mode) {
       co_await ValidateFixedVoltageMode();
+    } else if (options_.validate_brake_mode) {
+      co_await ValidateBrakeMode();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -2056,6 +2060,47 @@ class Application {
 
     // However, we can use the fixture to drive the motor to the next
     // electrical phase and then it will stay there.
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateBrakeMode() {
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+
+    co_await dut_->Command("d brake");
+    co_await CommandFixtureRigid();
+
+    struct BrakeTest {
+      double velocity;
+      double expected_torque;
+    } brake_tests[] = {
+      // These torques were just experimentally determined on the dyno
+      // fixture's MiToot motor.
+      { 0.0, 0.0 },
+      { 2.0, 0.1 },
+      { 5.0, 0.25 },
+      { -2.0, -0.1 },
+      { -5.0, -0.25 },
+    };
+
+    for (const auto& test : brake_tests) {
+      co_await fixture_->Command(
+          fmt::format("d pos nan {} {}",
+                      test.velocity,
+                      options_.max_torque_Nm));
+      co_await Sleep(1.0);
+
+      if (std::abs(current_torque_Nm_ - test.expected_torque) > 0.05) {
+        throw mjlib::base::system_error::einval(
+            fmt::format("brake torque not as expected {} != {} (within {})",
+                        current_torque_Nm_, test.expected_torque, 0.05));
+      }
+    }
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
 
     co_return;
   }

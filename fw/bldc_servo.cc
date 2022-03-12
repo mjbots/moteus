@@ -1066,7 +1066,8 @@ class BldcServo::Impl {
       case kPositionTimeout:
       case kZeroVelocity:
       case kStayWithinBounds:
-      case kMeasureInductance: {
+      case kMeasureInductance:
+      case kBrake: {
         return true;
       }
     }
@@ -1103,7 +1104,8 @@ class BldcServo::Impl {
       case kPositionTimeout:
       case kZeroVelocity:
       case kStayWithinBounds:
-      case kMeasureInductance: {
+      case kMeasureInductance:
+      case kBrake: {
         switch (status_.mode) {
           case kNumModes: {
             MJ_ASSERT(false);
@@ -1134,7 +1136,8 @@ class BldcServo::Impl {
           case kPosition:
           case kZeroVelocity:
           case kStayWithinBounds:
-          case kMeasureInductance: {
+          case kMeasureInductance:
+          case kBrake: {
             if ((data->mode == kPosition || data->mode == kStayWithinBounds) &&
                 ISR_IsOutsideLimits()) {
               status_.mode = kFault;
@@ -1210,6 +1213,7 @@ class BldcServo::Impl {
         case kVoltageFoc:
         case kVoltageDq:
         case kMeasureInductance:
+        case kBrake:
           return false;
         case kCurrent:
         case kPosition:
@@ -1245,6 +1249,7 @@ class BldcServo::Impl {
         case kVoltageDq:
         case kCurrent:
         case kMeasureInductance:
+        case kBrake:
           return false;
         case kPosition:
         case kPositionTimeout:
@@ -1386,6 +1391,10 @@ class BldcServo::Impl {
       }
       case kMeasureInductance: {
         ISR_DoMeasureInductance(sin_cos, data);
+        break;
+      }
+      case kBrake: {
+        ISR_DoBrake();
         break;
       }
     }
@@ -1979,6 +1988,14 @@ class BldcServo::Impl {
     status_.meas_ind_old_d_A = status_.d_A;
 
     ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
+  }
+
+  void ISR_DoBrake() MOTEUS_CCM_ATTRIBUTE {
+    *pwm1_ccr_ = 0;
+    *pwm2_ccr_ = 0;
+    *pwm3_ccr_ = 0;
+
+    motor_driver_->Power(true);
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
