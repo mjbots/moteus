@@ -17,6 +17,7 @@
 import datetime
 import subprocess
 import sys
+import os
 
 
 def run(cmd):
@@ -35,6 +36,7 @@ def main():
         "git rev-parse HEAD", shell=True).decode('utf8').strip()
 
     datestr = datetime.datetime.now().strftime('%Y%m%d')
+    os.makedirs(outdir, exist_ok=True) # prevent crash after build
 
     print("Details:")
     print(" Date:", datestr)
