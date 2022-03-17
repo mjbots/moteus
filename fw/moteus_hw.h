@@ -168,14 +168,6 @@ constexpr int kCompatibleHwRev[] = {
 #define MOTEUS_MSENSE_5_AND_LATER PA_8
 #endif
 
-#ifndef MOTEUS_CURRENT_SENSE_OHM
-#if MOTEUS_HW_REV <= 1
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 2
-#define MOTEUS_CURRENT_SENSE_OHM 0.0005f
-#endif
-#endif
-
 #ifndef MOTEUS_VSENSE_ADC_SCALE
 #define MOTEUS_VSENSE_ADC_SCALE_PRE6 0.00884f
 #define MOTEUS_VSENSE_ADC_SCALE_POST6 0.017947f
