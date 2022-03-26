@@ -586,6 +586,9 @@ class Stream:
         print("This will move the motor, ensure it can spin freely!")
         await asyncio.sleep(2.0)
 
+        # Clear any faults that may be there.
+        await self.command("d stop")
+
         unwrapped_position_scale = \
             await self.read_config_double("motor.unwrapped_position_scale")
 
