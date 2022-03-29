@@ -1,4 +1,4 @@
-# Copyright 2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2020-2022 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -144,6 +144,7 @@ class Register(enum.IntEnum):
     Q_CURRENT = 0x004
     D_CURRENT = 0x005
     ABS_POSITION = 0x006
+    TRAJECTORY_COMPLETE = 0x00b
     REZERO_STATE = 0x00c
     VOLTAGE = 0x00d
     TEMPERATURE = 0x00e
@@ -173,6 +174,8 @@ class Register(enum.IntEnum):
     COMMAND_POSITION_MAX_TORQUE = 0x025
     COMMAND_STOP_POSITION = 0x026
     COMMAND_TIMEOUT = 0x027
+    COMMAND_VELOCITY_LIMIT = 0x028
+    COMMAND_ACCEL_LIMIT = 0x029
 
     POSITION_KP = 0x030
     POSITION_KI = 0x031
@@ -221,6 +224,7 @@ class QueryResolution:
     q_current = mp.IGNORE
     d_current = mp.IGNORE
     abs_position = mp.IGNORE
+    trajectory_complete = mp.IGNORE
     rezero_state = mp.IGNORE
     voltage = mp.INT8
     temperature = mp.INT8
@@ -242,6 +246,8 @@ class PositionResolution:
     maximum_torque = mp.F32
     stop_position = mp.F32
     watchdog_timeout = mp.F32
+    velocity_limit = mp.F32
+    accel_limit = mp.F32
 
 
 class CurrentResolution:
@@ -255,6 +261,9 @@ class Parser(mp.RegisterParser):
 
     def read_velocity(self, resolution):
         return self.read_mapped(resolution, 0.1, 0.00025, 0.00001)
+
+    def read_accel(self, resolution):
+        return self.read_mapped(resolution, 0.05, 0.001, 0.00001)
 
     def read_torque(self, resolution):
         return self.read_mapped(resolution, 0.5, 0.01, 0.001)
@@ -285,6 +294,9 @@ class Writer(mp.WriteFrame):
 
     def write_velocity(self, value, resolution):
         self.write_mapped(value, 0.1, 0.00025, 0.00001, resolution)
+
+    def write_accel(self, value, resolution):
+        self.write_mapped(value, 0.05, 0.001, 0.00001, resolution)
 
     def write_torque(self, value, resolution):
         self.write_mapped(value, 0.5, 0.01, 0.001, resolution)
@@ -324,6 +336,8 @@ def parse_register(parser, register, resolution):
         return parser.read_current(resolution)
     elif register == Register.ABS_POSITION:
         return parser.read_position(resolution)
+    elif register == Register.TRAJECTORY_COMPLETE:
+        return parser.read_int(resolution)
     elif register == Register.REZERO_STATE:
         return parser.read_int(resolution)
     elif register == Register.VOLTAGE:
@@ -482,7 +496,8 @@ class Controller:
         for i in range(7):
             c1.maybe_write()
 
-        c2 = mp.WriteCombiner(writer, 0x10, int(Register.REZERO_STATE), [
+        c2 = mp.WriteCombiner(writer, 0x10, int(Register.TRAJECTORY_COMPLETE), [
+            qr.trajectory_complete,
             qr.rezero_state,
             qr.voltage,
             qr.temperature,
@@ -583,6 +598,8 @@ class Controller:
                       maximum_torque=None,
                       stop_position=None,
                       watchdog_timeout=None,
+                      velocity_limit=None,
+                      accel_limit=None,
                       query=False):
         """Return a moteus.Command structure with data necessary to send a
         position mode command with the given values."""
@@ -599,6 +616,8 @@ class Controller:
             pr.maximum_torque if maximum_torque is not None else mp.IGNORE,
             pr.stop_position if stop_position is not None else mp.IGNORE,
             pr.watchdog_timeout if watchdog_timeout is not None else mp.IGNORE,
+            pr.velocity_limit if velocity_limit is not None else mp.IGNORE,
+            pr.accel_limit if accel_limit is not None else mp.IGNORE,
         ]
 
         data_buf = io.BytesIO()
@@ -627,6 +646,10 @@ class Controller:
             writer.write_position(stop_position, pr.stop_position)
         if combiner.maybe_write():
             writer.write_time(watchdog_timeout, pr.watchdog_timeout)
+        if combiner.maybe_write():
+            writer.write_velocity(velocity_limit, pr.velocity_limit)
+        if combiner.maybe_write():
+            writer.write_accel(accel_limit, pr.accel_limit)
 
         if query:
             data_buf.write(self._query_data)

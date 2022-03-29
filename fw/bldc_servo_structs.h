@@ -158,9 +158,11 @@ struct BldcServoStatus {
 
   // This is measured in the same units as unwrapped_position_raw.
   std::optional<int64_t> control_position;
+  std::optional<float> control_velocity;
   float position_to_set = 0.0;
   float timeout_s = 0.0;
   bool rezeroed = false;
+  bool trajectory_done = false;
 
   float sin = 0.0f;
   float cos = 0.0f;
@@ -249,9 +251,11 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(pid_position));
 
     a->Visit(MJ_NVP(control_position));
+    a->Visit(MJ_NVP(control_velocity));
     a->Visit(MJ_NVP(position_to_set));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(rezeroed));
+    a->Visit(MJ_NVP(trajectory_done));
 
     a->Visit(MJ_NVP(sin));
     a->Visit(MJ_NVP(cos));
@@ -301,6 +305,9 @@ struct BldcServoCommandData {
   float kp_scale = 1.0f;
   float kd_scale = 1.0f;
 
+  float velocity_limit = std::numeric_limits<float>::quiet_NaN();
+  float accel_limit = std::numeric_limits<float>::quiet_NaN();
+
   float timeout_s = 0.0f;
 
   // For kStayWithinBounds
@@ -341,6 +348,8 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(feedforward_Nm));
     a->Visit(MJ_NVP(kp_scale));
     a->Visit(MJ_NVP(kd_scale));
+    a->Visit(MJ_NVP(velocity_limit));
+    a->Visit(MJ_NVP(accel_limit));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(bounds_min));
     a->Visit(MJ_NVP(bounds_max));
@@ -442,6 +451,11 @@ struct BldcServoConfig {
   SimplePI::Config pid_dq;
   PID::Config pid_position;
 
+  // Default values for the position mode velocity and acceleration
+  // limits.
+  float default_velocity_limit = std::numeric_limits<float>::quiet_NaN();
+  float default_accel_limit = std::numeric_limits<float>::quiet_NaN();
+
   // If true, then the currents in A that are calculated for the D
   // and Q phase are instead directly commanded as voltages on the
   // phase terminals.  This is primarily useful for high resistance
@@ -538,6 +552,8 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(adc_aux_cycles));
     a->Visit(MJ_NVP(pid_dq));
     a->Visit(MJ_NVP(pid_position));
+    a->Visit(MJ_NVP(default_velocity_limit));
+    a->Visit(MJ_NVP(default_accel_limit));
     a->Visit(MJ_NVP(voltage_mode_control));
     a->Visit(MJ_NVP(fixed_voltage_mode));
     a->Visit(MJ_NVP(fixed_voltage_control_V));

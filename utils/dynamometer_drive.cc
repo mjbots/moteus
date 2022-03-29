@@ -95,6 +95,7 @@ struct Options {
   bool validate_voltage_mode_control = false;
   bool validate_fixed_voltage_mode = false;
   bool validate_brake_mode = false;
+  bool validate_velocity_accel_limits = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -129,6 +130,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_voltage_mode_control));
     a->Visit(MJ_NVP(validate_fixed_voltage_mode));
     a->Visit(MJ_NVP(validate_brake_mode));
+    a->Visit(MJ_NVP(validate_velocity_accel_limits));
   }
 };
 
@@ -639,6 +641,8 @@ class Application {
       co_await ValidateFixedVoltageMode();
     } else if (options_.validate_brake_mode) {
       co_await ValidateBrakeMode();
+    } else if (options_.validate_velocity_accel_limits) {
+      co_await ValidateVelocityAccelLimits();
     } else {
       fmt::print("No cycle selected\n");
     }
@@ -2097,6 +2101,81 @@ class Application {
             fmt::format("brake torque not as expected {} != {} (within {})",
                         current_torque_Nm_, test.expected_torque, 0.05));
       }
+    }
+
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+
+    co_return;
+  }
+
+  boost::asio::awaitable<void> ValidateVelocityAccelLimits() {
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+
+    co_await dut_->Command("d stop");
+    co_await dut_->Command("d index 0");
+
+    Controller::PidConstants pid;
+    pid.kp = 2.0;
+    pid.kd = 0.1;
+    co_await dut_->ConfigurePid(pid);
+
+    // We use a trajectory with a non-zero final velocity since we
+    // have out of band knowledge that this results in the worst
+    // possible loop timing.
+    co_await dut_->Command(
+        fmt::format("d pos 3.0 -0.5 {} v0.5 a0.2", options_.max_torque_Nm));
+
+    double old_vel = 0.0;
+    const double step_s = 0.2;
+    const int loops = 14 / 0.2;
+    double done_time = 0.0;
+
+    for (int i = 0; i < loops; i++) {
+      co_await Sleep(step_s);
+
+      const double fixture_position =
+          options_.transducer_scale *
+          fixture_->servo_stats().unwrapped_position;
+      const double fixture_velocity =
+          options_.transducer_scale *
+          fixture_->servo_stats().velocity;
+
+      if (std::abs(fixture_position - 3.0) < 0.2 &&
+          done_time == 0.0) {
+        done_time = i * step_s;
+      }
+
+      if (i > 110) {
+        // We should be in the final parts of the trajectory moving at
+        // -0.5 units per second.
+        if (std::abs(fixture_velocity + 0.5) > 0.35) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Not stopped at end {} != 0",
+                          fixture_velocity));
+        }
+      } else {
+        // We are in-motion.
+        if (std::abs(fixture_velocity) > 0.7) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Velocity while moving exceeded limit |{}| > 0.7",
+                          fixture_velocity));
+        }
+        const double measured_accel = (fixture_velocity - old_vel) / step_s;
+        if (std::abs(measured_accel) > 1.7) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Measured acceleration exceed limit |{}| > 1.7",
+                          measured_accel));
+        }
+      }
+
+      old_vel = fixture_velocity;
+    }
+
+    if (std::abs(done_time - 7.2) > 1.0) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("Took wrong amount of time {} != 7.2", done_time));
     }
 
     co_await dut_->Command("d stop");

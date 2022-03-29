@@ -12,13 +12,17 @@ the three phases.
 
 The primary control mode, labeled as "position" mode in the rest of
 this document is a two stage cascaded controller, with both running at
-the switching frequency of 40kHz.  The outer stage is an integrated
-position/velocity PID controller with optional feedforward torque.
-The output of that loop is a desired torque/current for the Q phase of
-the FOC controller.  The inner stage is a current mode PI controller.
-Its output is the desired voltage value for the Q phase.  Then the
-magnetic encoder is used to map the D/Q phase voltage values to the 3
-phases of the motor.
+the switching frequency (by default 40kHz).
+
+The outermost stage is an optional limited acceleration and velocity
+trajectory planner.  Within that is an integrated position/velocity
+PID controller with optional feedforward torque.  The output of that
+loop is a desired torque/current for the Q phase of the FOC
+controller.
+
+The inner stage is a current mode PI controller.  Its output is the
+desired voltage value for the Q phase.  Then the magnetic encoder is
+used to map the D/Q phase voltage values to the 3 phases of the motor.
 
 ![Control Structure](control_structure.png)
 
@@ -26,8 +30,9 @@ More precisely, the "Position Controller" implements the following
 control law:
 
 ```
+acceleration = trajectory_follower(command_position, command_velocity)
+control_velocity = command_velocity OR control_velocity + acceleration * dt OR 0.0
 control_position = command_position OR control_position + control_velocity * dt
-control_velocity = command_velocity OR control_velocity OR 0.0
 position_error = control_position - feedback_position
 velocity_error = control_velocity - feedback_velocity
 position_integrator = limit(position_integrator + ki * position_error * dt, ilimit)
@@ -79,27 +84,23 @@ torque (at the expense of overall torque bandwidth).  It may also be
 beneficial to select a lower value than default for `moteus_tool
 --cal-bw-hz` during calibration.
 
-### Internally Generated Trajectories ###
+### Constant Acceleration Trajectories ###
 
-moteus currently only supports constant velocity trajectories.
-Normally, the velocity commanded will continue indefinitely, either
-until a watchdog timeout occurs or the configured position limit is
-reached.
+Velocity and acceleration limits can be configured either globally, or
+on a per-command basis which will cause moteus to internally generate
+continuous acceleration limited trajectories to reach the given
+position and velocity.  Once the trajectory is complete, the command
+velocity is continued indefinitely.
 
-Through the use of the optional "stop_position" of the position
-controller, moteus can set the velocity to zero when a specific
-control position is achieved.  This feature can be used in
-applications where the host commands the controller at a low update
-rate.
+### Jerk Limited Trajectories ###
 
-### Constant Acceleration or Jerk ###
-
-moteus only supports constant velocity internal trajectories.  To
-approximate a constant acceleration or constant jerk trajectory, the
-host processor should send a sequence of piecewise linear constant
-velocity trajectories which approximate the desired one.  This would
-be done by sending commands consisting of at least a position and
-velocity at some moderate to high rate.
+moteus only supports acceleration limited internal trajectories.  To
+approximate a constant jerk trajectory, the host processor should send
+a sequence of piecewise linear constant velocity trajectories which
+approximate the desired one.  This would be done by sending commands
+consisting of at least a position and velocity at some moderate to
+high rate while disabling the internal velocity and acceleration
+limits.
 
 ### High Torque Bandwidth ###
 
@@ -273,6 +274,12 @@ values.
 - int16 => 1 LSB => 0.00025 Hz > 0.09 dps
 - int32 => 1 LSB => 0.00001 Hz => 0.0036 dps
 
+#### A.2.a.8 Acceleration (measured in revolutions / s^2) ####
+
+- int8 => 1 LSB => 0.05 l/s^2
+- int16 => 1 LSB => 0.001 l/s^2
+- int32 => 1 LSB => 0.00001 l/s^2
+
 ### A.2.b Registers ###
 
 #### 0x000 - Mode ####
@@ -335,6 +342,19 @@ Mode: Read only
 
 If an absolute encoder is configured on the ABS port, its value will
 be reported here in revolutions.
+
+#### 0x00b - Trajectory complete ####
+
+Mode: Read only
+
+Non-zero if the current acceleration or velocity limited trajectory is
+complete, and the controller is following the final velocity.
+
+#### 0x00c - Rezero state ####
+
+Mode: Read only
+
+Non-zero if the controller has been rezeroed since power on.
 
 #### 0x00d - Voltage ####
 
@@ -509,6 +529,23 @@ If this timeout expires before another command is received, the
 controller will enter the Timeout state.  The default is 0.0, which
 means to use the system-wide configured default.  NaN / maximally
 negative means apply no enforced timeout.
+
+#### 0x028 - Velocity limit ####
+
+Mode: Read/write
+
+This can be used to override the global velocity limit for internally
+generated trajectories.  If unspecified, it is NaN / maximally
+negative, which implies to use the global configurable default.
+
+#### 0x029 - Acceleration limit ####
+
+Mode: Read/write
+
+This can be used to override the global acceleration limit for
+internally generated trajectories.  If unspecified, it is NaN /
+maximally negative, which implies to use the global configurable
+default.
 
 ### 0x030 - Proportional torque ###
 
@@ -754,6 +791,10 @@ Each optional element consists of a prefix character followed by a value.  Permi
 - `f` - feedforward torque in Nm
 - `t` - timeout: If another command is not received in this many
   seconds, enter the timeout mode.
+- `v` - velocity limit: the given value will override the global
+  velocity limit for the duration of this command.
+- `a` - acceleration limit: the given value will override the global
+  acceleration limit for the duration of this command.
 
 The position, velocity, maximum torque, and all optional fields have
 the same semantics as for the register protocol documented above.
@@ -1020,6 +1061,40 @@ thus *after* any scaling in position, velocity, and torque implied by
 These have the same semantics as the position mode PID controller, and
 affect the current control loop.
 
+## `servo.default_velocity_limit` / `servo.default_accel_limit` ##
+
+Limits to be placed on trajectories generated within moteus.  If
+either is `nan`, then that limit is unset.  The limits may also be
+overriden individually on a per command basis.  The semantics of the
+limits are as follows:
+
+- *Neither set (both nan)* In this case, position and velocity
+  commands take immediate effect.  The control position will be
+  initialized to the command position, and the control velocity will
+  be set to the command velocity.  The control position will advance
+  at the given velocity indefinitely, or until the command stop
+  position is reached.
+
+- *Only velocity limit set*: In this case, until the desired position
+  is reached, the control velocity will be set to either the positive
+  or negative velocity limit.  Once the desired position has been
+  reached, then the velocity will continue indefinitely at the command
+  velocity.
+
+- *Both set*: In this case, neither the command position nor the
+  command velocity are immediately applied.  Instead, the control
+  velocity is advanced by the configured acceleration each timestep
+  while being limited to the maximum configured velocity in order to
+  achieve the desired position and velocity.  Once the desired
+  position and velocity have been achieved, then that final velocity
+  is continued indefinitely.  Note that this may require "back
+  tracking" if the current and final velocities do not permit an
+  approach in a single pass.
+
+- *Only acceleration limit set*: This behaves like the "both set"
+  case, except that the control velocity is allowed to increase or
+  decrease arbitrarily.
+
 ## `servo.voltage_mode_control` ##
 
 When set to non-zero, the current control loop is not closed, and all
@@ -1116,6 +1191,10 @@ beyond the factory configured value can result in hardware damage.
 ## `servo.max_velocity` ##
 
 Output power will be limited if the velocity exceeds this threshold.
+
+NOTE: If this value is lower than the configured
+`servo.velocity_limit`, then the resulting behavior is unlikely to be
+useful.
 
 ## `servo.max_velocity_derate` ##
 

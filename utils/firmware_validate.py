@@ -104,7 +104,10 @@ class TestDynoFast(unittest.TestCase):
         dyno('--validate_fixed_voltage_mode', '1')
 
     def test_validate_brake_mode(self):
-        dyno('--validate_brake_mode', '1', keep_log=True)
+        dyno('--validate_brake_mode', '1')
+
+    def test_validate_velocity_accel_limits(self):
+        dyno('--validate_velocity_accel_limits', '1')
 
 
 class TestDynoSlow(unittest.TestCase):

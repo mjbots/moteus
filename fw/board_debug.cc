@@ -77,6 +77,14 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
         command->timeout_s = value;
         break;
       }
+      case 'a': {
+        command->accel_limit = value;
+        break;
+      }
+      case 'v': {
+        command->velocity_limit = value;
+        break;
+      }
       default: {
         return false;
       }
@@ -418,7 +426,7 @@ class BoardDebug::Impl {
       // We default to no timeout for debug commands.
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pdsft")) {
+      if (!ParseOptions(&command, &tokenizer, "pdsftav")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }

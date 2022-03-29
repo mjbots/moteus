@@ -60,7 +60,7 @@ are somewhat unorthodox, so as to be easily amenable to idempotent
 commands sent from a higher level controller.  Each command looks
 like:
 
- * Position: The desired position *right now* in revolutions
+ * Position: The desired position in revolutions
  * Velocity: The rate at which the desired position changes in
    revolutions / s
  * Maximum torque: Never use more than this amount of torque when controlling
@@ -70,22 +70,22 @@ like:
    from this target.
  * kp scale: Scale the proportional constant by this factor
  * kd scale: Scale the derivative constant by this factor
+ * Velocity limit override: If non-special, override the configured
+   velocity limit, which constrains how quickly the target position is
+   reached.
+ * Acceleration limit override: If non-special, override the
+   configured acceleration limit, which constrains how quickly the
+   target position is reached.
 
 Additionally, the position may be set as a "special value" (NaN for
 floating point and the debug interface, maximal negative for integer
 encodings).  In that case, the position selected is "wherever you are
 right now".
 
-Some limited amount of preprogrammed constant velocity trajectories
-can be emulated using an unset position and the stop position.  In
-that case, the sign of the velocity command is ignored, and is instead
-selected to point towards the stop position.  If that is the only
-command, or that command is repeated indefinitely, it will have the
-same effect of causing the controller to move to the stop position at
-a constant velocity.
-
 A pure velocity mode can be obtained by setting the kp scale to 0 (or
-permanently so by configuring the kp constant to 0).
+permanently so by configuring the kp constant to 0).  In this case,
+using the `servo.max_position_slip` configurable parameter may be
+valuable as per the [reference manual](reference.md#velocity-control).
 
 # Initial Configuration #
 
@@ -105,7 +105,7 @@ in your setup regardless:
 
 * `servopos.position_min` and `servopos.position_max` these define the bounds of motion which the controller will allow when in position control mode.  Attempting to start beyond this region will fault, and if outside the region in operation, no torque will be applied to go further outside.
 * `servo.max_current_A` the maximum phase current to apply to the motor.  This can be used to limit the maximum torque that the system is capable of regardless of any command sent.
-* `servo.max_velocity` provides a limit on the maximum speed in Hz. Development kits ship with a relatively low value for this, which you can increase for higher speed operation.
+* `servo.velocity_limit` / `servo.accel_limit` controls how fast the motor can accelerate and spin in order to reach position and velocity targets.  Bare boards ship with these unset, while development kits ship with human-eye pleasing values.
 * `servo.pid_position` the PID parameters for the position control loop.
 * `motor.unwrapped_position_scale` any gearbox scaling, a reducing gearbox should be configured with a number smaller than one, e.g. 0.25 for a 4x reduction gearbox.  This affects reported position, speed, and torques.
 * `id.id` the CAN-FD id used by this device

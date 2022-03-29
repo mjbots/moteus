@@ -14,6 +14,10 @@
 
 #include "fw/bldc_servo_position.h"
 
+#include <fstream>
+
+#include <fmt/format.h>
+
 #include <boost/test/auto_unit_test.hpp>
 
 using namespace moteus;
@@ -44,12 +48,12 @@ struct Context {
     status.unwrapped_position_raw = to_raw(status.unwrapped_position);
   }
 
-  int64_t to_raw(float val) const {
-    return static_cast<int64_t>(val * motor_scale16) << 32;
+  int64_t to_raw(double val) const {
+    return static_cast<int64_t>(val * motor_scale16 * (1ull << 32));
   }
 
-  float from_raw(int64_t val) const {
-    return (val >> 32) / motor_scale16;
+  double from_raw(int64_t val) const {
+    return static_cast<double>(val) / static_cast<double>(1ull << 32) / motor_scale16;
   }
 
   float Call() {
@@ -76,6 +80,7 @@ BOOST_AUTO_TEST_CASE(StartupPositionCapture) {
   ctx.data.velocity = 0.0f;
   ctx.Call();
   BOOST_TEST(ctx.status.control_position.value() == ctx.status.unwrapped_position_raw);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 }
 
 BOOST_AUTO_TEST_CASE(StartupPositionSet) {
@@ -88,6 +93,10 @@ BOOST_AUTO_TEST_CASE(StartupPositionSet) {
   ctx.Call();
   BOOST_TEST(ctx.status.control_position.value() != ctx.status.unwrapped_position_raw);
   BOOST_TEST(ctx.status.control_position.value() == ctx.to_raw(2.0f));
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+
+  BOOST_TEST(std::isfinite(ctx.data.velocity));
+  BOOST_TEST(!std::isfinite(ctx.data.position));
 }
 
 BOOST_AUTO_TEST_CASE(RunningPositionSet) {
@@ -159,7 +168,7 @@ BOOST_AUTO_TEST_CASE(PositionLimit) {
   }
 }
 
-BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3f)) {
+BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3)) {
   Context ctx;
 
   ctx.data.position = NaN;
@@ -170,7 +179,7 @@ BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3f)) {
     BOOST_TEST(result == 1.0f);
   }
 
-  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.0f);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.0);
 
   ctx.data.stop_position = 4.5f;
   for (int i = 0; i < ctx.rate_hz; i++) {
@@ -181,7 +190,7 @@ BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3f)) {
       BOOST_TEST(result == 0.0f);
     }
   }
-  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.5f);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.5);
 }
 
 BOOST_AUTO_TEST_CASE(PositionSlip, * boost::unit_test::tolerance(1e-3f)) {
@@ -220,4 +229,282 @@ BOOST_AUTO_TEST_CASE(PositionSlip, * boost::unit_test::tolerance(1e-3f)) {
                  test_case.expected_position);
     }
   }
+}
+
+
+// Limit things to test
+//
+// * All works with an unwrapped_position_scale configured
+// * wraparound when running in "velocity mode"
+
+
+BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
+  const bool write_logs = false;
+
+  struct TestCase {
+    double x0;
+    double v0;
+
+    double xf;
+    double vf;
+
+    double a;
+    double v;
+    double rate_khz;
+
+    double expected_coast_duration;
+    double expected_total_duration;
+  };
+
+  TestCase test_cases[] = {
+    ///////////////////////////////////
+    // "velocity mode"
+    { 0.0,  0.0,   NaN,  0.5,   1.0, 2.0, 40,    0.000, 0.500 },
+    { 0.0,  1.0,   NaN, -0.5,   1.0, 2.0, 40,    0.000, 1.500 },
+    { 0.0, -2.0,   NaN,  0.0,   1.0, 2.0, 40,    0.000, 2.000 },
+    { 0.0, -2.0,   NaN,  0.0,   2.0, 2.0, 40,    0.000, 1.000 },
+    { 0.0,  0.5,   NaN,  2.0,   2.0, 1.0, 40,    1.000, 0.250 },
+    { 0.0,  0.5,   NaN,  2.0,   2.0, NaN, 40,    0.000, 0.750 },
+
+    { 0.0,  0.5,   NaN,  2.0,   NaN, 4.0, 40,    0.000, 0.000 },
+    { 0.0,  0.5,   NaN, -2.0,   NaN, 4.0, 40,    0.000, 0.000 },
+    { 0.0,  0.5,   NaN,  6.0,   NaN, 4.0, 40,    1.000, 0.000 },
+    { 0.0,  0.5,   NaN, -6.0,   NaN, 4.0, 40,    1.000, 0.000 },
+
+    /////////////////////////////////
+    // No accel limit.
+    { 0.0,  0.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 0.0,  0.5,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 0.0,  1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 0.0, -1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 10.0, 1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 10.0,-1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 0.0,  0.0,   5.0, 0.5,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 0.0,  0.0,   5.0, 0.0,    NaN, 2.0, 40,    2.500, 2.500 },
+    { 4.0,  0.0,   5.0, 0.0,    NaN, 1.0, 40,    1.000, 1.000 },
+
+    /////////////////////////////////
+    // No velocity limit.
+    { 0.0,  0.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 4.514 },
+    { 0.0,  1.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 3.730 },
+    { 0.0,  1.0,    5.0, 1.5,   1.0, NaN, 40,   0.000, 2.647 },
+    { 0.0, -1.0,   -5.0,-1.5,   1.0, NaN, 40,   0.000, 2.647 },
+    { 5.0,  0.0,    0.0, 0.0,   1.0, NaN, 40,   0.000, 4.514 },
+    { 5.0,  0.0,    0.0, 0.0,   2.0, NaN, 40,   0.000, 3.205 },
+
+    /////////////////////////////////
+    // Accel and velocity limits
+    { 0.0,  0.0,    3.0, 0.0,   1.0, 0.5, 40,   5.502, 6.500 },
+    { 0.0,  0.0,    3.0, 0.0,   1.0, 0.7, 40,   3.588, 5.010 },
+    { 0.0,  0.0,    3.0, 0.0,   2.0, 0.7, 40,   3.937, 4.645 },
+    { 0.0,  0.3,    3.0, 0.0,   2.0, 0.7, 40,   3.969, 4.522 },
+    { 0.3,  0.3,    3.0, 0.0,   2.0, 0.7, 40,   3.540, 4.094 },
+    // overspeed
+    { 0.3,  2.0,    3.0, 0.0,   2.0, 0.7, 40,   2.429, 3.436 },
+    { -0.3, -2.0,  -3.0, 0.0,   2.0, 0.7, 40,   2.429, 3.436 },
+    // overshoot
+    { 0.3,  4.0,    3.0, 0.0,   2.0, 0.7, 40,   1.504, 4.207 },
+
+    // non-zero final velocity
+    { 0.0, 0.0,     3.0, 0.5,   1.0, 0.5, 40,   6.751, 6.250 },
+    { 0.0, 0.0,     3.0, 0.3,   1.0, 0.5, 40,   5.592, 6.290 },
+
+    // A command velocity that exceeds the limit.
+    { 0.0, 0.0,     3.0, 1.0,   1.0, 0.5, 40,   6.751, 6.250 },
+    { 0.0, 0.0,     -3.0, -1.0, 1.0, 0.5, 40,   6.751, 6.250 },
+
+    // non-zero that requires looping back
+    { 0.0, 0.0,     0.0, 0.5,   1.0, 0.5, 40,   1.001, 1.207 },
+    {-0.03, 0.5,    0.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.548 },
+    // The same as the previous, but shifted to be near the wraparound
+    // point and at a lower PWM rate to maximize numerical problems.
+    {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.548 },
+    {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.550 },
+    {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.5, 15,   0.000933, 1.548 },
+    {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.5, 15,   0.000933, 1.550 },
+
+    { 0.0, 0.0,     0.0, -0.5,  1.0, 0.5, 40,   1.001, 1.207 },
+
+  };
+
+  int case_num = 0;
+
+  for (const auto& test_case : test_cases) {
+    const double expected_vf =
+        [&]() {
+          if (test_case.vf > test_case.v) { return test_case.v; }
+          if (test_case.vf < -test_case.v) { return -test_case.v; }
+          return test_case.vf;
+        }();
+
+    case_num++;
+
+    std::ofstream out_file;
+    if (write_logs) {
+      out_file.open(
+          fmt::format("/tmp/moteus_test_{}.log", case_num));
+    }
+
+    BOOST_TEST_CONTEXT("Case " << case_num << " : "
+                       << test_case.x0 << " "
+                       << test_case.v0 << " "
+                       << test_case.xf << " "
+                       << test_case.vf << " "
+                       << test_case.a << " "
+                       << test_case.v) {
+      Context ctx;
+      ctx.rate_hz = test_case.rate_khz * 1000.0;
+      ctx.data.position = test_case.xf;
+      ctx.data.velocity = test_case.vf;
+      ctx.data.accel_limit = test_case.a;
+      ctx.data.velocity_limit = test_case.v;
+      ctx.set_position(test_case.x0);
+      ctx.status.velocity = test_case.v0;
+
+      double old_vel = test_case.v0;
+      double old_pos = test_case.x0;
+
+      int done_count = 0;
+      int consecutive_accel_violation = 0;
+
+      double current_duration = 0.0;
+      double total_duration = 0.0;
+      double coast_duration = 0.0;
+      bool initial_overspeed = std::isfinite(test_case.v) ?
+          (std::abs(test_case.v0) > test_case.v) :
+          false;
+
+      const double extra_time = 1.0;
+      const int64_t extra_count = extra_time * ctx.rate_hz;
+
+      const int64_t max_count =
+          (2.0 + test_case.expected_total_duration) * ctx.rate_hz;
+
+      for (int64_t i = 0; i < max_count; i++) {
+        ctx.Call();
+
+        current_duration += (1.0 / ctx.rate_hz);
+
+        const double this_pos =
+            ctx.from_raw(ctx.status.control_position.value());
+        const double measured_vel =
+            (this_pos - old_pos) * ctx.rate_hz;
+
+        const double this_vel =
+            ctx.status.control_velocity.value();
+        const double measured_accel =
+            (this_vel - old_vel) * ctx.rate_hz;
+
+        if (write_logs) {
+          out_file <<
+              fmt::format(
+                  "{},{:.9f},{},{},{}\n",
+                  i / ctx.rate_hz, this_pos, measured_vel, measured_accel,
+                  ctx.status.trajectory_done ? "1" : "0");
+        }
+
+        if (std::isfinite(ctx.data.velocity_limit)) {
+          if (!initial_overspeed) {
+            BOOST_TEST(std::abs(this_vel) <=
+                       (ctx.data.velocity_limit + 0.001));
+            if (std::abs(std::abs(this_vel) -
+                         ctx.data.velocity_limit) < 0.001) {
+              coast_duration += (1.0 / ctx.rate_hz);
+            }
+          } else {
+            if (std::abs(this_vel) < (ctx.data.velocity_limit + 0.001)) {
+              initial_overspeed = false;
+            }
+          }
+        }
+
+        if (i != 0) {
+          BOOST_TEST(std::abs(this_vel - measured_vel) < 0.02);
+        }
+
+        if (std::isfinite(ctx.data.accel_limit)) {
+          // No single reading can be more than 2.5x our limit, and no
+          // two consecutive can be more than a tiny amount over.
+          BOOST_TEST(std::abs(measured_accel) <= (2.5 * ctx.data.accel_limit));
+          if (std::abs(measured_accel) > (1.02 * ctx.data.accel_limit)) {
+            consecutive_accel_violation++;
+            BOOST_TEST(consecutive_accel_violation <= 2);
+          } else {
+            consecutive_accel_violation = 0;
+          }
+        }
+
+        if (ctx.status.trajectory_done) {
+          BOOST_TEST(ctx.status.control_velocity.value() == expected_vf);
+
+          if (done_count == 0) {
+            if (std::isfinite(test_case.xf)) {
+              BOOST_TEST(ctx.from_raw(
+                             ctx.status.control_position.value()) ==
+                         test_case.xf);
+            }
+            total_duration = current_duration;
+          }
+          if (++done_count > extra_count) { break; }
+        }
+
+        old_vel = this_vel;
+        old_pos = this_pos;
+      }
+
+      if (std::isfinite(test_case.xf)) {
+        const double expected_final =
+            test_case.xf + expected_vf * extra_time;
+        BOOST_TEST(ctx.from_raw(
+                       ctx.status.control_position.value()) == expected_final);
+      }
+      BOOST_TEST(ctx.status.control_velocity.value() == expected_vf);
+      BOOST_TEST(ctx.status.trajectory_done == true);
+
+      BOOST_TEST(total_duration == test_case.expected_total_duration);
+      BOOST_TEST(coast_duration == test_case.expected_coast_duration);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(StopPositionWithLimits, * boost::unit_test::tolerance(1e-3)) {
+  Context ctx;
+
+  ctx.data.position = 3.0f;
+  ctx.data.stop_position = 1.0f;
+  ctx.data.velocity = 1.0f;
+  ctx.data.accel_limit = 2.0f;
+  ctx.data.velocity_limit = 3.0f;
+  ctx.set_position(0.0f);
+
+  for (int i = 0; i < 3.0 * ctx.rate_hz; i++) {
+    ctx.Call();
+  }
+
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 1.0);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+}
+
+BOOST_AUTO_TEST_CASE(StopPositionWithLimitOvershoot, * boost::unit_test::tolerance(1e-3)) {
+  Context ctx;
+
+  ctx.data.position = 0.0f;
+  ctx.data.stop_position = 0.2f;
+  ctx.data.velocity = 1.0f;
+  ctx.data.accel_limit = 2.0f;
+  ctx.data.velocity_limit = 3.0f;
+  ctx.status.velocity = 2.0f;
+  ctx.set_position(0.0f);
+
+  // Here, we'll get stopped at 0.2 as try to slow down and come back
+  // to 0.0.
+
+  for (int i = 0; i < 3.0 * ctx.rate_hz; i++) {
+    ctx.Call();
+  }
+
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 0.2);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0);
+  BOOST_TEST(ctx.status.trajectory_done == true);
 }

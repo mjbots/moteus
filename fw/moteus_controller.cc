@@ -74,6 +74,10 @@ Value ScaleVelocity(float value, size_t type) {
   return ScaleMapping(value, 0.1f, 0.00025f, 0.00001f, type);
 }
 
+Value ScaleAcceleration(float value, size_t type) {
+  return ScaleMapping(value, 0.05f, 0.001f, 0.00001f, type);
+}
+
 Value ScaleTemperature(float value, size_t type) {
   return ScaleMapping(value, 1.0f, 0.1f, 0.001f, type);
 }
@@ -162,6 +166,10 @@ float ReadVelocity(Value value) {
   return ReadScaleMapping(value, 0.1f, 0.00025f, 0.00001f);
 }
 
+float ReadAcceleration(Value value) {
+  return ReadScaleMapping(value, 0.05f, 0.001f, 0.00001f);
+}
+
 float ReadCurrent(Value value) {
   return ReadScaleMapping(value, 1.0f, 0.1f, 0.001f);
 }
@@ -183,6 +191,7 @@ enum class Register {
   kDCurrent = 0x005,
   kAbsPosition = 0x006,
 
+  kTrajectoryComplete = 0x00b,
   kRezeroState = 0x00c,
   kVoltage = 0x00d,
   kTemperature = 0x00e,
@@ -212,6 +221,8 @@ enum class Register {
   kCommandPositionMaxTorque = 0x025,
   kCommandStopPosition = 0x026,
   kCommandTimeout = 0x027,
+  kCommandVelocityLimit = 0x028,
+  kCommandAccelLimit = 0x029,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -402,6 +413,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.timeout_s = ReadTime(value);
         return 0;
       }
+      case Register::kCommandAccelLimit: {
+        command_.accel_limit = ReadAcceleration(value);
+        return 0;
+      }
+      case Register::kCommandVelocityLimit: {
+        command_.velocity_limit = ReadVelocity(value);
+        return 0;
+      }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {
         command_.feedforward_Nm = ReadTorque(value);
@@ -439,6 +458,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kQCurrent:
       case Register::kDCurrent:
       case Register::kAbsPosition:
+      case Register::kTrajectoryComplete:
       case Register::kRezeroState:
       case Register::kVoltage:
       case Register::kTorque:
@@ -491,6 +511,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kAbsPosition: {
         return ScalePosition(abs_port_->status().position, type);
+      }
+      case Register::kTrajectoryComplete: {
+        return IntMapping(bldc_.status().trajectory_done ? 1 : 0, type);
       }
       case Register::kRezeroState: {
         return IntMapping(bldc_.status().rezeroed ? 1 : 0, type);
@@ -557,6 +580,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kCommandTimeout:
       case Register::kStayWithinTimeout: {
         return ScaleTime(command_.timeout_s, type);
+      }
+      case Register::kCommandVelocityLimit: {
+        return ScaleVelocity(command_.velocity_limit, type);
+      }
+      case Register::kCommandAccelLimit: {
+        return ScaleAcceleration(command_.accel_limit, type);
       }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {

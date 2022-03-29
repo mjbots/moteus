@@ -377,6 +377,12 @@ class BldcServo::Impl {
     if (next->timeout_s == 0.0f) {
       next->timeout_s = config_.default_timeout_s;
     }
+    if (std::isnan(next->velocity_limit)) {
+      next->velocity_limit = config_.default_velocity_limit;
+    }
+    if (std::isnan(next->accel_limit)) {
+      next->accel_limit = config_.default_accel_limit;
+    }
 
     telemetry_data_ = *next;
 
@@ -1266,6 +1272,7 @@ class BldcServo::Impl {
     if (!position_pid_active || force_clear == kAlwaysClear) {
       status_.pid_position.Clear();
       status_.control_position = {};
+      status_.control_velocity = {};
     }
   }
 
@@ -1885,6 +1892,7 @@ class BldcServo::Impl {
     if (!target_position) {
       status_.pid_position.Clear();
       status_.control_position = {};
+      status_.control_velocity = {};
 
       // In this region, we still apply feedforward torques if they
       // are present.
