@@ -14,6 +14,7 @@
 
 #include "fw/firmware_info.h"
 
+#include "fw/measured_hw_rev.h"
 #include "fw/moteus_hw.h"
 
 namespace moteus {

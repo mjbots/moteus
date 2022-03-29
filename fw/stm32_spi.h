@@ -20,6 +20,8 @@
 
 #include "hal/spi_api.h"
 
+#include "fw/ccm.h"
+
 namespace moteus {
 
 class Stm32Spi {

@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -428,7 +428,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
       case Register::kRezero: {
         command_.rezero_position = ReadPosition(value);
-        command_.mode = BldcServo::kStopped;
+        command_.mode = BldcServo::Mode::kStopped;
         command_valid_ = true;
         return 0;
       }

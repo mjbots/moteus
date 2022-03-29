@@ -16,9 +16,6 @@
 
 namespace moteus {
 
-// The measured version of MOTEUS_HW_REV
-extern volatile uint8_t g_measured_hw_rev;
-
 // r1 silk
 // #define MOTEUS_HW_REV 0
 
@@ -209,13 +206,6 @@ constexpr int kCompatibleHwRev[] = {
 
 #define MOTEUS_ABS_SCL PB_8
 #define MOTEUS_ABS_SDA PB_9
-
-#if defined(TARGET_STM32G4)
-#define MOTEUS_CCM_ATTRIBUTE __attribute__ ((section (".ccmram")))
-#else
-#error "Unknown target"
-#endif
-
 
 #define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
 #define MOTEUS_FIRMWARE_VERSION 0x000104

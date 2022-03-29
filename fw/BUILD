@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,8 +26,15 @@ COPTS = [
 cc_library(
     name = "common",
     hdrs = [
+        "bldc_servo_position.h",
+        "bldc_servo_structs.h",
+        "ccm.h",
+        "error.h",
         "foc.h",
         "math.h",
+        "measured_hw_rev.h",
+        "pid.h",
+        "simple_pi.h",
         "torque_model.h",
         "stm32_i2c_timing.h",
     ],
@@ -35,7 +42,10 @@ cc_library(
         "foc.cc",
     ],
     deps = [
+        "@com_github_mjbots_mjlib//mjlib/base:limit",
+        "@com_github_mjbots_mjlib//mjlib/base:visitor",
         "@com_github_mjbots_mjlib//mjlib/micro:atomic_event_queue",
+        "@com_github_mjbots_mjlib//mjlib/micro:error_code",
     ],
     copts = COPTS,
 )
@@ -83,7 +93,6 @@ MOTEUS_SOURCES = [
     "bootloader.h",
     "drv8323.h",
     "drv8323.cc",
-    "error.h",
     "error.cc",
     "hardfault.s",
     "firmware_info.h",
@@ -94,8 +103,6 @@ MOTEUS_SOURCES = [
     "moteus_hw.h",
     "millisecond_timer.h",
     "motor_driver.h",
-    "pid.h",
-    "simple_pi.h",
     "stm32_i2c.h",
     "stm32_spi.h",
     "stm32_serial.h",
@@ -112,13 +119,11 @@ MOTEUS_DEPS = [
     ":git_info",
     "@com_github_mjbots_mjlib//mjlib/base:assert",
     "@com_github_mjbots_mjlib//mjlib/base:inplace_function",
-    "@com_github_mjbots_mjlib//mjlib/base:limit",
     "@com_github_mjbots_mjlib//mjlib/base:windowed_average",
     "@com_github_mjbots_mjlib//mjlib/micro:async_exclusive",
     "@com_github_mjbots_mjlib//mjlib/micro:async_stream",
     "@com_github_mjbots_mjlib//mjlib/micro:callback_table",
     "@com_github_mjbots_mjlib//mjlib/micro:command_manager",
-    "@com_github_mjbots_mjlib//mjlib/micro:error_code",
     "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
     "@com_github_mjbots_mjlib//mjlib/micro:pool_ptr",
     "@com_github_mjbots_mjlib//mjlib/micro:telemetry_manager",
@@ -176,6 +181,7 @@ genrule(
 cc_test(
     name = "test",
     srcs = [
+        "test/bldc_servo_position_test.cc",
         "test/foc_test.cc",
         "test/math_test.cc",
         "test/stm32_i2c_timing_test.cc",

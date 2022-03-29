@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 
 #include "mjlib/base/inplace_function.h"
 
+#include "fw/ccm.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_spi.h"
 

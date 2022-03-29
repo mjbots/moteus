@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -140,7 +140,7 @@ class BoardDebug::Impl {
       motor_cal_mode_ = kNoMotorCal;
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kStopped;
+      command.mode = BldcServo::Mode::kStopped;
 
       bldc_->Command(command);
 
@@ -166,7 +166,7 @@ class BoardDebug::Impl {
           motor_cal_mode_ = kNoMotorCal;
 
           BldcServo::CommandData command;
-          command.mode = BldcServo::kStopped;
+          command.mode = BldcServo::Mode::kStopped;
 
           bldc_->Command(command);
 
@@ -198,7 +198,7 @@ class BoardDebug::Impl {
     }
 
     BldcServo::CommandData command;
-    command.mode = BldcServo::kVoltageFoc;
+    command.mode = BldcServo::Mode::kVoltageFoc;
 
     command.theta = (cal_phase_ / 65536.0f) * 2.0f * kPi;
     command.voltage = cal_magnitude_;
@@ -232,7 +232,7 @@ class BoardDebug::Impl {
 
     if (cmd_text == "stop") {
       BldcServo::CommandData command;
-      command.mode = BldcServo::kStopped;
+      command.mode = BldcServo::Mode::kStopped;
 
       bldc_->Command(command);
       WriteOk(response);
@@ -250,7 +250,7 @@ class BoardDebug::Impl {
       }
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kPwm;
+      command.mode = BldcServo::Mode::kPwm;
       command.pwm.a = std::strtof(pwm1_str.data(), nullptr);
       command.pwm.b = std::strtof(pwm2_str.data(), nullptr);
       command.pwm.c = std::strtof(pwm3_str.data(), nullptr);
@@ -273,7 +273,7 @@ class BoardDebug::Impl {
       const float magnitude = std::strtof(magnitude_str.data(), nullptr);
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kVoltageFoc;
+      command.mode = BldcServo::Mode::kVoltageFoc;
 
       command.theta = phase;
       command.voltage = magnitude;
@@ -342,7 +342,7 @@ class BoardDebug::Impl {
       }
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kVoltage;
+      command.mode = BldcServo::Mode::kVoltage;
       command.phase_v.a = std::strtof(a_str.data(), nullptr);
       command.phase_v.b = std::strtof(b_str.data(), nullptr);
       command.phase_v.c = std::strtof(c_str.data(), nullptr);
@@ -365,7 +365,7 @@ class BoardDebug::Impl {
       const float q_V = std::strtof(q_str.data(), nullptr);
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kVoltageDq;
+      command.mode = BldcServo::Mode::kVoltageDq;
 
       command.d_V = d_V;
       command.q_V = q_V;
@@ -388,7 +388,7 @@ class BoardDebug::Impl {
       const float q = std::strtof(q_str.data(), nullptr);
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kCurrent;
+      command.mode = BldcServo::Mode::kCurrent;
 
       command.i_d_A = d;
       command.i_q_A = q;
@@ -424,10 +424,10 @@ class BoardDebug::Impl {
       }
 
       command.mode =
-          (cmd_text == "pos") ? BldcServo::kPosition :
-          (cmd_text == "tmt") ? BldcServo::kPositionTimeout :
-          (cmd_text == "zero") ? BldcServo::kZeroVelocity :
-          BldcServo::kStopped;
+          (cmd_text == "pos") ? BldcServo::Mode::kPosition :
+          (cmd_text == "tmt") ? BldcServo::Mode::kPositionTimeout :
+          (cmd_text == "zero") ? BldcServo::Mode::kZeroVelocity :
+          BldcServo::Mode::kStopped;
 
       command.position = pos;
       command.velocity = vel;
@@ -462,7 +462,7 @@ class BoardDebug::Impl {
         return;
       }
 
-      command.mode = BldcServo::kStayWithinBounds;
+      command.mode = BldcServo::Mode::kStayWithinBounds;
 
       command.bounds_min = min_pos;
       command.bounds_max = max_pos;
@@ -493,7 +493,7 @@ class BoardDebug::Impl {
 
       BldcServo::CommandData command;
 
-      command.mode = BldcServo::kMeasureInductance;
+      command.mode = BldcServo::Mode::kMeasureInductance;
 
       command.d_V = volt;
       command.meas_ind_period = period;
@@ -506,7 +506,7 @@ class BoardDebug::Impl {
 
     if (cmd_text == "brake") {
       BldcServo::CommandData command;
-      command.mode = BldcServo::kBrake;
+      command.mode = BldcServo::Mode::kBrake;
       bldc_->Command(command);
       WriteOk(response);
       return;
@@ -522,7 +522,7 @@ class BoardDebug::Impl {
       const float index_value = std::strtof(pos_value.data(), nullptr);
 
       BldcServo::CommandData command;
-      command.mode = BldcServo::kStopped;
+      command.mode = BldcServo::Mode::kStopped;
 
       command.set_position = index_value;
 
@@ -533,7 +533,7 @@ class BoardDebug::Impl {
 
     if (cmd_text == "rezero") {
       BldcServo::CommandData command;
-      command.mode = BldcServo::kStopped;
+      command.mode = BldcServo::Mode::kStopped;
 
       const auto pos_value = tokenizer.next();
       command.rezero_position =
