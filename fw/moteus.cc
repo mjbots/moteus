@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -374,6 +374,7 @@ int main(void) {
       moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
       abs_port.PollMillisecond();
+      system_info.SetCanResetCount(fdcan_micro_server.can_reset_count());
 
       old_time = new_time;
     }

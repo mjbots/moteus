@@ -1,4 +1,4 @@
-// Copyright 2015-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2015-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,12 +31,14 @@ struct SystemInfoData {
   uint32_t pool_available = 0;
 
   uint32_t idle_rate = 0;
+  uint32_t can_reset_count = 0;
 
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(pool_size));
     a->Visit(MJ_NVP(pool_available));
     a->Visit(MJ_NVP(idle_rate));
+    a->Visit(MJ_NVP(can_reset_count));
   }
 };
 }
@@ -66,6 +68,10 @@ class SystemInfo::Impl {
     data_updater_();
   }
 
+  void SetCanResetCount(uint32_t value) {
+    data_.can_reset_count = value;
+  }
+
   mjlib::micro::Pool& pool_;
 
   uint8_t ms_count_ = 0;
@@ -82,6 +88,10 @@ SystemInfo::~SystemInfo() {}
 
 void SystemInfo::PollMillisecond() {
   impl_->PollMillsecond();
+}
+
+void SystemInfo::SetCanResetCount(uint32_t value) {
+  impl_->SetCanResetCount(value);
 }
 
 }

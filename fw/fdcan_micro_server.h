@@ -1,4 +1,4 @@
-// Copyright 2019-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2019-2022 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,6 +68,12 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
   void Poll() {
     if (!current_read_header_) { return; }
 
+    const auto status = fdcan_->status();
+    if (status.BusOff) {
+      fdcan_->RecoverBusOff();
+      can_reset_count_++;
+    }
+
     const bool got_data = fdcan_->Poll(&fdcan_header_, current_read_data_);
     if (!got_data) { return; }
 
@@ -114,6 +120,8 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
     return 0;
   }
 
+  uint32_t can_reset_count() const { return can_reset_count_; }
+
  private:
   FDCan* const fdcan_;
 
@@ -124,6 +132,7 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
   FDCAN_RxHeaderTypeDef fdcan_header_ = {};
   char buf_[64] = {};
   uint32_t can_prefix_ = 0;
+  uint32_t can_reset_count_ = 0;
 };
 
 }

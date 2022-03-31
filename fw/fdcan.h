@@ -116,6 +116,8 @@ class FDCan {
   /// @return true if a packet was available.
   bool Poll(FDCAN_RxHeaderTypeDef* header, mjlib::base::string_span);
 
+  void RecoverBusOff();
+
   FDCAN_ProtocolStatusTypeDef status();
 
   struct Config {
