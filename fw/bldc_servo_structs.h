@@ -152,6 +152,8 @@ struct BldcServoStatus {
   float velocity = 0.0f;
   float torque_Nm = 0.0f;
 
+  float velocity_filt = 0.0f;
+
   SimplePI::State pid_d;
   SimplePI::State pid_q;
   PID::State pid_position;
@@ -245,6 +247,8 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(unwrapped_position));
     a->Visit(MJ_NVP(velocity));
     a->Visit(MJ_NVP(torque_Nm));
+
+    a->Visit(MJ_NVP(velocity_filt));
 
     a->Visit(MJ_NVP(pid_d));
     a->Visit(MJ_NVP(pid_q));
@@ -503,6 +507,12 @@ struct BldcServoConfig {
   // port's configured value shortly after startup.
   bool rezero_from_abs = false;
 
+  // When starting position control from the "stopped" state, the
+  // control velocity will be initialized from 'velocity_filt'.  If
+  // the absolute value is less than this, then it will be treated as
+  // exactly 0.0.
+  float velocity_zero_capture_threshold = 0.05f;
+
   // A bitfield that selects one of several things to emit from the
   // debug UART at full control rate.
   uint32_t emit_debug = 0;
@@ -570,6 +580,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(velocity_filter_length));
     a->Visit(MJ_NVP(cooldown_cycles));
     a->Visit(MJ_NVP(rezero_from_abs));
+    a->Visit(MJ_NVP(velocity_zero_capture_threshold));
     a->Visit(MJ_NVP(emit_debug));
     a->Visit(MJ_NVP(encoder_filter));
   }

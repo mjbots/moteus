@@ -209,7 +209,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 2970 ||
+        result.final_timer > 3000 ||
         result.total_timer < 4250) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -1630,9 +1630,9 @@ class Application {
       const auto spinning_dut = dut_->servo_stats();
       const auto measured_speed =
           spinning_dut.unwrapped_position - initial_dut.unwrapped_position;
-      if (std::abs(measured_speed - kDesiredSpeed) > 0.05) {
+      if (std::abs(measured_speed - kDesiredSpeed) > 0.052) {
         throw mjlib::base::system_error::einval(
-            fmt::format("Base speed not achieved |{} - {}| > 0.05",
+            fmt::format("Base speed not achieved |{} - {}| > 0.052",
                         measured_speed, kDesiredSpeed));
       }
 
@@ -1657,9 +1657,9 @@ class Application {
       const auto slow_speed =
           (slow_dut.unwrapped_position -
            spinning_dut.unwrapped_position) / 2.0;
-      if (std::abs(slow_speed - 0.5 * kDesiredSpeed) > 0.05) {
+      if (std::abs(slow_speed - 0.5 * kDesiredSpeed) > 0.052) {
         throw mjlib::base::system_error::einval(
-            fmt::format("DUT did not slow down |{} - {}| > 0.05",
+            fmt::format("DUT did not slow down |{} - {}| > 0.052",
                         slow_speed, 0.5 * kDesiredSpeed));
       }
 

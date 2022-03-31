@@ -962,6 +962,8 @@ class BldcServo::Impl {
           static_cast<float>(velocity_filter_.size());
     }
 
+    ISR_UpdateFilteredValue(status_.velocity, &status_.velocity_filt, 0.01f);
+
     status_.unwrapped_position =
         (status_.unwrapped_position_raw >> 32) / motor_scale16_;
 

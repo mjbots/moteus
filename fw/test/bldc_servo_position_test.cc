@@ -48,6 +48,11 @@ struct Context {
     status.unwrapped_position_raw = to_raw(status.unwrapped_position);
   }
 
+  void set_velocity(float val) {
+    status.velocity = val;
+    status.velocity_filt = val;
+  }
+
   int64_t to_raw(double val) const {
     return static_cast<int64_t>(val * motor_scale16 * (1ull << 32));
   }
@@ -81,6 +86,58 @@ BOOST_AUTO_TEST_CASE(StartupPositionCapture) {
   ctx.Call();
   BOOST_TEST(ctx.status.control_position.value() == ctx.status.unwrapped_position_raw);
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+}
+
+BOOST_AUTO_TEST_CASE(StartupVelocityCapture,
+                     * boost::unit_test::tolerance(1e-2)) {
+  struct TestCase {
+    double input_velocity;
+    double capture_threshold;
+
+    double expected_capture;
+  };
+
+  TestCase test_cases[] = {
+    // a variance of 0.001 is a stddev of 0.0316, 6x that is 0.190
+    { 0.0,  0.1,    0.00, },
+    { 1.0,  0.1,    1.00, },
+    {-1.0,  0.1,   -1.00, },
+    { 0.01, 0.1,    0.00, },
+    { 0.09, 0.1,    0.00, },
+    { 0.11, 0.1,    0.11, },
+    {-0.09, 0.1,    0.00, },
+    {-0.11, 0.1,   -0.11, },
+
+    { 0.11, 0.2,    0.00,  },
+    { 0.19, 0.2,    0.00,  },
+    { 0.21, 0.2,    0.21, },
+
+    // and with the threshold set to 0, anything is captured
+    { 0.01, 0.0,    0.01 },
+    {-0.01, 0.0,   -0.01 },
+  };
+
+  for (const auto& test_case : test_cases) {
+    BOOST_TEST_CONTEXT("Case "
+                       << test_case.input_velocity << " "
+                       << test_case.capture_threshold) {
+      Context ctx;
+
+      ctx.data.position = 10.0;
+      ctx.data.velocity = 0.0;
+      ctx.data.accel_limit = 1.0f;
+      ctx.data.velocity_limit = 1.0f;
+
+      ctx.status.velocity = test_case.input_velocity;
+      ctx.status.velocity_filt = test_case.input_velocity;
+      ctx.config.velocity_zero_capture_threshold = test_case.capture_threshold;
+
+      BOOST_TEST(!ctx.status.control_velocity);
+      ctx.Call();
+      BOOST_TEST(ctx.status.control_velocity.value() ==
+                 test_case.expected_capture);
+    }
+  }
 }
 
 BOOST_AUTO_TEST_CASE(StartupPositionSet) {
@@ -359,7 +416,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
       ctx.data.accel_limit = test_case.a;
       ctx.data.velocity_limit = test_case.v;
       ctx.set_position(test_case.x0);
-      ctx.status.velocity = test_case.v0;
+      ctx.set_velocity(test_case.v0);
 
       double old_vel = test_case.v0;
       double old_pos = test_case.x0;
@@ -494,7 +551,7 @@ BOOST_AUTO_TEST_CASE(StopPositionWithLimitOvershoot, * boost::unit_test::toleran
   ctx.data.velocity = 1.0f;
   ctx.data.accel_limit = 2.0f;
   ctx.data.velocity_limit = 3.0f;
-  ctx.status.velocity = 2.0f;
+  ctx.set_velocity(2.0f);
   ctx.set_position(0.0f);
 
   // Here, we'll get stopped at 0.2 as try to slow down and come back

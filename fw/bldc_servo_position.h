@@ -288,7 +288,13 @@ class BldcServoPosition {
       status->control_velocity = velocity;
     } else if (!status->control_position) {
       status->control_position = status->unwrapped_position_raw;
-      status->control_velocity = status->velocity;
+
+      if (std::abs(status->velocity_filt) <
+          config->velocity_zero_capture_threshold) {
+        status->control_velocity = 0.0f;
+      } else {
+        status->control_velocity = status->velocity_filt;
+      }
     }
 
     if (!status->trajectory_done) {
