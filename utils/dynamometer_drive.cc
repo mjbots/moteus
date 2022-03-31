@@ -2128,8 +2128,8 @@ class Application {
         fmt::format("d pos 3.0 -0.5 {} v0.5 a0.2", options_.max_torque_Nm));
 
     double old_vel = 0.0;
-    const double step_s = 0.2;
-    const int loops = 14 / 0.2;
+    const double step_s = 0.25;
+    const int loops = 14 / step_s;
     double done_time = 0.0;
 
     for (int i = 0; i < loops; i++) {
@@ -2163,9 +2163,9 @@ class Application {
                           fixture_velocity));
         }
         const double measured_accel = (fixture_velocity - old_vel) / step_s;
-        if (std::abs(measured_accel) > 1.7) {
+        if (std::abs(measured_accel) > 1.8) {
           throw mjlib::base::system_error::einval(
-              fmt::format("Measured acceleration exceed limit |{}| > 1.7",
+              fmt::format("Measured acceleration exceeds limit |{}| > 1.8",
                           measured_accel));
         }
       }
