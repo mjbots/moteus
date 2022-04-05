@@ -1095,6 +1095,9 @@ limits are as follows:
   case, except that the control velocity is allowed to increase or
   decrease arbitrarily.
 
+NOTE: This is limited internally to be no more than
+`servo.max_velocity`.
+
 ## `servo.voltage_mode_control` ##
 
 When set to non-zero, the current control loop is not closed, and all
@@ -1191,10 +1194,6 @@ beyond the factory configured value can result in hardware damage.
 ## `servo.max_velocity` ##
 
 Output power will be limited if the velocity exceeds this threshold.
-
-NOTE: If this value is lower than the configured
-`servo.velocity_limit`, then the resulting behavior is unlikely to be
-useful.
 
 ## `servo.max_velocity_derate` ##
 

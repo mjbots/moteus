@@ -383,6 +383,17 @@ class BldcServo::Impl {
     if (std::isnan(next->accel_limit)) {
       next->accel_limit = config_.default_accel_limit;
     }
+    // If we are going to limit at all, ensure that we have a velocity
+    // limit, and that is is no more than the configured maximum
+    // velocity.
+    if (!std::isnan(next->velocity_limit) || !std::isnan(next->accel_limit)) {
+      if (std::isnan(next->velocity_limit)) {
+        next->velocity_limit = config_.max_velocity;
+      } else {
+        next->velocity_limit =
+            std::min(next->velocity_limit, config_.max_velocity);
+      }
+    }
 
     telemetry_data_ = *next;
 
