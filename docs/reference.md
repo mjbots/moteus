@@ -1547,7 +1547,7 @@ https://www.youtube.com/watch?v=f6WtDFWuxuQ
 
 For moteus to operate without damage, the XT30 connectors used to transmit power must make a solid connection that is non-intermittent.  As with poor soldering, an intermittent connection can cause inductive spikes, which will destroy components on the controller.
 
-When connectors are functional, moderate insertion force should be required and the connectors should not "wiggle" too much after insertion.  Strain relief and mechanical capturing may be required if the cables are able to move during system motion.
+When connectors are functional, moderate insertion force should be required and the connectors should not "wiggle" much after insertion.
 
 The XT30 is not rated for any significant amount of mechanical force when mated.  For any application where cables may flex, strain relief should be used such that no force is applied to the connector.  The connector may be damaged if a system goes "out of control" even in one instance, although milder mechanical stress may cause accelerated fatigue and failure.
 
