@@ -46,7 +46,7 @@ And the "Current Controller" implements the following control law:
 
 ```
 current_error = command_current - feedback_current
-current_integrator = limit(current_integrator + kp * current_error, ilimit)
+current_integrator = limit(current_integrator + ki * current_error, ilimit)
 voltage = current_integrator + kp * current_error
 ```
 
