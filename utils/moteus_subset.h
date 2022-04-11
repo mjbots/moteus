@@ -46,9 +46,7 @@ struct ServoStats {
   };
   Fault fault = kNone;
 
-  uint16_t position_raw = 0;
-  int64_t unwrapped_position_raw = 0;
-  float unwrapped_position = 0.0f;
+  float position = 0.0f;
 
   float torque_Nm = 0.0f;
 
@@ -57,18 +55,28 @@ struct ServoStats {
 
   float velocity = 0.0f;
 
+  struct PidPosition {
+    float error = 0.0;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(error));
+    }
+  };
+
+  PidPosition pid_position;
+
   std::optional<int64_t> control_position;
 
   uint32_t final_timer = 0;
   uint32_t total_timer = 0;
 
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(mode));
     a->Visit(MJ_NVP(fault));
-    a->Visit(MJ_NVP(position_raw));
-    a->Visit(MJ_NVP(unwrapped_position_raw));
-    a->Visit(MJ_NVP(unwrapped_position));
+    a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(torque_Nm));
 
     a->Visit(MJ_NVP(d_A));
@@ -76,6 +84,7 @@ struct ServoStats {
 
     a->Visit(MJ_NVP(velocity));
 
+    a->Visit(MJ_NVP(pid_position));
     a->Visit(MJ_NVP(control_position));
 
     a->Visit(MJ_NVP(final_timer));

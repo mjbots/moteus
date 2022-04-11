@@ -341,3 +341,77 @@ def calibrate(parsed,
     }
 
     return result
+
+
+class HallCalibrationResult:
+    def __init__(self):
+        self.offset = None
+        self.sign = None
+        self.polarity = None
+        self.phase_invert = None
+
+        self.errors = []
+
+    def __repr__(self):
+        return json.dumps({
+            "offset": self.offset,
+            "sign": self.sign,
+            "polarity": self.polarity,
+            "phase_invert": self.phase_invert,
+            })
+
+    def to_json(self):
+        return {
+            'offset': self.offset,
+            'sign': self.sign,
+            'polarity': self.polarity,
+            'phase_invert': self.phase_invert,
+        }
+
+
+def calibrate_hall(data,
+                   desired_direction=1,
+                   allow_phase_invert=True):
+    result = HallCalibrationResult()
+
+    hall_mapping = [
+        0, 0, 2, 1, 4, 5, 3, 0,
+    ]
+
+    states_seen = [x[1] for x in data]
+    counts = {}
+    for x in states_seen:
+        counts[x] = counts.get(x, 0) + 1
+    if len(counts) != 6:
+        raise RuntimeError(f"{len(counts)} hall states seen, expected 6")
+
+    # For now, assume 120 deg separation.
+    if counts.get(0, 0) != 0 or counts.get(7, 0) != 0:
+        raise RuntimeError(
+            "We currently only support halls with 120 degree separation")
+
+    # Find the offset.
+    closest_to_zero = min([(abs(_wrap_neg_pi_to_pi(x[0])), x[1]) for x in data])
+    result.offset = -hall_mapping[closest_to_zero[1]]
+
+    start_count = hall_mapping[data[0][1]]
+    next_count = start_count
+    for x in data[1:]:
+        next_count = hall_mapping[x[1]]
+        if next_count != start_count:
+            break
+
+    result.sign = 1 if ((next_count + 6 + 3 - start_count) % 6 - 3) > 0 else -1
+
+    result.polarity = 0
+    result.phase_invert = 0
+
+    if desired_direction == -1:
+        if not allow_phase_invert:
+            raise RuntimeError("Requested motor direction not possible "
+                               "with current firmware version")
+
+        result.sign *= -1
+        result.phase_invert = 1
+
+    return result

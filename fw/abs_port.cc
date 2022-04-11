@@ -19,21 +19,6 @@
 namespace micro = mjlib::micro;
 
 namespace {
-const uint8_t AS5048_REG_AGC = 0xFA;
-const uint8_t AS5048_REG_DIAG = 0xFB;
-const uint8_t AS5048_REG_MAG_HIGH = 0xFC;
-const uint8_t AS5048_REG_MAG_LOW = 0xFD;
-const uint8_t AS5048_REG_ANGLE_HIGH = 0xFE;
-const uint8_t AS5048_REG_ANGLE_LOW = 0xFF;
-
-const uint8_t AS5600_REG_STATUS = 0x0B;
-const uint8_t AS5600_REG_RAW_ANGLE_HIGH = 0x0C;
-const uint8_t AS5600_REG_RAW_ANGLE_LOW = 0x0D;
-const uint8_t AS5600_REG_ANGLE_HIGH = 0x0E;
-const uint8_t AS5600_REG_ANGLE_LOW = 0x0F;
-const uint8_t AS5600_REG_AGC = 0x1A;
-const uint8_t AS5600_REG_MAG_HIGH = 0x1B;
-const uint8_t AS5600_REG_MAG_LOW = 0x1C;
 }
 
 namespace moteus {

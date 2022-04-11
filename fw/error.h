@@ -42,6 +42,9 @@ enum class errc {
   kOverTemperature = 38,
   kStartOutsideLimit = 39,
   kUnderVoltage = 40,
+  kConfigChanged = 41,
+  kThetaInvalid = 42,
+  kPositionInvalid = 43,
 };
 
 mjlib::micro::error_code make_error_code(errc);

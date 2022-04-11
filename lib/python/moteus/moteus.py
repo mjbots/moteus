@@ -147,6 +147,7 @@ class Register(enum.IntEnum):
     ABS_POSITION = 0x006
     TRAJECTORY_COMPLETE = 0x00b
     REZERO_STATE = 0x00c
+    HOME_STATE = 0x00c
     VOLTAGE = 0x00d
     TEMPERATURE = 0x00e
     FAULT = 0x00f
@@ -179,6 +180,7 @@ class Register(enum.IntEnum):
     COMMAND_TIMEOUT = 0x027
     COMMAND_VELOCITY_LIMIT = 0x028
     COMMAND_ACCEL_LIMIT = 0x029
+    COMMAND_FIXED_VOLTAGE_OVERRIDE = 0x02a
 
     POSITION_KP = 0x030
     POSITION_KI = 0x031
@@ -194,6 +196,31 @@ class Register(enum.IntEnum):
     COMMAND_WITHIN_MAX_TORQUE = 0x045
     COMMAND_WITHIN_TIMEOUT = 0x046
 
+    ENCODER_0_POSITION = 0x050
+    ENCODER_0_VELOCITY = 0x051
+    ENCODER_1_POSITION = 0x052
+    ENCODER_1_VELOCITY = 0x053
+    ENCODER_2_POSITION = 0x054
+    ENCODER_2_VELOCITY = 0x055
+
+    ENCODER_VALIDITY = 0x058
+    AUX1_GPIO_COMMAND = 0x05c
+    AUX2_GPIO_COMMAND = 0x05d
+    AUX1_GPIO_STATUS = 0x05e
+    AUX2_GPIO_STATUS = 0x05f
+
+    AUX1_ANALOG_IN1 = 0x060
+    AUX1_ANALOG_IN2 = 0x061
+    AUX1_ANALOG_IN3 = 0x062
+    AUX1_ANALOG_IN4 = 0x063
+    AUX1_ANALOG_IN5 = 0x064
+
+    AUX2_ANALOG_IN1 = 0x068
+    AUX2_ANALOG_IN2 = 0x069
+    AUX2_ANALOG_IN3 = 0x06a
+    AUX2_ANALOG_IN4 = 0x06b
+    AUX2_ANALOG_IN5 = 0x06c
+
     REGISTER_MAP_VERSION = 0x102
     SERIAL_NUMBER = 0x120
     SERIAL_NUMBER1 = 0x120
@@ -201,6 +228,8 @@ class Register(enum.IntEnum):
     SERIAL_NUMBER3 = 0x122
 
     REZERO = 0x130
+    SET_OUTPUT_NEAREST = 0x130
+    SET_OUTPUT_EXACT = 0x131
 
 
 class Mode(enum.IntEnum):
@@ -219,6 +248,14 @@ class Mode(enum.IntEnum):
     STAY_WITHIN = 13
 
 
+def _merge_resolutions(a, b):
+    if a == mp.IGNORE:
+        return b
+    if b == mp.IGNORE:
+        return a
+    return max(a, b)
+
+
 class QueryResolution:
     mode = mp.INT8
     position = mp.F32
@@ -229,6 +266,7 @@ class QueryResolution:
     abs_position = mp.IGNORE
     trajectory_complete = mp.IGNORE
     rezero_state = mp.IGNORE
+    home_state = mp.IGNORE
     voltage = mp.INT8
     temperature = mp.INT8
     fault = mp.INT8
@@ -251,6 +289,13 @@ class PositionResolution:
     watchdog_timeout = mp.F32
     velocity_limit = mp.F32
     accel_limit = mp.F32
+    fixed_voltage_override = mp.F32
+
+
+class VFOCResolution:
+    theta = mp.F32
+    voltage = mp.F32
+    theta_rate = mp.F32
 
 
 class VFOCResolution:
@@ -347,7 +392,7 @@ def parse_register(parser, register, resolution):
         return parser.read_position(resolution)
     elif register == Register.TRAJECTORY_COMPLETE:
         return parser.read_int(resolution)
-    elif register == Register.REZERO_STATE:
+    elif register == Register.HOME_STATE or register == Register.REZERO_STATE:
         return parser.read_int(resolution)
     elif register == Register.VOLTAGE:
         return parser.read_voltage(resolution)
@@ -365,6 +410,39 @@ def parse_register(parser, register, resolution):
         return parser.read_torque(resolution)
     elif register == Register.POSITION_COMMAND:
         return parser.read_torque(resolution)
+    elif register == Register.ENCODER_0_POSITION:
+        return parser.read_position(resolution)
+    elif register == Register.ENCODER_0_VELOCITY:
+        return parser.read_velocity(resolution)
+    elif register == Register.ENCODER_1_POSITION:
+        return parser.read_position(resolution)
+    elif register == Register.ENCODER_1_VELOCITY:
+        return parser.read_velocity(resolution)
+    elif register == Register.ENCODER_2_POSITION:
+        return parser.read_position(resolution)
+    elif register == Register.ENCODER_2_VELOCITY:
+        return parser.read_velocity(resolution)
+    elif register == Register.ENCODER_VALIDITY:
+        return parser.read_int(resolution)
+    elif register == Register.AUX1_GPIO_COMMAND:
+        return parser.read_int(resolution)
+    elif register == Register.AUX2_GPIO_COMMAND:
+        return parser.read_int(resolution)
+    elif register == Register.AUX1_GPIO_STATUS:
+        return parser.read_int(resolution)
+    elif register == Register.AUX2_GPIO_STATUS:
+        return parser.read_int(resolution)
+    elif (register == Register.AUX1_ANALOG_IN1 or
+          register == Register.AUX1_ANALOG_IN2 or
+          register == Register.AUX1_ANALOG_IN3 or
+          register == Register.AUX1_ANALOG_IN4 or
+          register == Register.AUX1_ANALOG_IN5 or
+          register == Register.AUX2_ANALOG_IN1 or
+          register == Register.AUX2_ANALOG_IN2 or
+          register == Register.AUX2_ANALOG_IN3 or
+          register == Register.AUX2_ANALOG_IN4 or
+          register == Register.AUX2_ANALOG_IN5):
+        return parser.read_pwm(resolution)
     else:
         # We don't know what kind of value this is, so we don't know
         # the units.
@@ -509,7 +587,7 @@ class Controller:
 
         c2 = mp.WriteCombiner(writer, 0x10, int(Register.TRAJECTORY_COMPLETE), [
             qr.trajectory_complete,
-            qr.rezero_state,
+            _merge_resolutions(qr.rezero_state, qr.home_state),
             qr.voltage,
             qr.temperature,
             qr.fault,
@@ -575,19 +653,21 @@ class Controller:
         return self._extract(await self._get_transport().cycle(
             [self.make_stop(**kwargs)]))
 
-    def make_rezero(self, *,
-                    rezero=0.0,
-                    query=False):
+    def make_set_output(self, *,
+                        position=0.0,
+                        query=False,
+                        cmd=None
+    ):
         """Return a moteus.Command structure with data necessary to send a
-        rezero command."""
+        set output nearest command."""
 
         result = self._make_command(query=query)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_F32 | 0x01)
-        writer.write_varuint(Register.REZERO)
-        writer.write_f32(rezero)
+        writer.write_varuint(cmd)
+        writer.write_f32(position)
 
         if query:
             data_buf.write(self._query_data)
@@ -595,9 +675,41 @@ class Controller:
         result.data = data_buf.getvalue()
         return result
 
+    def make_set_output_nearest(self, *,
+                                position=0.0,
+                                query=False):
+        return self.make_set_output(
+            position=position, query=query, cmd=Register.SET_OUTPUT_NEAREST)
+
+    def make_set_output_exact(self, *,
+                              position=0.0,
+                              query=False):
+        return self.make_set_output(
+            position=position, query=query, cmd=Register.SET_OUTPUT_EXACT)
+
+    async def set_output(self, *args, cmd=None, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_set_output(**kwargs, cmd=cmd)]))
+
+    async def set_output_nearest(self, *args, **kwargs):
+        return self.set_output(cmd=Register.SET_OUTPUT_NEAREST, **kwargs)
+
+    async def set_output_exact(self, *args, **kwargs):
+        return self.set_output(cmd=Register.SET_OUTPUT_EXACT, **kwargs)
+
+
+    # For backwards compatibility, "*_output_nearest" used to be named
+    # "make/set_rezero".
+    def make_rezero(self, *,
+                    rezero=0.0,
+                    query=False):
+        return self.make_set_output(
+            position=rezero, query=query, cmd=Register.SET_OUTPUT_NEAREST)
+
     async def set_rezero(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
-            [self.make_rezero(**kwargs)]))
+            [self.make_rezero(**kwargs, cmd=cmd)]))
+
 
     def make_position(self,
                       *,
@@ -611,6 +723,7 @@ class Controller:
                       watchdog_timeout=None,
                       velocity_limit=None,
                       accel_limit=None,
+                      fixed_voltage_override=None,
                       query=False):
         """Return a moteus.Command structure with data necessary to send a
         position mode command with the given values."""
@@ -629,6 +742,7 @@ class Controller:
             pr.watchdog_timeout if watchdog_timeout is not None else mp.IGNORE,
             pr.velocity_limit if velocity_limit is not None else mp.IGNORE,
             pr.accel_limit if accel_limit is not None else mp.IGNORE,
+            pr.fixed_voltage_override if fixed_voltage_override is not None else mp.IGNORE,
         ]
 
         data_buf = io.BytesIO()
@@ -661,6 +775,8 @@ class Controller:
             writer.write_velocity(velocity_limit, pr.velocity_limit)
         if combiner.maybe_write():
             writer.write_accel(accel_limit, pr.accel_limit)
+        if combiner.maybe_write():
+            writer.write_voltage(fixed_voltage_override, pr.fixed_voltage_override)
 
         if query:
             data_buf.write(self._query_data)

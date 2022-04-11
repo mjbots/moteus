@@ -29,11 +29,11 @@ import mjlib.telemetry.file_reader as file_reader
 
 
 
-def wrap_int16(value):
-    while value > 32767:
-        value -= 65536
-    while value < -32768:
-        value += 65536
+def wrap_one(value):
+    while value > 0.5:
+        value -= 1.0
+    while value < -0.5:
+        value += 1.0
     return value
 
 
@@ -93,8 +93,8 @@ def main():
         for item in dut_servo_stats[start_position_index:]:
             this_position = item.data.position
             if cur_position:
-                delta = wrap_int16(this_position - cur_position)
-                if abs(total_position_delta + delta) >= 65536:
+                delta = wrap_one(this_position - cur_position)
+                if abs(total_position_delta + delta) >= 1.0:
                     return last_timestamp
 
                 total_position_delta += delta
@@ -152,7 +152,7 @@ def main():
             test["torque"] if type(test["torque"]) == float else 0.0))
 
         to_plot = [
-            (dut_servo_stats[bisect_left(dut_servo_stats, x[0])].data.position, x[1])
+            (wrap_one(dut_servo_stats[bisect_left(dut_servo_stats, x[0])].data.position), x[1])
             for x in timed_torque]
         to_plot.sort()
 

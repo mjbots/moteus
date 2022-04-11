@@ -38,6 +38,9 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kOverTemperature: return "over temperature";
       case errc::kStartOutsideLimit: return "start outside limit";
       case errc::kUnderVoltage: return "under voltage";
+      case errc::kConfigChanged: return "config changed";
+      case errc::kThetaInvalid: return "theta invalid";
+      case errc::kPositionInvalid: return "position invalid";
     }
     return "unknown";
   }

@@ -24,13 +24,13 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
-#include "fw/abs_port.h"
-#include "fw/as5047.h"
+#include "fw/aux_port.h"
 #include "fw/bldc_servo_structs.h"
 #include "fw/error.h"
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_hw.h"
 #include "fw/motor_driver.h"
+#include "fw/motor_position.h"
 #include "fw/pid.h"
 #include "fw/simple_pi.h"
 
@@ -67,9 +67,10 @@ class BldcServo {
             mjlib::micro::PersistentConfig*,
             mjlib::micro::TelemetryManager*,
             MillisecondTimer*,
-            AS5047*,
             MotorDriver*,
-            AbsPort*,
+            AuxPort*,
+            AuxPort*,
+            MotorPosition*,
             const Options&);
   ~BldcServo();
 
@@ -93,6 +94,7 @@ class BldcServo {
     float i_d_A = 0.0f;
     float i_q_A = 0.0f;
 
+    float q_comp_A = 0.0f;
     float torque_Nm = 0.0f;
 
     void Clear() {
@@ -111,6 +113,7 @@ class BldcServo {
       q_V = 0.0f;
       i_d_A = 0.0f;
       i_q_A = 0.0f;
+      q_comp_A = 0.0f;
       torque_Nm = 0.0f;
     }
 
@@ -122,6 +125,7 @@ class BldcServo {
       a->Visit(MJ_NVP(q_V));
       a->Visit(MJ_NVP(i_d_A));
       a->Visit(MJ_NVP(i_q_A));
+      a->Visit(MJ_NVP(q_comp_A));
       a->Visit(MJ_NVP(torque_Nm));
     }
   };
@@ -132,7 +136,14 @@ class BldcServo {
   const Status& status() const;
   const Config& config() const;
   const Control& control() const;
-  const Motor& motor() const;
+  const AuxPort::Status& aux1() const;
+  const AuxPort::Status& aux2() const;
+  const MotorPosition::Status& motor_position() const;
+  MotorPosition::Config* motor_position_config();
+
+  void SetOutputPositionNearest(float position);
+  void SetOutputPosition(float position);
+  void RequireReindex();
 
  private:
   class Impl;

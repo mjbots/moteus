@@ -127,6 +127,214 @@ system will usually perform better if as much of the desired control
 law as possible is formulated in terms of the built in position
 controller.
 
+## Encoder Configuration ##
+
+moteus includes an onboard on-axis magnetic encoder and supports a
+number of options for using external encoders.  To understand how to
+use them, we first need to know the two things that moteus needs
+encoders for:
+
+- *Commutation*: moteus needs to know the electrical relationship
+  between the stator and the rotor in order to apply torque.
+- *Output*: moteus needs to know the position and velocity of the
+  output shaft in order to follow commanded trajectories.
+
+By default, the onboard magnetic encoder is assumed to sense the
+rotor.  It is also used as the source for position and velocity of the
+output constrained by a configurable reduction ratio.
+
+Configuration is performed in 3 stages, first is the auxiliary port
+configuration, second is encoder source configuration, and finally is
+the output configuration.
+
+### Auxiliary Port ###
+
+There are two auxiliary ports on moteus, each with pins that can be
+used for various functions.
+
+ELECTRICAL NOTES:
+ * ALL PINS ARE 3.3V ONLY!
+ * The 3.3V supply pins can power external peripherals:
+   * r4.5: 50mA
+   * r4.8/11: 100mA
+
+The following capabilities can be used.  Some are supported on any
+pins, others only on select pins.
+
+#### Software Quadrature Input ####
+
+Pins: any
+
+The software quadrature feature uses GPIO pins to read incremental
+quadrature encoders.  It is capable of counting at 200,000 counts per
+second without error, but incurs processor overhead that increases
+with count rate.  Higher overhead means the latency to respond to CAN
+messages increases.
+
+#### Hall sensor ####
+
+Pins: any
+
+3 hall sensor inputs are required.  For many hall sensors, the pullup
+must be configured for the auxiliary port pin in question.
+
+When using hall effect sensors as the commutation source, calibration
+with moteus_tool requires the `--cal-hall` option be passed.
+
+#### Index ####
+
+Pins: any
+
+This is a single pin that is high when the encoder is in a known
+location.  It can be fed from the "I" signal of an ABI output, or a
+dedicated homing sensor.
+
+#### GPIO Input ####
+
+Pins: any
+
+Any pin may be designated as a GPIO input.  Its value may be read over
+the diagnostic or register protocols.
+
+#### I2C Master ####
+
+Pins: select
+
+Between 1 and 3 I2C devices may be periodically polled at rates up to
+200Hz.  The associated pins on moteus r4.5/8/11 have permanently
+configured 2kohm pullup resistors.
+
+#### SPI Master ####
+
+Pins: select
+
+A variety of SPI based peripherals are supported.  This mode is also
+used for the onboard encoder, which when enabled, claims the CLK,
+MOSI, and MISO pins on auxiliary port 1.
+
+#### Hardware Quadrature Input ####
+
+Pins: select
+
+Hardware quadrature pins use microcontroller peripherals to process
+quadrature input at any speed with no processor overhead.
+
+#### Sine/cosine ####
+
+Pins: select
+
+Analog sine/cosine inputs are supported with a configurable common
+mode voltage.
+
+#### Analog input ####
+
+Pins: select
+
+Arbitary analog inputs can be read either over the diagnostic or
+register protocol.
+
+#### UART ####
+
+Pins: select
+
+Nothing is supported here yet, but soon!
+
+### Pin Options ###
+
+The following table shows which pins can be used for the unique capabilities:
+
+| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART |
+|------------------|-----|-----|------|-------------|-----|---------|------|
+| Aux1 / ENC       |     |     |      |             |     |         |      |
+| 3.3V  (3)        | 1   |     |      |             |     |         |      |
+| C                | 2   | 1   | X    |             |     |         |      |
+| GND (G)          | 3   |     |      |             |     |         |      |
+| K                | 4   | 2   | CLK  | X           |     |         |      |
+| I                | 5   | 3   | MISO | X           |     |         |      |
+| O                | 6   | 4   | MOSI | X           |     |         |      |
+| Aux2 / ABS       |     |     |      |             |     |         |      |
+| 3.3V (3)         | 1   |     |      |             |     |         |      |
+|                  | 2   | 1   |      |             | SCL |         | RX   |
+|                  | 3   | 2   |      |             | SDA |         | TX   |
+| GND (G)          | 4   |     |      |             |     |         |      |
+
+Auxiliary port configuration is achieved in two steps.  First, the
+`aux[12].pins.X.mode` value is set to the proper capability for each
+pin.  `aux[12].pins.X.pull` can be used to configure an optional
+pullup or pulldown for some modes.  Second, the corresponding
+capabilities must be configured in one of the capability specific
+sections of `aux[12]`.  For instance, for each auxiliary port, the SPI
+configuration in `aux[12].spi` has a `mode` to select what the slave
+device is and a `rate_hz` to define the frequency of the SPI
+peripheral.
+
+For I2C ports, up to 3 different slave devices may be configured, in
+each of `aux[12].i2c.devices.[012]`.
+
+The diagnostic values in `aux[12]` can be used to monitor for errors
+from mis-configuration or mis-operation.
+
+### Source Configuration ###
+
+Once the auxiliary ports have been configured, next encoder sources
+should be configured in `motor_position.sources`.  Up to 3 sources may
+be configured, with the available types roughly corresponding to the
+categories available from the auxiliary ports.  Typically, source 0 is
+used for the sensor that is used for commutation.
+
+For each source `motor_position.sources.[012].aux_number` should be
+either "1" or "2", to select which auxiliary port the sensor should be
+read from.  `motor_position.sources.[012].type` selects the type of
+sensor.  For I2C based sources,
+`motor_position.sources.[012].i2c_device` selects *which* I2C device
+on that auxiliary port is used.
+
+For sources that are incremental only, like quadrature, a source level
+index may be configured in
+`motor_position.sources.[012].incremental_index`.  This should be used
+if the incremental source is needed to provide position for
+commutation.
+
+Each source can be marked as measuring the rotor or the output in
+`motor_position.sources.[012].reference`.
+
+Each source has configuration that determines how to map the raw value
+provided by the device into a rotary angle.  `cpr` is the number of
+counts per revolution, `offset` provides an integral count offset, and
+`sign` can be used to invert the reading.  The final reading is
+`(raw + offset) * sign / cpr`.
+
+Finally, each source has a configurable low pass filter, with cutoff
+frequency set by `motor_position.sources.[012].pll_filter_hz`.  It may
+be set to 0 to disable the filter.  If disabled no velocity will be
+interpolated on sensors that do not provide it natively.
+
+### Output Configuration ###
+
+The third major stage controls how the sources are used by the motor
+controller.  Some source selections may be left at -1, which disables
+that feature.
+
+`motor_position.commutation_source` selects which source is used to
+provide rotor position for commutation purposes.  It is typically left
+at source 0 and is required.
+
+`motor_position.output.source` selects which source is used to provide
+output position and velocity and is required.
+
+`motor_position.output.offset` and `motor_position.output.sign` are
+used to transform the output position to achieve a given zero point
+and rotational direction.
+
+`motor_position.output.reference_source` optionally configures a
+source that is used solely to disambiguate the output position at
+startup.  It could be a low-rate I2C based sensor for instance.
+
+Finally, `motor_position.rotor_to_output_ratio` defines the number of
+turns of the output for one turn of the rotor.  This is used to map
+the readings from sensors that are defined relative to one into the
+other.
+
 # A. register command set #
 
 The register command set is intended for use in real-time
@@ -350,11 +558,13 @@ Mode: Read only
 Non-zero if the current acceleration or velocity limited trajectory is
 complete, and the controller is following the final velocity.
 
-#### 0x00c - Rezero state ####
+#### 0x00c - Home state ####
 
 Mode: Read only
 
-Non-zero if the controller has been rezeroed since power on.
+Non-zero if the controller has had its output position set since power
+on.  This could have been from a source configured for multi-turn, as
+an index, or the "set output nearest" or "set output exact" commands.
 
 #### 0x00d - Voltage ####
 
@@ -554,6 +764,14 @@ internally generated trajectories.  If unspecified, it is NaN /
 maximally negative, which implies to use the global configurable
 default.
 
+#### 0x02a - Fixed voltage override ####
+
+Mode: Read/write
+
+If specified and not-NaN, then the control mode will temporarily be in
+the "fixed voltage" mode, regardless of the current setting of
+`servo.fixed_voltage_mode`.
+
 ### 0x030 - Proportional torque ###
 
 Mode: Read
@@ -632,6 +850,106 @@ A shadow of the 0x025 register.
 
 A shadow of the 0x027 register.
 
+### 0x050 - Encoder 0 Position ###
+
+Mode: Read only
+
+Reports the current filtered position of the encoder configured in
+slot 0.
+
+### 0x051 - Encoder 0 Velocity ###
+
+Mode: Read only
+
+Reports the current filtered velocity of the encoder configured in
+slot 0.
+
+### 0x052 - Encoder 1 Position ###
+
+Mode: Read only
+
+Reports the current filtered position of the encoder configured in
+slot 1.
+
+### 0x053 - Encoder 1 Velocity ###
+
+Mode: Read only
+
+Reports the current filtered velocity of the encoder configured in
+slot 1.
+
+### 0x054 - Encoder 2 Position ###
+
+Mode: Read only
+
+Reports the current filtered position of the encoder configured in
+slot 2.
+
+### 0x055 - Encoder 2 Velocity ###
+
+Mode: Read only
+
+Reports the current filtered velocity of the encoder configured in
+slot 2.
+
+### 0x058 - Encoder Validity ###
+
+Mode: Read only
+
+Returns a bitfield, where bit 0 indicates whether encoder 0 is active,
+bit 1 indicates whether encoder 1 is active, etc.
+
+### 0x05c - Aux1 GPIO Command ###
+
+Mode: Read/write
+
+The current output command for any GPIOs configured as an output on
+aux1 as a bitfield.  Not all bits may be used, as bit 0 is always for
+pin 1, whether or not it is configured as a GPIO output.
+
+### 0x05d - Aux2 GPIO Command ###
+
+Mode: Read/write
+
+The current output command for any GPIOs configured as an output on
+aux2 as a bitfield.  Not all bits may be used, as bit 0 is always for
+pin 1, whether or not it is configured as a GPIO output.
+
+### 0x05e - Aux1 GPIO Status ###
+
+Mode: Read only
+
+The current input value of any GPIOs configured as an input on aux1 as
+a bitfield.  Not all bits may be used, as bit 0 is always for pin 1,
+whether or not it is configured as a GPIO input.
+
+### 0x05f - Aux2 GPIO Status ###
+
+Mode: Read only
+
+The current input value of any GPIOs configured as an input on aux2 as
+a bitfield.  Not all bits may be used, as bit 0 is always for pin 1,
+whether or not it is configured as a GPIO input.
+
+### 0x060/0x064 - Aux1 Analog Inputs ###
+
+Mode: Read only
+
+The current input value of any analog inputs configured on aux1.  The
+registers are associated with pins 1-5, regardless of whether they are
+configured as an analog input.  Each value is scaled as a PWM from 0
+to 1.
+
+### 0x068/0x06c - Aux2 Analog Inputs ###
+
+Mode: Read only
+
+The current input value of any analog inputs configured on aux2.  The
+registers are associated with pins 1-5, regardless of whether they are
+configured as an analog input.  Each value is scaled as a PWM from 0
+to 1.
+
+
 ### 0x100 - Model Number ###
 
 Name: Model Number
@@ -671,13 +989,29 @@ Mode: Read only
 This returns a 96 bit serial number, least significant word first.
 
 
-### 0x130 - Rezero ###
+### 0x130 - Set Output Nearest ###
 
 Mode: Write only
 
 When sent, this causes the servo to select a whole number of internal
 motor rotations so that the final position is as close to the given
 position as possible.
+
+### 0x131 - Set Output Exact ###
+
+Mode: Write only
+
+When sent, the servo will force the output position to be the exact
+specified value.
+
+### 0x132 - Require Reindex ###
+
+Mode: Write only
+
+When sent with any value, the servo will require that any index
+position be re-located before control can begin.  Regardless, the
+position will reset to an arbitrary value consistent with the current
+encoder settings.
 
 ## A.3 Example ##
 
@@ -803,6 +1137,8 @@ Each optional element consists of a prefix character followed by a value.  Permi
   velocity limit for the duration of this command.
 - `a` - acceleration limit: the given value will override the global
   acceleration limit for the duration of this command.
+- `o` - fixed voltage override: while in affect, treat the control as
+  if `fixed_voltage_mode` were enabled with the given voltage
 
 The position, velocity, maximum torque, and all optional fields have
 the same semantics as for the register protocol documented above.
@@ -849,22 +1185,40 @@ exception of stop position which is not supported.
 Enter the "brake" state.  In this mode, all motor phases are shorted
 to ground, resulting in a passive "braking" action.
 
-### `d index` ###
+### `d nearest` ###
 
-Force the current recorded position to match exactly the given value.
-
-```
-d index <position>
-```
-
-### `d rezero` ###
-
-Assuming that `motor.position_offset` is configured correctly, update
-the current position to the closest one which is consistent with a
-given output position.
+Update the current position to the closest one which is consistent
+with a given output position.
 
 ```
 d rezero <position>
+```
+
+### `d exact` ###
+
+Update the current position to exactly the given value.
+
+```
+d exact <position>
+```
+
+### `d req-reindex` ###
+
+Reset the homing state to relative based, requiring any homing
+procedure to be re-run.
+
+```
+d req-reindex
+```
+
+### `d cfg-set-output` ###
+
+Modify the configuration as required so that the current observed
+position will be equal to the given value.  Note, the configuration is
+not written to persistent storage.
+
+```
+d cfg-set-output <position>
 ```
 
 ### `d cal` ###
@@ -897,7 +1251,79 @@ Enter the bootloader.
 
 NOTE: This is only intended for internal use.  Users who want to flash new firmware should use `moteus_tool`.
 
-## B.2 `tel` - telemetry ##
+## B.2 `aux[12]` - Aux port manipulation ##
+
+All commands are supported on both `aux1` and `aux2`.
+
+### `aux1 out` - Set GPIO Output Values ###
+
+```
+aux1 out <data>
+```
+
+'data' is a single decimal integer.  Only bits associated with pins
+configured as digital outputs are used, the remainder are ignored.
+
+### `aux1 ic-cmd` - Initiate an iC-PZ command ###
+
+```
+aux1 ic-cmd <HEXBYTE>
+```
+
+An example of entering analog mode calibration.
+
+```
+aux1 ic-cmd B0
+```
+
+### `aux1 ic-wr` - Write iC-PZ register ###
+
+```
+aux1 ic-wr <reg> <data>
+```
+
+Register is one byte in hex, data is 1 or more bytes in hex.
+
+Example of switching to memory page 0.
+
+```
+aux1 ic-wr 40 00
+```
+
+### `aux1 ic-rd` - Read iC-PZ register ###
+
+```
+aux1 ic-rd <reg> <length>
+```
+
+The register is one byte in hex, length is a decimal value indicating
+the number of bytes to read.
+
+Example of reading the temperature data:
+
+```
+aux1 ic-rd 4e 2
+```
+
+### `aux1 ic-extra` - Select alternate periodic data ###
+
+```
+aux1 ic-extra <fields>
+```
+
+"fields" is a decimal bitmask of items to read at 1000Hz and display
+in the diagnostic stream.
+
+bit 0 - the diagnosis command result
+bit 1 - the contents of the AI_PHASES registers
+
+Example of enabling the AI_PHASES registers only:
+
+```
+aux1 ic-extra 2
+```
+
+## B.3 `tel` - telemetry ##
 
 ### `tel get` ###
 
@@ -955,7 +1381,7 @@ Stop emitting all periodic telemetry data.
 
 Switch all channels to text mode.
 
-## B.3 `conf` - configuration ##
+## B.4 `conf` - configuration ##
 
 NOTE: Any commands that change parameters, such as `conf set`, `conf
 load`, or `conf default`, if executed manually in `tview` will not
@@ -1018,19 +1444,6 @@ A 13 bit integer used as the upper 13 bits for the ID of all CAN
 communication.  As with `id.id` this takes effect immediately, so
 after changing it, communication must be restarted with the correct
 prefix in order to do things like save the configuration.
-
-## `motor.position_offset` ##
-
-This value is added to `servo_stats.position` before reporting
-`unwrapped_position_raw`.  It thus sets the `0` value for all position
-control.
-
-## `motor.unwrapped_position_scale` ##
-
-This sets the reduction of any integrated gearbox.  Using this scales
-all position, velocity, and torque commands and statuses accordingly.
-A reducing gearbox will need a value between 0 and 1, so `0.25` for a
-4x reduction gearbox.
 
 ## `servopos.position_min` ##
 
@@ -1257,54 +1670,207 @@ The allowable values are a subset of the top level modes.
 * 12 - "zero velocity"
 * 15 - "brake"
 
-## `servo.rezero_from_abs` ##
+## `aux[12].pins.X.mode` ##
 
-If set to one, then shortly after startup, the value of the position
-will be initialized to the closest one consistent with the position
-measured at the ABS port.
+Selects what functionality will be used on the given pin.
 
-## `abs_port.mode` ##
+* 0 - NC - Not connected (or used for onboard SPI)
+* 1 - SPI - Used for one of CLK, MISO, or MOSI
+* 2 - SPI CS - Used for SPI CS
+* 3 - UART
+* 4 - Software quadrature
+* 5 - Hardware quadrature
+* 6 - Hall
+* 7 - Index
+* 8 - Sine
+* 9 - Cosine
+* 10 - Step (not implemented)
+* 11 - Dir (not implemented)
+* 12 - RC PWM (not implemented)
+* 13 - I2C
+* 14 - Digital input
+* 15 - Digital output (not implemented)
+* 16 - Analog input
 
-Configures the mode of operation of the ABS port:
+## `aux[12].pins.X.pull` ##
+
+Configures optional pullup or pulldown on each pin.  Not all pullup
+options will be used with every mode.  Additionally, the 2 aux2 pins
+on moteus 4.5/8/11 have hard-installed 2k ohm pullups regardless of
+these settings.
+
+* 0 - no pullup or pulldown
+* 1 - pull up
+* 2 - pull down
+* 3 - open drain (not implemented)
+
+## `aux[12].i2c.i2c_hz` ##
+
+The frequency to operate the I2C bus at.  Between 50000 and 400000.
+
+## `aux[12].i2c.i2c_mode` ##
+
+What I2C mode to use.
+
+## `aux[12].i2c.devices.X.type` ##
+
+What I2C device to expect.
+
 * 0 - disabled
-* 1 - AS5048B (I2C address is default 64)
-* 2 - AS5600  (I2C address is default 54)
+* 1 - AS5048
+* 2 - AS5600
 
-## `abs_port.i2c_mode` ##
+## `aux[12].i2c.devices.X.address` ##
 
-Configures what I2C mode will be used:
-* 0 - standard <= 100kHz
-* 1 - fast <= 400kHz
-* 2 - fast+ <= 1Mhz (note the AS5048B encoder does not support fast+)
+The I2C address to use.
 
-## `abs_port.i2c_hz` ##
+## `aux[12].i2c.devices.X.poll_ms` ##
 
-What rate to operate the I2C bus at.
-
-## `abs_port.encoder_i2c_address` ##
-
-The I2C address to communicate with the auxiliary encoder.
-
-## `abs_port.encoder_poll_ms` ##
-
-How often, in milliseconds to poll the auxiliary encoder.  Must be no
+How often in milliseconds to poll the device for more data.  Must no
 less than 5.
 
-## `abs_port.position_offset` / `abs_port.position_scale` ##
+## `aux[12].spi.mode` ##
 
-The reported position is calculated from the raw value as follows:
+The type of SPI device.
 
-```
-position = (raw + offset) / 65536 * scale
-```
+* 0 - The onboard AS5047P.  Only valid for aux1.  If selected, the
+  CLK, MOSI, and MISO lines must be either NC or selected as SPI.
+* 1 - Disabled.
+* 2 - AS5047P
+* 3 - iC-PZ
 
-## `encoder.mode` ##
+NOTE: iC-PZ devices require significant configuration and calibration
+before use.  Diagnostic mode commands are provided for low level
+access.
 
-Selects whether the onboard magnetic encoder or an external magnetic
-encoder is used.
+## `aux[12].spi.rate_hz` ##
 
-* 0 - onboard
-* 1 - external AS5047 compatible SPI encoder
+The frequency to operate the SPI bus at.  The default is 12000000,
+which is required for AS5047P devices.  Other devices may support
+lower rates.
+
+## `aux[12].quadrature.enabled` ##
+
+True/non-zero if quadrature input should be read from this port.
+
+## `aux[12].quadrature.cpr` ##
+
+The number of counts per revolution of the quadrature input.  If used
+as a source, then this CPR must match the one configured in the
+source.
+
+## `aux[12].hall.enabled` ##
+
+True/non-zero if hall effect sensors should be read from this port.
+
+## `aux[12].hall.polarity` ##
+
+A bitmask to XOR with the 3 hall phases.
+
+## `aux[12].index.enabled` ##
+
+True/non-zero if an index input be read from this port.
+
+## `aux[12].sine_cosine.enabled` ##
+
+True/non-zero if a sine/cosine input should be read from this port.
+
+## `aux[12].sine_cosine.common` ##
+
+The common mode voltage to use for the sine cosine.  The sampling is
+done with 12 bits, so 2048 would be exactly 0.5 * 3.3V.  However, it
+is best to calibrate this with actual readings as observed over the
+diagnostic protocol for optimal performance.
+
+## `motor_position.sources.X.aux_number` ##
+
+1 for an aux1 device, or 2 for an aux2 device.
+
+## `motor_position.sources.X.type` ##
+
+One of:
+
+* 0 - disabled
+* 1 - SPI
+* 2 - UART
+* 3 - Quadrature
+* 4 - Hall
+* 5 - Index
+* 6 - Sine/Cosine
+* 7 - I2C
+* 8 - Sensorless (not implemented)
+
+Note: The "Index" source type is only allowed for an output referenced
+encoder, and can be used as an alternate way to enter the "output"
+homed state.
+
+## `motor_position.sources.X.i2c_device` ##
+
+If `type` was "7/I2C", this is a 0 based index specifying *which* I2C
+device on that port should be used.
+
+## `motor_position.sources.X.incremental_index` ##
+
+If the specified auxiliary port has an incremental encoder, like a
+quadrature encoder, this can be set to either 1 or 2 in order to use
+an "index" pin to reference the data to a given position.  It will
+allow the source to provide theta readings for commutation.
+
+## `motor_position.sources.X.cpr` ##
+
+The CPR of the given input.  In some cases this is automatically set,
+but in most it will need to be manually entered.
+
+## `motor_position.sources.X.offset/sign` ##
+
+An integer offset and inversion to apply.  The resulting value is:
+`(raw + offset) * sign / cpr`.
+
+## `motor_position.sources.X.reference` ##
+
+* 0 - this source is relative to the rotor
+* 1 - this source is relative to the output
+
+## `motor_position.sources.X.pll_filter_hz` ##
+
+Selects the cutoff frequency of a low-pass filter used on this source.
+It should typically be less than 10X the update rate of the input and
+if used as the commutation or output sensor, should be higher than the
+mechanical bandwidth of the plant.  Within that range, it can be tuned
+for audible noise versus performance.
+
+If set to 0, then no filter is applied.  In that case, sensors which
+do not natively measure velocity will produce no velocity readings
+(most of them).
+
+## `motor_position.commutation_source` ##
+
+A 0-based index into the source list that selects the source to use
+for commutation.  This means it should have an accurate measure of the
+relationship between the rotor and stator.
+
+## `motor_position.output.source` ##
+
+A 0-based index into the source list that selects the source to use
+for the output position.  The position and velocity from this source
+will be used for control in "position" mode.
+
+## `motor_position.output.offset/sign` ##
+
+The offset is a floating point value measured in output revolutions.
+Combined with the sign of -1/1, they can be used to position the 0
+point of the output and control its direction of rotation.
+
+## `motor_position.output.reference_source` ##
+
+If non-negative, this is a 0-based index into the source list.  The
+selected source is used at power on to disambiguate the output
+position for multi-turn scenarios or when a reducer is configured.
+
+## `motor_position.rotor_to_output_ratio` ##
+
+The number of times the output turns for each revolution of the rotor.
+
 
 # D. Maintenance #
 

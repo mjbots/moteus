@@ -26,7 +26,6 @@
 #include "mjlib/multiplex/micro_server.h"
 #include "mjlib/multiplex/micro_stream_datagram.h"
 
-#include "fw/abs_port.h"
 #include "fw/board_debug.h"
 #include "fw/firmware_info.h"
 #include "fw/git_info.h"
@@ -247,7 +246,7 @@ int main(void) {
   }();
   MJ_ASSERT(compatible);
 
-  micro::SizedPool<14000> pool;
+  micro::SizedPool<16000> pool;
 
   HardwareUart rs485(&pool, &timer, []() {
       HardwareUart::Options options;
@@ -297,20 +296,11 @@ int main(void) {
   Uuid uuid(persistent_config);
   ClockManager clock(&timer, persistent_config, command_manager);
 
-  AbsPort abs_port(
-      &pool, &persistent_config, &telemetry_manager, &timer,
-      [&]() {
-        AbsPort::Options options;
-
-        options.scl = MOTEUS_ABS_SCL;
-        options.sda = MOTEUS_ABS_SDA;
-
-        return options;
-      }());
-
   MoteusController moteus_controller(
-      &pool, &persistent_config, &telemetry_manager, &timer,
-      &firmware_info, &abs_port);
+      &pool, &persistent_config,
+      &command_manager,
+      &telemetry_manager, &timer,
+      &firmware_info);
 
   BoardDebug board_debug(
       &pool, &command_manager, &telemetry_manager, &multiplex_protocol,
@@ -364,7 +354,6 @@ int main(void) {
     fdcan_micro_server.Poll();
 #endif
     moteus_controller.Poll();
-    abs_port.Poll();
 
     const auto new_time = timer.read_ms();
 
@@ -373,7 +362,6 @@ int main(void) {
       system_info.PollMillisecond();
       moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
-      abs_port.PollMillisecond();
       system_info.SetCanResetCount(fdcan_micro_server.can_reset_count());
 
       old_time = new_time;
