@@ -254,10 +254,10 @@ class Stm32G4AsyncUart::Impl {
         usart_irq,
         u32(uart_callback_.raw_function));
 
-    HAL_NVIC_SetPriority(tx_irq, 0, 0);
+    HAL_NVIC_SetPriority(tx_irq, 2, 0);
     HAL_NVIC_EnableIRQ(tx_irq);
 
-    HAL_NVIC_SetPriority(usart_irq, 1, 0);
+    HAL_NVIC_SetPriority(usart_irq, 2, 0);
     HAL_NVIC_EnableIRQ(usart_irq);
   }
 

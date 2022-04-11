@@ -171,6 +171,27 @@ class MoteusTest(unittest.TestCase):
                    0x00, 0x00, 0x80, 0x3f,
             ]))
 
+    def test_make_set_output_nearest(self):
+        dut = mot.Controller()
+        result = dut.make_set_output_nearest(position=2)
+        self.assertEqual(
+            result.data,
+            bytes([0x0d, 0xb0, 0x02, 0x00, 0x00, 0x00, 0x40]))
+
+    def test_make_set_output_exact(self):
+        dut = mot.Controller()
+        result = dut.make_set_output_exact(position=2)
+        self.assertEqual(
+            result.data,
+            bytes([0x0d, 0xb1, 0x02, 0x00, 0x00, 0x00, 0x40]))
+
+    def test_make_rezero(self):
+        dut = mot.Controller()
+        result = dut.make_rezero(rezero=2)
+        self.assertEqual(
+            result.data,
+            bytes([0x0d, 0xb0, 0x02, 0x00, 0x00, 0x00, 0x40]))
+
 
 if __name__ == '__main__':
     unittest.main()

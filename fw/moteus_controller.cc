@@ -16,8 +16,11 @@
 
 #include "mjlib/base/limit.h"
 
+#include "fw/aux_port.h"
+#include "fw/drv8323.h"
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
+#include "fw/motor_position.h"
 
 namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
@@ -28,6 +31,18 @@ namespace moteus {
 using Value = multiplex::MicroServer::Value;
 
 namespace {
+
+// Version 3: The enumerated values for the control mode changed
+// meaning and voltage scale changed.
+//
+// Version 4: The scaling factors associated with velocity and
+// position changed.
+//
+// Version 5: The "rezero state" was renamed to "home state" and the
+// enumeration has new meaning.
+
+constexpr int kRegisterMapVersion = 5;
+
 template <typename T>
 Value IntMapping(T value, size_t type) {
   switch (type) {
@@ -182,6 +197,16 @@ float ReadTime(Value value) {
   return ReadScaleMapping(value, 0.01f, 0.001f, 0.000001f);
 }
 
+template <typename Array>
+int8_t PinsToBits(const Array& array) {
+  static_assert(array.size() <= 7);
+  int8_t result = 0;
+  for (size_t i = 0; i < array.size(); i++) {
+    result |= (array[i] ? 1 : 0) << i;
+  }
+  return result;
+}
+
 enum class Register {
   kMode = 0x000,
   kPosition = 0x001,
@@ -192,7 +217,7 @@ enum class Register {
   kAbsPosition = 0x006,
 
   kTrajectoryComplete = 0x00b,
-  kRezeroState = 0x00c,
+  kHomeState = 0x00c,
   kVoltage = 0x00d,
   kTemperature = 0x00e,
   kFault = 0x00f,
@@ -225,6 +250,7 @@ enum class Register {
   kCommandTimeout = 0x027,
   kCommandVelocityLimit = 0x028,
   kCommandAccelLimit = 0x029,
+  kCommandFixedVoltageOverride = 0x02a,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -240,6 +266,30 @@ enum class Register {
   kStayWithinMaxTorque = 0x045,
   kStayWithinTimeout = 0x046,
 
+  kEncoder0Position = 0x050,
+  kEncoder0Velocity = 0x051,
+  kEncoder1Position = 0x052,
+  kEncoder1Velocity = 0x053,
+  kEncoder2Position = 0x054,
+  kEncoder2Velocity = 0x055,
+  kEncoderValidity = 0x058,
+  kAux1GpioCommand = 0x05c,
+  kAux2GpioCommand = 0x05d,
+  kAux1GpioStatus = 0x05e,
+  kAux2GpioStatus = 0x05f,
+
+  kAux1AnalogIn1 = 0x060,
+  kAux1AnalogIn2 = 0x061,
+  kAux1AnalogIn3 = 0x062,
+  kAux1AnalogIn4 = 0x063,
+  kAux1AnalogIn5 = 0x064,
+
+  kAux2AnalogIn1 = 0x068,
+  kAux2AnalogIn2 = 0x069,
+  kAux2AnalogIn3 = 0x06a,
+  kAux2AnalogIn4 = 0x06b,
+  kAux2AnalogIn5 = 0x06c,
+
   kModelNumber = 0x100,
   kFirmwareVersion = 0x101,
   kRegisterMapVersion = 0x102,
@@ -249,7 +299,37 @@ enum class Register {
   kSerialNumber2 = 0x121,
   kSerialNumber3 = 0x122,
 
-  kRezero = 0x130,
+  kSetOutputNearest = 0x130,
+  kSetOutputExact = 0x131,
+  kRequireReindex = 0x132,
+};
+
+constexpr aux::AuxHardwareConfig kAux1PortHardwareConfig = {
+  {{
+      { MOTEUS_EXTERNAL_ENCODER_CS, -1, 0,  aux::kNoI2c },
+      { MOTEUS_AS5047_SCK,           2, 5,  aux::kNoI2c },
+      { MOTEUS_AS5047_MISO,          0, 5,  aux::kNoI2c },
+      { MOTEUS_AS5047_MOSI,          1, 15, aux::kNoI2c },
+      { NC, -1, -1 },
+    }},
+  {{
+    { SPI2, MOTEUS_AS5047_SCK, MOTEUS_AS5047_MISO, MOTEUS_AS5047_MOSI },
+    { nullptr, NC, NC, NC },
+    }},
+};
+
+constexpr aux::AuxHardwareConfig kAux2PortHardwareConfig = {
+  {{
+      { MOTEUS_ABS_SCL, -1, 0,  aux::kScl },
+      { MOTEUS_ABS_SDA, -1, 0,  aux::kSda },
+      { NC,             -1, 0,  aux::kNoI2c },
+      { NC,             -1, 0,  aux::kNoI2c },
+      { NC,             -1, 0,  aux::kNoI2c },
+    }},
+  {{
+    { nullptr, NC, NC, NC },
+    { nullptr, NC, NC, NC },
+    }},
 };
 }
 
@@ -257,21 +337,21 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
  public:
   Impl(micro::Pool* pool,
        micro::PersistentConfig* persistent_config,
+       micro::CommandManager* command_manager,
        micro::TelemetryManager* telemetry_manager,
        MillisecondTimer* timer,
-       FirmwareInfo* firmware,
-       AbsPort* abs_port)
-      : as5047_(
-          persistent_config,
-          []() {
-            AS5047::Options options;
-            options.mosi = MOTEUS_AS5047_MOSI;
-            options.miso = MOTEUS_AS5047_MISO;
-            options.sck = MOTEUS_AS5047_SCK;
-            options.cs = MOTEUS_AS5047_CS;
-            options.external_cs = MOTEUS_EXTERNAL_ENCODER_CS;
-            return options;
-          }()),
+       FirmwareInfo* firmware)
+      : aux1_port_("aux1", "ic_pz1", kAux1PortHardwareConfig,
+                   persistent_config, command_manager, telemetry_manager, timer,
+                   AuxPort::kDefaultOnboardSpi),
+        aux2_port_("aux2", "ic_pz2", kAux2PortHardwareConfig,
+                   persistent_config, command_manager, telemetry_manager, timer,
+                   AuxPort::kNoDefaultSpi),
+        motor_position_(persistent_config, telemetry_manager,
+                        aux1_port_.status(),
+                        aux2_port_.status(),
+                        aux1_port_.config(),
+                        aux2_port_.config()),
         drv8323_(pool, persistent_config, telemetry_manager, timer, []() {
             Drv8323::Options options;
             options.mosi = DRV8323_MOSI;
@@ -284,7 +364,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             return options;
           }()),
         bldc_(pool, persistent_config, telemetry_manager,
-              timer, &as5047_, &drv8323_, abs_port, []() {
+              timer, &drv8323_, &aux1_port_, &aux2_port_, &motor_position_,
+              []() {
             BldcServo::Options options;
             options.pwm1 = PA_0;
             options.pwm2 = PA_1;
@@ -309,8 +390,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
             return options;
           }()),
-        firmware_(firmware),
-        abs_port_(abs_port) {}
+        firmware_(firmware) {}
 
   void Start() {
     bldc_.Start();
@@ -322,9 +402,13 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       command_valid_ = false;
       bldc_.Command(command_);
     }
+    aux1_port_.Poll();
+    aux2_port_.Poll();
   }
 
   void PollMillisecond() {
+    aux1_port_.PollMillisecond();
+    aux2_port_.PollMillisecond();
     drv8323_.PollMillisecond();
     bldc_.PollMillisecond();
   }
@@ -427,6 +511,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.velocity_limit = ReadVelocity(value);
         return 0;
       }
+      case Register::kCommandFixedVoltageOverride: {
+        command_.fixed_voltage_override = ReadVoltage(value);
+        return 0;
+      }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {
         command_.feedforward_Nm = ReadTorque(value);
@@ -451,10 +539,27 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return 0;
       }
 
-      case Register::kRezero: {
-        command_.rezero_position = ReadPosition(value);
-        command_.mode = BldcServo::Mode::kStopped;
-        command_valid_ = true;
+      case Register::kAux1GpioCommand: {
+        // TODO
+        return 0;
+      }
+      case Register::kAux2GpioCommand: {
+        // TODO
+        return 0;
+      }
+
+      case Register::kSetOutputNearest: {
+        const float position = ReadPosition(value);
+        bldc_.SetOutputPositionNearest(position);
+        return 0;
+      }
+      case Register::kSetOutputExact: {
+        const float position = ReadPosition(value);
+        bldc_.SetOutputPosition(position);
+        return 0;
+      }
+      case Register::kRequireReindex: {
+        bldc_.RequireReindex();
         return 0;
       }
 
@@ -465,7 +570,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kDCurrent:
       case Register::kAbsPosition:
       case Register::kTrajectoryComplete:
-      case Register::kRezeroState:
+      case Register::kHomeState:
       case Register::kVoltage:
       case Register::kTorque:
       case Register::kFault:
@@ -474,6 +579,25 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kPositionKd:
       case Register::kPositionFeedforward:
       case Register::kPositionCommandTorque:
+      case Register::kEncoder0Position:
+      case Register::kEncoder0Velocity:
+      case Register::kEncoder1Position:
+      case Register::kEncoder1Velocity:
+      case Register::kEncoder2Position:
+      case Register::kEncoder2Velocity:
+      case Register::kEncoderValidity:
+      case Register::kAux1GpioStatus:
+      case Register::kAux2GpioStatus:
+      case Register::kAux1AnalogIn1:
+      case Register::kAux1AnalogIn2:
+      case Register::kAux1AnalogIn3:
+      case Register::kAux1AnalogIn4:
+      case Register::kAux1AnalogIn5:
+      case Register::kAux2AnalogIn1:
+      case Register::kAux2AnalogIn2:
+      case Register::kAux2AnalogIn3:
+      case Register::kAux2AnalogIn4:
+      case Register::kAux2AnalogIn5:
       case Register::kModelNumber:
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
@@ -501,7 +625,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return IntMapping(static_cast<int8_t>(bldc_.status().mode), type);
       }
       case Register::kPosition: {
-        return ScalePosition(bldc_.status().unwrapped_position, type);
+        return ScalePosition(bldc_.status().position, type);
       }
       case Register::kVelocity: {
         return ScaleVelocity(bldc_.status().velocity, type);
@@ -516,13 +640,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return ScaleCurrent(bldc_.status().d_A, type);
       }
       case Register::kAbsPosition: {
-        return ScalePosition(abs_port_->status().position, type);
+        return ScalePosition(bldc_.motor_position().sources[1].filtered_value, type);
       }
       case Register::kTrajectoryComplete: {
         return IntMapping(bldc_.status().trajectory_done ? 1 : 0, type);
       }
-      case Register::kRezeroState: {
-        return IntMapping(bldc_.status().rezeroed ? 1 : 0, type);
+      case Register::kHomeState: {
+        return IntMapping(
+            static_cast<int>(bldc_.motor_position().homed), type);
       }
       case Register::kVoltage: {
         return ScaleVoltage(bldc_.status().bus_V, type);
@@ -596,6 +721,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kCommandAccelLimit: {
         return ScaleAcceleration(command_.accel_limit, type);
       }
+      case Register::kCommandFixedVoltageOverride: {
+        return ScaleVoltage(command_.fixed_voltage_override, type);
+      }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {
         return ScaleTorque(command_.feedforward_Nm, type);
@@ -632,6 +760,67 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return ScalePosition(command_.bounds_max, type);
       }
 
+      case Register::kEncoder0Position: {
+        return ScalePosition(bldc_.motor_position().sources[0].filtered_value, type);
+      }
+      case Register::kEncoder0Velocity: {
+        return ScaleVelocity(bldc_.motor_position().sources[0].velocity, type);
+      }
+      case Register::kEncoder1Position: {
+        return ScalePosition(bldc_.motor_position().sources[1].filtered_value, type);
+      }
+      case Register::kEncoder1Velocity: {
+        return ScaleVelocity(bldc_.motor_position().sources[1].velocity, type);
+      }
+      case Register::kEncoder2Position: {
+        return ScalePosition(bldc_.motor_position().sources[2].filtered_value, type);
+      }
+      case Register::kEncoder2Velocity: {
+        return ScaleVelocity(bldc_.motor_position().sources[2].velocity, type);
+      }
+      case Register::kEncoderValidity: {
+        const auto& status = bldc_.motor_position();
+
+        const int8_t validity =
+            ((status.sources[0].active_theta ? 1 : 0) << 0) |
+            ((status.sources[0].active_velocity ? 1 : 0) << 1) |
+            ((status.sources[1].active_theta ? 1 : 0) << 2) |
+            ((status.sources[1].active_velocity ? 1 : 0) << 3) |
+            ((status.sources[2].active_theta ? 1 : 0) << 4);
+            ((status.sources[2].active_velocity ? 1 : 0) << 5);
+        return IntMapping(validity, type);
+      }
+      case Register::kAux1GpioCommand: {
+        return IntMapping(0, type);
+      }
+      case Register::kAux2GpioCommand: {
+        return IntMapping(0, type);
+      }
+      case Register::kAux1GpioStatus: {
+        return IntMapping(PinsToBits(bldc_.aux1().pins), type);
+      }
+      case Register::kAux2GpioStatus: {
+        return IntMapping(PinsToBits(bldc_.aux2().pins), type);
+      }
+      case Register::kAux1AnalogIn1:
+      case Register::kAux1AnalogIn2:
+      case Register::kAux1AnalogIn3:
+      case Register::kAux1AnalogIn4:
+      case Register::kAux1AnalogIn5: {
+        const int pin =
+            static_cast<int>(reg) - static_cast<int>(Register::kAux1AnalogIn1);
+        return ScalePwm(bldc_.aux1().analog_inputs[pin], type);
+      }
+      case Register::kAux2AnalogIn1:
+      case Register::kAux2AnalogIn2:
+      case Register::kAux2AnalogIn3:
+      case Register::kAux2AnalogIn4:
+      case Register::kAux2AnalogIn5: {
+        const int pin =
+            static_cast<int>(reg) - static_cast<int>(Register::kAux2AnalogIn1);
+        return ScalePwm(bldc_.aux2().analog_inputs[pin], type);
+      }
+
       case Register::kModelNumber: {
         if (type != 2) { break; }
 
@@ -645,7 +834,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kRegisterMapVersion: {
         if (type != 2) { break; }
 
-        return Value(vi32(4));
+        return Value(vi32(kRegisterMapVersion));
       }
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
@@ -661,7 +850,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kMultiplexId: {
         break;
       }
-      case Register::kRezero: {
+      case Register::kSetOutputNearest:
+      case Register::kSetOutputExact:
+      case Register::kRequireReindex: {
         break;
       }
     }
@@ -670,11 +861,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
     return static_cast<uint32_t>(1);
   }
 
-  AS5047 as5047_;
+  AuxPort aux1_port_;
+  AuxPort aux2_port_;
+  MotorPosition motor_position_;
   Drv8323 drv8323_;
   BldcServo bldc_;
   FirmwareInfo* const firmware_;
-  AbsPort* const abs_port_;
 
   bool command_valid_ = false;
   BldcServo::CommandData command_;
@@ -682,12 +874,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
 MoteusController::MoteusController(micro::Pool* pool,
                                    micro::PersistentConfig* persistent_config,
+                                   micro::CommandManager* command_manager,
                                    micro::TelemetryManager* telemetry_manager,
                                    MillisecondTimer* timer,
-                                   FirmwareInfo* firmware,
-                                   AbsPort* abs_port)
-    : impl_(pool, pool, persistent_config, telemetry_manager,
-            timer, firmware, abs_port) {}
+                                   FirmwareInfo* firmware)
+    : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
+            timer, firmware) {}
 
 MoteusController::~MoteusController() {}
 
@@ -701,14 +893,6 @@ void MoteusController::Poll() {
 
 void MoteusController::PollMillisecond() {
   impl_->PollMillisecond();
-}
-
-AS5047* MoteusController::as5047() {
-  return &impl_->as5047_;
-}
-
-Drv8323* MoteusController::drv8323() {
-  return &impl_->drv8323_;
 }
 
 BldcServo* MoteusController::bldc_servo() {

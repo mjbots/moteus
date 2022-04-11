@@ -31,7 +31,7 @@ struct Context {
   BldcServoStatus status;
   BldcServoConfig config;
   BldcServoPositionConfig position_config;
-  float motor_scale16 = 65536.0f / 1.0f;
+  MotorPosition::Status position;
   float rate_hz = 40000.0f;
   BldcServoCommandData data;
 
@@ -44,29 +44,42 @@ struct Context {
   }
 
   void set_position(float val) {
-    status.unwrapped_position = val;
-    status.unwrapped_position_raw = to_raw(status.unwrapped_position);
+    position.position = val;
+    position.position_raw = to_raw(position.position);
+    position.position_relative = val;
+    position.position_relative_raw = position.position_raw;
+  }
+
+  void set_stop_position(float val) {
+    data.stop_position = val;
+    data.stop_position_relative_raw = to_raw(val);
   }
 
   void set_velocity(float val) {
-    status.velocity = val;
+    position.velocity = val;
     status.velocity_filt = val;
   }
 
   int64_t to_raw(double val) const {
-    return static_cast<int64_t>(val * motor_scale16 * (1ull << 32));
+    return static_cast<int64_t>(val * (1ll << 48));
   }
 
   double from_raw(int64_t val) const {
-    return static_cast<double>(val) / static_cast<double>(1ull << 32) / motor_scale16;
+    return static_cast<double>(val) / static_cast<double>(1ll << 48);
   }
 
   float Call() {
+    if (!std::isnan(data.position)) {
+      data.position_relative_raw = MotorPosition::FloatToInt(data.position);
+    } else {
+      data.position_relative_raw.reset();
+    }
     return BldcServoPosition::UpdateCommand(
         &status,
         &config,
         &position_config,
-        motor_scale16,
+        &position,
+        0,
         rate_hz,
         &data,
         data.velocity);
@@ -84,7 +97,7 @@ BOOST_AUTO_TEST_CASE(StartupPositionCapture) {
   ctx.data.position = NaN;
   ctx.data.velocity = 0.0f;
   ctx.Call();
-  BOOST_TEST(ctx.status.control_position.value() == ctx.status.unwrapped_position_raw);
+  BOOST_TEST(ctx.status.control_position.value() == ctx.position.position_raw);
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 }
 
@@ -128,7 +141,7 @@ BOOST_AUTO_TEST_CASE(StartupVelocityCapture,
       ctx.data.accel_limit = 1.0f;
       ctx.data.velocity_limit = 1.0f;
 
-      ctx.status.velocity = test_case.input_velocity;
+      ctx.position.velocity = test_case.input_velocity;
       ctx.status.velocity_filt = test_case.input_velocity;
       ctx.config.velocity_zero_capture_threshold = test_case.capture_threshold;
 
@@ -148,12 +161,12 @@ BOOST_AUTO_TEST_CASE(StartupPositionSet) {
   ctx.data.position = 2.0f;
   ctx.data.velocity = 0.0f;
   ctx.Call();
-  BOOST_TEST(ctx.status.control_position.value() != ctx.status.unwrapped_position_raw);
+  BOOST_TEST(ctx.status.control_position.value() != ctx.position.position_raw);
   BOOST_TEST(ctx.status.control_position.value() == ctx.to_raw(2.0f));
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 
   BOOST_TEST(std::isfinite(ctx.data.velocity));
-  BOOST_TEST(!std::isfinite(ctx.data.position));
+  BOOST_TEST(!ctx.data.position_relative_raw);
 }
 
 BOOST_AUTO_TEST_CASE(RunningPositionSet) {
@@ -238,7 +251,7 @@ BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3)) {
 
   BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.0);
 
-  ctx.data.stop_position = 4.5f;
+  ctx.set_stop_position(4.5f);
   for (int i = 0; i < ctx.rate_hz; i++) {
     const float result = ctx.Call();
     if (i < ctx.rate_hz / 2) {
@@ -336,6 +349,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
     { 0.0, -1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
     { 10.0, 1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
     { 10.0,-1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
+
     { 0.0,  0.0,   5.0, 0.5,    NaN, 1.0, 40,    5.000, 5.000 },
     { 0.0,  0.0,   5.0, 0.0,    NaN, 2.0, 40,    2.500, 2.500 },
     { 4.0,  0.0,   5.0, 0.0,    NaN, 1.0, 40,    1.000, 1.000 },
@@ -379,6 +393,9 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
     {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.550 },
     {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.5, 15,   0.000933, 1.548 },
     {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.5, 15,   0.000933, 1.550 },
+
+    // Actually wrap around.
+    {32767.98, 0.5,  -32767.99, 0.3,  1.0, 0.5, 15,   0.000933, 1.550 },
 
     { 0.0, 0.0,     0.0, -0.5,  1.0, 0.5, 40,   1.001, 1.207 },
 
@@ -445,7 +462,8 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
         const double this_pos =
             ctx.from_raw(ctx.status.control_position.value());
         const double measured_vel =
-            (this_pos - old_pos) * ctx.rate_hz;
+            (ctx.from_raw(ctx.to_raw(this_pos) -
+                          ctx.to_raw(old_pos))) * ctx.rate_hz;
 
         const double this_vel =
             ctx.status.control_velocity.value();
@@ -528,7 +546,7 @@ BOOST_AUTO_TEST_CASE(StopPositionWithLimits, * boost::unit_test::tolerance(1e-3)
   Context ctx;
 
   ctx.data.position = 3.0f;
-  ctx.data.stop_position = 1.0f;
+  ctx.set_stop_position(1.0f);
   ctx.data.velocity = 1.0f;
   ctx.data.accel_limit = 2.0f;
   ctx.data.velocity_limit = 3.0f;
@@ -547,7 +565,7 @@ BOOST_AUTO_TEST_CASE(StopPositionWithLimitOvershoot, * boost::unit_test::toleran
   Context ctx;
 
   ctx.data.position = 0.0f;
-  ctx.data.stop_position = 0.2f;
+  ctx.set_stop_position(0.2f);
   ctx.data.velocity = 1.0f;
   ctx.data.accel_limit = 2.0f;
   ctx.data.velocity_limit = 3.0f;

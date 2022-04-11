@@ -209,7 +209,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3000 ||
+        result.final_timer > 3200 ||
         result.total_timer < 4250) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -746,6 +746,9 @@ class Application {
       if (dut_->servo_stats().mode != ServoStats::kPosition) {
         throw mjlib::base::system_error::einval("DUT no longer in position mode");
       }
+
+      co_await dut_->Command("d stop");
+      co_await Sleep(0.5);
     }
 
     fmt::print("Test passed\n");
@@ -776,7 +779,7 @@ class Application {
     result.d_A = dut_->servo_stats().d_A;
     result.q_A = dut_->servo_stats().q_A;
     result.fixture_speed = fixture_->servo_stats().velocity;
-    result.fixture_position = fixture_->servo_stats().unwrapped_position;
+    result.fixture_position = fixture_->servo_stats().position;
 
     co_return result;
   }
@@ -1038,7 +1041,7 @@ class Application {
 
       // The fixture should be close to this now.
       const double fixture_position =
-          options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+          options_.transducer_scale * fixture_->servo_stats().position;
       if (std::abs(fixture_position - position) > 0.05) {
         throw mjlib::base::system_error::einval(
             fmt::format("Fixture position {} != {}",
@@ -1088,7 +1091,7 @@ class Application {
 
       co_await Sleep(2.5);
       const double fixture_position =
-          options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+          options_.transducer_scale * fixture_->servo_stats().position;
       if (std::abs(fixture_position - stop_position) > 0.07 * tolerance_scale) {
         throw mjlib::base::system_error::einval(
             fmt::format("Fixture stop position {} != {}",
@@ -1117,7 +1120,7 @@ class Application {
 
       {
         const double fixture_position =
-            options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+            options_.transducer_scale * fixture_->servo_stats().position;
         if (std::abs(fixture_position - (-position_limit)) > 0.07 * tolerance_scale) {
           throw mjlib::base::system_error::einval(
               fmt::format("Fixture stop position {} != {}",
@@ -1134,7 +1137,7 @@ class Application {
 
       {
         const double fixture_position =
-            options_.transducer_scale * fixture_->servo_stats().unwrapped_position;
+            options_.transducer_scale * fixture_->servo_stats().position;
         if (std::abs(fixture_position - position_limit) > 0.05 * tolerance_scale) {
           throw mjlib::base::system_error::einval(
               fmt::format("Fixture stop position {} != {}",
@@ -1270,11 +1273,11 @@ class Application {
         // torque should be present at the physical torque sensor.
         verify_position_mode();
 
-        if (std::abs(fixture_->servo_stats().unwrapped_position) > 0.02) {
+        if (std::abs(fixture_->servo_stats().position) > 0.02) {
           throw mjlib::base::system_error::einval(
               fmt::format(
                   "fixture position no longer zero {}",
-                  fixture_->servo_stats().unwrapped_position));
+                  fixture_->servo_stats().position));
         }
 
         const double expected_torque = pid.kp * position;
@@ -1404,7 +1407,7 @@ class Application {
         for (int i = 0; i < kIterationCount; i++) {
           co_await Sleep(kDelayS);
           results.push_back({
-              scale * fixture_->servo_stats().unwrapped_position,
+              scale * fixture_->servo_stats().position,
                   scale * fixture_->servo_stats().velocity});
         }
 
@@ -1475,23 +1478,17 @@ class Application {
     co_await dut_->Command("d stop");
     co_await Sleep(1.0);
 
-    // We should still be spinning at 4.0 rev/s.
-    const double position = dut_->servo_stats().unwrapped_position;
+    const double position = dut_->servo_stats().position;
     if (position > -30000.0) {
       throw mjlib::base::system_error::einval(
           fmt::format("position did not wrap {}", position));
     }
 
-    // And the control position should be negative.
-    const auto control_position = *dut_->servo_stats().control_position;
-    const auto expected_control =
-        static_cast<int64_t>(position * 65536.0) * 65536ll * 65536ll;
-    if (control_position > 0 ||
-        std::abs(control_position - expected_control) > 0x1000000000000) {
-      throw mjlib::base::system_error::einval(
-          fmt::format("control position did not wrap {} != {}",
-                      control_position, expected_control));
-    }
+    // We used to check control_position here, but now the control
+    // position is always relative, so it is hard to make it actually
+    // wrap, aside from spinning at 10Hz for an hour.
+    //
+    // So we just assume it will be OK.
 
     co_await dut_->Command("d stop");
 
@@ -1530,7 +1527,7 @@ class Application {
             co_await Sleep(3.0 / kSpeed);
             const double low_position =
                 options_.transducer_scale *
-                fixture_->servo_stats().unwrapped_position;
+                fixture_->servo_stats().position;
             const double low_torque = current_torque_Nm_;
 
             co_await fixture_->Command(
@@ -1538,7 +1535,7 @@ class Application {
             co_await Sleep(6.0 / kSpeed);
             const double high_position =
                 options_.transducer_scale *
-                fixture_->servo_stats().unwrapped_position;
+                fixture_->servo_stats().position;
             const double high_torque = current_torque_Nm_;
 
 
@@ -1629,17 +1626,15 @@ class Application {
       co_await Sleep(1.0);
       const auto spinning_dut = dut_->servo_stats();
       const auto measured_speed =
-          spinning_dut.unwrapped_position - initial_dut.unwrapped_position;
+          spinning_dut.position - initial_dut.position;
       if (std::abs(measured_speed - kDesiredSpeed) > 0.052) {
         throw mjlib::base::system_error::einval(
             fmt::format("Base speed not achieved |{} - {}| > 0.052",
                         measured_speed, kDesiredSpeed));
       }
 
-      const auto position_error =
-          (*spinning_dut.control_position / (65536ll * 65536ll)) -
-          spinning_dut.unwrapped_position_raw / (65536ll * 65536ll);
-      if (std::abs(position_error) > 4000) {
+      const auto position_error = spinning_dut.pid_position.error;
+      if (std::abs(position_error) > 0.1f) {
         throw mjlib::base::system_error::einval(
             fmt::format("Base tracking not working |{}| > 4000",
                         position_error));
@@ -1655,8 +1650,8 @@ class Application {
 
       const auto slow_dut = dut_->servo_stats();
       const auto slow_speed =
-          (slow_dut.unwrapped_position -
-           spinning_dut.unwrapped_position) / 2.0;
+          (slow_dut.position -
+           spinning_dut.position) / 2.0;
       if (std::abs(slow_speed - 0.5 * kDesiredSpeed) > 0.052) {
         throw mjlib::base::system_error::einval(
             fmt::format("DUT did not slow down |{} - {}| > 0.052",
@@ -1671,8 +1666,8 @@ class Application {
       co_await Sleep(1.0);
       const auto final_dut = dut_->servo_stats();
       const auto final_speed =
-          (final_dut.unwrapped_position -
-           slow_dut.unwrapped_position);
+          (final_dut.position -
+           slow_dut.position);
 
       if (std::isfinite(max_slip)) {
         if (final_speed > 1.15 * kDesiredSpeed) {
@@ -1735,7 +1730,7 @@ class Application {
       const auto after_letgo = dut_->servo_stats();
 
       const double velocity =
-          after_letgo.unwrapped_position - before_letgo.unwrapped_position;
+          after_letgo.position - before_letgo.position;
       if (std::isfinite(slip)) {
         if (velocity > 1.5 * kVelocity) {
           throw mjlib::base::system_error::einval(
@@ -1770,7 +1765,7 @@ class Application {
 
         // Let's see if the fixture got pulled back to 0.0 or not.
         const auto final_fixture =
-            std::abs(fixture_->servo_stats().unwrapped_position);
+            std::abs(fixture_->servo_stats().position);
         if (std::isfinite(slip)) {
           if (final_fixture < 0.2) {
             throw mjlib::base::system_error::einval(
@@ -1833,7 +1828,7 @@ class Application {
 
         const double desired =
             (direction > 0.0) ? pid.position_max : pid.position_min;
-        const double last = dut_->servo_stats().unwrapped_position;
+        const double last = dut_->servo_stats().position;
         const double last_desired = std::isfinite(slip) ? desired : 0.0;
 
         if (std::abs(last - last_desired) > 0.05) {
@@ -1911,9 +1906,9 @@ class Application {
 
       co_await dut_->Command("d pos nan 4.0 1.0");
       co_await Sleep(0.5);
-      const double start_pos = dut_->servo_stats().unwrapped_position;
+      const double start_pos = dut_->servo_stats().position;
       co_await Sleep(0.5);
-      const double end_pos = dut_->servo_stats().unwrapped_position;
+      const double end_pos = dut_->servo_stats().position;
       const double average_speed = (end_pos - start_pos) / 0.5;
 
       fmt::print("Power {} / Speed {}\n", test.power_W, average_speed);
@@ -1957,9 +1952,9 @@ class Application {
                 fmt::format("d pos nan {} 1.0", 25 * direction));
           }
           co_await Sleep(0.5);
-          const double start = dut_->servo_stats().unwrapped_position;
+          const double start = dut_->servo_stats().position;
           co_await Sleep(0.5);
-          const double end = dut_->servo_stats().unwrapped_position;
+          const double end = dut_->servo_stats().position;
           co_await dut_->Command("d stop");
           co_await Sleep(2.0);
 
@@ -1990,7 +1985,7 @@ class Application {
 
     {
       // We should be within 0.5 of the desired.
-      const auto pos = dut_->servo_stats().unwrapped_position;
+      const auto pos = dut_->servo_stats().position;
       if (std::abs(pos - value) > 0.5) {
         throw mjlib::base::system_error::einval(
             fmt::format(
@@ -2137,7 +2132,7 @@ class Application {
 
       const double fixture_position =
           options_.transducer_scale *
-          fixture_->servo_stats().unwrapped_position;
+          fixture_->servo_stats().position;
       const double fixture_velocity =
           options_.transducer_scale *
           fixture_->servo_stats().velocity;

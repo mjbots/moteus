@@ -121,9 +121,6 @@ struct BldcServoStatus {
   uint16_t adc_fet_temp_raw = 0;
   uint16_t adc_motor_temp_raw = 0;
 
-  uint16_t position_raw = 0;
-  uint16_t position_unfilt = 0;
-
   uint16_t adc_cur1_offset = 2048;
   uint16_t adc_cur2_offset = 2048;
   uint16_t adc_cur3_offset = 2048;
@@ -135,20 +132,13 @@ struct BldcServoStatus {
   float bus_V = 0.0f;
   float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
   float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
-  float position = 0;
   float fet_temp_C = 0.0f;
   float filt_fet_temp_C = std::numeric_limits<float>::quiet_NaN();
-
-  float electrical_theta = 0.0f;
 
   float d_A = 0.0f;
   float q_A = 0.0f;
 
-  // This is a fixed point number, with the upper 32 bits being
-  // measured in encoder ticks, and the bottom 32 bits being
-  // fractional.
-  int64_t unwrapped_position_raw = 0;
-  float unwrapped_position = 0.0f;
+  float position = 0.0f;
   float velocity = 0.0f;
   float torque_Nm = 0.0f;
 
@@ -158,12 +148,13 @@ struct BldcServoStatus {
   SimplePI::State pid_q;
   PID::State pid_position;
 
-  // This is measured in the same units as unwrapped_position_raw.
+  // This is measured in the same units as MotorPosition's integral
+  // units, which is 48 bits to represent 1.0 unit of output
+  // revolution.
   std::optional<int64_t> control_position;
   std::optional<float> control_velocity;
-  float position_to_set = 0.0;
+  float position_to_set = std::numeric_limits<float>::quiet_NaN();
   float timeout_s = 0.0;
-  bool rezeroed = false;
   bool trajectory_done = false;
 
   float sin = 0.0f;
@@ -221,9 +212,6 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(adc_fet_temp_raw));
     a->Visit(MJ_NVP(adc_motor_temp_raw));
 
-    a->Visit(MJ_NVP(position_raw));
-    a->Visit(MJ_NVP(position_unfilt));
-
     a->Visit(MJ_NVP(adc_cur1_offset));
     a->Visit(MJ_NVP(adc_cur2_offset));
     a->Visit(MJ_NVP(adc_cur3_offset));
@@ -235,16 +223,13 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(bus_V));
     a->Visit(MJ_NVP(filt_bus_V));
     a->Visit(MJ_NVP(filt_1ms_bus_V));
-    a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(fet_temp_C));
     a->Visit(MJ_NVP(filt_fet_temp_C));
-    a->Visit(MJ_NVP(electrical_theta));
 
     a->Visit(MJ_NVP(d_A));
     a->Visit(MJ_NVP(q_A));
 
-    a->Visit(MJ_NVP(unwrapped_position_raw));
-    a->Visit(MJ_NVP(unwrapped_position));
+    a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(velocity));
     a->Visit(MJ_NVP(torque_Nm));
 
@@ -258,7 +243,6 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(control_velocity));
     a->Visit(MJ_NVP(position_to_set));
     a->Visit(MJ_NVP(timeout_s));
-    a->Visit(MJ_NVP(rezeroed));
     a->Visit(MJ_NVP(trajectory_done));
 
     a->Visit(MJ_NVP(sin));
@@ -303,8 +287,15 @@ struct BldcServoCommandData {
   float position = 0.0f;  // kNaN means start at the current position.
   float velocity = 0.0f;
 
+  // This should not be set by callers, but is used internally.
+  std::optional<int64_t> position_relative_raw;
+
   float max_torque_Nm = 100.0f;
   float stop_position = std::numeric_limits<float>::quiet_NaN();
+
+  // This should not be set by callers, but is used internally.
+  std::optional<int64_t> stop_position_relative_raw;
+
   float feedforward_Nm = 0.0f;
 
   float kp_scale = 1.0f;
@@ -312,6 +303,9 @@ struct BldcServoCommandData {
 
   float velocity_limit = std::numeric_limits<float>::quiet_NaN();
   float accel_limit = std::numeric_limits<float>::quiet_NaN();
+
+  // If not NaN, temporarily operate in fixed voltage mode.
+  float fixed_voltage_override = std::numeric_limits<float>::quiet_NaN();
 
   float timeout_s = 0.0f;
 
@@ -321,13 +315,6 @@ struct BldcServoCommandData {
 
   // For kMeasureInductance
   int8_t meas_ind_period = 4;
-
-  // If set, then force the position to be the given value.
-  std::optional<float> set_position;
-
-  // If set, then rezero the position as if from boot.  Select a
-  // position closest to the given value.
-  std::optional<float> rezero_position;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -349,28 +336,25 @@ struct BldcServoCommandData {
 
     a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(velocity));
+    a->Visit(MJ_NVP(position_relative_raw));
     a->Visit(MJ_NVP(max_torque_Nm));
     a->Visit(MJ_NVP(stop_position));
+    a->Visit(MJ_NVP(stop_position_relative_raw));
     a->Visit(MJ_NVP(feedforward_Nm));
     a->Visit(MJ_NVP(kp_scale));
     a->Visit(MJ_NVP(kd_scale));
     a->Visit(MJ_NVP(velocity_limit));
     a->Visit(MJ_NVP(accel_limit));
+    a->Visit(MJ_NVP(fixed_voltage_override));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(bounds_min));
     a->Visit(MJ_NVP(bounds_max));
     a->Visit(MJ_NVP(meas_ind_period));
-
-    a->Visit(MJ_NVP(set_position));
-    a->Visit(MJ_NVP(rezero_position));
   }
 };
 
 struct BldcServoMotor {
   uint8_t poles = 0;
-
-  // Invert the sense of the encoder.
-  uint8_t invert = 0;
 
   // Invert the order of phase movement.
   uint8_t phase_invert = 0;
@@ -380,14 +364,9 @@ struct BldcServoMotor {
   // Hz is electrical
   float v_per_hz = 0.0f;
 
-  float unwrapped_position_scale = 1.0f;
-
   // Electrical phase offset in radians as a function of encoder
   // position.
   std::array<float, 64> offset = {};
-
-  // After applying inversion, add this value to the position.
-  uint16_t position_offset = 0;
 
   // These control the higher order motor torque model.
   //
@@ -405,13 +384,10 @@ struct BldcServoMotor {
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(poles));
-    a->Visit(MJ_NVP(invert));
     a->Visit(MJ_NVP(phase_invert));
     a->Visit(MJ_NVP(resistance_ohm));
     a->Visit(MJ_NVP(v_per_hz));
-    a->Visit(MJ_NVP(unwrapped_position_scale));
     a->Visit(MJ_NVP(offset));
-    a->Visit(MJ_NVP(position_offset));
     a->Visit(MJ_NVP(rotation_current_cutoff_A));
     a->Visit(MJ_NVP(rotation_current_scale));
     a->Visit(MJ_NVP(rotation_torque_scale));
@@ -502,12 +478,7 @@ struct BldcServoConfig {
   float max_velocity = 500.0;
   float max_velocity_derate = 2.0;
 
-  uint16_t velocity_filter_length = 256;
   uint16_t cooldown_cycles = 256;
-
-  // If true, then the initial position will be taken from the ABS
-  // port's configured value shortly after startup.
-  bool rezero_from_abs = false;
 
   // When starting position control from the "stopped" state, the
   // control velocity will be initialized from 'velocity_filt'.  If
@@ -518,22 +489,6 @@ struct BldcServoConfig {
   // A bitfield that selects one of several things to emit from the
   // debug UART at full control rate.
   uint32_t emit_debug = 0;
-
-  struct EncoderFilter {
-    bool enabled = false;
-    float kp = 0.0f;
-    float ki = 0.0f;
-    int32_t debug_override = -1;
-
-    template <typename Archive>
-    void Serialize(Archive* a) {
-      a->Visit(MJ_NVP(enabled));
-      a->Visit(MJ_NVP(kp));
-      a->Visit(MJ_NVP(ki));
-      a->Visit(MJ_NVP(debug_override));
-    }
-  };
-  EncoderFilter encoder_filter;
 
   BldcServoConfig() {
     pid_dq.kp = 0.005f;
@@ -579,12 +534,9 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(derate_current_A));
     a->Visit(MJ_NVP(max_velocity));
     a->Visit(MJ_NVP(max_velocity_derate));
-    a->Visit(MJ_NVP(velocity_filter_length));
     a->Visit(MJ_NVP(cooldown_cycles));
-    a->Visit(MJ_NVP(rezero_from_abs));
     a->Visit(MJ_NVP(velocity_zero_capture_threshold));
     a->Visit(MJ_NVP(emit_debug));
-    a->Visit(MJ_NVP(encoder_filter));
   }
 };
 

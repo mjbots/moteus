@@ -61,3 +61,11 @@ BOOST_AUTO_TEST_CASE(WrapZeroToTwoPiTest) {
     }
   }
 }
+
+BOOST_AUTO_TEST_CASE(FastAtan2Test) {
+  BOOST_TEST(FastAtan2(1, 0) == 1.57079637f);
+  BOOST_TEST(FastAtan2(1, 0.5) == 1.10713387f);
+  BOOST_TEST(FastAtan2(-1, 0) == -1.57079637f);
+  BOOST_TEST(FastAtan2(0, 1) == 0.0f);
+  BOOST_TEST(FastAtan2(0, -1) == 3.14159274f);
+}

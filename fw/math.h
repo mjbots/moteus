@@ -14,8 +14,10 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace moteus {
 
@@ -93,4 +95,31 @@ inline float pow2f_approx(float x) {
   return pow2i * pow2f;
 }
 
+inline float FastAtan2(float y, float x) {
+  // Based on https://math.stackexchange.com/a/1105038/81278
+
+  // a := min (|x|, |y|) / max (|x|, |y|)
+  const float abs_y = std::abs(y);
+  const float abs_x = std::abs(x);
+  // inject FLT_MIN in denominator to avoid division by zero
+  const float a = std::min(abs_x, abs_y) / (std::max(abs_x, abs_y) + std::numeric_limits<float>::min());
+  // s := a * a
+  const float s = a * a;
+  // r := ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a
+  float r = ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
+  // if |y| > |x| then r := 1.57079637 - r
+  if (abs_y > abs_x) {
+    r = 1.57079637f - r;
+  }
+    // if x < 0 then r := 3.14159274 - r
+  if (x < 0.0f) {
+    r = 3.14159274f - r;
+  }
+  // if y < 0 then r := -r
+  if (y < 0.0f) {
+    r = -r;
+  }
+
+  return r;
+}
 }

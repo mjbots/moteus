@@ -24,13 +24,13 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
-#include "fw/abs_port.h"
-#include "fw/as5047.h"
+#include "fw/aux_port.h"
 #include "fw/bldc_servo_structs.h"
 #include "fw/error.h"
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_hw.h"
 #include "fw/motor_driver.h"
+#include "fw/motor_position.h"
 #include "fw/pid.h"
 #include "fw/simple_pi.h"
 
@@ -67,9 +67,10 @@ class BldcServo {
             mjlib::micro::PersistentConfig*,
             mjlib::micro::TelemetryManager*,
             MillisecondTimer*,
-            AS5047*,
             MotorDriver*,
-            AbsPort*,
+            AuxPort*,
+            AuxPort*,
+            MotorPosition*,
             const Options&);
   ~BldcServo();
 
@@ -132,7 +133,14 @@ class BldcServo {
   const Status& status() const;
   const Config& config() const;
   const Control& control() const;
-  const Motor& motor() const;
+  const AuxPort::Status& aux1() const;
+  const AuxPort::Status& aux2() const;
+  const MotorPosition::Status& motor_position() const;
+  MotorPosition::Config* motor_position_config();
+
+  void SetOutputPositionNearest(float position);
+  void SetOutputPosition(float position);
+  void RequireReindex();
 
  private:
   class Impl;

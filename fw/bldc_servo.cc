@@ -244,12 +244,17 @@ uint32_t FindSqr(PinName pin) {
 }
 
 /// Read a digital input, but without configuring it in any way.
-class DigitalMonitor {
+class PhaseMonitors {
  public:
-  DigitalMonitor(PinName pin) {
-    const uint32_t port_index = STM_PORT(pin);
+  PhaseMonitors(PinName pin1, PinName pin2, PinName pin3) {
+    const uint32_t port_index1 = STM_PORT(pin1);
+    const uint32_t port_index2 = STM_PORT(pin3);
+    const uint32_t port_index3 = STM_PORT(pin3);
+    MJ_ASSERT(port_index1 == port_index2);
+    MJ_ASSERT(port_index2 == port_index3);
+
     GPIO_TypeDef* gpio = reinterpret_cast<GPIO_TypeDef*>([&]() {
-      switch (port_index) {
+      switch (port_index1) {
         case PortA: return GPIOA_BASE;
         case PortB: return GPIOB_BASE;
         case PortC: return GPIOC_BASE;
@@ -261,7 +266,9 @@ class DigitalMonitor {
       return GPIOA_BASE;
       }());
     reg_in_ = &gpio->IDR;
-    mask_ = static_cast<uint32_t>(1 << (static_cast<uint32_t>(pin) & 0xf));
+    mask_ = static_cast<uint32_t>(1 << (static_cast<uint32_t>(pin1) & 0xf)) |
+        static_cast<uint32_t>(1 << (static_cast<uint32_t>(pin2) & 0xf)) |
+        static_cast<uint32_t>(1 << (static_cast<uint32_t>(pin3) & 0xf));
   }
 
   bool read() {
@@ -279,21 +286,21 @@ class BldcServo::Impl {
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
        MillisecondTimer* millisecond_timer,
-       AS5047* position_sensor,
        MotorDriver* motor_driver,
-       AbsPort* abs_port,
+       AuxPort* aux1_port,
+       AuxPort* aux2_port,
+       MotorPosition* motor_position,
        const Options& options)
       : options_(options),
         ms_timer_(millisecond_timer),
-        position_sensor_(position_sensor),
         motor_driver_(motor_driver),
-        abs_port_(abs_port),
+        aux1_port_(aux1_port),
+        aux2_port_(aux2_port),
+        motor_position_(motor_position),
         pwm1_(options.pwm1),
         pwm2_(options.pwm2),
         pwm3_(options.pwm3),
-        monitor1_(options.pwm1),
-        monitor2_(options.pwm2),
-        monitor3_(options.pwm3),
+        phase_monitors_(options.pwm1, options.pwm2, options.pwm3),
         current1_(options.current1),
         current2_(options.current2),
         current3_(options.current3),
@@ -316,8 +323,6 @@ class BldcServo::Impl {
                           MOTEUS_VSENSE_ADC_SCALE_PRE6 :
                           MOTEUS_VSENSE_ADC_SCALE_POST6) {
 
-    persistent_config->Register("motor", &motor_,
-                                std::bind(&Impl::UpdateConfig, this));
     persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));
     persistent_config->Register("servopos", &position_config_,
@@ -362,18 +367,6 @@ class BldcServo::Impl {
     CommandData* next = next_data_;
     *next = data;
 
-    // If we have a case where the position is left unspecified, but
-    // we have a velocity and stop condition, then we pick the sign of
-    // the velocity so that we actually move.
-    if (std::isnan(next->position) &&
-        !std::isnan(next->stop_position) &&
-        !std::isnan(next->velocity) &&
-        next->velocity != 0.0f) {
-      next->velocity = std::abs(next->velocity) *
-          ((next->stop_position > status_.unwrapped_position) ?
-           1.0f : -1.0f);
-    }
-
     if (next->timeout_s == 0.0f) {
       next->timeout_s = config_.default_timeout_s;
     }
@@ -395,6 +388,36 @@ class BldcServo::Impl {
       }
     }
 
+    // Transform any position and stop_position command into the
+    // relative raw space.
+    const auto delta = static_cast<int64_t>(
+        motor_position_->absolute_relative_delta.load()) << 32ll;
+    if (!std::isnan(next->position)) {
+      next->position_relative_raw =
+          MotorPosition::FloatToInt(next->position) - delta;
+    } else {
+      next->position_relative_raw.reset();
+    }
+
+    if (!std::isnan(next->stop_position)) {
+      next->stop_position_relative_raw =
+          MotorPosition::FloatToInt(next->stop_position) - delta;
+    }
+
+    // If we have a case where the position is left unspecified, but
+    // we have a velocity and stop condition, then we pick the sign of
+    // the velocity so that we actually move.
+    if (!next->position_relative_raw &&
+        !!next->stop_position_relative_raw &&
+        !std::isnan(next->velocity) &&
+        next->velocity != 0.0f) {
+
+      next->velocity = std::abs(next->velocity) *
+          (((*next->stop_position_relative_raw -
+             position_.position_relative_raw) > 0) ?
+           1.0f : -1.0f);
+    }
+
     telemetry_data_ = *next;
 
     std::swap(current_data_, next_data_);
@@ -403,7 +426,14 @@ class BldcServo::Impl {
   const Status& status() const { return status_; }
   const Config& config() const { return config_; }
   const Control& control() const { return control_; }
-  const Motor& motor() const { return motor_; }
+  const AuxPort::Status& aux1() const { return *aux1_port_->status(); }
+  const AuxPort::Status& aux2() const { return *aux2_port_->status(); }
+  const MotorPosition::Status& motor_position() const {
+    return motor_position_->status();
+  }
+  MotorPosition::Config* motor_position_config() {
+    return motor_position_->config();
+  }
 
   bool is_torque_constant_configured() const {
     return motor_.v_per_hz != 0.0f;
@@ -443,14 +473,7 @@ class BldcServo::Impl {
         kFudge * 60.0f / (2.0f * kPi * kv) :
         kDefaultTorqueConstant;
 
-    position_constant_ = motor_.poles / 2;
-
     adc_scale_ = 3.3f / (4096.0f * config_.current_sense_ohm * config_.i_gain);
-
-    velocity_filter_ = {std::min<size_t>(
-          kMaxVelocityFilter, config_.velocity_filter_length)};
-
-    motor_scale16_ = 65536.0f / motor_.unwrapped_position_scale;
 
     const float pwm_derate =
         (static_cast<float>(config_.pwm_rate_hz) / 40000.0f);
@@ -465,9 +488,27 @@ class BldcServo::Impl {
       motor_driver_->Enable(true);
       *mode_volatile = kCalibrating;
     }
-    if (startup_count_.load() < 1000) {
-      startup_count_++;
-    }
+  }
+
+  void SetOutputPositionNearest(float position) {
+    // The required function can only officially be called in an ISR
+    // context.  To simplify things, we just disable IRQs to
+    // deconflict.
+    __disable_irq();
+    motor_position_->ISR_SetOutputPositionNearest(position);
+    __enable_irq();
+  }
+
+  void SetOutputPosition(float position) {
+    __disable_irq();
+    motor_position_->ISR_SetOutputPosition(position);
+    __enable_irq();
+  }
+
+  void RequireReindex() {
+    __disable_irq();
+    motor_position_->ISR_RequireReindex();
+    __enable_irq();
   }
 
  private:
@@ -477,6 +518,21 @@ class BldcServo::Impl {
     const auto irqn = FindUpdateIrq(timer_);
     NVIC_SetVector(irqn, reinterpret_cast<uint32_t>(&Impl::GlobalInterrupt));
     HAL_NVIC_SetPriority(irqn, 0, 0);
+
+    // Our handler is broken up into two parts.  One which runs on the
+    // timer interrupt and is the highest priority.  It makes sure the
+    // current is sampled as close to the center of the PWM waveform
+    // as possible.
+    //
+    // Then, once that is done, we trigger the PendSV interrupt to do
+    // the remainder of the processing at a lower interrupt priority
+    // level.  That way things like soft-GPIO handling interrupts
+    // (quadrature, step-dir), can pre-empt the rest.
+    NVIC_SetVector(PendSV_IRQn, reinterpret_cast<uint32_t>(&Impl::GlobalPendSv));
+    // Set to the lowest priority we are using.
+    HAL_NVIC_SetPriority(PendSV_IRQn, 6, 0);
+
+    NVIC_EnableIRQ(PendSV_IRQn);
     NVIC_EnableIRQ(irqn);
   }
 
@@ -659,19 +715,19 @@ class BldcServo::Impl {
     ADC4->CFGR &= ~(ADC_CFGR_CONT);
     ADC5->CFGR &= ~(ADC_CFGR_CONT);
 
-    ADC1->SQR1 =
+    adc1_sqr_ = ADC1->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
-    ADC2->SQR1 =
+    adc2_sqr_ = ADC2->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current3) << ADC_SQR1_SQ1_Pos;
-    ADC3->SQR1 =
+    adc3_sqr_ = ADC3->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
         FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
     if (hw_rev_ <= 4) {
       // For version <=4, we sample the motor temperature and the
       // battery sense first.
-      ADC4->SQR1 =
+      adc4_sqr_ = ADC4->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (msense_sqr_ << ADC_SQR1_SQ1_Pos);
       ADC5->SQR1 =
@@ -679,7 +735,7 @@ class BldcServo::Impl {
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
     } else if (hw_rev_ >= 5) {
       // For 5+, ADC4 always stays on the battery.
-      ADC4->SQR1 =
+      adc4_sqr_ = ADC4->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
       ADC5->SQR1 =
@@ -747,12 +803,24 @@ class BldcServo::Impl {
 
     // No matter what mode we are in, always sample our ADC and
     // position sensors.
+    ISR_DoSenseCritical();
+
+    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+  }
+
+  static void GlobalPendSv() MOTEUS_CCM_ATTRIBUTE {
+    g_impl_->ISR_DoTimerLowerPriority();
+  }
+
+  void ISR_DoTimerLowerPriority() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
+    SCB->ICSR |= SCB_ICSR_PENDSVCLR_Msk;
+
     ISR_DoSense();
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.sense = DWT->CYCCNT;
 #endif
 
-    SinCos sin_cos = cordic_(RadiansToQ31(status_.electrical_theta));
+    SinCos sin_cos = cordic_(RadiansToQ31(position_.electrical_theta));
     status_.sin = sin_cos.s;
     status_.cos = sin_cos.c;
 
@@ -760,8 +828,7 @@ class BldcServo::Impl {
 
     if (config_.fixed_voltage_mode) {
       // Don't pretend we know where we are.
-      status_.unwrapped_position_raw = 0;
-      status_.unwrapped_position = 0.0f;
+      status_.position = 0.0f;
       status_.velocity = 0.0f;
       status_.torque_Nm = 0.0f;
     }
@@ -791,7 +858,7 @@ class BldcServo::Impl {
     debug_out_ = 0;
   }
 
-  void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_DoSenseCritical() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // Wait for sampling to complete.
     while ((ADC3->ISR & ADC_ISR_EOS) == 0);
 
@@ -811,23 +878,16 @@ class BldcServo::Impl {
     // because we have exceeded the maximum duty cycle we can achieve
     // while still sampling current correctly.
     if (status_.mode != kFault &&
-        (monitor1_.read() ||
-         monitor2_.read() ||
-         monitor3_.read())) {
+        phase_monitors_.read()) {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
     }
+  }
 
+  void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // With sampling done, we can kick off our encoder read.
-    position_sensor_->StartSample();
-
-    // Do a bit more rarely needed bookeeping while we let the ADCs
-    // finish.
-    if (current_data_->rezero_position) {
-      status_.position_to_set = *current_data_->rezero_position;
-      status_.rezeroed = true;
-      current_data_->rezero_position = {};
-    }
+    aux1_port_->ISR_MaybeStartSample();
+    aux2_port_->ISR_MaybeStartSample();
 
     if (std::isnan(current_data_->timeout_s) ||
         current_data_->timeout_s != 0.0f) {
@@ -875,108 +935,25 @@ class BldcServo::Impl {
     }
     ADC5->CR |= ADC_CR_ADSTART;
 
-    // Wait for the position sample to finish.
-    const uint16_t old_position = status_.position;
-
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.start_pos_sample = DWT->CYCCNT;
 #endif
 
-    status_.position_raw = position_sensor_->FinishSample();
+    aux1_port_->ISR_MaybeFinishSample();
+    aux2_port_->ISR_MaybeFinishSample();
+    aux1_port_->ISR_StartAnalogSample();
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_pos_sample = DWT->CYCCNT;
 #endif
+    motor_position_->ISR_Update(rate_config_.period_s);
 
-    status_.position_unfilt =
-        (motor_.invert ? (65536 - status_.position_raw) : status_.position_raw);
-
-    ISR_UpdatePosition();
-
-    const int offset_size = motor_.offset.size();
-    const uint16_t int_position = static_cast<uint16_t>(status_.position);
-    const int offset_index = int_position * offset_size / 65536;
-    MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
-
-    constexpr float kU16ToTheta = k2Pi / 65536.0f;
-    status_.electrical_theta =
-        WrapZeroToTwoPi(
-            ((position_constant_ * int_position) % 65536) * kU16ToTheta +
-            motor_.offset[offset_index]);
-
-    const int16_t delta_position =
-        static_cast<int16_t>(int_position - old_position);
-    if (!config_.fixed_voltage_mode &&
-        !config_.encoder_filter.debug_override) {
-      if (status_.mode >= kVoltageFoc &&
-          std::abs(delta_position) > rate_config_.max_position_delta) {
-        // We probably had an error when reading the position.  We must fault.
-        status_.mode = kFault;
-        status_.fault = errc::kEncoderFault;
-      }
-    } else {
-      // In fixed voltage mode or with the encoder debug override, we
-      // don't need the encoder at all, so don't fault if it isn't
-      // present.
-    }
-
-    // While we are in the first calibrating state, our unwrapped
-    // position is forced to be within one rotation of 0.  Also, the
-    // AS5047 isn't guaranteed to be valid until 10ms after startup.
-    const bool can_rezero = startup_count_.load() > 10;
-    const bool need_rezero_because_command =
-        !std::isnan(status_.position_to_set);
-    const bool need_rezero_because_init =
-        !status_.rezeroed && config_.rezero_from_abs &&
-        abs_port_->status().encoder_valid;
-
-    if ((need_rezero_because_command || need_rezero_because_init) &&
-        can_rezero) {
-      const float position_to_set =
-          need_rezero_because_init ?
-          abs_port_->status().position : status_.position_to_set;
-
-      const int16_t zero_position =
-          static_cast<int16_t>(
-              static_cast<int32_t>(int_position) +
-              motor_.position_offset * (motor_.invert ? -1 : 1));
-      const float error =
-          position_to_set -
-          zero_position / motor_scale16_;
-      const float integral_offsets =
-          std::round(error / motor_.unwrapped_position_scale);
-      status_.unwrapped_position_raw =
-          static_cast<int64_t>(65536ll * 65536ll) *
-          zero_position +
-          static_cast<int32_t>(integral_offsets * 65536.0f) *
-          65536ll * 65536ll;
+    if (!std::isnan(status_.position_to_set)) {
+      motor_position_->ISR_SetOutputPositionNearest(status_.position_to_set);
       status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
-      // In case we are in encoder PLL mode.
-      status_.velocity = 0.0f;
-      if (need_rezero_because_init) {
-        status_.rezeroed = true;
-      }
-    } else {
-      status_.unwrapped_position_raw +=
-          static_cast<int64_t>(65536ll * 65536ll) * delta_position;
     }
 
-    if (!config_.encoder_filter.enabled) {
-      // We construct the velocity in a careful way so as to maximize
-      // the available resolution.  The windowed filter is calculated
-      // losslessly.  Then, the average is conducted in the floating
-      // point domain, so as to not suffer from rounding error.
-      velocity_filter_.Add(delta_position);
-      status_.velocity =
-          ((static_cast<float>(velocity_filter_.total()) / motor_scale16_) *
-           rate_config_.rate_hz) /
-          static_cast<float>(velocity_filter_.size());
-    }
-
-    ISR_UpdateFilteredValue(status_.velocity, &status_.velocity_filt, 0.01f);
-
-    status_.unwrapped_position =
-        (status_.unwrapped_position_raw >> 32) / motor_scale16_;
+    ISR_UpdateFilteredValue(position_.velocity, &status_.velocity_filt, 0.01f);
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -1021,6 +998,12 @@ class BldcServo::Impl {
           static_cast<float>(next_value - this_value);
       ISR_UpdateFilteredValue(status_.fet_temp_C, &status_.filt_fet_temp_C, 0.01f);
     }
+
+    status_.position = position_.position;
+    status_.velocity = position_.velocity;
+
+    aux1_port_->ISR_EndAnalogSample(
+        adc1_sqr_, adc2_sqr_, adc3_sqr_, adc4_sqr_);
   }
 
   void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
@@ -1058,7 +1041,7 @@ class BldcServo::Impl {
     status_.q_A = dq.q;
     status_.torque_Nm = torque_on() ? (
         current_to_torque(status_.q_A) /
-        motor_.unwrapped_position_scale) : 0.0f;
+        motor_position_->config()->rotor_to_output_ratio) : 0.0f;
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
     DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
 #endif
@@ -1226,9 +1209,9 @@ class BldcServo::Impl {
 
   bool ISR_IsOutsideLimits() {
     return ((!std::isnan(position_config_.position_min) &&
-             status_.unwrapped_position < position_config_.position_min) ||
+             position_.position < position_config_.position_min) ||
             (!std::isnan(position_config_.position_max) &&
-             status_.unwrapped_position > position_config_.position_max));
+             position_.position > position_config_.position_max));
   }
 
   void ISR_StartCalibrating() {
@@ -1333,13 +1316,6 @@ class BldcServo::Impl {
 
     control_.Clear();
 
-    if (data->set_position) {
-      status_.unwrapped_position_raw =
-          static_cast<int64_t>(65536ll * 65536ll) *
-          static_cast<int32_t>(*data->set_position * 65536.0f);
-      data->set_position = {};
-    }
-
     if (!std::isnan(status_.timeout_s) && status_.timeout_s > 0.0f) {
       status_.timeout_s =
           std::max(0.0f, status_.timeout_s - rate_config_.period_s);
@@ -1429,7 +1405,7 @@ class BldcServo::Impl {
         break;
       }
       case kVoltageDq: {
-        ISR_DoVoltageDQ(sin_cos, data->d_V, data->q_V);
+        ISR_DoVoltageDQCommand(sin_cos, data->d_V, data->q_V);
         break;
       }
       case kCurrent: {
@@ -1615,9 +1591,16 @@ class BldcServo::Impl {
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
+    if (motor_.poles == 0 || !position_.theta_valid) {
+      // We aren't configured yet.
+      status_.mode = kFault;
+      status_.fault = errc::kMotorNotConfigured;
+      return;
+    }
+
     auto limit_q_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       if (!std::isnan(position_config_.position_max) &&
-          status_.unwrapped_position > position_config_.position_max &&
+          position_.position > position_config_.position_max &&
           in > 0.0f) {
         // We derate the request in the direction that moves it
         // further outside the position limits.  This is mostly useful
@@ -1627,17 +1610,17 @@ class BldcServo::Impl {
         // anyhow.
         return in *
             std::max(0.0f,
-                     1.0f - (status_.unwrapped_position -
+                     1.0f - (position_.position -
                              position_config_.position_max) /
                      config_.position_derate);
       }
       if (!std::isnan(position_config_.position_min) &&
-          status_.unwrapped_position < position_config_.position_min &&
+          position_.position < position_config_.position_min &&
           in < 0.0f) {
         return in *
             std::max(0.0f,
                      1.0f - (position_config_.position_min -
-                             status_.unwrapped_position) /
+                             position_.position) /
                      config_.position_derate);
       }
 
@@ -1645,9 +1628,9 @@ class BldcServo::Impl {
     };
 
     auto limit_q_velocity = [&](float in) MOTEUS_CCM_ATTRIBUTE {
-      const float abs_velocity = std::abs(status_.velocity);
+      const float abs_velocity = std::abs(position_.velocity);
       if (abs_velocity < config_.max_velocity ||
-          status_.velocity * in < 0.0f) {
+          position_.velocity * in < 0.0f) {
         return in;
       }
       const float derate_fraction =
@@ -1727,13 +1710,6 @@ class BldcServo::Impl {
   // factorization by delegating most of the work to this helper
   // function.
   Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    if (motor_.poles == 0) {
-      // We aren't configured yet.
-      status_.mode = kFault;
-      status_.fault = errc::kMotorNotConfigured;
-      return Vec3{};
-    }
-
     control_.d_V = d_V;
     control_.q_V = q_V;
 
@@ -1771,6 +1747,17 @@ class BldcServo::Impl {
     ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
   }
 
+  void ISR_DoVoltageDQCommand(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+    if (motor_.poles == 0 || !position_.theta_valid) {
+      // We aren't configured yet.
+      status_.mode = kFault;
+      status_.fault = errc::kMotorNotConfigured;
+      return;
+    }
+
+    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+  }
+
   void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     if (config_.timeout_mode == kStopped) {
       ISR_DoStopped(sin_cos);
@@ -1803,53 +1790,32 @@ class BldcServo::Impl {
                          data->feedforward_Nm, data->velocity);
   }
 
-  void ISR_UpdatePosition() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
-    if (config_.encoder_filter.enabled) {
-      status_.position +=
-          rate_config_.period_s * status_.velocity * motor_scale16_;
-
-      const float error =
-          -static_cast<int16_t>(
-              static_cast<int32_t>(status_.position) - status_.position_unfilt);
-
-      status_.position +=
-          rate_config_.period_s * config_.encoder_filter.kp * error;
-      status_.position = ::fmodf(status_.position, 65536.0f);
-      if (status_.position < 0.0f) {
-        status_.position += 65536.0f;
-      }
-      status_.velocity +=
-          rate_config_.period_s * config_.encoder_filter.ki *
-          error / motor_scale16_;
-    } else {
-      status_.position = status_.position_unfilt;
-    }
-
-    if (config_.encoder_filter.debug_override >= 0) {
-      status_.position = config_.encoder_filter.debug_override;
-    }
-  }
-
   void ISR_DoPositionCommon(
       const SinCos& sin_cos, CommandData* data,
       const PID::ApplyOptions& pid_options,
       float max_torque_Nm,
       float feedforward_Nm,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
+    const int64_t absolute_relative_delta =
+        static_cast<int64_t>(
+            motor_position_->absolute_relative_delta.load()) << 32ll;
+
     const float velocity_command =
         BldcServoPosition::UpdateCommand(
             &status_,
             &config_,
             &position_config_,
-            motor_scale16_,
+            &position_,
+            absolute_relative_delta,
             rate_config_.rate_hz,
             data,
             velocity);
 
     // At this point, our control position and velocity are known.
 
-    if (config_.fixed_voltage_mode) {
-      status_.unwrapped_position =
+    if (config_.fixed_voltage_mode ||
+        !std::isnan(data->fixed_voltage_override)) {
+      status_.position =
           static_cast<float>(
               static_cast<int32_t>(
                   *status_.control_position >> 32)) /
@@ -1862,18 +1828,36 @@ class BldcServo::Impl {
       // with a fixed voltage drive based on the desired position.
       const float synthetic_electrical_theta =
           WrapZeroToTwoPi(
-              status_.unwrapped_position
-              / motor_.unwrapped_position_scale
-              * position_constant_
+              MotorPosition::IntToFloat(*status_.control_position)
+              / motor_position_->config()->rotor_to_output_ratio
+              * motor_.poles
+              * 0.5f
               * k2Pi);
       const SinCos synthetic_sin_cos =
           cordic_(RadiansToQ31(synthetic_electrical_theta));
-      ISR_DoVoltageDQ(synthetic_sin_cos, config_.fixed_voltage_control_V, 0.0f);
+      const float fixed_voltage =
+          std::isnan(data->fixed_voltage_override) ?
+          config_.fixed_voltage_control_V :
+          data->fixed_voltage_override;
+      ISR_DoVoltageDQ(synthetic_sin_cos, fixed_voltage, 0.0f);
+      return;
+    }
+
+    // From this point, we require actual valid position.
+    if (!position_.position_relative_valid) {
+      status_.mode = kFault;
+      // TODO: Have a better error for this.
+      status_.fault = errc::kMotorNotConfigured;
+      return;
+    }
+    if (position_.error != MotorPosition::Status::kNone) {
+      status_.mode = kFault;
+      status_.fault = errc::kEncoderFault;
       return;
     }
 
     const float measured_velocity = Threshold(
-        status_.velocity, -config_.velocity_threshold,
+        position_.velocity, -config_.velocity_threshold,
         config_.velocity_threshold);
 
     // We always control relative to the control position of 0, so
@@ -1881,10 +1865,10 @@ class BldcServo::Impl {
     // position range.
     const float unlimited_torque_Nm =
         pid_position_.Apply(
-            static_cast<int32_t>(
-                (status_.unwrapped_position_raw -
+            (static_cast<int32_t>(
+                (position_.position_relative_raw -
                  *status_.control_position) >> 32) /
-            65536.0f * motor_.unwrapped_position_scale,
+             65536.0f),
             0.0,
             measured_velocity, velocity_command,
             rate_config_.rate_hz,
@@ -1897,7 +1881,8 @@ class BldcServo::Impl {
     control_.torque_Nm = limited_torque_Nm;
 
     const float limited_q_A =
-        torque_to_current(limited_torque_Nm * motor_.unwrapped_position_scale);
+        torque_to_current(limited_torque_Nm *
+                          motor_position_->config()->rotor_to_output_ratio);
 
     const float q_A =
         is_torque_constant_configured() ?
@@ -1929,11 +1914,11 @@ class BldcServo::Impl {
   void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     const auto target_position = [&]() MOTEUS_CCM_ATTRIBUTE -> std::optional<float> {
       if (!std::isnan(data->bounds_min) &&
-          status_.unwrapped_position < data->bounds_min) {
+          position_.position < data->bounds_min) {
         return data->bounds_min;
       }
       if (!std::isnan(data->bounds_max) &&
-          status_.unwrapped_position > data->bounds_max) {
+          position_.position > data->bounds_max) {
         return data->bounds_max;
       }
       return {};
@@ -1950,7 +1935,9 @@ class BldcServo::Impl {
           Limit(data->feedforward_Nm, -data->max_torque_Nm, data->max_torque_Nm);
       control_.torque_Nm = limited_torque_Nm;
       const float limited_q_A =
-          torque_to_current(limited_torque_Nm * motor_.unwrapped_position_scale);
+          torque_to_current(
+              limited_torque_Nm *
+              motor_position_->config()->rotor_to_output_ratio);
 
       ISR_DoCurrent(sin_cos, 0.0f, limited_q_A);
       return;
@@ -1961,7 +1948,12 @@ class BldcServo::Impl {
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
 
-    data->position = *target_position;
+    const int64_t absolute_relative_delta =
+        (static_cast<int64_t>(
+            motor_position_->absolute_relative_delta.load()) << 32ll);
+    data->position_relative_raw =
+        MotorPosition::FloatToInt(*target_position) -
+        absolute_relative_delta;
     data->velocity = 0.0;
 
     ISR_DoPositionCommon(
@@ -2018,7 +2010,7 @@ class BldcServo::Impl {
         };
 
     if (config_.emit_debug & (1 << 0)) {
-      write_scalar(static_cast<uint16_t>(status_.position));
+      write_scalar(static_cast<uint16_t>(position_.position));
     }
 
     if (config_.emit_debug & (1 << 2)) {
@@ -2067,11 +2059,14 @@ class BldcServo::Impl {
 
   const Options options_;
   MillisecondTimer* const ms_timer_;
-  AS5047* const position_sensor_;
   MotorDriver* const motor_driver_;
-  AbsPort* const abs_port_;
+  AuxPort* const aux1_port_;
+  AuxPort* const aux2_port_;
+  MotorPosition* const motor_position_;
 
-  Motor motor_;
+
+  Motor& motor_ = *motor_position_->motor();
+  const MotorPosition::Status& position_ = motor_position_->status();
   Config config_;
   PositionConfig position_config_;
 
@@ -2095,9 +2090,7 @@ class BldcServo::Impl {
   PwmOut pwm2_;
   PwmOut pwm3_;
 
-  DigitalMonitor monitor1_;
-  DigitalMonitor monitor2_;
-  DigitalMonitor monitor3_;
+  PhaseMonitors phase_monitors_;
 
   volatile uint32_t* pwm1_ccr_ = nullptr;
   volatile uint32_t* pwm2_ccr_ = nullptr;
@@ -2136,8 +2129,6 @@ class BldcServo::Impl {
   CommandData telemetry_data_;
 
   // These values should only be modified from within the ISR.
-  mjlib::base::WindowedAverage<
-    int16_t, kMaxVelocityFilter, int32_t> velocity_filter_;
   Status status_;
   Control control_;
   uint32_t calibrate_adc1_ = 0;
@@ -2157,13 +2148,7 @@ class BldcServo::Impl {
   // 40000Hz.
   uint8_t debug_buf_[7] = {};
 
-  std::atomic<uint32_t> startup_count_{0};
-
   float torque_constant_ = 0.01f;
-  int32_t position_constant_ = 0;
-
-  // 65536.0f / unwrapped_position_scale_
-  float motor_scale16_ = 0;
 
   float adc_scale_ = 0.0f;
   float adjusted_pwm_comp_off_ = 0.0f;
@@ -2173,6 +2158,11 @@ class BldcServo::Impl {
 
   uint32_t pwm_counts_ = 0;
   Cordic cordic_;
+
+  uint32_t adc1_sqr_ = 0;
+  uint32_t adc2_sqr_ = 0;
+  uint32_t adc3_sqr_ = 0;
+  uint32_t adc4_sqr_ = 0;
 
   const uint8_t hw_rev_ = g_measured_hw_rev;
 
@@ -2185,13 +2175,15 @@ BldcServo::BldcServo(micro::Pool* pool,
                      micro::PersistentConfig* persistent_config,
                      micro::TelemetryManager* telemetry_manager,
                      MillisecondTimer* millisecond_timer,
-                     AS5047* position_sensor,
                      MotorDriver* motor_driver,
-                     AbsPort* abs_port,
+                     AuxPort* aux1_port,
+                     AuxPort* aux2_port,
+                     MotorPosition* motor_position,
                      const Options& options)
     : impl_(pool,
             persistent_config, telemetry_manager,
-            millisecond_timer, position_sensor, motor_driver, abs_port,
+            millisecond_timer, motor_driver,
+            aux1_port, aux2_port, motor_position,
             options) {}
 BldcServo::~BldcServo() {}
 
@@ -2219,8 +2211,32 @@ const BldcServo::Control& BldcServo::control() const {
   return impl_->control();
 }
 
-const BldcServo::Motor& BldcServo::motor() const {
-  return impl_->motor();
+const AuxPort::Status& BldcServo::aux1() const {
+  return impl_->aux1();
+}
+
+const AuxPort::Status& BldcServo::aux2() const {
+  return impl_->aux2();
+}
+
+const MotorPosition::Status& BldcServo::motor_position() const {
+  return impl_->motor_position();
+}
+
+MotorPosition::Config* BldcServo::motor_position_config() {
+  return impl_->motor_position_config();
+}
+
+void BldcServo::SetOutputPositionNearest(float position) {
+  impl_->SetOutputPositionNearest(position);
+}
+
+void BldcServo::SetOutputPosition(float position) {
+  impl_->SetOutputPosition(position);
+}
+
+void BldcServo::RequireReindex() {
+  impl_->RequireReindex();
 }
 
 }

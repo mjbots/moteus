@@ -208,7 +208,7 @@ constexpr int kCompatibleHwRev[] = {
 #define MOTEUS_ABS_SDA PB_9
 
 #define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
-#define MOTEUS_FIRMWARE_VERSION 0x000104
+#define MOTEUS_FIRMWARE_VERSION 0x000105
 
 // Version history:
 
@@ -227,5 +227,14 @@ constexpr int kCompatibleHwRev[] = {
 //
 // * Added servo.pwm_scale, and for r4.8 boards changed the default
 //   value of pwm_comp_off / pwm_comp_mag.
+
+// # 0x0104 #
+//
+// * Added configurable PWM rates, which changed default values of
+//   pwm_comp_mag and pwm_comp_off.
+
+// # 0x0105 #
+//
+// * Switched to a new encoder and position subsystem.
 
 }

@@ -34,7 +34,6 @@ namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
 
 namespace moteus {
-constexpr float kPi = 3.14159265359f;
 constexpr float kCalibrationStep = 0.002;
 constexpr float kMaxCalPoleCount = 50.0f;
 
@@ -85,6 +84,10 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
         command->velocity_limit = value;
         break;
       }
+      case 'o': {
+        command->fixed_voltage_override = value;
+        break;
+      }
       default: {
         return false;
       }
@@ -121,13 +124,25 @@ class BoardDebug::Impl {
 
     // speed of 1 is 1 electrical phase per second
     const int kStep = static_cast<int>(cal_speed_ * 65536.0f / 1000.0f);
-    const uint16_t position_raw = bldc_->status().position_raw;
-    const int32_t delta =
-        static_cast<int16_t>(position_raw - cal_old_position_raw_);
-    cal_old_position_raw_ = position_raw;
-    cal_position_delta_ += delta;
-    cal_phase_ += ((motor_cal_mode_ == kPhaseUp) ? 1 : -1) * kStep;
+
+    const auto& motor_position = bldc_->motor_position();
+    const auto& motor_config = *bldc_->motor_position_config();
+    const int commutation_source = motor_config.commutation_source;
+
+    const uint64_t raw = motor_position.sources[commutation_source].value;
+    const uint64_t cpr = motor_config.sources[commutation_source].cpr;
+    const uint16_t position_raw =
+        static_cast<uint16_t>(std::min<uint64_t>(65535, (raw * 65536ll) / cpr));
+
+    if (cal_old_position_raw_) {
+      const int32_t delta =
+          static_cast<int16_t>(position_raw - *cal_old_position_raw_);
+      cal_position_delta_ += delta;
+    }
     const bool phase_complete = std::abs(cal_position_delta_) > 65536;
+    cal_old_position_raw_ = position_raw;
+
+    cal_phase_ += ((motor_cal_mode_ == kPhaseUp) ? 1 : -1) * kStep;
     cal_count_++;
 
     const float kMaxTimeMs =
@@ -192,13 +207,14 @@ class BoardDebug::Impl {
       const auto& status = bldc_->status();
 
       ::snprintf(out_message_, sizeof(out_message_),
-                 "%d %d %d i1=%d i2=%d i3=%d\r\n",
+                 "%d %d %u i1=%d i2=%d i3=%d d=%ld\r\n",
                  motor_cal_mode_,
                  old_phase,
-                 status.position_raw,
+                 position_raw,
                  static_cast<int>(status.cur1_A * 1000),
                  static_cast<int>(status.cur2_A * 1000),
-                 static_cast<int>(status.cur3_A * 1000));
+                 static_cast<int>(status.cur3_A * 1000),
+                 cal_position_delta_);
       write_outstanding_ = true;
       AsyncWrite(*cal_response_.stream, out_message_, [this](auto) {
           write_outstanding_ = false;
@@ -327,11 +343,20 @@ class BoardDebug::Impl {
         }
       }
 
+      // Do we at least have a rotor level home on our commutation
+      // source?
+      const auto& motor_position = bldc_->motor_position();
+      if (!motor_position.theta_valid) {
+        WriteMessage(response, "ERR no theta available\r\n");
+        return;
+      }
+
+
       cal_response_ = response;
       motor_cal_mode_ = kPhaseUp;
       cal_phase_ = 0.;
       cal_count_ = 0;
-      cal_old_position_raw_ = bldc_->status().position_raw;
+      cal_old_position_raw_.reset();
       cal_position_delta_ = 0;
 
       cal_magnitude_ = std::strtof(magnitude_str.data(), nullptr);
@@ -431,7 +456,7 @@ class BoardDebug::Impl {
       // We default to no timeout for debug commands.
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pdsftav")) {
+      if (!ParseOptions(&command, &tokenizer, "pdsftavo")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }
@@ -525,7 +550,7 @@ class BoardDebug::Impl {
       return;
     }
 
-    if (cmd_text == "index") {
+    if (cmd_text == "exact" || cmd_text == "index" /* deprecated */) {
       const auto pos_value = tokenizer.next();
       if (pos_value.empty()) {
         WriteMessage(response, "ERR missing index value\r\n");
@@ -534,26 +559,50 @@ class BoardDebug::Impl {
 
       const float index_value = std::strtof(pos_value.data(), nullptr);
 
-      BldcServo::CommandData command;
-      command.mode = BldcServo::Mode::kStopped;
+      bldc_->SetOutputPosition(index_value);
 
-      command.set_position = index_value;
-
-      bldc_->Command(command);
       WriteOk(response);
       return;
     }
 
-    if (cmd_text == "rezero") {
+    if (cmd_text == "nearest" || cmd_text == "rezero" /* deprecated */) {
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kStopped;
 
       const auto pos_value = tokenizer.next();
-      command.rezero_position =
+      const float rezero_value =
           (pos_value.empty()) ? 0.0f :
           std::strtof(pos_value.data(), nullptr);
 
-      bldc_->Command(command);
+      bldc_->SetOutputPositionNearest(rezero_value);
+
+      WriteOk(response);
+      return;
+    }
+
+    if (cmd_text == "cfg-set-output") {
+      const auto pos_value = tokenizer.next();
+      const float set_value =
+          (pos_value.empty()) ? 0.0f :
+          std::strtof(pos_value.data(), nullptr);
+
+      // Get us within 1 revolution.
+      bldc_->SetOutputPositionNearest(set_value);
+      const float cur_output = bldc_->motor_position().position;
+      const float error = set_value - cur_output;
+
+      auto* const config = bldc_->motor_position_config();
+      config->output.offset += error * config->output.sign;
+
+      bldc_->SetOutputPositionNearest(set_value);
+
+      WriteOk(response);
+      return;
+    }
+
+    if (cmd_text == "req-reindex") {
+      bldc_->RequireReindex();
+
       WriteOk(response);
       return;
     }
@@ -636,7 +685,7 @@ class BoardDebug::Impl {
   MotorCalMode motor_cal_mode_ = kNoMotorCal;
   uint16_t cal_phase_ = 0;
   uint32_t cal_count_ = 0;
-  uint16_t cal_old_position_raw_ = 0;
+  std::optional<uint16_t> cal_old_position_raw_;
   int32_t cal_position_delta_ = 0;
   float cal_magnitude_ = 0.0f;
   float cal_speed_ = 1.0f;

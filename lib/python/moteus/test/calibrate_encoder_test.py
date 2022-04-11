@@ -2206,6 +2206,60 @@ class CalibrateEncoderTest(unittest.TestCase):
         for i, (a, b) in enumerate(zip(r.offset, expected_offset)):
             self.assertAlmostEqual(a, b, places=4, msg=f"index={i}")
 
+    def test_calibrate_hall(self):
+        data1 = [
+            (0.0, 1),
+            (0.2617993877991494, 1),
+            (0.5235987755982988, 1),
+            (0.7853981633974483, 5),
+            (1.0471975511965976, 5),
+            (1.3089969389957472, 5),
+            (1.5707963267948966, 5),
+            (1.8325957145940461, 4),
+            (2.0943951023931953, 4),
+            (2.356194490192345, 4),
+            (2.6179938779914944, 4),
+            (2.8797932657906435, 6),
+            (3.141592653589793, 6),
+            (3.4033920413889422, 6),
+            (3.6651914291880923, 6),
+            (3.9269908169872414, 2),
+            (4.1887902047863905, 2),
+            (4.4505895925855405, 2),
+            (4.71238898038469, 2),
+            (4.974188368183839, 3),
+            (5.235987755982989, 3),
+            (5.497787143782138, 3),
+            (5.759586531581287, 3),
+            (6.021385919380437, 1),
+        ]
+
+        def mangle(fun):
+            return [(x[0], fun(x[1])) for x in data1]
+
+        def test(b1, b2, b3, desired_dir,
+                 expected_polarity, expected_offset,
+                 expected_sign, expected_phase_invert):
+            result = ce.calibrate_hall(mangle(
+                lambda y: ((1 if y & 1 else 0) << b1 |
+                           (1 if y & 2 else 0) << b2 |
+                           (1 if y & 4 else 0) << b3)),
+                                       desired_direction=desired_dir)
+            self.assertEqual(result.polarity, expected_polarity)
+            self.assertEqual(result.offset, expected_offset)
+            self.assertEqual(result.sign, expected_sign)
+            self.assertEqual(result.phase_invert, expected_phase_invert)
+
+        test(0, 1, 2,  1,    0,  0, -1, 0)
+        test(0, 2, 1,  1,    0,  0,  1, 0)
+        test(1, 0, 2,  1,    0, -2,  1, 0)
+        test(1, 2, 0,  1,    0, -2, -1, 0)
+        test(2, 1, 0,  1,    0, -4,  1, 0)
+        test(2, 0, 1,  1,    0, -4, -1, 0)
+
+        test(0, 1, 2, -1,    0,  0,  1, 1)
+        test(1, 0, 2, -1,    0, -2, -1, 1)
+
 
 if __name__ == '__main__':
     unittest.main()
