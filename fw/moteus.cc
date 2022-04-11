@@ -284,10 +284,12 @@ int main(void) {
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(serial);
   micro::CommandManager command_manager(&pool, serial, &write_stream);
+  char micro_output_buffer[2048] = {};
   micro::TelemetryManager telemetry_manager(
-      &pool, &command_manager, &write_stream);
+      &pool, &command_manager, &write_stream, micro_output_buffer);
   Stm32Flash flash_interface;
-  micro::PersistentConfig persistent_config(pool, command_manager, flash_interface);
+  micro::PersistentConfig persistent_config(
+      pool, command_manager, flash_interface, micro_output_buffer);
 
   SystemInfo system_info(pool, telemetry_manager);
   FirmwareInfo firmware_info(pool, telemetry_manager,
