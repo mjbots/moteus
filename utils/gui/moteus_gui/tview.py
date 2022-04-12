@@ -94,26 +94,37 @@ def _get_data(value, name):
     return value
 
 
-def _set_tree_widget_data(item, struct,
-                          getter=lambda x, y: getattr(x, y),
-                          required_size=0):
-    if item.childCount() < required_size:
-        for i in range(item.childCount(), required_size):
-            subitem = QtWidgets.QTreeWidgetItem(item)
-            subitem.setText(0, str(i))
-    for i in range(item.childCount()):
-        child = item.child(i)
-        name = child.text(0)
+def _add_schema_item(parent, element):
+    if isinstance(element, reader.ObjectType):
+        for field in element.fields:
+            name = field.name
 
-        field = getter(struct, name)
-        if isinstance(field, tuple) and child.childCount() > 0:
-            _set_tree_widget_data(child, field)
-        elif isinstance(field, list):
-            _set_tree_widget_data(child, field,
-                                  getter=lambda x, y: x[int(y)],
-                                  required_size=len(field))
-        else:
-            child.setText(1, repr(field))
+            item = QtWidgets.QTreeWidgetItem(parent)
+            item.setText(0, name)
+
+            _add_schema_item(item, field.type_class)
+
+def _set_tree_widget_data(item, struct, element):
+    if (isinstance(element, reader.ObjectType) or
+        isinstance(element, reader.ArrayType) or
+        isinstance(element, reader.FixedArrayType)):
+        if not isinstance(element, reader.ObjectType):
+            for i in range(item.childCount(), len(struct)):
+                subitem = QtWidgets.QTreeWidgetItem(item)
+                subitem.setText(0, str(i))
+                _add_schema_item(subitem, element.type_class)
+        for i in range(item.childCount()):
+            child = item.child(i)
+            if isinstance(struct, list):
+                field = struct[i]
+                child_element = element.type_class
+            else:
+                name = child.text(0)
+                field = getattr(struct, name)
+                child_element = element.fields[i].type_class
+            _set_tree_widget_data(child, field, child_element)
+    else:
+        item.setText(1, repr(struct))
 
 
 def _console_escape(value):
@@ -627,7 +638,7 @@ class Device:
         if record:
             struct = record.archive.read(reader.Stream(io.BytesIO(data)))
             record.update(struct)
-            _set_tree_widget_data(record.tree_item, struct)
+            _set_tree_widget_data(record.tree_item, struct, record.archive)
 
     async def read_sized_block(self):
         return await self._stream.read_sized_block()
@@ -749,17 +760,7 @@ class Device:
         schema = Device.Schema(name, self, record)
         item.setData(0, QtCore.Qt.UserRole, schema)
 
-        def add_item(parent, element):
-            if isinstance(element, reader.ObjectType):
-                for field in element.fields:
-                    name = field.name
-
-                    item = QtWidgets.QTreeWidgetItem(parent)
-                    item.setText(0, name)
-
-                    add_item(item, field.type_class)
-
-        add_item(item, schema_data)
+        _add_schema_item(item, schema_data)
         return item
 
 
