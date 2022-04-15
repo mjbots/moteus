@@ -501,7 +501,7 @@ struct BldcServoConfig {
   float max_velocity_derate = 2.0;
 
   uint16_t velocity_filter_length = 256;
-  uint16_t cooldown_cycles = 128;
+  uint16_t cooldown_cycles = 256;
 
   // If true, then the initial position will be taken from the ABS
   // port's configured value shortly after startup.

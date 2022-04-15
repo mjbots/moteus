@@ -1064,6 +1064,38 @@ class BldcServo::Impl {
 #endif
   }
 
+  bool current_control() const {
+    switch (status_.mode) {
+      case kNumModes: {
+        MJ_ASSERT(false);
+        return false;
+      }
+      case kFault:
+      case kCalibrating:
+      case kCalibrationComplete:
+      case kEnabling:
+      case kStopped:
+      case kPwm:
+      case kVoltage:
+      case kVoltageFoc:
+      case kVoltageDq:
+      case kMeasureInductance:
+      case kBrake: {
+        return false;
+      }
+      case kCurrent:
+      case kPosition:
+      case kZeroVelocity:
+      case kStayWithinBounds: {
+        return true;
+      }
+      case kPositionTimeout: {
+        return config_.timeout_mode == BldcServoMode::kZeroVelocity;
+      }
+    }
+    return false;
+  }
+
   bool torque_on() const {
     switch (status_.mode) {
       case kNumModes: {
@@ -1168,8 +1200,11 @@ class BldcServo::Impl {
               // Yep, we can do this.
               status_.mode = data->mode;
 
-              // Start from scratch if we are in a new mode.
-              ISR_ClearPid(kAlwaysClear);
+              // Start from scratch if we are in a new mode and not
+              // entering stopped.
+              if (data->mode != kStopped) {
+                ISR_ClearPid(kAlwaysClear);
+              }
             }
 
             if (data->mode == kMeasureInductance) {
@@ -1225,7 +1260,6 @@ class BldcServo::Impl {
     const bool current_pid_active = [&]() MOTEUS_CCM_ATTRIBUTE {
       switch (status_.mode) {
         case kNumModes:
-        case kStopped:
         case kFault:
         case kEnabling:
         case kCalibrating:
@@ -1243,6 +1277,9 @@ class BldcServo::Impl {
         case kZeroVelocity:
         case kStayWithinBounds:
           return true;
+        case kStopped: {
+          return status_.cooldown_count != 0;
+        }
       }
       return false;
     }();
@@ -1355,14 +1392,14 @@ class BldcServo::Impl {
     status_.dwt.control_sel_mode = DWT->CYCCNT;
 #endif
 
-    if (torque_on()) {
+    if (current_control()) {
       status_.cooldown_count = config_.cooldown_cycles;
     }
 
     switch (status_.mode) {
       case kNumModes:
       case kStopped: {
-        ISR_DoStopped();
+        ISR_DoStopped(sin_cos);
         break;
       }
       case kFault: {
@@ -1426,24 +1463,23 @@ class BldcServo::Impl {
     }
   }
 
-  void ISR_DoStopped() MOTEUS_CCM_ATTRIBUTE {
-    if (status_.cooldown_count == 0) {
-      motor_driver_->Enable(false);
-      motor_driver_->Power(false);
-    } else {
+  void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
+    if (status_.cooldown_count) {
       status_.cooldown_count--;
+      ISR_DoCurrent(sin_cos, 0.0f, 0.0f);
+      return;
     }
+
+    motor_driver_->Enable(false);
+    motor_driver_->Power(false);
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
   }
 
   void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
-    if (status_.cooldown_count == 0) {
-      motor_driver_->Power(false);
-    } else {
-      status_.cooldown_count--;
-    }
+    motor_driver_->Power(false);
+
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
@@ -1736,13 +1772,13 @@ class BldcServo::Impl {
 
   void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     if (config_.timeout_mode == kStopped) {
-      ISR_DoStopped();
+      ISR_DoStopped(sin_cos);
     } else if (config_.timeout_mode == kZeroVelocity) {
       ISR_DoZeroVelocity(sin_cos, data);
     } else if (config_.timeout_mode == kBrake) {
       ISR_DoBrake();
     } else {
-      ISR_DoStopped();
+      ISR_DoStopped(sin_cos);
     }
   }
 
