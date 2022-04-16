@@ -79,6 +79,11 @@ POLL_TIMEOUT_S = 0.1
 STARTUP_TIMEOUT_S = 0.5
 
 
+class CommandError(RuntimeError):
+    def __init__(self, cmd, err):
+        super(CommandError, self).__init__(f'CommandError: "{cmd}" => "{err}"')
+
+
 def _has_nonascii(data):
     return any([ord(x) > 127 for x in data])
 
@@ -94,7 +99,11 @@ def _get_data(value, name):
     return value
 
 
-def _add_schema_item(parent, element):
+def _add_schema_item(parent, element, terminal_flags=None):
+    # Cache our schema, so that we can use it for things like
+    # generating better input options.
+    parent.setData(1, QtCore.Qt.UserRole, element)
+
     if isinstance(element, reader.ObjectType):
         for field in element.fields:
             name = field.name
@@ -102,9 +111,13 @@ def _add_schema_item(parent, element):
             item = QtWidgets.QTreeWidgetItem(parent)
             item.setText(0, name)
 
-            _add_schema_item(item, field.type_class)
+            _add_schema_item(item, field.type_class,
+                             terminal_flags=terminal_flags)
+    else:
+        if terminal_flags:
+            parent.setFlags(terminal_flags)
 
-def _set_tree_widget_data(item, struct, element):
+def _set_tree_widget_data(item, struct, element, terminal_flags=None):
     if (isinstance(element, reader.ObjectType) or
         isinstance(element, reader.ArrayType) or
         isinstance(element, reader.FixedArrayType)):
@@ -112,7 +125,8 @@ def _set_tree_widget_data(item, struct, element):
             for i in range(item.childCount(), len(struct)):
                 subitem = QtWidgets.QTreeWidgetItem(item)
                 subitem.setText(0, str(i))
-                _add_schema_item(subitem, element.type_class)
+                _add_schema_item(subitem, element.type_class,
+                                 terminal_flags=terminal_flags)
         for i in range(item.childCount()):
             child = item.child(i)
             if isinstance(struct, list):
@@ -122,7 +136,8 @@ def _set_tree_widget_data(item, struct, element):
                 name = child.text(0)
                 field = getattr(struct, name)
                 child_element = element.fields[i].type_class
-            _set_tree_widget_data(child, field, child_element)
+            _set_tree_widget_data(child, field, child_element,
+                                  terminal_flags=terminal_flags)
     else:
         item.setText(1, repr(struct))
 
@@ -402,6 +417,41 @@ class NoEditDelegate(QtWidgets.QStyledItemDelegate):
         return None
 
 
+class EditDelegate(QtWidgets.QStyledItemDelegate):
+    def __init__(self, parent=None):
+        QtWidgets.QStyledItemDelegate.__init__(self, parent=parent)
+
+    def createEditor(self, parent, option, index):
+        maybe_schema = index.data(QtCore.Qt.UserRole)
+
+        if (maybe_schema is not None and
+            (isinstance(maybe_schema, reader.EnumType) or
+             isinstance(maybe_schema, reader.BooleanType))):
+            editor = QtWidgets.QComboBox(parent)
+
+            if isinstance(maybe_schema, reader.EnumType):
+                options = list(maybe_schema.enum_class)
+                options_text = [repr(x) for x in options]
+                editor.setEditable(True)
+                editor.lineEdit().editingFinished.connect(self.commitAndCloseEditor)
+            elif isinstance(maybe_schema, reader.BooleanType):
+                options_text = ['False', 'True']
+                editor.activated.connect(self.commitAndCloseEditor)
+
+            editor.insertItems(0, options_text)
+
+            return editor
+        else:
+            return super(EditDelegate, self).createEditor(parent, option, index)
+
+
+    def commitAndCloseEditor(self):
+        editor = self.sender()
+
+        self.commitData.emit(editor)
+        self.closeEditor.emit(editor)
+
+
 def _get_item_name(item):
     name = item.text(0)
     while item.parent() and item.parent().parent():
@@ -570,6 +620,17 @@ class Device:
             self._config_tree_item.takeChildren()
             self._config_tree_items = {}
 
+            # Try doing it the "new" way first.
+            try:
+                await self.schema_update_config()
+                self._schema_config = True
+                return
+            except CommandError:
+                # This means the controller we're working with doesn't
+                # support the schema based config.
+                self._schema_config = False
+                pass
+
             configs = await self.command('conf enumerate')
             for config in configs.split('\n'):
                 if config.strip() == '':
@@ -577,6 +638,30 @@ class Device:
                 self.add_config_line(config)
         finally:
             self._updating_config = False
+
+    async def schema_update_config(self):
+        elements = [x.strip() for x in
+                    (await self.command('conf list')).split('\n')
+                    if x.strip() != '']
+        for element in elements:
+            self.write_line(f'conf schema {element}\r\n')
+            schema = await self.read_schema(element)
+            self.write_line(f'conf data {element}\r\n')
+            data = await self.read_data(element)
+
+            archive = reader.Type.from_binary(io.BytesIO(schema), name=element)
+            item = QtWidgets.QTreeWidgetItem(self._config_tree_item)
+            item.setText(0, element)
+            flags = QtCore.Qt.ItemFlags(
+                int(QtCore.Qt.ItemIsEditable) |
+                int(QtCore.Qt.ItemIsSelectable) |
+                int(QtCore.Qt.ItemIsEnabled))
+
+            _add_schema_item(item, archive, terminal_flags=flags)
+            self._config_tree_items[element] = item
+            struct = archive.read(reader.Stream(io.BytesIO(data)))
+            _set_tree_widget_data(item, struct, archive, terminal_flags=flags)
+
 
     async def update_telemetry(self):
         self._data_tree_item.takeChildren()
@@ -620,11 +705,34 @@ class Device:
     async def read_schema(self, name):
         while True:
             line = await self.readline()
-            if not line == f'schema {name}':
+            if line.startswith('ERR'):
+                raise CommandError('', line)
+            if not (line == f'schema {name}' or line == f'schema {name}'):
                 continue
             break
         schema = await self.read_sized_block()
         return schema
+
+    async def read_schema(self, name):
+        while True:
+            line = await self.readline()
+            if line.startswith('ERR'):
+                raise CommandError('', line)
+            if not (line == f'schema {name}' or line == f'cschema {name}'):
+                continue
+            break
+        schema = await self.read_sized_block()
+        return schema
+
+    async def read_data(self, name):
+        while True:
+            line = await self.readline()
+            if not line == f'cdata {name}':
+                continue
+            if line.startswith('ERR'):
+                raise CommandError('', line)
+            break
+        return await self.read_sized_block()
 
     async def do_data(self, name):
         data = await self.read_sized_block()
@@ -657,9 +765,14 @@ class Device:
     def write(self, data):
         self._stream.write(data)
 
-    def config_item_changed(self, name, value):
+    def config_item_changed(self, name, value, schema):
         if self._updating_config:
             return
+        if isinstance(schema, reader.EnumType) and ':' in value:
+            int_val = value.rsplit(':', 1)[-1].strip(' >')
+            value = int_val
+        if isinstance(schema, reader.BooleanType) and value.lower() in ['true', 'false']:
+            value = 1 if (value.lower() == 'true') else 0
         self.write_line('conf set %s %s\r\n' % (name, value))
 
     async def readline(self):
@@ -682,6 +795,8 @@ class Device:
 
         now = time.time()
         while True:
+            if line.startswith('ERR'):
+                raise CommandError(message, line)
             if line.startswith('OK'):
                 return result.getvalue()
 
@@ -797,6 +912,9 @@ class TviewMainWindow():
 
         self.ui.configTreeWidget.setItemDelegateForColumn(
             0, NoEditDelegate(self.ui))
+        self.ui.configTreeWidget.setItemDelegateForColumn(
+            1, EditDelegate(self.ui))
+
         self.ui.configTreeWidget.itemExpanded.connect(
             self._handle_config_expanded)
         self.ui.configTreeWidget.itemChanged.connect(
@@ -1047,7 +1165,8 @@ class TviewMainWindow():
             top = top.parent()
 
         device = top.data(0, QtCore.Qt.UserRole)
-        device.config_item_changed(_get_item_name(item), item.text(1))
+        device.config_item_changed(_get_item_name(item), item.text(1),
+                                   item.data(1, QtCore.Qt.UserRole))
 
     def _handle_plot_item_remove(self):
         index = self.ui.plotItemCombo.currentIndex()
