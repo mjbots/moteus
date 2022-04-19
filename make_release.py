@@ -18,6 +18,7 @@ import datetime
 import os
 import subprocess
 import sys
+import argparse
 
 
 def run(cmd):
@@ -25,7 +26,12 @@ def run(cmd):
     subprocess.check_call(cmd, shell=True)
 
 def main():
-    outdir = sys.argv[1]
+    parser = argparse.ArgumentParser(
+        description=f'{__file__} is used to build the firmware and create a flashable .elf artifact.')
+    parser.add_argument('outdir', nargs='?', default='release', help='Target directory for the build artifacts.')
+    args = parser.parse_args()
+
+    outdir = args.outdir
     os.makedirs(outdir, exist_ok=True)
 
     # Make sure git is clean first.
