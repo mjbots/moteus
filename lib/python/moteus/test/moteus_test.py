@@ -147,6 +147,19 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(parsed.id, 1)
         self.assertEqual(parsed.data, b'DEFG')
 
+    def test_make_vfoc(self):
+        dut = mot.Controller()
+        result = dut.make_vfoc(theta = math.pi, voltage=2.0, theta_rate = 2 * math.pi)
+        self.assertEqual(
+            result.data,
+            bytes([0x01, 0x00, 0x07,
+                   0x0e, 0x18,
+                   0x00, 0x00, 0x80, 0x3f,
+                   0x00, 0x00, 0x00, 0x40,
+                   0x0d, 0x1e,
+                   0x00, 0x00, 0x00, 0x40,
+            ]))
+
     def test_make_current(self):
         dut = mot.Controller()
         result = dut.make_current(d_A = 1.0, q_A = 2.0)

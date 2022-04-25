@@ -456,6 +456,13 @@ When in Current mode, this controls the desired D phase current.  Unless
 you like burning power, with a BLDC motor you will typically want this
 set to 0.  If unspecified, 0.0 is used.
 
+### 0x1e - Voltage FOC Theta Rate ###
+
+Mode: Read/write
+
+When in Voltage Foc mode, this controls the rate of change of
+electrical phase.  Integral types use the velocity mapping.
+
 
 #### 0x020 - Position command ####
 
@@ -759,10 +766,11 @@ state is thus: `d raw 0.5 0.5 0.5`.
 This enters voltage-FOC mode.  Syntax:
 
 ```
-d pwm <phase> <magnitude>
+d pwm <phase> <magnitude> [<phase_rate>]
 ```
 
-Where phase is in radians, and magnitude is in volts.
+Where phase is in radians, magnitude is in volts, and the optional
+phase rate is in radians per second.
 
 ### `d dq` ###
 

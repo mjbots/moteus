@@ -271,6 +271,7 @@ class BoardDebug::Impl {
     if (cmd_text == "pwm") {
       const auto phase_str = tokenizer.next();
       const auto magnitude_str = tokenizer.next();
+      const auto phase_rate_str = tokenizer.next();
 
       if (phase_str.empty() || magnitude_str.empty()) {
         WriteMessage(response, "ERR missing phase or mag\r\n");
@@ -285,6 +286,10 @@ class BoardDebug::Impl {
 
       command.theta = phase;
       command.voltage = magnitude;
+
+      if (!phase_rate_str.empty()) {
+        command.theta_rate = std::strtof(phase_rate_str.data(), nullptr);
+      }
 
       bldc_->Command(command);
       WriteOk(response);
