@@ -213,6 +213,8 @@ enum class Register {
   kCommandQCurrent = 0x01c,
   kCommandDCurrent = 0x01d,
 
+  kVFocThetaRate = 0x01e,
+
   kCommandPosition = 0x020,
   kCommandVelocity = 0x021,
   kCommandFeedforwardTorque = 0x022,
@@ -391,6 +393,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.i_d_A = ReadCurrent(value);
         return 0;
       }
+      case Register::kVFocThetaRate: {
+        command_.theta_rate = ReadVelocity(value) * kPi;
+        return 0;
+      }
       case Register::kCommandPosition: {
         command_.position = ReadPosition(value);
         return 0;
@@ -563,6 +569,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kCommandDCurrent: {
         return ScaleCurrent(command_.i_d_A, type);
+      }
+      case Register::kVFocThetaRate: {
+        return ScaleVelocity(command_.theta_rate / kPi, type);
       }
       case Register::kCommandPosition: {
         return ScalePosition(command_.position, type);

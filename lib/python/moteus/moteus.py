@@ -17,6 +17,7 @@ import argparse
 import enum
 import importlib_metadata
 import io
+import math
 import struct
 
 from . import multiplex as mp
@@ -166,6 +167,8 @@ class Register(enum.IntEnum):
     COMMAND_Q_CURRENT = 0x01c
     COMMAND_D_CURRENT = 0x01d
 
+    VFOC_THETA_RATE = 0x01e
+
     COMMAND_POSITION = 0x020
     COMMAND_VELOCITY = 0x021
     COMMAND_FEEDFORWARD_TORQUE = 0x022
@@ -248,6 +251,12 @@ class PositionResolution:
     watchdog_timeout = mp.F32
     velocity_limit = mp.F32
     accel_limit = mp.F32
+
+
+class VFOCResolution:
+    theta = mp.F32
+    voltage = mp.F32
+    theta_rate = mp.F32
 
 
 class CurrentResolution:
@@ -456,12 +465,14 @@ class Controller:
     def __init__(self, id=1,
                  query_resolution=QueryResolution(),
                  position_resolution=PositionResolution(),
+                 vfoc_resolution=VFOCResolution(),
                  current_resolution=CurrentResolution(),
                  transport=None,
                  can_prefix=0x0000):
         self.id = id
         self.query_resolution = query_resolution
         self.position_resolution = position_resolution
+        self.vfoc_resolution = vfoc_resolution
         self.current_resolution = current_resolution
         self.transport = transport
         self._parser = make_parser(id)
@@ -661,6 +672,62 @@ class Controller:
     async def set_position(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_position(**kwargs)]))
+
+    def make_vfoc(self,
+                  *,
+                  theta,
+                  voltage,
+                  theta_rate=0.0,
+                  query=False):
+        """Return a moteus.Command structure with data necessary to send a
+        voltage mode FOC command."""
+
+        result = self._make_command(query=query)
+        cr = self.vfoc_resolution
+        resolutions = [
+            cr.theta if theta is not None else mp.IGNORE,
+            cr.voltage if voltage is not None else mp.IGNORE,
+            mp.IGNORE,
+            mp.IGNORE,
+            mp.IGNORE,
+            mp.IGNORE,
+            cr.theta_rate if (theta_rate != 0.0 and theta_rate is not None) else mp.IGNORE,
+        ]
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_int8(int(Register.MODE))
+        writer.write_int8(int(Mode.VOLTAGE_FOC))
+
+        combiner = mp.WriteCombiner(
+            writer, 0x00, int(Register.VFOC_THETA), resolutions)
+
+        if combiner.maybe_write():
+            writer.write_pwm(theta / math.pi, cr.theta)
+        if combiner.maybe_write():
+            writer.write_voltage(voltage, cr.voltage)
+        if combiner.maybe_write():
+            assert False
+        if combiner.maybe_write():
+            assert False
+        if combiner.maybe_write():
+            assert False
+        if combiner.maybe_write():
+            assert False
+        if combiner.maybe_write():
+            writer.write_velocity(theta_rate / math.pi, cr.theta_rate)
+
+        if query:
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
+
+        return result
+
+    async def set_vfoc(self, *args, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_vfoc(**kwargs)]))
 
     def make_current(self,
                      *,

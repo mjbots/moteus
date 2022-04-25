@@ -289,6 +289,7 @@ struct BldcServoCommandData {
   // For kVoltageFoc
   float theta = 0.0f;
   float voltage = 0.0f;
+  float theta_rate = 0.0f;
 
   // For kVoltageDq and kMeasureInductance
   float d_V = 0.0f;
@@ -338,6 +339,7 @@ struct BldcServoCommandData {
 
     a->Visit(MJ_NVP(theta));
     a->Visit(MJ_NVP(voltage));
+    a->Visit(MJ_NVP(theta_rate));
 
     a->Visit(MJ_NVP(d_V));
     a->Visit(MJ_NVP(q_V));
