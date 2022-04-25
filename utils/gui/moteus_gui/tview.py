@@ -78,6 +78,11 @@ MAX_SEND = 61
 POLL_TIMEOUT_S = 0.1
 STARTUP_TIMEOUT_S = 0.5
 
+FORMAT_ROLE = QtCore.Qt.UserRole + 1
+
+FMT_STANDARD = 0
+FMT_HEX = 1
+
 
 class CommandError(RuntimeError):
     def __init__(self, cmd, err):
@@ -139,7 +144,13 @@ def _set_tree_widget_data(item, struct, element, terminal_flags=None):
             _set_tree_widget_data(child, field, child_element,
                                   terminal_flags=terminal_flags)
     else:
-        item.setText(1, repr(struct))
+        maybe_format = item.data(1, FORMAT_ROLE)
+        text = None
+        if maybe_format == FMT_HEX and type(struct) == int:
+            text = f"{struct:x}"
+        else:
+            text = repr(struct)
+        item.setText(1, text)
 
 
 def _console_escape(value):
@@ -1116,6 +1127,10 @@ class TviewMainWindow():
         copy_name = menu.addAction('Copy Name')
         copy_value = menu.addAction('Copy Value')
 
+        menu.addSeparator()
+        fmt_standard_action = menu.addAction('Standard Format')
+        fmt_hex_action = menu.addAction('Hex Format')
+
         requested = menu.exec_(self.ui.telemetryTreeWidget.mapToGlobal(pos))
 
         if requested in plot_actions:
@@ -1149,6 +1164,10 @@ class TviewMainWindow():
             QtWidgets.QApplication.clipboard().setText(item.text(0))
         elif requested == copy_value:
             QtWidgets.QApplication.clipboard().setText(item.text(1))
+        elif requested == fmt_standard_action:
+            item.setData(1, FORMAT_ROLE, FMT_STANDARD)
+        elif requested == fmt_hex_action:
+            item.setData(1, FORMAT_ROLE, FMT_HEX)
         else:
             # The user cancelled.
             pass
