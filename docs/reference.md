@@ -257,7 +257,6 @@ The following table shows which pins can be used for the unique capabilities:
 |                  | 2   | 1   |      |             | SCL |         | RX   |
 |                  | 3   | 2   |      |             | SDA |         | TX   |
 | GND (G)          | 4   |     |      |             |     |         |      |
-|------------------|-----|-----|------|-------------|-----|---------|------|
 
 Auxiliary port configuration is achieved in two steps.  First, the
 `aux[12].pins.X.mode` value is set to the proper capability for each
