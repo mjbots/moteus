@@ -235,7 +235,7 @@ register protocol.
 
 #### UART ####
 
-Pin: select
+Pins: select
 
 Nothing is supported here yet, but soon!
 
