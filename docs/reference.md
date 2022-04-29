@@ -243,6 +243,7 @@ Nothing is supported here yet, but soon!
 
 The following table shows which pins can be used for the unique capabilities:
 
+|------------------|-----|-----|------|-------------|-----|---------|------|
 | moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART |
 | Aux1 / ENC       |     |     |      |             |     |         |      |
 | 3.3V  (3)        | 1   |     |      |             |     |         |      |
@@ -257,6 +258,7 @@ The following table shows which pins can be used for the unique capabilities:
 |                  | 2   | 1   |      |             | SCL |         | RX   |
 |                  | 3   | 2   |      |             | SDA |         | TX   |
 | GND (G)          | 4   |     |      |             |     |         |      |
+|------------------|-----|-----|------|-------------|-----|---------|------|
 
 Auxiliary port configuration is achieved in two steps.  First, the
 `aux[12].pins.X.mode` value is set to the proper capability for each
