@@ -158,8 +158,8 @@ ELECTRICAL NOTES:
    * r4.5: 50mA
    * r4.8/11: 100mA
 
-The following capabilities can be used.  The first can be used on any
-pin, the latter only on select pins.
+The following capabilities can be used.  Some are supported on any
+pins, others only on select pins.
 
 #### Software Quadrature Input ####
 
