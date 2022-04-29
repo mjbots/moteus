@@ -243,8 +243,8 @@ Nothing is supported here yet, but soon!
 
 The following table shows which pins can be used for the unique capabilities:
 
-|------------------|-----|-----|------|-------------|-----|---------|------|
 | moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART |
+|------------------|-----|-----|------|-------------|-----|---------|------|
 | Aux1 / ENC       |     |     |      |             |     |         |      |
 | 3.3V  (3)        | 1   |     |      |             |     |         |      |
 | C                | 2   | 1   | X    |             |     |         |      |
@@ -252,7 +252,6 @@ The following table shows which pins can be used for the unique capabilities:
 | K                | 4   | 2   | CLK  | X           |     |         |      |
 | I                | 5   | 3   | MISO | X           |     |         |      |
 | O                | 6   | 4   | MOSI | X           |     |         |      |
-|------------------|-----|-----|------|-------------|-----|---------|------|
 | Aux2 / ABS       |     |     |      |             |     |         |      |
 | 3.3V (3)         | 1   |     |      |             |     |         |      |
 |                  | 2   | 1   |      |             | SCL |         | RX   |
