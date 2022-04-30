@@ -209,7 +209,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3000 ||
+        result.final_timer > 3100 ||
         result.total_timer < 4250) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -1066,6 +1066,10 @@ class Application {
       }
     }
 
+    co_await dut_->Command("d stop");
+
+    co_await Sleep(0.5);
+
     co_await dut_->Command("d index 0");
     co_await fixture_->Command("d index 0");
 
@@ -1076,10 +1080,10 @@ class Application {
       co_await dut_->Command(fmt::format("d pos nan {} 0.2 s{}",
                                          kFixedVelocity, stop_position));
 
-      co_await Sleep(0.3);
+      co_await Sleep(0.5);
       const double fixture_velocity =
           options_.transducer_scale * fixture_->servo_stats().velocity;
-      if ((std::abs(fixture_velocity) - kFixedVelocity) > 0.35 * tolerance_scale) {
+      if ((std::abs(fixture_velocity) - kFixedVelocity) > 0.38 * tolerance_scale) {
         throw mjlib::base::system_error::einval(
             fmt::format("Fixture velocity {} != {}",
                         fixture_velocity, kFixedVelocity));
@@ -1427,7 +1431,7 @@ class Application {
           const double estimated_velocity =
               (results[i].position - results[i - 1].position) / kDelayS;
           // TODO: Lower this threshold.
-          if (std::abs(estimated_velocity - speed) > 0.198) {
+          if (std::abs(estimated_velocity - speed) > 0.205) {
             throw mjlib::base::system_error::einval(
                 fmt::format("estimated speed at index {} too far off {} != {}",
                             i, estimated_velocity, speed));
@@ -1943,6 +1947,8 @@ class Application {
 
     Controller::PidConstants pid;
 
+    const double kQCurrent = 1.5;
+
     // First, make sure it works in current mode.
     for (double velocity : { 1.0, 3.0, 7.0, 10.0 }) {
       for (double direction : { -1.0, 1.0 }) {
@@ -1951,7 +1957,8 @@ class Application {
           co_await dut_->ConfigurePid(pid);
 
           if (current_mode) {
-            co_await dut_->Command(fmt::format("d dq 0.0 {}", direction));
+            co_await dut_->Command(
+                fmt::format("d dq 0.0 {}", kQCurrent * direction));
           } else {
             co_await dut_->Command(
                 fmt::format("d pos nan {} 1.0", 25 * direction));
@@ -2060,7 +2067,7 @@ class Application {
 
     // Despite burning power, all the basic position mode things that
     // don't involve jumps should work as is with fixed voltage mode.
-    co_await RunBasicPositionVelocityTest(pid, 1.9);
+    co_await RunBasicPositionVelocityTest(pid, 2.3);
 
     // However, we can use the fixture to drive the motor to the next
     // electrical phase and then it will stay there.
@@ -2084,9 +2091,9 @@ class Application {
       // fixture's MiToot motor.
       { 0.0, 0.0 },
       { 2.0, 0.1 },
-      { 5.0, 0.25 },
+      { 5.0, 0.28 },
       { -2.0, -0.1 },
-      { -5.0, -0.25 },
+      { -5.0, -0.28 },
     };
 
     for (const auto& test : brake_tests) {
@@ -2096,10 +2103,10 @@ class Application {
                       options_.max_torque_Nm));
       co_await Sleep(1.0);
 
-      if (std::abs(current_torque_Nm_ - test.expected_torque) > 0.05) {
+      if (std::abs(current_torque_Nm_ - test.expected_torque) > 0.06) {
         throw mjlib::base::system_error::einval(
             fmt::format("brake torque not as expected {} != {} (within {})",
-                        current_torque_Nm_, test.expected_torque, 0.05));
+                        current_torque_Nm_, test.expected_torque, 0.06));
       }
     }
 
@@ -2127,12 +2134,14 @@ class Application {
     co_await dut_->Command(
         fmt::format("d pos 3.0 -0.5 {} v0.5 a0.2", options_.max_torque_Nm));
 
-    double old_vel = 0.0;
-    const double step_s = 0.25;
+    const double step_s = 0.1;
     const int loops = 14 / step_s;
     double done_time = 0.0;
+    std::map<double, double> fixture_position_history;
+    std::map<double, double> fixture_velocity_history;
 
     for (int i = 0; i < loops; i++) {
+      const double time_s = i * step_s;
       co_await Sleep(step_s);
 
       const double fixture_position =
@@ -2142,35 +2151,55 @@ class Application {
           options_.transducer_scale *
           fixture_->servo_stats().velocity;
 
+      fixture_position_history.insert(
+          std::make_pair(time_s, fixture_position));
+      fixture_velocity_history.insert(
+          std::make_pair(time_s, fixture_velocity));
+
       if (std::abs(fixture_position - 3.0) < 0.2 &&
           done_time == 0.0) {
-        done_time = i * step_s;
+        done_time = time_s;
       }
 
-      if (i > 110) {
+      const double kVelocityWindow = 0.5;
+      if (time_s < kVelocityWindow) {
+        continue;
+      }
+
+      const double old_position = fixture_position_history.lower_bound(
+          time_s - kVelocityWindow)->second;
+      const double average_velocity =
+          (fixture_position - old_position) / kVelocityWindow;
+
+      if (time_s > 12) {
         // We should be in the final parts of the trajectory moving at
         // -0.5 units per second.
-        if (std::abs(fixture_velocity + 0.5) > 0.35) {
+        if (std::abs(average_velocity + 0.5) > 0.35) {
           throw mjlib::base::system_error::einval(
               fmt::format("Not stopped at end {} != 0",
-                          fixture_velocity));
+                          average_velocity));
         }
       } else {
         // We are in-motion.
-        if (std::abs(fixture_velocity) > 0.7) {
+        if (std::abs(average_velocity) > 0.60) {
           throw mjlib::base::system_error::einval(
-              fmt::format("Velocity while moving exceeded limit |{}| > 0.7",
+              fmt::format("Velocity while moving exceeded limit |{}| > 0.60",
                           fixture_velocity));
         }
-        const double measured_accel = (fixture_velocity - old_vel) / step_s;
-        if (std::abs(measured_accel) > 1.8) {
-          throw mjlib::base::system_error::einval(
-              fmt::format("Measured acceleration exceeds limit |{}| > 1.8",
-                          measured_accel));
+        const double kAccelWindow = 1.0;
+        if (i * step_s > kAccelWindow) {
+          const double old_vel =
+              fixture_velocity_history.lower_bound(
+                  i * step_s - kAccelWindow)->second;
+          const double measured_accel =
+              (fixture_velocity - old_vel) / kAccelWindow;
+          if (std::abs(measured_accel) > 0.60) {
+            throw mjlib::base::system_error::einval(
+                fmt::format("Measured acceleration exceeds limit |{}| > 0.60",
+                            measured_accel));
+          }
         }
       }
-
-      old_vel = fixture_velocity;
     }
 
     if (std::abs(done_time - 7.2) > 1.0) {
@@ -2231,6 +2260,10 @@ class Application {
     while (torque_tare_count_ < kNumTareSamples) {
       co_await Sleep(0.5);
     }
+
+    // Ensure that both devices start with a known configuration.
+    co_await dut_->ConfigurePid(Controller::PidConstants());
+    co_await fixture_->ConfigurePid(Controller::PidConstants());
 
     fmt::print("Initialization complete\n");
 
