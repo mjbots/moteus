@@ -102,16 +102,6 @@ def format_reg(reg):
     except TypeError:
         return f'0x{reg:03x}'
 
-def IsPosition(reg):
-    if (reg == moteus.Register.POSITION or
-        reg == moteus.Register.ABS_POSITION or
-        reg == moteus.Register.COMMAND_POSITION or
-        reg == moteus.Register.COMMAND_STOP_POSITION or
-        reg == moteus.Register.COMMAND_WITHIN_LOWER_BOUND or
-        reg == moteus.Register.COMMAND_WITHIN_UPPER_BOUND):
-        return True
-    return False
-
 def IsNan(typecode, value):
     if typecode == Type.INT8 and value == -(2**7):
         return True
