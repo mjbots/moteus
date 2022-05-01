@@ -1,4 +1,0 @@
- * PCB from macrofab
- * 5cm of 14 AWG silicone black wire
- * 5cm of 14 AWG silicone red wire
- * 2x 3.5mm male bullet connectors
