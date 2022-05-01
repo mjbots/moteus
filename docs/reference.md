@@ -726,7 +726,7 @@ Decoded, that means:
  - `70ff` torque is 0xff70 = -144 = -1.44 Nm
 - `23` reply with 3 int8 values
  - `0d` starting at register 0x00d
- - `18` voltage is 24V
+ - `18` voltage is 12V
  - `14` temperature is 20C
  - `00` no fault
 

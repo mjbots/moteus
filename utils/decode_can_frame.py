@@ -128,7 +128,7 @@ class ScaleType:
     def __init__(self, registers, int8_scale, int16_scale, int32_scale):
         self.registers = registers
         self.int8_scale = int8_scale
-        self.int16_scale = int16_scale,
+        self.int16_scale = int16_scale
         self.int32_scale = int32_scale
 
 SCALE_TYPES = [
@@ -181,9 +181,6 @@ SCALE_TYPES = [
 ]
 
 
-
-def format_time(typecode, value):
-    return format_scaled(typecode, value, 0.01, 0.001, 0.000001)
 
 def format_value(reg, typecode, value):
     if reg == 0:
