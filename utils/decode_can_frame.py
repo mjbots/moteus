@@ -266,6 +266,8 @@ def main():
             print(f'  {channel_data.hex()} - channel {channel}')
             nbytes_data, nbytes = stream.read_varuint()
             print(f'  {nbytes_data.hex()} - at most {nbytes} bytes')
+        elif cmd == Command.NOP:
+            print(f'{Command(cmd).name}')
 
 
 if __name__ == '__main__':
