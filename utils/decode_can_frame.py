@@ -112,7 +112,19 @@ def IsPosition(reg):
         return True
     return False
 
+def IsNan(typecode, value):
+    if typecode == Type.INT8 and value == -(2**7):
+        return True
+    elif typecode == Type.INT16 and value == -(2**15):
+        return True
+    elif typecode == Type.INT32 and value == -(2**31):
+        return True
+    return False
+
+
 def format_scaled(typecode, value, int8_scale, int16_scale, int32_scale):
+    if IsNan(typecode, value):
+        return f'{value} (NaN)'
     if typecode == Type.INT8:
         return f'{value} ({value * int8_scale})'
     elif typecode == Type.INT16:
