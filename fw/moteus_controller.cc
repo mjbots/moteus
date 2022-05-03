@@ -48,9 +48,11 @@ Value ScaleSaturate(float value, float scale) {
 
   const float scaled = value / scale;
   const auto max = std::numeric_limits<T>::max();
+  const auto float_max = static_cast<float>(max);
+
   // We purposefully limit to +- max, rather than to min.  The minimum
   // value for our two's complement types is reserved for NaN.
-  return Limit<T>(static_cast<T>(scaled), -max, max);
+  return static_cast<T>(Limit<float>(scaled, -float_max, float_max));
 }
 
 Value ScaleMapping(float value,
