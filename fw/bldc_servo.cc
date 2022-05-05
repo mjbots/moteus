@@ -1200,11 +1200,9 @@ class BldcServo::Impl {
               // Yep, we can do this.
               status_.mode = data->mode;
 
-              // Start from scratch if we are in a new mode and not
-              // entering stopped.
-              if (data->mode != kStopped) {
-                ISR_ClearPid(kAlwaysClear);
-              }
+              // We are entering a new active control mode.  Require
+              // our PID loops to start from scratch.
+              ISR_ClearPid(kAlwaysClear);
             }
 
             if (data->mode == kMeasureInductance) {
