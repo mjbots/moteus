@@ -810,11 +810,12 @@ class Application {
     // Then slew phase around.  We'll make sure that the current
     // remains largely in the D phase, and that the fixture does
     // indeed move around.
+    const double kSlewVoltage = 0.35;
     for (double phase = 0.0; phase < 30.0; phase += 1.0) {
       fmt::print("{}  \r", phase);
       ::fflush(stdout);
       slew_results.push_back(
-          co_await RunPwmVoltage(phase, 0.35));
+          co_await RunPwmVoltage(phase, kSlewVoltage));
     }
 
     co_await dut_->Command("d stop");
@@ -865,9 +866,10 @@ class Application {
     }
 
     // This test runs with a motor that has a phase resistance of
-    // roughly 0.062 ohms.
+    // roughly 0.051-0.062 ohms.
+    const float kMotorResistance = 0.055;
     for (const auto& r : ramp_results) {
-      const auto expected_current = r.voltage / 0.062;
+      const auto expected_current = r.voltage / kMotorResistance;
       if (std::abs(r.d_A - expected_current) > 2.5) {
         errors.push_back(
             fmt::format(
@@ -886,9 +888,9 @@ class Application {
             fmt::format("fixture moved position at voltage {}", r.voltage));
         break;
       }
-      if (std::abs(r.fixture_speed) > 0.1) {
+      if (std::abs(r.fixture_speed) > 0.12) {
         errors.push_back(
-            fmt::format("fixture had non-zero velocity at voltage {} |{}|>0.1",
+            fmt::format("fixture had non-zero velocity at voltage {} |{}|>0.12",
                         r.voltage, r.fixture_speed));
         break;
       }
@@ -905,8 +907,8 @@ class Application {
     }
 
     for (const auto& r : slew_results) {
-      const double kExpectedCurrent = 6.0;
-      const double kMaxError = 1.5;
+      const double kExpectedCurrent = kSlewVoltage / kMotorResistance;
+      const double kMaxError = 1.8;
       if (std::abs(r.d_A - kExpectedCurrent) > kMaxError) {
         errors.push_back(
             fmt::format("D phase is not correct |{} - {}| > {}",
@@ -916,7 +918,7 @@ class Application {
     }
 
     for (const auto& r : slew_results) {
-      if (std::abs(r.fixture_speed) > 0.1) {
+      if (std::abs(r.fixture_speed) > 0.12) {
         errors.push_back(
             fmt::format("fixture has non-zero speed at phase {}, {} != 0.0",
                         r.phase, r.fixture_speed));
@@ -1347,10 +1349,10 @@ class Application {
         const double expected_torque = kDelayS * pid.ki * position;
 
         verify_position_mode();
-        if (std::abs(current_torque_Nm_ - expected_torque) > 0.16) {
+        if (std::abs(current_torque_Nm_ - expected_torque) > 0.17) {
           throw mjlib::base::system_error::einval(
               fmt::format("ki torque not as expected {} != {} (within {})",
-                          current_torque_Nm_, expected_torque, 0.16));
+                          current_torque_Nm_, expected_torque, 0.17));
         }
 
         // Stop the DUT to clear out the I term.
@@ -1901,9 +1903,9 @@ class Application {
       double expected_speed_Hz;
     } tests[] = {
       { 100.0, 4.04 },
-      { 20.0, 3.0 },
-      { 10.0, 2.09 },
-      { 5.0, 1.55 },
+      { 20.0, 2.35 },
+      { 10.0, 1.69 },
+      { 5.0, 1.17 },
     };
 
     for (const auto test : tests) {
@@ -2091,9 +2093,9 @@ class Application {
       // fixture's MiToot motor.
       { 0.0, 0.0 },
       { 2.0, 0.1 },
-      { 5.0, 0.28 },
+      { 5.0, 0.30 },
       { -2.0, -0.1 },
-      { -5.0, -0.28 },
+      { -5.0, -0.30 },
     };
 
     for (const auto& test : brake_tests) {
