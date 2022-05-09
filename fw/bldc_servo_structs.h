@@ -442,7 +442,7 @@ struct BldcServoConfig {
   float derate_temperature = 50.0f;
   float fault_temperature = 75.0f;
 
-  float velocity_threshold = 0.09f;
+  float velocity_threshold = 0.0f;
   float position_derate = 0.02f;
 
   // The current ADCs are driven by the drv8323's op-amp, which is
