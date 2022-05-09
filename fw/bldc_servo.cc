@@ -1685,7 +1685,7 @@ class BldcServo::Impl {
     // This is conservative... we could use std::hypot(d, q), however
     // that would take more CPU cycles, and most of the time we'll
     // only be seeing q != 0.
-    const float max_V = adjusted_max_power_W_ /
+    const float max_V = 0.5f * adjusted_max_power_W_ /
         (std::abs(status_.d_A) + std::abs(status_.q_A));
 
     if (!config_.voltage_mode_control) {
