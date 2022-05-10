@@ -106,6 +106,10 @@ class FirmwareUpgrade:
                 items[b'servo.pwm_comp_mag'] = b'0.003'
                 # servo.pwm_scale doesn't exist in version 0x0102 and earlier
                 print("Reverting servo.pwm_comp_mag from 0.011 to 0.003 for version 0x0102")
+            if int(items[b'motor.phase_invert']) != 0:
+                print("** WARNING ** Current calibration is not compatible, " +
+                      "re-calibration required")
+                items[b'motor.poles'] = b'0'
 
         if self.new >= 0x0104 and self.old <= 0x0103:
             if (float(items.get(b'servo.pwm_comp_mag', 0.0)) == 0.011 and
