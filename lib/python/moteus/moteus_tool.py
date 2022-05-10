@@ -645,8 +645,8 @@ class Stream:
         kp, ki, torque_bw_hz = None, None, None
         if inductance:
             kp, ki, torque_bw_hz = \
-                self.calculate_bandwidth(winding_resistance, inductance,
-                                         control_rate_hz)
+                await self.calculate_bandwidth(winding_resistance, inductance,
+                                               control_rate_hz)
 
             await self.command(f"conf set servo.pid_dq.kp {kp}")
             await self.command(f"conf set servo.pid_dq.ki {ki}")
@@ -889,8 +889,16 @@ class Stream:
         await self.command(f"conf set servo.encoder_filter.ki {ki}")
         return kp, ki, encoder_bw_hz
 
-    def calculate_bandwidth(self, resistance, inductance, control_rate_hz = None):
+    async def calculate_bandwidth(self, resistance, inductance, control_rate_hz = None):
         twopi = 2 * math.pi
+
+        if await self.is_config_supported("servo.current_sense_ohm"):
+            current_sense_ohm = await self.read_config_double(
+                "servo.current_sense_ohm")
+        else:
+            current_sense_ohm = 0.0005
+
+        current_sense_scale = current_sense_ohm / 0.0005
 
         # We have several factors that can limit the bandwidth:
 
@@ -904,11 +912,11 @@ class Stream:
         # too large.  The current sense noise on the moteus controller
         # limits how large Kp can get before the loop becomes unstable
         # or very noisy.
-        kp_limit_rad_s = 0.20 / inductance
+        kp_limit_rad_s = current_sense_scale * 0.20 / inductance
 
         # Finally, we limit the bandwidth such that the Ki value is
         # not too large.
-        ki_limit_rad_s = 500.0 / resistance
+        ki_limit_rad_s = current_sense_scale * 500.0 / resistance
 
         cal_bw_rad_s = self.args.cal_bw_hz * twopi
 
