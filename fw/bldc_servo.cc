@@ -1852,9 +1852,10 @@ class BldcServo::Impl {
       return;
     }
 
-    const float measured_velocity = Threshold(
-        status_.velocity, -config_.velocity_threshold,
-        config_.velocity_threshold);
+    const float measured_velocity = velocity_command +
+        Threshold(
+            status_.velocity - velocity_command, -config_.velocity_threshold,
+            config_.velocity_threshold);
 
     // We always control relative to the control position of 0, so
     // that we get equal performance across the entire viable integral
