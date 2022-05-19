@@ -81,8 +81,8 @@ performance is desired, it is recommended to configure a non-zero `ki`
 and `ilimit` term in the position controller
 ([reference](#servopid_position)).  This will compensate for cogging
 torque (at the expense of overall torque bandwidth).  It may also be
-beneficial to select a lower value than default for `moteus_tool
---cal-bw-hz` during calibration.
+beneficial to select a alternate values for `moteus_tool --cal-bw-hz`
+during calibration (higher or lower).
 
 ### Constant Acceleration Trajectories ###
 
@@ -110,7 +110,7 @@ as rapidly as possible or accelerate the load maximally.  For these
 applications, it is recommended to have no integrative term in the
 position controller ([reference](#servopid_position)).  When
 calibrating the motor, you may use the `moteus_tool --cal-bw-hz`
-option to select a bandwidth higher than the default of 50Hz (or
+option to select a bandwidth higher than the default of 100Hz (or
 manually select servo.pid_dq.kp/ki after calibration).
 
 ### Torque Control ###
