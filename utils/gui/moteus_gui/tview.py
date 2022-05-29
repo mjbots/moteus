@@ -64,6 +64,11 @@ else:
 # initialized from a plugin..."
 QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
 
+if os.environ['QT_API'] == 'pyside6':
+    # Something can override our request.  Put it back to the correct
+    # capitalization for asyncqt.
+    os.environ['QT_API'] = 'PySide6'
+
 import asyncqt
 
 import moteus.reader as reader
