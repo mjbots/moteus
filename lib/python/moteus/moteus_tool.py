@@ -30,6 +30,7 @@ import sys
 import tempfile
 import time
 import uuid
+import traceback
 
 from . import moteus
 from . import aiostream
@@ -454,7 +455,14 @@ class Stream:
 
         if not self.args.bootloader_active:
             # Get the current firmware version.
-            old_firmware = await self.read_data("firmware")
+            try:
+                old_firmware = await self.read_data("firmware")
+            except RuntimeError as e:
+                if self.args.no_restore_config:
+                    pass
+                else:
+                    print(f"Couldn't calpture old config. Consider using --no_restore_config to skip this step.")
+                    raise e
 
         upgrade = FirmwareUpgrade(
             elf.firmware_version
