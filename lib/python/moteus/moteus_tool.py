@@ -458,7 +458,11 @@ class Stream:
 
         if not self.args.bootloader_active:
             # Get the current firmware version.
-            old_firmware = await self.read_data("firmware")
+            try:
+                old_firmware = await self.read_data("firmware")
+            except:
+                print("Could not read firmware version.  --bootloader-active may be necessary")
+                raise
 
         upgrade = FirmwareUpgrade(
             elf.firmware_version
