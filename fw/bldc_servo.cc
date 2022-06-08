@@ -787,7 +787,7 @@ class BldcServo::Impl {
         ((*timer_cr1_) & TIM_CR1_DIR) ?
         (pwm_counts_ - cnt) :
         (pwm_counts_ + cnt);
-    status_.total_timer = 2 * pwm_counts_;
+    status_.total_timer = 2 * pwm_counts_ * rate_config_.interrupt_divisor;
     debug_out_ = 0;
   }
 
