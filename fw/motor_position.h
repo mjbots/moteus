@@ -773,7 +773,7 @@ class MotorPosition {
           status.raw = quad_status->value;
           const auto delta = WrapIntCpr(status.raw - old_raw, config.cpr);
           status.offset_value = WrapIntCpr(
-              static_cast<int32_t>(status.offset_value + delta) * config.sign,
+              static_cast<int32_t>(status.offset_value + delta * config.sign),
               config.cpr);
           status.nonce++;
           status.active_velocity = true;

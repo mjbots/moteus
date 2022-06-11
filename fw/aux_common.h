@@ -106,7 +106,7 @@ struct UartEncoder {
 struct Quadrature {
   struct Config {
     bool enabled = false;
-    uint16_t cpr = 16384;
+    uint32_t cpr = 16384;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -118,7 +118,7 @@ struct Quadrature {
   struct Status {
     bool active = false;
     uint8_t pins = 0;
-    uint16_t value = 0;
+    uint32_t value = 0;
     uint16_t error = 0;
 
     template <typename Archive>
