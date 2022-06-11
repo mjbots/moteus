@@ -56,8 +56,7 @@ setuptools.setup(
         # For some reason, matplotlib can barf without this, but
         # doesn't actually list it as a dependency on Windows.
         'msvc-runtime;platform_system=="Windows"',
-        'numpy<=1.19.3;platform_system=="Windows"',
-        'numpy;platform_system!="Windows"',
+        'numpy',
         'PySide2;platform_system!="Darwin"',
         'PySide6>=6.2;platform_system=="Darwin"',
         'qtconsole>=0.5.2',
