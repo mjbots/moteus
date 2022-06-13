@@ -152,6 +152,8 @@ async def main():
         await s.command(f'conf set motor.cogging_dq_scale {scale}'.encode('utf8'))
         for i, d in enumerate(scaled_average):
             await s.command(f'conf set motor.cogging_dq_comp.{i} {d}'.encode('utf8'))
+
+        await s.command(b'conf write')
     else:
         print("WARNING: Values not stored to device, --store not specified")
 

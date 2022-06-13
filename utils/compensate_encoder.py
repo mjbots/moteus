@@ -159,6 +159,8 @@ async def main():
         for i, x in enumerate(sampled):
             value = -x if not args.zero else 0.0
             await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_table.{i} {value}".encode('utf8'))
+
+        await s.command(b'conf write')
     else:
         print("WARNING: Values not stored to device, --store not specified")
 
