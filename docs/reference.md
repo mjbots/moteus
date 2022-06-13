@@ -248,15 +248,15 @@ The following table shows which pins can be used for the unique capabilities:
 |------------------|-----|-----|------|-------------|-----|---------|------|-----|
 | Aux1 / ENC       |     |     |      |             |     |         |      |     |
 | 3.3V  (3)        | 1   |     |      |             |     |         |      |     |
-| C                | 2   | 1   | X    |             |     |         |      | X   |
+| C                | 2   | 0   | X    |             |     |         |      | X   |
 | GND (G)          | 3   |     |      |             |     |         |      |     |
-| K                | 4   | 2   | CLK  | X           |     |         |      |     |
-| I                | 5   | 3   | MISO | X           |     |         |      |     |
-| O                | 6   | 4   | MOSI | X           |     |         |      |     |
+| K                | 4   | 1   | CLK  | X           |     |         |      |     |
+| I                | 5   | 2   | MISO | X           |     |         |      |     |
+| O                | 6   | 3   | MOSI | X           |     |         |      |     |
 | Aux2 / ABS       |     |     |      |             |     |         |      |     |
 | 3.3V (3)         | 1   |     |      |             |     |         |      |     |
-|                  | 2   | 1   |      |             | SCL |         | RX   | X   |
-|                  | 3   | 2   |      |             | SDA |         | TX   | X   |
+|                  | 2   | 0   |      |             | SCL |         | RX   | X   |
+|                  | 3   | 1   |      |             | SDA |         | TX   | X   |
 | GND (G)          | 4   |     |      |             |     |         |      |     |
 
 Auxiliary port configuration is achieved in two steps.  First, the
