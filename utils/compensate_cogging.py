@@ -40,6 +40,7 @@ async def read_data(args, s, speed=None):
 
     position_min = await histogram.read_config_double(s, "servopos.position_min")
     position_max = await histogram.read_config_double(s, "servopos.position_max")
+    output_scale = await histogram.read_config_double(s, "motor_position.rotor_to_output_ratio")
 
     await s.command(b'conf set servopos.position_min nan')
     await s.command(b'conf set servopos.position_max nan')
@@ -48,7 +49,7 @@ async def read_data(args, s, speed=None):
     result = {}
     for velocity in [-speed, speed]:
         print(f'vel={velocity}')
-        await s.command(f"d pos nan {velocity} nan a4".encode('utf8'))
+        await s.command(f"d pos nan {velocity * output_scale} nan a4".encode('utf8'))
         await asyncio.sleep(2)
 
         values, _ = await histogram.capture_histogram(
