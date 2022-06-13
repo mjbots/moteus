@@ -153,10 +153,11 @@ There are two auxiliary ports on moteus, each with pins that can be
 used for various functions.
 
 ELECTRICAL NOTES:
- * ALL PINS ARE 3.3V ONLY!
  * The 3.3V supply pins can power external peripherals:
    * r4.5: 50mA
    * r4.8/11: 100mA
+ * Some pins are 5V tolerant.  Those not marked as such in the pin
+   option table are 3.3V only.
 
 The following capabilities can be used.  Some are supported on any
 pins, others only on select pins.
@@ -243,20 +244,20 @@ Nothing is supported here yet, but soon!
 
 The following table shows which pins can be used for the unique capabilities:
 
-| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART |
-|------------------|-----|-----|------|-------------|-----|---------|------|
-| Aux1 / ENC       |     |     |      |             |     |         |      |
-| 3.3V  (3)        | 1   |     |      |             |     |         |      |
-| C                | 2   | 1   | X    |             |     |         |      |
-| GND (G)          | 3   |     |      |             |     |         |      |
-| K                | 4   | 2   | CLK  | X           |     |         |      |
-| I                | 5   | 3   | MISO | X           |     |         |      |
-| O                | 6   | 4   | MOSI | X           |     |         |      |
-| Aux2 / ABS       |     |     |      |             |     |         |      |
-| 3.3V (3)         | 1   |     |      |             |     |         |      |
-|                  | 2   | 1   |      |             | SCL |         | RX   |
-|                  | 3   | 2   |      |             | SDA |         | TX   |
-| GND (G)          | 4   |     |      |             |     |         |      |
+| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5V |
+|------------------|-----|-----|------|-------------|-----|---------|------|----|
+| Aux1 / ENC       |     |     |      |             |     |         |      |    |
+| 3.3V  (3)        | 1   |     |      |             |     |         |      |    |
+| C                | 2   | 1   | X    |             |     |         |      | X  |
+| GND (G)          | 3   |     |      |             |     |         |      |    |
+| K                | 4   | 2   | CLK  | X           |     |         |      |    |
+| I                | 5   | 3   | MISO | X           |     |         |      |    |
+| O                | 6   | 4   | MOSI | X           |     |         |      |    |
+| Aux2 / ABS       |     |     |      |             |     |         |      |    |
+| 3.3V (3)         | 1   |     |      |             |     |         |      |    |
+|                  | 2   | 1   |      |             | SCL |         | RX   | X  |
+|                  | 3   | 2   |      |             | SDA |         | TX   | X  |
+| GND (G)          | 4   |     |      |             |     |         |      |    |
 
 Auxiliary port configuration is achieved in two steps.  First, the
 `aux[12].pins.X.mode` value is set to the proper capability for each
