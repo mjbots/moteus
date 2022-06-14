@@ -176,9 +176,7 @@ class Stm32Quadrature {
         static_cast<uint32_t>(status_->value) +
         kQuadUpdate[update] +
         config_.cpr;
-    status_->value =
-        static_cast<uint16_t>(
-            new_value % static_cast<uint32_t>(config_.cpr));
+    status_->value = new_value % config_.cpr;
     status_->error += kQuadError[update];
   }
 
