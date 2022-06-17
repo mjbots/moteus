@@ -7,7 +7,23 @@ including firmware and PCBs.
 for moderately high power electronics.  It has not yet burned down my
 (or anyone's that I know of) house, but there are no guarantees.
 
- * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=main)](https://travis-ci.org/mjbots/moteus)
+
+# Specifications #
+
+| Name                  | Value          |
+|-----------------------|----------------|
+| Voltage Input         | 10-44V         |
+| Peak Electrical Power | 500W           |
+| Mass                  | 14.2g          |
+| Control Rate          | 15-40kHz       |
+| PWM Switching Rate    | 15-60kHz       |
+| CPU                   | 170Mhz STM32G4 |
+| Peak phase current    | 100A           |
+| Communications        | 5Mbps CAN-FD   |
+| Dimensions            | 46x53mm        |
+
+Assembled and tested boards can be purchased at https://mjbots.com/products/moteus-r4-11
+
 
 # LICENSE #
 
@@ -29,3 +45,7 @@ https://www.apache.org/licenses/LICENSE-2.0
 
 * [Getting Started](docs/getting_started.md)
 * [Reference](docs/reference.md)
+
+# Misc #
+
+ * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=main)](https://travis-ci.org/mjbots/moteus)
