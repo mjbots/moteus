@@ -69,7 +69,7 @@ class FirmwareUpgrade:
                 int(items[b'motor_position.commutation_source']) != 0 or
                 int(items[b'motor_position.output.source']) != 0 or
                 int(items[b'motor_position.output.reference_source']) != -1 or
-                int(items[b'motor_position.sources.0.offset']) != 0 or
+                float(items[b'motor_position.sources.0.offset']) != 0 or
                 int(items[b'motor_position.output.sign']) != 1):
                 print("WARNING: Cannot map 0x0105 encoder settings downgrading to 0x0104. " +
                       "Default onboard AS5047P will be used.")
