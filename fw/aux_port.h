@@ -509,7 +509,7 @@ class AuxPort {
       }
       case DC::kNone:
       case DC::kNumTypes: {
-        MJ_ASSERT(false);
+        // Ignore.
         break;
       }
     }
