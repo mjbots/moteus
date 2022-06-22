@@ -17,9 +17,11 @@
 import argparse
 import asyncio
 import json
+import math
 import matplotlib.pyplot as plt
 import moteus
 import numpy
+import sys
 import tempfile
 
 import histogram
@@ -60,6 +62,10 @@ async def read_data(args, s, speed=None):
 
         await s.command(b"d stop")
         await asyncio.sleep(2)
+
+        if any([not math.isfinite(x) for x in values]):
+            print(f'Compensation failed.  Ensure that PID values are set for smooth motion at speed={speed * output_scale}')
+            sys.exit(1)
 
         if velocity < 0.0:
             result['reverse'] = values
@@ -114,7 +120,6 @@ async def main():
     print('Output saved to: ', args.output)
     with open(args.output, 'w') as of:
         json.dump(data, of)
-
 
     fig, ax = plt.subplots()
 
