@@ -954,7 +954,7 @@ class Stream:
         while True:
             await asyncio.sleep(0.5)
             motor_position = await self.read_data("motor_position")
-            if motor_position.homed != 0:
+            if motor_position.homed != 0 or motor_position.theta_valid:
                 break
             now = time.time()
             if (now - start_time) > 40.0:
@@ -969,7 +969,7 @@ class Stream:
                 await self.command(f"conf set motor.poles 2")
 
             motor_position = await self.read_data("motor_position")
-            if motor_position.homed == 0:
+            if motor_position.homed == 0 and not motor_position.theta_valid:
                 # We need to find an index.
                 await self.find_index(encoder_cal_voltage)
         except RuntimeError:
