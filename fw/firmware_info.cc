@@ -36,6 +36,9 @@ struct Info {
 };
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overread"
+
 class FirmwareInfo::Impl {
  public:
   Impl(mjlib::micro::TelemetryManager& telemetry, uint32_t version,
@@ -51,9 +54,9 @@ class FirmwareInfo::Impl {
 #error "Unknown target"
 #endif
                                          );
+
     std::memcpy(&info_.serial_number[0], device_signature,
                 sizeof(uint32_t) * 3);
-
     telemetry.Register("firmware", &info_);
   }
 
@@ -79,5 +82,7 @@ FirmwareInfo::SerialNumber FirmwareInfo::serial_number() const {
   }
   return result;
 }
+
+#pragma GCC diagnostic pop
 
 }
