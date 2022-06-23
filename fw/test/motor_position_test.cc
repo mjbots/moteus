@@ -275,6 +275,221 @@ BOOST_AUTO_TEST_CASE(MotorPositionSetOutputNearest,
   }
 }
 
+BOOST_AUTO_TEST_CASE(MotorPositionNearestReferenceSource,
+                     * boost::unit_test::tolerance(1e-3f)) {
+  // A 5:1 reducer with a separate reference source.
+  Context ctx;
+  auto& config = *ctx.dut.config();
+  config.sources[1].aux_number = 2;
+  config.sources[1].type = MotorPosition::SourceConfig::kUart;
+  config.sources[1].offset = 0;
+  config.sources[1].cpr = 16384;
+  config.sources[1].reference = MotorPosition::SourceConfig::kOutput;
+  config.output.reference_source = 1;
+  config.rotor_to_output_ratio = 0.2f;
+
+  ctx.pcf.persistent_config.Load();
+
+  ctx.aux1_status.spi.active = true;
+  ctx.aux1_status.spi.value = 4096;
+  ctx.aux1_status.spi.nonce++;
+
+  ctx.aux2_status.uart.active = true;
+  ctx.aux2_status.uart.value = 7372;
+  ctx.aux2_status.uart.nonce++;
+
+  // This should work out to a position of around 0.9 at the
+
+  ctx.Update();
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.45f);
+    BOOST_TEST(status.position_relative == 0.0f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // At this point, moving the reference source shouldn't have any
+  // effect on the output.
+  ctx.aux2_status.uart.value = 4000;
+
+  for (int i = 0; i < 50; i++) {
+    ctx.aux2_status.uart.nonce++;
+    ctx.Update();
+  }
+
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.45f);
+    BOOST_TEST(status.position_relative == 0.0f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // But updating the primary source will.
+  ctx.aux1_status.spi.value = 4200;
+  for (int i = 0; i < 50; i++) {
+    ctx.aux1_status.spi.nonce++;
+    ctx.Update();
+  }
+
+  {
+    const auto status = ctx.dut.status();
+    std::cout << "pos " << status.position << "\n";
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.45126f);
+    BOOST_TEST(status.position_relative == 0.001266f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // If we command a "set output nearest", it will once again take
+  // into account the reference source.
+  ctx.dut.ISR_SetOutputPositionNearest(0.0f);
+  ctx.Update();
+
+  {
+    const auto status = ctx.dut.status();
+    std::cout << "pos " << status.position << "\n";
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.25126f);
+    BOOST_TEST(status.position_relative == 0.001266f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(MotorPositionIncrementalReferenceSource,
+                     * boost::unit_test::tolerance(1e-3f)) {
+  // An incremental output encoder, with an absolute reference source.
+  Context ctx;
+  auto& config = *ctx.dut.config();
+  config.sources[1].aux_number = 2;
+  config.sources[1].type = MotorPosition::SourceConfig::kQuadrature;
+  config.sources[1].offset = 0;
+  config.sources[1].cpr = 20000;
+  config.sources[1].reference = MotorPosition::SourceConfig::kOutput;
+  config.output.reference_source = 0;
+  config.output.source = 1;
+  config.commutation_source = 0;
+
+  config.rotor_to_output_ratio = 1.0f;
+
+  ctx.pcf.persistent_config.Load();
+
+  ctx.aux1_status.spi.active = true;
+  ctx.aux1_status.spi.value = 4096;
+  ctx.aux1_status.spi.nonce++;
+
+  ctx.aux2_status.quadrature.active = true;
+  ctx.aux2_status.quadrature.value = 8999;
+
+  // The "reference source" is at 0.25, so we should start out exactly
+  // there.
+
+  ctx.Update();
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.25f);
+    BOOST_TEST(status.position_relative == 0.0f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // At this point, moving the reference source shouldn't have any
+  // effect on the output.
+  ctx.aux1_status.spi.value = 4000;
+
+  for (int i = 0; i < 50000; i++) {
+    ctx.aux1_status.spi.nonce++;
+    ctx.Update();
+  }
+
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.25f);
+    BOOST_TEST(status.position_relative == 0.0f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // But updating the incremental output will.
+  ctx.aux2_status.quadrature.value = 9155;
+  for (int i = 0; i < 50; i++) {
+    ctx.Update();
+  }
+
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.2578f);
+    BOOST_TEST(status.position_relative == 0.007797f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // If we command a "set output nearest", it will once again take
+  // into account the reference source.
+  ctx.dut.ISR_SetOutputPositionNearest(0.0f);
+  ctx.Update();
+
+  {
+    const auto status = ctx.dut.status();
+    std::cout << "pos " << status.position << "\n";
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.2441f);
+    BOOST_TEST(status.position_relative == 0.007797f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  // Advance the incremental by a full revolution.
+  for (int i = 0; i < 20000; i++) {
+    ctx.aux2_status.quadrature.value =
+        (ctx.aux2_status.quadrature.value + 1) % 20000;
+    for (int j = 0; j < 5; j++) {
+      ctx.Update();
+    }
+  }
+
+  {
+    const auto status = ctx.dut.status();
+    std::cout << "pos " << status.position << "\n";
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 1.2409f);
+    BOOST_TEST(status.position_relative == 1.00456f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+
+  ctx.dut.ISR_SetOutputPositionNearest(0.0f);
+  ctx.Update();
+
+  {
+    const auto status = ctx.dut.status();
+    std::cout << "pos " << status.position << "\n";
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+    BOOST_TEST(status.position == 0.2441f);
+    BOOST_TEST(status.position_relative == 1.00456f);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+  }
+}
+
 BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
                      * boost::unit_test::tolerance(1e-2f)) {
   Context ctx;

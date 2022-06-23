@@ -165,6 +165,7 @@ class MotorPosition {
   struct SourceStatus {
     bool active_velocity = false;
     bool active_theta = false;
+    bool active_absolute = false;
     uint32_t raw = 0;
     float time_since_update = 0.0f;
 
@@ -187,6 +188,7 @@ class MotorPosition {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(active_velocity));
       a->Visit(MJ_NVP(active_theta));
+      a->Visit(MJ_NVP(active_absolute));
       a->Visit(MJ_NVP(raw));
       a->Visit(MJ_NVP(time_since_update));
       a->Visit(MJ_NVP(nonce));
@@ -323,49 +325,22 @@ class MotorPosition {
   }
 
   // Set the output position to be the nearest value consistent with
-  // any absolute encoders that may be enabled.
+  // any absolute encoders or reference sources that may be enabled.
   //
   // An absolute encoder could be a actual absolute value, or an index
   // referenced incremental counter.
   void ISR_SetOutputPositionNearest(float value) MOTEUS_CCM_ATTRIBUTE {
-    // For now, we only support the case where a single absolute
-    // encoder is configured as the primary commutation sensor.
     MJ_ASSERT(config_.output.source >= 0);
-    if (!status_.sources[config_.output.source].active_theta) {
-      // theta valid implies we have an absolute reference of some
-      // sort.  If we don't, then we don't have anything to be nearest
-      // to.  For now, just do nothing.
-      return;
+    if (!status_.sources[config_.output.source].active_absolute) {
+      if (config_.output.reference_source < 0 ||
+          !status_.sources[config_.output.reference_source].active_absolute) {
+        // We have no absolute values to work with at all.  Thus just
+        // ignore nearest requests.
+        return;
+      }
     }
 
-    const auto& output_config =
-        config_.sources[config_.output.source];
-    const auto& output_status =
-        status_.sources[config_.output.source];
-
-    const float output_scale =
-        (output_config.reference == SourceConfig::kRotor) ?
-        config_.rotor_to_output_ratio :
-        1.0f;
-
-    const float source_position =
-        WrapBalancedCpr(
-            (output_status.filtered_value * output_cpr_scale_ +
-             config_.output.offset) * config_.output.sign, 1.0f);
-    const float integral_offsets =
-        std::round((value - source_position) / output_scale);
-
-    status_.position_raw =
-        (1ll << 24) *
-        static_cast<int32_t>((1l << 24) * source_position) +
-        static_cast<int64_t>(integral_offsets) * (1ll << 24) *
-        static_cast<int32_t>(static_cast<float>(1 << 24) * output_scale);
-
-    status_.position =
-        static_cast<float>(status_.position_raw >> 32ll) /
-        65536.0f;
-
-    status_.homed = Status::kOutput;
+    ISR_SetOutputPositionNearestHelper(value, config_.output.reference_source);
   }
 
   void ISR_RequireReindex() {
@@ -400,7 +375,7 @@ class MotorPosition {
   }
 
  private:
-  bool IsAbsolute(const SourceConfig& config) const MOTEUS_CCM_ATTRIBUTE {
+  bool IsThetaCapable(const SourceConfig& config) const MOTEUS_CCM_ATTRIBUTE {
       // TODO: eventually exclude spi options that are incremental
 
     return config.type == SourceConfig::kSpi ||
@@ -430,7 +405,7 @@ class MotorPosition {
       if (source_config.incremental_index > 2) {
         source_config.incremental_index = 2;
       }
-      if (IsAbsolute(source_config) && source_config.incremental_index >= 1) {
+      if (IsThetaCapable(source_config) && source_config.incremental_index >= 1) {
         status_.error = Status::kInvalidConfig;
         return;
       }
@@ -491,7 +466,7 @@ class MotorPosition {
     commutation_status_ =
         &status_.sources[config_.commutation_source];
 
-    if (IsAbsolute(*commutation_config_)) {
+    if (IsThetaCapable(*commutation_config_)) {
       if (motor_.poles == 0 ||
           (motor_.poles % 2) != 0) {
         status_.error = Status::kMotorNotConfigured;
@@ -539,7 +514,8 @@ class MotorPosition {
       // It must be referenced to the output.
       const auto& output_reference_config =
           config_.sources[config_.output.reference_source];
-      if (output_reference_config.reference != SourceConfig::kOutput) {
+      if (output_reference_config.reference != SourceConfig::kOutput &&
+          config_.rotor_to_output_ratio != 1.0f) {
         status_.error = Status::kInvalidConfig;
         return;
       }
@@ -616,7 +592,7 @@ class MotorPosition {
 
       status_.position_raw += int_delta;
 
-      if (output_status.active_theta &&
+      if (output_status.active_absolute &&
           status_.homed == Status::kRelative) {
         // Latch the current position
         const float float_first_output =
@@ -661,7 +637,7 @@ class MotorPosition {
     // position is valid, and we haven't had an index home yet, then
     // apply it.
     if (config_.output.reference_source >= 0 &&
-        status_.sources[config_.output.reference_source].active_theta &&
+        status_.sources[config_.output.reference_source].active_absolute &&
         status_.position_relative_valid &&
         status_.homed != Status::kOutput) {
       const auto& reference_source =
@@ -672,7 +648,7 @@ class MotorPosition {
           WrapBalancedCpr(reference_source.filtered_value,
                           reference_config.cpr) / reference_config.cpr;
       if (status_.homed == Status::kRotor) {
-        ISR_SetOutputPositionNearest(target);
+        ISR_SetOutputPositionNearestHelper(target, -1);
       } else if (status_.homed == Status::kRelative) {
         ISR_SetOutputPosition(target);
       }
@@ -699,6 +675,7 @@ class MotorPosition {
         status_.error = Status::kSourceError;
         status.active_theta = false;
         status.active_velocity = false;
+        status.active_absolute = false;
         continue;
       }
 
@@ -715,6 +692,7 @@ class MotorPosition {
               spi_data->nonce, spi_data->value,
               config.offset, config.sign, config.cpr,
               &status);
+          status.active_absolute = true;
           break;
         }
         case SourceConfig::kUart: {
@@ -726,6 +704,7 @@ class MotorPosition {
               uart_data->nonce, uart_data->value,
               config.offset, config.sign, config.cpr,
               &status);
+          status.active_absolute = true;
           break;
         }
         case SourceConfig::kSineCosine: {
@@ -736,6 +715,7 @@ class MotorPosition {
           updated = ISR_UpdateAbsoluteSource(
               status.nonce + 1, sc_data->value,
               config.offset, config.sign, config.cpr, &status);
+          status.active_absolute = true;
           break;
         }
         case SourceConfig::kI2C: {
@@ -746,6 +726,7 @@ class MotorPosition {
           updated = ISR_UpdateAbsoluteSource(
               i2c_data->nonce, i2c_data->value,
               config.offset, config.sign, config.cpr, &status);
+          status.active_absolute = true;
           break;
         }
         case SourceConfig::kHall: {
@@ -764,6 +745,7 @@ class MotorPosition {
               status.nonce + 1, new_value,
               0, 1, config.cpr,
               &status);
+          status.active_absolute = false;
           break;
         }
         case SourceConfig::kQuadrature: {
@@ -787,6 +769,7 @@ class MotorPosition {
               // This is our index time.
               status.offset_value = config.offset;
               status.active_theta = true;
+              status.active_absolute = true;
             }
           }
           updated = true;
@@ -799,8 +782,10 @@ class MotorPosition {
             status.offset_value = config.offset;
             status.filtered_value = status.offset_value;
             status.active_theta = true;
+            status.active_absolute = true;
           } else {
             status.active_theta = false;
+            status.active_absolute = false;
           }
           break;
         }
@@ -813,6 +798,7 @@ class MotorPosition {
       if (config.debug_override >= 0) {
         status.active_theta = true;
         status.active_velocity = true;
+        status.active_absolute = true;
         status.offset_value = config.debug_override;
         status.compensated_value = config.debug_override;
         status.filtered_value = config.debug_override;
@@ -909,6 +895,66 @@ class MotorPosition {
     status->active_velocity = true;
     status->active_theta = true;
     return true;
+  }
+
+  void ISR_SetOutputPositionNearestHelper(
+      float value,
+      int reference_source) MOTEUS_CCM_ATTRIBUTE {
+
+    int source = config_.output.source;
+    float source_output_cpr_scale = output_cpr_scale_;
+
+    const float ratio = config_.rotor_to_output_ratio;
+
+    if (reference_source >= 0 &&
+        status_.sources[config_.output.source].active_absolute &&
+        status_.sources[config_.output.reference_source].active_absolute &&
+        ratio < 1.0f) {
+      const auto& reference_source =
+          status_.sources[config_.output.reference_source];
+      const auto& reference_config =
+          config_.sources[config_.output.reference_source];
+      const float target =
+          WrapBalancedCpr(reference_source.filtered_value,
+                          reference_config.cpr) / reference_config.cpr;
+      const float integral_offsets =
+          std::round((target - value) / ratio);
+      value = value + integral_offsets * ratio;
+    } else if (reference_source >= 0 &&
+               !status_.sources[config_.output.source].active_absolute) {
+      // Just position ourselves relative to the reference, ignoring
+      // the output source, which is only relative.
+      source = reference_source;
+      source_output_cpr_scale =
+          1.0f / static_cast<float>(config_.sources[reference_source].cpr);
+    }
+
+    const auto& output_config = config_.sources[source];
+    const auto& output_status = status_.sources[source];
+
+    const float output_scale =
+        (output_config.reference == SourceConfig::kRotor) ?
+        config_.rotor_to_output_ratio :
+        1.0f;
+
+    const float source_position =
+        WrapBalancedCpr(
+            (output_status.filtered_value * source_output_cpr_scale +
+             config_.output.offset) * config_.output.sign, 1.0f);
+    const float integral_offsets =
+        std::round((value - source_position) / output_scale);
+
+    status_.position_raw =
+        (1ll << 24) *
+        static_cast<int32_t>((1l << 24) * source_position) +
+        static_cast<int64_t>(integral_offsets) * (1ll << 24) *
+        static_cast<int32_t>(static_cast<float>(1 << 24) * output_scale);
+
+    status_.position =
+        static_cast<float>(status_.position_raw >> 32ll) /
+        65536.0f;
+
+    status_.homed = Status::kOutput;
   }
 
   Config config_;
