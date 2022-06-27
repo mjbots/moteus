@@ -311,8 +311,9 @@ class BldcServo::Impl {
         msense_(options.msense),
         msense_sqr_(FindSqr(options.msense)),
         debug_dac_(options.debug_dac),
+#ifdef MOTEUS_DEBUG_OUT
         debug_out_(options.debug_out),
-        debug_out2_(options.debug_out2),
+#endif
         debug_serial_([&]() {
             Stm32Serial::Options d_options;
             d_options.tx = options.debug_uart_out;
@@ -855,18 +856,23 @@ class BldcServo::Impl {
         (pwm_counts_ - cnt) :
         (pwm_counts_ + cnt);
     status_.total_timer = 2 * pwm_counts_ * rate_config_.interrupt_divisor;
+
+#ifdef MOTEUS_DEBUG_OUT
     debug_out_ = 0;
+#endif
   }
 
   void ISR_DoSenseCritical() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
     // Wait for sampling to complete.
     while ((ADC3->ISR & ADC_ISR_EOS) == 0);
 
+#ifdef MOTEUS_DEBUG_OUT
     // We would like to set this debug pin as soon as possible.
     // However, if we flip it while the current ADCs are sampling,
     // they can get a lot more noise in some situations.  Thus just
     // wait until now.
     debug_out_ = 1;
+#endif
 
     // We are now out of the most time critical portion of the ISR,
     // although it is still all pretty time critical since it runs
@@ -2143,9 +2149,10 @@ class BldcServo::Impl {
 
   AnalogOut debug_dac_;
 
+#ifdef MOTEUS_DEBUG_OUT
   // This is just for debugging.
   DigitalOut debug_out_;
-  DigitalOut debug_out2_;
+#endif
 
   RateConfig rate_config_;
 

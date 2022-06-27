@@ -328,8 +328,8 @@ constexpr aux::AuxHardwareConfig kAux2PortHardwareConfig = {
   {{
       { MOTEUS_ABS_SCL, -1, 0,  aux::kScl },
       { MOTEUS_ABS_SDA, -1, 0,  aux::kSda },
-      { NC,             -1, 0,  aux::kNoI2c },
-      { NC,             -1, 0,  aux::kNoI2c },
+      { MOTEUS_DEBUG1,  -1, 0,  aux::kNoI2c },
+      { MOTEUS_DEBUG2,  -1, 0,  aux::kNoI2c },
       { NC,             -1, 0,  aux::kNoI2c },
     }},
   {{

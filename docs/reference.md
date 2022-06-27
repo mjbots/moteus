@@ -244,20 +244,33 @@ Nothing is supported here yet, but soon!
 
 The following table shows which pins can be used for the unique capabilities:
 
+#### AUX1 / ENC ####
+
 | moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
 |------------------|-----|-----|------|-------------|-----|---------|------|-----|
-| Aux1 / ENC       |     |     |      |             |     |         |      |     |
 | 3.3V  (3)        | 1   |     |      |             |     |         |      |     |
 | C                | 2   | 0   | X    |             |     |         |      | X   |
 | GND (G)          | 3   |     |      |             |     |         |      |     |
 | K                | 4   | 1   | CLK  | X           |     |         |      |     |
 | I                | 5   | 2   | MISO | X           |     |         |      |     |
 | O                | 6   | 3   | MOSI | X           |     |         |      |     |
-| Aux2 / ABS       |     |     |      |             |     |         |      |     |
+
+
+#### AUX2 / ABS ####
+
+| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|---------|------|-----|
 | 3.3V (3)         | 1   |     |      |             |     |         |      |     |
 |                  | 2   | 0   |      |             | SCL |         | RX   | X   |
 |                  | 3   | 1   |      |             | SDA |         | TX   | X   |
 | GND (G)          | 4   |     |      |             |     |         |      |     |
+| DBG 1            |     | 2   |      |             |     |         |      | X   |
+| DBG 2            |     | 3   |      |             |     |         |      | X   |
+
+NOTE: For moteus r4.5/8/11, DBG 1/2 are not present on the ABS
+connector, but are exposed pads on the circuit board.
+
+#### Pin Configuration ####
 
 Auxiliary port configuration is achieved in two steps.  First, the
 `aux[12].pins.X.mode` value is set to the proper capability for each
