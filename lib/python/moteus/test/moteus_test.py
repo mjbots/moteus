@@ -192,6 +192,20 @@ class MoteusTest(unittest.TestCase):
             result.data,
             bytes([0x0d, 0xb0, 0x02, 0x00, 0x00, 0x00, 0x40]))
 
+    def test_make_write_gpio(self):
+        dut = mot.Controller()
+        result = dut.make_write_gpio(aux1=3, aux2=5)
+        self.assertEqual(
+            result.data,
+            bytes([0x02, 0x5c, 0x03, 0x05]))
+
+    def test_make_read_gpio(self):
+        dut = mot.Controller()
+        result = dut.make_read_gpio()
+        self.assertEqual(
+            result.data,
+            bytes([0x12, 0x5e]))
+
 
 if __name__ == '__main__':
     unittest.main()

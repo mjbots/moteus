@@ -271,6 +271,9 @@ class QueryResolution:
     temperature = mp.INT8
     fault = mp.INT8
 
+    aux1_gpio = mp.IGNORE
+    aux2_gpio = mp.IGNORE
+
     # Additional registers can be queried by enumerating them as keys
     # in this dictionary, with the resolution as the matching value.
     _extra = {
@@ -595,13 +598,20 @@ class Controller:
         for i in range(4):
             c2.maybe_write()
 
+        c3 = mp.WriteCombiner(writer, 0x10, int(Register.AUX1_GPIO_STATUS), [
+            qr.aux1_gpio,
+            qr.aux2_gpio,
+        ])
+        for i in range(2):
+            c3.maybe_write()
+
         if len(qr._extra):
-            c3 = mp.WriteCombiner(
+            c4 = mp.WriteCombiner(
                 writer, 0x10, int(min(qr._extra.keys())),
                 [qr._extra[y] for y in
                  sorted(list([int(x) for x in qr._extra.keys()]))])
             for _ in qr._extra.keys():
-                c3.maybe_write()
+                c4.maybe_write()
 
         return buf.getvalue()
 
@@ -954,6 +964,75 @@ class Controller:
     async def set_stay_within(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_stay_within(**kwargs)]))
+
+    def make_write_gpio(self, aux1=None, aux2=None, query=False):
+        """Return a moteus.Command structure with data necessary to set one or
+        more GPIO registers.
+
+        aux1/aux2 are an optional integer bitfield, where the least
+        significant bit is pin 0 on the respective port.
+        """
+
+        result = self._make_command(query=query)
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+
+        combiner = mp.WriteCombiner(
+            writer, 0x00, int(Register.AUX1_GPIO_COMMAND), [
+                mp.INT8 if aux1 else mp.IGNORE,
+                mp.INT8 if aux2 else mp.IGNORE,
+        ])
+
+        if combiner.maybe_write():
+            writer.write_int8(aux1)
+        if combiner.maybe_write():
+            writer.write_int8(aux2)
+
+        if query:
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def set_write_gpio(self, *args, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_write_gpio(**kwargs)]))
+
+    def make_read_gpio(self):
+        """Return a moteus.Command structure with data necessary to read all
+        GPIO digital inputs."""
+
+        result = self._make_command(query=True)
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+
+        combiner = mp.WriteCombiner(
+            writer, 0x10, int(Register.AUX1_GPIO_STATUS), [
+                mp.INT8,
+                mp.INT8,
+        ])
+
+        for i in range(2):
+            combiner.maybe_write()
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def read_gpio(self):
+        """Return a bytes() object with an int8 for each auxiliary port.  The
+        pins for each port are represented as bits, with the least significant
+        bit being pin 0.
+
+        None can be returned if no response is received.
+        """
+
+        results = await self._get_transport().cycle([self.make_read_gpio()])
+        if len(results) == 0:
+            return None
+        result = results[0]
+        return bytes([result.values[Register.AUX1_GPIO_STATUS],
+                      result.values[Register.AUX2_GPIO_STATUS]])
 
     def make_diagnostic_write(self, data):
         result = self._make_command(query=False)
