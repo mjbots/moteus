@@ -147,6 +147,8 @@ Configuration is performed in 3 stages, first is the auxiliary port
 configuration, second is encoder source configuration, and finally is
 the output configuration.
 
+![IO Structure](io_structure.png)
+
 ### Auxiliary Port ###
 
 There are two auxiliary ports on moteus, each with pins that can be
