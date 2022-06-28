@@ -16,7 +16,10 @@
 
 namespace moteus {
 
-// The measured version of MOTEUS_HW_REV
+// The current board family.
+extern volatile uint8_t g_measured_hw_family;
+
+// The current board revision.
 extern volatile uint8_t g_measured_hw_rev;
 
 }

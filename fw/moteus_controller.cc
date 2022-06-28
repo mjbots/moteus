@@ -320,41 +320,56 @@ enum class Register {
   kDriverFault2 = 0x141,
 };
 
-constexpr aux::AuxHardwareConfig kAux1PortHardwareConfig = {
-  {{
-      { MOTEUS_EXTERNAL_ENCODER_CS, -1, 0,  aux::kNoI2c },
-      { MOTEUS_AS5047_SCK,           2, 5,  aux::kNoI2c },
-      { MOTEUS_AS5047_MISO,          0, 5,  aux::kNoI2c },
-      { MOTEUS_AS5047_MOSI,          1, 15, aux::kNoI2c },
-      { NC, -1, -1 },
-    }},
-  {{
-    { SPI2, MOTEUS_AS5047_SCK, MOTEUS_AS5047_MISO, MOTEUS_AS5047_MOSI },
-    { nullptr, NC, NC, NC },
-    }},
-  {{
-      { nullptr, NC, NC },
-      { nullptr, NC, NC },
-    }},
-};
+aux::AuxHardwareConfig GetAux1HardwareConfig() {
+  if (g_measured_hw_family == 0) {
+    return aux::AuxHardwareConfig{
+      {{
+          { g_hw_pins.external_encoder_cs, -1, 0,  aux::kNoI2c },
+          { g_hw_pins.as5047_sck,           2, 5,  aux::kNoI2c },
+          { g_hw_pins.as5047_miso,          0, 5,  aux::kNoI2c },
+          { g_hw_pins.as5047_mosi,          1, 15, aux::kNoI2c },
+          { NC, -1, -1 },
+              }},
+      {{
+          { SPI2,
+            g_hw_pins.as5047_sck,
+            g_hw_pins.as5047_miso,
+            g_hw_pins.as5047_mosi, },
+          { nullptr, NC, NC, NC },
+              }},
+      {{
+          { nullptr, NC, NC },
+          { nullptr, NC, NC },
+              }},
+          };
+  } else {
+    mbed_die();
+  }
+}
 
-constexpr aux::AuxHardwareConfig kAux2PortHardwareConfig = {
-  {{
-      { MOTEUS_ABS_SCL, -1, 0,  aux::kScl },
-      { MOTEUS_ABS_SDA, -1, 0,  aux::kSda },
-      { MOTEUS_DEBUG1,  -1, 0,  aux::kNoI2c },
-      { MOTEUS_DEBUG2,  -1, 0,  aux::kNoI2c },
-      { NC,             -1, 0,  aux::kNoI2c },
-    }},
-  {{
-    { nullptr, NC, NC, NC },
-    { nullptr, NC, NC, NC },
-    }},
-  {{
-      { USART3, MOTEUS_ABS_SCL, MOTEUS_ABS_SDA },
-      { nullptr, NC, NC },
-    }},
-};
+aux::AuxHardwareConfig GetAux2HardwareConfig() {
+  if (g_measured_hw_family == 0) {
+    return aux::AuxHardwareConfig{
+      {{
+          { g_hw_pins.abs_scl, -1, 0,  aux::kScl },
+          { g_hw_pins.abs_sda, -1, 0,  aux::kSda },
+          { g_hw_pins.debug1,  -1, 0,  aux::kNoI2c },
+          { g_hw_pins.debug2,  -1, 0,  aux::kNoI2c },
+          { NC,             -1, 0,  aux::kNoI2c },
+              }},
+      {{
+          { nullptr, NC, NC, NC },
+          { nullptr, NC, NC, NC },
+              }},
+      {{
+          { USART3, g_hw_pins.abs_scl, g_hw_pins.abs_sda },
+          { nullptr, NC, NC },
+              }},
+          };
+  } else {
+    mbed_die();
+  }
+}
 }
 
 class MoteusController::Impl : public multiplex::MicroServer::Server {
@@ -368,13 +383,13 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        SystemInfo* system_info,
        MillisecondTimer* timer,
        FirmwareInfo* firmware)
-      : aux1_port_("aux1", "ic_pz1", kAux1PortHardwareConfig,
+      : aux1_port_("aux1", "ic_pz1", GetAux1HardwareConfig(),
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(2),
                    timer,
                    AuxPort::kDefaultOnboardSpi,
                    {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6}),
-        aux2_port_("aux2", "ic_pz2", kAux2PortHardwareConfig,
+        aux2_port_("aux2", "ic_pz2", GetAux2HardwareConfig(),
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(3),
                    timer,
@@ -387,39 +402,34 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                         aux2_port_.config()),
         drv8323_(pool, persistent_config, telemetry_manager, timer, []() {
             Drv8323::Options options;
-            options.mosi = DRV8323_MOSI;
-            options.miso = DRV8323_MISO;
-            options.sck = DRV8323_SCK;
-            options.cs = DRV8323_CS;
-            options.enable = DRV8323_ENABLE;
-            options.fault = DRV8323_FAULT;
-            options.hiz = DRV8323_HIZ;
+            options.mosi = g_hw_pins.drv8323_mosi;
+            options.miso = g_hw_pins.drv8323_miso;
+            options.sck = g_hw_pins.drv8323_sck;
+            options.cs = g_hw_pins.drv8323_cs;
+            options.enable = g_hw_pins.drv8323_enable;
+            options.fault = g_hw_pins.drv8323_fault;
+            options.hiz = g_hw_pins.drv8323_hiz;
             return options;
           }()),
         bldc_(pool, persistent_config, telemetry_manager,
               timer, &drv8323_, &aux1_port_, &aux2_port_, &motor_position_,
               []() {
             BldcServo::Options options;
-            options.pwm1 = PA_0;
-            options.pwm2 = PA_1;
-            options.pwm3 = PA_2;
+            options.pwm1 = g_hw_pins.pwm1;
+            options.pwm2 = g_hw_pins.pwm2;
+            options.pwm3 = g_hw_pins.pwm3;
 
-            options.current1 = MOTEUS_CURRENT1;
-            options.current2 = MOTEUS_CURRENT2;
-            options.current3 = MOTEUS_CURRENT3;
-            options.vsense =
-                (g_measured_hw_rev < 5) ?
-                MOTEUS_VSENSE : MOTEUS_VSENSE_5_AND_LATER;
+            options.current1 = g_hw_pins.current1;
+            options.current2 = g_hw_pins.current2;
+            options.current3 = g_hw_pins.current3;
+            options.vsense = g_hw_pins.vsense;
+            options.tsense = g_hw_pins.tsense;
+            options.msense = g_hw_pins.msense;
 
-            options.tsense = MOTEUS_TSENSE;
-            options.msense =
-                (g_measured_hw_rev < 5) ?
-                MOTEUS_MSENSE : MOTEUS_MSENSE_5_AND_LATER;
-
-            options.debug_dac = MOTEUS_DEBUG_DAC;
-            options.debug_out = MOTEUS_DEBUG1;
-            options.debug_out2 = MOTEUS_DEBUG2;
-            options.debug_uart_out = MOTEUS_UART_TX;
+            options.debug_dac = g_hw_pins.debug_dac;
+            options.debug_out = g_hw_pins.debug1;
+            options.debug_out2 = g_hw_pins.debug2;
+            options.debug_uart_out = g_hw_pins.uart_tx;
 
             return options;
           }()),

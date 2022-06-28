@@ -50,14 +50,11 @@ class Drv8323::Impl {
             // pullup on MISO, but 1MHz seemed OK.  Thus, lets just do
             // a bit lower for safety.
 
-#if MOTEUS_HW_REV <= 3
             // Silk 4.1 and below lacked a pullup resistor on MISO.
             // Newer versions have a pullup resistor and can go
             // faster.
-            out.frequency = 500000;
-#else
-            out.frequency = 1000000;
-#endif
+            out.frequency = g_measured_hw_rev <= 3 ? 500000 : 1000000;
+
             return out;
           }()),
         enable_(options.enable, 0),
@@ -373,16 +370,11 @@ void Drv8323::Power(bool value) { impl_->Power(value); }
 bool Drv8323::fault() {
   return impl_->status_.fault_config ||
       ((impl_->enable_.read() != 0) &&
-#if !defined(MOTEUS_HW_REV)
-#error
-#endif
-#if MOTEUS_HW_REV == 3
-       // This revision seems to be unable to read the fault line
-       // properly.  Thus we get a laggier version over SPI.
-       (impl_->status_.fault == 1)
-#else
-       (impl_->fault_.read() == 0)
-#endif
+       (g_measured_hw_rev == 3 ?
+        // This revision seems to be unable to read the fault line
+        // properly.  Thus we get a laggier version over SPI.
+        (impl_->status_.fault == 1) :
+        (impl_->fault_.read() == 0))
        );
 }
 

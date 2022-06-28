@@ -322,9 +322,7 @@ class BldcServo::Impl {
             d_options.baud_rate = 3000000;
             return d_options;
           }()),
-        vsense_adc_scale_((g_measured_hw_rev < 6) ?
-                          MOTEUS_VSENSE_ADC_SCALE_PRE6 :
-                          MOTEUS_VSENSE_ADC_SCALE_POST6) {
+        vsense_adc_scale_(g_hw_pins.vsense_adc_scale) {
 
     persistent_config->Register("servo", &config_,
                                 std::bind(&Impl::UpdateConfig, this));

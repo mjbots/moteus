@@ -954,8 +954,8 @@ class BoardDebug::Impl {
   Data data_;
   base::inplace_function<void()> data_update_;
 
-  DigitalOut led1_{DEBUG_LED1, 1};
-  DigitalOut led2_{POWER_LED};
+  DigitalOut led1_{g_hw_pins.debug_led1, 1};
+  DigitalOut led2_{g_hw_pins.power_led};
 
   multiplex::MicroServer* multiplex_protocol_;
   BldcServo* const bldc_;

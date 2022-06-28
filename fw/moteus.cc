@@ -116,8 +116,9 @@ extern char _sccmram;
 #endif
 
 namespace moteus {
-volatile uint8_t g_measured_hw_pins;
+volatile uint8_t g_measured_hw_family;
 volatile uint8_t g_measured_hw_rev;
+MoteusHwPins g_hw_pins;
 }
 
 namespace {
@@ -144,12 +145,11 @@ int main(void) {
 
   SetupClock();
 
-  // Turn on our power light.
-  DigitalOut power_led(POWER_LED, 0);
+  const auto family_and_version = DetectMoteusFamily();
+  g_measured_hw_family = family_and_version.family;
+  g_measured_hw_rev = family_and_version.hw_version;
 
-  DigitalIn hwrev0(HWREV_PIN0, PullUp);
-  DigitalIn hwrev1(HWREV_PIN1, PullUp);
-  DigitalIn hwrev2(HWREV_PIN2, PullUp);
+  g_hw_pins = FindHardwarePins(family_and_version);
 
   // To enable cycle counting.
 #ifdef MOTEUS_PERFORMANCE_MEASURE
@@ -168,50 +168,25 @@ int main(void) {
   // for millisecond turnover.
   MillisecondTimer timer;
 
-  // Wait to ensure the pullups are sufficiently pulled up.
-  timer.wait_us(100);
-
-  const uint8_t this_hw_pins =
-      0x07 & (~(hwrev0.read() |
-                (hwrev1.read() << 1) |
-                (hwrev2.read() << 2)));
-  moteus::g_measured_hw_pins = this_hw_pins;
-  const uint8_t measured_hw_rev = [&]() {
-    int i = 0;
-    for (auto rev_pins : kHardwareInterlock) {
-      if (rev_pins == this_hw_pins) { return i; }
-      i++;
-    }
-    return -1;
-  }();
-  g_measured_hw_rev = measured_hw_rev;
-  // Check if the detected board revision level is in our compatible
-  // set.
-  const bool compatible = [&]() {
-    for (auto possible_version : kCompatibleHwRev) {
-      if (measured_hw_rev == possible_version) { return true; }
-    }
-    return false;
-  }();
-  MJ_ASSERT(compatible);
+  // Turn on our power light.
+  DigitalOut power_led(g_hw_pins.power_led, 0);
 
   micro::SizedPool<20000> pool;
 
   HardwareUart rs485(&pool, &timer, []() {
       HardwareUart::Options options;
-      options.tx = MOTEUS_UART_TX;
-      options.rx = MOTEUS_UART_RX;
-      options.dir = MOTEUS_UART_DIR;
+      options.tx = g_hw_pins.uart_tx;
+      options.rx = g_hw_pins.uart_rx;
+      options.dir = g_hw_pins.uart_dir;
       options.baud_rate = 3000000;
       return options;
     }());
 
-#if defined(TARGET_STM32G4)
   FDCan fdcan([]() {
       FDCan::Options options;
 
-      options.td = MOTEUS_CAN_TD;
-      options.rd = MOTEUS_CAN_RD;
+      options.td = g_hw_pins.can_td;
+      options.rd = g_hw_pins.can_rd;
 
       options.slow_bitrate = 1000000;
       options.fast_bitrate = 5000000;
@@ -230,9 +205,6 @@ int main(void) {
         options.max_tunnel_streams = 3;
         return options;
       }());
-#else
-#error "Unknown target"
-#endif
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 

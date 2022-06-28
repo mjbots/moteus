@@ -760,7 +760,7 @@ class AuxPort {
       }
       const PinName spi_cs_pin =
           config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ?
-          MOTEUS_AS5047_CS : maybe_spi->cs;
+          g_hw_pins.as5047_cs : maybe_spi->cs;
 
       Stm32Spi::Options spi_options;
       spi_options.frequency = config_.spi.rate_hz;

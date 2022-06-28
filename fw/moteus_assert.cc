@@ -34,16 +34,16 @@ void mbed_die(void) {
   // We want to ensure the motor controller is disabled and flash an
   // LED which exists.
   gpio_t power;
-  gpio_init_out(&power, DRV8323_HIZ);
+  gpio_init_out(&power, moteus::g_hw_pins.drv8323_hiz);
   gpio_write(&power, 0);
 
   // Also, disable the DRV8323 entirely, because, hey, why not.
   gpio_t enable;
-  gpio_init_out(&enable, DRV8323_ENABLE);
+  gpio_init_out(&enable, moteus::g_hw_pins.drv8323_enable);
   gpio_write(&enable, 0);
 
   gpio_t led;
-  gpio_init_out(&led, DEBUG_LED1);
+  gpio_init_out(&led, moteus::g_hw_pins.debug_led1);
 
   // Now flash an actual LED.
   for (;;) {

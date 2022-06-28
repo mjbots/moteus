@@ -14,208 +14,97 @@
 
 #pragma once
 
+#include "mbed.h"
+
 namespace moteus {
 
-// r1 silk
-// #define MOTEUS_HW_REV 0
-
-// r2 silk
-// #define MOTEUS_HW_REV 1
-
-// r3 silk
-// #define MOTEUS_HW_REV 2
-
-// r4.1 silk
-// #define MOTEUS_HW_REV 3
-
-// r4.2 and r4.3 silk
-// #define MOTEUS_HW_REV 4
-
-// r4.4 silk
-// #define MOTEUS_HW_REV 5
-
-// r4.5 silk
-// #define MOTEUS_HW_REV 6
-
-// r4.5b-r4.8 silk
-// #define MOTEUS_HW_REV 7
+//////////////////////////////////////////
+// The following "families" are supported:
+//  moteus    - family 0
+//  moteus_hp - family 1
+//
+// Each family has an independent hardware version timeline, and
+// possibly a different mechanism for verifying hardware version
+// compatibility.
 
 
-// The most recent version of the HW.
-#ifndef MOTEUS_HW_REV
-// r4.11 silk
-#define MOTEUS_HW_REV 8
-#endif
+// This structure is filled in once the family and hardware version
+// are known.
+struct MoteusHwPins {
+  PinName pwm1 = PA_0;
+  PinName pwm2 = PA_1;
+  PinName pwm3 = PA_2;
 
-// The mapping between MOTEUS_HW_REV and the version pins on the
-// board.
-#if defined(TARGET_STM32G4)
-constexpr int kHardwareInterlock[] = {
-  -1,  // r1 (never printed for g4)
-  -1,  // r2 (never printed for g4)
-  -1,  // r3 (never printed for g4)
-  0,   // r4.1
-  0,   // r4.2/r4.3 (unfortunately, indistinguishable from the interlock)
-  1,   // r4.4
-  2,   // r4.5
-  3,   // r4.5b-r4.8
-  4,   // r4.10
+  PinName drv8323_enable = PA_3;
+  PinName drv8323_hiz = PB_7;
+  PinName drv8323_cs = PC_4;
+
+  PinName drv8323_mosi = PA_7;
+  PinName drv8323_miso = PA_6;
+  PinName drv8323_sck = PA_5;
+  PinName drv8323_fault = PB_6;
+
+  PinName debug_led1 = PF_0;
+  PinName power_led = PF_1;
+
+  PinName debug_uart_out = PB_3;
+
+  // We've picked these particular pins so that all 3 channels are one
+  // of the "slow" channels so they will have similar analog
+  // performance characteristics.
+  PinName current1 = PB_0_ALT0;
+  PinName current2 = PB_1;
+  PinName current3 = PB_2;
+
+  PinName vsense = NC;
+  PinName tsense = PA_9;
+
+  PinName msense = NC;
+
+  float vsense_adc_scale = 0.0f;
+
+  PinName uart_tx = PC_10_ALT0;
+  PinName uart_rx = PC_11_ALT0;
+  PinName uart_dir = NC;
+
+  PinName as5047_mosi = PB_15;
+  PinName as5047_miso = PB_14;
+  PinName as5047_sck = PB_13;
+  PinName as5047_cs = PB_11;
+
+  PinName external_encoder_cs = PC_13;
+
+  PinName can_td = PA_12;
+  PinName can_rd = PA_11;
+
+  PinName debug1 = PC_14;
+  PinName debug2 = PC_15;
+  PinName debug_dac = PA_4;
+
+  PinName abs_scl = PB_8;
+  PinName abs_sda = PB_9;
+
+  uint32_t model_number = 0;
+
+  uint32_t firmware_version = 0x000105;
 };
-#else
-constexpr int kHardwareInterlock[] = {
-  0,   // r1
-  1,   // r2
-  2,   // r3 & r3.1
-  -1,  // never printed for f4
-  -1,  // never printed for f4
-  -1,  // never printed for f4
-  -1,  // never printed for f4
-  -1,  // never printed for f4
-  -1,  // never printed for f4
-};
-#endif
 
-// This firmware is compatible with the following hardware revisions.
-constexpr int kCompatibleHwRev[] = {
-  // 3 isn't compatible, but we forgot to rev the version pins
-  3,
-  4, 5,
-  6, 7,
-  8
+
+struct FamilyAndVersion {
+  int family = 0;
+  int hw_version = 0;
 };
 
-#define DRV8323_ENABLE PA_3
+// Return what family we are executing on.
+FamilyAndVersion DetectMoteusFamily();
 
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#else
-#define DRV8323_HIZ PB_7
-#endif
+MoteusHwPins FindHardwarePins(FamilyAndVersion);
 
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define DRV8323_CS PC_4
-#endif
 
-#define DRV8323_MOSI PA_7
-#define DRV8323_MISO PA_6
-#define DRV8323_SCK PA_5
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define DRV8323_FAULT PB_6
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define DEBUG_LED1 PF_0
-#define POWER_LED PF_1
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define MOTEUS_DEBUG_UART_OUT PB_3
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define HWREV_PIN0 PC_6
-#define HWREV_PIN1 PA_15
-// Previously this was documented as PC_13, however we never pulled it
-// down, and decided to use PC_13 for something else.
-#define HWREV_PIN2 PA_10
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-// We've picked these particular pins so that all 3 channels are one
-// of the "slow" channels so they will have similar analog performance
-// characteristics.
-
-// ADC3
-#define MOTEUS_CURRENT1 PB_0_ALT0
-// ADC1
-#define MOTEUS_CURRENT2 PB_1
-// ADC2
-#define MOTEUS_CURRENT3 PB_2
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV == 3
-#define MOTEUS_VSENSE PA_8
-#elif MOTEUS_HW_REV >= 4
-// Here, the vsense does depend on the hardware version, but it is
-// detected at runtime between PA_8 (r4) and PB_12 (r5+)
-#define MOTEUS_VSENSE PA_8
-#define MOTEUS_VSENSE_5_AND_LATER PB_12_ALT0
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define MOTEUS_TSENSE PA_9
-#endif
-
-#if MOTEUS_HW_REV <= 3
-#define MOTEUS_MSENSE NC
-#elif MOTEUS_HW_REV >= 4
-// Here, msense does depend on the hardware version, but it is
-// detected at runtime between PA_8 and PB_12.
-#define MOTEUS_MSENSE PB_12
-#define MOTEUS_MSENSE_5_AND_LATER PA_8
-#endif
-
-#ifndef MOTEUS_VSENSE_ADC_SCALE
-#define MOTEUS_VSENSE_ADC_SCALE_PRE6 0.00884f
-#define MOTEUS_VSENSE_ADC_SCALE_POST6 0.017947f
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#else
-#define MOTEUS_UART_TX PC_10_ALT0
-#define MOTEUS_UART_RX PC_11_ALT0
-#define MOTEUS_UART_DIR NC
-#endif
-
-#define MOTEUS_AS5047_MOSI PB_15
-#define MOTEUS_AS5047_MISO PB_14
-#define MOTEUS_AS5047_SCK PB_13
-
-#if MOTEUS_HW_REV <= 2
-#error "Not suppported"
-#elif MOTEUS_HW_REV >= 3
-#define MOTEUS_AS5047_CS PB_11
-#endif
-
-#define MOTEUS_EXTERNAL_ENCODER_CS PC_13
-
-#if MOTEUS_HW_REV >= 3
-#define MOTEUS_CAN_TD PA_12
-#define MOTEUS_CAN_RD PA_11
-#endif
-
-#if MOTEUS_HW_REV <= 2
-#error "Not supported"
-#elif MOTEUS_HW_REV >= 3
-#define MOTEUS_DEBUG1 PC_14
-#define MOTEUS_DEBUG2 PC_15
-#endif
-
-#define MOTEUS_DEBUG_DAC PA_4
-
-#define MOTEUS_ABS_SCL PB_8
-#define MOTEUS_ABS_SDA PB_9
-
-#define MOTEUS_MODEL_NUMBER ((MOTEUS_HW_REV) << 8 | 0x00)
-#define MOTEUS_FIRMWARE_VERSION 0x000105
+// The "FIRMWARE_VERSION" is a misnomer.  It instead is the equivalent
+// of an ABI version, and is incremented when configuration values
+// change in a way that would not result in equivalent behavior across
+// an upgrade/downgrade.
 
 // Version history:
 
@@ -243,5 +132,10 @@ constexpr int kCompatibleHwRev[] = {
 // # 0x0105 #
 //
 // * Switched to a new encoder and position subsystem.
+
+#define MOTEUS_MODEL_NUMBER 0x0000
+#define MOTEUS_FIRMWARE_VERSION 0x000105
+
+extern MoteusHwPins g_hw_pins;
 
 }
