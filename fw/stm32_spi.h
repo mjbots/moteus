@@ -20,6 +20,8 @@
 
 #include "hal/spi_api.h"
 
+#include "mjlib/base/string_span.h"
+
 #include "fw/ccm.h"
 #include "fw/stm32_dma.h"
 
