@@ -206,6 +206,28 @@ class MoteusTest(unittest.TestCase):
             result.data,
             bytes([0x12, 0x5e]))
 
+    def test_query_extra_disjoint(self):
+        qr = mot.QueryResolution()
+        qr._extra = {
+            0x030 : mot.mp.F32,
+            0x031 : mot.mp.F32,
+            0x033 : mot.mp.F32,
+            0x034 : mot.mp.F32,
+            0x035 : mot.mp.F32,
+            0x036 : mot.mp.F32,
+        }
+
+        dut = mot.Controller(query_resolution=qr)
+        result = dut.make_query()
+        self.assertEqual(
+            result.data,
+            bytes([
+                0x11, 0x00,
+                0x1f, 0x01,
+                0x13, 0x0d,
+                0x1e, 0x30,
+                0x1c, 0x04, 0x33, ]))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -606,11 +606,13 @@ class Controller:
             c3.maybe_write()
 
         if len(qr._extra):
+            min_val = int(min(qr._extra.keys()))
+            max_val = int(max(qr._extra.keys()))
             c4 = mp.WriteCombiner(
-                writer, 0x10, int(min(qr._extra.keys())),
-                [qr._extra[y] for y in
-                 sorted(list([int(x) for x in qr._extra.keys()]))])
-            for _ in qr._extra.keys():
+                writer, 0x10, min_val,
+                [qr._extra.get(i, mp.IGNORE)
+                 for i in range(min_val, max_val +1)])
+            for _ in range(min_val, max_val + 1):
                 c4.maybe_write()
 
         return buf.getvalue()
