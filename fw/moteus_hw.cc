@@ -197,14 +197,14 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     // Family 1 devices should have all current sense inputs on "fast"
     // channels.
-    result.current1 = PB_1_ALT0;  // ADC3
-    result.current2 = PA_3;       // ADC1
-    result.current3 = PC_4;       // ADC2
+    result.current1 = PA_3;       // ADC1
+    result.current2 = PC_4;       // ADC2  // current 2
+    result.current3 = PB_1_ALT0;  // ADC3  // current 3
 
 
-    result.vsense = PA_9;
-    result.tsense = PB_12;
-    result.msense = PA_8;
+    result.vsense = PA_9;         // ADC5_IN2
+    result.tsense = PB_12_ALT0;   // ADC4
+    result.msense = PA_8;         // ADC5_IN1
 
     result.vsense_adc_scale = 0.017947f;
 

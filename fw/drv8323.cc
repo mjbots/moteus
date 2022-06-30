@@ -166,14 +166,15 @@ class Drv8323::Impl {
   }
 
   void HandleConfigUpdate() {
-    if (g_measured_hw_rev == 7) {
+    if (g_measured_hw_family == 0 &&
+        g_measured_hw_rev == 7) {
       // hw rev 7 (silk r4.8) can be damaged with higher gate drive
       // strength than this.
       config_.idrivep_hs_ma = std::min<uint16_t>(config_.idrivep_hs_ma, 50);
       config_.idriven_hs_ma = std::min<uint16_t>(config_.idriven_hs_ma, 100);
       config_.idrivep_ls_ma = std::min<uint16_t>(config_.idrivep_ls_ma, 50);
       config_.idriven_ls_ma = std::min<uint16_t>(config_.idriven_ls_ma, 100);
-    } else if (g_measured_hw_rev > 7) {
+    } else {
       // hw rev 8 (silk 4.10) has improved layout and an additional
       // gate drive resistor, it will likely not be damaged at up to
       // 100/200, and higher may be possible in some situations.
@@ -204,7 +205,8 @@ class Drv8323::Impl {
       return (val ? 1 : 0) << pos;
     };
 
-    const bool drv8323 = g_measured_hw_rev <= 6;
+    const bool drv8323 =
+        (g_measured_hw_family == 0 && g_measured_hw_rev <= 6);
 
     constexpr uint16_t idrivep_table_drv8323[] = {
       10, 30, 60, 80, 120, 140, 170, 190,
@@ -371,7 +373,7 @@ void Drv8323::Power(bool value) { impl_->Power(value); }
 bool Drv8323::fault() {
   return impl_->status_.fault_config ||
       ((impl_->enable_.read() != 0) &&
-       (g_measured_hw_rev == 3 ?
+       ((g_measured_hw_family == 0 && g_measured_hw_rev == 3) ?
         // This revision seems to be unable to read the fault line
         // properly.  Thus we get a laggier version over SPI.
         (impl_->status_.fault == 1) :

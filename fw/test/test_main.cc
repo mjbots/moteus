@@ -16,5 +16,6 @@
 #include <boost/test/unit_test.hpp>
 
 namespace moteus {
+volatile uint8_t g_measured_hw_family = 0;
 volatile uint8_t g_measured_hw_rev = 7;
 }

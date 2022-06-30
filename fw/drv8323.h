@@ -186,34 +186,54 @@ class Drv8323 : public MotorDriver {
     // layout and an additional gate drive resistor which allows them
     // to go higher.
     uint16_t idrivep_hs_ma =
-        (g_measured_hw_rev <= 6) ? 370 :
-        (g_measured_hw_rev <= 7) ? 50 :
-        100;
+        g_measured_hw_family == 0 ?
+         ((g_measured_hw_rev <= 6) ? 370 :
+          (g_measured_hw_rev <= 7) ? 50 :
+          100) :
+        g_measured_hw_family == 1 ?
+         100 :
+        invalid_int();
     uint16_t idriven_hs_ma =
-        (g_measured_hw_rev <= 6) ? 740 :
-        (g_measured_hw_rev <= 7) ? 100 :
-        200;
+        g_measured_hw_family == 0 ?
+         ((g_measured_hw_rev <= 6) ? 740 :
+          (g_measured_hw_rev <= 7) ? 100 :
+          200) :
+        g_measured_hw_family == 1 ?
+         200 :
+        invalid_int();
 
 
     // Gate Drive LS Register
     bool cbc = true;  // Cycle-by cycle operation.
     uint16_t tdrive_ns = 1000;  // peak gate-current drive time
     uint16_t idrivep_ls_ma =
-        (g_measured_hw_rev <= 6) ? 370 :
-        (g_measured_hw_rev <= 7) ? 50 :
-        100;
+        g_measured_hw_family == 0 ?
+         ((g_measured_hw_rev <= 6) ? 370 :
+          (g_measured_hw_rev <= 7) ? 50 :
+          100) :
+        g_measured_hw_family == 1 ?
+         100 :
+        invalid_int();
     uint16_t idriven_ls_ma =
-        (g_measured_hw_rev <= 6) ? 740 :
-        (g_measured_hw_rev <= 7) ? 100 :
-        200;
+        g_measured_hw_family == 0 ?
+         ((g_measured_hw_rev <= 6) ? 740 :
+          (g_measured_hw_rev <= 7) ? 100 :
+          200) :
+        g_measured_hw_family == 1 ?
+         200 :
+        invalid_int();
 
 
     // OCP Control Register
     bool tretry = false;  // false = 4ms, true = 50us
     uint16_t dead_time_ns =
-        (g_measured_hw_rev <= 6) ? 50 :
-        (g_measured_hw_rev <= 7) ? 200 :
-        50;
+        g_measured_hw_family == 0 ?
+         ((g_measured_hw_rev <= 6) ? 50 :
+          (g_measured_hw_rev <= 7) ? 200 :
+          50) :
+        g_measured_hw_family == 1 ?
+         50 :
+        invalid_int();
     OcpMode ocp_mode = OcpMode::kLatchedFault;
     uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
 
@@ -221,9 +241,13 @@ class Drv8323 : public MotorDriver {
     // Rdson.  We set a threshold that will trip only if we get well
     // over the rated 100A limit.
     uint16_t vds_lvl_mv =
-        (g_measured_hw_rev <= 5) ? 260 :
-        (g_measured_hw_rev <= 7) ? 450 :
-        700;
+        g_measured_hw_family == 0 ?
+         ((g_measured_hw_rev <= 5) ? 260 :
+          (g_measured_hw_rev <= 7) ? 450 :
+          700) :
+        g_measured_hw_family == 1 ?
+         700 :
+        invalid_int();
 
 
     // CSA Control Register
@@ -266,6 +290,11 @@ class Drv8323 : public MotorDriver {
       a->Visit(MJ_NVP(csa_gain));
       a->Visit(MJ_NVP(dis_sen));
       a->Visit(MJ_NVP(sen_lvl_mv));
+    }
+
+    static int invalid_int() {
+      MJ_ASSERT(false);
+      return 0;
     }
   };
 

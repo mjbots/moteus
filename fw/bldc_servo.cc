@@ -158,7 +158,9 @@ struct RateConfig {
 
   RateConfig(int pwm_rate_hz_in = 30000) {
     const int board_min_pwm_rate_hz =
-        (g_measured_hw_rev == 2) ? 60000 : 15000;
+        (g_measured_hw_family == 0 &&
+         g_measured_hw_rev == 2) ? 60000 :
+        15000;
 
     // Limit our PWM rate to even frequencies between 15kHz and 60kHz.
     pwm_rate_hz =
@@ -704,16 +706,28 @@ class BldcServo::Impl {
     enable_adc(ADC4);
     enable_adc(ADC5);
 
-    adc1_sqr_ = ADC1->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
-    adc2_sqr_ = ADC2->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        FindSqr(options_.current3) << ADC_SQR1_SQ1_Pos;
-    adc3_sqr_ = ADC3->SQR1 =
-        (0 << ADC_SQR1_L_Pos) |  // length 1
-        FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
-    if (hw_rev_ <= 4) {
+    if (family0_) {
+      adc1_sqr_ = ADC1->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
+      adc2_sqr_ = ADC2->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          FindSqr(options_.current3) << ADC_SQR1_SQ1_Pos;
+      adc3_sqr_ = ADC3->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
+    } else {
+      adc1_sqr_ = ADC1->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          FindSqr(options_.current1) << ADC_SQR1_SQ1_Pos;
+      adc2_sqr_ = ADC2->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          FindSqr(options_.current2) << ADC_SQR1_SQ1_Pos;
+      adc3_sqr_ = ADC3->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          FindSqr(options_.current3) << ADC_SQR1_SQ1_Pos;
+    }
+    if (family0_rev4_and_older_) {
       // For version <=4, we sample the motor temperature and the
       // battery sense first.
       adc4_sqr_ = ADC4->SQR1 =
@@ -722,7 +736,7 @@ class BldcServo::Impl {
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
-    } else if (hw_rev_ >= 5) {
+    } else if (g_measured_hw_family == 0) {
       // For 5+, ADC4 always stays on the battery.
       adc4_sqr_ = ADC4->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
@@ -730,6 +744,14 @@ class BldcServo::Impl {
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    } else if (g_measured_hw_family == 1) {
+      // For family 1, ADC4 always stays on temperature sense.
+      adc4_sqr_ = ADC4->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+      ADC5->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
     }
 
     ADC1->SMPR1 = all_cur_cycles;
@@ -898,9 +920,15 @@ class BldcServo::Impl {
     status_.dwt.adc_done = DWT->CYCCNT;
 #endif
 
-    status_.adc_cur1_raw = ADC3->DR;
-    status_.adc_cur2_raw = ADC1->DR;
-    status_.adc_cur3_raw = ADC2->DR;
+    if (family0_) {
+      status_.adc_cur1_raw = ADC3->DR;
+      status_.adc_cur2_raw = ADC1->DR;
+      status_.adc_cur3_raw = ADC2->DR;
+    } else {
+      status_.adc_cur1_raw = ADC1->DR;
+      status_.adc_cur2_raw = ADC2->DR;
+      status_.adc_cur3_raw = ADC3->DR;
+    }
 
     // TODO: Since we have to let ADC4/5 sample for much longer, we
     // could save a lot of time by switching ADC5's targets every
@@ -909,25 +937,29 @@ class BldcServo::Impl {
     WaitForAdc(ADC4);
     WaitForAdc(ADC5);
 
-    if (hw_rev_ <= 4) {
+    if (family0_rev4_and_older_) {
       status_.adc_motor_temp_raw = ADC4->DR;
       status_.adc_voltage_sense_raw = ADC5->DR;
-    } else {
+    } else if (family0_) {
       status_.adc_voltage_sense_raw = ADC4->DR;
       status_.adc_fet_temp_raw = ADC5->DR;
+    } else if (family1_) {
+      status_.adc_fet_temp_raw = ADC4->DR;
+      status_.adc_voltage_sense_raw = ADC5->DR;
     }
 
     // Start sampling the other thing on ADC5, what that is depends
     // upon our board version.
-    if (hw_rev_ <= 4) {
+    if (family0_rev4_and_older_) {
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           tsense_sqr_ << ADC_SQR1_SQ1_Pos;
-    } else {
+    } else {  // family 0 || family 1
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           msense_sqr_ << ADC_SQR1_SQ1_Pos;
     }
+
     ADC5->CR |= ADC_CR_ADSTART;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
@@ -953,22 +985,26 @@ class BldcServo::Impl {
     // The temperature sensing should be done by now, but just double
     // check.
     WaitForAdc(ADC5);
-    if (hw_rev_ <= 4) {
+    if (family0_rev4_and_older_) {
       status_.adc_fet_temp_raw = ADC5->DR;
     } else {
       status_.adc_motor_temp_raw = ADC5->DR;
     }
 
-    if (hw_rev_ <= 4) {
+    if (family0_rev4_and_older_) {
       // Switch back to the voltage sense resistor.
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
-    } else {
+    } else if (family0_) {
       // Switch back to FET temp sense.
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+    } else if (family1_) {
+      ADC5->SQR1 =
+          (0 << ADC_SQR1_L_Pos) |  // length 1
+          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
     }
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
@@ -2240,7 +2276,11 @@ class BldcServo::Impl {
   uint32_t adc3_sqr_ = 0;
   uint32_t adc4_sqr_ = 0;
 
-  const uint8_t hw_rev_ = g_measured_hw_rev;
+  const bool family0_rev4_and_older_ = (
+      g_measured_hw_family == 0 &&
+      g_measured_hw_rev <= 4);
+  const bool family0_ = (g_measured_hw_family == 0);
+  const bool family1_ = (g_measured_hw_family == 1);
 
   static Impl* g_impl_;
 };
