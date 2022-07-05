@@ -2050,7 +2050,7 @@ class BldcServo::Impl {
         };
 
     if (config_.emit_debug & (1 << 0)) {
-      write_scalar(static_cast<uint16_t>(position_.position));
+      write_scalar(static_cast<uint16_t>(aux1_port_->status()->spi.value * 4));
     }
 
     if (config_.emit_debug & (1 << 2)) {
