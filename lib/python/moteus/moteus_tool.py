@@ -1151,9 +1151,9 @@ class Stream:
                 # would otherwise have been lower.
                 desired_encoder_bw_hz = min(20, 2 * torque_bw_hz)
             else:
-                # We default to an encoder bandwidth of 100Hz, or 2x the
+                # We default to an encoder bandwidth of 50Hz, or 2x the
                 # torque bw, whichever is larger.
-                desired_encoder_bw_hz = max(100, 2 * torque_bw_hz)
+                desired_encoder_bw_hz = max(50, 2 * torque_bw_hz)
 
         # And our bandwidth with the filter can be no larger than
         # 1/10th the control rate.
