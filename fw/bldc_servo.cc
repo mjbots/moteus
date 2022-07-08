@@ -1873,7 +1873,8 @@ class BldcServo::Impl {
     // that we get equal performance across the entire viable integral
     // position range.
     const float unlimited_torque_Nm =
-        pid_position_.Apply(
+        motor_position_config()->output.sign *
+        (pid_position_.Apply(
             (static_cast<int32_t>(
                 (position_.position_relative_raw -
                  *status_.control_position) >> 32) /
@@ -1882,7 +1883,7 @@ class BldcServo::Impl {
             measured_velocity, velocity_command,
             rate_config_.rate_hz,
             pid_options) +
-        feedforward_Nm;
+         feedforward_Nm);
 
     const float limited_torque_Nm =
         Limit(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm);

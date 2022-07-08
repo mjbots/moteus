@@ -531,7 +531,10 @@ class MotorPosition {
     output_config_ = &config_.sources[config_.output.source];
     output_status_ = &status_.sources[config_.output.source];
 
+    config_.output.sign = (config_.output.sign >= 0) ? 1 : -1;
+
     output_cpr_scale_ =
+        config_.output.sign *
         (output_config_->reference == SourceConfig::kRotor ?
          config_.rotor_to_output_ratio :
          1.0f) /
@@ -598,7 +601,7 @@ class MotorPosition {
         const float float_first_output =
             WrapBalancedCpr(
                 (output_status.filtered_value * output_cpr_scale_ +
-                 config_.output.offset) * config_.output.sign, 1.0f);
+                 config_.output.offset * config_.output.sign), 1.0f);
 
         const int64_t int64_first_output =
             (1ll << 24) * static_cast<int32_t>((1l << 24) * float_first_output);
@@ -926,7 +929,8 @@ class MotorPosition {
       // the output source, which is only relative.
       source = reference_source;
       source_output_cpr_scale =
-          1.0f / static_cast<float>(config_.sources[reference_source].cpr);
+          config_.output.sign /
+          static_cast<float>(config_.sources[reference_source].cpr);
     }
 
     const auto& output_config = config_.sources[source];
@@ -940,7 +944,7 @@ class MotorPosition {
     const float source_position =
         WrapBalancedCpr(
             (output_status.filtered_value * source_output_cpr_scale +
-             config_.output.offset) * config_.output.sign, 1.0f);
+             config_.output.offset * config_.output.sign), 1.0f);
     const float integral_offsets =
         std::round((value - source_position) / output_scale);
 
