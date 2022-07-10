@@ -82,6 +82,10 @@ class FDCan {
     bool restricted_mode = false;
     bool bus_monitor = false;
 
+    bool delay_compensation = false;
+    uint32_t tdc_offset = 0;
+    uint32_t tdc_filter = 0;
+
     // If any members of this are non-negative, force them to be used
     // instead of the auto-calculated values.
     Rate rate_override;

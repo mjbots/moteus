@@ -271,6 +271,20 @@ void FDCan::Init() {
     mbed_die();
   }
 
+  if (options.delay_compensation) {
+    if (HAL_FDCAN_ConfigTxDelayCompensation(
+            &can, options.tdc_offset, options.tdc_filter) != HAL_OK) {
+      mbed_die();
+    }
+    if (HAL_FDCAN_EnableTxDelayCompensation(&can) != HAL_OK) {
+      mbed_die();
+    }
+  } else {
+    if (HAL_FDCAN_DisableTxDelayCompensation(&can) != HAL_OK) {
+      mbed_die();
+    }
+  }
+
   if (HAL_FDCAN_Start(&can) != HAL_OK) {
     mbed_die();
   }

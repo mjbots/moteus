@@ -195,6 +195,13 @@ int main(void) {
       options.bitrate_switch = true;
       options.automatic_retransmission = true;
 
+      // Family 0 uses a TCAN334GDCNT, which has a very low loop
+      // delay.  Other families use chips with a longer loop delay.
+      options.delay_compensation = g_measured_hw_family != 0;
+
+      options.tdc_offset = 13;  // 13 / 85MHz ~= 152ns
+      options.tdc_filter = 2; // 2 / 85MHz ~= 23ns
+
       return options;
     }());
   FDCanMicroServer fdcan_micro_server(&fdcan);
