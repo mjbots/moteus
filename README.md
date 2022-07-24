@@ -25,12 +25,6 @@ for moderately high power electronics.  It has not yet burned down my
 Assembled and tested boards can be purchased at https://mjbots.com/products/moteus-r4-11
 
 
-# LICENSE #
-
-All files contained in this repository, unless otherwise noted, are
-available under an Apache 2.0 License:
-https://www.apache.org/licenses/LICENSE-2.0
-
 # Directory structure #
 
 * hw/ - hardware (mechanical and electrical designs)
@@ -49,3 +43,15 @@ https://www.apache.org/licenses/LICENSE-2.0
 # Misc #
 
  * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=main)](https://travis-ci.org/mjbots/moteus)
+
+# License #
+
+All files contained in this repository, unless otherwise noted, are
+available under an Apache 2.0 License:
+https://www.apache.org/licenses/LICENSE-2.0
+
+# Trademark #
+
+mjbots Robotic Systems LLC owns and protects the "mjbots" and "moteus" trademarks in many jurisdictions.
+
+If you want to use these names in your project or product, please read the [Trademark Policy](https://mjbots.com/trademark-policy)
