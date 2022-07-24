@@ -20,7 +20,8 @@ ALL = [
     'make_transport_args', 'get_singleton_transport',
     'Fdcanusb', 'Router', 'Controller', 'Register', 'Transport',
     'PythonCan',
-    'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'Stream',
+    'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'CommandError',
+    'Stream',
     'TRANSPORT_FACTORIES',
     'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
     'reader',
@@ -31,6 +32,7 @@ from moteus.router import Router
 from moteus.transport import Transport
 from moteus.pythoncan import PythonCan
 from moteus.moteus import (
+    CommandError,
     Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
     make_transport_args, get_singleton_transport,
     TRANSPORT_FACTORIES)
