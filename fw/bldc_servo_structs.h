@@ -452,6 +452,10 @@ struct BldcServoConfig {
   // voltage based on the desired current.
   float current_feedforward = 1.0f;
 
+  // Use the configured motor Kv rating to apply a feedforward voltage
+  // based on the desired angular velocity.
+  float bemf_feedforward = 1.0f;
+
   // Default values for the position mode velocity and acceleration
   // limits.
   float default_velocity_limit = std::numeric_limits<float>::quiet_NaN();
@@ -539,6 +543,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(pid_dq));
     a->Visit(MJ_NVP(pid_position));
     a->Visit(MJ_NVP(current_feedforward));
+    a->Visit(MJ_NVP(bemf_feedforward));
     a->Visit(MJ_NVP(default_velocity_limit));
     a->Visit(MJ_NVP(default_accel_limit));
     a->Visit(MJ_NVP(voltage_mode_control));

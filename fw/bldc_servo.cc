@@ -1416,7 +1416,7 @@ class BldcServo::Impl {
         break;
       }
       case kCurrent: {
-        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A);
+        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f);
         break;
       }
       case kPosition: {
@@ -1449,7 +1449,7 @@ class BldcServo::Impl {
   void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     if (status_.cooldown_count) {
       status_.cooldown_count--;
-      ISR_DoCurrent(sin_cos, 0.0f, 0.0f);
+      ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f);
       return;
     }
 
@@ -1597,7 +1597,8 @@ class BldcServo::Impl {
     ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in,
+                     float feedforward_velocity_rotor) MOTEUS_CCM_ATTRIBUTE {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
@@ -1702,7 +1703,8 @@ class BldcServo::Impl {
       const float q_V =
           Limit(
               pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
-              i_q_A * config_.current_feedforward * motor_.resistance_ohm,
+              i_q_A * config_.current_feedforward * motor_.resistance_ohm +
+              feedforward_velocity_rotor * config_.bemf_feedforward * motor_.v_per_hz,
               -max_V, max_V);
       status_.pid_q.integral = Limit(
           status_.pid_q.integral,
@@ -1712,7 +1714,8 @@ class BldcServo::Impl {
     } else {
       ISR_DoVoltageDQ(sin_cos,
                       i_d_A * motor_.resistance_ohm,
-                      i_q_A * motor_.resistance_ohm);
+                      i_q_A * motor_.resistance_ohm +
+                      feedforward_velocity_rotor * config_.bemf_feedforward * motor_.v_per_hz);
     }
   }
 
@@ -1949,7 +1952,9 @@ class BldcServo::Impl {
     status_.dwt.control_done_pos = DWT->CYCCNT;
 #endif
 
-    ISR_DoCurrent(sin_cos, d_A, q_A);
+    ISR_DoCurrent(
+        sin_cos, d_A, q_A,
+        velocity_command / motor_position_->config()->rotor_to_output_ratio);
   }
 
   void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
@@ -1980,7 +1985,7 @@ class BldcServo::Impl {
               limited_torque_Nm *
               motor_position_->config()->rotor_to_output_ratio);
 
-      ISR_DoCurrent(sin_cos, 0.0f, limited_q_A);
+      ISR_DoCurrent(sin_cos, 0.0f, limited_q_A, 0.0f);
       return;
     }
 
