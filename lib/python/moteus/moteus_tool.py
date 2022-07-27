@@ -921,6 +921,10 @@ class Stream:
             hall_cal_data.append(
                 (phase, motor_position.sources[commutation_source].raw))
 
+        if self.args.cal_raw:
+            with open(self.args.cal_raw, "wb") as f:
+                f.write(json.dumps(hall_cal_data, indent=2).encode('utf8'))
+
         await self.command("d stop")
 
         # See if we support phase_invert.
