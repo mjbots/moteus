@@ -1898,10 +1898,12 @@ class Application {
       double expected_speed_Hz;
     } tests[] = {
       { 100.0, 4.04 },
-      { 20.0, 2.20 },
-      { 10.0, 1.35 },
-      { 5.0, 1.00 },
+      { 20.0, 3.12 },
+      { 10.0, 2.14 },
+      { 5.0, 1.43 },
     };
+
+    std::string errors;
 
     for (const auto test : tests) {
       dut_pid.max_power_W = test.power_W;
@@ -1920,10 +1922,11 @@ class Application {
       fmt::print("Power {} / Speed {}\n", test.power_W, average_speed);
 
       if (RelativeError(average_speed, test.expected_speed_Hz) > 0.15) {
-        throw mjlib::base::system_error::einval(
+        if (!errors.empty()) { errors += "\n"; }
+        errors +=
             fmt::format(
                 "Speed {} != {} (within {}%)",
-                average_speed, test.expected_speed_Hz, 0.15 * 100));
+                average_speed, test.expected_speed_Hz, 0.15 * 100);
       }
 
       co_await dut_->Command("d stop");
@@ -1933,6 +1936,10 @@ class Application {
 
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
+
+    if (!errors.empty()) {
+      throw mjlib::base::system_error::einval(errors);
+    }
 
     co_return;
   }
