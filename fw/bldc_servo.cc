@@ -654,67 +654,33 @@ class BldcServo::Impl {
         (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos) |
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
 
-    // 20.4.6: ADC Deep power-down mode startup procedure
-    ADC1->CR &= ~ADC_CR_DEEPPWD;
-    ADC2->CR &= ~ADC_CR_DEEPPWD;
-    ADC3->CR &= ~ADC_CR_DEEPPWD;
-    ADC4->CR &= ~ADC_CR_DEEPPWD;
-    ADC5->CR &= ~ADC_CR_DEEPPWD;
+    auto enable_adc = [&](auto* adc) {
+      // 20.4.6: ADC Deep power-down mode startup procedure
+      adc->CR &= ~ADC_CR_DEEPPWD;
+      adc->CR |= ADC_CR_ADVREGEN;
 
-    ADC1->CR |= ADC_CR_ADVREGEN;
-    ADC2->CR |= ADC_CR_ADVREGEN;
-    ADC3->CR |= ADC_CR_ADVREGEN;
-    ADC4->CR |= ADC_CR_ADVREGEN;
-    ADC5->CR |= ADC_CR_ADVREGEN;
+      // tADCREG_S = 20us per STM32G474xB datasheet
+      ms_timer_->wait_us(20);
 
-    // tADCREG_S = 20us per STM32G474xB datasheet
-    ms_timer_->wait_us(20);
+      adc->CR |= ADC_CR_ADCAL;
+      while (adc->CR & ADC_CR_ADCAL);
+      ms_timer_->wait_us(1);
 
-    // 20.4.8: Calibration
-    ADC1->CR |= ADC_CR_ADCAL;
-    ADC2->CR |= ADC_CR_ADCAL;
-    ADC3->CR |= ADC_CR_ADCAL;
-    ADC4->CR |= ADC_CR_ADCAL;
-    ADC5->CR |= ADC_CR_ADCAL;
+      // 20.4.9: Software procedure to enable the ADC
+      adc->ISR |= ADC_ISR_ADRDY;
+      adc->CR |= ADC_CR_ADEN;
 
-    while ((ADC1->CR & ADC_CR_ADCAL) ||
-           (ADC2->CR & ADC_CR_ADCAL) ||
-           (ADC3->CR & ADC_CR_ADCAL) ||
-           (ADC4->CR & ADC_CR_ADCAL) ||
-           (ADC5->CR & ADC_CR_ADCAL));
+      while (! (adc->ISR & ADC_ISR_ADRDY));
+      adc->ISR |= ADC_ISR_ADRDY;
 
-    ms_timer_->wait_us(1);
+      adc->CFGR &= ~(ADC_CFGR_CONT);
+    };
 
-    // 20.4.9: Software procedure to enable the ADC
-    ADC1->ISR |= ADC_ISR_ADRDY;
-    ADC2->ISR |= ADC_ISR_ADRDY;
-    ADC3->ISR |= ADC_ISR_ADRDY;
-    ADC4->ISR |= ADC_ISR_ADRDY;
-    ADC5->ISR |= ADC_ISR_ADRDY;
-
-    ADC1->CR |= ADC_CR_ADEN;
-    ADC2->CR |= ADC_CR_ADEN;
-    ADC3->CR |= ADC_CR_ADEN;
-    ADC4->CR |= ADC_CR_ADEN;
-    ADC5->CR |= ADC_CR_ADEN;
-
-    while (!(ADC1->ISR & ADC_ISR_ADRDY) ||
-           !(ADC2->ISR & ADC_ISR_ADRDY) ||
-           !(ADC3->ISR & ADC_ISR_ADRDY) ||
-           !(ADC4->ISR & ADC_ISR_ADRDY) ||
-           !(ADC5->ISR & ADC_ISR_ADRDY));
-
-    ADC1->ISR |= ADC_ISR_ADRDY;
-    ADC2->ISR |= ADC_ISR_ADRDY;
-    ADC3->ISR |= ADC_ISR_ADRDY;
-    ADC4->ISR |= ADC_ISR_ADRDY;
-    ADC5->ISR |= ADC_ISR_ADRDY;
-
-    ADC1->CFGR &= ~(ADC_CFGR_CONT);
-    ADC2->CFGR &= ~(ADC_CFGR_CONT);
-    ADC3->CFGR &= ~(ADC_CFGR_CONT);
-    ADC4->CFGR &= ~(ADC_CFGR_CONT);
-    ADC5->CFGR &= ~(ADC_CFGR_CONT);
+    enable_adc(ADC1);
+    enable_adc(ADC2);
+    enable_adc(ADC3);
+    enable_adc(ADC4);
+    enable_adc(ADC5);
 
     adc1_sqr_ = ADC1->SQR1 =
         (0 << ADC_SQR1_L_Pos) |  // length 1
