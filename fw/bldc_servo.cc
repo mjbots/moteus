@@ -48,7 +48,7 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
-constexpr int kAdcPrescale = 6;
+constexpr int kAdcPrescale = 8;
 
 #if defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
