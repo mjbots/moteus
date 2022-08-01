@@ -715,6 +715,63 @@ BOOST_AUTO_TEST_CASE(MotorPositionHallSource) {
 
     run(ctx, test_values);
   }
+
+  {
+    Context ctx;
+    ctx.dut.config()->sources[0].type = MotorPosition::SourceConfig::kHall;
+    ctx.dut.config()->sources[0].sign = -1;
+    ctx.dut.config()->sources[0].offset = 1;
+    ctx.aux1_status.hall.active = true;
+
+    TestValues test_values[] = {
+      { 0, 11 },
+      { 1, 10 },
+      { 2, 9 },
+      { 3, 8 },
+      { 4, 7 },
+      { 5, 6 },
+      { 0, 5 },
+      { 1, 4 },
+      { 2, 3 },
+      { 3, 2 },
+      { 4, 1 },
+      { 5, 0 },
+      { 0, 11 },
+      { 1, 10 },
+      { 0, 11 },
+      { 5, 0 },
+    };
+
+    run(ctx, test_values);
+  }
+  {
+    Context ctx;
+    ctx.dut.config()->sources[0].type = MotorPosition::SourceConfig::kHall;
+    ctx.dut.config()->sources[0].sign = -1;
+    ctx.dut.config()->sources[0].offset = -2;
+    ctx.aux1_status.hall.active = true;
+
+    TestValues test_values[] = {
+      { 0, 2 },
+      { 1, 1 },
+      { 2, 0 },
+      { 3, 11 },
+      { 4, 10 },
+      { 5, 9 },
+      { 0, 8 },
+      { 1, 7 },
+      { 2, 6 },
+      { 3, 5 },
+      { 4, 4 },
+      { 5, 3 },
+      { 0, 2 },
+      { 1, 1 },
+      { 0, 2 },
+      { 5, 3 },
+    };
+
+    run(ctx, test_values);
+  }
 }
 
 BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {

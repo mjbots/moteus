@@ -738,10 +738,18 @@ class MotorPosition {
           status.raw = hall_data->bits;
 
           const uint32_t cpr = kHallCounts / 2 * motor_.poles;
-          const int32_t delta = static_cast<int32_t>(
-              (config.sign * hall_data->count + 2 * cpr + (kHallCounts / 2) -
-               status.offset_value) % kHallCounts) -
+          const int32_t current_with_offset =
+              ((hall_data->count +
+                static_cast<int32_t>(config.offset)) * config.sign +
+               kHallCounts) % kHallCounts;
+          const int32_t old_with_offset =
+              status.offset_value % kHallCounts;
+          const int32_t delta =
+              (current_with_offset - old_with_offset +
+               kHallCounts + kHallCounts / 2) %
+              kHallCounts -
               (kHallCounts / 2);
+
           const uint32_t new_value = (status.offset_value + cpr + delta) % cpr;
 
           updated = ISR_UpdateAbsoluteSource(
