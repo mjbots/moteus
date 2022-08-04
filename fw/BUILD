@@ -21,6 +21,7 @@ load("@com_github_ARMmbed_mbed-g4-bootloader//:rules.bzl", g4_bootloader_mbed_bi
 COPTS = [
     "-Werror",
     "-Wdouble-promotion",
+    "-gdwarf-4",
 ]
 
 cc_library(
