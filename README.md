@@ -44,6 +44,15 @@ Assembled and tested boards can be purchased at https://mjbots.com/products/mote
 
  * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=main)](https://travis-ci.org/mjbots/moteus)
 
+# How to support moteus development #
+
+The easiest way to support development the moteus hardware and firmware is as follows:
+
+1) Buy things from https://mjbots.com
+2) Build awesome machines!
+
+That's it!  If for some reason you want to go above and beyond, you can sponsor mjbots through github: https://github.com/sponsors/mjbots
+
 # License #
 
 All files contained in this repository, unless otherwise noted, are
