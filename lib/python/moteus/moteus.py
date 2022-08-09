@@ -720,7 +720,7 @@ class Controller:
 
     async def set_rezero(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
-            [self.make_rezero(**kwargs, cmd=cmd)]))
+            [self.make_rezero(**kwargs)]))
 
 
     def make_position(self,
