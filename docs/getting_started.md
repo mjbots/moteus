@@ -18,6 +18,10 @@ If you have a Raspberry Pi, see the [instructions here](raspberry_pi.md).
 
 If using the fdcanusb, you will need to have udev rules set up in order for regular users to access the device.  Follow the instructions at: https://github.com/mjbots/fdcanusb/blob/master/70-fdcanusb.rules
 
+## Windows ##
+
+On some modern Windows installations, you need to invoke python as `python`, not `python3`.
+
 # Running tview #
 
 tview lets you configure and inspect the state of the controller.  It
