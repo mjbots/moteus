@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,6 @@ def rules_mbed_repository():
     github_archive(
         name = "com_github_mjbots_rules_mbed",
         repo = "mjbots/rules_mbed",
-        commit = "587aa0b0f4543cb566121716c93bcbbdb16d28a3",
-        sha256 = "6363c34b6c8b903da4d8b411cb94e5bca466e3392a8e5161b25aa03d7b821bb4",
+        commit = "d855e362e1088a523e94c176c10aa4599924d326",
+        sha256 = "1e3712f107e05a8f41608f8cbb4e6693992423483a642febe9d308750836098e",
     )
