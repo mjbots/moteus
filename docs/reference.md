@@ -1491,7 +1491,7 @@ torque will be applied.  Similarly, with a `kd` value of 1, 1
 revolution per second of error will result in 1 Nm of corrective
 torque.  Doubly note that these values are measured at the output,
 thus *after* any scaling in position, velocity, and torque implied by
-`motor.unwrapped_position_scale`.
+`motor_position.rotor_to_output_ratio`.
 
 ## `servo.pid_dq` ##
 
@@ -1950,7 +1950,7 @@ spun in both directions and at high speed.
 
 After calibrating for an entirely new type of motor, you may need to
 adjust PID gains before the motor will perform acceptably, and/or
-configure `motor.unwrapped_position_scale`.
+configure `motor_position.rotor_to_output_ratio`.
 
 ## Setting the "zero offset" ##
 
@@ -2152,9 +2152,9 @@ ip link set can0 up type can \
 ## Position ##
 
 The commanded position is limited to +-32767.0 revolutions before any
-`unwrapped_position_scale` has been applied.  Reducers there will
+`rotor_to_output_ratio` has been applied.  Reducers there will
 further limit the range of the commandable revolutions.  For instance,
-a 1/10 reducer configured as `unwrapped_position_scale=0.1` results in
+a 1/10 reducer configured as `rotor_to_output_ratio=0.1` results in
 a available position command range of +-3276.7 revolutions.
 
 If either:
@@ -2179,7 +2179,7 @@ throughout the available control envelope.
 ## Velocity ##
 
 The smallest usable mechanical velocity which can be commanded is
-0.0001 revolutions per second before any `unwrapped_position_scale`
+0.0001 revolutions per second before any `rotor_to_output_ratio`
 has been applied.  This corresponds to 0.036 degrees per second.
 Reducers will decrease the minimum usable velocity.
 
