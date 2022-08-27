@@ -1815,7 +1815,10 @@ class BldcServo::Impl {
           cordic_(RadiansToQ31(synthetic_electrical_theta));
       const float fixed_voltage =
           std::isnan(data->fixed_voltage_override) ?
-          config_.fixed_voltage_control_V :
+          config_.fixed_voltage_control_V +
+          (std::abs(status_.velocity) *
+           motor_.v_per_hz *
+           config_.bemf_feedforward) :
           data->fixed_voltage_override;
       ISR_DoVoltageDQ(synthetic_sin_cos, fixed_voltage, 0.0f);
       return;
