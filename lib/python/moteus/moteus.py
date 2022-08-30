@@ -301,12 +301,6 @@ class VFOCResolution:
     theta_rate = mp.F32
 
 
-class VFOCResolution:
-    theta = mp.F32
-    voltage = mp.F32
-    theta_rate = mp.F32
-
-
 class CurrentResolution:
     d_A = mp.F32
     q_A = mp.F32
