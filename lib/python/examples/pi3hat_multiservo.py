@@ -105,7 +105,7 @@ async def main():
         # Here, we'll just print the ID, position, and velocity of
         # each servo for which a reply was returned.
         print(", ".join(
-            f"({result.id} " +
+            f"({result.arbitration_id} " +
             f"{result.values[moteus.Register.POSITION]} " +
             f"{result.values[moteus.Register.VELOCITY]})"
             for result in results))
