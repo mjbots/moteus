@@ -12,7 +12,7 @@ the three phases.
 
 The primary control mode, labeled as "position" mode in the rest of
 this document is a two stage cascaded controller, with both running at
-the switching frequency (by default 40kHz).
+the switching frequency (by default 30kHz).
 
 The outermost stage is an optional limited acceleration and velocity
 trajectory planner.  Within that is an integrated position/velocity
