@@ -69,9 +69,9 @@ use.
 To implement a velocity controller, each command should have the
 "position" set to NaN (or equivalent integral encoding).  It is
 recommended to configure `servo.max_position_slip` to a finite value
-greater than 0 ([reference](#servomax_position_slip)).  When it is
-larger, more external disturbances will be rejected, but the
-controller will also "catch up" when the magnitude of external
+greater than or equal to 0 ([reference](#servomax_position_slip)).
+When it is larger, more external disturbances will be rejected, but
+the controller will also "catch up" when the magnitude of external
 disturbances is decreased.
 
 ### Low Speed or Precise Positioning ###
