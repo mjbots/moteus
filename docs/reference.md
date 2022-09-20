@@ -1962,6 +1962,9 @@ python3 -m moteus.moteus_tool --target 1 --zero-offset
 
 ## Flashing and building firmware ##
 
+To build the moteus firmware, an x86-64 Ubuntu 20.04 or 22.04 system
+is required.
+
 ### Flashing over CAN ###
 
 The latest firmware can be downloaded from: https://github.com/mjbots/moteus/releases
