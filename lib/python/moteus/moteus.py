@@ -698,10 +698,10 @@ class Controller:
             [self.make_set_output(**kwargs, cmd=cmd)]))
 
     async def set_output_nearest(self, *args, **kwargs):
-        return self.set_output(cmd=Register.SET_OUTPUT_NEAREST, **kwargs)
+        return await self.set_output(cmd=Register.SET_OUTPUT_NEAREST, **kwargs)
 
     async def set_output_exact(self, *args, **kwargs):
-        return self.set_output(cmd=Register.SET_OUTPUT_EXACT, **kwargs)
+        return await self.set_output(cmd=Register.SET_OUTPUT_EXACT, **kwargs)
 
 
     # For backwards compatibility, "*_output_nearest" used to be named
