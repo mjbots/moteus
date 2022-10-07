@@ -79,7 +79,7 @@ TRANSPORT_FACTORIES = [
     FdcanusbFactory(),
     PythonCanFactory(),
 ] + [ep.load()() for ep in
-     importlib_metadata.entry_points().get('moteus.transports', [])]
+     importlib_metadata.entry_points().select(group='moteus.transports')]
 
 
 GLOBAL_TRANSPORT = None
