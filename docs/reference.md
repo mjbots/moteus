@@ -1621,6 +1621,20 @@ Torque begins to be limited when the temperature reaches this value.
 If the temperature reaches this value, a fault is triggered and all
 torque is stopped.
 
+## `servo.enable_motor_temperature` ##
+
+If true, then the motor temperature will be sensed via the TEMP pads
+on the board.
+
+## `servo.motor_derate_temperature` ##
+
+Torque begins to be limited when the motor temperature reaches this value.
+
+## `servo.motor_fault_temperature` ##
+
+If the motor temperature reaches this value, a fault is triggered and
+all torque is stopped.
+
 ## `servo.flux_brake_min_voltage` ##
 
 When the input voltage is above this value, the controller causes the
