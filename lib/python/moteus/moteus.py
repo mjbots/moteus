@@ -246,6 +246,8 @@ class Mode(enum.IntEnum):
     TIMEOUT = 11
     ZERO_VELOCITY = 12
     STAY_WITHIN = 13
+    MEASURE_IND = 14
+    BRAKE = 15
 
 
 def _merge_resolutions(a, b):
@@ -960,6 +962,26 @@ class Controller:
     async def set_stay_within(self, *args, **kwargs):
         return self._extract(await self._get_transport().cycle(
             [self.make_stay_within(**kwargs)]))
+
+    def make_brake(self, *, query=False):
+        result = self._make_command(query=query)
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_int8(int(Register.MODE))
+        writer.write_int8(int(Mode.BRAKE))
+
+        if query:
+            data_buf.write(self._query_data)
+
+        result.data = data_buf.getvalue()
+
+        return result
+
+    async def set_brake(self, *args, **kwargs):
+        return self._extract(await self._get_transport().cycle(
+            [self.make_brake(**kwargs)]))
 
     def make_write_gpio(self, aux1=None, aux2=None, query=False):
         """Return a moteus.Command structure with data necessary to set one or

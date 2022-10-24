@@ -171,6 +171,13 @@ class MoteusTest(unittest.TestCase):
                    0x00, 0x00, 0x80, 0x3f,
             ]))
 
+    def test_make_brake(self):
+        dut = mot.Controller()
+        result = dut.make_brake()
+        self.assertEqual(
+            result.data,
+            bytes([0x01, 0x00, 0x0f]))
+
     def test_make_set_output_nearest(self):
         dut = mot.Controller()
         result = dut.make_set_output_nearest(position=2)
