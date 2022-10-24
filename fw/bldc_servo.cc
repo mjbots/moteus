@@ -956,19 +956,32 @@ class BldcServo::Impl {
       constexpr int adc_max = 4096;
       constexpr size_t size_thermistor_table =
           sizeof(g_thermistor_lookup) / sizeof(*g_thermistor_lookup);
-      size_t offset = std::max<size_t>(
-          1, std::min<size_t>(
-              size_thermistor_table - 2,
-              status_.adc_fet_temp_raw * size_thermistor_table / adc_max));
-      const int16_t this_value = offset * adc_max / size_thermistor_table;
-      const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
-      const float temp1 = g_thermistor_lookup[offset];
-      const float temp2 = g_thermistor_lookup[offset + 1];
-      status_.fet_temp_C = temp1 +
-          (temp2 - temp1) *
-          static_cast<float>(status_.adc_fet_temp_raw - this_value) /
-          static_cast<float>(next_value - this_value);
+
+      const auto calculate_temp =
+          [&](uint16_t adc_raw) {
+            const size_t offset = std::max<size_t>(
+                1, std::min<size_t>(
+                    size_thermistor_table - 2,
+                    adc_raw * size_thermistor_table / adc_max));
+            const int16_t this_value = offset * adc_max / size_thermistor_table;
+            const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
+            const float temp1 = g_thermistor_lookup[offset];
+            const float temp2 = g_thermistor_lookup[offset + 1];
+            return temp1 +
+                (temp2 - temp1) *
+                static_cast<float>(adc_raw - this_value) /
+                static_cast<float>(next_value - this_value);
+          };
+
+      status_.fet_temp_C = calculate_temp(status_.adc_fet_temp_raw);
       ISR_UpdateFilteredValue(status_.fet_temp_C, &status_.filt_fet_temp_C, 0.01f);
+
+      if (config_.enable_motor_temperature) {
+        status_.motor_temp_C = calculate_temp(status_.adc_motor_temp_raw);
+        ISR_UpdateFilteredValue(status_.motor_temp_C, &status_.filt_motor_temp_C, 0.01f);
+      } else {
+        status_.motor_temp_C = status_.filt_motor_temp_C = 0.0f;
+      }
     }
 
     status_.position = position_.position;
@@ -1322,6 +1335,11 @@ class BldcServo::Impl {
         status_.mode = kFault;
         status_.fault = errc::kOverTemperature;
       }
+      if (std::isfinite(config_.motor_fault_temperature) &&
+          status_.filt_motor_temp_C > config_.motor_fault_temperature) {
+        status_.mode = kFault;
+        status_.fault = errc::kOverTemperature;
+      }
     }
 
     if ((status_.mode == kPosition || status_.mode == kStayWithinBounds) &&
@@ -1620,9 +1638,15 @@ class BldcServo::Impl {
       return Limit(in, -current_limit, current_limit);
     };
 
-    const float derate_fraction = (
-        status_.filt_fet_temp_C - config_.derate_temperature) / (
-            config_.fault_temperature - config_.derate_temperature);
+    float derate_fraction =
+        (status_.filt_fet_temp_C - config_.derate_temperature) /
+        (config_.fault_temperature - config_.derate_temperature);
+    if (std::isfinite(config_.motor_fault_temperature)) {
+      derate_fraction = std::min<float>(
+          derate_fraction,
+          ((status_.filt_motor_temp_C - config_.motor_derate_temperature) /
+           (config_.motor_fault_temperature - config_.motor_derate_temperature)));
+    }
 
     const float derate_current_A =
         std::max<float>(

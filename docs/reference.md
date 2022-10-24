@@ -567,6 +567,14 @@ Mode: Read only
 If an absolute encoder is configured on the ABS port, its value will
 be reported here in revolutions.
 
+#### 0x00a - Motor Temperature ####
+
+Mode: Read only
+
+The current motor temperature, measured in degrees celsius.  This will
+only be valid if a 47k NTC thermistor is connected to the TEMP pads
+and `servo.enable_motor_temperature` is set to 1.
+
 #### 0x00b - Trajectory complete ####
 
 Mode: Read only

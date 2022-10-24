@@ -134,6 +134,8 @@ struct BldcServoStatus {
   float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
   float fet_temp_C = 0.0f;
   float filt_fet_temp_C = std::numeric_limits<float>::quiet_NaN();
+  float motor_temp_C = 0.0f;
+  float filt_motor_temp_C = std::numeric_limits<float>::quiet_NaN();
 
   float d_A = 0.0f;
   float q_A = 0.0f;
@@ -225,6 +227,8 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(filt_1ms_bus_V));
     a->Visit(MJ_NVP(fet_temp_C));
     a->Visit(MJ_NVP(filt_fet_temp_C));
+    a->Visit(MJ_NVP(motor_temp_C));
+    a->Visit(MJ_NVP(filt_motor_temp_C));
 
     a->Visit(MJ_NVP(d_A));
     a->Visit(MJ_NVP(q_A));
@@ -429,6 +433,13 @@ struct BldcServoConfig {
   float derate_temperature = 50.0f;
   float fault_temperature = 75.0f;
 
+  // If enabled, slightly more instructions are used per cycle, but
+  // the motor temperature will be available for throttling in
+  // addition to the FET temperature.
+  bool enable_motor_temperature = false;
+  float motor_derate_temperature = 50.0f;
+  float motor_fault_temperature = std::numeric_limits<float>::quiet_NaN();
+
   float velocity_threshold = 0.0f;
   float position_derate = 0.02f;
 
@@ -536,6 +547,9 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(max_power_W));
     a->Visit(MJ_NVP(derate_temperature));
     a->Visit(MJ_NVP(fault_temperature));
+    a->Visit(MJ_NVP(enable_motor_temperature));
+    a->Visit(MJ_NVP(motor_derate_temperature));
+    a->Visit(MJ_NVP(motor_fault_temperature));
     a->Visit(MJ_NVP(velocity_threshold));
     a->Visit(MJ_NVP(position_derate));
     a->Visit(MJ_NVP(adc_cur_cycles));

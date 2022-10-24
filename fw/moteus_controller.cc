@@ -218,6 +218,7 @@ enum class Register {
   kDCurrent = 0x005,
   kAbsPosition = 0x006,
 
+  kMotorTemperature = 0x00a,
   kTrajectoryComplete = 0x00b,
   kHomeState = 0x00c,
   kVoltage = 0x00d,
@@ -575,6 +576,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
       case Register::kPosition:
       case Register::kVelocity:
+      case Register::kMotorTemperature:
       case Register::kTemperature:
       case Register::kQCurrent:
       case Register::kDCurrent:
@@ -639,6 +641,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kVelocity: {
         return ScaleVelocity(bldc_.status().velocity, type);
+      }
+      case Register::kMotorTemperature: {
+        return ScaleTemperature(bldc_.status().motor_temp_C, type);
       }
       case Register::kTemperature: {
         return ScaleTemperature(bldc_.status().fet_temp_C, type);
