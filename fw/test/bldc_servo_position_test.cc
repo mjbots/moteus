@@ -93,11 +93,11 @@ BOOST_AUTO_TEST_CASE(StartupPositionCapture) {
   // position is given.
   Context ctx;
 
-  BOOST_TEST(!ctx.status.control_position);
+  BOOST_TEST(!ctx.status.control_position_raw);
   ctx.data.position = NaN;
   ctx.data.velocity = 0.0f;
   ctx.Call();
-  BOOST_TEST(ctx.status.control_position.value() == ctx.position.position_raw);
+  BOOST_TEST(ctx.status.control_position_raw.value() == ctx.position.position_raw);
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 }
 
@@ -157,12 +157,12 @@ BOOST_AUTO_TEST_CASE(StartupPositionSet) {
   // When starting, if a command position is given, we use that.
   Context ctx;
 
-  BOOST_TEST(!ctx.status.control_position);
+  BOOST_TEST(!ctx.status.control_position_raw);
   ctx.data.position = 2.0f;
   ctx.data.velocity = 0.0f;
   ctx.Call();
-  BOOST_TEST(ctx.status.control_position.value() != ctx.position.position_raw);
-  BOOST_TEST(ctx.status.control_position.value() == ctx.to_raw(2.0f));
+  BOOST_TEST(ctx.status.control_position_raw.value() != ctx.position.position_raw);
+  BOOST_TEST(ctx.status.control_position_raw.value() == ctx.to_raw(2.0f));
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 
   BOOST_TEST(std::isfinite(ctx.data.velocity));
@@ -173,31 +173,31 @@ BOOST_AUTO_TEST_CASE(RunningPositionSet) {
   // When running, we still take actual command positions immediately.
   Context ctx;
 
-  ctx.status.control_position = ctx.to_raw(4.0f);
+  ctx.status.control_position_raw = ctx.to_raw(4.0f);
   ctx.data.position = 2.0f;
   ctx.data.velocity = 0.0f;
   ctx.Call();
 
-  BOOST_TEST(ctx.status.control_position.value() == ctx.to_raw(2.0f));
+  BOOST_TEST(ctx.status.control_position_raw.value() == ctx.to_raw(2.0f));
 }
 
 BOOST_AUTO_TEST_CASE(RunningPositionCapture) {
   // When running, an unset position means we keep the old one.
   Context ctx;
 
-  ctx.status.control_position = ctx.to_raw(4.0f);
+  ctx.status.control_position_raw = ctx.to_raw(4.0f);
   ctx.data.position = NaN;
   ctx.data.velocity = 0.0f;
   ctx.Call();
 
-  BOOST_TEST(ctx.status.control_position.value() == ctx.to_raw(4.0f));
+  BOOST_TEST(ctx.status.control_position_raw.value() == ctx.to_raw(4.0f));
 }
 
 BOOST_AUTO_TEST_CASE(PositionLimit) {
   struct TestCase {
     float position_min;
     float position_max;
-    float control_position;
+    float control_position_raw;
 
     float expected_output;
   };
@@ -222,17 +222,17 @@ BOOST_AUTO_TEST_CASE(PositionLimit) {
     BOOST_TEST_CONTEXT("Case "
                        << test_case.position_min
                        << " " << test_case.position_max
-                       << " " << test_case.control_position) {
+                       << " " << test_case.control_position_raw) {
       Context ctx;
       ctx.position_config.position_min = test_case.position_min;
       ctx.position_config.position_max = test_case.position_max;
       ctx.data.position = NaN;
       ctx.data.velocity = 0.0f;
-      ctx.status.control_position = ctx.to_raw(test_case.control_position);
+      ctx.status.control_position_raw = ctx.to_raw(test_case.control_position_raw);
 
       ctx.Call();
 
-      BOOST_TEST(ctx.status.control_position.value() ==
+      BOOST_TEST(ctx.status.control_position_raw.value() ==
                  ctx.to_raw(test_case.expected_output));
     }
   }
@@ -243,13 +243,13 @@ BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3)) {
 
   ctx.data.position = NaN;
   ctx.data.velocity = 1.0f;
-  ctx.status.control_position = ctx.to_raw(3.0f);
+  ctx.status.control_position_raw = ctx.to_raw(3.0f);
   for (int i = 0; i < ctx.rate_hz; i++) {
     const float result = ctx.Call();
     BOOST_TEST(result == 1.0f);
   }
 
-  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.0);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == 4.0);
 
   ctx.set_stop_position(4.5f);
   for (int i = 0; i < ctx.rate_hz; i++) {
@@ -260,13 +260,13 @@ BOOST_AUTO_TEST_CASE(PositionVelocity, * boost::unit_test::tolerance(1e-3)) {
       BOOST_TEST(result == 0.0f);
     }
   }
-  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 4.5);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == 4.5);
 }
 
 BOOST_AUTO_TEST_CASE(PositionSlip, * boost::unit_test::tolerance(1e-3f)) {
   struct TestCase {
     float max_position_slip;
-    float control_position;
+    float control_position_raw;
     float observed_position;
 
     float expected_position;
@@ -284,18 +284,18 @@ BOOST_AUTO_TEST_CASE(PositionSlip, * boost::unit_test::tolerance(1e-3f)) {
   for (const TestCase& test_case : test_cases) {
     BOOST_TEST_CONTEXT("Case "
                        << test_case.max_position_slip << " "
-                       << test_case.control_position << " "
+                       << test_case.control_position_raw << " "
                        << test_case.observed_position) {
       Context ctx;
       ctx.data.position = NaN;
 
       ctx.config.max_position_slip = test_case.max_position_slip;
-      ctx.status.control_position = ctx.to_raw(test_case.control_position);
+      ctx.status.control_position_raw = ctx.to_raw(test_case.control_position_raw);
       ctx.set_position(test_case.observed_position);
 
       ctx.Call();
 
-      BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) ==
+      BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) ==
                  test_case.expected_position);
     }
   }
@@ -460,7 +460,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
         current_duration += (1.0 / ctx.rate_hz);
 
         const double this_pos =
-            ctx.from_raw(ctx.status.control_position.value());
+            ctx.from_raw(ctx.status.control_position_raw.value());
         const double measured_vel =
             (ctx.from_raw(ctx.to_raw(this_pos) -
                           ctx.to_raw(old_pos))) * ctx.rate_hz;
@@ -515,7 +515,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
           if (done_count == 0) {
             if (std::isfinite(test_case.xf)) {
               BOOST_TEST(ctx.from_raw(
-                             ctx.status.control_position.value()) ==
+                             ctx.status.control_position_raw.value()) ==
                          test_case.xf);
             }
             total_duration = current_duration;
@@ -531,7 +531,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
         const double expected_final =
             test_case.xf + expected_vf * extra_time;
         BOOST_TEST(ctx.from_raw(
-                       ctx.status.control_position.value()) == expected_final);
+                       ctx.status.control_position_raw.value()) == expected_final);
       }
       BOOST_TEST(ctx.status.control_velocity.value() == expected_vf);
       BOOST_TEST(ctx.status.trajectory_done == true);
@@ -556,7 +556,7 @@ BOOST_AUTO_TEST_CASE(StopPositionWithLimits, * boost::unit_test::tolerance(1e-3)
     ctx.Call();
   }
 
-  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 1.0);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == 1.0);
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0);
   BOOST_TEST(ctx.status.trajectory_done == true);
 }
@@ -579,7 +579,7 @@ BOOST_AUTO_TEST_CASE(StopPositionWithLimitOvershoot, * boost::unit_test::toleran
     ctx.Call();
   }
 
-  BOOST_TEST(ctx.from_raw(ctx.status.control_position.value()) == 0.2);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == 0.2);
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0);
   BOOST_TEST(ctx.status.trajectory_done == true);
 }
