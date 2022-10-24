@@ -174,7 +174,7 @@ class BldcServoPosition {
     // What is the delta between our current control state and the
     // command.
     float dx = MotorPosition::IntToFloat(
-        (*data->position_relative_raw - *status->control_position));
+        (*data->position_relative_raw - *status->control_position_raw));
     const float dv = vf - v0;
 
     if (std::isnan(data->accel_limit)) {
@@ -250,7 +250,7 @@ class BldcServoPosition {
       float velocity) MOTEUS_CCM_ATTRIBUTE {
 
     // We go to some lengths in our conversions to and from
-    // control_position so as to avoid converting a float directly to
+    // control_position_raw so as to avoid converting a float directly to
     // an int64, which calls out to a system library that is pretty
     // slow.
 
@@ -268,12 +268,12 @@ class BldcServoPosition {
         std::isnan(data->accel_limit)) {
       // With no limits, we immediately set the control position and
       // velocity.
-      status->control_position = *data->position_relative_raw;
+      status->control_position_raw = *data->position_relative_raw;
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
       status->control_velocity = velocity;
-    } else if (!status->control_position) {
-      status->control_position = position->position_relative_raw;
+    } else if (!status->control_position_raw) {
+      status->control_position_raw = position->position_relative_raw;
 
       if (std::abs(status->velocity_filt) <
           config->velocity_zero_capture_threshold) {
@@ -293,8 +293,8 @@ class BldcServoPosition {
     // scale at a 40kHz switching frequency.  1.2 million RPM should
     // be enough for anybody?
     const float step = velocity_command / rate_hz;
-    status->control_position =
-        (*status->control_position +
+    status->control_position_raw =
+        (*status->control_position_raw +
          (static_cast<int64_t>(
              static_cast<int32_t>((static_cast<float>(1ll << 32) * step))) <<
           16));
@@ -305,12 +305,12 @@ class BldcServoPosition {
           MotorPosition::FloatToInt(config->max_position_slip);
 
       const int64_t error =
-          current_position - *status->control_position;
+          current_position - *status->control_position_raw;
       if (error < -slip) {
-        *status->control_position = current_position + slip;
+        *status->control_position_raw = current_position + slip;
       }
       if (error > slip) {
-        *status->control_position = current_position - slip;
+        *status->control_position_raw = current_position - slip;
       }
     }
 
@@ -320,8 +320,8 @@ class BldcServoPosition {
     const auto saturate = [&](auto value, auto compare) MOTEUS_CCM_ATTRIBUTE {
       if (std::isnan(value)) { return; }
       const auto limit_value = MotorPosition::FloatToInt(value) - delta;
-      if (compare(*status->control_position - limit_value, 0)) {
-        status->control_position = limit_value;
+      if (compare(*status->control_position_raw - limit_value, 0)) {
+        status->control_position_raw = limit_value;
         hit_limit = true;
       }
     };
@@ -338,11 +338,11 @@ class BldcServoPosition {
         if (value > 0) { return 1.0f; }
         return 0.0f;
       };
-      if (sign(*status->control_position -
+      if (sign(*status->control_position_raw -
                stop_position_raw) * velocity_command > 0.0f) {
         // We are moving away from the stop position.  Force it to be
         // there and zero out our velocity command.
-        status->control_position = stop_position_raw;
+        status->control_position_raw = stop_position_raw;
         status->control_velocity = 0.0f;
         status->trajectory_done = true;
         data->position = std::numeric_limits<float>::quiet_NaN();

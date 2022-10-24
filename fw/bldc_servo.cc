@@ -1290,7 +1290,7 @@ class BldcServo::Impl {
 
     if (!position_pid_active || force_clear == kAlwaysClear) {
       status_.pid_position.Clear();
-      status_.control_position = {};
+      status_.control_position_raw = {};
       status_.control_velocity = {};
     }
   }
@@ -1820,7 +1820,7 @@ class BldcServo::Impl {
       status_.position =
           static_cast<float>(
               static_cast<int32_t>(
-                  *status_.control_position >> 32)) /
+                  *status_.control_position_raw >> 32)) /
           65536.0f;
       status_.velocity = velocity_command;
 
@@ -1830,7 +1830,7 @@ class BldcServo::Impl {
       // with a fixed voltage drive based on the desired position.
       const float synthetic_electrical_theta =
           WrapZeroToTwoPi(
-              MotorPosition::IntToFloat(*status_.control_position)
+              MotorPosition::IntToFloat(*status_.control_position_raw)
               / motor_position_->config()->rotor_to_output_ratio
               * motor_.poles
               * 0.5f
@@ -1873,7 +1873,7 @@ class BldcServo::Impl {
         (pid_position_.Apply(
             (static_cast<int32_t>(
                 (position_.position_relative_raw -
-                 *status_.control_position) >> 32) /
+                 *status_.control_position_raw) >> 32) /
              65536.0f),
             0.0,
             measured_velocity, velocity_command,
@@ -1965,7 +1965,7 @@ class BldcServo::Impl {
 
     if (!target_position) {
       status_.pid_position.Clear();
-      status_.control_position = {};
+      status_.control_position_raw = {};
       status_.control_velocity = {};
 
       // In this region, we still apply feedforward torques if they
