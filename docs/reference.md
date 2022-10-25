@@ -828,7 +828,50 @@ This reports the feedforward contribution in the PID controller.
 Mode: Read
 
 This reports the total commanded torque from the position mode
-controller.
+controller.  This is also reported in 0x03a.
+
+### 0x038 - Control Position ###
+
+Mode: Read
+
+This reports the current trajectory control position, in modes where
+that is valid.  When velocity or acceleration limiting is enabled, the
+control position will follow the desired limits to achieve the command
+position.
+
+### 0x039 - Control Velocity ###
+
+Mode: Read
+
+This reports the current velocity control value, in modes where that
+is valid.  When velocity or acceleration limiting is enabled, the
+control velocity will follow the desired limits to achieve the control
+position and velocity.
+
+### 0x03a - Control Torque ###
+
+Mode: Read
+
+The torque commanded by the control loop.  This is the same as 0x034.
+
+### 0x03b - Position Error ###
+
+Mode: Read
+
+The current sensed position minus the control position.
+
+### 0x03c - Velocity Error ###
+
+Mode: Read
+
+The current sensed velocity minus the control velocity.
+
+### 0x03d - Torque Error ###
+
+Mode: Read
+
+The current sensed torque minus the control torque.
+
 
 ### 0x040 - Stay within lower bound ###
 

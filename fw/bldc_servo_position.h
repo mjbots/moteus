@@ -358,6 +358,12 @@ class BldcServoPosition {
       status->control_velocity = 0.0f;
     }
 
+    status->control_position =
+        !status->control_position_raw ?
+        std::numeric_limits<float>::quiet_NaN() :
+        MotorPosition::IntToFloat(
+            *status->control_position_raw + absolute_relative_delta);
+
     return velocity_command;
   }
 };

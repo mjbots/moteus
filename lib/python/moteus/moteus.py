@@ -189,6 +189,13 @@ class Register(enum.IntEnum):
     POSITION_FEEDFORWARD = 0x033
     POSITION_COMMAND = 0x034
 
+    CONTROL_POSITION = 0x038
+    CONTROL_VELOCITY = 0x039
+    CONTROL_TORQUE = 0x03a
+    POSITION_ERROR = 0x03b
+    VELOCITY_ERROR = 0x03c
+    TORQUE_ERROR = 0x03d
+
     COMMAND_WITHIN_LOWER_BOUND = 0x040
     COMMAND_WITHIN_UPPER_BOUND = 0x041
     COMMAND_WITHIN_FEEDFORWARD_TORQUE = 0x042
@@ -412,6 +419,18 @@ def parse_register(parser, register, resolution):
     elif register == Register.POSITION_FEEDFORWARD:
         return parser.read_torque(resolution)
     elif register == Register.POSITION_COMMAND:
+        return parser.read_torque(resolution)
+    elif register == Register.CONTROL_POSITION:
+        return parser.read_position(resolution)
+    elif register == Register.CONTROL_VELOCITY:
+        return parser.read_velocity(resolution)
+    elif register == Register.CONTROL_TORQUE:
+        return parser.read_torque(resolution)
+    elif register == Register.POSITION_ERROR:
+        return parser.read_position(resolution)
+    elif register == Register.VELOCITY_ERROR:
+        return parser.read_velocity(resolution)
+    elif register == Register.TORQUE_ERROR:
         return parser.read_torque(resolution)
     elif register == Register.ENCODER_0_POSITION:
         return parser.read_position(resolution)
