@@ -261,6 +261,13 @@ enum class Register {
   kPositionFeedforward = 0x033,
   kPositionCommandTorque = 0x034,
 
+  kControlPosition = 0x038,
+  kControlVelocity = 0x039,
+  kControlTorque = 0x03a,
+  kErrorPosition = 0x03b,
+  kErrorVelocity = 0x03c,
+  kErrorTorque = 0x03d,
+
   kStayWithinLower = 0x040,
   kStayWithinUpper = 0x041,
   kStayWithinFeedforward = 0x042,
@@ -591,6 +598,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kPositionKd:
       case Register::kPositionFeedforward:
       case Register::kPositionCommandTorque:
+      case Register::kControlPosition:
+      case Register::kControlVelocity:
+      case Register::kControlTorque:
+      case Register::kErrorPosition:
+      case Register::kErrorVelocity:
+      case Register::kErrorTorque:
       case Register::kEncoder0Position:
       case Register::kEncoder0Velocity:
       case Register::kEncoder1Position:
@@ -774,6 +787,28 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kPositionCommandTorque: {
         return ScaleTorque(bldc_.control().torque_Nm, type);
+      }
+
+      case Register::kControlPosition: {
+        return ScalePosition(bldc_.status().control_position, type);
+      }
+      case Register::kControlVelocity: {
+        return ScaleVelocity(
+            bldc_.status().control_velocity.value_or(
+                std::numeric_limits<float>::quiet_NaN()),
+            type);
+      }
+      case Register::kControlTorque: {
+        return ScaleTorque(bldc_.control().torque_Nm, type);
+      }
+      case Register::kErrorPosition: {
+        return ScalePosition(bldc_.status().pid_position.error, type);
+      }
+      case Register::kErrorVelocity: {
+        return ScaleVelocity(bldc_.status().pid_position.error_rate, type);
+      }
+      case Register::kErrorTorque: {
+        return ScaleTorque(bldc_.status().torque_error_Nm, type);
       }
 
       case Register::kStayWithinLower: {
