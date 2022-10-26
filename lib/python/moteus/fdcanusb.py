@@ -47,7 +47,7 @@ class CanMessage:
 class Fdcanusb:
     """Connects to a single mjbots fdcanusb."""
 
-    def __init__(self, path=None, debug_log=None):
+    def __init__(self, path=None, debug_log=None, disable_brs=False):
         """Constructor.
 
         Arguments:
@@ -62,6 +62,9 @@ class Fdcanusb:
         self._stream_data = b''
 
         self._cycle_lock = asyncio.Lock()
+
+        self._send_flags = (
+            ' b' if disable_brs else '')
 
         self._debug_log = None
         if debug_log:
@@ -170,8 +173,8 @@ class Fdcanusb:
             bus_id = (command.destination |
                       (0x8000 if command.reply_required else 0) |
                       (command.can_prefix << 16))
-        cmd = "can send {:04x} {}\n".format(
-            bus_id, _hexify(command.data)).encode('latin1')
+        cmd = "can send {:04x} {}{}\n".format(
+            bus_id, _hexify(command.data), self._send_flags).encode('latin1')
         self._serial.write(cmd)
         if self._debug_log:
             self._debug_log.write(f'{time.time()} > '.encode('latin1') +

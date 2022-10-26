@@ -33,6 +33,12 @@ class FdcanusbFactory:
     name = 'fdcanusb'
 
     def add_args(self, parser):
+        try:
+            parser.add_argument('--can-disable-brs', action='store_true',
+                                help='do not set BRS')
+        except argparse.ArgumentError:
+            # It must already be set.
+            pass
         parser.add_argument('--fdcanusb', type=str, metavar='FILE',
                             help='path to fdcanusb device')
         parser.add_argument('--fdcanusb-debug', type=str, metavar='DEBUG',
@@ -47,6 +53,8 @@ class FdcanusbFactory:
             kwargs['path'] = args.fdcanusb
         if args and args.fdcanusb_debug:
             kwargs['debug_log'] = args.fdcanusb_debug
+        if args and args.can_disable_brs:
+            kwargs['disable_brs'] = True
         return fdcanusb.Fdcanusb(**kwargs)
 
 
@@ -56,6 +64,12 @@ class PythonCanFactory:
     name = 'pythoncan'
 
     def add_args(self, parser):
+        try:
+            parser.add_argument('--can-disable-brs', action='store_true',
+                                help='do not set BRS')
+        except argparse.ArgumentError:
+            # It must already be set.
+            pass
         parser.add_argument('--can-iface', type=str, metavar='IFACE',
                             help='pythoncan "interface" (default: socketcan)')
         parser.add_argument('--can-chan', type=str, metavar='CHAN',
@@ -71,6 +85,8 @@ class PythonCanFactory:
                 kwargs['interface'] = args.can_iface
             if args.can_chan:
                 kwargs['channel'] = args.can_chan
+            if args.can_disable_brs:
+                kwargs['disable_brs'] = True
         return pythoncan.PythonCan(**kwargs)
 
 

@@ -39,6 +39,12 @@ class PythonCan:
             can.rc['channel'] = 'can0'
         if 'fd' not in can.rc:
             can.rc['fd'] = True
+
+        self._disable_brs = False
+        if 'disable_brs' in kwargs:
+            self._disable_brs = kwargs['disable_brs']
+            del kwargs['disable_brs']
+
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
 
@@ -86,7 +92,7 @@ class PythonCan:
                               dlc=len(command.data),
                               data=bytearray(command.data),
                               is_fd=True,
-                              bitrate_switch=True)
+                              bitrate_switch=not self._disable_brs)
 
         self._can.send(message)
 
