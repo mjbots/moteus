@@ -32,9 +32,9 @@ Our memory layout looks like the following:
     get everything set up, but once there, it can receive a new
     firmware image over the RS485 protocol.
 
-0x801000 - application
+0x8010000 - application
 
-0x807f00 - persistent settings
+0x807f000 - persistent settings
 
 */
 
