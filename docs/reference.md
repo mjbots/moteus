@@ -628,6 +628,11 @@ A fault code which will be set if the primary mode is 1 (Fault).
 * 39 - *outside limit* - an attempt was made to start position control
   while outside the bounds configured by `servopos.position_min` and
   `servopos.position_max`.
+* 40 - *under voltage* - the voltage was too low
+* 41 - *config changed* - a configuration value was changed during
+  operation that requires a stop
+* 42 - *theta invalid* - no valid commutation encoder is available
+* 43 - *position invalid* - no valid output encoder is available
 
 The full list can be found at: [fw/error.h](../fw/error.h#L25)
 
