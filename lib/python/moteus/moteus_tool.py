@@ -643,6 +643,7 @@ class Stream:
 
     async def write_flash(self, elfs):
         write_ctx = FlashContext(elfs)
+        next_block = None
         while True:
             next_block = write_ctx.get_next_block()
             cmd = f"w {next_block.address:x} {next_block.data.hex()}"
@@ -652,6 +653,15 @@ class Stream:
             done = write_ctx.advance_block()
             if done:
                 break
+
+        # Write enough ff's to ensure we get to an even 8 byte
+        # boundary.  Otherwise the bootloader may not actually flush
+        # our writes out.
+        final_address = next_block.address + len(next_block.data)
+        remaining_to_flush = 8 - (final_address & 0x07)
+        if remaining_to_flush:
+            cmd = f"w {final_address:x} {'ff' * remaining_to_flush}"
+            result = await self.command(cmd)
 
         verify_ctx = FlashContext(elfs)
         while True:
