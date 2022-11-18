@@ -140,6 +140,7 @@ class BldcServo {
   const AuxPort::Status& aux2() const;
   const MotorPosition::Status& motor_position() const;
   MotorPosition::Config* motor_position_config();
+  const MotorPosition::Config* motor_position_config() const;
 
   void SetOutputPositionNearest(float position);
   void SetOutputPosition(float position);

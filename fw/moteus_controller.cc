@@ -626,6 +626,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
     return 1;
   }
 
+  const MotorPosition::SourceStatus& encoder_value(int index) const {
+    return bldc_.motor_position().sources[index];
+  }
+
+  const MotorPosition::SourceConfig& encoder_config(int index) const {
+    return bldc_.motor_position_config()->sources[index];
+  }
+
   multiplex::MicroServer::ReadResult Read(
       multiplex::MicroServer::Register reg,
       size_t type) const override
@@ -776,22 +784,22 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
 
       case Register::kEncoder0Position: {
-        return ScalePosition(bldc_.motor_position().sources[0].filtered_value, type);
+        return ScalePosition(encoder_value(0).filtered_value / encoder_config(0).cpr, type);
       }
       case Register::kEncoder0Velocity: {
-        return ScaleVelocity(bldc_.motor_position().sources[0].velocity, type);
+        return ScaleVelocity(encoder_value(0).velocity / encoder_config(0).cpr, type);
       }
       case Register::kEncoder1Position: {
-        return ScalePosition(bldc_.motor_position().sources[1].filtered_value, type);
+        return ScalePosition(encoder_value(1).filtered_value / encoder_config(1).cpr, type);
       }
       case Register::kEncoder1Velocity: {
-        return ScaleVelocity(bldc_.motor_position().sources[1].velocity, type);
+        return ScaleVelocity(encoder_value(1).velocity / encoder_config(1).cpr, type);
       }
       case Register::kEncoder2Position: {
-        return ScalePosition(bldc_.motor_position().sources[2].filtered_value, type);
+        return ScalePosition(encoder_value(2).filtered_value / encoder_config(2).cpr, type);
       }
       case Register::kEncoder2Velocity: {
-        return ScaleVelocity(bldc_.motor_position().sources[2].velocity, type);
+        return ScaleVelocity(encoder_value(2).velocity / encoder_config(2).cpr, type);
       }
       case Register::kEncoderValidity: {
         const auto& status = bldc_.motor_position();

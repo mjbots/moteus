@@ -436,6 +436,10 @@ class BldcServo::Impl {
     return motor_position_->config();
   }
 
+  const MotorPosition::Config* motor_position_config() const {
+    return motor_position_->config();
+  }
+
   bool is_torque_constant_configured() const {
     return motor_.v_per_hz != 0.0f;
   }
@@ -2265,6 +2269,10 @@ const MotorPosition::Status& BldcServo::motor_position() const {
 }
 
 MotorPosition::Config* BldcServo::motor_position_config() {
+  return impl_->motor_position_config();
+}
+
+const MotorPosition::Config* BldcServo::motor_position_config() const {
   return impl_->motor_position_config();
 }
 
