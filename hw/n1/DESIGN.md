@@ -31,42 +31,42 @@ smaller in footprint version of the moteus brushless controller.
  * PA2  - MOTOR 3       (fast ADC1)
  * PA3  - CURRENT       (fast ADC1)
  * PA4  - DEBUG_DAC
- * PA5  - DRV8353 CLK
- * PA6  - DRV8353 MISO  (fast ADC2)
- * PA7  - DRV8353 MOSI  (fast ADC2)
+ * PA5  - PRIMARY SCK - AUX1.1
+ * PA6  - CURRENT       (fast ADC2)
+ * PA7  - PRIMARY MOSI - AUX1.2  (fast ADC2)
  * PA8  - TSENSE2       (fast ADC5)
  * PA9  - VSENSE        (fast ADC5)
- * PA10
- * PA11 - CAN_RX
- * PA12 - CAN_TX
+ * PA10 - AUX2.1
+ * PA11 - AUX2.2
+ * PA12 -
  * PA13 - SWDIO
  * PA14 - SWCLK
- * PA15
+ * PA15 - AUX1.3
  * PB0  - DRV8353 CS
- * PB1  - CURRENT       (fast ADC3)
- * PB2  - PRIMARY SPI CS (ADC2)
- * PB3
- * PB4  - ONBOARD SPI CS
- * PB5  - PRIMARY SPI MOSI
- * PB6  - DBG_UART_TX
- * PB7  - DBG_UART_RX
- * PB8  - AUX SCL/BiSS
- * PB9  - AUX SDA/BiSS
+ * PB1  - CURRENT        (fast ADC3)
+ * PB2  - AS5047P CS     (ADC2)
+ * PB3  - AUX1.4
+ * PB4  - PRIMARY SCK
+ * PB5  - FDCAN2_RX
+ * PB6  - FDCAN2_TX
+ * PB7  - AUX2.3
+ * PB8  -
+ * PB9  - AUX1.4
  * PB10
- * PB11 -  PRIMARY S/C (ADC1/2)
+ * PB11 -              (ADC1/2)
  * PB12 - TSENSE1      (fast ADC4)
  * PB13 -              (fast ADC3)
- * PB14 - AUX S/C      (fast ADC1/4)
- * PB15 - AUX S/C      (fast ADC4)
- * PC4  - CURRENT     (fast ADC2)
+ * PB14 - AUX1.1       (fast ADC1/4)
+ * PB15 -              (fast ADC4)
+ * PC4  - AUX2.2       (fast ADC2)
  * PC6
- * PC10 - PRIMARY SPI CLK
- * PC11 - PRIMARY SPI MISO
- * PC13
+ * PC10 - DRV8323 SCK
+ * PC11 - DRV8323 MISO
+ * PC13 - DRV8323 MOSI
  * PC14
  * PC15
- * PF0 - LED1
- * PF1 - LED2
+ * PF0 - AUX2.1
+ * PF1 - AUX2.4
 
 # Pins Required #
 
@@ -88,27 +88,19 @@ smaller in footprint version of the moteus brushless controller.
      * drv8353 SPI - 3
      * gate PWM - 3
 
-
 # Connectors #
 
 ## Aux 1 ##
 
- * 3V and 5V power
- * 3x hall inputs
- * SPI
- * BiSS-C interface?
- * PB3/4 have both SPI and USART2 and TIM3_CH1/2
- * PC10/11 have SPI and UART4
- * index pulse
  * notional pins (8  pins)
   * gnd
   * 3.3v
   * 5V
-  * SPI MISO - BiSS Rx    - HALL/IND - UART - (PC11/SPI3_MISO/UART4_TX)
-  * SPI MOSI - QUADRATURE - HALL/IND -      - (PB5/SPI3_MOSI/TIM5_CH2)
-  * SPI CLK  - BiSS Tx    - HALL/IND - UART - (PC10/SPI3_CK/UART4_RX)
-  * SPI CS   - QUADRATURE - HALL/IND - S/C  - (PB2/TIM5_CH1/ADC2_IN12)
-  *                       - HALL/IND - S/C  - (PB11/ADC12, )
+   * SPI1_SCK  / ADC1 / TIM2_CH1                             - PA5 / PB14
+   * SPI1_MISO /      / TIM3_CH1 /          / USART2_RX / 5V - PB4
+   * SPI1_MOSI / ADC2 / TIM3_CH2                             - PA7
+   *           /      / TIM2_CH1 / I2C1_SCL / USART2_RX / 5V - PA15
+   *           /      / TIM2_CH2 / I2C1_SDA / USART2_TX / 5V - PB3 / PB9
 
 ## Aux 2 ##
 
@@ -116,7 +108,8 @@ smaller in footprint version of the moteus brushless controller.
  * I2C
  * quadrature
  * index
- * BSSI-C?
+ * uart
+ * SPI
  * PA14/PA15 have I2C1 and USART2 and TIM8_CH1/2
  * PB8/PB9 have I2C1 and USART3 and TIM4_CH3/4
  * TIM1/2 options: PA0/1/2/3/5/6/7/12/15
@@ -125,10 +118,10 @@ smaller in footprint version of the moteus brushless controller.
    * gnd
    * 3V
    * 5V
-   * I2C_SCL  - BiSS RX  - QUAD - HALL/IND - (PB8/USART2_RX/TIM8_CH1)
-   * I2C_SDA  - BiSS TX  - QUAD - HALL/IND - (PB9/UART2_TX/TIM8_CH2) (PB13/SPI2_SCK)
-   * SIN/COS  - STEPDIR  - HALL/IND - (PB14/ADC4_1/SPI2)
-   * SIN/COS  - STEPDIR  - HALL/IND - (PB15/ADC4_2/SPI2)
+   * SPI2 SCK  /           /          / ADC2 /           - PF1
+   * SPI2 MISO / USART1_RX / I2C2_SDA / ADC1             - PA10 / PF0
+   * SPI2 MOSI / USART1_TX / I2C2_SCL / ADC2 / TIM4_CH1  - PA11 / PC4
+   *             USART1_RX /                 / TIM4_CH2  - PB7
 
 # Brainstorm for future features #
 
