@@ -345,11 +345,11 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
   } else if (g_measured_hw_family == 1) {
     return aux::AuxHardwareConfig{
       {{
-          { g_hw_pins.primary_extra,        1, 14, aux::kNoI2c },
-          { g_hw_pins.external_encoder_cs,  2, 12, aux::kNoI2c },
-          { g_hw_pins.as5047_sck,           2, 5,  aux::kNoI2c },
-          { g_hw_pins.as5047_miso,          0, 5,  aux::kNoI2c },
-          { g_hw_pins.as5047_mosi,          1, 15, aux::kNoI2c },
+          { g_hw_pins.primary_extra,        0, 14, aux::kNoI2c },
+          { g_hw_pins.external_encoder_cs,  1, 12, aux::kNoI2c },
+          { g_hw_pins.as5047_sck,           -1, -1,  aux::kNoI2c },
+          { g_hw_pins.as5047_miso,          -1, -1,  aux::kNoI2c },
+          { g_hw_pins.as5047_mosi,          -1, -1, aux::kNoI2c },
               }},
       {{
           { SPI2,
@@ -394,8 +394,8 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
   } else if (g_measured_hw_family == 1) {
     return aux::AuxHardwareConfig{
       {{
-          { g_hw_pins.aux_sc1,  1, 5,  aux::kNoI2c },
-          { g_hw_pins.aux_sc2,  2, 15, aux::kNoI2c },
+          { g_hw_pins.aux_sc1,  0, 5,  aux::kNoI2c },
+          { g_hw_pins.aux_sc2,  1, 15, aux::kNoI2c },
           { g_hw_pins.abs_scl, -1, 0,  aux::kScl },
           { g_hw_pins.abs_sda, -1, 0,  aux::kSda },
           { NC,             -1, 0,  aux::kNoI2c },
