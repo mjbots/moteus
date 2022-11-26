@@ -672,6 +672,9 @@ class AuxPort {
     // Validate our config, one option at a time.
     any_isr_enabled_ = false;
     i2c_.reset();
+    i2c_pullup_dout_.reset();
+    i2c_pullup_din_.reset();
+    i2c_pullup_din_.emplace(hw_config_.i2c_options.pullup);
     as5047_.reset();
     as5047_options_.reset();
 
@@ -732,6 +735,17 @@ class AuxPort {
           scl == NC) {
         // We must have two pins configured as I2C that match our hw
         // ability.
+        status_.error = aux::AuxError::kI2cPinError;
+        return;
+      }
+
+      if (hw_config_.i2c_options.pullup != NC) {
+        if (config_.i2c.pullup) {
+          i2c_pullup_din_.reset();
+          i2c_pullup_dout_.emplace(hw_config_.i2c_options.pullup, 1);
+          i2c_pullup_dout_->write(1);
+        }
+      } else if (config_.i2c.pullup) {
         status_.error = aux::AuxError::kI2cPinError;
         return;
       }
@@ -1034,6 +1048,9 @@ class AuxPort {
   bool stream_write_outstanding_ = false;
 
   bool tunnel_polling_enabled_ = false;
+
+  std::optional<DigitalOut> i2c_pullup_dout_;
+  std::optional<DigitalIn> i2c_pullup_din_;
 
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;

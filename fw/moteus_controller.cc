@@ -369,6 +369,9 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
 }
 
 aux::AuxHardwareConfig GetAux2HardwareConfig() {
+  auto i2c_options = aux::I2cOptions();
+  i2c_options.pullup = g_hw_pins.aux2_i2c_pullup;
+
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
       {{
@@ -386,6 +389,7 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           { USART3, g_hw_pins.abs_scl, g_hw_pins.abs_sda },
           { nullptr, NC, NC },
               }},
+          i2c_options,
           };
   } else if (g_measured_hw_family == 1) {
     return aux::AuxHardwareConfig{
@@ -404,6 +408,7 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           { USART3, g_hw_pins.abs_scl, g_hw_pins.abs_sda },
           { nullptr, NC, NC },
               }},
+          i2c_options,
           };
   } else {
     mbed_die();

@@ -50,10 +50,15 @@ struct UartPinOption {
   PinName tx = NC;
 };
 
+struct I2cOptions {
+  PinName pullup = NC;
+};
+
 struct AuxHardwareConfig {
   std::array<AuxPinConfig, 5> pins;
   std::array<SpiPinOption, 2> spi_options = { {} };
   std::array<UartPinOption, 2> uart_options = { {} };
+  I2cOptions i2c_options = {};
 };
 
 inline PinMode MbedMapPull(aux::Pin::Pull pull) {

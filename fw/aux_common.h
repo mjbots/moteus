@@ -238,6 +238,7 @@ struct I2C {
     int32_t i2c_hz = 400000;
     // 0 = standard, 1 = fast, 2 = fast+
     int32_t i2c_mode = 1;
+    bool pullup = false;
 
     std::array<DeviceConfig, 3> devices = { {} };
 
@@ -245,6 +246,7 @@ struct I2C {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(i2c_hz));
       a->Visit(MJ_NVP(i2c_mode));
+      a->Visit(MJ_NVP(pullup));
       a->Visit(MJ_NVP(devices));
     }
   };

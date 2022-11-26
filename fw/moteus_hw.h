@@ -49,7 +49,7 @@ struct MoteusHwPins {
   PinName debug_led1 = PF_0;
   PinName power_led = PF_1;
 
-  PinName debug_uart_out = PB_3;
+  PinName debug_uart_out = NC;
 
   PinName current1 = NC;
   PinName current2 = NC;
@@ -86,6 +86,8 @@ struct MoteusHwPins {
 
   PinName aux_sc1 = NC;
   PinName aux_sc2 = NC;
+
+  PinName aux2_i2c_pullup = NC;
 
   uint32_t model_number = 0;
 

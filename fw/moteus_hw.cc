@@ -189,6 +189,8 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.debug1 = PC_14;
     result.debug2 = PC_15;
+
+    result.debug_uart_out = PB_3;
   } else {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
@@ -221,6 +223,8 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.aux_sc1 = PB_15;
     result.aux_sc2 = PB_14;
+
+    result.aux2_i2c_pullup = PB_3;
 
     result.debug1 = NC;
     result.debug2 = NC;
