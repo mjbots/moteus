@@ -1,9 +1,9 @@
-moteus hp is intended as a higher power/voltage, more flexible, yet
+moteus-n1 is intended as a higher power/voltage, more flexible, yet
 smaller in footprint version of the moteus brushless controller.
 
 # Features #
 
- * 54V max voltage (vs 44V for moteus)
+ * 51V max voltage (vs 44V for moteus)
  * More flexible aux1/aux2 connectors
    * both JST GH (aux1 is 8 pin, aux2 is 7 pin)
    * 200mA of 5V between both connectors (all I/O pins are still only 3.3V)
@@ -31,42 +31,42 @@ smaller in footprint version of the moteus brushless controller.
  * PA2  - MOTOR 3       (fast ADC1)
  * PA3  - CURRENT       (fast ADC1)
  * PA4  - DEBUG_DAC
- * PA5  - PRIMARY SCK - AUX1.1
+ * PA5  - AUX1_A
  * PA6  - CURRENT       (fast ADC2)
- * PA7  - PRIMARY MOSI - AUX1.2  (fast ADC2)
+ * PA7  - AUX1_C
  * PA8  - TSENSE2       (fast ADC5)
  * PA9  - VSENSE        (fast ADC5)
- * PA10 - AUX2.1
- * PA11 - AUX2.2
- * PA12 -
+ * PA10 - AUX2_A
+ * PA11 - AUX2_B
+ * PA12 - AUX2_I2C_PULLUP
  * PA13 - SWDIO
  * PA14 - SWCLK
- * PA15 - AUX1.3
+ * PA15 - AUX1_D
  * PB0  - DRV8353 CS
  * PB1  - CURRENT        (fast ADC3)
  * PB2  - AS5047P CS     (ADC2)
- * PB3  - AUX1.4
- * PB4  - PRIMARY SCK
+ * PB3  - AUX1_E
+ * PB4  - AUX1_B
  * PB5  - FDCAN2_RX
  * PB6  - FDCAN2_TX
- * PB7  - AUX2.3
- * PB8  -
- * PB9  - AUX1.4
- * PB10
- * PB11 -              (ADC1/2)
+ * PB7  - AUX2_C
+ * PB8  - AUX1_I2C_PULLUP
+ * PB9  - AUX1_E
+ * PB10 - RS422_RE
+ * PB11 - RS422_DE      (ADC1/2)
  * PB12 - TSENSE1      (fast ADC4)
- * PB13 -              (fast ADC3)
- * PB14 - AUX1.1       (fast ADC1/4)
- * PB15 -              (fast ADC4)
- * PC4  - AUX2.2       (fast ADC2)
- * PC6
+ * PB13 - MOTOR_FAULT  (fast ADC3)
+ * PB14 - AUX1_A       (fast ADC1/4)
+ * PB15 - LED1         (fast ADC4)
+ * PC4  - AUX2_B       (fast ADC2)
+ * PC6  - LED2
  * PC10 - DRV8323 SCK
  * PC11 - DRV8323 MISO
  * PC13 - DRV8323 MOSI
- * PC14
- * PC15
- * PF0 - AUX2.1
- * PF1 - AUX2.4
+ * PC14 - MOTOR_ENABLE
+ * PC15 - MOTOR_HIZ
+ * PF0 - AUX2_A
+ * PF1 - AUX2_D
 
 # Pins Required #
 
@@ -93,14 +93,14 @@ smaller in footprint version of the moteus brushless controller.
 ## Aux 1 ##
 
  * notional pins (8  pins)
-  * gnd
-  * 3.3v
   * 5V
-   * SPI1_SCK  / ADC1 / TIM2_CH1                             - PA5 / PB14
-   * SPI1_MISO /      / TIM3_CH1 /          / USART2_RX / 5V - PB4
-   * SPI1_MOSI / ADC2 / TIM3_CH2                             - PA7
-   *           /      / TIM2_CH1 / I2C1_SCL / USART2_RX / 5V - PA15
-   *           /      / TIM2_CH2 / I2C1_SDA / USART2_TX / 5V - PB3 / PB9
+  * 3.3v
+  * A: SPI1_SCK  / ADC1 / TIM2_CH1                             - PA5 / PB14
+  * B: SPI1_MISO /      / TIM3_CH1 /          / USART2_RX / 5V - PB4
+  * C: SPI1_MOSI / ADC2 / TIM3_CH2                             - PA7
+  * D:           /      / TIM2_CH1 / I2C1_SCL / USART2_RX / 5V - PA15
+  * E:           /      / TIM2_CH2 / I2C1_SDA / USART2_TX / 5V - PB3 / PB9
+  * gnd
 
 ## Aux 2 ##
 
@@ -115,13 +115,13 @@ smaller in footprint version of the moteus brushless controller.
  * TIM1/2 options: PA0/1/2/3/5/6/7/12/15
                    PB2/3/4/5/6/7/8/9/14/15
  * notional pins (7 pins)
-   * gnd
-   * 3V
    * 5V
-   * SPI2 SCK  /           /          / ADC2 /           - PF1
-   * SPI2 MISO / USART1_RX / I2C2_SDA / ADC1             - PA10 / PF0
-   * SPI2 MOSI / USART1_TX / I2C2_SCL / ADC2 / TIM4_CH1  - PA11 / PC4
-   *             USART1_RX /                 / TIM4_CH2  - PB7
+   * 3V
+   * A: SPI2 SCK  /           /          / ADC2 /           - PF1
+   * B: SPI2 MISO / USART1_RX / I2C2_SDA / ADC1             - PA10 / PF0
+   * C: SPI2 MOSI / USART1_TX / I2C2_SCL / ADC2 / TIM4_CH1  - PA11 / PC4
+   * D:             USART1_RX /                 / TIM4_CH2  - PB7
+   * gnd
 
 # Brainstorm for future features #
 
