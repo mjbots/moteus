@@ -74,9 +74,9 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
     Stm32Spi maybe_drv8323(
         [&]() {
           Stm32Spi::Options out;
-          out.mosi = PA_7;
-          out.miso = PA_6;
-          out.sck = PA_5;
+          out.mosi = PC_13;
+          out.miso = PC_11;
+          out.sck = PC_10;
           out.cs = PB_0;
 
           // We can use a slow speed since this is just a one-time
@@ -84,7 +84,7 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
           out.frequency = 500000;
           return out;
         }());
-    pin_mode(PA_6, PullUp);
+    pin_mode(PC_11, PullUp);
     auto read_reg =
         [&](int reg) {
           timer->wait_us(1);
@@ -127,6 +127,8 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
         }();
     result.hw_version = measured_hw_rev;
   } else if (result.family == 1) {
+    // TODO: Verify this actually reads other values.  I think
+    // AnalogIn may not work on the G4 in my hacked version.
     AnalogIn board_rev(PA_4);
     const uint16_t this_reading = board_rev.read_u16();
     if (this_reading < 0x1000) {
@@ -180,13 +182,6 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.current2 = PB_1;
     result.current3 = PB_2;
 
-    result.as5047_mosi = PB_15;
-    result.as5047_miso = PB_14;
-    result.as5047_sck = PB_13;
-    result.as5047_cs = PB_11;
-
-    result.external_encoder_cs = PC_13;
-
     result.debug1 = PC_14;
     result.debug2 = PC_15;
 
@@ -195,12 +190,12 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
     result.drv8323_cs = PB_0;
-    result.drv8323_fault = PC_13;
+    result.drv8323_fault = PB_13;
 
     // Family 1 devices should have all current sense inputs on "fast"
     // channels.
     result.current1 = PA_3;       // ADC1
-    result.current2 = PC_4;       // ADC2  // current 2
+    result.current2 = PA_6;       // ADC2  // current 2
     result.current3 = PB_1_ALT0;  // ADC3  // current 3
 
 
@@ -210,21 +205,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.vsense_adc_scale = 0.017947f;
 
-    result.uart_tx = PB_6;
-    result.uart_rx = PB_7;
+    result.uart_tx = NC;
+    result.uart_rx = NC;
 
     result.as5047_mosi = PB_5_ALT0;
     result.as5047_miso = PC_11;
     result.as5047_sck = PC_10;
     result.as5047_cs = PB_4;
-
-    result.external_encoder_cs = PB_2;
-    result.primary_extra = PB_11;
-
-    result.aux_sc1 = PB_15;
-    result.aux_sc2 = PB_14;
-
-    result.aux2_i2c_pullup = PB_3;
 
     result.debug1 = NC;
     result.debug2 = NC;

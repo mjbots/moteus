@@ -71,23 +71,12 @@ struct MoteusHwPins {
   PinName as5047_sck = NC;
   PinName as5047_cs = NC;
 
-  PinName external_encoder_cs = NC;
-  PinName primary_extra = NC;
-
   PinName can_td = PA_12;
   PinName can_rd = PA_11;
 
   PinName debug1 = NC;
   PinName debug2 = NC;
   PinName debug_dac = PA_4;
-
-  PinName abs_scl = PB_8;
-  PinName abs_sda = PB_9;
-
-  PinName aux_sc1 = NC;
-  PinName aux_sc2 = NC;
-
-  PinName aux2_i2c_pullup = NC;
 
   uint32_t model_number = 0;
 

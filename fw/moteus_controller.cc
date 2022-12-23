@@ -324,17 +324,17 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
       {{
-          { g_hw_pins.external_encoder_cs, -1, 0,  aux::kNoI2c },
-          { g_hw_pins.as5047_sck,           2, 5,  aux::kNoI2c },
-          { g_hw_pins.as5047_miso,          0, 5,  aux::kNoI2c },
-          { g_hw_pins.as5047_mosi,          1, 15, aux::kNoI2c },
+          { PC_13, -1, 0,  aux::kNoI2c },
+          { PB_13,  2, 5,  aux::kNoI2c },
+          { PB_14,  0, 5,  aux::kNoI2c },
+          { PB_15,  1, 15, aux::kNoI2c },
           { NC, -1, -1 },
               }},
       {{
           { SPI2,
-            g_hw_pins.as5047_sck,
-            g_hw_pins.as5047_miso,
-            g_hw_pins.as5047_mosi, },
+            PB_13,
+            PB_14,
+            PB_15, },
           { nullptr, NC, NC, NC },
               }},
       {{
@@ -345,21 +345,21 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
   } else if (g_measured_hw_family == 1) {
     return aux::AuxHardwareConfig{
       {{
-          { g_hw_pins.primary_extra,        0, 14, aux::kNoI2c },
-          { g_hw_pins.external_encoder_cs,  1, 12, aux::kNoI2c },
-          { g_hw_pins.as5047_sck,           -1, -1,  aux::kNoI2c },
-          { g_hw_pins.as5047_miso,          -1, -1,  aux::kNoI2c },
-          { g_hw_pins.as5047_mosi,          -1, -1, aux::kNoI2c },
+          { PA_5,   0, 14, aux::kNoI2c },
+          { PB_4,   1, 12, aux::kNoI2c },
+          { PA_7,  -1, -1,  aux::kNoI2c },
+          { PA_15, -1, -1,  aux::kNoI2c },
+          { PB_3,  -1, -1, aux::kNoI2c },
               }},
       {{
           { SPI2,
-            g_hw_pins.as5047_sck,
-            g_hw_pins.as5047_miso,
-            g_hw_pins.as5047_mosi, },
+            PA_5,
+            PB_4,
+            PA_7, },
           { nullptr, NC, NC, NC },
               }},
       {{
-          { UART4, g_hw_pins.as5047_sck, g_hw_pins.as5047_miso },
+          { UART4, PB_3, PA_15 },
           { nullptr, NC, NC },
               }},
     };
@@ -370,15 +370,15 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
 
 aux::AuxHardwareConfig GetAux2HardwareConfig() {
   auto i2c_options = aux::I2cOptions();
-  i2c_options.pullup = g_hw_pins.aux2_i2c_pullup;
+  i2c_options.pullup = PA_12;
 
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
       {{
-          { g_hw_pins.abs_scl, -1, 0,  aux::kScl },
-          { g_hw_pins.abs_sda, -1, 0,  aux::kSda },
-          { g_hw_pins.debug1,  -1, 0,  aux::kNoI2c },
-          { g_hw_pins.debug2,  -1, 0,  aux::kNoI2c },
+          { PB_8, -1, 0,  aux::kScl },
+          { PB_9, -1, 0,  aux::kSda },
+          { PC_14,  -1, 0,  aux::kNoI2c },
+          { PC_15,  -1, 0,  aux::kNoI2c },
           { NC,             -1, 0,  aux::kNoI2c },
               }},
       {{
@@ -386,7 +386,7 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           { nullptr, NC, NC, NC },
               }},
       {{
-          { USART3, g_hw_pins.abs_scl, g_hw_pins.abs_sda },
+          { USART3, PB_8, PB_9 },
           { nullptr, NC, NC },
               }},
           i2c_options,
@@ -394,10 +394,10 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
   } else if (g_measured_hw_family == 1) {
     return aux::AuxHardwareConfig{
       {{
-          { g_hw_pins.aux_sc1,  0, 5,  aux::kNoI2c },
-          { g_hw_pins.aux_sc2,  1, 15, aux::kNoI2c },
-          { g_hw_pins.abs_scl, -1, 0,  aux::kScl },
-          { g_hw_pins.abs_sda, -1, 0,  aux::kSda },
+          { PF_1,   0, 5,  aux::kNoI2c },
+          { PF_0,   1, 15, aux::kNoI2c },
+          { PA_11, -1, 0,  aux::kScl },
+          { PB_7,  -1, 0,  aux::kSda },
           { NC,             -1, 0,  aux::kNoI2c },
               }},
       {{
@@ -405,7 +405,7 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           { nullptr, NC, NC, NC },
               }},
       {{
-          { USART3, g_hw_pins.abs_scl, g_hw_pins.abs_sda },
+          { USART3, PC_4, PA_10 },
           { nullptr, NC, NC },
               }},
           i2c_options,
