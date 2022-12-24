@@ -34,13 +34,15 @@ struct AuxPinConfig {
   TIM_TypeDef* timer = nullptr;
 };
 
-struct I2cOptions {
-  PinName pullup = NC;
+struct AuxExtraOptions {
+  PinName i2c_pullup = NC;
+  PinName rs422_re = NC;
+  PinName rs422_de = NC;
 };
 
 struct AuxHardwareConfig {
   std::array<AuxPinConfig, 8> pins;
-  I2cOptions i2c_options = {};
+  AuxExtraOptions options = {};
 };
 
 struct SpiPinOption {

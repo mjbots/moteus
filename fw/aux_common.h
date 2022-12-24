@@ -74,12 +74,14 @@ struct UartEncoder {
 
     int32_t baud_rate = 115200;
     int32_t poll_rate_us = 100;
+    bool rs422 = false;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(mode));
       a->Visit(MJ_NVP(baud_rate));
       a->Visit(MJ_NVP(poll_rate_us));
+      a->Visit(MJ_NVP(rs422));
     }
   };
 

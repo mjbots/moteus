@@ -321,7 +321,7 @@ enum class Register {
 };
 
 aux::AuxHardwareConfig GetAux1HardwareConfig() {
-  auto i2c_options = aux::I2cOptions();
+  auto aux_options = aux::AuxExtraOptions();
 
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
@@ -333,10 +333,12 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
           { 3, PB_15,   1,   15,   nullptr, SPI2,    nullptr, nullptr },
           { -1, NC },
               }},
-          i2c_options,
+          aux_options,
           };
   } else if (g_measured_hw_family == 1) {
-    i2c_options.pullup = PB_8;
+    aux_options.i2c_pullup = PB_8;
+    aux_options.rs422_re = PB_10;
+    aux_options.rs422_de = PB_11;
     return aux::AuxHardwareConfig{
       {{
           //          ADC#  CHN    I2C      SPI      USART    TIMER
@@ -353,7 +355,7 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
           { 4, PB_9,   -1,  -1,    I2C1,    nullptr, nullptr, nullptr },
           { -1, NC },
               }},
-          i2c_options,
+          aux_options,
     };
   } else {
     mbed_die();
@@ -361,7 +363,7 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
 }
 
 aux::AuxHardwareConfig GetAux2HardwareConfig() {
-  auto i2c_options = aux::I2cOptions();
+  auto aux_options = aux::AuxExtraOptions();
 
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
@@ -373,10 +375,10 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           { 3, PC_15,  -1,   0,    nullptr, nullptr, nullptr, nullptr },
           { -1, NC, },
               }},
-          i2c_options,
+          aux_options,
           };
   } else if (g_measured_hw_family == 1) {
-    i2c_options.pullup = PA_12;
+    aux_options.i2c_pullup = PA_12;
     return aux::AuxHardwareConfig{
       {{
           //          ADC#  CHN    I2C      SPI      USART    TIMER
@@ -390,7 +392,7 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
 
           { 3, PB_7,   -1,  -1,    nullptr, nullptr, USART1,  TIM4 },
               }},
-          i2c_options,
+          aux_options,
           };
   } else {
     mbed_die();

@@ -89,6 +89,13 @@ class AuxPort {
 
     MJ_ASSERT(i2c_state_.size() == config_.i2c.devices.size());
 
+    if (hw_config_.options.rs422_re != NC) {
+      rs422_re_.emplace(hw_config_.options.rs422_re, 1);
+    }
+    if (hw_config_.options.rs422_de != NC) {
+      rs422_de_.emplace(hw_config_.options.rs422_de, 0);
+    }
+
     HandleConfigUpdate();
 
     StartTunnelRead();
@@ -696,6 +703,9 @@ class AuxPort {
     // AsyncWrite has completed.
     //
     // stream_write_outstanding_ = false;
+
+    if (rs422_de_) { rs422_de_->write(0); }
+    if (rs422_re_) { rs422_re_->write(1); }
     aksim2_.reset();
 
     any_adc_ = false;
@@ -758,9 +768,9 @@ class AuxPort {
         return;
       }
 
-      if (hw_config_.i2c_options.pullup != NC) {
+      if (hw_config_.options.i2c_pullup != NC) {
         if (config_.i2c.pullup) {
-          i2c_pullup_dout_.emplace(hw_config_.i2c_options.pullup, 1);
+          i2c_pullup_dout_.emplace(hw_config_.options.i2c_pullup, 1);
           i2c_pullup_dout_->write(1);
         }
       } else if (config_.i2c.pullup) {
@@ -912,6 +922,14 @@ class AuxPort {
         return;
       }
 
+      if (config_.uart.rs422 && (!rs422_de_ || !rs422_re_)) {
+        status_.error = aux::AuxError::kUartPinError;
+        return;
+      }
+
+      if (rs422_de_) { rs422_de_->write(config_.uart.rs422); }
+      if (rs422_re_) { rs422_re_->write(!config_.uart.rs422); }
+
       uart_.emplace(
           [&]() {
             Stm32G4DmaUart::Options options;
@@ -1052,6 +1070,8 @@ class AuxPort {
   std::optional<aux::Stm32Index> index_;
   std::optional<Stm32G4DmaUart> uart_;
   std::optional<Aksim2> aksim2_;
+  std::optional<DigitalOut> rs422_re_;
+  std::optional<DigitalOut> rs422_de_;
 
   bool any_adc_ = false;
   static constexpr int kNumAdcs = 4;
