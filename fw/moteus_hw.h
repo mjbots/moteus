@@ -66,9 +66,6 @@ struct MoteusHwPins {
   PinName uart_rx = PC_11_ALT0;
   PinName uart_dir = NC;
 
-  PinName as5047_mosi = NC;
-  PinName as5047_miso = NC;
-  PinName as5047_sck = NC;
   PinName as5047_cs = NC;
 
   PinName can_td = PA_12;

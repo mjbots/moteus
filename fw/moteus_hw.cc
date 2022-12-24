@@ -16,7 +16,7 @@
 
 #include "mjlib/base/assert.h"
 
-#include "fw/stm32_spi.h"
+#include "fw/stm32_bitbang_spi.h"
 
 namespace moteus {
 
@@ -71,9 +71,10 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
     // Wait 1ms after enabling.
     timer->wait_us(1000);
 
-    Stm32Spi maybe_drv8323(
+    Stm32BitbangSpi maybe_drv8323(
+        timer,
         [&]() {
-          Stm32Spi::Options out;
+          Stm32BitbangSpi::Options out;
           out.mosi = PC_13;
           out.miso = PC_11;
           out.sck = PC_10;
@@ -182,6 +183,8 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.current2 = PB_1;
     result.current3 = PB_2;
 
+    result.as5047_cs = PB_11;
+
     result.debug1 = PC_14;
     result.debug2 = PC_15;
 
@@ -208,9 +211,6 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.uart_tx = NC;
     result.uart_rx = NC;
 
-    result.as5047_mosi = PB_5_ALT0;
-    result.as5047_miso = PC_11;
-    result.as5047_sck = PC_10;
     result.as5047_cs = PB_4;
 
     result.debug1 = NC;

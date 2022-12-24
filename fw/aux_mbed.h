@@ -23,31 +23,15 @@
 namespace moteus {
 namespace aux {
 
-enum I2cCapability {
-  kSda,
-  kScl,
-  kNoI2c,
-};
-
-
 struct AuxPinConfig {
+  int number = -1;
   PinName mbed = NC;
   int adc_num = -1;
   int adc_sqr = -1;
-  I2cCapability i2c = kNoI2c;
-};
-
-struct SpiPinOption {
+  I2C_TypeDef* i2c = nullptr;
   SPI_TypeDef* spi = nullptr;
-  PinName sck = NC;
-  PinName miso = NC;
-  PinName mosi = NC;
-};
-
-struct UartPinOption {
   USART_TypeDef* uart = nullptr;
-  PinName rx = NC;
-  PinName tx = NC;
+  TIM_TypeDef* timer = nullptr;
 };
 
 struct I2cOptions {
@@ -55,10 +39,22 @@ struct I2cOptions {
 };
 
 struct AuxHardwareConfig {
-  std::array<AuxPinConfig, 5> pins;
-  std::array<SpiPinOption, 2> spi_options = { {} };
-  std::array<UartPinOption, 2> uart_options = { {} };
+  std::array<AuxPinConfig, 8> pins;
   I2cOptions i2c_options = {};
+};
+
+struct SpiPinOption {
+  SPI_TypeDef* spi = nullptr;
+  PinName sck = NC;
+  PinName miso = NC;
+  PinName mosi = NC;
+  PinName cs = NC;
+};
+
+struct UartPinOption {
+  USART_TypeDef* uart = nullptr;
+  PinName tx = NC;
+  PinName rx = NC;
 };
 
 inline PinMode MbedMapPull(aux::Pin::Pull pull) {
@@ -98,11 +94,20 @@ class Stm32Quadrature {
     }
 
     for (size_t i = 0; i < array.size(); i++) {
+      const auto mbed = [&]() {
+          for (const auto& pin : hw_config.pins) {
+            if (pin.number == static_cast<int>(i)) {
+              return pin.mbed;
+            }
+          }
+          mbed_die();
+          return NC;
+      }();
       const auto pin = array[i];
       if (pin.mode == aux::Pin::Mode::kQuadratureSoftware) {
         if (!a_) {
           a_ = Stm32GpioInterruptIn::Make(
-              hw_config.pins[i].mbed,
+              mbed,
               &Stm32Quadrature::ISR_CallbackDelegate,
               reinterpret_cast<uint32_t>(this));
           if (!a_) {
@@ -111,7 +116,7 @@ class Stm32Quadrature {
           }
         } else if (!b_) {
           b_ = Stm32GpioInterruptIn::Make(
-              hw_config.pins[i].mbed,
+              mbed,
               &Stm32Quadrature::ISR_CallbackDelegate,
               reinterpret_cast<uint32_t>(this));
           if (!b_) {
@@ -206,7 +211,14 @@ class Stm32Index {
           error_ = aux::AuxError::kIndexPinError;
           return;
         }
-        index_.emplace(hw_config.pins[i].mbed, MbedMapPull(cfg.pull));
+        const auto mbed = [&]() {
+            for (const auto& pin : hw_config.pins) {
+              if (pin.number == static_cast<int>(i)) { return pin.mbed; }
+            }
+            mbed_die();
+            return NC;
+        }();
+        index_.emplace(mbed, MbedMapPull(cfg.pull));
       }
     }
     if (!index_) {
@@ -231,74 +243,84 @@ class Stm32Index {
   std::optional<DigitalIn> index_;
 };
 
-struct SpiResult {
-  SpiPinOption option;
-  PinName cs = NC;
-};
-
 enum RequireCs {
   kRequireCs,
   kDoNotRequireCs,
 };
 
 template <typename PinArray>
-std::optional<SpiResult> FindSpiOption(const PinArray& pin_array,
-                                       const AuxHardwareConfig& hw_config,
-                                       RequireCs require_cs) {
-  SpiResult result;
+std::optional<SpiPinOption> FindSpiOption(const PinArray& pin_array,
+                                          const AuxHardwareConfig& hw_config,
+                                          RequireCs require_cs) {
+  SpiPinOption result;
 
-  // We need one CS pin, and exactly 3 SPI pins that match one of our
-  // available configs.
+  // Figure out if appropriate pins are configured.
   int cs_count = 0;
-  int spi_count = 0;
   for (size_t i = 0; i < pin_array.size(); i++) {
     const auto& cfg = pin_array[i];
     if (cfg.mode == Pin::Mode::kSpiCs) {
       cs_count++;
-      result.cs = hw_config.pins[i].mbed;
+      result.cs = [&]() {
+                    for (const auto& pin : hw_config.pins) {
+                      if (pin.number == static_cast<int>(i)) {
+                        return pin.mbed;
+                      }
+                    }
+                    mbed_die();
+                    return NC;
+                  }();
     } else if (cfg.mode == Pin::Mode::kSpi ||
                (require_cs == kDoNotRequireCs && cfg.mode == Pin::Mode::kNC)) {
-      const auto mbed_pin = hw_config.pins[i].mbed;
-      if (result.option.spi == nullptr) {
-        // We don't have a SPI port decided yet.  See if we can find one.
-        for (const auto& spi_option : hw_config.spi_options) {
-          if (spi_option.spi == nullptr) { continue; }
-          if ((spi_option.sck == mbed_pin) ||
-              (spi_option.miso == mbed_pin) ||
-              (spi_option.mosi == mbed_pin)) {
-            result.option = spi_option;
+      bool found = false;
+      for (const auto& pin : hw_config.pins) {
+        if (pin.number != static_cast<int>(i)) { continue; }
+        if (pin.spi == nullptr) { continue; }
+
+        // This SPI peripheral isn't the one we're already aiming to
+        // use.
+        if (result.spi &&
+            result.spi != pin.spi) { return {}; }
+        result.spi = pin.spi;
+
+        const auto int_spi = reinterpret_cast<uint32_t>(result.spi);
+
+        for (uint32_t alt : {0, 0x100, 0x200, 0x300, 0x400}) {
+          const PinName mbed_pin = static_cast<PinName>(pin.mbed | alt);
+          // Figure out which thing it should be for.
+          if (pinmap_find_peripheral(mbed_pin, PinMap_SPI_MOSI) == int_spi) {
+            result.mosi = mbed_pin;
+            found = true;
             break;
+          } else if (pinmap_find_peripheral(mbed_pin, PinMap_SPI_MISO) == int_spi) {
+            result.miso = mbed_pin;
+            found = true;
+            break;
+          } else if (pinmap_find_peripheral(pin.mbed, PinMap_SPI_SCLK) == int_spi) {
+            result.sck = mbed_pin;
+            found = true;
+            break;
+          } else {
+            // Just keep looking.
           }
         }
-        if (result.option.spi == nullptr) {
-          if (cfg.mode == Pin::Mode::kSpi) {
-            // We couldn't find a SPI port, return an error.
-            return {};
-          }
-        } else {
-          spi_count++;
-        }
-      } else {
-        if (!(result.option.sck == mbed_pin ||
-              result.option.miso == mbed_pin ||
-              result.option.mosi == mbed_pin)) {
-          if (cfg.mode == Pin::Mode::kSpi) {
-            return {};
-          }
-        } else {
-          spi_count++;
-        }
+        if (found) { break; }
+      }
+      if (cfg.mode == Pin::Mode::kSpi && !found) {
+        return {};
       }
     }
   }
-  const int required_cs_count = (require_cs == kRequireCs) ? 1 : 0;
 
-  if (cs_count != required_cs_count ||
-      spi_count != 3) {
+  if (require_cs == kRequireCs &&
+      result.cs == NC) {
     return {};
   }
-
-  return result;
+  if (result.miso != NC &&
+      result.mosi != NC &&
+      result.sck != NC) {
+    return result;
+  }
+  return {};
 }
 
 template <typename PinArray>
@@ -306,42 +328,51 @@ std::optional<UartPinOption> FindUartOption(const PinArray& pin_array,
                                             const AuxHardwareConfig& hw_config) {
   UartPinOption result;
 
-  int uart_count = 0;
   for (size_t i = 0; i < pin_array.size(); i++) {
     const auto& cfg = pin_array[i];
     if (cfg.mode == Pin::Mode::kUart) {
-      const auto mbed_pin = hw_config.pins[i].mbed;
-      if (result.uart == nullptr) {
-        // We don't have a UART decided yet.  See if we can find one.
-        for (const auto& uart_option : hw_config.uart_options) {
-          if (uart_option.uart == nullptr) { continue; }
-          if ((uart_option.rx == mbed_pin) ||
-              (uart_option.tx == mbed_pin)) {
-            result = uart_option;
-            uart_count++;
-            break;
+      const auto* pin = [&]() {
+          for (const auto& pin : hw_config.pins) {
+            if (pin.number != static_cast<int>(i)) { continue; }
+            if (pin.uart) { return &pin; }
           }
-        }
-        if (result.uart == nullptr) {
-          // We couldn't find a UART, return an error.
-          return {};
-        }
-      } else {
-        if (!(result.rx == mbed_pin ||
-              result.tx == mbed_pin)) {
-          return {};
-        } else {
-          uart_count++;
+          return static_cast<const AuxPinConfig*>(nullptr);
+      }();
+      if (pin == nullptr) { return {}; }
+
+      if (result.uart && result.uart != pin->uart) {
+        return {};
+      }
+
+      if (result.uart == nullptr) {
+        result.uart = pin->uart;
+      }
+
+      const auto int_uart = reinterpret_cast<uint32_t>(result.uart);
+
+      for (const auto alt : { 0, 0x100, 0x200, 0x300, 0x400 }) {
+        const auto mbed_pin = static_cast<PinName>(pin->mbed | alt);
+        if (pinmap_find_peripheral(mbed_pin, PinMap_UART_TX) == int_uart) {
+          if (result.tx != NC) { return {}; }
+          result.tx = mbed_pin;
+          break;
+        } else if (pinmap_find_peripheral(mbed_pin, PinMap_UART_RX) == int_uart) {
+          if (result.rx != NC) { return {}; }
+
+          result.rx = pin->mbed;
+          break;
         }
       }
     }
   }
 
-  if (uart_count != 2) {
-    return {};
+  if (result.uart &&
+      result.tx != NC &&
+      result.rx != NC) {
+    return result;
   }
 
-  return result;
+  return {};
 }
 
 }

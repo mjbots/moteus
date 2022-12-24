@@ -99,7 +99,7 @@ smaller in footprint version of the moteus brushless controller.
   * B: SPI1_MISO /      / TIM3_CH1 /          / USART2_RX / 5V - PB4
   * C: SPI1_MOSI / ADC2 / TIM3_CH2                             - PA7
   * D:           /      / TIM2_CH1 / I2C1_SCL / USART2_RX / 5V - PA15
-  * E:           /      / TIM2_CH2 / I2C1_SDA / USART2_TX / 5V - PB3 / PB9
+  * E: SPI1_SCK  /      / TIM2_CH2 / I2C1_SDA / USART2_TX / 5V - PB3 / PB9
   * gnd
 
 ## Aux 2 ##

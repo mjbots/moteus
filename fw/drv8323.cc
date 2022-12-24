@@ -23,7 +23,7 @@
 
 #include "fw/ccm.h"
 #include "fw/moteus_hw.h"
-#include "fw/stm32_spi.h"
+#include "fw/stm32_bitbang_spi.h"
 
 namespace micro = mjlib::micro;
 
@@ -40,24 +40,26 @@ class Drv8323::Impl {
        MillisecondTimer* timer,
        const Options& options)
       : timer_(timer),
-        spi_([&]() {
-            Stm32Spi::Options out;
-            out.mosi = options.mosi;
-            out.miso = options.miso;
-            out.sck = options.sck;
-            out.cs = options.cs;
-            // I observed 2MHz being unreliable with the built-in
-            // pullup on MISO, but 1MHz seemed OK.  Thus, lets just do
-            // a bit lower for safety.
+        spi_(
+            timer,
+            [&]() {
+              Stm32BitbangSpi::Options out;
+              out.mosi = options.mosi;
+              out.miso = options.miso;
+              out.sck = options.sck;
+              out.cs = options.cs;
+              // I observed 2MHz being unreliable with the built-in
+              // pullup on MISO, but 1MHz seemed OK.  Thus, lets just do
+              // a bit lower for safety.
 
-            // Silk 4.1 and below lacked a pullup resistor on MISO.
-            // Newer versions have a pullup resistor and can go
-            // faster.
-            out.frequency = (g_measured_hw_family == 0 &&
-                             g_measured_hw_rev <= 3) ? 500000 : 1000000;
+              // Silk 4.1 and below lacked a pullup resistor on MISO.
+              // Newer versions have a pullup resistor and can go
+              // faster.
+              out.frequency = (g_measured_hw_family == 0 &&
+                               g_measured_hw_rev <= 3) ? 500000 : 1000000;
 
-            return out;
-          }()),
+              return out;
+            }()),
         enable_(options.enable, 0),
         hiz_(options.hiz, 0),
         fault_(options.fault, PullUp) {
@@ -347,7 +349,7 @@ class Drv8323::Impl {
   Status status_;
   Config config_;
 
-  Stm32Spi spi_;
+  Stm32BitbangSpi spi_;
   DigitalOut enable_;
   int32_t enable_cache_ = false;
   DigitalOut hiz_;

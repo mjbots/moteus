@@ -669,12 +669,11 @@ class AuxPort {
   void HandleConfigUpdate() {
     status_ = {};
 
-    // Validate our config, one option at a time.
+    ////////////////////////////////////////////
+    // Reset everything to a known default.
     any_isr_enabled_ = false;
     i2c_.reset();
     i2c_pullup_dout_.reset();
-    i2c_pullup_din_.reset();
-    i2c_pullup_din_.emplace(hw_config_.i2c_options.pullup);
     as5047_.reset();
     as5047_options_.reset();
 
@@ -709,6 +708,14 @@ class AuxPort {
       device.poll_ms = std::max<int32_t>(1, device.poll_ms);
     }
 
+    for (auto& pin : hw_config_.pins) {
+      if (pin.mbed == NC) { continue; }
+      pin_function(pin.mbed, STM_MODE_ANALOG);
+    }
+
+    ////////////////////////////////////////////
+    // Validate our config, one option at a time.
+
     const bool any_i2c =
         [&]() {
           for (const auto& device : config_.i2c.devices) {
@@ -724,11 +731,23 @@ class AuxPort {
       PinName scl = NC;
       for (size_t i = 0; i < config_.pins.size(); i++) {
         if (config_.pins[i].mode != aux::Pin::Mode::kI2C) { continue; }
-        if (hw_config_.pins[i].i2c == aux::kScl) {
-          scl = hw_config_.pins[i].mbed;
-        }
-        if (hw_config_.pins[i].i2c == aux::kSda) {
-          sda = hw_config_.pins[i].mbed;
+
+        for (const auto& pin : hw_config_.pins) {
+          if (pin.number != static_cast<int>(i)) { continue; }
+          if (!pin.i2c) { continue; }
+
+          const auto int_i2c = reinterpret_cast<uint32_t>(pin.i2c);
+
+          for (uint32_t alt : {0, 0x100, 0x200, 0x300, 0x400}) {
+            const PinName mbed_pin = static_cast<PinName>(pin.mbed | alt);
+            if (pinmap_find_peripheral(mbed_pin, PinMap_I2C_SCL) == int_i2c) {
+              scl = mbed_pin;
+              break;
+            } else if (pinmap_find_peripheral(mbed_pin, PinMap_I2C_SDA) == int_i2c) {
+              sda = mbed_pin;
+              break;
+            }
+          }
         }
       }
       if (sda == NC ||
@@ -741,7 +760,6 @@ class AuxPort {
 
       if (hw_config_.i2c_options.pullup != NC) {
         if (config_.i2c.pullup) {
-          i2c_pullup_din_.reset();
           i2c_pullup_dout_.emplace(hw_config_.i2c_options.pullup, 1);
           i2c_pullup_dout_->write(1);
         }
@@ -779,9 +797,9 @@ class AuxPort {
       Stm32Spi::Options spi_options;
       spi_options.frequency = config_.spi.rate_hz;
       spi_options.cs = spi_cs_pin;
-      spi_options.mosi = maybe_spi->option.mosi;
-      spi_options.miso = maybe_spi->option.miso;
-      spi_options.sck = maybe_spi->option.sck;
+      spi_options.mosi = maybe_spi->mosi;
+      spi_options.miso = maybe_spi->miso;
+      spi_options.sck = maybe_spi->sck;
 
       switch (config_.spi.mode) {
         case aux::Spi::Config::kAs5047:
@@ -822,12 +840,19 @@ class AuxPort {
       for (size_t i = 0; i < config_.pins.size(); i++) {
         const auto cfg = config_.pins[i];
         if (cfg.mode != aux::Pin::Mode::kHall) { continue; }
+        const auto mbed = [&]() {
+            for (const auto& pin : hw_config_.pins) {
+              if (pin.number == static_cast<int>(i)) { return pin.mbed; }
+            }
+            mbed_die();
+            return NC;
+        }();
         if (!halla_) {
-          halla_.emplace(hw_config_.pins[i].mbed, aux::MbedMapPull(cfg.pull));
+          halla_.emplace(mbed, aux::MbedMapPull(cfg.pull));
         } else if (!hallb_) {
-          hallb_.emplace(hw_config_.pins[i].mbed, aux::MbedMapPull(cfg.pull));
+          hallb_.emplace(mbed, aux::MbedMapPull(cfg.pull));
         } else if (!hallc_) {
-          hallc_.emplace(hw_config_.pins[i].mbed, aux::MbedMapPull(cfg.pull));
+          hallc_.emplace(mbed, aux::MbedMapPull(cfg.pull));
         }
       }
       any_isr_enabled_ = true;
@@ -928,30 +953,47 @@ class AuxPort {
 
     for (size_t i = 0; i < config_.pins.size(); i++) {
       const auto cfg = config_.pins[i];
+      const auto first_mbed = [&]() {
+          for (const auto& pin : hw_config_.pins) {
+            if (pin.number == static_cast<int>(i)) {
+              return pin.mbed;
+            }
+          }
+          return NC;
+      }();
       if (cfg.mode == aux::Pin::Mode::kDigitalInput) {
         status_.gpio_bit_active |= (1 << i);
-        digital_inputs_[i].emplace(hw_config_.pins[i].mbed,
+        digital_inputs_[i].emplace(first_mbed,
                                    aux::MbedMapPull(cfg.pull));
         any_isr_enabled_ = true;
       } else if (cfg.mode == aux::Pin::Mode::kDigitalOutput) {
         status_.gpio_bit_active |= (1 << i);
-        digital_outputs_[i].emplace(hw_config_.pins[i].mbed,
+        digital_outputs_[i].emplace(first_mbed,
                                     aux::MbedMapPull(cfg.pull));
         any_isr_enabled_ = true;
       } else if (cfg.mode == aux::Pin::Mode::kAnalogInput ||
                  cfg.mode == aux::Pin::Mode::kSine ||
                  cfg.mode == aux::Pin::Mode::kCosine) {
-        const int adc_num = hw_config_.pins[i].adc_num;
-        if (adc_num < 0 || adc_num >= static_cast<int>(adc_.size())) {
+        // Find the mbed pin, the adc num and adc channel for this
+        // connector pin.
+        const auto* pin = [&]() {
+            for (const auto& pin : hw_config_.pins) {
+              if (pin.number != static_cast<int>(i)) { continue; }
+              if (pin.adc_num < 0) { continue; }
+              return &pin;
+            }
+            return static_cast<const aux::AuxPinConfig*>(nullptr);
+        }();
+        if (pin == nullptr) {
           status_.error = aux::AuxError::kAdcPinError;
           return;
         }
         any_adc_ = true;
-        adc_[adc_num].sqr =
+        adc_[pin->adc_num].sqr =
             (0 << ADC_SQR1_L_Pos) |
-            (hw_config_.pins[i].adc_sqr << ADC_SQR1_SQ1_Pos);
-        analog_inputs_[i] = adc_num;
-        pinmap_pinout(hw_config_.pins[i].mbed, PinMap_ADC);
+            (pin->adc_sqr << ADC_SQR1_SQ1_Pos);
+        analog_inputs_[i] = pin->adc_num;
+        pinmap_pinout(pin->mbed, PinMap_ADC);
         switch (cfg.pull) {
           case aux::Pin::Pull::kPullUp:
           case aux::Pin::Pull::kOpenDrain: {
@@ -964,7 +1006,7 @@ class AuxPort {
             break;
           }
         }
-        pin_mode(hw_config_.pins[i].mbed, aux::MbedMapPull(cfg.pull));
+        pin_mode(pin->mbed, aux::MbedMapPull(cfg.pull));
         any_isr_enabled_ = true;
       }
     }
@@ -1050,8 +1092,6 @@ class AuxPort {
   bool tunnel_polling_enabled_ = false;
 
   std::optional<DigitalOut> i2c_pullup_dout_;
-  std::optional<DigitalIn> i2c_pullup_din_;
-
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;
 };

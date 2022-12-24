@@ -321,47 +321,39 @@ enum class Register {
 };
 
 aux::AuxHardwareConfig GetAux1HardwareConfig() {
+  auto i2c_options = aux::I2cOptions();
+
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
       {{
-          { PC_13, -1, 0,  aux::kNoI2c },
-          { PB_13,  2, 5,  aux::kNoI2c },
-          { PB_14,  0, 5,  aux::kNoI2c },
-          { PB_15,  1, 15, aux::kNoI2c },
-          { NC, -1, -1 },
+          //          ADC#  CHN    I2C      SPI      USART    TIMER
+          { 0, PC_13,  -1,   0,    nullptr, nullptr, nullptr, nullptr },
+          { 1, PB_13,   2,   5,    nullptr, SPI2,    nullptr, nullptr },
+          { 2, PB_14,   0,   5,    nullptr, SPI2,    nullptr, nullptr },
+          { 3, PB_15,   1,   15,   nullptr, SPI2,    nullptr, nullptr },
+          { -1, NC },
               }},
-      {{
-          { SPI2,
-            PB_13,
-            PB_14,
-            PB_15, },
-          { nullptr, NC, NC, NC },
-              }},
-      {{
-          { nullptr, NC, NC },
-          { nullptr, NC, NC },
-              }},
+          i2c_options,
           };
   } else if (g_measured_hw_family == 1) {
+    i2c_options.pullup = PB_8;
     return aux::AuxHardwareConfig{
       {{
-          { PA_5,   0, 14, aux::kNoI2c },
-          { PB_4,   1, 12, aux::kNoI2c },
-          { PA_7,  -1, -1,  aux::kNoI2c },
-          { PA_15, -1, -1,  aux::kNoI2c },
-          { PB_3,  -1, -1, aux::kNoI2c },
+          //          ADC#  CHN    I2C      SPI      USART    TIMER
+          { 0, PA_5,   -1,   0,    nullptr, SPI1,    nullptr, TIM2 },
+          { 0, PB_14,   0,   5,    nullptr, nullptr, nullptr, nullptr },
+
+          { 1, PB_4,   -1,  -1,    nullptr, SPI1,    USART2,  TIM3 },
+
+          { 2, PA_7,    1,   4,    nullptr, SPI1,    nullptr, TIM3 },
+
+          { 3, PA_15,  -1,  -1,    I2C1,    nullptr, USART2,  TIM2 },
+
+          { 4, PB_3,   -1,  -1,    nullptr, SPI1,    USART2,  TIM2 },
+          { 4, PB_9,   -1,  -1,    I2C1,    nullptr, nullptr, nullptr },
+          { -1, NC },
               }},
-      {{
-          { SPI2,
-            PA_5,
-            PB_4,
-            PA_7, },
-          { nullptr, NC, NC, NC },
-              }},
-      {{
-          { UART4, PB_3, PA_15 },
-          { nullptr, NC, NC },
-              }},
+          i2c_options,
     };
   } else {
     mbed_die();
@@ -370,43 +362,33 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
 
 aux::AuxHardwareConfig GetAux2HardwareConfig() {
   auto i2c_options = aux::I2cOptions();
-  i2c_options.pullup = PA_12;
 
   if (g_measured_hw_family == 0) {
     return aux::AuxHardwareConfig{
       {{
-          { PB_8, -1, 0,  aux::kScl },
-          { PB_9, -1, 0,  aux::kSda },
-          { PC_14,  -1, 0,  aux::kNoI2c },
-          { PC_15,  -1, 0,  aux::kNoI2c },
-          { NC,             -1, 0,  aux::kNoI2c },
-              }},
-      {{
-          { nullptr, NC, NC, NC },
-          { nullptr, NC, NC, NC },
-              }},
-      {{
-          { USART3, PB_8, PB_9 },
-          { nullptr, NC, NC },
+          //          ADC#  CHN    I2C      SPI      USART    TIMER
+          { 0, PB_8,   -1,   0,    I2C1,    nullptr, USART3,  nullptr },
+          { 1, PB_9,   -1,   0,    I2C1,    nullptr, USART3,  nullptr },
+          { 2, PC_14,  -1,   0,    nullptr, nullptr, nullptr, nullptr },
+          { 3, PC_15,  -1,   0,    nullptr, nullptr, nullptr, nullptr },
+          { -1, NC, },
               }},
           i2c_options,
           };
   } else if (g_measured_hw_family == 1) {
+    i2c_options.pullup = PA_12;
     return aux::AuxHardwareConfig{
       {{
-          { PF_1,   0, 5,  aux::kNoI2c },
-          { PF_0,   1, 15, aux::kNoI2c },
-          { PA_11, -1, 0,  aux::kScl },
-          { PB_7,  -1, 0,  aux::kSda },
-          { NC,             -1, 0,  aux::kNoI2c },
-              }},
-      {{
-          { SPI2   , PB_13, PB_14, PB_15 },
-          { nullptr, NC, NC, NC },
-              }},
-      {{
-          { USART3, PC_4, PA_10 },
-          { nullptr, NC, NC },
+          //          ADC#  CHN    I2C      SPI      USART    TIMER
+          { 0, PF_1,    1,  10,    nullptr, SPI2,    nullptr, nullptr },
+
+          { 1, PA_10,  -1,  -1,    nullptr, SPI2,    USART1,  nullptr },
+          { 1, PF_0,    0,  10,    I2C2,    nullptr, nullptr, nullptr },
+
+          { 2, PA_11,  -1,  -1,    nullptr, SPI2,    nullptr, TIM4 },
+          { 2, PC_4,    1,   5,    I2C2,    nullptr, USART1,  nullptr },
+
+          { 3, PB_7,   -1,  -1,    nullptr, nullptr, USART1,  TIM4 },
               }},
           i2c_options,
           };
