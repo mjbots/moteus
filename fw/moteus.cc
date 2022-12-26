@@ -354,6 +354,7 @@ int main(void) {
     fdcan_micro_server.Poll();
 #endif
     moteus_controller.Poll();
+    multiplex_protocol.Poll();
 
     const auto new_time = timer.read_ms();
 
