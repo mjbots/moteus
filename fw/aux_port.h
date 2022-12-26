@@ -21,6 +21,7 @@
 
 #include "mjlib/base/tokenizer.h"
 #include "mjlib/base/visitor.h"
+#include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
 #include "mjlib/micro/persistent_config.h"
 #include "mjlib/micro/telemetry_manager.h"
@@ -54,10 +55,14 @@ class AuxPort {
           mjlib::micro::PersistentConfig* persistent_config,
           mjlib::micro::CommandManager* command_manager,
           mjlib::micro::TelemetryManager* telemetry_manager,
+          mjlib::micro::AsyncStream* tunnel_stream,
           MillisecondTimer* timer,
-          SpiDefault spi_default)
-      : timer_(timer),
-        hw_config_(hw_config) {
+          SpiDefault spi_default,
+          std::array<DMA_Channel_TypeDef*, 4> dma_channels)
+      : tunnel_stream_(tunnel_stream),
+        timer_(timer),
+        hw_config_(hw_config),
+        dma_channels_(dma_channels) {
     switch (spi_default) {
       case kNoDefaultSpi: {
         config_.spi.mode = aux::Spi::Config::Mode::kDisabled;
@@ -85,6 +90,8 @@ class AuxPort {
     MJ_ASSERT(i2c_state_.size() == config_.i2c.devices.size());
 
     HandleConfigUpdate();
+
+    StartTunnelRead();
   }
 
   void ISR_MaybeStartSample() MOTEUS_CCM_ATTRIBUTE {
@@ -288,6 +295,31 @@ class AuxPort {
   }
 
   void Poll() {
+    if (tunnel_polling_enabled_) {
+      if (tunnel_write_outstanding_) {
+        if (uart_->is_dma_write_finished()) {
+          uart_->finish_dma_write();
+          tunnel_write_outstanding_ = false;
+          StartTunnelRead();
+        }
+      }
+      if (uart_->read_bytes_remaining() != sizeof(tunnel_write_buf_1_) &&
+          !stream_write_outstanding_) {
+        uart_->finish_dma_read();
+        const auto bytes_read =
+            sizeof(tunnel_write_buf_1_) - uart_->read_bytes_remaining();
+        stream_write_outstanding_ = true;
+        mjlib::micro::AsyncWrite(
+            *tunnel_stream_,
+            {current_tunnel_write_buf_.data(), bytes_read},
+            [this](const auto&) {
+              stream_write_outstanding_ = false;
+            });
+        std::swap(current_tunnel_write_buf_, next_tunnel_write_buf_);
+        uart_->start_dma_read(current_tunnel_write_buf_);
+      }
+    }
+
     if (i2c_) {
       i2c_->Poll();
       const auto read_status = i2c_->CheckRead();
@@ -591,6 +623,30 @@ class AuxPort {
                               size));
   }
 
+  void StartTunnelRead() {
+    tunnel_stream_->AsyncReadSome(
+        tunnel_read_buf_,
+        [this](const auto& error, const auto size) {
+          HandleTunnelRead(error, size);
+        });
+  }
+
+  void HandleTunnelRead(const mjlib::micro::error_code& ec,
+                        std::ptrdiff_t size) {
+    if (!ec &&
+        uart_ &&
+        config_.uart.mode == aux::UartEncoder::Config::kTunnel) {
+      tunnel_write_outstanding_ = true;
+
+      // We have a valid UART and can start a write.
+      uart_->start_dma_write(std::string_view(tunnel_read_buf_, size));
+    } else {
+      // We are just going to discard this and start another read
+      // again immediately.
+      StartTunnelRead();
+    }
+  }
+
 
   void HandleConfigUpdate() {
     status_ = {};
@@ -612,6 +668,14 @@ class AuxPort {
     ic_pz_.reset();
 
     uart_.reset();
+    tunnel_write_outstanding_ = false;
+    tunnel_polling_enabled_ = false;
+
+    // We purposefully don't reset the stream write flag, since just
+    // because our config was updated doesn't mean the call to
+    // AsyncWrite has completed.
+    //
+    // stream_write_outstanding_ = false;
     aksim2_.reset();
 
     any_adc_ = false;
@@ -699,8 +763,8 @@ class AuxPort {
         case aux::Spi::Config::kIcPz: {
           IcPz::Options options{spi_options};
           options.timeout = 2000;
-          options.rx_dma = DMA1_Channel3;
-          options.tx_dma = DMA1_Channel4;
+          options.rx_dma = dma_channels_[0];
+          options.tx_dma = dma_channels_[1];
           ic_pz_.emplace(options, timer_);
           break;
         }
@@ -797,7 +861,8 @@ class AuxPort {
             options.rx = maybe_uart->rx;
             options.tx = maybe_uart->tx;
             options.baud_rate = config_.uart.baud_rate;
-            options.rx_dma = DMA1_Channel5;
+            options.rx_dma = dma_channels_[2];
+            options.tx_dma = dma_channels_[3];
             return options;
           }());
 
@@ -809,6 +874,11 @@ class AuxPort {
         }
         case C::kAksim2: {
           aksim2_.emplace(config_.uart, &*uart_, timer_);
+          break;
+        }
+        case C::kTunnel: {
+          uart_->start_dma_read(current_tunnel_write_buf_);
+          tunnel_polling_enabled_ = true;
           break;
         }
         default: {
@@ -881,6 +951,8 @@ class AuxPort {
 
   Config config_;
   Status status_;
+
+  mjlib::micro::AsyncStream* const tunnel_stream_;
   MillisecondTimer* const timer_;
 
   bool any_isr_enabled_ = false;
@@ -928,7 +1000,21 @@ class AuxPort {
   uint8_t encoder_raw_data_[6] = {};
   bool i2c_startup_complete_ = false;
 
+  static constexpr size_t kTunnelBufSize = 64;
+
+  char tunnel_read_buf_[kTunnelBufSize] = {};
+  bool tunnel_write_outstanding_ = false;
+
+  char tunnel_write_buf_1_[kTunnelBufSize] = {};
+  char tunnel_write_buf_2_[kTunnelBufSize] = {};
+  mjlib::base::string_span current_tunnel_write_buf_{tunnel_write_buf_1_};
+  mjlib::base::string_span next_tunnel_write_buf_{tunnel_write_buf_2_};
+  bool stream_write_outstanding_ = false;
+
+  bool tunnel_polling_enabled_ = false;
+
   const aux::AuxHardwareConfig hw_config_;
+  const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;
 };
 
 }

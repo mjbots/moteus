@@ -35,6 +35,7 @@ class Stm32G4DmaUart {
     int baud_rate = 115200;
 
     DMA_Channel_TypeDef* rx_dma = DMA1_Channel1;
+    DMA_Channel_TypeDef* tx_dma = DMA1_Channel2;
   };
 
   Stm32G4DmaUart(const Options& options)
@@ -57,6 +58,7 @@ class Stm32G4DmaUart {
     __HAL_RCC_DMA2_CLK_ENABLE();
 
     dmamux_rx_ = Stm32Dma::SelectDmamux(options_.rx_dma);
+    dmamux_tx_ = Stm32Dma::SelectDmamux(options_.tx_dma);
 
     options_.rx_dma->CCR =
         DMA_PERIPH_TO_MEMORY |
@@ -67,6 +69,21 @@ class Stm32G4DmaUart {
         DMA_PRIORITY_HIGH;
     dmamux_rx_->CCR = GetUartRxRequest(uart_) & DMAMUX_CxCR_DMAREQ_ID;
     options_.rx_dma->CPAR = u32(&uart_->RDR);
+
+    options_.tx_dma->CCR =
+        DMA_MEMORY_TO_PERIPH |
+        DMA_PINC_DISABLE |
+        DMA_MINC_ENABLE |
+        DMA_PDATAALIGN_BYTE |
+        DMA_MDATAALIGN_BYTE |
+        DMA_PRIORITY_HIGH;
+    dmamux_tx_->CCR = GetUartTxRequest(uart_) & DMAMUX_CxCR_DMAREQ_ID;
+    options_.tx_dma->CPAR = u32(&uart_->TDR);
+  }
+
+  ~Stm32G4DmaUart() {
+    finish_dma_read();
+    finish_dma_write();
   }
 
   // Queue a single character to be written.  We rely on the FIFO to
@@ -83,11 +100,11 @@ class Stm32G4DmaUart {
     uart_->CR3 |= USART_CR3_DMAR;
   }
 
-  bool is_dma_finished() MOTEUS_CCM_ATTRIBUTE {
+  bool is_dma_read_finished() MOTEUS_CCM_ATTRIBUTE {
     return options_.rx_dma->CNDTR == 0;
   }
 
-  int bytes_remaining() MOTEUS_CCM_ATTRIBUTE {
+  int read_bytes_remaining() MOTEUS_CCM_ATTRIBUTE {
     return options_.rx_dma->CNDTR;
   }
 
@@ -97,11 +114,42 @@ class Stm32G4DmaUart {
     options_.rx_dma->CCR &= ~(DMA_CCR_EN);
   }
 
+  void start_dma_write(std::string_view data) MOTEUS_CCM_ATTRIBUTE {
+    options_.tx_dma->CNDTR = data.size();
+    options_.tx_dma->CMAR = u32(&data[0]);
+
+    options_.tx_dma->CCR |= DMA_CCR_EN;
+    uart_->CR3 |= USART_CR3_DMAT;
+  }
+
+  bool is_dma_write_finished() MOTEUS_CCM_ATTRIBUTE {
+    return options_.tx_dma->CNDTR == 0;
+  }
+
+  int write_bytes_remaining() MOTEUS_CCM_ATTRIBUTE {
+    return options_.tx_dma->CNDTR;
+  }
+
+  // This can be used to abort a request early.
+  void finish_dma_write() MOTEUS_CCM_ATTRIBUTE {
+    uart_->CR3 &= ~(USART_CR3_DMAT);
+    options_.tx_dma->CCR &= ~(DMA_CCR_EN);
+  }
+
   static uint32_t GetUartRxRequest(USART_TypeDef* uart) {
     switch (u32(uart)) {
       case UART_1: return DMA_REQUEST_USART1_RX;
       case UART_2: return DMA_REQUEST_USART2_RX;
       case UART_3: return DMA_REQUEST_USART3_RX;
+    }
+    mbed_die();
+  }
+
+  static uint32_t GetUartTxRequest(USART_TypeDef* uart) {
+    switch (u32(uart)) {
+      case UART_1: return DMA_REQUEST_USART1_TX;
+      case UART_2: return DMA_REQUEST_USART2_TX;
+      case UART_3: return DMA_REQUEST_USART3_TX;
     }
     mbed_die();
   }
@@ -116,6 +164,7 @@ class Stm32G4DmaUart {
 
   USART_TypeDef* uart_ = nullptr;
   DMAMUX_Channel_TypeDef* dmamux_rx_ = nullptr;
+  DMAMUX_Channel_TypeDef* dmamux_tx_ = nullptr;
 };
 
 }

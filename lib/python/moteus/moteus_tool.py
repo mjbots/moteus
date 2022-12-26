@@ -465,7 +465,8 @@ class Stream:
         self.args = args
         self.controller = moteus.Controller(target_id, transport=transport,
                                             can_prefix=args.can_prefix)
-        self.stream = moteus.Stream(self.controller, verbose=args.verbose)
+        self.stream = moteus.Stream(self.controller, verbose=args.verbose,
+                                    channel=args.diagnostic_channel)
 
     async def do_console(self):
         console_stdin = aiostream.AioStream(sys.stdin.buffer.raw)
@@ -1549,6 +1550,20 @@ async def async_main():
 
     group.add_argument('--calibrate', action='store_true',
                         help='calibrate the motor, requires full freedom of motion')
+
+    group.add_argument('--restore-cal', metavar='FILE', type=str,
+                        help='restore calibration from logged data')
+    group.add_argument('--zero-offset', action='store_true',
+                        help='set the motor\'s position offset')
+    group.add_argument('--set-offset', metavar='O',
+                       type=float,
+                       help='set the motor\'s position offset')
+
+
+    parser.add_argument('--diagnostic-channel', type=int, default=1,
+                        help='diagnostic channel to use for --console')
+
+    # Top level calibration parameters.
     parser.add_argument('--cal-invert', action='store_true',
                         help='if set, then commands and encoder will oppose')
     parser.add_argument('--cal-hall', action='store_true',
@@ -1615,14 +1630,6 @@ async def async_main():
                         help='maximum allowed error in calibration')
     parser.add_argument('--cal-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
-
-    group.add_argument('--restore-cal', metavar='FILE', type=str,
-                        help='restore calibration from logged data')
-    group.add_argument('--zero-offset', action='store_true',
-                        help='set the motor\'s position offset')
-    group.add_argument('--set-offset', metavar='O',
-                       type=float,
-                       help='set the motor\'s position offset')
 
     args = parser.parse_args()
 

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/multiplex/micro_server.h"
 
@@ -31,6 +32,7 @@ class MoteusController {
                    mjlib::micro::PersistentConfig* config,
                    mjlib::micro::CommandManager* command_manager,
                    mjlib::micro::TelemetryManager* telemetry_manager,
+                   mjlib::multiplex::MicroServer* multiplex_protocol,
                    MillisecondTimer*,
                    FirmwareInfo*);
   ~MoteusController();

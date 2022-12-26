@@ -357,14 +357,21 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        micro::PersistentConfig* persistent_config,
        micro::CommandManager* command_manager,
        micro::TelemetryManager* telemetry_manager,
+       multiplex::MicroServer* multiplex_protocol,
        MillisecondTimer* timer,
        FirmwareInfo* firmware)
       : aux1_port_("aux1", "ic_pz1", kAux1PortHardwareConfig,
-                   persistent_config, command_manager, telemetry_manager, timer,
-                   AuxPort::kDefaultOnboardSpi),
+                   persistent_config, command_manager, telemetry_manager,
+                   multiplex_protocol->MakeTunnel(2),
+                   timer,
+                   AuxPort::kDefaultOnboardSpi,
+                   {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6}),
         aux2_port_("aux2", "ic_pz2", kAux2PortHardwareConfig,
-                   persistent_config, command_manager, telemetry_manager, timer,
-                   AuxPort::kNoDefaultSpi),
+                   persistent_config, command_manager, telemetry_manager,
+                   multiplex_protocol->MakeTunnel(3),
+                   timer,
+                   AuxPort::kNoDefaultSpi,
+                   {DMA1_Channel7, DMA1_Channel8, DMA2_Channel1, DMA2_Channel2}),
         motor_position_(persistent_config, telemetry_manager,
                         aux1_port_.status(),
                         aux2_port_.status(),
@@ -934,10 +941,11 @@ MoteusController::MoteusController(micro::Pool* pool,
                                    micro::PersistentConfig* persistent_config,
                                    micro::CommandManager* command_manager,
                                    micro::TelemetryManager* telemetry_manager,
+                                   multiplex::MicroServer* multiplex_protocol,
                                    MillisecondTimer* timer,
                                    FirmwareInfo* firmware)
     : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
-            timer, firmware) {}
+            multiplex_protocol, timer, firmware) {}
 
 MoteusController::~MoteusController() {}
 

@@ -210,6 +210,8 @@ IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
     return TIM3_IRQn;
   } else if (timer == TIM4) {
     return TIM4_IRQn;
+  } else if (timer == TIM5) {
+    return TIM5_IRQn;
   }
   MJ_ASSERT(false);
   return TIM2_IRQn;

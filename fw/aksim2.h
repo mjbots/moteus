@@ -61,9 +61,9 @@ class Aksim2 {
   }
 
   void ProcessQuery(aux::UartEncoder::Status* status) MOTEUS_CCM_ATTRIBUTE {
-    if (uart_->bytes_remaining() > kResyncBytes) { return; }
+    if (uart_->read_bytes_remaining() > kResyncBytes) { return; }
 
-    if (uart_->bytes_remaining() == 0) {
+    if (uart_->read_bytes_remaining() == 0) {
       // We used up our resync bytes without success.  Just try again.
       uart_->finish_dma_read();
       query_outstanding_ = false;

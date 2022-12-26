@@ -275,7 +275,13 @@ int main(void) {
       return options;
     }());
   FDCanMicroServer fdcan_micro_server(&fdcan);
-  multiplex::MicroServer multiplex_protocol(&pool, &fdcan_micro_server, {});
+  multiplex::MicroServer multiplex_protocol(
+      &pool, &fdcan_micro_server,
+      []() {
+        multiplex::MicroServer::Options options;
+        options.max_tunnel_streams = 3;
+        return options;
+      }());
 #else
 #error "Unknown target"
 #endif
@@ -300,7 +306,9 @@ int main(void) {
   MoteusController moteus_controller(
       &pool, &persistent_config,
       &command_manager,
-      &telemetry_manager, &timer,
+      &telemetry_manager,
+      &multiplex_protocol,
+      &timer,
       &firmware_info);
 
   BoardDebug board_debug(

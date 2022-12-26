@@ -531,7 +531,7 @@ def make_parser(id):
     return parse
 
 
-def parse_diagnostic_data(message):
+def parse_diagnostic_data(message, channel):
     data = message.data
 
     if len(data) < 3:
@@ -539,7 +539,7 @@ def parse_diagnostic_data(message):
 
     if data[0] != mp.STREAM_SERVER_DATA:
         return None
-    if data[1] != 1:
+    if data[1] != channel:
         return None
     datalen, nextoff = mp.read_varuint(2, data)
     if datalen is None:
@@ -558,11 +558,11 @@ class DiagnosticResult:
         return f'{self.id}/{self.data}'
 
 
-def make_diagnostic_parser(id):
+def make_diagnostic_parser(id, channel):
     def parse(data):
         result = DiagnosticResult()
         result.id = id
-        result.data = parse_diagnostic_data(data)
+        result.data = parse_diagnostic_data(data, channel)
         return result
     return parse
 
@@ -592,7 +592,6 @@ class Controller:
         self.current_resolution = current_resolution
         self.transport = transport
         self._parser = make_parser(id)
-        self._diagnostic_parser = make_diagnostic_parser(id)
         self._can_prefix = can_prefix
 
         # Pre-compute our query string.
@@ -1092,7 +1091,7 @@ class Controller:
         return bytes([result.values[Register.AUX1_GPIO_STATUS],
                       result.values[Register.AUX2_GPIO_STATUS]])
 
-    def make_diagnostic_write(self, data):
+    def make_diagnostic_write(self, data, channel=1):
         result = self._make_command(query=False)
 
         # CAN-FD frames can be at most 64 bytes long
@@ -1101,7 +1100,7 @@ class Controller:
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.STREAM_CLIENT_DATA)
-        writer.write_int8(1)  # channel
+        writer.write_int8(channel)  # channel
         writer.write_int8(len(data))
         data_buf.write(data)
 
@@ -1111,16 +1110,16 @@ class Controller:
     async def send_diagnostic_write(self, *args, **kwargs):
         await self._get_transport().cycle([self.make_diagnostic_write(**kwargs)])
 
-    def make_diagnostic_read(self, max_length=48, source=0):
+    def make_diagnostic_read(self, max_length=48, channel=1):
         result = self._make_command(query=True)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.STREAM_CLIENT_POLL)
-        writer.write_int8(1)
+        writer.write_int8(channel)
         writer.write_int8(max_length)
 
-        result.parse = self._diagnostic_parser
+        result.parse = make_diagnostic_parser(self.id, channel)
 
         result.data = data_buf.getvalue()
         return result
@@ -1140,9 +1139,10 @@ class Stream:
     """Presents a python file-like interface to the diagnostic stream of a
     moteus controller."""
 
-    def __init__(self, controller, verbose=False):
+    def __init__(self, controller, verbose=False, channel=1):
         self.controller = controller
         self.verbose = verbose
+        self.channel = channel
 
         self.lock = asyncio.Lock()
         self._read_data = b''
@@ -1158,7 +1158,8 @@ class Stream:
             to_write, self._write_data = self._write_data[0:61], self._write_data[61:]
 
             async with self.lock:
-                await self.controller.send_diagnostic_write(data=to_write)
+                await self.controller.send_diagnostic_write(
+                    data=to_write, channel=self.channel)
 
     async def read(self, size, block=True):
         while ((block == True and len(self._read_data) < size)
@@ -1166,7 +1167,8 @@ class Stream:
             bytes_to_request = min(61, size - len(self._read_data))
 
             async with self.lock:
-                these_results = await self.controller.diagnostic_read(bytes_to_request)
+                these_results = await self.controller.diagnostic_read(
+                    bytes_to_request, channel=self.channel)
 
             this_data = b''.join(x.data for x in these_results if x.data)
 
@@ -1201,7 +1203,8 @@ class Stream:
     async def _read_maybe_empty_line(self):
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
             async with self.lock:
-                these_results = await self.controller.diagnostic_read(61)
+                these_results = await self.controller.diagnostic_read(
+                    61, channel=self.channel)
 
             this_data = b''.join(x.data for x in these_results if x.data)
 
