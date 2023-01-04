@@ -350,9 +350,8 @@ void FDCan::RecoverBusOff() {
 
 
 FDCAN_ProtocolStatusTypeDef FDCan::status() {
-  FDCAN_ProtocolStatusTypeDef result = {};
-  HAL_FDCAN_GetProtocolStatus(&hfdcan1_, &result);
-  return result;
+  HAL_FDCAN_GetProtocolStatus(&hfdcan1_, &status_result_);
+  return status_result_;
 }
 
 FDCan::Config FDCan::config() const {

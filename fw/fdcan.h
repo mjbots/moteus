@@ -138,6 +138,7 @@ class FDCan {
 
   FDCAN_GlobalTypeDef* can_ = nullptr;
   FDCAN_HandleTypeDef hfdcan1_;
+  FDCAN_ProtocolStatusTypeDef status_result_ = {};
   uint32_t last_tx_request_ = 0;
 };
 
