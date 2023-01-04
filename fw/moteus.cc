@@ -173,14 +173,17 @@ int main(void) {
 
   micro::SizedPool<20000> pool;
 
-  HardwareUart rs485(&pool, &timer, []() {
+  std::optional<HardwareUart> rs485;
+  if (g_hw_pins.uart_tx != NC) {
+    rs485.emplace(&pool, &timer, []() {
       HardwareUart::Options options;
       options.tx = g_hw_pins.uart_tx;
       options.rx = g_hw_pins.uart_rx;
       options.dir = g_hw_pins.uart_dir;
       options.baud_rate = 3000000;
       return options;
-    }());
+                                 }());
+  }
 
   FDCan fdcan([]() {
       FDCan::Options options;
@@ -287,7 +290,9 @@ int main(void) {
   auto old_time = timer.read_us();
 
   for (;;) {
-    rs485.Poll();
+    if (rs485) {
+      rs485->Poll();
+    }
 #if defined(TARGET_STM32G4)
     fdcan_micro_server.Poll();
 #endif

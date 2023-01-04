@@ -41,15 +41,13 @@ struct MoteusHwPins {
   PinName drv8323_hiz = NC;
   PinName drv8323_cs = NC;
 
-  PinName drv8323_mosi = PA_7;
-  PinName drv8323_miso = PA_6;
-  PinName drv8323_sck = PA_5;
+  PinName drv8323_mosi = NC;
+  PinName drv8323_miso = NC;
+  PinName drv8323_sck = NC;
   PinName drv8323_fault = NC;
 
-  PinName debug_led1 = PF_0;
-  PinName power_led = PF_1;
-
-  PinName debug_uart_out = NC;
+  PinName debug_led1 = NC;
+  PinName power_led = NC;
 
   PinName current1 = NC;
   PinName current2 = NC;
@@ -62,14 +60,14 @@ struct MoteusHwPins {
 
   float vsense_adc_scale = 0.0f;
 
-  PinName uart_tx = PC_10_ALT0;
-  PinName uart_rx = PC_11_ALT0;
+  PinName uart_tx = NC;
+  PinName uart_rx = NC;
   PinName uart_dir = NC;
 
   PinName as5047_cs = NC;
 
-  PinName can_td = PA_12;
-  PinName can_rd = PA_11;
+  PinName can_td = NC;
+  PinName can_rd = NC;
 
   PinName debug1 = NC;
   PinName debug2 = NC;

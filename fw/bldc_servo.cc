@@ -19,7 +19,6 @@
 #include <functional>
 
 #include "mbed.h"
-#include "serial_api_hal.h"
 
 #include "PeripheralPins.h"
 
@@ -30,7 +29,6 @@
 #include "fw/foc.h"
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
-#include "fw/stm32_serial.h"
 #include "fw/torque_model.h"
 
 #if defined(TARGET_STM32G4)
@@ -318,12 +316,6 @@ class BldcServo::Impl {
 #ifdef MOTEUS_DEBUG_OUT
         debug_out_(options.debug_out),
 #endif
-        debug_serial_([&]() {
-            Stm32Serial::Options d_options;
-            d_options.tx = options.debug_uart_out;
-            d_options.baud_rate = 3000000;
-            return d_options;
-          }()),
         vsense_adc_scale_(g_hw_pins.vsense_adc_scale) {
 
     persistent_config->Register("servo", &config_,
@@ -2250,8 +2242,6 @@ class BldcServo::Impl {
   SimplePI pid_d_{&config_.pid_dq, &status_.pid_d};
   SimplePI pid_q_{&config_.pid_dq, &status_.pid_q};
   PID pid_position_{&config_.pid_position, &status_.pid_position};
-
-  Stm32Serial debug_serial_;
 
   USART_TypeDef* debug_uart_ = nullptr;
   USART_TypeDef* onboard_debug_uart_ = nullptr;

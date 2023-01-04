@@ -349,7 +349,7 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
 
           { 3, PA_15,  -1,  -1,    I2C1,    nullptr, USART2,  TIM2 },
 
-          { 4, PB_3,   -1,  -1,    nullptr, SPI1,    USART2,  TIM2 },
+          { 4, PB_3,   -1,  -1,    nullptr, nullptr, USART2,  TIM2 },
           { 4, PB_9,   -1,  -1,    I2C1,    nullptr, nullptr, nullptr },
           { -1, NC },
               }},

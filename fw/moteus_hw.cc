@@ -171,10 +171,20 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.vsense_adc_scale =
         (hv <= 5 ? 0.00884f : 0.017947f);
 
+    result.uart_tx = PC_10_ALT0;
+    result.uart_rx = PC_11_ALT0;
+
     result.drv8323_enable = PA_3;
     result.drv8323_hiz = PB_7;
     result.drv8323_cs = PC_4;
+
+    result.drv8323_mosi = PA_7;
+    result.drv8323_miso = PA_6;
+    result.drv8323_sck = PA_5;
     result.drv8323_fault = PB_6;
+
+    result.debug_led1 = PF_0;
+    result.power_led = PF_1;
 
     // We've picked these particular pins so that all 3 channels are
     // one of the "slow" channels so they will have similar analog
@@ -185,15 +195,23 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.as5047_cs = PB_11;
 
+    result.can_td = PA_12;
+    result.can_rd = PA_11;
+
     result.debug1 = PC_14;
     result.debug2 = PC_15;
-
-    result.debug_uart_out = PB_3;
   } else {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
     result.drv8323_cs = PB_0;
+
+    result.drv8323_mosi = PC_13;
+    result.drv8323_miso = PC_11;
+    result.drv8323_sck = PC_10;
     result.drv8323_fault = PB_13;
+
+    result.debug_led1 = PB_15;
+    result.power_led = PC_6;
 
     // Family 1 devices should have all current sense inputs on "fast"
     // channels.
@@ -211,7 +229,10 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.uart_tx = NC;
     result.uart_rx = NC;
 
-    result.as5047_cs = PB_4;
+    result.as5047_cs = PB_2;
+
+    result.can_td = PB_6;
+    result.can_rd = PB_5;
 
     result.debug1 = NC;
     result.debug2 = NC;
