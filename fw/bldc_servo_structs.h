@@ -448,7 +448,7 @@ struct BldcServoConfig {
       g_measured_hw_family == 0 ?
       ((g_measured_hw_rev <= 5) ? 37.0f : 46.0f) :
       g_measured_hw_family == 1 ?
-      46.0f :
+      56.0f :
       invalid_float()
       ;
   float max_power_W = 450.0f;

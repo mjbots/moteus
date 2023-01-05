@@ -191,7 +191,7 @@ class Drv8323 : public MotorDriver {
           (g_measured_hw_rev <= 7) ? 50 :
           100) :
         g_measured_hw_family == 1 ?
-         100 :
+         150 :
         invalid_int();
     uint16_t idriven_hs_ma =
         g_measured_hw_family == 0 ?
@@ -199,7 +199,7 @@ class Drv8323 : public MotorDriver {
           (g_measured_hw_rev <= 7) ? 100 :
           200) :
         g_measured_hw_family == 1 ?
-         200 :
+         300 :
         invalid_int();
 
 
@@ -212,7 +212,7 @@ class Drv8323 : public MotorDriver {
           (g_measured_hw_rev <= 7) ? 50 :
           100) :
         g_measured_hw_family == 1 ?
-         100 :
+         150 :
         invalid_int();
     uint16_t idriven_ls_ma =
         g_measured_hw_family == 0 ?
@@ -220,7 +220,7 @@ class Drv8323 : public MotorDriver {
           (g_measured_hw_rev <= 7) ? 100 :
           200) :
         g_measured_hw_family == 1 ?
-         200 :
+         300 :
         invalid_int();
 
 
