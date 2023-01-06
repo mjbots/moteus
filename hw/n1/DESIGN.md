@@ -6,7 +6,7 @@ smaller in footprint version of the moteus brushless controller.
  * 51V max voltage (vs 44V for moteus)
  * More flexible aux1/aux2 connectors
    * both JST GH (aux1 is 8 pin, aux2 is 7 pin)
-   * 200mA of 5V between both connectors (all I/O pins are still only 3.3V)
+   * 200mA of 5V between both connectors
    * 200mA of 3V between both connectors
    * aux1 now has two pins that can be used even if onboard encoder is used
    * SPI on both connectors
@@ -14,11 +14,10 @@ smaller in footprint version of the moteus brushless controller.
    * ADC on both connectors
    * Sine/cosine on both connectors
    * Hardware quadrature (higher count rates)
+ * RS422 transceiver and connector (consumes the two spare pins on AUX1)
  * No connectors required on bottom of board for smaller footprint
  * Optional solder pads for power in for higher current capability
  * Variants
-   * all ceramic for low profile
-   * polymer electrolytic for higher peak power
    * optional power/CAN connectors on bottom for daisy chaining
  * CAN transceiver with 58V bus fault voltage
  * 46x46mm
@@ -122,9 +121,3 @@ smaller in footprint version of the moteus brushless controller.
    * C: SPI2 MOSI / USART1_TX / I2C2_SCL / ADC2 / TIM4_CH1  - PA11 / PC4
    * D:             USART1_RX /                 / TIM4_CH2  - PB7
    * gnd
-
-# Brainstorm for future features #
-
- * STO
- * Optional BSSI-C input module
- * Would be nice if gate driver didn't induce audible noise from aliasing

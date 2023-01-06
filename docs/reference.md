@@ -258,6 +258,17 @@ The following table shows which pins can be used for the unique capabilities:
 | I                | 5   | 2   | MISO | X           |     |         |      |     |
 | O                | 6   | 3   | MOSI | X           |     |         |      |     |
 
+| moteus n1        | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|---------|------|-----|
+| 5V (5)           | 1   |     |      |             |     |         |      |     |
+| 3.3V (3)         | 2   |     |      |             |     |         |      |     |
+| A                | 3   | 0   | CLK  | X           |     | 2.1     |      |     |
+| B                | 4   | 1   | MISO |             |     | 3.1     | RX   | X   |
+| C                | 5   | 2   | MOSI | X           |     | 3.2     |      |     |
+| D                | 6   | 3   |      |             | SCL | 2.1     | RX   | X   |
+| E                | 7   | 4   |      |             | SDA | 2.2     | TX   | X   |
+| GND (G)          | 8   |     |      |             |     |         |      |     |
+
 
 #### AUX2 / ABS ####
 
@@ -269,6 +280,16 @@ The following table shows which pins can be used for the unique capabilities:
 | GND (G)          | 4   |     |      |             |     |         |      |     |
 | DBG 1            |     | 2   |      |             |     |         |      | X   |
 | DBG 2            |     | 3   |      |             |     |         |      | X   |
+
+| moteus n1        | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|---------|------|-----|
+| 5V (5)           | 1   |     |      |             |     |         |      |     |
+| 3.3V (3)         | 2   |     |      |             |     |         |      |     |
+| A                | 3   | 0   | CLK  | X           |     |         |      | X   |
+| B                | 4   | 1   | MISO | X           | SDA |         | RX   | X   |
+| C                | 5   | 2   | MOSI | X           | SCL | 4.1     | TX   | X   |
+| D                | 6   | 3   |      |             |     | 4.2     | RX   | X   |
+| GND (G)          | 7   |     |      |             |     |         |      |     |
 
 NOTE: For moteus r4.5/8/11, DBG 1/2 are not present on the ABS
 connector, but are exposed pads on the circuit board.
