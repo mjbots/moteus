@@ -24,6 +24,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "fw/aux_adc.h"
 #include "fw/aux_port.h"
 #include "fw/bldc_servo_structs.h"
 #include "fw/error.h"
@@ -68,6 +69,7 @@ class BldcServo {
             mjlib::micro::TelemetryManager*,
             MillisecondTimer*,
             MotorDriver*,
+            AuxADC*,
             AuxPort*,
             AuxPort*,
             MotorPosition*,

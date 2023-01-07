@@ -28,6 +28,7 @@
 
 #include "fw/aksim2.h"
 #include "fw/as5047.h"
+#include "fw/aux_adc.h"
 #include "fw/aux_common.h"
 #include "fw/aux_mbed.h"
 #include "fw/ccm.h"
@@ -52,6 +53,7 @@ class AuxPort {
   AuxPort(const char* aux_name,
           const char* icpz_name,
           const aux::AuxHardwareConfig& hw_config,
+          AuxADC::AuxInfo* adc_info,
           mjlib::micro::PersistentConfig* persistent_config,
           mjlib::micro::CommandManager* command_manager,
           mjlib::micro::TelemetryManager* telemetry_manager,
@@ -61,6 +63,7 @@ class AuxPort {
           std::array<DMA_Channel_TypeDef*, 4> dma_channels)
       : tunnel_stream_(tunnel_stream),
         timer_(timer),
+        adc_info_(*adc_info),
         hw_config_(hw_config),
         dma_channels_(dma_channels) {
     switch (spi_default) {
@@ -88,6 +91,11 @@ class AuxPort {
                             std::placeholders::_1, std::placeholders::_2));
 
     MJ_ASSERT(i2c_state_.size() == config_.i2c.devices.size());
+    for (const auto& pin : hw_config_.pins) {
+      if (pin.adc_num >= AuxADC::kMaxAdcs) {
+        mbed_die();
+      }
+    }
 
     if (hw_config_.options.rs422_re != NC) {
       rs422_re_.emplace(hw_config_.options.rs422_re, 1);
@@ -187,85 +195,22 @@ class AuxPort {
     }
   }
 
-  static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
-    while ((adc->ISR & ADC_ISR_EOC) == 0);
-  }
-
-  // Call this after all the FOC related ADC work is done on
-  // ADC1/2/3/4.
-  void ISR_StartAnalogSample() MOTEUS_CCM_ATTRIBUTE {
+  // Call this after AuxADC::ISR_EndSample() has completed.
+  void ISR_EndAnalogSample() MOTEUS_CCM_ATTRIBUTE {
     if (!any_adc_) { return; }
-
-    if (adc_[0].sqr || adc_[1].sqr) {
-      if (adc_[0].sqr) {
-        ADC1->SQR1 = *adc_[0].sqr;
-      }
-      if (adc_[1].sqr) {
-        ADC2->SQR1 = *adc_[1].sqr;
-      }
-      // ADC1/2 are configured for dual sampling in moteus
-      ADC1->CR |= ADC_CR_ADSTART;
-    }
-
-    if (adc_[2].sqr || adc_[3].sqr) {
-      if (adc_[2].sqr) {
-        ADC3->SQR1 = *adc_[2].sqr;
-      }
-      if (adc_[3].sqr) {
-        ADC4->SQR1 = *adc_[3].sqr;
-      }
-      // ADC3/4 are configured for dual sampling in moteus
-      ADC3->CR |= ADC_CR_ADSTART;
-    }
-  }
-
-  // Call this to restore the ADC source registers back to where they
-  // were.
-  void ISR_EndAnalogSample(uint32_t adc1_sqr,
-                           uint32_t adc2_sqr,
-                           uint32_t adc3_sqr,
-                           uint32_t adc4_sqr) MOTEUS_CCM_ATTRIBUTE {
-    ADC1->SQR1 = adc1_sqr;
-    ADC2->SQR1 = adc2_sqr;
-    ADC3->SQR1 = adc3_sqr;
-    ADC4->SQR1 = adc4_sqr;
-
-    if (!any_adc_) { return; }
-
-    if (adc_[0].sqr || adc_[1].sqr) {
-      WaitForAdc(ADC1);
-      if (adc_[0].sqr) {
-        adc_[0].data = ADC1->DR;
-      }
-      if (adc_[1].sqr) {
-        adc_[1].data = ADC2->DR;
-      }
-    }
-    if (adc_[2].sqr || adc_[3].sqr) {
-      WaitForAdc(ADC3);
-      if (adc_[2].sqr) {
-        adc_[2].data = ADC3->DR;
-      }
-      if (adc_[3].sqr) {
-        adc_[3].data = ADC4->DR;
-      }
-    }
 
     for (size_t i = 0; i < config_.pins.size(); i++) {
-      if (config_.pins[i].mode == aux::Pin::Mode::kAnalogInput ||
-          config_.pins[i].mode == aux::Pin::Mode::kSine ||
-          config_.pins[i].mode == aux::Pin::Mode::kCosine) {
-        status_.analog_bit_active |= (1 << i);
+      if (analog_input_active_[i]) {
         status_.analog_inputs[i] =
-            static_cast<float>(adc_[analog_inputs_[i]].data) / 4096.0f;
+            static_cast<float>(adc_info_.value[i]) / 4096.0f;
       }
     }
 
     if (config_.sine_cosine.enabled) {
       status_.sine_cosine.active = true;
       const auto& config = config_.sine_cosine;
-      const auto s = adc_[analog_inputs_[sine_pin_]].data;
-      const auto c = adc_[analog_inputs_[cosine_pin_]].data;
+      const auto s = adc_info_.value[sine_pin_];
+      const auto c = adc_info_.value[cosine_pin_];
       status_.sine_cosine.sine_raw = s;
       status_.sine_cosine.cosine_raw = c;
       const auto value = std::min<int32_t>(
@@ -708,8 +653,15 @@ class AuxPort {
     if (rs422_re_) { rs422_re_->write(1); }
     aksim2_.reset();
 
+    for (auto& cfg : adc_info_.config) {
+      cfg.adc_num = -1;
+      cfg.channel = -1;
+    }
+
     any_adc_ = false;
-    adc_ = {{}};
+    for (auto& value : analog_input_active_) {
+      value = false;
+    }
 
     sine_pin_ = -1;
     cosine_pin_ = -1;
@@ -992,6 +944,11 @@ class AuxPort {
       } else if (cfg.mode == aux::Pin::Mode::kAnalogInput ||
                  cfg.mode == aux::Pin::Mode::kSine ||
                  cfg.mode == aux::Pin::Mode::kCosine) {
+
+        any_adc_ = true;
+        analog_input_active_[i] = true;
+        status_.analog_bit_active |= (1 << i);
+
         // Find the mbed pin, the adc num and adc channel for this
         // connector pin.
         const auto* pin = [&]() {
@@ -1006,11 +963,10 @@ class AuxPort {
           status_.error = aux::AuxError::kAdcPinError;
           return;
         }
-        any_adc_ = true;
-        adc_[pin->adc_num].sqr =
-            (0 << ADC_SQR1_L_Pos) |
-            (pin->adc_sqr << ADC_SQR1_SQ1_Pos);
-        analog_inputs_[i] = pin->adc_num;
+
+        adc_info_.config[i].adc_num = pin->adc_num;
+        adc_info_.config[i].channel = pin->adc_sqr;
+
         pinmap_pinout(pin->mbed, PinMap_ADC);
         switch (cfg.pull) {
           case aux::Pin::Pull::kPullUp:
@@ -1028,6 +984,8 @@ class AuxPort {
         any_isr_enabled_ = true;
       }
     }
+
+    adc_info_.config_update();
   }
 
   static int ParseHexNybble(char c) {
@@ -1073,15 +1031,9 @@ class AuxPort {
   std::optional<DigitalOut> rs422_re_;
   std::optional<DigitalOut> rs422_de_;
 
+  AuxADC::AuxInfo& adc_info_;
   bool any_adc_ = false;
-  static constexpr int kNumAdcs = 4;
-  struct Adc {
-    std::optional<uint32_t> sqr;
-    uint32_t data = 0;
-  };
-  std::array<Adc, kNumAdcs> adc_;
-
-  std::array<int, aux::AuxConfig::kNumPins> analog_inputs_;
+  std::array<bool, aux::AuxConfig::kNumPins> analog_input_active_ = {};
   int sine_pin_ = -1;
   int cosine_pin_ = -1;
 

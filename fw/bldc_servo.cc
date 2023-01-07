@@ -289,6 +289,7 @@ class BldcServo::Impl {
        micro::TelemetryManager* telemetry_manager,
        MillisecondTimer* millisecond_timer,
        MotorDriver* motor_driver,
+       AuxADC* aux_adc,
        AuxPort* aux1_port,
        AuxPort* aux2_port,
        MotorPosition* motor_position,
@@ -296,6 +297,7 @@ class BldcServo::Impl {
       : options_(options),
         ms_timer_(millisecond_timer),
         motor_driver_(motor_driver),
+        aux_adc_(aux_adc),
         aux1_port_(aux1_port),
         aux2_port_(aux2_port),
         motor_position_(motor_position),
@@ -960,7 +962,7 @@ class BldcServo::Impl {
 
     aux1_port_->ISR_MaybeFinishSample();
     aux2_port_->ISR_MaybeFinishSample();
-    aux1_port_->ISR_StartAnalogSample();
+    aux_adc_->ISR_StartSample();
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_pos_sample = DWT->CYCCNT;
@@ -1038,8 +1040,9 @@ class BldcServo::Impl {
     status_.position = position_.position;
     status_.velocity = position_.velocity;
 
-    aux1_port_->ISR_EndAnalogSample(
-        adc1_sqr_, adc2_sqr_, adc3_sqr_, adc4_sqr_);
+    aux_adc_->ISR_EndSample();
+    aux1_port_->ISR_EndAnalogSample();
+    aux2_port_->ISR_EndAnalogSample();
   }
 
   void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
@@ -2161,6 +2164,7 @@ class BldcServo::Impl {
   const Options options_;
   MillisecondTimer* const ms_timer_;
   MotorDriver* const motor_driver_;
+  AuxADC* const aux_adc_;
   AuxPort* const aux1_port_;
   AuxPort* const aux2_port_;
   MotorPosition* const motor_position_;
@@ -2282,6 +2286,7 @@ BldcServo::BldcServo(micro::Pool* pool,
                      micro::TelemetryManager* telemetry_manager,
                      MillisecondTimer* millisecond_timer,
                      MotorDriver* motor_driver,
+                     AuxADC* aux_adc,
                      AuxPort* aux1_port,
                      AuxPort* aux2_port,
                      MotorPosition* motor_position,
@@ -2289,7 +2294,7 @@ BldcServo::BldcServo(micro::Pool* pool,
     : impl_(pool,
             persistent_config, telemetry_manager,
             millisecond_timer, motor_driver,
-            aux1_port, aux2_port, motor_position,
+            aux_adc, aux1_port, aux2_port, motor_position,
             options) {}
 BldcServo::~BldcServo() {}
 

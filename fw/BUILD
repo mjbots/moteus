@@ -89,6 +89,7 @@ g4_bootloader_mbed_binary(
 MOTEUS_SOURCES = [
     "aksim2.h",
     "as5047.h",
+    "aux_adc.h",
     "aux_mbed.h",
     "aux_port.h",
     "moteus_assert.cc",

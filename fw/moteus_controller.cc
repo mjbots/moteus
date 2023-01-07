@@ -412,12 +412,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        MillisecondTimer* timer,
        FirmwareInfo* firmware)
       : aux1_port_("aux1", "ic_pz1", GetAux1HardwareConfig(),
+                   &aux_adc_.aux_info[0],
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(2),
                    timer,
                    AuxPort::kDefaultOnboardSpi,
                    {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6}),
         aux2_port_("aux2", "ic_pz2", GetAux2HardwareConfig(),
+                   &aux_adc_.aux_info[1],
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(3),
                    timer,
@@ -440,7 +442,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             return options;
           }()),
         bldc_(pool, persistent_config, telemetry_manager,
-              timer, &drv8323_, &aux1_port_, &aux2_port_, &motor_position_,
+              timer, &drv8323_, &aux_adc_, &aux1_port_, &aux2_port_,
+              &motor_position_,
               []() {
             BldcServo::Options options;
             options.pwm1 = g_hw_pins.pwm1;
@@ -1001,6 +1004,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
     return static_cast<uint32_t>(1);
   }
 
+  AuxADC aux_adc_;
   AuxPort aux1_port_;
   AuxPort aux2_port_;
   MotorPosition motor_position_;
