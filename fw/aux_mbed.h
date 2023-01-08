@@ -102,9 +102,10 @@ class Stm32Quadrature {
               return pin.mbed;
             }
           }
-          mbed_die();
           return NC;
       }();
+      if (mbed == NC) { continue; }
+
       const auto pin = array[i];
       if (pin.mode == aux::Pin::Mode::kQuadratureSoftware) {
         if (!a_) {
@@ -217,9 +218,9 @@ class Stm32Index {
             for (const auto& pin : hw_config.pins) {
               if (pin.number == static_cast<int>(i)) { return pin.mbed; }
             }
-            mbed_die();
             return NC;
         }();
+        if (mbed == NC) { continue; }
         index_.emplace(mbed, MbedMapPull(cfg.pull));
       }
     }
@@ -268,7 +269,6 @@ std::optional<SpiPinOption> FindSpiOption(const PinArray& pin_array,
                         return pin.mbed;
                       }
                     }
-                    mbed_die();
                     return NC;
                   }();
     } else if (cfg.mode == Pin::Mode::kSpi ||
