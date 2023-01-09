@@ -29,6 +29,7 @@
 #include "fw/foc.h"
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
+#include "fw/stm32g4_adc.h"
 #include "fw/torque_model.h"
 
 #if defined(TARGET_STM32G4)
@@ -629,20 +630,13 @@ class BldcServo::Impl {
     __HAL_RCC_ADC12_CLK_ENABLE();
     __HAL_RCC_ADC345_CLK_ENABLE();
 
-    auto disable_adc = [](auto* adc) {
-      if (adc->CR & ADC_CR_ADEN) {
-        adc->CR |= ADC_CR_ADDIS;
-        while (adc->CR & ADC_CR_ADEN);
-      }
-    };
-
     // First, we have to disable everything to ensure we are in a
     // known state.
-    disable_adc(ADC1);
-    disable_adc(ADC2);
-    disable_adc(ADC3);
-    disable_adc(ADC4);
-    disable_adc(ADC5);
+    DisableAdc(ADC1);
+    DisableAdc(ADC2);
+    DisableAdc(ADC3);
+    DisableAdc(ADC4);
+    DisableAdc(ADC5);
 
     // The prescaler must be at least 6x to be able to accurately read
     // across all channels.  If it is too low, you'll see errors that
@@ -672,33 +666,11 @@ class BldcServo::Impl {
         (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos) |
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
 
-    auto enable_adc = [&](auto* adc) {
-      // 20.4.6: ADC Deep power-down mode startup procedure
-      adc->CR &= ~ADC_CR_DEEPPWD;
-      adc->CR |= ADC_CR_ADVREGEN;
-
-      // tADCREG_S = 20us per STM32G474xB datasheet
-      ms_timer_->wait_us(20);
-
-      adc->CR |= ADC_CR_ADCAL;
-      while (adc->CR & ADC_CR_ADCAL);
-      ms_timer_->wait_us(1);
-
-      // 20.4.9: Software procedure to enable the ADC
-      adc->ISR |= ADC_ISR_ADRDY;
-      adc->CR |= ADC_CR_ADEN;
-
-      while (! (adc->ISR & ADC_ISR_ADRDY));
-      adc->ISR |= ADC_ISR_ADRDY;
-
-      adc->CFGR &= ~(ADC_CFGR_CONT);
-    };
-
-    enable_adc(ADC1);
-    enable_adc(ADC2);
-    enable_adc(ADC3);
-    enable_adc(ADC4);
-    enable_adc(ADC5);
+    EnableAdc(ms_timer_, ADC1);
+    EnableAdc(ms_timer_, ADC2);
+    EnableAdc(ms_timer_, ADC3);
+    EnableAdc(ms_timer_, ADC4);
+    EnableAdc(ms_timer_, ADC5);
 
     if (family0_) {
       adc1_sqr_ = ADC1->SQR1 =

@@ -162,6 +162,15 @@ int main(void) {
 
   g_hw_pins = FindHardwarePins(family_and_version);
 
+  // We do our compatibility check *after* calling FindHardwarePins so
+  // the the family specific pins are known.  That way mbed_die
+  // doesn't choke being unable to find the power LED for instance.
+
+  if (family_and_version.hw_version < 0) {
+    // This firmware is not compatible with this board.
+    mbed_die();
+  }
+
   // To enable cycle counting.
 #ifdef MOTEUS_PERFORMANCE_MEASURE
   {

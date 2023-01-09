@@ -17,6 +17,7 @@
 #include "mjlib/base/assert.h"
 
 #include "fw/stm32_bitbang_spi.h"
+#include "fw/stm32g4_adc.h"
 
 namespace moteus {
 
@@ -128,14 +129,33 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
         }();
     result.hw_version = measured_hw_rev;
   } else if (result.family == 1) {
-    // TODO: Verify this actually reads other values.  I think
-    // AnalogIn may not work on the G4 in my hacked version.
-    AnalogIn board_rev(PA_4);
-    const uint16_t this_reading = board_rev.read_u16();
-    if (this_reading < 0x1000) {
+    __HAL_RCC_ADC12_CLK_ENABLE();
+
+    DisableAdc(ADC2);
+
+    // Our board version is programmed with a high impedance voltage
+    // divider, so we need to custom program the ADC to get a large
+    // sample time and to ensure the prescaler is set to a usable value.
+
+    ADC12_COMMON->CCR = (7 << ADC_CCR_PRESC_Pos);  // 16x prescaler
+
+    ADC2->SMPR2 = (0x7 << ADC_SMPR2_SMP17_Pos);  // 640.5 ADC clock cycles
+    ADC2->SQR1 =
+        (17 << ADC_SQR1_SQ1_Pos) |  // IN17
+        (0 << ADC_SQR1_L_Pos);  // length 1
+
+    EnableAdc(timer, ADC2);
+
+    ADC2->CR |= ADC_CR_ADSTART;
+    while ((ADC2->ISR & ADC_ISR_EOC) == 0);
+
+    const uint16_t this_reading = ADC2->DR << 4;
+
+    if (this_reading < 0x0200) {
       result.hw_version = 0;
     } else {
-      mbed_die();
+      // Unknown version.
+      result.hw_version = -1;
     }
   } else {
     MJ_ASSERT(false);
