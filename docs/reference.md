@@ -263,7 +263,7 @@ The following table shows which pins can be used for the unique capabilities:
 | 5V (5)           | 1   |     |      |             |     |         |      |     |
 | 3.3V (3)         | 2   |     |      |             |     |         |      |     |
 | A                | 3   | 0   | CLK  | X           |     |         |      |     |
-| B                | 4   | 1   | MISO |             |     | 3.1     | RX   | X   |
+| B                | 4   | 1   | MISO |             |     | 3.1     | RX   |     |
 | C                | 5   | 2   | MOSI | X           |     | 3.2     |      |     |
 | D                | 6   | 3   |      |             | SCL | 2.1     | RX   | X   |
 | E                | 7   | 4   |      |             | SDA | 2.2     | TX   | X   |
