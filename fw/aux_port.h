@@ -353,6 +353,13 @@ class AuxPort {
     }
   }
 
+  USART_TypeDef* debug_uart() const {
+    if (config_.uart.mode == aux::UartEncoder::Config::kDebug) {
+      return uart_->uart();
+    }
+    return nullptr;
+  }
+
   Status* status() { return &status_; }
   const Config* config() const { return &config_; }
 
@@ -879,6 +886,10 @@ class AuxPort {
         case C::kTunnel: {
           uart_->start_dma_read(current_tunnel_write_buf_);
           tunnel_polling_enabled_ = true;
+          break;
+        }
+        case C::kDebug: {
+          // Nothing special to do here.
           break;
         }
         default: {

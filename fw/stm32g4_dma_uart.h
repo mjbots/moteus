@@ -86,6 +86,10 @@ class Stm32G4DmaUart {
     finish_dma_write();
   }
 
+  USART_TypeDef* uart() const {
+    return uart_;
+  }
+
   // Queue a single character to be written.  We rely on the FIFO to
   // prevent overflow.
   void write_char(uint8_t data) {

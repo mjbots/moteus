@@ -66,6 +66,7 @@ struct UartEncoder {
       kDisabled,
       kAksim2,
       kTunnel,
+      kDebug,
 
       kNumModes,
     };
@@ -426,6 +427,7 @@ struct IsEnum<moteus::aux::UartEncoder::Config::Mode> {
         { M::kDisabled, "disabled" },
         { M::kAksim2, "aksim2" },
         { M::kTunnel, "tunnel" },
+        { M::kDebug, "debug" },
       }};
   }
 };

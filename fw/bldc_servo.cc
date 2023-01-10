@@ -347,7 +347,8 @@ class BldcServo::Impl {
     if (options_.debug_uart_out != NC) {
       const auto uart = pinmap_peripheral(
           options_.debug_uart_out, PinMap_UART_TX);
-      debug_uart_ = reinterpret_cast<USART_TypeDef*>(uart);
+      debug_uart_ = onboard_debug_uart_ =
+          reinterpret_cast<USART_TypeDef*>(uart);
     }
   }
 
@@ -494,6 +495,23 @@ class BldcServo::Impl {
     if (mode == kEnabling) {
       motor_driver_->Enable(true);
       *mode_volatile = kCalibrating;
+    }
+
+    // Because the aux ports can be configured after us, we just poll
+    // periodically to see if we need to point our debug uart
+    // somewhere different.
+    auto* desired_debug_uart =
+        [&]() {
+          if (aux1_port_->debug_uart()) {
+            return aux1_port_->debug_uart();
+          } else if (aux2_port_->debug_uart()) {
+            return aux2_port_->debug_uart();
+          } else {
+            return onboard_debug_uart_;
+          }
+        }();
+    if (desired_debug_uart != debug_uart_) {
+      debug_uart_ = desired_debug_uart;
     }
   }
 
@@ -2047,7 +2065,7 @@ class BldcServo::Impl {
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
-    if (config_.emit_debug == 0) { return; }
+    if (config_.emit_debug == 0 || !debug_uart_) { return; }
 
     debug_buf_[0] = 0x5a;
 
@@ -2064,6 +2082,10 @@ class BldcServo::Impl {
 
     if (config_.emit_debug & (1 << 0)) {
       write_scalar(static_cast<uint16_t>(aux1_port_->status()->spi.value * 4));
+    }
+
+    if (config_.emit_debug & (1 << 1)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.velocity / 100.0f));
     }
 
     if (config_.emit_debug & (1 << 2)) {
@@ -2198,6 +2220,7 @@ class BldcServo::Impl {
   Stm32Serial debug_serial_;
 
   USART_TypeDef* debug_uart_ = nullptr;
+  USART_TypeDef* onboard_debug_uart_ = nullptr;
 
   // 7 bytes is the max that we can get out at 3Mbit running at
   // 40000Hz.
