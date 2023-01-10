@@ -504,6 +504,12 @@ values.
 - int16 => 1 LSB => 0.001 l/s^2
 - int32 => 1 LSB => 0.00001 l/s^2
 
+#### A.2.a.9 PWM and kp/kd scale (unitless) ####
+
+- int8 => 1 LSB => (1/127) - 0.007874
+- int16 => 1 LSB => (1/32767) - 0.000030519
+- int32 => 1 LSB => (1/2147483647) - 4.657e-10
+
 ### A.2.b Registers ###
 
 #### 0x000 - Mode ####
