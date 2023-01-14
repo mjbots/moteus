@@ -243,7 +243,9 @@ def calibrate(parsed,
         result.invert = False
         result.phase_invert = True
     else:
-        assert False
+        raise RuntimeError(
+            f"Invalid desired_direction={desired_direction} " +
+            f"and total_delta={total_delta}")
 
     if result.phase_invert:
         # We need to flip phase.
