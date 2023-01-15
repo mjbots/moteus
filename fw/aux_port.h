@@ -72,6 +72,7 @@ class AuxPort {
         break;
       }
       case kDefaultOnboardSpi: {
+        onboard_spi_available_ = true;
         // This is the upstream default.
         break;
       }
@@ -628,6 +629,7 @@ class AuxPort {
     i2c_pullup_dout_.reset();
     as5047_.reset();
     as5047_options_.reset();
+    onboard_cs_.reset();
 
     for (auto& in : digital_inputs_) { in.reset(); }
     for (auto& out : digital_outputs_) { out.reset(); }
@@ -740,6 +742,19 @@ class AuxPort {
             return options;
           }());
       any_isr_enabled_ = true;
+    }
+
+    if (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 &&
+        !onboard_spi_available_) {
+      status_.error = aux::AuxError::kSpiPinError;
+      return;
+    }
+
+    if (config_.spi.mode != aux::Spi::Config::kOnboardAs5047 &&
+        onboard_spi_available_) {
+      // If we're not using the onboard encoder, ensure that its CS
+      // line is not asserted.
+      onboard_cs_.emplace(g_hw_pins.as5047_cs, 1);
     }
 
     // Default to the onboard encoder for SPI.
@@ -1014,6 +1029,7 @@ class AuxPort {
   std::optional<AS5047> as5047_;
   std::optional<AS5047::Options> as5047_options_;
   std::optional<IcPz> ic_pz_;
+  std::optional<DigitalOut> onboard_cs_;
 
   std::array<std::optional<DigitalIn>,
              aux::AuxConfig::kNumPins> digital_inputs_;
@@ -1062,6 +1078,7 @@ class AuxPort {
   bool stream_write_outstanding_ = false;
 
   bool tunnel_polling_enabled_ = false;
+  bool onboard_spi_available_ = false;
 
   std::optional<DigitalOut> i2c_pullup_dout_;
   const aux::AuxHardwareConfig hw_config_;

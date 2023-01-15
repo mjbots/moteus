@@ -33,9 +33,9 @@ namespace moteus {
 // This structure is filled in once the family and hardware version
 // are known.
 struct MoteusHwPins {
-  PinName pwm1 = PA_0;
-  PinName pwm2 = PA_1;
-  PinName pwm3 = PA_2;
+  PinName pwm1 = PA_0_ALT0;
+  PinName pwm2 = PA_1_ALT0;
+  PinName pwm3 = PA_2_ALT0;
 
   PinName drv8323_enable = NC;
   PinName drv8323_hiz = NC;

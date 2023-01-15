@@ -78,56 +78,114 @@ class Stm32Quadrature {
                   const AuxHardwareConfig& hw_config)
       : config_(config),
         status_(status) {
-    // TODO: Try to use hardware eventually.
+    aux::AuxPinConfig pina = {};
+    aux::Pin::Mode pina_mode = {};
+    aux::AuxPinConfig pinb = {};
+    aux::Pin::Mode pinb_mode = {};
 
-    int count = 0;
-    for (const auto& pin : array) {
-      if (pin.mode == aux::Pin::Mode::kQuadratureSoftware) {
-        count++;
+    for (size_t i = 0; i < array.size(); i++) {
+      const auto& pin = array[i];
+
+      if (pin.mode != aux::Pin::Mode::kQuadratureSoftware &&
+          pin.mode != aux::Pin::Mode::kQuadratureHardware) {
+        continue;
       }
-      if (pin.mode == aux::Pin::Mode::kQuadratureHardware) {
+
+      const auto this_pin = [&]() {
+          for (const auto& pin : hw_config.pins) {
+            if (pin.number == static_cast<int>(i)) {
+              return pin;
+            }
+          }
+          return aux::AuxPinConfig();
+      }();
+      if (this_pin.mbed == NC) { continue; }
+
+      if (pina.mbed == NC) {
+        pina = this_pin;
+        pina_mode = pin.mode;
+      } else if (pinb.mbed == NC) {
+        pinb = this_pin;
+        pinb_mode = pin.mode;
+      } else {
         error_ = aux::AuxError::kQuadPinError;
         return;
       }
     }
-    if (count != 2) {
+    // If we have a mix of hardware and software, trigger an error.
+    if (pinb.mbed == NC ||
+        pina_mode != pinb_mode) {
       error_ = aux::AuxError::kQuadPinError;
       return;
     }
 
-    for (size_t i = 0; i < array.size(); i++) {
-      const auto mbed = [&]() {
-          for (const auto& pin : hw_config.pins) {
-            if (pin.number == static_cast<int>(i)) {
-              return pin.mbed;
-            }
-          }
-          return NC;
-      }();
-      if (mbed == NC) { continue; }
-
-      const auto pin = array[i];
-      if (pin.mode == aux::Pin::Mode::kQuadratureSoftware) {
-        if (!a_) {
-          a_ = Stm32GpioInterruptIn::Make(
-              mbed,
-              &Stm32Quadrature::ISR_CallbackDelegate,
-              reinterpret_cast<uint32_t>(this));
-          if (!a_) {
-            error_ = aux::AuxError::kQuadPinError;
-            return;
-          }
-        } else if (!b_) {
-          b_ = Stm32GpioInterruptIn::Make(
-              mbed,
-              &Stm32Quadrature::ISR_CallbackDelegate,
-              reinterpret_cast<uint32_t>(this));
-          if (!b_) {
-            error_ = aux::AuxError::kQuadPinError;
-            return;
-          }
-        }
+    if (pina_mode == aux::Pin::Mode::kQuadratureSoftware) {
+      a_ = Stm32GpioInterruptIn::Make(
+          pina.mbed,
+          &Stm32Quadrature::ISR_CallbackDelegate,
+          reinterpret_cast<uint32_t>(this));
+      if (!a_) {
+        error_ = aux::AuxError::kQuadPinError;
+        return;
       }
+      b_ = Stm32GpioInterruptIn::Make(
+          pinb.mbed,
+          &Stm32Quadrature::ISR_CallbackDelegate,
+          reinterpret_cast<uint32_t>(this));
+      if (!b_) {
+        error_ = aux::AuxError::kQuadPinError;
+        return;
+      }
+    } else if (pina_mode == aux::Pin::Mode::kQuadratureHardware) {
+      // Check to see if the two pins are on the same timer.
+      if (pina.timer != pinb.timer ||
+          pina.timer == nullptr) {
+        // Either they aren't on the same timer, or they aren't
+        // capable of hardware quadrature at all.
+        error_ = aux::AuxError::kQuadPinError;
+        return;
+      }
+
+      a_in_.emplace(pina.mbed);
+      b_in_.emplace(pinb.mbed);
+
+      const auto int_timer = reinterpret_cast<uint32_t>(pina.timer);
+
+      const auto find_timer_alt =
+          [&](auto pin) {
+            for (uint32_t alt : {0, 0x100, 0x200, 0x300, 0x400}) {
+              const PinName mbed_pin = static_cast<PinName>(pin | alt);
+              if (pinmap_find_peripheral(mbed_pin, PinMap_PWM) == int_timer) {
+                return mbed_pin;
+              }
+            }
+            return NC;
+          };
+
+      const auto pina_alt = find_timer_alt(pina.mbed);
+      const auto pinb_alt = find_timer_alt(pinb.mbed);
+
+      // Set the alternate function for each pin.
+      pinmap_pinout(pina_alt, PinMap_PWM);
+      pinmap_pinout(pinb_alt, PinMap_PWM);
+
+      // Configure our timer.
+      hwtimer_ = pina.timer;
+
+      hwtimer_->CR1 = 0;
+
+      hwtimer_->ARR = 0xffff;
+      hwtimer_->SMCR = (0x03 << TIM_SMCR_SMS_Pos);
+      hwtimer_->CCMR1 =
+          (1 << TIM_CCMR1_CC1S_Pos) | // CC1 is from tim_ic1
+          (1 << TIM_CCMR1_CC2S_Pos);  // CC2 is from tim_ic2
+      hwtimer_->CCER =
+          TIM_CCER_CC1E | // Enable capture channel 1
+          TIM_CCER_CC2E;  // Enable capture channel 2
+
+      hwtimer_->EGR = 1;
+      hwtimer_->CR1 = (TIM_CR1_CEN);
+      old_timer_cnt_ = hwtimer_->CNT;
     }
 
     status_->active = true;
@@ -136,6 +194,23 @@ class Stm32Quadrature {
   aux::AuxError error() { return error_; }
 
   void ISR_Update(aux::Quadrature::Status* status) MOTEUS_CCM_ATTRIBUTE {
+    if (!hwtimer_) { return; }
+
+    status_->pins =
+        (a_in_->read() ? 1 : 0) |
+        (b_in_->read() ? 2 : 0);
+
+    const uint32_t new_cnt = hwtimer_->CNT;
+    const int16_t delta =
+        static_cast<int16_t>(
+            static_cast<uint16_t>((new_cnt - old_timer_cnt_) & 0xffff));
+
+    old_timer_cnt_ = new_cnt;
+
+    const uint32_t new_value =
+        static_cast<uint32_t>(status_->value) + delta + config_.cpr;
+    status->value = new_value % config_.cpr;
+    status->error = 0;
     return;
   }
 
@@ -199,6 +274,13 @@ class Stm32Quadrature {
   aux::AuxError error_ = aux::AuxError::kNone;
   std::optional<Stm32GpioInterruptIn> a_;
   std::optional<Stm32GpioInterruptIn> b_;
+
+  std::optional<DigitalIn> a_in_;
+  std::optional<DigitalIn> b_in_;
+
+  uint32_t old_timer_cnt_ = 0;
+
+  TIM_TypeDef* hwtimer_ = nullptr;
 };
 
 class Stm32Index {
