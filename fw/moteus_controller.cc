@@ -342,6 +342,27 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
           { nullptr, NC, NC },
               }},
           };
+  } else if (g_measured_hw_family == 1) {
+    return aux::AuxHardwareConfig{
+      {{
+          { g_hw_pins.primary_extra,        1, 14, aux::kNoI2c },
+          { g_hw_pins.external_encoder_cs,  2, 12, aux::kNoI2c },
+          { g_hw_pins.as5047_sck,           2, 5,  aux::kNoI2c },
+          { g_hw_pins.as5047_miso,          0, 5,  aux::kNoI2c },
+          { g_hw_pins.as5047_mosi,          1, 15, aux::kNoI2c },
+              }},
+      {{
+          { SPI2,
+            g_hw_pins.as5047_sck,
+            g_hw_pins.as5047_miso,
+            g_hw_pins.as5047_mosi, },
+          { nullptr, NC, NC, NC },
+              }},
+      {{
+          { UART4, g_hw_pins.as5047_sck, g_hw_pins.as5047_miso },
+          { nullptr, NC, NC },
+              }},
+    };
   } else {
     mbed_die();
   }
@@ -359,6 +380,24 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
               }},
       {{
           { nullptr, NC, NC, NC },
+          { nullptr, NC, NC, NC },
+              }},
+      {{
+          { USART3, g_hw_pins.abs_scl, g_hw_pins.abs_sda },
+          { nullptr, NC, NC },
+              }},
+          };
+  } else if (g_measured_hw_family == 1) {
+    return aux::AuxHardwareConfig{
+      {{
+          { g_hw_pins.aux_sc1,  1, 5,  aux::kNoI2c },
+          { g_hw_pins.aux_sc2,  2, 15, aux::kNoI2c },
+          { g_hw_pins.abs_scl, -1, 0,  aux::kScl },
+          { g_hw_pins.abs_sda, -1, 0,  aux::kSda },
+          { NC,             -1, 0,  aux::kNoI2c },
+              }},
+      {{
+          { SPI2   , PB_13, PB_14, PB_15 },
           { nullptr, NC, NC, NC },
               }},
       {{

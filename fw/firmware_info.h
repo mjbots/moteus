@@ -25,7 +25,8 @@ namespace moteus {
 class FirmwareInfo {
  public:
   FirmwareInfo(mjlib::micro::Pool&, mjlib::micro::TelemetryManager&,
-               uint32_t version, uint32_t model);
+               uint32_t version,
+               uint32_t model);
   ~FirmwareInfo();
 
   uint32_t model_number() const;

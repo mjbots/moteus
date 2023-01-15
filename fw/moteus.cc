@@ -145,7 +145,14 @@ int main(void) {
 
   SetupClock();
 
-  const auto family_and_version = DetectMoteusFamily();
+  // I initially used a Ticker here to enqueue events at 1ms
+  // intervals.  However, it introduced jitter into the current
+  // sampling interrupt, and I couldn't figure out how to get the
+  // interrupt priorities right.  Thus for now we just poll to look
+  // for millisecond turnover.
+  MillisecondTimer timer;
+
+  const auto family_and_version = DetectMoteusFamily(&timer);
   g_measured_hw_family = family_and_version.family;
   g_measured_hw_rev = family_and_version.hw_version;
 
@@ -160,13 +167,6 @@ int main(void) {
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
   }
 #endif
-
-  // I initially used a Ticker here to enqueue events at 1ms
-  // intervals.  However, it introduced jitter into the current
-  // sampling interrupt, and I couldn't figure out how to get the
-  // interrupt priorities right.  Thus for now we just poll to look
-  // for millisecond turnover.
-  MillisecondTimer timer;
 
   // Turn on our power light.
   DigitalOut power_led(g_hw_pins.power_led, 0);

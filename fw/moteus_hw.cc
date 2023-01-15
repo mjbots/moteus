@@ -16,6 +16,8 @@
 
 #include "mjlib/base/assert.h"
 
+#include "fw/stm32_spi.h"
+
 namespace moteus {
 
 namespace {
@@ -48,11 +50,60 @@ constexpr int kFamily0HardwareInterlock[] = {
   3,   // r4.5b-r4.8
   4,   // r4.10
 };
+
 }
 
-FamilyAndVersion DetectMoteusFamily() {
+FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
+  timer->wait_ms(2);
+
   FamilyAndVersion result;
   result.family = 0;
+
+  // We check for family 1, "moteus hp", by seeing if we can find a
+  // DRV8323 on a chip select that is different from that used on all
+  // family 0 boards.
+  {
+    // Ensure that on family 0 boards, the drv8323 will be not
+    // selected.
+    DigitalOut family0_drv8323_cs(PC_4, 1);
+    DigitalOut drv8323_family1_enable(PC_14, 1);
+
+    // Wait 1ms after enabling.
+    timer->wait_us(1000);
+
+    Stm32Spi maybe_drv8323(
+        [&]() {
+          Stm32Spi::Options out;
+          out.mosi = PA_7;
+          out.miso = PA_6;
+          out.sck = PA_5;
+          out.cs = PB_0;
+
+          // We can use a slow speed since this is just a one-time
+          // test.
+          out.frequency = 500000;
+          return out;
+        }());
+    pin_mode(PA_6, PullUp);
+    auto read_reg =
+        [&](int reg) {
+          timer->wait_us(1);
+          return maybe_drv8323.write(0x8000 | (reg << 11)) & 0x7ff;
+        };
+    bool found = false;
+    for (int reg = 2; reg < 6; reg++) {
+      const auto value = read_reg(reg);
+      if (value != 0x7ff) {
+        found = true;
+        break;
+      }
+    }
+
+    if (found) {
+      result.family = 1;
+    }
+  }
+
 
   if (result.family == 0) {
     DigitalIn hwrev0(PC_6, PullUp);
@@ -76,6 +127,13 @@ FamilyAndVersion DetectMoteusFamily() {
         }();
     result.hw_version = measured_hw_rev;
   } else if (result.family == 1) {
+    AnalogIn board_rev(PA_4);
+    const uint16_t this_reading = board_rev.read_u16();
+    if (this_reading < 0x1000) {
+      result.hw_version = 0;
+    } else {
+      mbed_die();
+    }
   } else {
     MJ_ASSERT(false);
   }
@@ -109,8 +167,62 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.vsense_adc_scale =
         (hv <= 5 ? 0.00884f : 0.017947f);
+
+    result.drv8323_enable = PA_3;
+    result.drv8323_hiz = PB_7;
+    result.drv8323_cs = PC_4;
+    result.drv8323_fault = PB_6;
+
+    // We've picked these particular pins so that all 3 channels are
+    // one of the "slow" channels so they will have similar analog
+    // performance characteristics.
+    result.current1 = PB_0_ALT0;
+    result.current2 = PB_1;
+    result.current3 = PB_2;
+
+    result.as5047_mosi = PB_15;
+    result.as5047_miso = PB_14;
+    result.as5047_sck = PB_13;
+    result.as5047_cs = PB_11;
+
+    result.external_encoder_cs = PC_13;
+
+    result.debug1 = PC_14;
+    result.debug2 = PC_15;
   } else {
-    mbed_die();
+    result.drv8323_enable = PC_14;
+    result.drv8323_hiz = PC_15;
+    result.drv8323_cs = PB_0;
+    result.drv8323_fault = PC_13;
+
+    // Family 1 devices should have all current sense inputs on "fast"
+    // channels.
+    result.current1 = PA_3;
+    result.current2 = PC_4;
+    result.current3 = PB_1;
+
+    result.vsense = PA_9;
+    result.tsense = PB_12;
+    result.msense = PA_8;
+
+    result.vsense_adc_scale = 0.017947f;
+
+    result.uart_tx = PB_6;
+    result.uart_rx = PB_7;
+
+    result.as5047_mosi = PB_5_ALT0;
+    result.as5047_miso = PC_11;
+    result.as5047_sck = PC_10;
+    result.as5047_cs = PB_4;
+
+    result.external_encoder_cs = PB_2;
+    result.primary_extra = PB_11;
+
+    result.aux_sc1 = PB_15;
+    result.aux_sc2 = PB_14;
+
+    result.debug1 = NC;
+    result.debug2 = NC;
   }
 
   return result;

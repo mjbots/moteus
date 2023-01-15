@@ -24,6 +24,7 @@ struct Info {
   uint32_t version = 0;
   std::array<uint32_t, 3> serial_number = {};
   uint32_t model = 0;
+  uint8_t family = g_measured_hw_family;
   uint8_t hwrev = g_measured_hw_rev;
 
   template <typename Archive>
@@ -31,6 +32,7 @@ struct Info {
     a->Visit(MJ_NVP(version));
     a->Visit(MJ_NVP(serial_number));
     a->Visit(MJ_NVP(model));
+    a->Visit(MJ_NVP(family));
     a->Visit(MJ_NVP(hwrev));
   }
 };
@@ -41,7 +43,8 @@ struct Info {
 
 class FirmwareInfo::Impl {
  public:
-  Impl(mjlib::micro::TelemetryManager& telemetry, uint32_t version,
+  Impl(mjlib::micro::TelemetryManager& telemetry,
+       uint32_t version,
        uint32_t model) {
     info_.version = version;
     info_.model = model;

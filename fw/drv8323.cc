@@ -53,7 +53,8 @@ class Drv8323::Impl {
             // Silk 4.1 and below lacked a pullup resistor on MISO.
             // Newer versions have a pullup resistor and can go
             // faster.
-            out.frequency = g_measured_hw_rev <= 3 ? 500000 : 1000000;
+            out.frequency = (g_measured_hw_family == 0 &&
+                             g_measured_hw_rev <= 3) ? 500000 : 1000000;
 
             return out;
           }()),
