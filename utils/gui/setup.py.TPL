@@ -57,8 +57,8 @@ setuptools.setup(
         # doesn't actually list it as a dependency on Windows.
         'msvc-runtime;platform_system=="Windows"',
         'numpy',
-        'PySide2;platform_system!="Darwin"',
-        'PySide6>=6.2;platform_system=="Darwin"',
+        'PySide2;platform_system=="Linux"',
+        'PySide6>=6.2;platform_system!="Linux"',
         'qtconsole>=0.5.2',
         'qtpy>=2.0.1',
     ],
