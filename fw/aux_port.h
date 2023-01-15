@@ -548,8 +548,6 @@ class AuxPort {
   }
 
   void PollI2c() {
-    const auto current_time = timer_->read_ms();
-
     using DC = aux::I2C::DeviceConfig;
 
     for (size_t i = 0; i < i2c_state_.size(); i++) {
@@ -558,9 +556,10 @@ class AuxPort {
 
       if (config.type == DC::kNone) { continue; }
 
-      if (static_cast<int32_t>(current_time - state.last_poll_ms) >=
-          config.poll_ms) {
-        state.last_poll_ms = current_time;
+      state.ms_since_last_poll++;
+
+      if (state.ms_since_last_poll >= config.poll_ms) {
+        state.ms_since_last_poll = 0;
         state.pending = true;
 
         switch (config.type) {
@@ -921,7 +920,7 @@ class AuxPort {
   std::optional<Stm32I2c> i2c_;
 
   struct I2cState {
-    uint32_t last_poll_ms = 0;
+    int32_t ms_since_last_poll = 0;
     bool pending = false;
   };
 

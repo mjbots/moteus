@@ -25,7 +25,7 @@ namespace moteus {
 class MillisecondTimer {
  public:
   MillisecondTimer() {
-    __HAL_RCC_TIM5_CLK_ENABLE();
+    TIM_MST_RCC;
 
     constexpr int kExtraPrescaler =
 #if defined(TARGET_STM32G4)
@@ -35,8 +35,12 @@ class MillisecondTimer {
 #endif
         ;
 
-    handle_.Instance = TIM5;
-    handle_.Init.Period = 0xFFFFFFFF;
+    handle_.Instance = TIM_MST;
+#if TIM_MST_BIT_WIDTH == 32
+    handle_.Init.Period = 0xffffffff;
+#elif TIM_MST_BIT_WIDTH == 16
+    handle_.Init.Period = 0xffff;
+#endif
     handle_.Init.Prescaler =
         (uint32_t)(SystemCoreClock / kExtraPrescaler /
                    1000000U) - 1;  // 1 us tick
@@ -47,12 +51,24 @@ class MillisecondTimer {
     HAL_TIM_Base_Init(&handle_);
   }
 
-  uint32_t read_ms() {
-    return TIM5->CNT / 1000;
+#if TIM_MST_BIT_WIDTH == 32
+  using TimerType = uint32_t;
+#elif TIM_MST_BIT_WIDTH == 16
+  using TimerType = uint16_t;
+#else
+# error "unsupported timer"
+#endif
+
+  TimerType read_ms() {
+    return TIM_MST->CNT / 1000;
   }
 
-  uint32_t read_us() {
-    return TIM5->CNT;
+  TimerType read_us() {
+    return TIM_MST->CNT;
+  }
+
+  static TimerType subtract_us(TimerType a, TimerType b) {
+    return static_cast<TimerType>(a - b);
   }
 
   void wait_ms(uint32_t delay_ms) {
@@ -60,11 +76,19 @@ class MillisecondTimer {
   }
 
   void wait_us(uint32_t delay_us) {
-    uint32_t current = TIM5->CNT;
-    uint32_t elapsed = 0;
+    while (delay_us > 50000) {
+      wait_us_helper(50000);
+      delay_us -= 50000;
+    }
+    wait_us_helper(delay_us);
+  }
+
+  void wait_us_helper(uint32_t delay_us) {
+    TimerType current = TIM_MST->CNT;
+    TimerType elapsed = 0;
     while (true) {
-      const uint32_t next = TIM5->CNT;
-      elapsed += next - current;
+      const TimerType next = TIM_MST->CNT;
+      elapsed += static_cast<TimerType>(next - current);
       // We check delay_us + 1 since we don't know where in the
       // current microsecond we started.
       if (elapsed >= (delay_us + 1)) { return; }

@@ -92,6 +92,12 @@ mbed_repository(
 
         "MBED_APP_START": "0x8010000",
         "MBED_APP_SIZE":  "0x0070000",
+
+        "MBED_US_TIMER_TIM": "TIM15",
+        "MBED_US_TIMER_TIM_USCORE": "TIM15_",
+        "MBED_US_TIMER_USCORE_TIM": "_TIM15",
+        "TIM_MST_IRQ": "TIM1_BRK_TIM15_IRQn",
+        "TIM_MST_BIT_WIDTH": "16",
     },
 )
 

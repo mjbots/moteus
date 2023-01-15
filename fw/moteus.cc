@@ -128,7 +128,8 @@ class ClockManager {
   void Command(const std::string_view& command,
                const micro::CommandManager::Response& response) {
     if (command == "us") {
-      snprintf(output_, sizeof(output_), "%" PRIu32 "\r\n", timer_->read_us());
+      snprintf(output_, sizeof(output_), "%" PRIu32 "\r\n",
+               static_cast<uint32_t>(timer_->read_us()));
       WriteMessage(output_, response);
     } else {
       WriteMessage("ERR unknown clock\r\n", response);
@@ -346,7 +347,7 @@ int main(void) {
   command_manager.AsyncStart();
   multiplex_protocol.Start(moteus_controller.multiplex_server());
 
-  auto old_time = timer.read_ms();
+  auto old_time = timer.read_us();
 
   for (;;) {
     rs485.Poll();
@@ -356,16 +357,17 @@ int main(void) {
     moteus_controller.Poll();
     multiplex_protocol.Poll();
 
-    const auto new_time = timer.read_ms();
+    const auto new_time = timer.read_us();
 
-    if (new_time != old_time) {
+    const auto delta_us = MillisecondTimer::subtract_us(new_time, old_time);
+    if (delta_us >= 1000) {
       telemetry_manager.PollMillisecond();
       system_info.PollMillisecond();
       moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
       system_info.SetCanResetCount(fdcan_micro_server.can_reset_count());
 
-      old_time = new_time;
+      old_time += 1000;
     }
 
     SystemInfo::idle_count++;
