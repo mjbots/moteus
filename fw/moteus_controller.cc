@@ -663,7 +663,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return ScaleCurrent(bldc_.status().d_A, type);
       }
       case Register::kAbsPosition: {
-        return ScalePosition(bldc_.motor_position().sources[1].filtered_value, type);
+        return ScalePosition(encoder_value(1).filtered_value / encoder_config(1).cpr, type);
       }
       case Register::kTrajectoryComplete: {
         return IntMapping(bldc_.status().trajectory_done ? 1 : 0, type);
