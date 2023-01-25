@@ -2027,6 +2027,13 @@ Or, if already built, flashed using:
 ./fw/flash.py
 ```
 
+This may require the appropriate binutils to be installed, on Ubuntu
+this can be accomplished with:
+
+```
+sudo apt install binutils-arm-none-eabi
+```
+
 ### openocd ###
 
 openocd 0.11.0 or newer is required.  You can find binaries for many
