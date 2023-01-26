@@ -434,7 +434,7 @@ be set to NOP (0x50).
 
 #### A.1.d Errors ####
 
-*0x30, 0x31* - read/write error
+*0x30, 0x31* - write/read error
 
 - `varuint` => register number
 - `varuint` => error number
