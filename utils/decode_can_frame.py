@@ -205,11 +205,11 @@ def format_value(reg, typecode, value):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('hexcan', nargs='?',
+    parser.add_argument('hexcan', nargs='*',
                         help='Hex encoded CAN frame')
     args = parser.parse_args()
 
-    stream = Stream(bytes.fromhex(args.hexcan))
+    stream = Stream(bytes.fromhex(''.join(args.hexcan)))
 
     while stream.remaining():
         data, cmd = stream.read_int8()
