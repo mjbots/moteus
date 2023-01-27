@@ -97,6 +97,7 @@ MOTEUS_SOURCES = [
     "board_debug.h",
     "board_debug.cc",
     "bootloader.h",
+    "clock_manager.h",
     "drv8323.h",
     "drv8323.cc",
     "error.cc",

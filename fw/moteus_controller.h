@@ -19,8 +19,10 @@
 #include "mjlib/multiplex/micro_server.h"
 
 #include "fw/bldc_servo.h"
+#include "fw/clock_manager.h"
 #include "fw/firmware_info.h"
 #include "fw/millisecond_timer.h"
+#include "fw/system_info.h"
 
 namespace moteus {
 
@@ -33,6 +35,8 @@ class MoteusController {
                    mjlib::micro::CommandManager* command_manager,
                    mjlib::micro::TelemetryManager* telemetry_manager,
                    mjlib::multiplex::MicroServer* multiplex_protocol,
+                   ClockManager*,
+                   SystemInfo*,
                    MillisecondTimer*,
                    FirmwareInfo*);
   ~MoteusController();

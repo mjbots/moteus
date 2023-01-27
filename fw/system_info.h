@@ -30,6 +30,8 @@ class SystemInfo {
   void PollMillisecond();
   void SetCanResetCount(uint32_t);
 
+  uint32_t millisecond_counter() const;
+
   // Increment this from an idle thread.
   static volatile uint32_t idle_count;
 
