@@ -424,7 +424,7 @@ class MotorPosition {
           const float source_rate_hz =
               1000.0f /
               aux_config->i2c.devices[source_config.i2c_device].poll_ms;
-          const float max_pll_hz = source_rate_hz / 10.0f;
+          const float max_pll_hz = source_rate_hz / 5.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);
           break;

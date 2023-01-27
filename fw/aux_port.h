@@ -692,7 +692,7 @@ class AuxPort {
     cosine_pin_ = -1;
 
     for (auto& device : config_.i2c.devices) {
-      device.poll_ms = std::max<int32_t>(5, device.poll_ms);
+      device.poll_ms = std::max<int32_t>(1, device.poll_ms);
     }
 
     const bool any_i2c =
