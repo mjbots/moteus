@@ -1027,6 +1027,27 @@ registers are associated with pins 1-5, regardless of whether they are
 configured as an analog input.  Each value is scaled as a PWM from 0
 to 1.
 
+### 0x070 - Millisecond Counter ###
+
+Mode: Read only
+
+Increments once per millisecond.  It wraps at the maximum value for
+the queried type to the minimum value for that type.  For floating
+point types, it counts integers from 0 to 8388608.
+
+### 0x071 - Clock Trim ###
+
+Mode: Read/write
+
+An integer which can trim the clock rate of the microprocessor on the
+moteus controller.  Positive values speed it up and negative values
+slow it down.  Each integer step roughly corresponds to a 0.25% change
+in speed.
+
+WARNING: Changing the speed affects all processes driven by the
+microcontroller, including CAN communication.  Thus setting this to a
+non-zero value may prevent future CAN communications.
+
 
 ### 0x100 - Model Number ###
 

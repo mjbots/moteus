@@ -245,6 +245,9 @@ class Register(enum.IntEnum):
     AUX2_ANALOG_IN4 = 0x06b
     AUX2_ANALOG_IN5 = 0x06c
 
+    MILLISECOND_COUNTER = 0x070
+    CLOCK_TRIM = 0x071
+
     REGISTER_MAP_VERSION = 0x102
     SERIAL_NUMBER = 0x120
     SERIAL_NUMBER1 = 0x120
@@ -481,6 +484,10 @@ def parse_register(parser, register, resolution):
           register == Register.AUX2_ANALOG_IN4 or
           register == Register.AUX2_ANALOG_IN5):
         return parser.read_pwm(resolution)
+    elif register == Register.MILLISECOND_COUNTER:
+        return parser.read_int(resolution)
+    elif register == Register.CLOCK_TRIM:
+        return parser.read_int(resolution)
     else:
         # We don't know what kind of value this is, so we don't know
         # the units.
@@ -652,11 +659,6 @@ class Controller:
 
         return buf.getvalue()
 
-    def _extract(self, value):
-        if len(value):
-            return value[0]
-        return None
-
     def _make_command(self, *, query, source=0):
         result = cmd.Command()
 
@@ -674,8 +676,32 @@ class Controller:
         return result;
 
     async def query(self, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_query(**kwargs)]))
+        return await self.execute(self.make_query(**kwargs))
+
+    def make_custom_query(self, to_query_fields):
+        """Return a moteus.Command structure with data required to query the
+        registers given by the 'to_query_fields' dictionary of
+        registers to resolutions.
+        """
+
+        result = self._make_command(query=True)
+
+        buf = io.BytesIO()
+        writer = Writer(buf)
+
+        min_val = int(min(to_query_fields.keys()))
+        max_val = int(max(to_query_fields.keys()))
+        c = mp.WriteCombiner(writer, 0x10, min_val,
+                             [to_query_fields.get(i, mp.IGNORE)
+                              for i in range(min_val, max_val + 1)])
+        for _ in range(min_val, max_val + 1):
+            c.maybe_write()
+
+        result.data = buf.getvalue()
+        return result
+
+    async def custom_query(self, *args, **kwargs):
+        return await self.execute(self.make_custom_query(*args, **kwargs))
 
     def make_stop(self, *, query=False):
         """Return a moteus.Command structure with data necessary to send a
@@ -697,8 +723,7 @@ class Controller:
         return result
 
     async def set_stop(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_stop(**kwargs)]))
+        return await self.execute(self.make_stop(**kwargs))
 
     def make_set_output(self, *,
                         position=0.0,
@@ -735,8 +760,7 @@ class Controller:
             position=position, query=query, cmd=Register.SET_OUTPUT_EXACT)
 
     async def set_output(self, *args, cmd=None, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_set_output(**kwargs, cmd=cmd)]))
+        return await self.execute(self.make_set_output(**kwargs, cmd=cmd))
 
     async def set_output_nearest(self, *args, **kwargs):
         return await self.set_output(cmd=Register.SET_OUTPUT_NEAREST, **kwargs)
@@ -754,8 +778,7 @@ class Controller:
             position=rezero, query=query, cmd=Register.SET_OUTPUT_NEAREST)
 
     async def set_rezero(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_rezero(**kwargs)]))
+        return await self.execute(self.make_rezero(**kwargs))
 
 
     def make_position(self,
@@ -833,8 +856,7 @@ class Controller:
         return result
 
     async def set_position(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_position(**kwargs)]))
+        return await self.execute(self.make_position(**kwargs))
 
     def make_vfoc(self,
                   *,
@@ -889,8 +911,7 @@ class Controller:
         return result
 
     async def set_vfoc(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_vfoc(**kwargs)]))
+        return await self.execute(self.make_vfoc(**kwargs))
 
     def make_current(self,
                      *,
@@ -934,8 +955,7 @@ class Controller:
         return result
 
     async def set_current(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_current(**kwargs)]))
+        return await self.execute(self.make_current(**kwargs))
 
     def make_stay_within(
             self,
@@ -999,8 +1019,7 @@ class Controller:
         return result
 
     async def set_stay_within(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_stay_within(**kwargs)]))
+        return await self.execute(self.make_stay_within(**kwargs))
 
     def make_brake(self, *, query=False):
         result = self._make_command(query=query)
@@ -1019,8 +1038,7 @@ class Controller:
         return result
 
     async def set_brake(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_brake(**kwargs)]))
+        return await self.execute(self.make_brake(**kwargs))
 
     def make_write_gpio(self, aux1=None, aux2=None, query=False):
         """Return a moteus.Command structure with data necessary to set one or
@@ -1053,8 +1071,7 @@ class Controller:
         return result
 
     async def set_write_gpio(self, *args, **kwargs):
-        return self._extract(await self._get_transport().cycle(
-            [self.make_write_gpio(**kwargs)]))
+        return await self.execute(self.make_write_gpio(**kwargs))
 
     def make_read_gpio(self):
         """Return a moteus.Command structure with data necessary to read all
@@ -1108,7 +1125,7 @@ class Controller:
         return result
 
     async def send_diagnostic_write(self, *args, **kwargs):
-        await self._get_transport().cycle([self.make_diagnostic_write(**kwargs)])
+        await self.execute(self.make_diagnostic_write(**kwargs))
 
     def make_diagnostic_read(self, max_length=48, channel=1):
         result = self._make_command(query=True)
@@ -1125,8 +1142,30 @@ class Controller:
         return result
 
     async def diagnostic_read(self, *args, **kwargs):
-        return await self._get_transport().cycle(
-            [self.make_diagnostic_read(**kwargs)])
+        return await self.execute(self.make_diagnostic_read(**kwargs))
+
+    def make_set_trim(self, *, trim=0):
+        result = self._make_command(query=False)
+
+        buf = io.BytesIO()
+        writer = Writer(buf)
+        writer.write_int8(mp.WRITE_INT32 | 0x01)
+        writer.write_varuint(Register.CLOCK_TRIM)
+        writer.write_int32(trim)
+
+        result.data = buf.getvalue()
+        return result
+
+    async def set_trim(self, *args, **kwargs):
+        return await self.execute(self.make_set_trim(*args, **kwargs))
+
+    def _extract(self, value):
+        if len(value):
+            return value[0]
+        return None
+
+    async def execute(self, command):
+        return self._extract(await self._get_transport().cycle([command]))
 
 
 class CommandError(RuntimeError):

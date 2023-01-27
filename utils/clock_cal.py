@@ -38,7 +38,7 @@ async def main():
     old_us = None
 
     for i in range(5):
-        us = int(await s.command(b'clock us', allow_any_response=True))
+        us = (await s.read_data('system_info')).ms_count * 1000
         now = time.time()
 
         if old_time is not None:

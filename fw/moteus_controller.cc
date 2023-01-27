@@ -300,6 +300,9 @@ enum class Register {
   kAux2AnalogIn4 = 0x06b,
   kAux2AnalogIn5 = 0x06c,
 
+  kMillisecondCounter = 0x070,
+  kClockTrim = 0x071,
+
   kModelNumber = 0x100,
   kFirmwareVersion = 0x101,
   kRegisterMapVersion = 0x102,
@@ -358,6 +361,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        micro::CommandManager* command_manager,
        micro::TelemetryManager* telemetry_manager,
        multiplex::MicroServer* multiplex_protocol,
+       ClockManager* clock_manager,
+       SystemInfo* system_info,
        MillisecondTimer* timer,
        FirmwareInfo* firmware)
       : aux1_port_("aux1", "ic_pz1", kAux1PortHardwareConfig,
@@ -415,6 +420,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
 
             return options;
           }()),
+        clock_manager_(clock_manager),
+        system_info_(system_info),
         firmware_(firmware) {}
 
   void Start() {
@@ -573,6 +580,11 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return 0;
       }
 
+      case Register::kClockTrim: {
+        clock_manager_->SetTrim(ReadIntMapping(value));
+        return 0;
+      }
+
       case Register::kSetOutputNearest: {
         const float position = ReadPosition(value);
         bldc_.SetOutputPositionNearest(position);
@@ -630,6 +642,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kAux2AnalogIn3:
       case Register::kAux2AnalogIn4:
       case Register::kAux2AnalogIn5:
+      case Register::kMillisecondCounter:
       case Register::kModelNumber:
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
@@ -885,6 +898,19 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             static_cast<int>(reg) - static_cast<int>(Register::kAux2AnalogIn1);
         return ScalePwm(bldc_.aux2().analog_inputs[pin], type);
       }
+      case Register::kMillisecondCounter: {
+        const uint32_t ms_counter = system_info_->millisecond_counter();
+        switch (type) {
+          case 0: return static_cast<int8_t>(ms_counter % 256);
+          case 1: return static_cast<int16_t>(ms_counter % 65536);
+          case 2: return static_cast<int32_t>(ms_counter);
+          case 3: return static_cast<float>(ms_counter % 8388608);
+        }
+        break;
+      }
+      case Register::kClockTrim: {
+        return IntMapping(clock_manager_->trim(), type);
+      }
 
       case Register::kModelNumber: {
         if (type != 2) { break; }
@@ -931,6 +957,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   MotorPosition motor_position_;
   Drv8323 drv8323_;
   BldcServo bldc_;
+  ClockManager* const clock_manager_;
+  SystemInfo* const system_info_;
   FirmwareInfo* const firmware_;
 
   bool command_valid_ = false;
@@ -942,10 +970,12 @@ MoteusController::MoteusController(micro::Pool* pool,
                                    micro::CommandManager* command_manager,
                                    micro::TelemetryManager* telemetry_manager,
                                    multiplex::MicroServer* multiplex_protocol,
+                                   ClockManager* clock_manager,
+                                   SystemInfo* system_info,
                                    MillisecondTimer* timer,
                                    FirmwareInfo* firmware)
     : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
-            multiplex_protocol, timer, firmware) {}
+            multiplex_protocol, clock_manager, system_info, timer, firmware) {}
 
 MoteusController::~MoteusController() {}
 

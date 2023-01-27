@@ -27,6 +27,7 @@
 #include "mjlib/multiplex/micro_stream_datagram.h"
 
 #include "fw/board_debug.h"
+#include "fw/clock_manager.h"
 #include "fw/firmware_info.h"
 #include "fw/git_info.h"
 #include "fw/millisecond_timer.h"
@@ -103,59 +104,6 @@ void SetupClock() {
   }
 #endif
 }
-}
-
-namespace {
-class ClockManager {
- public:
-  ClockManager(MillisecondTimer* timer,
-               micro::PersistentConfig& persistent_config,
-               micro::CommandManager& command_manager)
-      : timer_(timer) {
-    persistent_config.Register("clock", &clock_, [this]() {
-        this->UpdateConfig();
-      });
-    command_manager.Register("clock", [this](auto&& command, auto&& response) {
-        this->Command(command, response);
-      });
-  }
-
-  void UpdateConfig() {
-    const int32_t trim = std::max<int32_t>(0, std::min<int32_t>(127, clock_.hsitrim));
-    RCC->ICSCR = (RCC->ICSCR & ~0xff000000) | (trim << 24);
-  }
-
-  void Command(const std::string_view& command,
-               const micro::CommandManager::Response& response) {
-    if (command == "us") {
-      snprintf(output_, sizeof(output_), "%" PRIu32 "\r\n",
-               static_cast<uint32_t>(timer_->read_us()));
-      WriteMessage(output_, response);
-    } else {
-      WriteMessage("ERR unknown clock\r\n", response);
-    }
-  }
-
-  void WriteMessage(const std::string_view& message,
-                    const micro::CommandManager::Response& response) {
-    micro::AsyncWrite(*response.stream, message, response.callback);
-  }
-
- private:
-  struct Config {
-    int32_t hsitrim = 64;
-
-    template <typename Archive>
-    void Serialize(Archive* a) {
-      a->Visit(MJ_NVP(hsitrim));
-    }
-  };
-
-  MillisecondTimer* const timer_;
-  Config clock_;
-  char output_[16] = {};
-};
-
 }
 
 #if defined(TARGET_STM32G4)
@@ -308,6 +256,8 @@ int main(void) {
       &command_manager,
       &telemetry_manager,
       &multiplex_protocol,
+      &clock,
+      &system_info,
       &timer,
       &firmware_info);
 
