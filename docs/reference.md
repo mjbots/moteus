@@ -240,7 +240,8 @@ register protocol.
 
 Pins: select
 
-Nothing is supported here yet, but soon!
+Currently supported are the RLS AksIM-2 encoder, and a transparent
+UART tunnel.
 
 ### Pin Options ###
 
@@ -1858,6 +1859,28 @@ access.
 The frequency to operate the SPI bus at.  The default is 12000000,
 which is required for AS5047P devices.  Other devices may support
 lower rates.
+
+## `aux[12].uart.mode` ##
+
+The type of UART device.
+
+* 0 - Disabled
+* 1 - RLS AksIM-2
+* 2 - Tunnel
+* 3 - Per-control cycle debug information (undocumented)
+
+When the tunnel mode is selected, data may be sent or received using
+the CAN diagnostic protocol.  For aux1, use diagnostic channel 2.  For
+aux2, use diagnostic channel 3.
+
+## `aux[12].uart.baud_rate` ##
+
+The baud rate to use for the UART.
+
+## `aux[12].uart.poll_rate_us` ##
+
+For encoder modes, the interval at which to poll the encoder for new
+position information.
 
 ## `aux[12].quadrature.enabled` ##
 
