@@ -143,6 +143,8 @@ class Drv8323::Impl {
     s.vds_hc = bit(0, 1);
     s.vds_lc = bit(0, 0);
 
+    s.fsr1 = status[0];
+
     s.sa_oc = bit(1, 10);
     s.sb_oc = bit(1, 9);
     s.sc_oc = bit(1, 8);
@@ -154,6 +156,8 @@ class Drv8323::Impl {
     s.vgs_lb = bit(1, 2);
     s.vgs_hc = bit(1, 1);
     s.vgs_lc = bit(1, 0);
+
+    s.fsr2 = status[1];
 
     s.status_count++;
 

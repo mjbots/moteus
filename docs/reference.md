@@ -1091,6 +1091,24 @@ position be re-located before control can begin.  Regardless, the
 position will reset to an arbitrary value consistent with the current
 encoder settings.
 
+### 0x140 - Driver Fault 1 ###
+
+Mode: Read only
+
+The exact bitfield reported by the motor driver in fault conditions
+for fault register 1.  Up to 16 bits may be set.  This will only be
+non-zero if the current mode is fault (1) and the fault code is 33
+(motor driver fault).
+
+### 0x141 - Driver Fault 2 ###
+
+Mode: Read only.
+
+The exact bitfield reported by the motor driver in fault conditions
+for fault register 2.  Up to 16 bits may be set.  This will only be
+non-zero if the current mode is fault (1) and the fault code is 33
+(motor driver fault).
+
 ## A.3 Example ##
 
 A single CAN-FD frame can be used to command the servo, and initiate a

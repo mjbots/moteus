@@ -73,6 +73,8 @@ class Drv8323 : public MotorDriver {
     bool vds_hc = false;   // vds overcurrent fault on C high
     bool vds_lc = false;   // vds overcurrent fault on C low
 
+    uint16_t fsr1 = 0;
+
     // Fault Status Register 2
     bool sa_oc = false;   // overcurrent on phase A sense amp
     bool sb_oc = false;   // overcurrent on phase B sense amp
@@ -85,6 +87,8 @@ class Drv8323 : public MotorDriver {
     bool vgs_lb = false;  // gate drive fault on B low
     bool vgs_hc = false;  // gate drive fault on C high
     bool vgs_lc = false;  // gate drive fault on C low
+
+    uint16_t fsr2 = 0;
 
     // Whether a fault was signaled over the hard-line.
     bool fault_line = false;
@@ -115,6 +119,8 @@ class Drv8323 : public MotorDriver {
       a->Visit(MJ_NVP(vds_hc));
       a->Visit(MJ_NVP(vds_lc));
 
+      a->Visit(MJ_NVP(fsr1));
+
       a->Visit(MJ_NVP(sa_oc));
       a->Visit(MJ_NVP(sb_oc));
       a->Visit(MJ_NVP(sc_oc));
@@ -126,6 +132,8 @@ class Drv8323 : public MotorDriver {
       a->Visit(MJ_NVP(vgs_lb));
       a->Visit(MJ_NVP(vgs_hc));
       a->Visit(MJ_NVP(vgs_lc));
+
+      a->Visit(MJ_NVP(fsr2));
 
       a->Visit(MJ_NVP(fault_line));
       a->Visit(MJ_NVP(power));

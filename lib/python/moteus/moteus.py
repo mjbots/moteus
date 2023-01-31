@@ -255,6 +255,9 @@ class Register(enum.IntEnum):
     SET_OUTPUT_NEAREST = 0x130
     SET_OUTPUT_EXACT = 0x131
 
+    DRIVER_FAULT1 = 0x140
+    DRIVER_FAULT2 = 0x141
+
 
 class Mode(enum.IntEnum):
     """Valid values for the Register.MODE register"""

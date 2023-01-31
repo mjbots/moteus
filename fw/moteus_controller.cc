@@ -312,6 +312,9 @@ enum class Register {
   kSetOutputNearest = 0x130,
   kSetOutputExact = 0x131,
   kRequireReindex = 0x132,
+
+  kDriverFault1 = 0x140,
+  kDriverFault2 = 0x141,
 };
 
 constexpr aux::AuxHardwareConfig kAux1PortHardwareConfig = {
@@ -636,7 +639,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kSerialNumber3:
       case Register::kRegisterMapVersion:
       case Register::kFirmwareVersion:
-      case Register::kMultiplexId: {
+      case Register::kMultiplexId:
+      case Register::kDriverFault1:
+      case Register::kDriverFault2: {
         // Not writeable
         return 2;
       }
@@ -919,6 +924,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kSetOutputExact:
       case Register::kRequireReindex: {
         break;
+      }
+      case Register::kDriverFault1: {
+        return IntMapping(drv8323_.status()->fsr1, type);
+      }
+      case Register::kDriverFault2: {
+        return IntMapping(drv8323_.status()->fsr2, type);
       }
     }
 
