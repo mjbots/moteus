@@ -66,8 +66,6 @@ struct ServoStats {
 
   PidPosition pid_position;
 
-  std::optional<int64_t> control_position;
-
   uint32_t final_timer = 0;
   uint32_t total_timer = 0;
 
@@ -85,7 +83,6 @@ struct ServoStats {
     a->Visit(MJ_NVP(velocity));
 
     a->Visit(MJ_NVP(pid_position));
-    a->Visit(MJ_NVP(control_position));
 
     a->Visit(MJ_NVP(final_timer));
     a->Visit(MJ_NVP(total_timer));
