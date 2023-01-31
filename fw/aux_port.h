@@ -138,10 +138,21 @@ class AuxPort {
 
     if (config_.hall.enabled) {
       status_.hall.active = true;
+      const auto old_bits = status_.hall.bits;
       status_.hall.bits =
           ((halla_->read() ? 1 : 0) << 0) |
           ((hallb_->read() ? 1 : 0) << 1) |
           ((hallc_->read() ? 1 : 0) << 2);
+      const auto delta = status_.hall.bits ^ old_bits;
+      const auto numbits_changed =
+          (delta & 0x01) ? 1 : 0 +
+          (delta & 0x02) ? 1 : 0 +
+          (delta & 0x04) ? 1 : 0;
+
+      if (numbits_changed > 1) {
+        status_.hall.error++;
+      }
+
       static constexpr uint8_t kHallMapping[] = {
         0,  // invalid
         0,  // 0b001 => 0
