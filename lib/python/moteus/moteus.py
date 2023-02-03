@@ -1128,7 +1128,7 @@ class Controller:
         return result
 
     async def send_diagnostic_write(self, *args, **kwargs):
-        await self.execute(self.make_diagnostic_write(**kwargs))
+        await self._get_transport().cycle([self.make_diagnostic_write(**kwargs)])
 
     def make_diagnostic_read(self, max_length=48, channel=1):
         result = self._make_command(query=True)
@@ -1145,7 +1145,8 @@ class Controller:
         return result
 
     async def diagnostic_read(self, *args, **kwargs):
-        return await self.execute(self.make_diagnostic_read(**kwargs))
+        return await self._get_transport().cycle(
+            [self.make_diagnostic_read(**kwargs)])
 
     def make_set_trim(self, *, trim=0):
         result = self._make_command(query=False)
