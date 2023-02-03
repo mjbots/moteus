@@ -638,6 +638,7 @@ class Device:
 
             # Try doing it the "new" way first.
             try:
+                raise CommandError('stuff', 'baz')
                 await self.schema_update_config()
                 self._schema_config = True
                 return
@@ -834,9 +835,9 @@ class Device:
             if key == '':
                 item.setText(1, value)
                 item.setFlags(QtCore.Qt.ItemFlags(
-                    int(QtCore.Qt.ItemIsEditable) |
-                    int(QtCore.Qt.ItemIsSelectable) |
-                    int(QtCore.Qt.ItemIsEnabled)))
+                    QtCore.Qt.ItemIsEditable |
+                    QtCore.Qt.ItemIsSelectable |
+                    QtCore.Qt.ItemIsEnabled))
                 return
 
             fields = key.split('.', 1)
