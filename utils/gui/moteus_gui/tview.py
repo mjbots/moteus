@@ -638,7 +638,6 @@ class Device:
 
             # Try doing it the "new" way first.
             try:
-                raise CommandError('stuff', 'baz')
                 await self.schema_update_config()
                 self._schema_config = True
                 return
