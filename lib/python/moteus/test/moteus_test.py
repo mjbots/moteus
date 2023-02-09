@@ -199,6 +199,13 @@ class MoteusTest(unittest.TestCase):
             result.data,
             bytes([0x0d, 0xb0, 0x02, 0x00, 0x00, 0x00, 0x40]))
 
+    def test_make_require_reindex(self):
+        dut = mot.Controller()
+        result = dut.make_require_reindex()
+        self.assertEqual(
+            result.data,
+            bytes([0x01, 0xb2, 0x02, 0x01]))
+
     def test_make_write_gpio(self):
         dut = mot.Controller()
         result = dut.make_write_gpio(aux1=3, aux2=5)

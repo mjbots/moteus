@@ -257,6 +257,7 @@ class Register(enum.IntEnum):
     REZERO = 0x130
     SET_OUTPUT_NEAREST = 0x130
     SET_OUTPUT_EXACT = 0x131
+    REQUIRE_REINDEX = 0x132
 
     DRIVER_FAULT1 = 0x140
     DRIVER_FAULT2 = 0x141
@@ -783,6 +784,20 @@ class Controller:
     async def set_rezero(self, *args, **kwargs):
         return await self.execute(self.make_rezero(**kwargs))
 
+    def make_require_reindex(self):
+        result = self._make_command(query=False)
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_varuint(Register.REQUIRE_REINDEX)
+        writer.write_int8(1)
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def set_require_reindex(self):
+        return await self.execute(self.make_require_reindex())
 
     def make_position(self,
                       *,
