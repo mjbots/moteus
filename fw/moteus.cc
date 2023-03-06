@@ -122,6 +122,7 @@ extern char _sccmram;
 namespace moteus {
 volatile uint8_t g_measured_hw_family;
 volatile uint8_t g_measured_hw_rev;
+volatile uint8_t g_measured_hw_pins;
 MoteusHwPins g_hw_pins;
 }
 
@@ -159,6 +160,7 @@ int main(void) {
   const auto family_and_version = DetectMoteusFamily(&timer);
   g_measured_hw_family = family_and_version.family;
   g_measured_hw_rev = family_and_version.hw_version;
+  g_measured_hw_pins = family_and_version.hw_pins;
 
   g_hw_pins = FindHardwarePins(family_and_version);
 

@@ -82,6 +82,7 @@ struct MoteusHwPins {
 struct FamilyAndVersion {
   int family = 0;
   int hw_version = 0;
+  int hw_pins = 0;
 };
 
 // Return what family we are executing on.

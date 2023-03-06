@@ -114,10 +114,13 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
     // pulled it down, and decided to use PC_13 for something else.
     DigitalIn hwrev2(PA_10, PullUp);
 
+    timer->wait_ms(1);
+
     const uint8_t this_hw_pins =
         0x07 & (~(hwrev0.read() |
                   (hwrev1.read() << 1) |
                   (hwrev2.read() << 2)));
+    result.hw_pins = this_hw_pins;
     const uint8_t measured_hw_rev =
         [&]() {
           int i = 0;
