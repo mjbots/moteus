@@ -308,6 +308,12 @@ class BootloaderServer {
       : id_(id),
         fdcan_(fdcan) {
     uint32_t SramCanInstanceBase = SRAMCAN_BASE;
+    if (fdcan == FDCAN2) {
+      SramCanInstanceBase += SRAMCAN_SIZE;
+    }
+    if (fdcan == FDCAN3) {
+      SramCanInstanceBase += SRAMCAN_SIZE * 2U;
+    }
 
     fdcan_RxFIFO0SA_ = SramCanInstanceBase + SRAMCAN_RF0SA;
     fdcan_TxFIFOQSA_ = SramCanInstanceBase + SRAMCAN_TFQSA;
@@ -769,7 +775,17 @@ MultiplexBootloader(uint8_t source_id,
     NVIC_SetVector(irq, reinterpret_cast<uint32_t>(&BadInterrupt));
   }
 
-  BootloaderServer server(source_id, FDCAN1);
+  // Try to figure out which FDCAN peripheral was in use.  We disable
+  // protocol exception handling on the FDCAN peripheral we use, so
+  // look for that.
+  FDCAN_GlobalTypeDef* fdcan =
+      [&]() {
+        if (FDCAN1->CCCR & FDCAN_CCCR_PXHD) { return FDCAN1; }
+        if (FDCAN2->CCCR & FDCAN_CCCR_PXHD) { return FDCAN2; }
+        if (FDCAN3->CCCR & FDCAN_CCCR_PXHD) { return FDCAN3; }
+        return FDCAN1;
+      }();
+  BootloaderServer server(source_id, fdcan);
   server.Run();
 }
 
