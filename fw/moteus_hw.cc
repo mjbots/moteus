@@ -183,7 +183,10 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
          unsupported());
 
     result.msense =
-        (hv <= 3 ? NC :
+        // Note, the hv <=3 versions don't actually have a motor sense
+        // ADC at all.  So we just pick it the same as the other
+        // temperature sense so that things don't get broken.
+        (hv <= 3 ? PA_9 :
          hv == 4 ? PB_12 :
          hv >= 5 ? PA_8 :
          unsupported());
