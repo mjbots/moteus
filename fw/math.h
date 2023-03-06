@@ -54,13 +54,38 @@ inline int32_t RadiansToQ31(float x) {
   return static_cast<int32_t>(((mod > 0.5f) ? (mod - 1.0f) : mod) * 4294967296.0f);
 }
 
+namespace detail {
+union float_long {
+  float f;
+  long l;
+};
+}
+
+// We re-implement frexpf so that it can get stuck into the CCM RAM.
+// Otherwise it calls out to the libc one, which will be much slower
+// since it is in normal flash.
+float my_frexpf(float x, int* pw2) __attribute((always_inline));
+
+inline float my_frexpf(float x, int *pw2) {
+  detail::float_long fl;
+  long int i;
+
+  fl.f = x;
+  i = (fl.l >> 23) & 0x000000ff;
+  i -= 0x7e;
+  *pw2 = i;
+  fl.l &= 0x807fffff;
+  fl.l |= 0x3f000000;
+  return fl.f;
+}
+
 float log2f_approx(float X) __attribute__((always_inline));
 
 inline float log2f_approx(float X) {
   // From: http://openaudio.blogspot.com/2017/02/faster-log10-and-pow.html
   float Y, F;
   int E;
-  F = frexpf(fabsf(X), &E);
+  F = my_frexpf(fabsf(X), &E);
   Y = 1.23149591368684f;
   Y *= F;
   Y += -4.11852516267426f;
