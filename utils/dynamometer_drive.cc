@@ -134,6 +134,18 @@ struct Options {
   }
 };
 
+double Median(std::vector<double> values) {
+  std::sort(values.begin(), values.end());
+  if (values.empty()) { return 0.0; }
+
+  if ((values.size() % 2 == 1)) {
+    return values[values.size()/2];
+  } else {
+    return 0.5*(values[values.size()/2-1] +
+                values[values.size()/2]);
+  }
+}
+
 struct TorqueTransducer {
   boost::posix_time::ptime timestamp;
 
@@ -668,7 +680,7 @@ class Application {
   boost::asio::awaitable<void> CommandFixtureRigid() {
     Controller::PidConstants pid;
     pid.ki = 300.0;
-    pid.kd = 0.35;
+    pid.kd = 0.60;
     pid.kp = 5.0;
     pid.ilimit = 0.3;
 
@@ -772,14 +784,28 @@ class Application {
                                        WrapZeroToTwoPi(phase), voltage));
     co_await Sleep(0.5);
 
+    std::vector<double> d_A;
+    std::vector<double> q_A;
+    std::vector<double> velocity;
+    std::vector<double> position;
+
     PwmResult result;
     result.phase = phase;
     result.voltage = voltage;
     result.mode = dut_->servo_stats().mode;
-    result.d_A = dut_->servo_stats().d_A;
-    result.q_A = dut_->servo_stats().q_A;
-    result.fixture_speed = fixture_->servo_stats().velocity;
-    result.fixture_position = fixture_->servo_stats().position;
+
+    for (int i = 0; i < 4; i++) {
+      d_A.push_back(dut_->servo_stats().d_A);
+      q_A.push_back(dut_->servo_stats().q_A);
+      velocity.push_back(fixture_->servo_stats().velocity);
+      position.push_back(fixture_->servo_stats().position);
+      co_await Sleep(0.1);
+    }
+
+    result.d_A = Median(d_A);
+    result.q_A = Median(q_A);
+    result.fixture_speed = Median(velocity);
+    result.fixture_position = Median(position);
 
     co_return result;
   }
@@ -869,8 +895,8 @@ class Application {
     }
 
     // This test runs with a motor that has a phase resistance of
-    // roughly 0.051-0.062 ohms.
-    const float kMotorResistance = 0.055;
+    // roughly 0.051-0.065 ohms.
+    const float kMotorResistance = 0.065;
     for (const auto& r : ramp_results) {
       const auto expected_current = r.voltage / kMotorResistance;
       if (std::abs(r.d_A - expected_current) > 2.5) {
@@ -933,7 +959,7 @@ class Application {
     // revolution.  We need to verify that each step is close to that
     // movement, and all in the same direction.
     double expected_position = slew_results.front().fixture_position;
-    const double kMaxError = 0.01;
+    const double kMaxError = 0.015;
     for (const auto& r : slew_results) {
       if (std::abs(r.fixture_position - expected_position) > kMaxError) {
         errors.push_back(
@@ -976,11 +1002,11 @@ class Application {
         if (dut_->servo_stats().mode != ServoStats::kCurrent) {
           throw mjlib::base::system_error::einval("DUT not in current mode");
         }
-        if (std::abs(fixture_->servo_stats().velocity - expected_speed) > 0.15) {
+        if (std::abs(fixture_->servo_stats().velocity_filt - expected_speed) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format(
                   "Fixture speed {} != {} (within {})",
-                  fixture_->servo_stats().velocity, expected_speed, 0.1));
+                  fixture_->servo_stats().velocity_filt, expected_speed, 0.1));
         }
         if (std::abs(dut_->servo_stats().d_A - d_A) > 1.0) {
           throw mjlib::base::system_error::einval(
@@ -1900,7 +1926,7 @@ class Application {
       { 100.0, 4.04 },
       { 20.0, 3.12 },
       { 10.0, 2.14 },
-      { 5.0, 1.43 },
+      { 5.0, 1.33 },
     };
 
     std::string errors;

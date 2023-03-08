@@ -54,6 +54,7 @@ struct ServoStats {
   float q_A = 0.0f;
 
   float velocity = 0.0f;
+  float velocity_filt = 0.0f;
 
   struct PidPosition {
     float error = 0.0;
@@ -81,6 +82,7 @@ struct ServoStats {
     a->Visit(MJ_NVP(q_A));
 
     a->Visit(MJ_NVP(velocity));
+    a->Visit(MJ_NVP(velocity_filt));
 
     a->Visit(MJ_NVP(pid_position));
 
