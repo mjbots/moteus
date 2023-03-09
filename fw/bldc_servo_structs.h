@@ -429,7 +429,7 @@ struct BldcServoConfig {
         (g_measured_hw_rev <= 7) ? 0.055f :
         0.027f) :
       g_measured_hw_family == 1 ?
-       0.023f :
+       0.027f :
       invalid_float()
       ;
   float pwm_comp_mag =
