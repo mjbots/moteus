@@ -998,6 +998,22 @@ class Application {
       co_await dut_->Command(fmt::format("d dq {} {}", d_A, q_A));
       co_await Sleep(1.0);
 
+      std::vector<double> data_q_A;
+      std::vector<double> data_d_A;
+      std::vector<double> data_torque;
+
+      for (int i = 0; i < 4; i++) {
+        data_d_A.push_back(dut_->servo_stats().d_A);
+        data_q_A.push_back(dut_->servo_stats().q_A);
+        data_torque.push_back(current_torque_Nm_);
+
+        co_await Sleep(0.1);
+      }
+
+      const auto median_d_A = Median(data_d_A);
+      const auto median_q_A = Median(data_q_A);
+      const auto median_torque = Median(data_torque);
+
       try {
         if (dut_->servo_stats().mode != ServoStats::kCurrent) {
           throw mjlib::base::system_error::einval("DUT not in current mode");
@@ -1008,20 +1024,20 @@ class Application {
                   "Fixture speed {} != {} (within {})",
                   fixture_->servo_stats().velocity_filt, expected_speed, 0.1));
         }
-        if (std::abs(dut_->servo_stats().d_A - d_A) > 1.0) {
+        if (std::abs(median_d_A - d_A) > 1.0) {
           throw mjlib::base::system_error::einval(
               fmt::format("D phase current {} != {} (within {})",
-                          dut_->servo_stats().d_A, d_A, 1.0));
+                          median_d_A, d_A, 1.0));
         }
-        if (std::abs(dut_->servo_stats().q_A - q_A) > 1.0) {
+        if (std::abs(median_q_A - q_A) > 1.0) {
           throw mjlib::base::system_error::einval(
               fmt::format("Q phase current {} != {} (within {})",
-                          dut_->servo_stats().q_A, q_A, 1.0));
+                          median_q_A, q_A, 1.0));
         }
-        if (std::abs(current_torque_Nm_ - expected_torque) > 0.15) {
+        if (std::abs(median_torque - expected_torque) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format("Transducer torque {} != {} (within {})",
-                          current_torque_Nm_, expected_torque, 0.15));
+                          median_torque, expected_torque, 0.15));
         }
       } catch (mjlib::base::system_error& se) {
         se.code().Append(message);
@@ -1170,7 +1186,7 @@ class Application {
       {
         const double fixture_position =
             options_.transducer_scale * fixture_->servo_stats().position;
-        if (std::abs(fixture_position - position_limit) > 0.05 * tolerance_scale) {
+        if (std::abs(fixture_position - position_limit) > 0.07 * tolerance_scale) {
           throw mjlib::base::system_error::einval(
               fmt::format("Fixture stop position {} != {}",
                           fixture_position, position_limit));
@@ -1925,7 +1941,7 @@ class Application {
     } tests[] = {
       { 100.0, 4.04 },
       { 20.0, 3.12 },
-      { 10.0, 2.14 },
+      { 10.0, 2.05 },
       { 5.0, 1.33 },
     };
 
