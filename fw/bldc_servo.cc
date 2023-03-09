@@ -47,8 +47,6 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
-constexpr int kAdcPrescale = 8;
-
 #if defined(TARGET_STM32G4)
 using HardwareUart = Stm32G4AsyncUart;
 #else
@@ -660,10 +658,10 @@ class BldcServo::Impl {
     };
 
     ADC12_COMMON->CCR =
-        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos) |
+        (map_adc_prescale(config_.adc_prescale) << ADC_CCR_PRESC_Pos) |
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
     ADC345_COMMON->CCR =
-        (map_adc_prescale(kAdcPrescale) << ADC_CCR_PRESC_Pos) |
+        (map_adc_prescale(config_.adc_prescale) << ADC_CCR_PRESC_Pos) |
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
 
     EnableAdc(ms_timer_, ADC1);
