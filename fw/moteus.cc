@@ -148,6 +148,12 @@ int main(void) {
 
   FLASH->ACR |= FLASH_ACR_PRFTEN | FLASH_ACR_ICEN | FLASH_ACR_DCEN;
 
+#if 0
+  // We map SRAM1 onto address 0 just to make finding accesses to
+  // address 0 easier.
+  SYSCFG->MEMRMP = (SYSCFG->MEMRMP & ~SYSCFG_MEMRMP_MEM_MODE_Msk) | 0x03;  // SRAM1
+#endif
+
   SetupClock();
 
   // I initially used a Ticker here to enqueue events at 1ms
