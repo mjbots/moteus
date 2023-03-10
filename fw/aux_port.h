@@ -620,16 +620,20 @@ class AuxPort {
 
 
   void HandleConfigUpdate() {
+    // Disable our ISR before changing any config.
+    any_isr_enabled_ = false;
+
     status_ = {};
 
     ////////////////////////////////////////////
     // Reset everything to a known default.
-    any_isr_enabled_ = false;
     i2c_.reset();
     i2c_pullup_dout_.reset();
     as5047_.reset();
     as5047_options_.reset();
     onboard_cs_.reset();
+
+    bool updated_any_isr = false;
 
     for (auto& in : digital_inputs_) { in.reset(); }
     for (auto& out : digital_outputs_) { out.reset(); }
@@ -741,7 +745,7 @@ class AuxPort {
             options.i2c_mode = static_cast<I2cMode>(config_.i2c.i2c_mode);
             return options;
           }());
-      any_isr_enabled_ = true;
+      updated_any_isr = true;
     }
 
     if (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 &&
@@ -802,7 +806,7 @@ class AuxPort {
         }
       }
 
-      any_isr_enabled_ = true;
+      updated_any_isr = true;
     }
 
     if (config_.hall.enabled) {
@@ -832,7 +836,7 @@ class AuxPort {
           hallc_.emplace(mbed, aux::MbedMapPull(cfg.pull));
         }
       }
-      any_isr_enabled_ = true;
+      updated_any_isr = true;
     }
 
     if (config_.quadrature.enabled) {
@@ -842,7 +846,7 @@ class AuxPort {
         status_.error = quad_->error();
         quad_.reset();
       } else {
-        any_isr_enabled_ = true;
+        updated_any_isr = true;
       }
     }
 
@@ -852,7 +856,7 @@ class AuxPort {
         status_.error = index_->error();
         index_.reset();
       } else {
-        any_isr_enabled_ = true;
+        updated_any_isr = true;
       }
     }
 
@@ -879,7 +883,7 @@ class AuxPort {
         return;
       }
       // We leave the pin configuration to the analog section below.
-      any_isr_enabled_ = true;
+      updated_any_isr = true;
     }
 
     if (config_.uart.mode != aux::UartEncoder::Config::kDisabled) {
@@ -933,7 +937,7 @@ class AuxPort {
         }
       }
 
-      any_isr_enabled_ = true;
+      updated_any_isr = true;
     }
 
     for (size_t i = 0; i < config_.pins.size(); i++) {
@@ -950,12 +954,12 @@ class AuxPort {
         status_.gpio_bit_active |= (1 << i);
         digital_inputs_[i].emplace(first_mbed,
                                    aux::MbedMapPull(cfg.pull));
-        any_isr_enabled_ = true;
+        updated_any_isr = true;
       } else if (cfg.mode == aux::Pin::Mode::kDigitalOutput) {
         status_.gpio_bit_active |= (1 << i);
         digital_outputs_[i].emplace(first_mbed,
                                     aux::MbedMapPull(cfg.pull));
-        any_isr_enabled_ = true;
+        updated_any_isr = true;
       } else if (cfg.mode == aux::Pin::Mode::kAnalogInput ||
                  cfg.mode == aux::Pin::Mode::kSine ||
                  cfg.mode == aux::Pin::Mode::kCosine) {
@@ -996,11 +1000,12 @@ class AuxPort {
           }
         }
         pin_mode(pin->mbed, aux::MbedMapPull(cfg.pull));
-        any_isr_enabled_ = true;
+        updated_any_isr = true;
       }
     }
 
     adc_info_.config_update();
+    any_isr_enabled_ = updated_any_isr;
   }
 
   static int ParseHexNybble(char c) {
