@@ -115,6 +115,7 @@ MOTEUS_SOURCES = [
     "motor_driver.h",
     "stm32_dma.h",
     "stm32g4_adc.h",
+    "stm32g4_adc.cc",
     "stm32g4_dma_uart.h",
     "stm32_bitbang_spi.h",
     "stm32_gpio_interrupt_in.h",

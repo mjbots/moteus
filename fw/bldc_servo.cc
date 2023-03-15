@@ -664,11 +664,12 @@ class BldcServo::Impl {
         (map_adc_prescale(config_.adc_prescale) << ADC_CCR_PRESC_Pos) |
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
 
-    EnableAdc(ms_timer_, ADC1);
-    EnableAdc(ms_timer_, ADC2);
-    EnableAdc(ms_timer_, ADC3);
-    EnableAdc(ms_timer_, ADC4);
-    EnableAdc(ms_timer_, ADC5);
+
+    EnableAdc(ms_timer_, ADC1, config_.adc_prescale);
+    EnableAdc(ms_timer_, ADC2, config_.adc_prescale);
+    EnableAdc(ms_timer_, ADC3, config_.adc_prescale);
+    EnableAdc(ms_timer_, ADC4, config_.adc_prescale);
+    EnableAdc(ms_timer_, ADC5, config_.adc_prescale);
 
     if (family0_) {
       adc1_sqr_ = ADC1->SQR1 =

@@ -16,6 +16,7 @@
 
 #include "mbed.h"
 
+#include "fw/ccm.h"
 #include "fw/millisecond_timer.h"
 
 namespace moteus {
@@ -27,26 +28,6 @@ inline void DisableAdc(ADC_TypeDef* adc) {
   }
 }
 
-inline void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc) {
-  // 20.4.6: ADC Deep power-down mode startup procedure
-  adc->CR &= ~ADC_CR_DEEPPWD;
-  adc->CR |= ADC_CR_ADVREGEN;
-
-  // tADCREG_S = 20us per STM32G474xB datasheet
-  timer->wait_us(20);
-
-  adc->CR |= ADC_CR_ADCAL;
-  while (adc->CR & ADC_CR_ADCAL);
-  timer->wait_us(1);
-
-  // 20.4.9: Software procedure to enable the ADC
-  adc->ISR |= ADC_ISR_ADRDY;
-  adc->CR |= ADC_CR_ADEN;
-
-  while (! (adc->ISR & ADC_ISR_ADRDY));
-  adc->ISR |= ADC_ISR_ADRDY;
-
-  adc->CFGR &= ~(ADC_CFGR_CONT);
-}
-
+// This function needs to be in CCM memory to achieve deterministic timings.
+void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler) MOTEUS_CCM_ATTRIBUTE;
 }

@@ -179,15 +179,13 @@ int main(void) {
     mbed_die();
   }
 
-  // To enable cycle counting.
-#ifdef MOTEUS_PERFORMANCE_MEASURE
+  // We require cycle counting be enabled for some things.
   {
     ITM->LAR = 0xC5ACCE55;
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
   }
-#endif
 
   // Turn on our power light.
   DigitalOut power_led(g_hw_pins.power_led, 0);
