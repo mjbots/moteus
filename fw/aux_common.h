@@ -334,6 +334,7 @@ struct AuxConfig {
   aux::Hall::Config hall;
   aux::Index::Config index;
   aux::SineCosine::Config sine_cosine;
+  int32_t i2c_startup_delay_ms = 30;
 
   static constexpr size_t kNumPins = 5;
   std::array<Pin, kNumPins> pins = { {} };
@@ -347,6 +348,7 @@ struct AuxConfig {
     a->Visit(MJ_NVP(hall));
     a->Visit(MJ_NVP(index));
     a->Visit(MJ_NVP(sine_cosine));
+    a->Visit(MJ_NVP(i2c_startup_delay_ms));
     a->Visit(MJ_NVP(pins));
   }
 };

@@ -232,7 +232,9 @@ class AuxPort {
 
   void PollMillisecond() {
     if (!i2c_startup_complete_) {
-      if (timer_->read_ms() > 10) { i2c_startup_complete_ = true; }
+      if (timer_->read_ms() > config_.i2c_startup_delay_ms) {
+        i2c_startup_complete_ = true;
+      }
     }
     if (i2c_) {
       // We have I2C devices to potentially process.
