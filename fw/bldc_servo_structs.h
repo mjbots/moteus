@@ -538,7 +538,7 @@ struct BldcServoConfig {
       g_measured_hw_family == 0 ?
       ((g_measured_hw_rev <= 5) ? 34.5f : 43.5f) :
       g_measured_hw_family == 1 ?
-      43.5f :
+      53.0f :
       invalid_float();
   float flux_brake_resistance_ohm = 0.025f;
 
