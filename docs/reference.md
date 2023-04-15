@@ -2226,7 +2226,7 @@ pins are numbered 1 to 6 from left to right.
  - 5 - SWCLK
  - 6 - 3.3V
 
-### JST ZH-4 I2C ###
+### moteus r4 - ABS - JST ZH-4 ###
 
 Pin 1 is closest to the ABS label.  They are assigned as follows:
 
@@ -2234,6 +2234,38 @@ Pin 1 is closest to the ABS label.  They are assigned as follows:
  - 2 - SCL
  - 3 - SDA
  - 4 - GND
+
+### moteus n1 - J3 - JST GH-6 ###
+
+RS422, configured by AUX1 D/E to USART and enabling RS422 on AUX1.
+
+ - 1 - 5V
+ - 2 - A
+ - 3 - B
+ - 4 - Y
+ - 5 - Z
+ - 6 - GND
+
+### moteus n1 - AUX1 - JST GH-8 ###
+
+ - 1 - 5V
+ - 2 - 3.3V
+ - 3 - A
+ - 4 - B
+ - 5 - C
+ - 6 - D
+ - 7 - E
+ - 8 - GND
+
+### moteus n1 - AUX2 - JST GH-7 ###
+
+ - 1 - 5V
+ - 2 - 3.3V
+ - 3 - A
+ - 4 - B
+ - 5 - C
+ - 6 - D
+ - 7 - GND
 
 ### XT30PW-M ###
 
