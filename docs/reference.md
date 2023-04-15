@@ -2338,7 +2338,7 @@ ip link set can0 up type can \
 
 ### 80 MHz clock systems ###
 
-Adapter such as the PEAK-CAN-FD use a 80MHz clock.  The following
+Adapters such as the PEAK-CAN-FD use a 80MHz clock.  The following
 timings have been observed to work:
 
 ```
