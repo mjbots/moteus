@@ -289,6 +289,9 @@ class WriteCombiner:
         self._offset = 0
         self._current_resolution = -1
 
+    def size(self):
+        return len(self.resolutions)
+
     def maybe_write(self):
         this_offset = self._offset
         self._offset += 1

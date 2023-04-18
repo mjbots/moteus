@@ -129,6 +129,22 @@ class MoteusTest(unittest.TestCase):
                    0x1c, 0x04, 0x30]))
         self.assertEqual(result.reply_required, True)
 
+    def test_make_query2(self):
+        qr = mot.QueryResolution()
+        qr.voltage = mot.mp.F32
+        qr.temperature = mot.mp.F32
+        qr.fault = mot.mp.INT8
+
+        dut = mot.Controller(query_resolution=qr)
+        result = dut.make_query()
+        self.assertEqual(
+            result.data,
+            bytes([0x11, 0x00,
+                   0x1f, 0x01,
+                   0x1e, 0x0d,
+                   0x11, 0x0f]))
+        self.assertEqual(result.reply_required, True)
+
     def test_make_diagnostic_read(self):
         dut = mot.Controller()
         result = dut.make_diagnostic_read()

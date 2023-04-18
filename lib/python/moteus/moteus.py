@@ -630,7 +630,7 @@ class Controller:
             qr.d_current,
             qr.abs_position,
             ])
-        for i in range(7):
+        for i in range(c1.size()):
             c1.maybe_write()
 
         c2 = mp.WriteCombiner(writer, 0x10, int(Register.MOTOR_TEMPERATURE), [
@@ -641,14 +641,14 @@ class Controller:
             qr.temperature,
             qr.fault,
         ])
-        for i in range(4):
+        for i in range(c2.size()):
             c2.maybe_write()
 
         c3 = mp.WriteCombiner(writer, 0x10, int(Register.AUX1_GPIO_STATUS), [
             qr.aux1_gpio,
             qr.aux2_gpio,
         ])
-        for i in range(2):
+        for i in range(c3.size()):
             c3.maybe_write()
 
         if len(qr._extra):
@@ -658,7 +658,7 @@ class Controller:
                 writer, 0x10, min_val,
                 [qr._extra.get(i, mp.IGNORE)
                  for i in range(min_val, max_val +1)])
-            for _ in range(min_val, max_val + 1):
+            for _ in range(c4.size()):
                 c4.maybe_write()
 
         return buf.getvalue()
