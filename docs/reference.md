@@ -556,6 +556,9 @@ to write.
 - 14 => measure inductance
 - 15 => brake
 
+When sending a command, this register must be written before any other
+registers in the command frame.
+
 #### 0x001 - Position ####
 
 Mode: Read only
