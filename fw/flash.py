@@ -63,6 +63,18 @@ def main():
         shell=True)
 
     subprocess.check_call(
+        f'{OPENOCD}' + 
+        f' -c "init"' + 
+        f' -c "halt"' + 
+        f' -c "stm32l4x option_read 0 0x20;"' + # print what we have inside options register
+        f' -c "stm32l4x option_write 0 0x20 0xfbeff8aa 0x0f000000;"' + # put nSWBOOT0 to false, default register is 0xffeff8aa
+        # f' -c "reset run;"' + # FIXME: reset or power cycle to load new user options
+        f' -c "shutdown;"' +
+        f'',
+        shell=True)
+
+
+    subprocess.check_call(
         f'{OPENOCD} -c "init" ' +
         f'-c "reset_config none separate; ' +
         f' halt; ' +
