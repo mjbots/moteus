@@ -155,7 +155,11 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
     const uint16_t this_reading = ADC2->DR << 4;
 
     if (this_reading < 0x0200) {
+      // silk moteus r1.2
       result.hw_version = 0;
+    } else if (this_reading > 0xfe00) {
+      // silk moteus r1.3
+      result.hw_version = 1;
     } else {
       // Unknown version.
       result.hw_version = -1;
