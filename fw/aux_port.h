@@ -631,6 +631,11 @@ class AuxPort {
     // Reset everything to a known default.
     i2c_.reset();
     i2c_pullup_dout_.reset();
+    if (hw_config_.options.i2c_pullup != NC) {
+      // Construct, then destroy a DigitalInput to get the pin to be
+      // tri-stated again.
+      DigitalIn din(hw_config_.options.i2c_pullup);
+    }
     as5047_.reset();
     as5047_options_.reset();
     onboard_cs_.reset();
