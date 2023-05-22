@@ -221,7 +221,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3890 ||
+        result.final_timer > 3900 ||
         result.total_timer < 5000) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -1423,8 +1423,8 @@ class Application {
     // We purposefully use no I term to see how good we are with just
     // PD.
     Controller::PidConstants pid;
-    pid.kp = 2.0;
-    pid.kd = 0.05;
+    pid.kp = 10.0;
+    pid.kd = 0.1;
     co_await dut_->ConfigurePid(pid);
 
     for (const double start_pos : {0.0, 16.0, 32700.0}) {

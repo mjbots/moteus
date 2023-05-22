@@ -181,7 +181,6 @@ class MotorPosition {
     // This value is compensated_value + pll_filter
     float filtered_value = 0.0f;
 
-    float delta = 0.0f;
     float velocity = 0.0f;
 
     template <typename Archive>
@@ -195,7 +194,6 @@ class MotorPosition {
       a->Visit(MJ_NVP(offset_value));
       a->Visit(MJ_NVP(compensated_value));
       a->Visit(MJ_NVP(filtered_value));
-      a->Visit(MJ_NVP(delta));
       a->Visit(MJ_NVP(velocity));
     }
   };
@@ -225,6 +223,10 @@ class MotorPosition {
     bool position_relative_valid = false;
     int64_t position_relative_raw = 0;
     float position_relative = 0.0f;
+
+    // This is the nearest point where the source encoder reads 0
+    // exactly.
+    int64_t position_relative_modulo = 0;
 
     // The "absolute" position is referenced to a global point, and
     // may not be known until after a homing procedure is complete or
@@ -266,6 +268,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(position_relative_valid));
       a->Visit(MJ_NVP(position_relative_raw));
       a->Visit(MJ_NVP(position_relative));
+      a->Visit(MJ_NVP(position_relative_modulo));
       a->Visit(MJ_NVP(position_raw));
       a->Visit(MJ_NVP(position));
       a->Visit(MJ_NVP(homed));
@@ -533,12 +536,23 @@ class MotorPosition {
 
     config_.output.sign = (config_.output.sign >= 0) ? 1 : -1;
 
-    output_cpr_scale_ =
-        config_.output.sign *
+    const float encoder_ratio =
         (output_config_->reference == SourceConfig::kRotor ?
          config_.rotor_to_output_ratio :
-         1.0f) /
-        output_config_->cpr;
+         1.0f);
+
+    output_cpr_scale_ =
+        config_.output.sign * encoder_ratio / output_config_->cpr;
+
+    output_encoder_step_ =
+        (1ll << 24) * static_cast<int32_t>((1l << 24) * encoder_ratio);
+
+    // We pre-calculate some thresholds for the high bits to save CPU
+    // cycles later on.
+    output_encoder_step_hb_1_4_ =
+        (output_encoder_step_ / 4 * 1) >> 32;
+    output_encoder_step_hb_3_4_ =
+        (output_encoder_step_ / 4 * 3) >> 32;
 
     for (size_t i = 0; i < pll_filter_constants_.size(); i++) {
       const auto& config = config_.sources[i];
@@ -584,23 +598,56 @@ class MotorPosition {
     const auto& output_status = *output_status_;
 
     if (output_status.active_velocity) {
+      const float encoder_ratio =
+          output_status.filtered_value / output_config_->cpr;
+      const float scaled_encoder_ratio =
+          output_status.filtered_value * output_cpr_scale_;
+      const int64_t scaled_int_encoder_ratio =
+          (1ll << 24) * static_cast<int32_t>((1l << 24) * scaled_encoder_ratio);
+
+      // If this is our very first relative position output, select
+      // our modulo so that we start at position 0.
+      if (!status_.position_relative_valid) {
+        status_.position_relative_modulo = -scaled_int_encoder_ratio;
+      }
+
       // We can update our relative position at least.
       status_.position_relative_valid = true;
+      const auto old_position_relative_raw = status_.position_relative_raw;
 
-      const float delta =
-          output_status.delta * output_cpr_scale_;
-      const int64_t int_delta =
-          (1ll << 24) * static_cast<int32_t>((1l << 24)  * delta);
-      status_.position_relative_raw += int_delta;
+      // We update our relative position by adding in the current
+      // encoder offset to the "modulo" number of the encoder.  The
+      // modulo number only increments in exact integral full encoder
+      // cycles.  This ensures that our relative position remains
+      // exactly in sync with the encoder value.
+      const auto modulo_delta =
+          status_.position_relative_raw - status_.position_relative_modulo;
+      if ((modulo_delta >> 32) < output_encoder_step_hb_1_4_ &&
+          encoder_ratio > 0.75f) {
+        status_.position_relative_modulo -= output_encoder_step_;
+      } else if ((modulo_delta >> 32) > output_encoder_step_hb_3_4_ &&
+                 encoder_ratio < 0.25f) {
+        status_.position_relative_modulo += output_encoder_step_;
+      }
 
-      status_.position_raw += int_delta;
+      status_.position_relative_raw =
+          status_.position_relative_modulo +
+          scaled_int_encoder_ratio;
+
+      // Since position_relative is integral and exact, we can exactly
+      // update our absolute position with no loss by applying its
+      // incremental change to the absolute position.
+      const auto relative_delta =
+          status_.position_relative_raw - old_position_relative_raw;
+
+      status_.position_raw += relative_delta;
 
       if (output_status.active_absolute &&
           status_.homed == Status::kRelative) {
         // Latch the current position
         const float float_first_output =
             WrapBalancedCpr(
-                (output_status.filtered_value * output_cpr_scale_ +
+                (scaled_encoder_ratio +
                  config_.output.offset * config_.output.sign), 1.0f);
 
         const int64_t int64_first_output =
@@ -763,6 +810,8 @@ class MotorPosition {
           const auto* quad_status = &this_aux->quadrature;
           if (!quad_status->active) { break; }
           const auto old_raw = status.raw;
+          const auto old_filtered_value = status.filtered_value;
+
           status.raw = quad_status->value;
           const auto delta = WrapIntCpr(status.raw - old_raw, config.cpr);
           status.offset_value = WrapIntCpr(
@@ -781,6 +830,20 @@ class MotorPosition {
               status.offset_value = config.offset;
               status.active_theta = true;
               status.active_absolute = true;
+
+              if (config_.output.source == static_cast<int8_t>(i)) {
+                // This is an "absolute" encoder which can warp its
+                // position.  In order for our "position_relative" to
+                // remain continuous, the modulo must be updated
+                // correspondingly.
+                const float ratio = WrapBalancedCpr(
+                    static_cast<float>(status.offset_value) -
+                    static_cast<float>(old_filtered_value),
+                    config.cpr) * output_cpr_scale_;
+                const int64_t adjustment =
+                    (1ll << 24) * static_cast<int32_t>((1l << 24) * ratio);
+                status_.position_relative_modulo -= adjustment;
+              }
             }
           }
           updated = true;
@@ -846,7 +909,6 @@ class MotorPosition {
 
       status.time_since_update += dt;
 
-      const float old_filtered_value = status.filtered_value;
       status.filtered_value += dt * status.velocity;
 
       const float cpr = config.cpr;
@@ -879,13 +941,6 @@ class MotorPosition {
         }
 
         status.time_since_update = 0.0f;
-      }
-
-      status.delta = WrapBalancedCpr(
-          status.filtered_value - old_filtered_value, config.cpr);
-      if ((status.active_velocity && !old_active_velocity) ||
-          (status.active_theta && !old_active_theta)) {
-        status.delta = 0;
       }
 
       status.filtered_value = WrapCpr(status.filtered_value, cpr);
@@ -987,6 +1042,9 @@ class MotorPosition {
   const SourceConfig* output_config_ = nullptr;
   const SourceStatus* output_status_ = nullptr;
   float output_cpr_scale_ = 1.0f;
+  int64_t output_encoder_step_ = 0;
+  int32_t output_encoder_step_hb_1_4_ = 0;
+  int32_t output_encoder_step_hb_3_4_ = 0;
 
   struct PllFilterConstants {
     float kp = 0.0f;
