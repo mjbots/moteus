@@ -251,6 +251,12 @@ class AuxPort {
         status_.error = aux::AuxError::kNone;
 
         as5047_.emplace(*as5047_options_);
+
+        // The very first SPI reading after power on returns bogus
+        // results.  So we do one here to ensure that all those that
+        // our ISR performs are good.
+        as5047_->Sample();
+
         __enable_irq();
       }
     }
