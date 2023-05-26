@@ -47,7 +47,7 @@ void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler) {
   const uint32_t initial_cyccnt = DWT->CYCCNT;
   const uint32_t desired_cyccnt =
       static_cast<uint32_t>(initial_cyccnt / prescaler) * prescaler +
-      prescaler * 32;
+      prescaler * 64;
 
   // Clear the instruction and data cache, to help get the same
   // results every time.
