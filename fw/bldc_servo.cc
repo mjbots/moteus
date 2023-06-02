@@ -636,40 +636,26 @@ class BldcServo::Impl {
     DisableAdc(ADC4);
     DisableAdc(ADC5);
 
-    // The prescaler must be at least 6x to be able to accurately read
-    // across all channels.  If it is too low, you'll see errors that
-    // look like quantization, but not in a particularly uniform way
-    // and not consistently across each of the channels.
-    auto map_adc_prescale = [](int prescale) {
-      if (prescale == 1) { return 0; }
-      if (prescale == 2) { return 1; }
-      if (prescale == 4) { return 2; }
-      if (prescale == 6) { return 3; }
-      if (prescale == 8) { return 4; }
-      if (prescale == 10) { return 5; }
-      if (prescale == 12) { return 6; }
-      if (prescale == 16) { return 7; }
-      if (prescale == 32) { return 8; }
-      if (prescale == 64) { return 9; }
-      if (prescale == 128) { return 10; }
-      if (prescale == 256) { return 11; }
-      MJ_ASSERT(false);
-      return 0;
-    };
-
+    // Per "ES0430 - Rev 8, 2.7.9" the ADCs can only be used
+    // simultaneously if they are in synchronous mode with a divider
+    // no more than 1.  Yay.  We can't use synchronous mode with a
+    // divider of 1, since that would run the ADCs too fast.  Instead,
+    // we use a divider of 2, and ensure that each ADC is started in
+    // an exact phase relationship to the global cycle counter.
     ADC12_COMMON->CCR =
-        (map_adc_prescale(config_.adc_prescale) << ADC_CCR_PRESC_Pos) |
+        (2 << ADC_CCR_CKMODE_Pos) |  // synchronous AHB/2
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
     ADC345_COMMON->CCR =
-        (map_adc_prescale(config_.adc_prescale) << ADC_CCR_PRESC_Pos) |
+        (2 << ADC_CCR_CKMODE_Pos) |  // synchronous AHB/2
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
 
+    constexpr int kAdcPrescale = 2;  // from the CKMODE above
 
-    EnableAdc(ms_timer_, ADC1, config_.adc_prescale);
-    EnableAdc(ms_timer_, ADC2, config_.adc_prescale);
-    EnableAdc(ms_timer_, ADC3, config_.adc_prescale);
-    EnableAdc(ms_timer_, ADC4, config_.adc_prescale);
-    EnableAdc(ms_timer_, ADC5, config_.adc_prescale);
+    EnableAdc(ms_timer_, ADC1, kAdcPrescale, 0);
+    EnableAdc(ms_timer_, ADC2, kAdcPrescale, 0);
+    EnableAdc(ms_timer_, ADC3, kAdcPrescale, 0);
+    EnableAdc(ms_timer_, ADC4, kAdcPrescale, 0);
+    EnableAdc(ms_timer_, ADC5, kAdcPrescale, 0);
 
     if (family0_) {
       adc1_sqr_ = ADC1->SQR1 =
@@ -764,11 +750,47 @@ class BldcServo::Impl {
     // ready.  This means we will throw away the result if our control
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
-    ADC1->CR |= ADC_CR_ADSTART;
-    // ADC2->CR |= ADC_CR_ADSTART;  // we are in dual mode
-    ADC3->CR |= ADC_CR_ADSTART;
-    // ADC4->CR |= ADC_CR_ADSTART;  // we are in dual mode
-    ADC5->CR |= ADC_CR_ADSTART;
+
+
+    {
+      // To start the ADCs, for now we resort to some inline assembly.
+      // The below is roughly equivalent to:
+      //
+      //  auto tmp = ADC1->CR;
+      //  tmp |= ADC_CR_ADSTART;
+      //  ADC1->CR = tmp;
+      //  ADC3->CR = tmp;
+      //  ADC5->CR = tmp;
+      //
+      // Note: Since ADC1/2 and ADC3/4 are in dual mode, we don't have
+      // to explitly start ADC2 or ADC4.
+      //
+      // We perform this using inline assembly so as to attempt to
+      // start the trigger process of all 5 ADCs as closely as
+      // possible.  Per STM32G474 errata "ES0430 Rev 8 - 2.7.9", the
+      // ADCs only have good performance if they are started at
+      // exactly the same time.  Ideally we'd do that through a
+      // hardware, i.e. timer trigger.  However, getting that
+      // integrated here is a bigger project.  For now, this seems to
+      // give pretty good results.
+      uint32_t temp_reg1;
+      uint32_t temp_reg2;
+      asm volatile (
+          "mov %[temp_reg1], %[adstart];"
+          "ldr %[temp_reg2], [%[adc1_cr], #0];"
+          "orr %[temp_reg1], %[temp_reg2];"
+          "str %[temp_reg1], [%[adc1_cr], #0];"
+          "str %[temp_reg1], [%[adc3_cr], #0];"
+          "str %[temp_reg1], [%[adc5_cr], #0];"
+          : [temp_reg1]"=&r"(temp_reg1),
+            [temp_reg2]"=&r"(temp_reg2)
+          : [adstart]"r"(ADC_CR_ADSTART),
+            [adc1_cr]"r"(&ADC1->CR),
+            [adc3_cr]"r"(&ADC3->CR),
+            [adc5_cr]"r"(&ADC5->CR)
+          :
+      );
+    }
 
     phase_ = (phase_ + 1) & rate_config_.interrupt_mask;
     if (phase_) { return; }

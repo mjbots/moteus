@@ -147,7 +147,7 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
         (17 << ADC_SQR1_SQ1_Pos) |  // IN17
         (0 << ADC_SQR1_L_Pos);  // length 1
 
-    EnableAdc(timer, ADC2, 16);
+    EnableAdc(timer, ADC2, 16, 0);
 
     ADC2->CR |= ADC_CR_ADSTART;
     while ((ADC2->ISR & ADC_ISR_EOC) == 0);

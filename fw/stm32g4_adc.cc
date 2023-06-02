@@ -16,7 +16,7 @@
 
 namespace moteus {
 
-void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler) {
+void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler, int offset) {
   // 20.4.6: ADC Deep power-down mode startup procedure
   adc->CR &= ~ADC_CR_DEEPPWD;
   adc->CR |= ADC_CR_ADVREGEN;
@@ -47,7 +47,7 @@ void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler) {
   const uint32_t initial_cyccnt = DWT->CYCCNT;
   const uint32_t desired_cyccnt =
       static_cast<uint32_t>(initial_cyccnt / prescaler) * prescaler +
-      prescaler * 64;
+      prescaler * 64 + offset;
 
   // Clear the instruction and data cache, to help get the same
   // results every time.
@@ -135,4 +135,71 @@ void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler) {
   adc->CFGR &= ~(ADC_CFGR_CONT);
 }
 
+#if 0
+// We leave this commented out because it was hard to create, and
+// might be useful for debugging again.
+
+// Delay a cycle accurate number of counts.  This allows code to vary
+// how long it takes in a cycle accurate way without changing its
+// layout, which can often have large knock-on effects in other
+// locations.
+void CycleAccurateDelay(int counts) {
+  // Clear the instruction and data cache, to help get the same
+  // results every time.
+  FLASH->ACR &= ~(FLASH_ACR_ICEN | FLASH_ACR_DCEN);
+  FLASH->ACR |= FLASH_ACR_ICRST | FLASH_ACR_DCRST;
+  FLASH->ACR &= ~(FLASH_ACR_ICRST | FLASH_ACR_DCRST);
+  FLASH->ACR |= (FLASH_ACR_ICEN | FLASH_ACR_DCEN);
+
+  uint32_t loop_count;
+  uint32_t remainder;
+  asm volatile (
+      // Align ourselves to improve robustness.
+      ".balign 4;"
+
+      // Our ultimate delay loop takes 4 cycles per iteration.
+      "asr %[loop_count], %[counts], #2;"
+
+      // Which means we may have up to 3 extra NOPs to insert.  This
+      // part of the code requires the function to be placed in CCM
+      // memory, otherwise the FLASH ART destroys our ability to add
+      // single cycle delays.
+      "and %[remainder], %[counts], #3;"
+
+      "cmp %[remainder], #0;"
+      "ble 10f;"
+      "mov %[counts], #0;"
+      "mov %[counts], #0;"
+      "10:;"
+
+      "cmp %[remainder], #1;"
+      "ble 11f;"
+      "mov %[counts], #0;"
+      "mov %[counts], #0;"
+      "11:;"
+
+      "cmp %[remainder], #2;"
+      "ble 12f;"
+      "mov %[counts], #0;"
+      "mov %[counts], #0;"
+      "12:;"
+
+      // Make sure we are at the beginning of any pre-fetch lines.
+      ".balign 4;"
+
+      // Our main loop, which takes 4 cycles.
+      "1:;"
+      "subs %[loop_count], %[loop_count], #1;"
+      "nop;"
+      "bne 1b;"
+
+      "nop;"
+      : [counts]"+&r"(counts),
+        [loop_count]"=&r"(loop_count),
+        [remainder]"=&r"(remainder)
+      : [cyccnt]"r"(&DWT->CYCCNT)
+      :
+  );
+}
+#endif
 }

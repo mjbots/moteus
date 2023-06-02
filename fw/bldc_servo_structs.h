@@ -477,17 +477,6 @@ struct BldcServoConfig {
   // need a larger sampling time.
   uint16_t adc_aux_cycles = 47;
 
-  // The default prescaler values are not determined with much
-  // principle.  8 was used for all r4.X series boards for some time,
-  // but for some reason it often causes problems with the initial n1
-  // series boards but 6, which in theory should cause more problems
-  // seems to work much better in practice.  So, until the n1 ADC
-  // analog performance is better, we use this kludge.
-  uint16_t adc_prescale =
-      (g_measured_hw_family == 0 ? 8 :
-       g_measured_hw_family == 1 ? 6 :
-       8);
-
   // We use the same PID constants for D and Q current control
   // loops.
   SimplePI::Config pid_dq;
@@ -593,7 +582,6 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(position_derate));
     a->Visit(MJ_NVP(adc_cur_cycles));
     a->Visit(MJ_NVP(adc_aux_cycles));
-    a->Visit(MJ_NVP(adc_prescale));
     a->Visit(MJ_NVP(pid_dq));
     a->Visit(MJ_NVP(pid_position));
     a->Visit(MJ_NVP(current_feedforward));

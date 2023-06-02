@@ -29,5 +29,5 @@ inline void DisableAdc(ADC_TypeDef* adc) {
 }
 
 // This function needs to be in CCM memory to achieve deterministic timings.
-void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler) MOTEUS_CCM_ATTRIBUTE;
+void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler, int offset) MOTEUS_CCM_ATTRIBUTE;
 }
