@@ -221,7 +221,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3900 ||
+        result.final_timer > 3850 ||
         result.total_timer < 5000) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -311,6 +311,7 @@ class Controller {
         ExceptionRethrower);
 
     std::vector<std::string> names = {
+      "motor_position",
       "servo_stats",
       "servo_control",
       "servo_cmd",
@@ -816,7 +817,9 @@ class Application {
     co_await fixture_->Command("d rezero");
 
     fmt::print("Centering motor\n");
-    co_await dut_->Command("d pwm 0 0.35");
+    // We command a sweep in order to ensure the motor is not locked
+    // at the opposite phase.
+    co_await dut_->Command("d pwm -2 0.35 2");
     co_await Sleep(1.0);
 
     fmt::print("Running voltage ramp\n");
@@ -896,7 +899,7 @@ class Application {
 
     // This test runs with a motor that has a phase resistance of
     // roughly 0.051-0.065 ohms.
-    const float kMotorResistance = 0.065;
+    const float kMotorResistance = 0.055;
     for (const auto& r : ramp_results) {
       const auto expected_current = r.voltage / kMotorResistance;
       if (std::abs(r.d_A - expected_current) > 2.5) {
@@ -904,7 +907,7 @@ class Application {
             fmt::format(
                 "D phase current too far from purely resistive: "
                 "I({}) = V({}) / R({}) != {}",
-                expected_current, r.voltage, 0.062, r.d_A));
+                expected_current, r.voltage, kMotorResistance, r.d_A));
         break;
       }
     }
@@ -1388,10 +1391,13 @@ class Application {
         co_await dut_->Command(
             fmt::format("d pos {} 0 {}", position, options_.max_torque_Nm));
 
-        const double kDelayS = 1.0;
+        const double kDelayS = position == 0.0 ? 2.0 :
+            std::min(0.5 / (std::abs(position) * pid.ki), 5.0);
         co_await Sleep(kDelayS);
 
-        const double expected_torque = kDelayS * pid.ki * position;
+        const double kTorqueLagS = 0.3;
+        const double expected_torque =
+            (kDelayS - kTorqueLagS) * pid.ki * position;
 
         verify_position_mode();
         if (std::abs(current_torque_Nm_ - expected_torque) > 0.17) {
@@ -1653,7 +1659,7 @@ class Application {
       // Start out with the fixture stopped and move the DUT at a fixed
       // velocity.
       auto pid = Controller::PidConstants();
-      pid.kp = 1.0;
+      pid.kp = 2.0;
       pid.ki = 0.0;
       pid.kd = 0.05;
       pid.max_position_slip = max_slip;
@@ -1748,9 +1754,9 @@ class Application {
       co_await dut_->Command("d index 0");
 
       Controller::PidConstants pid;
-      pid.kp = 1.0;
+      pid.kp = 5.0;
       pid.ki = 0.0;
-      pid.kd = 0.05;
+      pid.kd = 0.2;
       pid.max_position_slip = slip;
       co_await dut_->ConfigurePid(pid);
 
@@ -1836,9 +1842,9 @@ class Application {
 
   boost::asio::awaitable<void> ValidateSlipBounds() {
     Controller::PidConstants pid;
-    pid.kp = 1.0;
+    pid.kp = 5.0;
     pid.ki = 0.0;
-    pid.kd = 0.05;
+    pid.kd = 0.2;
     pid.position_min = -0.3;
     pid.position_max = 0.5;
 
@@ -1932,7 +1938,7 @@ class Application {
     Controller::PidConstants dut_pid;
     dut_pid.ki = 0.0;
     dut_pid.kp = 5.0;
-    dut_pid.kd = 0.1;
+    dut_pid.kd = 0.2;
     dut_pid.max_position_slip = 0.2;
 
     struct Test {
@@ -1941,8 +1947,8 @@ class Application {
     } tests[] = {
       { 100.0, 4.04 },
       { 20.0, 3.12 },
-      { 10.0, 2.05 },
-      { 5.0, 1.33 },
+      { 10.0, 1.90 },
+      { 5.0, 1.30 },
     };
 
     std::string errors;

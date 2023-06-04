@@ -56,7 +56,7 @@ class TestDynoFast(unittest.TestCase):
         dyno('--validate_pwm_mode', '1')
 
     def test_pwm_cycle_overrun(self):
-        dyno('--pwm_cycle_overrun', '1', keep_log=True)
+        dyno('--pwm_cycle_overrun', '1')
 
     def test_validate_current_mode(self):
         dyno('--validate_current_mode', '1')
