@@ -192,6 +192,8 @@ def format_value(reg, typecode, value):
     if reg == 0:
         try:
             return f'{value}({moteus.Mode(value).name})'
+        except ValueError:
+            return f'{value}'
         except TypeError:
             return f'{value}'
     for scale_type in SCALE_TYPES:
