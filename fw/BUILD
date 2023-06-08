@@ -128,6 +128,7 @@ MOTEUS_SOURCES = [
     "system_info.h",
     "system_info.cc",
     "uuid.h",
+    "uuid.cc",
     "moteus.cc",
 ]
 

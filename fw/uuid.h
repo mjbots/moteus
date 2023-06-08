@@ -1,4 +1,4 @@
-// Copyright 2021 Josh Pieper, jjp@pobox.com.
+// Copyright 2021-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,14 +15,16 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
+
+#include "mjlib/base/visitor.h"
+#include "mjlib/micro/persistent_config.h"
 
 namespace moteus {
 
 class Uuid {
  public:
-  Uuid(mjlib::micro::PersistentConfig& config) {
-    config.Register("uuid", &data_, [](){});
-  }
+  Uuid(mjlib::micro::PersistentConfig& config);
 
   struct Data {
     std::array<uint8_t, 16> uuid = {};
@@ -32,6 +34,9 @@ class Uuid {
       a->Visit(MJ_NVP(uuid));
     }
   };
+
+ private:
+  void Update();
 
   Data data_;
 };
