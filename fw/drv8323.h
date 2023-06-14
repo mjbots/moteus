@@ -52,7 +52,9 @@ class Drv8323 : public MotorDriver {
   // Turn on or off the driver.  When turning it on, all SPI
   // parameters are set from configuration and in this case it may not
   // be invoked from an interrupt context.
-  void Enable(bool) override;
+  //
+  // Return true for success, false for failure.
+  bool Enable(bool) override;
 
   void Power(bool) override;
   bool fault() override;

@@ -73,7 +73,7 @@ class Drv8323::Impl {
     status_update_ = telemetry_manager->Register("drv8323", &status_);
   }
 
-  void Enable(bool value) {
+  bool Enable(bool value) {
     const bool old_enable = enable_cache_ != 0;
     enable_ = enable_cache_ = value ? 1 : 0;
 
@@ -84,10 +84,12 @@ class Drv8323::Impl {
         timer_->wait_us(1000);
       }
       WriteConfig();
-      Calibrate();
+      if (!Calibrate()) { return false; }
     } else {
       status_.fault_config = 0;
     }
+
+    return true;
   }
 
   void Power(bool value) {
@@ -186,20 +188,35 @@ class Drv8323::Impl {
     WriteConfig();
   }
 
-  void Calibrate() {
+  bool Calibrate() {
     // The offset calibration is done by temporarily setting the CAL
     // bits to one.
     const uint16_t old_reg6 = Read(6);
 
-    // None of the cal bits should be set already.
-    MJ_ASSERT((old_reg6 & 0x1c) == 0);
+    // None of the cal bits should have been set by us already,
+    // however they may briefly be valid during the power-on sequence.
+    //
+    // Thus we used to assert this, but no longer do.
+    //
+    // MJ_ASSERT((old_reg6 & 0x1c) == 0);
 
     spi_.write((6 << 11) | (old_reg6 | 0x1c));
 
     timer_->wait_us(200);
 
     // Now unset the cal bits.
-    spi_.write((6 << 11) | old_reg6);
+    spi_.write((6 << 11) | (old_reg6 & ~0x1c));
+
+    timer_->wait_us(100);
+
+    // Verify that they are now 0.
+    const uint16_t new_reg6 = Read(6);
+    if ((new_reg6 & 0x1c) != 0) {
+      // Error!
+      return false;
+    }
+
+    return true;
   }
 
   void WriteConfig() {
@@ -369,7 +386,7 @@ Drv8323::Drv8323(micro::Pool* pool,
 
 Drv8323::~Drv8323() {}
 
-void Drv8323::Enable(bool value) { impl_->Enable(value); }
+bool Drv8323::Enable(bool value) { return impl_->Enable(value); }
 void Drv8323::Power(bool value) { impl_->Power(value); }
 
 bool Drv8323::fault() {

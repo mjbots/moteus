@@ -1,4 +1,4 @@
-// Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kConfigChanged: return "config changed";
       case errc::kThetaInvalid: return "theta invalid";
       case errc::kPositionInvalid: return "position invalid";
+      case errc::kDriverEnableFault: return "driver enable";
     }
     return "unknown";
   }

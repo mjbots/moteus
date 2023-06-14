@@ -483,11 +483,17 @@ class BldcServo::Impl {
   }
 
   void PollMillisecond() {
-    volatile Mode* mode_volatile = &status_.mode;
+    volatile auto* mode_volatile = &status_.mode;
+    volatile auto* fault_volatile = &status_.fault;
     Mode mode = *mode_volatile;
     if (mode == kEnabling) {
-      motor_driver_->Enable(true);
-      *mode_volatile = kCalibrating;
+      const bool success = motor_driver_->Enable(true);
+      if (success) {
+        *mode_volatile = kCalibrating;
+      } else {
+        *fault_volatile = errc::kDriverEnableFault;
+        *mode_volatile = kFault;
+      }
     }
 
     // Because the aux ports can be configured after us, we just poll

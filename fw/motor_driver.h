@@ -1,4 +1,4 @@
-// Copyright 2018 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,8 +18,8 @@ namespace moteus {
 
 class MotorDriver {
  public:
-  /// Turn on or off the driver.
-  virtual void Enable(bool) = 0;
+  /// Turn on or off the driver.  Return true on success.
+  virtual bool Enable(bool) = 0;
 
   /// Enable power to the output stage.
   virtual void Power(bool) = 0;
