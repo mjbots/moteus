@@ -69,9 +69,9 @@ struct Context {
   }
 
   float Call() {
-    if (!std::isnan(data.position)) {
+    if (!std::isnan(data.position) && !data.position_relative_raw) {
       data.position_relative_raw = MotorPosition::FloatToInt(data.position);
-    } else {
+    } else if (std::isnan(data.position)) {
       data.position_relative_raw.reset();
     }
     return BldcServoPosition::UpdateCommand(
@@ -350,7 +350,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
     { 10.0, 1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
     { 10.0,-1.0,   5.0, 0.0,    NaN, 1.0, 40,    5.000, 5.000 },
 
-    { 0.0,  0.0,   5.0, 0.5,    NaN, 1.0, 40,    5.000, 5.000 },
+    { 0.0,  0.0,   5.0, 0.5,    NaN, 1.0, 40,    10.000, 10.000 },
     { 0.0,  0.0,   5.0, 0.0,    NaN, 2.0, 40,    2.500, 2.500 },
     { 4.0,  0.0,   5.0, 0.0,    NaN, 1.0, 40,    1.000, 1.000 },
 
@@ -358,8 +358,8 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
     // No velocity limit.
     { 0.0,  0.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 4.514 },
     { 0.0,  1.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 3.730 },
-    { 0.0,  1.0,    5.0, 1.5,   1.0, NaN, 40,   0.000, 2.647 },
-    { 0.0, -1.0,   -5.0,-1.5,   1.0, NaN, 40,   0.000, 2.647 },
+    { 0.0,  1.0,    5.0, 1.5,   1.0, NaN, 40,   0.000, 5.025 },
+    { 0.0, -1.0,   -5.0,-1.5,   1.0, NaN, 40,   0.000, 5.025 },
     { 5.0,  0.0,    0.0, 0.0,   1.0, NaN, 40,   0.000, 4.514 },
     { 5.0,  0.0,    0.0, 0.0,   2.0, NaN, 40,   0.000, 3.205 },
 
@@ -377,27 +377,28 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
     { 0.3,  4.0,    3.0, 0.0,   2.0, 0.7, 40,   1.504, 4.207 },
 
     // non-zero final velocity
-    { 0.0, 0.0,     3.0, 0.5,   1.0, 0.5, 40,   6.751, 6.250 },
-    { 0.0, 0.0,     3.0, 0.3,   1.0, 0.5, 40,   5.592, 6.290 },
+    { 0.0, 0.0,     3.0, 0.5,   1.0, 0.8, 40,  10.119, 11.217 },
+    { 0.0, 0.0,     3.0, 0.3,   1.0, 0.8, 40,   5.592, 6.912 },
 
-    // A command velocity that exceeds the limit.
-    { 0.0, 0.0,     3.0, 1.0,   1.0, 0.5, 40,   6.751, 6.250 },
-    { 0.0, 0.0,     -3.0, -1.0, 1.0, 0.5, 40,   6.751, 6.250 },
+    // A command velocity that exceeds the limit.  Note, this will
+    // never complete as it is not possible to catch up.
+    { 0.0, 0.0,     3.0, 1.0,   1.0, 0.5, 40,   21.501, NaN },
+    { 0.0, 0.0,     -3.0, -1.0, 1.0, 0.5, 40,   21.501, NaN },
 
-    // non-zero that requires looping back
-    { 0.0, 0.0,     0.0, 0.5,   1.0, 0.5, 40,   1.001, 1.207 },
-    {-0.03, 0.5,    0.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.548 },
+    // non-zero targets
+    { 0.0, 0.0,     0.0, 0.5,   1.0, 0.6, 40,   1.152, 1.850 },
+    {-0.03, 0.5,    0.0, 0.3,   1.0, 0.6, 40,   0.000975, 0.2474 },
     // The same as the previous, but shifted to be near the wraparound
     // point and at a lower PWM rate to maximize numerical problems.
-    {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.548 },
-    {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.5, 40,   0.000975, 1.550 },
-    {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.5, 15,   0.000933, 1.548 },
-    {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.5, 15,   0.000933, 1.550 },
+    {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.6, 40,   0.000975, 0.2474 },
+    {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.6, 40,   0.000975, 0.2441 },
+    {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.6, 15,   0.000933, 0.2474 },
+    {32765.97, 0.5,  32766.0, 0.3,   1.0, 0.6, 15,   0.000933, 0.2441 },
 
-    // Actually wrap around.
-    {32767.98, 0.5,  -32767.99, 0.3,  1.0, 0.5, 15,   0.000933, 1.550 },
+    // // Actually wrap around.
+    {32767.98, 0.5,  -32767.99, 0.3,  1.0, 0.6, 15,   0.000933, 0.2441 },
 
-    { 0.0, 0.0,     0.0, -0.5,  1.0, 0.5, 40,   1.001, 1.207 },
+    { 0.0, 0.0,     0.0, -0.5,  1.0, 0.6, 40,   1.152, 1.850 },
 
   };
 
@@ -452,7 +453,8 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
       const int64_t extra_count = extra_time * ctx.rate_hz;
 
       const int64_t max_count =
-          (2.0 + test_case.expected_total_duration) * ctx.rate_hz;
+          (2.0 + (std::isnan(test_case.expected_total_duration) ?
+                  20.0 : test_case.expected_total_duration)) * ctx.rate_hz;
 
       for (int64_t i = 0; i < max_count; i++) {
         ctx.Call();
@@ -516,7 +518,8 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
             if (std::isfinite(test_case.xf)) {
               BOOST_TEST(ctx.from_raw(
                              ctx.status.control_position_raw.value()) ==
-                         test_case.xf);
+                         test_case.xf +
+                         test_case.vf * test_case.expected_total_duration);
             }
             total_duration = current_duration;
           }
@@ -527,16 +530,24 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
         old_pos = this_pos;
       }
 
-      if (std::isfinite(test_case.xf)) {
+      if (std::isfinite(test_case.xf) &&
+          std::isfinite(test_case.expected_total_duration)) {
         const double expected_final =
-            test_case.xf + expected_vf * extra_time;
+            test_case.xf +
+            test_case.expected_total_duration * test_case.vf +
+            expected_vf * extra_time;
         BOOST_TEST(ctx.from_raw(
                        ctx.status.control_position_raw.value()) == expected_final);
       }
       BOOST_TEST(ctx.status.control_velocity.value() == expected_vf);
-      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.trajectory_done ==
+                 std::isfinite(test_case.expected_total_duration));
 
-      BOOST_TEST(total_duration == test_case.expected_total_duration);
+      if (std::isfinite(test_case.expected_total_duration)) {
+        BOOST_TEST(total_duration == test_case.expected_total_duration);
+      } else {
+        BOOST_TEST(total_duration == 0.0);
+      }
       BOOST_TEST(coast_duration == test_case.expected_coast_duration);
     }
   }

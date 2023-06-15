@@ -385,6 +385,15 @@ class BldcServo::Impl {
       }
     }
 
+    // If we have a velocity command and velocity_limit, ensure that
+    // the command does not violate the limit.
+    if (!std::isnan(next->velocity_limit) &&
+        !std::isnan(next->velocity)) {
+      next->velocity = Limit(next->velocity,
+                             -next->velocity_limit,
+                             next->velocity_limit);
+    }
+
     // Transform any position and stop_position command into the
     // relative raw space.
     const auto delta = static_cast<int64_t>(

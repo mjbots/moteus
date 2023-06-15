@@ -221,7 +221,7 @@ class ServoStatsReader {
     // Here we verify that the final and total timer are always valid.
     if (result.final_timer == 0 ||
         result.total_timer == 0 ||
-        result.final_timer > 3850 ||
+        result.final_timer > 3750 ||
         result.total_timer < 5000) {
       throw mjlib::base::system_error::einval(
           fmt::format("Invalid timer final={} total={}",
@@ -2184,7 +2184,7 @@ class Application {
     // have out of band knowledge that this results in the worst
     // possible loop timing.
     co_await dut_->Command(
-        fmt::format("d pos 3.0 -0.5 {} v0.5 a0.2", options_.max_torque_Nm));
+        fmt::format("d pos 3.0 -0.5 {} v0.7 a0.2", options_.max_torque_Nm));
 
     const double step_s = 0.1;
     const int loops = 14 / step_s;
@@ -2202,13 +2202,15 @@ class Application {
       const double fixture_velocity =
           options_.transducer_scale *
           fixture_->servo_stats().velocity;
+      const double target_pos = 3.0 - time_s * 0.5;
 
       fixture_position_history.insert(
           std::make_pair(time_s, fixture_position));
       fixture_velocity_history.insert(
           std::make_pair(time_s, fixture_velocity));
 
-      if (std::abs(fixture_position - 3.0) < 0.2 &&
+      if (std::abs(fixture_velocity + 0.5) < 0.2 &&
+          std::abs(fixture_position - target_pos) < 0.2 &&
           done_time == 0.0) {
         done_time = time_s;
       }
@@ -2254,9 +2256,9 @@ class Application {
       }
     }
 
-    if (std::abs(done_time - 7.2) > 1.0) {
+    if (std::abs(done_time - 4.8) > 1.0) {
       throw mjlib::base::system_error::einval(
-          fmt::format("Took wrong amount of time {} != 7.2", done_time));
+          fmt::format("Took wrong amount of time {} != 4.8", done_time));
     }
 
     co_await dut_->Command("d stop");

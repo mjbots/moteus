@@ -100,43 +100,15 @@ class BldcServoPosition {
       return std::copysign(a, -v0);
     }
 
-    if (vf != 0.0f) {
-      // A moving target.  First check to see if we are moving
-      // towards it in the right direction and can accelerate.
-      if (v0 * vf > 0.0f &&  // in the right direction
-          v0 * dx > 0.0f) {  // towards it
-        // How much distance do we need to change to the target
-        // velocity?
-        const float vel_change_distance =
-            std::abs(v0 * dv) / a - dv * dv / (2.0f * a);
-        if (std::abs(dx) > vel_change_distance) {
-          if (std::isnan(data->velocity_limit) ||
-              std::abs(v0) < data->velocity_limit) {
-            // We accelerate slightly faster so we complete in a
-            // numerically stable way.
-            return std::copysign(1.001f * a, dx);
-          } else {
-            return 0.0f;
-          }
-        } else {
-          return std::copysign(a, -v0);
-        }
-      }
-    }
+    // Perform all operations in the target reference frame,
+    // i.e. we'll transform our frame so that the target velocity is
+    // 0.
 
-    if (vf != 0.0f) {
-      // We have a non-zero velocity target that we have to
-      // backtrack for.  Aim for the point necessary to get
-      // there from a stop.
-      const float dist = vf * vf / (2.0f * a);
-      dx += std::copysign(dist, -vf);
-    }
+    const auto v_frame = v0 - vf;
 
-    // Assume we have a stationary target.
-    if ((v0 * dx) >= 0.0f) {
-      // The target is stationary and we are moving towards it
-      // or stationary and there is sufficient distance.
-      const float decel_distance = (v0 * v0) / (2.0f * a);
+    if ((v_frame * dx) >= 0.0f && dx != 0.0f) {
+      // The target is stationary and we are moving towards it.
+      const float decel_distance = (v_frame * v_frame) / (2.0f * a);
       if (std::abs(dx) >= decel_distance) {
         if (std::isnan(data->velocity_limit) ||
             std::abs(v0) < data->velocity_limit) {
@@ -145,12 +117,12 @@ class BldcServoPosition {
           return 0.0f;
         }
       } else {
-        return std::copysign(a, -v0);
+        return std::copysign(a, -v_frame);
       }
     }
 
     // We are moving away.  Try to fix that.
-    return std::copysign(a, -v0);
+    return std::copysign(a, -v_frame);
   }
 
   static void DoVelocityAndAccelLimits(
@@ -293,11 +265,20 @@ class BldcServoPosition {
     // scale at a 40kHz switching frequency.  1.2 million RPM should
     // be enough for anybody?
     const float step = velocity_command / rate_hz;
-    status->control_position_raw =
-        (*status->control_position_raw +
-         (static_cast<int64_t>(
-             static_cast<int32_t>((static_cast<float>(1ll << 32) * step))) <<
-          16));
+    const int64_t int64_step =
+        (static_cast<int64_t>(
+            static_cast<int32_t>((static_cast<float>(1ll << 32) * step))) <<
+         16);
+    status->control_position_raw = *status->control_position_raw + int64_step;
+
+    if (data->position_relative_raw && !std::isnan(velocity)) {
+      const float tstep = velocity / rate_hz;
+      const int64_t tint64_step =
+        (static_cast<int64_t>(
+            static_cast<int32_t>((static_cast<float>(1ll << 32) * tstep))) <<
+         16);
+      data->position_relative_raw = *data->position_relative_raw + tint64_step;
+    }
 
     if (std::isfinite(config->max_position_slip)) {
       const int64_t current_position = position->position_relative_raw;

@@ -1641,25 +1641,19 @@ limits are as follows:
   at the given velocity indefinitely, or until the command stop
   position is reached.
 
-- *Only velocity limit set*: In this case, until the desired position
-  is reached, the control velocity will be set to either the positive
-  or negative velocity limit.  Once the desired position has been
-  reached, then the velocity will continue indefinitely at the command
-  velocity.
+- *Either set*: If x_c is the command position, v_c is the command
+  velocity, and t is the time from receipt of the command, the
+  semantics can be described as: "match the trajectory defined by x =
+  x_c + v_c * t".
 
-- *Both set*: In this case, neither the command position nor the
-  command velocity are immediately applied.  Instead, the control
-  velocity is advanced by the configured acceleration each timestep
-  while being limited to the maximum configured velocity in order to
-  achieve the desired position and velocity.  Once the desired
-  position and velocity have been achieved, then that final velocity
-  is continued indefinitely.  Note that this may require "back
-  tracking" if the current and final velocities do not permit an
-  approach in a single pass.
+  If the acceleration limit is set, the above is effected by
+  commanding accelerations of either [-accel_limit, 0, accel_limit].
+  If an acceleration limit is not set, then the velocity will change
+  instantaneously.
 
-- *Only acceleration limit set*: This behaves like the "both set"
-  case, except that the control velocity is allowed to increase or
-  decrease arbitrarily.
+  If the velocity limit is set, then the intermediate velocities will
+  obey "-velocity_limit < velocity < +velocity_limit".  If it is not
+  set, then the velocities may grow to arbitrary magnitude.
 
 NOTE: This is limited internally to be no more than
 `servo.max_velocity`.
