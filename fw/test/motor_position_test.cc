@@ -967,11 +967,12 @@ BOOST_AUTO_TEST_CASE(MotorPositionExternalIndex) {
   }
 }
 
-BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
+BOOST_AUTO_TEST_CASE(MotorPositionSlew,
                      * boost::unit_test::tolerance(1e-3f)) {
-  for (const int sign : {-1.0f, 1.0f}) {
-    for (const float offset : {0.0f, 0.2f, -0.3f}) {
-      BOOST_TEST_CONTEXT("sign:" << sign << "  offset:" << offset) {
+  for (const float sign : {1.0f, -1.0f}) {
+    for (const float offset : {0.0f, 0.2f}) {
+      BOOST_TEST_CONTEXT("sign:" << sign <<
+                         "  offset:" << offset) {
         Context ctx;
         auto& config = *ctx.dut.config();
 
@@ -980,70 +981,135 @@ BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
         ctx.pcf.persistent_config.Load();
 
         ctx.aux1_status.spi.active = true;
-        ctx.aux1_status.spi.value = 4096;
-        ctx.aux1_status.spi.nonce = 1;
+        ctx.aux1_status.spi.value = 0;
 
-        ctx.dut.ISR_Update(kDt);
+        int64_t old_position_relative = 0;
 
-        {
+        // Move in a triangle pattern through zero a few times in
+        // single steps.
+        for (int i = 0; i < 8192 * 8; i++) {
+          const int sign = [&]() {
+            if (i < 8192 * 2) {
+              return 2;
+            } else if (i < 8192 * 4) {
+              return 16382;
+            } else {
+              return 2;
+            }
+          }();
+
+          ctx.aux1_status.spi.value = (i + sign) % 16384;
+          ctx.aux1_status.spi.nonce++;
+
+          ctx.dut.ISR_Update(kDt);
+
+          // We should verify that the reported position never changes
+          // by more than a certain amount.
+
           const auto status = ctx.dut.status();
-          BOOST_TEST(status.position == (sign * 0.25f + sign * offset));
-
-          BOOST_TEST(status.velocity == 0.0f);
-
-          BOOST_TEST(status.theta_valid == true);
-          BOOST_TEST(status.electrical_theta == 3.14159274f);
-        }
-
-        // Now increase the source value.  This should result in position
-        // going down, velocity going down, but etheta still going up, since
-        // it isn't affected by output.sign.
-        ctx.aux1_status.spi.value = 4100;
-        ctx.aux1_status.spi.nonce++;
-
-        ctx.dut.ISR_Update(kDt);
-
-        {
-          const auto status = ctx.dut.status();
+          const auto delta = status.position_relative_raw - old_position_relative;
+          BOOST_TEST(std::abs(delta) < (4ll << 34));
+          if (i > 1) {
+            BOOST_TEST(std::abs(delta) > (1ll << 31));
+          }
+          old_position_relative = status.position_relative_raw;
           BOOST_TEST(status.position_relative_valid == true);
-          BOOST_TEST(std::abs(status.position_relative_raw - (sign * 34561064960ll)) <= (2ll << 24));
-          BOOST_TEST((std::abs(status.position_relative -
-                               (sign * 0.000137329102f)) < 1e-4f));
-
-          BOOST_TEST(status.position == sign * 0.250137329f + sign * offset);
-
-          BOOST_TEST(status.velocity == sign * 0.154212564f);
-
-          BOOST_TEST(status.theta_valid == true);
-          BOOST_TEST(status.electrical_theta == 3.14313507f);
         }
+      }
+    }
+  }
+}
 
-        // We need to verify that the different types of homing do the right
-        // thing, and that offsets work in a usable way.  Preferably also
-        // that offsets work the same way as they do for sources.
+BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
+                     * boost::unit_test::tolerance(1e-3f)) {
+  for (const int spi_value : { 2048, 4096, 15360 }) {
+    for (const int sign : {1, -1}) {
+      for (const float offset : {0.0f, 0.2f, -0.3f}) {
+        BOOST_TEST_CONTEXT("spi_value: " << spi_value <<
+                           "  sign:" << sign <<
+                           "  offset:" << offset) {
+          Context ctx;
+          auto& config = *ctx.dut.config();
 
-        ctx.dut.ISR_SetOutputPositionNearest(sign * 2.0f + sign * offset);
-        {
-          const auto status = ctx.dut.status();
-          BOOST_TEST(status.position == (sign * 2.250137329f + sign * offset));
-        }
+          config.output.sign = sign;
+          config.output.offset = offset;
+          ctx.pcf.persistent_config.Load();
 
-        ctx.dut.ISR_Update(kDt);
-        {
-          const auto status = ctx.dut.status();
-          BOOST_TEST(status.position == (sign * 2.25015259f + sign * offset));
-        }
+          ctx.aux1_status.spi.active = true;
+          ctx.aux1_status.spi.value = spi_value;
+          ctx.aux1_status.spi.nonce = 1;
 
-        ctx.dut.ISR_SetOutputPositionNearest(-sign * 2.0f);
-        {
-          const auto status = ctx.dut.status();
-          BOOST_TEST(status.position == (-sign * 1.74984741f + sign * offset));
-        }
+          ctx.dut.ISR_Update(kDt);
 
-        ctx.dut.ISR_Update(kDt);
-        {
-          const auto status = ctx.dut.status();
-          BOOST_TEST(status.position == (-sign * 1.74983215f + sign * offset));
+          const float expected_position =
+              ((spi_value >= 8192) ? (spi_value-16384) : spi_value) / 16384.0f;
+
+          const float expected_theta =
+              spi_value < 4096 ?
+              1.57079637f : spi_value < 8192 ?
+              3.14159274f :
+              5.49932909f;
+
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.position == (sign * expected_position + sign * offset));
+
+            BOOST_TEST(status.velocity == 0.0f);
+
+            BOOST_TEST(status.theta_valid == true);
+            BOOST_TEST(status.electrical_theta == expected_theta);
+          }
+
+          // Now increase the source value.  This should result in position
+          // going down, velocity going down, but etheta still going up, since
+          // it isn't affected by output.sign.
+          ctx.aux1_status.spi.value += 4;
+          ctx.aux1_status.spi.nonce++;
+
+          ctx.dut.ISR_Update(kDt);
+
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.position_relative_valid == true);
+            BOOST_TEST(std::abs(status.position_relative_raw - (sign * 34561064960ll)) <= (2ll << 24));
+            BOOST_TEST((std::abs(status.position_relative -
+                                 (sign * 0.000137329102f)) < 1e-4f));
+
+            BOOST_TEST(status.position == (sign * (expected_position + 0.000137329f) + sign * offset));
+
+            BOOST_TEST(status.velocity == sign * 0.154212564f);
+
+            BOOST_TEST(status.theta_valid == true);
+            BOOST_TEST(status.electrical_theta == (expected_theta + .00154239f));
+          }
+
+          // We need to verify that the different types of homing do the right
+          // thing, and that offsets work in a usable way.  Preferably also
+          // that offsets work the same way as they do for sources.
+
+          ctx.dut.ISR_SetOutputPositionNearest(sign * 2.0f + sign * offset);
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.position == (sign * (2.0f + expected_position + 0.000137329f) + sign * offset));
+          }
+
+          ctx.dut.ISR_Update(kDt);
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.position == (sign * (2.0f + expected_position + 0.00015259f) + sign * offset));
+          }
+
+          ctx.dut.ISR_SetOutputPositionNearest(-sign * 2.0f);
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.position == (-sign * 2.0f + sign * expected_position + sign * offset));
+          }
+
+          ctx.dut.ISR_Update(kDt);
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.position == (-sign * 2.0f + sign * expected_position + sign * offset));
+          }
         }
       }
     }

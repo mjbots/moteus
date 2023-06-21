@@ -545,7 +545,7 @@ class MotorPosition {
         config_.output.sign * encoder_ratio / output_config_->cpr;
 
     output_encoder_step_ =
-        (1ll << 24) * static_cast<int32_t>((1l << 24) * encoder_ratio);
+        (1ll << 24) * static_cast<int32_t>((1l << 24) * std::abs(encoder_ratio));
 
     // We pre-calculate some thresholds for the high bits to save CPU
     // cycles later on.
@@ -599,9 +599,13 @@ class MotorPosition {
 
     if (output_status.active_velocity) {
       const float encoder_ratio =
-          output_status.filtered_value / output_config_->cpr;
+          config_.output.sign == 1 ?
+          (output_status.filtered_value / output_config_->cpr) :
+          (1.0f - output_status.filtered_value / output_config_->cpr);
       const float scaled_encoder_ratio =
-          output_status.filtered_value * output_cpr_scale_;
+          config_.output.sign == 1 ?
+          (output_status.filtered_value * output_cpr_scale_) :
+          (output_config_->cpr - output_status.filtered_value) * std::abs(output_cpr_scale_);
       const int64_t scaled_int_encoder_ratio =
           (1ll << 24) * static_cast<int32_t>((1l << 24) * scaled_encoder_ratio);
 

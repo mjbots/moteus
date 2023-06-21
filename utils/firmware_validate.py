@@ -73,6 +73,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_position_wraparound(self):
         dyno('--validate_position_wraparound', '1')
 
+    def test_validate_position_reverse(self):
+        dyno('--validate_position_reverse', '1')
+
     def test_validate_stay_within(self):
         dyno('--validate_stay_within', '1')
 
