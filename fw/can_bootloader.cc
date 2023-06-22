@@ -371,8 +371,15 @@ class BootloaderServer {
     CanFrame result;
 
     // Wait until there is a CAN frame available.
-    while ((fdcan_->RXF0S & FDCAN_RXF0S_F0FL) == 0) {
-      // Nothing in the FIFO yet.
+    while (true) {
+      // Do we have a frame?
+      if ((fdcan_->RXF0S & FDCAN_RXF0S_F0FL) != 0) { break; }
+
+      if (fdcan_->PSR & FDCAN_PSR_BO) {
+        // We went bus off.  Attempt to recover.
+        fdcan_->CCCR &= ~FDCAN_CCCR_INIT;
+        timer_.wait_us(10);
+      }
     }
 
     const auto get_index = (fdcan_->RXF0S & FDCAN_RXF0S_F0GI) >> FDCAN_RXF0S_F0GI_Pos;
