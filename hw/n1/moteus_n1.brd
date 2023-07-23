@@ -3691,7 +3691,7 @@ This DRC check is for 4-Layer with 4 mil diameter drills to be manufactured thro
 <attribute name="NAME" x="18.21710625" y="16.688578125" size="0.6" layer="25" ratio="10" rot="R225"/>
 <attribute name="POPULATE" value="1" x="17.47863125" y="91.92763125" size="1.778" layer="27" rot="R225" display="off"/>
 </element>
-<element name="U1" library="power_dist" package="21-0487A_MXM" value="MAX15062AATA+T" x="41.4" y="10.6" smashed="yes" rot="MR90">
+<element name="U1" library="power_dist" package="21-0487A_MXM" value="MAX15062BATA+T" x="41.4" y="10.6" smashed="yes" rot="MR90">
 <attribute name="BUILT_BY" value="EMA_Jessica" x="49.7" y="10.6" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="COPYRIGHT" value="Copyright (C) 2018 Accelerated Designs. All rights reserved" x="49.7" y="10.6" size="1.778" layer="28" rot="MR90" display="off"/>
 <attribute name="MANUFACTURER_PART_NUMBER" value="MAX15062BATA+T" x="49.7" y="10.6" size="1.778" layer="28" rot="MR90" display="off"/>

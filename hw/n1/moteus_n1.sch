@@ -10387,7 +10387,7 @@ Source: &lt;a href=""&gt; Datasheet &lt;/a&gt;</description>
 <attribute name="MPN" value="BAT41KFILM"/>
 <attribute name="POPULATE" value="1"/>
 </part>
-<part name="U1" library="power_dist" deviceset="MAX15062AATA+T" device="">
+<part name="U1" library="power_dist" deviceset="MAX15062AATA+T" device="" value="MAX15062BATA+T">
 <attribute name="MANUFACTURER_PART_NUMBER" value="MAX15062BATA+T"/>
 <attribute name="MF" value="Maxim"/>
 <attribute name="MPN" value="MAX15062BATA+T"/>
