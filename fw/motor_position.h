@@ -1,4 +1,4 @@
-// Copyright 2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2022-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -343,7 +343,7 @@ class MotorPosition {
       }
     }
 
-    ISR_SetOutputPositionNearestHelper(value, config_.output.reference_source);
+    ISR_SetOutputPositionNearestHelper(value);
   }
 
   void ISR_RequireReindex() {
@@ -541,6 +541,11 @@ class MotorPosition {
          config_.rotor_to_output_ratio :
          1.0f);
 
+    output_ambiguity_scale_ =
+        (output_config_->reference == SourceConfig::kRotor) ?
+        config_.rotor_to_output_ratio :
+        1.0f;
+
     output_cpr_scale_ =
         config_.output.sign * encoder_ratio / output_config_->cpr;
 
@@ -652,7 +657,8 @@ class MotorPosition {
         const float float_first_output =
             WrapBalancedCpr(
                 (scaled_encoder_ratio +
-                 config_.output.offset * config_.output.sign), 1.0f);
+                 config_.output.offset * config_.output.sign),
+                output_ambiguity_scale_);
 
         const int64_t int64_first_output =
             (1ll << 24) * static_cast<int32_t>((1l << 24) * float_first_output);
@@ -661,14 +667,8 @@ class MotorPosition {
         status_.homed = Status::kRotor;
       }
 
-      status_.position_relative =
-          static_cast<float>(
-              static_cast<int32_t>(
-                  status_.position_relative_raw >> 32ll)) /
-          65536.0f;
-      status_.position =
-          static_cast<float>(status_.position_raw >> 32ll) /
-          65536.0f;
+      status_.position_relative = IntToFloat(status_.position_relative_raw);
+      status_.position = IntToFloat(status_.position_raw);
       status_.velocity = output_status.velocity * output_cpr_scale_;
     }
 
@@ -694,17 +694,16 @@ class MotorPosition {
         status_.sources[config_.output.reference_source].active_absolute &&
         status_.position_relative_valid &&
         status_.homed != Status::kOutput) {
-      const auto& reference_source =
-          status_.sources[config_.output.reference_source];
-      const auto& reference_config =
-          config_.sources[config_.output.reference_source];
-      const float target =
-          WrapBalancedCpr(reference_source.filtered_value,
-                          reference_config.cpr) / reference_config.cpr;
       if (status_.homed == Status::kRotor) {
-        ISR_SetOutputPositionNearestHelper(target, -1);
+        ISR_SetOutputPositionNearestHelper(0.0);
       } else if (status_.homed == Status::kRelative) {
-        ISR_SetOutputPosition(target);
+        ISR_SetOutputPosition(
+            WrapBalancedCpr(
+                ((status_.sources[config_.output.reference_source].filtered_value /
+                  config_.sources[config_.output.reference_source].cpr +
+                  config_.output.offset) *
+                 config_.output.sign),
+                1.0f));
       }
     }
   }
@@ -967,63 +966,86 @@ class MotorPosition {
     return true;
   }
 
-  void ISR_SetOutputPositionNearestHelper(
-      float value,
-      int reference_source) MOTEUS_CCM_ATTRIBUTE {
-
-    int source = config_.output.source;
-    float source_output_cpr_scale = output_cpr_scale_;
-
-    const float ratio = config_.rotor_to_output_ratio;
-
-    if (reference_source >= 0 &&
-        status_.sources[config_.output.source].active_absolute &&
-        status_.sources[config_.output.reference_source].active_absolute &&
-        ratio < 1.0f) {
-      const auto& reference_source =
-          status_.sources[config_.output.reference_source];
-      const auto& reference_config =
-          config_.sources[config_.output.reference_source];
-      const float target =
-          WrapBalancedCpr(reference_source.filtered_value,
-                          reference_config.cpr) / reference_config.cpr;
-      const float integral_offsets =
-          std::round((target - value) / ratio);
-      value = value + integral_offsets * ratio;
-    } else if (reference_source >= 0 &&
-               !status_.sources[config_.output.source].active_absolute) {
-      // Just position ourselves relative to the reference, ignoring
-      // the output source, which is only relative.
-      source = reference_source;
-      source_output_cpr_scale =
-          config_.output.sign /
-          static_cast<float>(config_.sources[reference_source].cpr);
-    }
-
-    const auto& output_config = config_.sources[source];
-    const auto& output_status = status_.sources[source];
-
-    const float output_scale =
-        (output_config.reference == SourceConfig::kRotor) ?
-        config_.rotor_to_output_ratio :
-        1.0f;
-
-    const float source_position =
+  void ISR_SetOutputPositionNearestHelper(float value) MOTEUS_CCM_ATTRIBUTE {
+    const auto& output_status =
+        status_.sources[config_.output.source];
+    const auto& output_config =
+        config_.sources[config_.output.source];
+    const float output_value =
         WrapBalancedCpr(
-            (output_status.filtered_value * source_output_cpr_scale +
-             config_.output.offset * config_.output.sign), 1.0f);
-    const float integral_offsets =
-        std::round((value - source_position) / output_scale);
+            ((output_status.filtered_value / output_config.cpr) *
+             output_ambiguity_scale_ +
+             config_.output.offset) * config_.output.sign,
+            output_ambiguity_scale_);
 
-    status_.position_raw =
-        (1ll << 24) *
-        static_cast<int32_t>((1l << 24) * source_position) +
-        static_cast<int64_t>(integral_offsets) * (1ll << 24) *
-        static_cast<int32_t>(static_cast<float>(1 << 24) * output_scale);
+    [&]() {
+      if (config_.output.reference_source >= 0) {
+        const auto& reference_source =
+            status_.sources[config_.output.reference_source];
+        const auto& reference_config =
+            config_.sources[config_.output.reference_source];
 
-    status_.position =
-        static_cast<float>(status_.position_raw >> 32ll) /
-        65536.0f;
+        const float reference_value =
+            WrapBalancedCpr(
+                (reference_source.filtered_value / reference_config.cpr +
+                 config_.output.offset) * config_.output.sign,
+                1.0f);
+
+        if (status_.sources[config_.output.source].active_absolute &&
+            status_.sources[config_.output.reference_source].active_absolute &&
+            output_ambiguity_scale_ < 1.0f) {
+          // We have an active reference and a reduction.  Here, we need
+          // to use the reference to resolve the reduction ambiguity, then
+          // count integral multiples from the requested value.
+
+          const float integral_offsets_lower =
+              std::floor(reference_value / output_ambiguity_scale_);
+          const float integral_offsets_upper =
+              integral_offsets_lower + 1;
+
+          const float maybe_lower_value =
+              integral_offsets_lower * output_ambiguity_scale_ + output_value;
+          const float maybe_upper_value =
+              integral_offsets_upper * output_ambiguity_scale_ + output_value;
+
+          float first_disambiguation = 0.0f;
+
+          if (std::abs(maybe_lower_value - reference_value) <
+              std::abs(maybe_upper_value - reference_value)) {
+            first_disambiguation = maybe_lower_value;
+          } else {
+            first_disambiguation = maybe_upper_value;
+          }
+
+          // Now do the integral number of counts from the requested value.
+          const float requested_offset = std::round(value - first_disambiguation);
+          const float final_value = first_disambiguation + requested_offset;
+
+          status_.position_raw = FloatToInt(final_value);
+
+          return;
+        } else if (!status_.sources[config_.output.source].active_absolute) {
+          // Just position ourselves relative to the reference, ignoring
+          // the output source, which is only relative.
+          status_.position_raw = FloatToInt(reference_value);
+
+          return;
+        }
+      }
+
+      // We are going to assume we have no reference.  In this case,
+      // we just disambiguate to the nearest output source ambiguity.
+
+      const float integral_offsets =
+          std::round((value - output_value) / output_ambiguity_scale_);
+      const float final_value =
+          output_value + integral_offsets * output_ambiguity_scale_;
+      status_.position_raw = FloatToInt(final_value);
+    }();
+
+    // No matter what, make our floating point position correct and
+    // update our homed status to output.
+    status_.position = IntToFloat(status_.position_raw);
 
     status_.homed = Status::kOutput;
   }
@@ -1043,6 +1065,7 @@ class MotorPosition {
   const SourceStatus* commutation_status_ = nullptr;
   float commutation_pole_scale_ = 1.0f;
   float commutation_rotor_scale_ = 1.0f;
+  float output_ambiguity_scale_ = 1.0f;
   const SourceConfig* output_config_ = nullptr;
   const SourceStatus* output_status_ = nullptr;
   float output_cpr_scale_ = 1.0f;

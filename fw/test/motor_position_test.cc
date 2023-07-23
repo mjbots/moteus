@@ -1,4 +1,4 @@
-// Copyright 2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2022-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -116,6 +116,15 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.position == 1.5f);
     BOOST_TEST(status.position_raw == 422212465065984ll);
+  }
+
+  ctx.aux1_status.spi.nonce++;
+
+  ctx.dut.ISR_Update(kDt);
+
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.position_raw == 422231792418816ll);
   }
 }
 
@@ -364,6 +373,125 @@ BOOST_AUTO_TEST_CASE(MotorPositionNearestReferenceSource,
   }
 }
 
+BOOST_AUTO_TEST_CASE(MotorPositionReferenceSourceStartup,
+                     * boost::unit_test::tolerance(1e-2f)) {
+  struct TestCase {
+    float rotor_offset = 0.0f;
+    float aux_offset = 0.0f;
+    float output_offset = 0.0f;
+
+    float expected_value = 0.0f;
+  };
+
+  TestCase test_cases[] = {
+    { 0.0f,  0.0f,  0.0f,     0.0f },
+    { 0.0f,  0.0f,  0.1f,     0.1f },
+    { 0.0f,  0.0f,  0.6f,    -0.4f },
+    { 0.0f,  0.0f, -0.1f,    -0.1f },
+    { 0.0f,  0.0f, -0.7f,     0.3f },
+    { 0.3f,  0.0f,  0.0f,     0.0f },
+    { 0.0f,  0.3f,  0.0f,     0.0f },
+    { 0.0f, -0.3f,  0.0f,     0.0f },
+    { 0.2f, -0.3f,  0.0f,     0.0f },
+  };
+
+  for (const auto& test : test_cases) {
+    for (float output_position : { 0.0f,
+                                  -0.15f, 0.15f,
+                                  -0.35f, 0.35f,
+                                   0.45f, -0.45f }) {
+      for (float ratio : { 1.0f, 0.5f, 0.2f }) {
+        BOOST_TEST_CONTEXT("rotor_offset " << test.rotor_offset <<
+                           "  aux_offset " << test.aux_offset <<
+                           "  output_offset " << test.output_offset <<
+                           "  output_position " << output_position <<
+                           "  ratio " << ratio) {
+          // A N:1 reducer with a separate reference source.
+          Context ctx;
+          auto& config = *ctx.dut.config();
+          config.sources[0].offset = test.rotor_offset * 16384;
+
+          config.sources[1].aux_number = 2;
+          config.sources[1].type = MotorPosition::SourceConfig::kUart;
+          config.sources[1].offset = test.aux_offset * 16384;
+          config.sources[1].cpr = 16384;
+          config.sources[1].reference = MotorPosition::SourceConfig::kOutput;
+
+          config.output.reference_source = 1;
+          config.output.offset = test.output_offset;
+          config.rotor_to_output_ratio = ratio;
+
+          ctx.pcf.persistent_config.Load();
+
+          ctx.aux1_status.spi.active = true;
+          ctx.aux1_status.spi.value =
+              static_cast<int>(
+                  output_position / config.rotor_to_output_ratio * 16384 +
+                  16384 * 10 -
+                  test.rotor_offset * 16384) % 16384;
+          ctx.aux1_status.spi.nonce++;
+
+          ctx.Update();
+
+          // We should be only in rotor sync.
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.homed == MotorPosition::Status::kRotor);
+          }
+
+          ctx.aux2_status.uart.active = true;
+          ctx.aux2_status.uart.value =
+              static_cast<int>(
+                  output_position * 16384 +
+                  16384 * 10 -
+                  test.aux_offset * 16384) % 16384;
+          ctx.aux2_status.uart.nonce++;
+
+          ctx.Update();
+
+          const float expected_value =
+              MotorPosition::WrapBalancedCpr(
+                  test.expected_value + output_position, 1.0f);
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+            BOOST_TEST(status.position == expected_value);
+          }
+
+          ctx.aux1_status.spi.nonce++;
+          ctx.aux2_status.uart.nonce++;
+
+          ctx.Update();
+
+          // Nothing should have changed.
+          {
+            const auto status = ctx.dut.status();
+            BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+            BOOST_TEST(status.position == expected_value);
+          }
+
+          for (float nearest_offset : { 0.0f, 0.3f, 1.2f, 1.7f, 2.0f }) {
+            for (float nearest_sign : { 1.0f, -1.0f }) {
+              const float delta = nearest_offset * nearest_sign;
+              BOOST_TEST_CONTEXT("delta " << delta) {
+                ctx.dut.ISR_SetOutputPositionNearest(expected_value + delta);
+
+                const auto status = ctx.dut.status();
+                BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
+
+                const float offset_expected_value =
+                    expected_value + std::round(delta);
+
+                BOOST_TEST(status.position == offset_expected_value);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(MotorPositionIncrementalReferenceSource,
                      * boost::unit_test::tolerance(1e-3f)) {
   // An incremental output encoder, with an absolute reference source.
@@ -530,41 +658,73 @@ BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
 }
 
 BOOST_AUTO_TEST_CASE(MotorPositionSpiTransform,
-                     * boost::unit_test::tolerance(5e-1f)) {
+                     * boost::unit_test::tolerance(5e-3f)) {
   struct TestCase {
     float start;
     float offset;
     float sign;
+    float output_offset;
+    int8_t output_sign;
 
     float expected;
   };
 
   TestCase test_cases[] = {
-    { 0.0f, 0.0f, 1.0f,    0.0f },
-    { 0.0f, 0.1f, 1.0f,    0.1f },
-    { 0.0f, 0.7f, 1.0f,   -0.3f },
-    { 0.0f, 0.7f, -1.0f,   0.3f },
-    { 0.0f, -0.1f, 1.0f,  -0.1f },
-    { 0.0f, -0.2f, 1.0f,  -0.2f },
-    { 0.0f, -0.6f, 1.0f,   0.4f },
+    { 0.0f, 0.0f,  1.0f,  0.0f,  1,   0.0f },
+    { 0.0f, 0.1f,  1.0f,  0.0f,  1,   0.1f },
+    { 0.0f, 0.7f,  1.0f,  0.0f,  1,  -0.3f },
+    { 0.0f, 0.7f, -1.0f,  0.0f,  1,   0.3f },
+    { 0.0f, -0.1f, 1.0f,  0.0f,  1,  -0.1f },
+    { 0.0f, -0.2f, 1.0f,  0.0f,  1,  -0.2f },
+    { 0.0f, -0.6f, 1.0f,  0.0f,  1,   0.4f },
+    { 0.0f, 0.0f,  1.0f,  0.1f,  1,   0.1f },
+    { 0.0f, 0.0f,  1.0f, -0.1f,  1,  -0.1f },
+    { 0.0f, 0.0f,  1.0f,  0.3f,  1,   0.3f },
+    { 0.3f, 0.0f,  1.0f,  0.3f,  1,  -0.4f },
+    { 0.3f, 0.3f,  1.0f,  0.3f,  1,  -0.1f },
+
+    { 0.0f, 0.0f,  1.0f,  0.0f, -1,   0.0f },
+    { 0.0f, 0.1f,  1.0f,  0.0f, -1,  -0.1f },
+    { 0.0f, 0.7f,  1.0f,  0.0f, -1,   0.3f },
+    { 0.0f, 0.7f, -1.0f,  0.0f, -1,  -0.3f },
+    { 0.0f, 0.7f, -1.0f,  0.0f, -1,  -0.3f },
+    { 0.3f, 0.0f,  1.0f,  0.3f, -1,   0.4f },
+    { 0.3f, 0.2f,  1.0f,  0.3f, -1,   0.2f },
   };
 
   for (const auto& test : test_cases) {
     BOOST_TEST_CONTEXT("start " << test.start <<
                        "  offset " << test.offset <<
-                       "  sign " << test.sign) {
+                       "  sign " << test.sign <<
+                       "  output_offset " << test.output_offset <<
+                       "  output_sign " << static_cast<int>(test.output_sign)) {
       Context ctx;
       ctx.dut.config()->sources[0].offset = test.offset * 16384.0f;
       ctx.dut.config()->sources[0].sign = test.sign;
+      ctx.dut.config()->output.offset = test.output_offset;
+      ctx.dut.config()->output.sign = test.output_sign;
 
-      ctx.aux1_status.spi.active = true;
+      ctx.aux1_status.spi.active = false;
       ctx.aux1_status.spi.value = test.start * 16384.0f;
       ctx.aux1_status.spi.nonce = 1;
 
+      ctx.pcf.persistent_config.Load();
+
+      ctx.dut.ISR_Update(kDt);
+      {
+        const auto status = ctx.dut.status();
+        BOOST_TEST(status.position_relative_valid == false);
+      }
+
+      ctx.aux1_status.spi.active = true;
       ctx.dut.ISR_Update(kDt);
 
-      const auto status = ctx.dut.status();
-      BOOST_TEST(status.position == test.expected);
+      {
+        const auto status = ctx.dut.status();
+        BOOST_TEST(status.position == test.expected);
+        BOOST_TEST(status.position_relative_valid == true);
+        BOOST_TEST((status.homed == MotorPosition::Status::kRotor));
+      }
     }
   }
 }
@@ -960,7 +1120,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionExternalIndex) {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
-    BOOST_TEST(status.position == 0.201904297f);
+    BOOST_TEST(status.position == 0.201889038f);
     BOOST_TEST(status.position_relative == 0.0011138916f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
