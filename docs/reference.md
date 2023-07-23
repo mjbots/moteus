@@ -2424,6 +2424,14 @@ If sparks are observed, that is *definitely* a problem and the system should be 
 
 Genuine AMASS connectors are rated for 1000 insertions assuming no other mechanical damage, however off-brand connectors may have worse tolerances and may not make a reliable connection for even one insertion.
 
+## Long daisy chains ##
+
+When connecting more than 3 moteus controllers or servos in a system on a single power or CAN chain, additional factors should be considered.
+
+1. It is recommended to use T-spliced power instead of using the daisy chained power connectors for chains greater than 3 units.  Small connector mis-seating or micro-arcing will cause magnified effects with long chains of controllers.
+
+2. CAN bus electrical performance can be a limiting factor.  To operate at the default 5Mbps, you will need to ensure that CAN wires are twisted, all crimps are high quality, and that termination is installed.  Split termination may be required, where two 60 ohm resistors are connected in series with a small filter capacitor connected between the center tap of the resistors and ground.  A 1nF capacitor is recommended.  If that is insufficient, BRS can be disabled to operate only at 1Mbps.  With `moteus_tool` or `tview`, the `--can-disable-brs` flag can be used.
+
 ## Regenerative Braking Safety ##
 
 moteus can be commanded to sharply decelerate loads, either directly in response to commands, or due to external disturbances.  When braking a load, moteus by default applies the generated power to the input DC bus.
@@ -2436,7 +2444,7 @@ Here's what you should know about the facilities moteus has to deal with this, a
 
 The feature within moteus itself to deal with this is "flux braking".  The flux braking implementation will dissipate extra power in the windings of the motor when the bus voltage gets above a certain threshold.  This is controlled by the `servo.flux_brake_min_voltage` and `servo.flux_brake_resistance_ohm` parameters documented above.
 
-### Design considerations ###
+### Design considerations for regenerative braking ###
 
 The following design considerations can be used to minimize the risk of damage to hardware in the event of overvoltage.  These are not a substitute for validation in progressively more demanding situations, but they can help you start off in a good place.
 
