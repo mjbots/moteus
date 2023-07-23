@@ -2430,7 +2430,7 @@ When connecting more than 3 moteus controllers or servos in a system on a single
 
 1. It is recommended to use T-spliced power instead of using the daisy chained power connectors for chains greater than 3 units.  Small connector mis-seating or micro-arcing will cause magnified effects with long chains of controllers.
 
-2. CAN bus electrical performance can be a limiting factor.  To operate at the default 5Mbps, you will need to ensure that CAN wires are twisted, all crimps are high quality, and that termination is installed.  Split termination may be required, where two 60 ohm resistors are connected in series with a small filter capacitor connected between the center tap of the resistors and ground.  A 1nF capacitor is recommended.  If that is insufficient, BRS can be disabled to operate only at 1Mbps.  With `moteus_tool` or `tview`, the `--can-disable-brs` flag can be used.
+2. CAN bus electrical performance can be a limiting factor.  To operate at the default 5Mbps, you will need to ensure that CAN wires are twisted, all crimps are high quality, and that termination is installed.  Split termination may be required, where two 60 ohm resistors are connected in series with a small filter capacitor connected between the center tap of the resistors and ground.  A 4.7nF capacitor is recommended.  If that is insufficient, BRS can be disabled to operate only at 1Mbps.  With `moteus_tool` or `tview`, the `--can-disable-brs` flag can be used.
 
 ## Regenerative Braking Safety ##
 
