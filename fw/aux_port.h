@@ -532,7 +532,7 @@ class AuxPort {
     __disable_irq();
     status->value =
         (encoder_raw_data_[4] << 8) |
-        (encoder_raw_data_[5]);
+        (encoder_raw_data_[5] << 2);
     status->nonce += 1;
     __enable_irq();
 
@@ -540,7 +540,7 @@ class AuxPort {
     status->ams_diag = encoder_raw_data_[1];
     status->ams_mag =
         (encoder_raw_data_[2] << 8) |
-        (encoder_raw_data_[3]);
+        (encoder_raw_data_[3] << 2);
   }
 
   void ParseAs5600(aux::I2C::DeviceStatus* status) {
