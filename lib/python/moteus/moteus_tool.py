@@ -1307,39 +1307,46 @@ class Stream:
         return maybe_result
 
     async def calibrate_kv_rating(self, input_V, unwrapped_position_scale):
-        print("Calculating Kv rating")
+        if self.args.cal_force_kv is None:
+            print("Calculating Kv rating")
 
-        await self.ensure_valid_theta(self.encoder_cal_voltage)
+            await self.ensure_valid_theta(self.encoder_cal_voltage)
 
-        original_position_min = await self.read_config_double("servopos.position_min")
-        original_position_max = await self.read_config_double("servopos.position_max")
+            original_position_min = await self.read_config_double("servopos.position_min")
+            original_position_max = await self.read_config_double("servopos.position_max")
 
-        await self.command("conf set servopos.position_min NaN")
-        await self.command("conf set servopos.position_max NaN")
-        await self.command("d index 0")
+            await self.command("conf set servopos.position_min NaN")
+            await self.command("conf set servopos.position_max NaN")
+            await self.command("d index 0")
 
-        kv_cal_voltage = await self.find_kv_cal_voltage(input_V, unwrapped_position_scale)
-        await self.stop_and_idle()
+            kv_cal_voltage = await self.find_kv_cal_voltage(input_V, unwrapped_position_scale)
+            await self.stop_and_idle()
 
-        voltages = [x * kv_cal_voltage for x in [
-            0.0, 0.25, 0.5, 0.75, 1.0 ]]
-        speed_hzs = [ await self.find_speed_and_print(voltage, sleep_time=2)
-                      for voltage in voltages]
+            voltages = [x * kv_cal_voltage for x in [
+                0.0, 0.25, 0.5, 0.75, 1.0 ]]
+            speed_hzs = [ await self.find_speed_and_print(voltage, sleep_time=2)
+                          for voltage in voltages]
 
-        await self.stop_and_idle()
+            await self.stop_and_idle()
 
-        await asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
 
-        geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
+            geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
 
-        v_per_hz = geared_v_per_hz * unwrapped_position_scale
-        print(f"v_per_hz (pre-gearbox)={v_per_hz}")
+            v_per_hz = geared_v_per_hz * unwrapped_position_scale
+            print(f"v_per_hz (pre-gearbox)={v_per_hz}")
+
+            await self.command(f"conf set servopos.position_min {original_position_min}")
+            await self.command(f"conf set servopos.position_max {original_position_max}")
+        else:
+            v_per_hz = (0.5 * 60 / self.args.cal_force_kv)
+            print(f"Using forced Kv: {self.args.cal_force_kv}  v_per_hz={v_per_hz}")
 
         if not self.args.cal_no_update:
             await self.command(f"conf set motor.v_per_hz {v_per_hz}")
 
-        await self.command(f"conf set servopos.position_min {original_position_min}")
-        await self.command(f"conf set servopos.position_max {original_position_max}")
+        if v_per_hz < 0:
+            raise RuntimeError(f'v_per_hz value ({v_per_hz}) is negative')
 
         return v_per_hz
 
@@ -1623,6 +1630,9 @@ async def async_main():
     parser.add_argument('--cal-motor-poles', metavar='N', type=int,
                         default=None,
                         help='number of motor poles (2x pole pairs)')
+    parser.add_argument('--cal-force-kv', metavar='Kv', type=float,
+                        default=None,
+                        help='do not calibrate Kv, but use the specified value')
 
 
     parser.add_argument('--cal-max-remainder', metavar='F',
