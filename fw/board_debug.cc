@@ -685,11 +685,13 @@ class BoardDebug::Impl {
           std::strtof(pos_value.data(), nullptr);
 
       // Get us within 1 revolution.
+      auto* const config = bldc_->motor_position_config();
+      config->output.offset = 0.0f;
       bldc_->SetOutputPositionNearest(set_value);
+
       const float cur_output = bldc_->motor_position().position;
       const float error = set_value - cur_output;
 
-      auto* const config = bldc_->motor_position_config();
       config->output.offset += error * config->output.sign;
 
       bldc_->SetOutputPositionNearest(set_value);
