@@ -1820,8 +1820,14 @@ Selects what behavior will take place in the position timeout mode.
 The allowable values are a subset of the top level modes.
 
 * 0 - "stopped" - the driver is disengaged
+* 10 - "decelerate to 0 velocity and hold position"
 * 12 - "zero velocity"
 * 15 - "brake"
+
+For mode 10, `servo.default_velocity_limit` and
+`servo.default_accel_limit` are used to control the deceleration
+profile to zero speed.  The default PID gains are used.  The only
+limit on torque when in this timeout mode is `servo.max_current_A`.
 
 ## `aux[12].pins.X.mode` ##
 

@@ -1123,7 +1123,8 @@ class BldcServo::Impl {
         return true;
       }
       case kPositionTimeout: {
-        return config_.timeout_mode == BldcServoMode::kZeroVelocity;
+        return (config_.timeout_mode == BldcServoMode::kZeroVelocity ||
+                config_.timeout_mode == BldcServoMode::kPosition);
       }
     }
     return false;
@@ -1829,6 +1830,20 @@ class BldcServo::Impl {
   void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     if (config_.timeout_mode == kStopped) {
       ISR_DoStopped(sin_cos);
+    } else if (config_.timeout_mode == kPosition) {
+      CommandData timeout_data;
+      timeout_data.mode = kPosition;
+      timeout_data.position = std::numeric_limits<float>::quiet_NaN();
+      timeout_data.velocity_limit = config_.default_velocity_limit;
+      timeout_data.accel_limit = config_.default_accel_limit;
+      timeout_data.timeout_s = std::numeric_limits<float>::quiet_NaN();
+
+      PID::ApplyOptions apply_options;
+      ISR_DoPositionCommon(
+          sin_cos, &timeout_data, apply_options,
+          timeout_data.max_torque_Nm,
+          0.0f,
+          0.0f);
     } else if (config_.timeout_mode == kZeroVelocity) {
       ISR_DoZeroVelocity(sin_cos, data);
     } else if (config_.timeout_mode == kBrake) {

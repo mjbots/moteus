@@ -517,6 +517,7 @@ struct BldcServoConfig {
   // options map to top level modes, although only the following are
   // valid:
   //  0 - "stopped" - motor driver disengaged
+  //  10 - "decelerate to 0 and hold position"
   //  12 - "zero velocity" - derivative only position control
   //  15 - "brake" - all motor phases shorted to ground
   uint8_t timeout_mode = 12;
