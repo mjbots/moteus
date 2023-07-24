@@ -271,4 +271,22 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
   return result;
 }
 
+void MoteusEnsureOff() {
+  gpio_t power;
+  gpio_init_out(&power, moteus::g_hw_pins.drv8323_hiz);
+  gpio_write(&power, 0);
+
+  // Also, disable the DRV8323 entirely, because, hey, why not.
+  gpio_t enable;
+  gpio_init_out(&enable, moteus::g_hw_pins.drv8323_enable);
+  gpio_write(&enable, 0);
+
+  // We want to ensure that our primary interrupt is not running.
+  // Which one it is could vary, so just turn them all off.
+  NVIC_DisableIRQ(TIM2_IRQn);
+  NVIC_DisableIRQ(TIM3_IRQn);
+  NVIC_DisableIRQ(TIM4_IRQn);
+  NVIC_DisableIRQ(TIM5_IRQn);
+}
+
 }

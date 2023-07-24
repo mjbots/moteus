@@ -128,4 +128,7 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 
 extern MoteusHwPins g_hw_pins;
 
+// Ensure the DRV8323 is turned off.
+void MoteusEnsureOff();
+
 }

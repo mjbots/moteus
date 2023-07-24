@@ -796,7 +796,9 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "flash") {
-      // TODO: Get the USART and direction pin from our config.
+      // Ensure everything is stopped!
+      MoteusEnsureOff();
+
       MultiplexBootloader(multiplex_protocol_->config()->id, USART1, GPIOA, 8);
       // We should never get here.
       MJ_ASSERT(false);
