@@ -60,7 +60,7 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
   FamilyAndVersion result;
   result.family = 0;
 
-  // We check for family 1, "moteus hp", by seeing if we can find a
+  // We check for family 1, "moteus n1", by seeing if we can find a
   // DRV8323 on a chip select that is different from that used on all
   // family 0 boards.
   {
