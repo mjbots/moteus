@@ -754,9 +754,13 @@ class Stream:
         if await self.is_config_supported("motor.unwrapped_position_scale"):
             unwrapped_position_scale = \
                 await self.read_config_double("motor.unwrapped_position_scale")
+            motor_output_sign = 1.0
         elif await self.is_config_supported("motor_position.rotor_to_output_ratio"):
             unwrapped_position_scale = \
                 await self.read_config_double("motor_position.rotor_to_output_ratio")
+            motor_output_sign = \
+                await self.read_config_double("motor_position.output.sign")
+
 
         if await self.is_config_supported("servo.pwm_rate_hz"):
             pwm_rate_hz = await self.read_config_double("servo.pwm_rate_hz")
@@ -820,7 +824,7 @@ class Stream:
         await self.check_for_fault()
 
         v_per_hz = await self.calibrate_kv_rating(
-            input_V, unwrapped_position_scale)
+            input_V, unwrapped_position_scale, motor_output_sign)
         await self.check_for_fault()
 
         # Rezero the servo since we just spun it a lot.
@@ -852,7 +856,8 @@ class Stream:
             # We measure voltage to the center, not peak-to-peak, thus
             # the extra 0.5.
             'kv' : (0.5 * 60.0 / v_per_hz),
-            'unwrapped_position_scale' : unwrapped_position_scale
+            'unwrapped_position_scale' : unwrapped_position_scale,
+            'motor_position_output_sign' : motor_output_sign,
         }
 
         log_filename = f"moteus-cal-{device_info['serial_number']}-{now.strftime('%Y%m%dT%H%M%S.%f')}.log"
@@ -1306,7 +1311,8 @@ class Stream:
         print()
         return maybe_result
 
-    async def calibrate_kv_rating(self, input_V, unwrapped_position_scale):
+    async def calibrate_kv_rating(self, input_V, unwrapped_position_scale,
+                                  motor_output_sign):
         if self.args.cal_force_kv is None:
             print("Calculating Kv rating")
 
@@ -1333,11 +1339,17 @@ class Stream:
 
             geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
 
-            v_per_hz = geared_v_per_hz * unwrapped_position_scale
+            v_per_hz = (geared_v_per_hz *
+                        unwrapped_position_scale *
+                        motor_output_sign)
             print(f"v_per_hz (pre-gearbox)={v_per_hz}")
 
             await self.command(f"conf set servopos.position_min {original_position_min}")
             await self.command(f"conf set servopos.position_max {original_position_max}")
+
+            if v_per_hz < 0.0:
+                raise RuntimeError(
+                    f"v_per_hz measured as negative ({v_per_hz}), something wrong")
         else:
             v_per_hz = (0.5 * 60 / self.args.cal_force_kv)
             print(f"Using forced Kv: {self.args.cal_force_kv}  v_per_hz={v_per_hz}")
