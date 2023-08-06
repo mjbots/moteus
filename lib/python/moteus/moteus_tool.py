@@ -801,11 +801,9 @@ class Stream:
             input_V, winding_resistance)
         await self.check_for_fault()
 
-        # We use a larger voltage for inductance measurement to get a
-        # more accurate value.  Since we switch back and forth at a
-        # high rate, this doesn't actually use all that much power no
-        # matter what we choose.
-        inductance = await self.calibrate_inductance(2.0 * resistance_cal_voltage)
+        # Determine our inductance.
+        inductance = await self.calibrate_inductance(
+            resistance_cal_voltage, winding_resistance)
         await self.check_for_fault()
 
         kp, ki, torque_bw_hz = None, None, None
@@ -1119,12 +1117,25 @@ class Stream:
 
         return winding_resistance
 
-    async def calibrate_inductance(self, cal_voltage):
+    async def calibrate_inductance(self, cal_voltage, winding_resistance):
         print("Calculating motor inductance")
 
         try:
+            # High winding resistance motors typically have a much
+            # larger inductance, and therefore need a longer
+            # inductance period.  We still need to keep this low for
+            # low resistance/inductance motors, otherwise we can have
+            # excessive peak currents during the measurement process.
+
+            # For phase resistances of 0.2 ohm or less, stick with 8
+            # cycles, which for a 15kHz pwm rate would equal ~0.6ms of
+            # on time.  Increase that as phase resistance increases,
+            # until it maxes at 32/2ms around 0.8 ohms of phase
+            # resistance.
+            ind_period = max(8, min(32, int(winding_resistance / 0.2)))
+
             await asyncio.wait_for(
-                self.command(f"d ind {cal_voltage} 4"), 0.25)
+                self.command(f"d ind {cal_voltage} {ind_period}"), 0.25)
         except moteus.CommandError as e:
             # It is possible this is an old firmware that does not
             # support inductance measurement.
