@@ -135,15 +135,19 @@ class WriteCanFrame {
     switch (res) {
       case Resolution::kInt8: {
         Write<int8_t>(std::max(-127, std::min(127, value)));
+        break;
       }
       case Resolution::kInt16: {
         Write<int16_t>(std::max(-32767, std::min(32767, value)));
+        break;
       }
       case Resolution::kInt32: {
         Write<int32_t>(value);
+        break;
       }
       case Resolution::kFloat: {
         Write<float>(static_cast<float>(value));
+        break;
       }
       case Resolution::kIgnore: {
         abort();

@@ -23,7 +23,7 @@
 
 #include <limits>
 
-#include "mjbots/moteus/moteus_multiplex.h"
+#include "moteus_multiplex.h"
 
 namespace mjbots {
 namespace moteus {
@@ -177,6 +177,7 @@ struct Query {
     double d_current = std::numeric_limits<double>::quiet_NaN();
     double abs_position = std::numeric_limits<double>::quiet_NaN();
     double motor_temperature = std::numeric_limits<double>::quiet_NaN();
+    bool trajectory_complete = false;
     HomeState home_state = HomeState::kRelative;
     double voltage = std::numeric_limits<double>::quiet_NaN();
     double temperature = std::numeric_limits<double>::quiet_NaN();
@@ -196,7 +197,6 @@ struct Query {
     Resolution abs_position = kIgnore;
     Resolution motor_temperature = kIgnore;
     Resolution trajectory_complete = kIgnore;
-    Resolution rezero_state = kIgnore;
     Resolution home_state = kIgnore;
     Resolution voltage = kInt8;
     Resolution temperature = kInt8;
@@ -302,6 +302,10 @@ struct Query {
           result.motor_temperature = parser.ReadTemperature(res);
           break;
         }
+        case Register::kTrajectoryComplete: {
+          result.trajectory_complete = parser.ReadInt(res) != 0;
+          break;
+        }
         case Register::kHomeState: {
           result.home_state = static_cast<HomeState>(parser.ReadInt(res));
           break;
@@ -326,6 +330,10 @@ struct Query {
           result.aux2_gpio = parser.ReadInt(res);
           break;
         }
+        default:
+          // Ignore this value.
+          parser.ReadInt(res);
+          break;
       }
     }
   }
@@ -350,14 +358,14 @@ struct PositionMode {
     Resolution position = kFloat;
     Resolution velocity = kFloat;
     Resolution feedforward_torque = kFloat;
-    Resolution kp_scale = kFloat;
-    Resolution kd_scale = kFloat;
-    Resolution maximum_torque = kFloat;
-    Resolution stop_position = kFloat;
-    Resolution watchdog_timeout = kFloat;
-    Resolution velocity_limit = kFloat;
-    Resolution accel_limit = kFloat;
-    Resolution fixed_voltage_override = kFloat;
+    Resolution kp_scale = kIgnore;
+    Resolution kd_scale = kIgnore;
+    Resolution maximum_torque = kIgnore;
+    Resolution stop_position = kIgnore;
+    Resolution watchdog_timeout = kIgnore;
+    Resolution velocity_limit = kIgnore;
+    Resolution accel_limit = kIgnore;
+    Resolution fixed_voltage_override = kIgnore;
   };
 
   static void Make(WriteCanFrame* frame,
@@ -428,15 +436,15 @@ struct PositionMode {
 /// The voltage-mode FOC command.
 struct VFOCMode {
   struct Command {
-    double theta = 0.0;
+    double theta_rad = 0.0;
     double voltage = 0.0;
-    double theta_rate = 0.0;
+    double theta_rad_rate = 0.0;
   };
 
   struct Format {
-    Resolution theta = kFloat;
+    Resolution theta_rad = kFloat;
     Resolution voltage = kFloat;
-    Resolution theta_rate = kFloat;
+    Resolution theta_rad_rate = kFloat;
   };
 
   static void Make(WriteCanFrame* frame,
@@ -447,22 +455,22 @@ struct VFOCMode {
     frame->Write<int8_t>(Mode::kVoltageFoc);
 
     const Resolution kResolutions[] = {
-      format.theta,
+      format.theta_rad,
       format.voltage,
       kIgnore,
       kIgnore,
       kIgnore,
       kIgnore,
-      format.theta_rate,
+      format.theta_rad_rate,
     };
     WriteCombiner combiner(
         frame, 0x00,
-        Register::kCommandPosition,
+        Register::kVFocTheta,
         kResolutions,
         sizeof(kResolutions) / sizeof(*kResolutions));
 
     if (combiner.MaybeWrite()) {
-      frame->WritePwm(command.theta / M_PI, format.theta);
+      frame->WritePwm(command.theta_rad / M_PI, format.theta_rad);
     }
     if (combiner.MaybeWrite()) {
       frame->WriteVoltage(command.voltage, format.voltage);
@@ -480,7 +488,7 @@ struct VFOCMode {
       abort();
     }
     if (combiner.MaybeWrite()) {
-      frame->WriteVelocity(command.theta / M_PI, format.theta_rate);
+      frame->WriteVelocity(command.theta_rad_rate / M_PI, format.theta_rad_rate);
     }
   }
 };
@@ -511,7 +519,7 @@ struct CurrentMode {
 
     WriteCombiner combiner(
         frame, 0x00,
-        Register::kCommandPosition,
+        Register::kCommandQCurrent,
         kResolutions,
         sizeof(kResolutions) / sizeof(*kResolutions));
 
@@ -545,9 +553,9 @@ struct StayWithinMode {
     Resolution watchdog_timeout = kIgnore;
   };
 
-  static void Write(WriteCanFrame* frame,
-                    const Command& command,
-                    const Format& format) {
+  static void Make(WriteCanFrame* frame,
+                   const Command& command,
+                   const Format& format) {
     frame->Write<int8_t>(Multiplex::kWriteInt8 | 0x01);
     frame->Write<int8_t>(Register::kMode);
     frame->Write<int8_t>(Mode::kStayWithin);
@@ -630,9 +638,9 @@ struct GpioWrite {
     Resolution aux2 = kInt8;
   };
 
-  static void Write(WriteCanFrame* frame,
-                    const Command& command,
-                    const Format& format) {
+  static void Make(WriteCanFrame* frame,
+                   const Command& command,
+                   const Format& format) {
     const Resolution kResolutions[] = {
       format.aux1,
       format.aux2,
@@ -658,7 +666,9 @@ struct OutputNearest {
     double position = 0.0;
   };
 
-  static void Make(WriteCanFrame* frame, const Command& command) {
+  struct Format {};
+
+  static void Make(WriteCanFrame* frame, const Command& command, const Format&) {
     frame->Write<int8_t>(Multiplex::kWriteFloat | 0x01);
     frame->WriteVaruint(Register::kSetOutputNearest);
     frame->Write<float>(command.position);
