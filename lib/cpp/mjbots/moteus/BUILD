@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2020 Josh Pieper, jjp@pobox.com.
+# Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,23 +16,26 @@
 
 package(default_visibility = ["//visibility:public"])
 
-test_suite(
-    name = "host",
-    tests = [
-        "//fw:host",
-        "//utils:host",
-        "//lib/python:host",
-        "//lib/cpp:host",
+cc_library(
+    name = "moteus",
+    hdrs = [
+        "moteus_multiplex.h",
+        "moteus_protocol.h",
     ],
 )
 
-filegroup(
-    name = "target",
+cc_test(
+    name = "test",
     srcs = [
-        "//fw:moteus",
-        "//fw:bin",
-        "//fw:can_bootloader",
+        "test/moteus_protocol_test.cc",
+        "test/test_main.cc",
     ],
+    copts = [
+        "-Ilib/cpp",
+    ],
+    deps = [
+        ":moteus",
+        "@boost//:test",
+    ],
+    size = "small",
 )
-
-exports_files(["tsconfig.json"])
