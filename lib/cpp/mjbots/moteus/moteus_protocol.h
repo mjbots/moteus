@@ -167,6 +167,12 @@ enum class HomeState {
   kOutput = 2,
 };
 
+struct EmptyMode {
+  struct Command {};
+  struct Format {};
+  static void Make(WriteCanFrame*, const Command&, const Format&) {}
+};
+
 struct Query {
   struct ItemValue {
     int32_t register_number = std::numeric_limits<int32_t>::max();

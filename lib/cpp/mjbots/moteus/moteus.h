@@ -57,6 +57,16 @@ struct Command {
   bool raw = false;
 
   uint32_t arbitration_id = 0;
+
+  enum Toggle {
+    kForceOff,
+    kForceOn,
+    kDefault,
+  };
+
+  Toggle brs = kDefault;
+  Toggle fdcan_frame = kDefault;
+
   int bus = 0;
 };
 
@@ -351,6 +361,16 @@ class Fdcanusb : public TransportImpl {
 
     this_command.size = ParseCanData(data, this_command.data);
 
+    while (true) {
+      const auto maybe_flags = tokenizer.next();
+      for (const char c : maybe_flags) {
+        if (c == 'b') { this_command.brs = Command::kForceOff; }
+        if (c == 'B') { this_command.brs = Command::kForceOn; }
+        if (c == 'f') { this_command.fdcan_frame = Command::kForceOff; }
+        if (c == 'F') { this_command.fdcan_frame = Command::kForceOn; }
+      }
+    }
+
     replies->emplace_back(std::move(this_command));
   }
 
@@ -370,8 +390,15 @@ class Fdcanusb : public TransportImpl {
       fmt("%02x", static_cast<int>(command.data[i]));
     }
 
-    if (options_.disable_brs) {
+    if (options_.disable_brs || command.brs == Command::kForceOff) {
       fmt(" b");
+    } else if (command.brs == Command::kForceOn) {
+      fmt(" B");
+    }
+    if (command.fdcan_frame == Command::kForceOff) {
+      fmt(" f");
+    } else if (command.fdcan_frame == Command::kForceOn) {
+      fmt(" F");
     }
     fmt("\n");
 
@@ -482,9 +509,13 @@ class Controller {
     Query::Result values;
   };
 
+  Command MakeQuery() {
+    return MakeCommand(EmptyMode(), {}, {});
+  }
+
   /// Simply query the current state of the controller.
-  Result Query() {
-    return {};
+  std::optional<Result> Query() {
+    return ExecuteSingleCommand(MakeQuery());
   }
 
   Command MakeStop() {
