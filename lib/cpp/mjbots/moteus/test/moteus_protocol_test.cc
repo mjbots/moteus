@@ -127,6 +127,64 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
   BOOST_TEST(result.fault == 64);
 }
 
+BOOST_AUTO_TEST_CASE(GenericQueryMake) {
+  moteus::CanFrame frame;
+  moteus::WriteCanFrame write_frame(&frame);
+  moteus::GenericQuery::Format fmt;
+
+  fmt.values[0].register_number = moteus::Register::kAux1AnalogIn1;
+  fmt.values[0].resolution = moteus::kInt16;
+  fmt.values[1].register_number = moteus::Register::kAux1AnalogIn2;
+  fmt.values[1].resolution = moteus::kInt16;
+
+  fmt.values[2].register_number = moteus::Register::kEncoder0Position;
+  fmt.values[2].resolution = moteus::kFloat;
+  fmt.values[3].register_number = moteus::Register::kEncoder0Velocity;
+  fmt.values[3].resolution = moteus::kFloat;
+
+  moteus::GenericQuery::Make(&write_frame, fmt);
+  BOOST_TEST(Hexify(frame) == "1e501660");
+}
+
+BOOST_AUTO_TEST_CASE(GenericQueryParse) {
+  moteus::CanFrame query_data {
+    {
+      0x24, 0x04, 0x00,
+      0x0a, 0x00,  // mode
+      0x10, 0x02,  // position
+      0x00, 0xfe,  // velocity
+      0x20, 0x00,  // torque
+      0x23, 0x0d,
+      0x20,  // voltage
+      0x30,  // temperature
+      0x40,  // fault
+    },
+    16,
+  };
+
+  const auto result = moteus::GenericQuery::Parse(&query_data);
+  BOOST_TEST(result.values[0].register_number == 0);
+  BOOST_TEST(result.values[0].value == 10.0);
+
+  BOOST_TEST(result.values[1].register_number == 1);
+  BOOST_TEST(result.values[1].value == 0.0528);
+
+  BOOST_TEST(result.values[2].register_number == 2);
+  BOOST_TEST(result.values[2].value == -0.128);
+
+  BOOST_TEST(result.values[3].register_number == 3);
+  BOOST_TEST(result.values[3].value == 0.320);
+
+  BOOST_TEST(result.values[4].register_number == 13);
+  BOOST_TEST(result.values[4].value == 16.0);
+
+  BOOST_TEST(result.values[5].register_number == 14);
+  BOOST_TEST(result.values[5].value == 48.0);
+
+  BOOST_TEST(result.values[6].register_number == 15);
+  BOOST_TEST(result.values[6].value == 64.0);
+}
+
 BOOST_AUTO_TEST_CASE(PositionDefaults) {
   moteus::CanFrame frame;
   moteus::WriteCanFrame write_frame(&frame);
