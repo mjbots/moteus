@@ -20,5 +20,6 @@ test_suite(
     name = "host",
     tests = [
         "//lib/cpp/mjbots/moteus:test",
+        "//lib/cpp/examples:test",
     ],
 )

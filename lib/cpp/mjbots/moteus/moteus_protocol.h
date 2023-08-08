@@ -259,80 +259,90 @@ struct Query {
     }
   }
 
+  static Result Parse(const uint8_t* data, uint8_t size) {
+    MultiplexParser parser(data, size);
+
+    return Parse(&parser);
+  }
+
   static Result Parse(const CanFrame* frame) {
     MultiplexParser parser(frame);
 
+    return Parse(&parser);
+  }
+
+  static Result Parse(MultiplexParser* parser) {
     Result result;
 
     while (true) {
-      const auto current = parser.next();
+      const auto current = parser->next();
       if (current.done) { return result; }
 
       const auto res = current.resolution;
       switch (static_cast<Register>(current.value)) {
         case Register::kMode: {
-          result.mode = static_cast<Mode>(parser.ReadInt(res));
+          result.mode = static_cast<Mode>(parser->ReadInt(res));
           break;
         }
         case Register::kPosition: {
-          result.position = parser.ReadPosition(res);
+          result.position = parser->ReadPosition(res);
           break;
         }
         case Register::kVelocity: {
-          result.velocity = parser.ReadVelocity(res);
+          result.velocity = parser->ReadVelocity(res);
           break;
         }
         case Register::kTorque: {
-          result.torque = parser.ReadTorque(res);
+          result.torque = parser->ReadTorque(res);
           break;
         }
         case Register::kQCurrent: {
-          result.q_current = parser.ReadCurrent(res);
+          result.q_current = parser->ReadCurrent(res);
           break;
         }
         case Register::kDCurrent: {
-          result.d_current = parser.ReadCurrent(res);
+          result.d_current = parser->ReadCurrent(res);
           break;
         }
         case Register::kAbsPosition: {
-          result.abs_position = parser.ReadPosition(res);
+          result.abs_position = parser->ReadPosition(res);
           break;
         }
         case Register::kMotorTemperature: {
-          result.motor_temperature = parser.ReadTemperature(res);
+          result.motor_temperature = parser->ReadTemperature(res);
           break;
         }
         case Register::kTrajectoryComplete: {
-          result.trajectory_complete = parser.ReadInt(res) != 0;
+          result.trajectory_complete = parser->ReadInt(res) != 0;
           break;
         }
         case Register::kHomeState: {
-          result.home_state = static_cast<HomeState>(parser.ReadInt(res));
+          result.home_state = static_cast<HomeState>(parser->ReadInt(res));
           break;
         }
         case Register::kVoltage: {
-          result.voltage = parser.ReadVoltage(res);
+          result.voltage = parser->ReadVoltage(res);
           break;
         }
         case Register::kTemperature: {
-          result.temperature = parser.ReadTemperature(res);
+          result.temperature = parser->ReadTemperature(res);
           break;
         }
         case Register::kFault: {
-          result.fault = parser.ReadInt(res);
+          result.fault = parser->ReadInt(res);
           break;
         }
         case Register::kAux1GpioStatus: {
-          result.aux1_gpio = parser.ReadInt(res);
+          result.aux1_gpio = parser->ReadInt(res);
           break;
         }
         case Register::kAux2GpioStatus: {
-          result.aux2_gpio = parser.ReadInt(res);
+          result.aux2_gpio = parser->ReadInt(res);
           break;
         }
         default:
           // Ignore this value.
-          parser.ReadInt(res);
+          parser->ReadInt(res);
           break;
       }
     }
@@ -357,7 +367,7 @@ struct PositionMode {
   struct Format {
     Resolution position = kFloat;
     Resolution velocity = kFloat;
-    Resolution feedforward_torque = kFloat;
+    Resolution feedforward_torque = kIgnore;
     Resolution kp_scale = kIgnore;
     Resolution kd_scale = kIgnore;
     Resolution maximum_torque = kIgnore;

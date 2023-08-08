@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(PositionDefaults) {
   moteus::WriteCanFrame write_frame(&frame);
   moteus::PositionMode::Make(&write_frame, {}, {});
 
-  BOOST_TEST(Hexify(frame) == "01000a0f20000000000000000000000000");
+  BOOST_TEST(Hexify(frame) == "01000a0e200000000000000000");
 }
 
 BOOST_AUTO_TEST_CASE(PositionMaximal) {

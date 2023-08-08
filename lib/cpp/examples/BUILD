@@ -16,28 +16,28 @@
 
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
-    name = "moteus",
-    hdrs = [
-        "moteus_multiplex.h",
-        "moteus_protocol.h",
-        "moteus_tokenizer.h",
-        "moteus.h",
+cc_binary(
+    name = "simple",
+    srcs = [
+        "simple.cc",
+    ],
+    deps = [
+        "//lib/cpp/mjbots/moteus:moteus",
+    ],
+    copts = [
+        "-Ilib/cpp/mjbots/moteus",
     ],
 )
 
-cc_test(
+test_suite(
     name = "test",
-    srcs = [
-        "test/moteus_protocol_test.cc",
-        "test/test_main.cc",
+    tests = [
+        ":data_indirect",
     ],
-    copts = [
-        "-Ilib/cpp",
-    ],
-    deps = [
-        ":moteus",
-        "@boost//:test",
-    ],
-    size = "small",
+)
+
+sh_test(
+    name = "data_indirect",
+    data = [":simple"],
+    srcs = ["dummy.sh"],
 )
