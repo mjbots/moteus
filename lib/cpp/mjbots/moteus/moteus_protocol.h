@@ -168,6 +168,13 @@ enum class HomeState {
 };
 
 struct Query {
+  struct ItemValue {
+    int32_t register_number = std::numeric_limits<int32_t>::max();
+    double value = 0.0;
+  };
+
+  static constexpr int kMaxExtra = 16;
+
   struct Result {
     Mode mode = Mode::kStopped;
     double position = std::numeric_limits<double>::quiet_NaN();
@@ -185,6 +192,13 @@ struct Query {
 
     int8_t aux1_gpio = 0;
     int8_t aux2_gpio = 0;
+
+    ItemValue extra[kMaxExtra] = {};
+  };
+
+  struct ItemFormat {
+    int32_t register_number = std::numeric_limits<int32_t>::max();
+    Resolution resolution = moteus::kIgnore;
   };
 
   struct Format {
@@ -204,7 +218,16 @@ struct Query {
 
     Resolution aux1_gpio = kIgnore;
     Resolution aux2_gpio = kIgnore;
+
+    ItemFormat extra[kMaxExtra] = {};
   };
+
+  static int ItemFormatSort(const void* lhs_in, const void* rhs_in) {
+    const auto* lhs = reinterpret_cast<const ItemFormat*>(lhs_in);
+    const auto* rhs = reinterpret_cast<const ItemFormat*>(rhs_in);
+
+    return lhs->register_number - rhs->register_number;
+  }
 
   static void Make(WriteCanFrame* frame, const Format& format) {
     {
@@ -257,6 +280,53 @@ struct Query {
         combiner.MaybeWrite();
       }
     }
+
+    {
+      ItemFormat sorted_values[kMaxExtra] = {};
+      std::memcpy(&sorted_values[0], &(format.extra[0]), sizeof(format.extra));
+      ::qsort(&sorted_values[0], kMaxExtra, sizeof(ItemFormat), ItemFormatSort);
+
+      const int size = [&]() {
+        for (int i = 0; i < kMaxExtra; i++) {
+          if (sorted_values[i].register_number ==
+              std::numeric_limits<int32_t>::max()) {
+            return i;
+          }
+        }
+        return kMaxExtra;
+      }();
+
+      if (size == 0) { return; }
+      int32_t min_register_number = sorted_values[0].register_number;
+      int32_t max_register_number = sorted_values[size - 1].register_number;
+
+      int required_registers = max_register_number - min_register_number + 1;
+
+      // An arbitrary limit to constrain the amount of stack we use
+      // below.
+      if (required_registers > 512) { ::abort(); }
+
+      Resolution resolutions[required_registers];
+      std::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
+
+      for (int this_register = min_register_number, index = 0;
+           this_register <= max_register_number;
+           this_register++) {
+        if (sorted_values[index].register_number == this_register) {
+          resolutions[this_register - min_register_number] =
+              sorted_values[index].resolution;
+          index++;
+        } else {
+          resolutions[this_register - min_register_number] = kIgnore;
+        }
+      }
+      WriteCombiner combiner(
+          frame, 0x10, min_register_number,
+          resolutions, required_registers);
+      for (size_t i = 0; i < required_registers; i++) {
+        combiner.MaybeWrite();
+      }
+    }
   }
 
   static Result Parse(const uint8_t* data, uint8_t size) {
@@ -274,11 +344,14 @@ struct Query {
   static Result Parse(MultiplexParser* parser) {
     Result result;
 
+    int extra_index = 0;
+
     while (true) {
       const auto current = parser->next();
       if (current.done) { return result; }
 
       const auto res = current.resolution;
+
       switch (static_cast<Register>(current.value)) {
         case Register::kMode: {
           result.mode = static_cast<Mode>(parser->ReadInt(res));
@@ -340,12 +413,132 @@ struct Query {
           result.aux2_gpio = parser->ReadInt(res);
           break;
         }
-        default:
-          // Ignore this value.
-          parser->ReadInt(res);
+        default: {
+          if (extra_index < kMaxExtra) {
+            result.extra[extra_index].register_number = current.value;
+            result.extra[extra_index].value =
+                ParseGeneric(parser, current.value, res);
+            extra_index++;
+          } else {
+            // Ignore this value.
+            parser->ReadInt(res);
+          }
           break;
+        }
       }
     }
+  }
+
+  static double ParseGeneric(MultiplexParser* parser,
+                             int32_t register_number,
+                             Resolution resolution) {
+    const auto res = resolution;
+    using R = Register;
+    switch (static_cast<Register>(register_number)) {
+      case R::kMode:      { return parser->ReadInt(res); }
+      case R::kPosition:  { return parser->ReadPosition(res); }
+      case R::kVelocity:  { return parser->ReadVelocity(res); }
+      case R::kTorque:    { return parser->ReadTorque(res); }
+      case R::kQCurrent:  { return parser->ReadCurrent(res); }
+      case R::kDCurrent:  { return parser->ReadCurrent(res); }
+      case R::kAbsPosition: { return parser->ReadPosition(res); }
+
+      case R::kMotorTemperature: { return parser->ReadTemperature(res); }
+      case R::kTrajectoryComplete: { return parser->ReadInt(res); }
+      case R::kHomeState: { return parser->ReadInt(res); }
+      case R::kVoltage:   { return parser->ReadVoltage(res); }
+      case R::kTemperature: { return parser->ReadTemperature(res); }
+      case R::kFault:     { return parser->ReadInt(res); }
+
+      case R::kPwmPhaseA: { return parser->ReadPwm(res); }
+      case R::kPwmPhaseB: { return parser->ReadPwm(res); }
+      case R::kPwmPhaseC: { return parser->ReadPwm(res); }
+
+      case R::kVoltagePhaseA: { return parser->ReadVoltage(res); }
+      case R::kVoltagePhaseB: { return parser->ReadVoltage(res); }
+      case R::kVoltagePhaseC: { return parser->ReadVoltage(res); }
+
+      case R::kVFocTheta: { return parser->ReadPwm(res) * M_PI; }
+      case R::kVFocVoltage: { return parser->ReadVoltage(res); }
+      case R::kVoltageDqD: { return parser->ReadVoltage(res); }
+      case R::kVoltageDqQ: { return parser->ReadVoltage(res); }
+
+      case R::kCommandQCurrent: { return parser->ReadCurrent(res); }
+      case R::kCommandDCurrent: { return parser->ReadCurrent(res); }
+
+      case R::kCommandPosition: { return parser->ReadPosition(res); }
+      case R::kCommandVelocity: { return parser->ReadVelocity(res); }
+      case R::kCommandFeedforwardTorque: { return parser->ReadTorque(res); }
+      case R::kCommandKpScale: { return parser->ReadPwm(res); }
+      case R::kCommandKdScale: { return parser->ReadPwm(res); }
+      case R::kCommandPositionMaxTorque: { return parser->ReadTorque(res); }
+      case R::kCommandStopPosition: { return parser->ReadPosition(res); }
+      case R::kCommandTimeout: { return parser->ReadTime(res); }
+
+      case R::kPositionKp: { return parser->ReadTorque(res); }
+      case R::kPositionKi: { return parser->ReadTorque(res); }
+      case R::kPositionKd: { return parser->ReadTorque(res); }
+      case R::kPositionFeedforward: { return parser->ReadTorque(res); }
+      case R::kPositionCommand: { return parser->ReadTorque(res); }
+
+      case R::kControlPosition: { return parser->ReadPosition(res); }
+      case R::kControlVelocity: { return parser->ReadVelocity(res); }
+      case R::kControlTorque: { return parser->ReadTorque(res); }
+      case R::kControlPositionError: { return parser->ReadPosition(res); }
+      case R::kControlVelocityError: { return parser->ReadVelocity(res); }
+      case R::kControlTorqueError: { return parser->ReadTorque(res); }
+
+      case R::kCommandStayWithinLowerBound: { return parser->ReadPosition(res); }
+      case R::kCommandStayWithinUpperBound: { return parser->ReadPosition(res); }
+      case R::kCommandStayWithinFeedforwardTorque: { return parser->ReadTorque(res); }
+      case R::kCommandStayWithinKpScale: { return parser->ReadPwm(res); }
+      case R::kCommandStayWithinKdScale: { return parser->ReadPwm(res); }
+      case R::kCommandStayWithinPositionMaxTorque: { return parser->ReadTorque(res); }
+      case R::kCommandStayWithinTimeout: { return parser->ReadTime(res); }
+
+      case R::kEncoder0Position: { return parser->ReadPosition(res); }
+      case R::kEncoder0Velocity: { return parser->ReadVelocity(res); }
+      case R::kEncoder1Position: { return parser->ReadPosition(res); }
+      case R::kEncoder1Velocity: { return parser->ReadVelocity(res); }
+      case R::kEncoder2Position: { return parser->ReadPosition(res); }
+      case R::kEncoder2Velocity: { return parser->ReadVelocity(res); }
+
+      case R::kEncoderValidity: { return parser->ReadInt(res); }
+
+      case R::kAux1GpioCommand: { return parser->ReadInt(res); }
+      case R::kAux2GpioCommand: { return parser->ReadInt(res); }
+      case R::kAux1GpioStatus: { return parser->ReadInt(res); }
+      case R::kAux2GpioStatus: { return parser->ReadInt(res); }
+
+      case R::kAux1AnalogIn1: { return parser->ReadPwm(res); }
+      case R::kAux1AnalogIn2: { return parser->ReadPwm(res); }
+      case R::kAux1AnalogIn3: { return parser->ReadPwm(res); }
+      case R::kAux1AnalogIn4: { return parser->ReadPwm(res); }
+      case R::kAux1AnalogIn5: { return parser->ReadPwm(res); }
+
+      case R::kAux2AnalogIn1: { return parser->ReadPwm(res); }
+      case R::kAux2AnalogIn2: { return parser->ReadPwm(res); }
+      case R::kAux2AnalogIn3: { return parser->ReadPwm(res); }
+      case R::kAux2AnalogIn4: { return parser->ReadPwm(res); }
+      case R::kAux2AnalogIn5: { return parser->ReadPwm(res); }
+
+      case R::kMillisecondCounter: { return parser->ReadInt(res); }
+      case R::kClockTrim: { return parser->ReadInt(res); }
+
+      case R::kRegisterMapVersion: { return parser->ReadInt(res); }
+      case R::kSerialNumber1: { return parser->ReadInt(res); }
+      case R::kSerialNumber2: { return parser->ReadInt(res); }
+      case R::kSerialNumber3: { return parser->ReadInt(res); }
+
+      case R::kSetOutputNearest: { return parser->ReadInt(res); }
+      case R::kSetOutputExact: { return parser->ReadInt(res); }
+      case R::kRequireReindex: { return parser->ReadInt(res); }
+
+      case R::kDriverFault1: { return parser->ReadInt(res); }
+      case R::kDriverFault2: { return parser->ReadInt(res); }
+    }
+
+    return parser->ReadInt(res);
   }
 };
 
@@ -450,115 +643,8 @@ struct GenericQuery {
       if (current.done) { return result; }
 
       result.values[index].register_number = current.value;
-      result.values[index].value = [&]() -> double {
-        const auto res = current.resolution;
-        using R = Register;
-        switch (static_cast<Register>(current.value)) {
-          case R::kMode:      { return parser->ReadInt(res); }
-          case R::kPosition:  { return parser->ReadPosition(res); }
-          case R::kVelocity:  { return parser->ReadVelocity(res); }
-          case R::kTorque:    { return parser->ReadTorque(res); }
-          case R::kQCurrent:  { return parser->ReadCurrent(res); }
-          case R::kDCurrent:  { return parser->ReadCurrent(res); }
-          case R::kAbsPosition: { return parser->ReadPosition(res); }
-
-          case R::kMotorTemperature: { return parser->ReadTemperature(res); }
-          case R::kTrajectoryComplete: { return parser->ReadInt(res); }
-          case R::kHomeState: { return parser->ReadInt(res); }
-          case R::kVoltage:   { return parser->ReadVoltage(res); }
-          case R::kTemperature: { return parser->ReadTemperature(res); }
-          case R::kFault:     { return parser->ReadInt(res); }
-
-          case R::kPwmPhaseA: { return parser->ReadPwm(res); }
-          case R::kPwmPhaseB: { return parser->ReadPwm(res); }
-          case R::kPwmPhaseC: { return parser->ReadPwm(res); }
-
-          case R::kVoltagePhaseA: { return parser->ReadVoltage(res); }
-          case R::kVoltagePhaseB: { return parser->ReadVoltage(res); }
-          case R::kVoltagePhaseC: { return parser->ReadVoltage(res); }
-
-          case R::kVFocTheta: { return parser->ReadPwm(res) * M_PI; }
-          case R::kVFocVoltage: { return parser->ReadVoltage(res); }
-          case R::kVoltageDqD: { return parser->ReadVoltage(res); }
-          case R::kVoltageDqQ: { return parser->ReadVoltage(res); }
-
-          case R::kCommandQCurrent: { return parser->ReadCurrent(res); }
-          case R::kCommandDCurrent: { return parser->ReadCurrent(res); }
-
-          case R::kCommandPosition: { return parser->ReadPosition(res); }
-          case R::kCommandVelocity: { return parser->ReadVelocity(res); }
-          case R::kCommandFeedforwardTorque: { return parser->ReadTorque(res); }
-          case R::kCommandKpScale: { return parser->ReadPwm(res); }
-          case R::kCommandKdScale: { return parser->ReadPwm(res); }
-          case R::kCommandPositionMaxTorque: { return parser->ReadTorque(res); }
-          case R::kCommandStopPosition: { return parser->ReadPosition(res); }
-          case R::kCommandTimeout: { return parser->ReadTime(res); }
-
-          case R::kPositionKp: { return parser->ReadTorque(res); }
-          case R::kPositionKi: { return parser->ReadTorque(res); }
-          case R::kPositionKd: { return parser->ReadTorque(res); }
-          case R::kPositionFeedforward: { return parser->ReadTorque(res); }
-          case R::kPositionCommand: { return parser->ReadTorque(res); }
-
-          case R::kControlPosition: { return parser->ReadPosition(res); }
-          case R::kControlVelocity: { return parser->ReadVelocity(res); }
-          case R::kControlTorque: { return parser->ReadTorque(res); }
-          case R::kControlPositionError: { return parser->ReadPosition(res); }
-          case R::kControlVelocityError: { return parser->ReadVelocity(res); }
-          case R::kControlTorqueError: { return parser->ReadTorque(res); }
-
-          case R::kCommandStayWithinLowerBound: { return parser->ReadPosition(res); }
-          case R::kCommandStayWithinUpperBound: { return parser->ReadPosition(res); }
-          case R::kCommandStayWithinFeedforwardTorque: { return parser->ReadTorque(res); }
-          case R::kCommandStayWithinKpScale: { return parser->ReadPwm(res); }
-          case R::kCommandStayWithinKdScale: { return parser->ReadPwm(res); }
-          case R::kCommandStayWithinPositionMaxTorque: { return parser->ReadTorque(res); }
-          case R::kCommandStayWithinTimeout: { return parser->ReadTime(res); }
-
-          case R::kEncoder0Position: { return parser->ReadPosition(res); }
-          case R::kEncoder0Velocity: { return parser->ReadVelocity(res); }
-          case R::kEncoder1Position: { return parser->ReadPosition(res); }
-          case R::kEncoder1Velocity: { return parser->ReadVelocity(res); }
-          case R::kEncoder2Position: { return parser->ReadPosition(res); }
-          case R::kEncoder2Velocity: { return parser->ReadVelocity(res); }
-
-          case R::kEncoderValidity: { return parser->ReadInt(res); }
-
-          case R::kAux1GpioCommand: { return parser->ReadInt(res); }
-          case R::kAux2GpioCommand: { return parser->ReadInt(res); }
-          case R::kAux1GpioStatus: { return parser->ReadInt(res); }
-          case R::kAux2GpioStatus: { return parser->ReadInt(res); }
-
-          case R::kAux1AnalogIn1: { return parser->ReadPwm(res); }
-          case R::kAux1AnalogIn2: { return parser->ReadPwm(res); }
-          case R::kAux1AnalogIn3: { return parser->ReadPwm(res); }
-          case R::kAux1AnalogIn4: { return parser->ReadPwm(res); }
-          case R::kAux1AnalogIn5: { return parser->ReadPwm(res); }
-
-          case R::kAux2AnalogIn1: { return parser->ReadPwm(res); }
-          case R::kAux2AnalogIn2: { return parser->ReadPwm(res); }
-          case R::kAux2AnalogIn3: { return parser->ReadPwm(res); }
-          case R::kAux2AnalogIn4: { return parser->ReadPwm(res); }
-          case R::kAux2AnalogIn5: { return parser->ReadPwm(res); }
-
-          case R::kMillisecondCounter: { return parser->ReadInt(res); }
-          case R::kClockTrim: { return parser->ReadInt(res); }
-
-          case R::kRegisterMapVersion: { return parser->ReadInt(res); }
-          case R::kSerialNumber1: { return parser->ReadInt(res); }
-          case R::kSerialNumber2: { return parser->ReadInt(res); }
-          case R::kSerialNumber3: { return parser->ReadInt(res); }
-
-          case R::kSetOutputNearest: { return parser->ReadInt(res); }
-          case R::kSetOutputExact: { return parser->ReadInt(res); }
-          case R::kRequireReindex: { return parser->ReadInt(res); }
-
-          case R::kDriverFault1: { return parser->ReadInt(res); }
-          case R::kDriverFault2: { return parser->ReadInt(res); }
-        }
-
-        return parser->ReadInt(res);
-      }();
+      result.values[index].value =
+          Query::ParseGeneric(parser, current.value, current.resolution);
 
       index++;
     }

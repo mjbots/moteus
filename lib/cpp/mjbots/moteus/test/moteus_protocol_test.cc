@@ -57,8 +57,13 @@ BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
   fmt.aux1_gpio = moteus::kInt8;
   fmt.aux2_gpio = moteus::kInt8;
 
+  fmt.extra[0].register_number = moteus::Register::kEncoder0Position;
+  fmt.extra[0].resolution = moteus::kFloat;
+  fmt.extra[1].register_number = moteus::Register::kEncoder0Velocity;
+  fmt.extra[1].resolution = moteus::kFloat;
+
   moteus::Query::Make(&write_frame, fmt);
-  BOOST_TEST(Hexify(frame) == "11001c060110060a125e");
+  BOOST_TEST(Hexify(frame) == "11001c060110060a125e1e50");
 }
 
 
@@ -107,8 +112,12 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
       0x20,  // voltage
       0x30,  // temperature
       0x40,  // fault
+
+      0x24, 0x02, 0x50,
+      0x20, 0x00,  // encoder 0 position
+      0x30, 0x00,  // encoder 0 velocity
     },
-    26,
+    33,
   };
 
   const auto result = moteus::Query::Parse(&query_data);
@@ -125,6 +134,12 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
   BOOST_TEST(result.voltage == 16.0);
   BOOST_TEST(result.temperature == 48.0);
   BOOST_TEST(result.fault == 64);
+
+  BOOST_TEST(result.extra[0].register_number == moteus::Register::kEncoder0Position);
+  BOOST_TEST(result.extra[0].value == 0.0032);
+  BOOST_TEST(result.extra[1].register_number == moteus::Register::kEncoder0Velocity);
+  BOOST_TEST(result.extra[1].value == 0.012);
+  BOOST_TEST(result.extra[2].register_number == std::numeric_limits<int32_t>::max());
 }
 
 BOOST_AUTO_TEST_CASE(GenericQueryMake) {
