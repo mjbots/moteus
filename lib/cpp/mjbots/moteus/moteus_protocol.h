@@ -1050,6 +1050,39 @@ struct DiagnosticRead {
   }
 };
 
+struct DiagnosticResponse {
+  struct Result {
+    int8_t channel = 1;
+    uint8_t data[64] = {};
+    int8_t size = 0;
+  };
+
+  static Result Parse(const uint8_t* data, uint8_t size) {
+    MultiplexParser parser(data, size);
+    return Parse(&parser);
+  }
+
+  static Result Parse(MultiplexParser* parser) {
+    Result result;
+    result.channel = -1;
+
+    if (parser->remaining() < 3) { return result; }
+
+    const auto action = parser->Read<int8_t>();
+    if (action != Multiplex::kServerToClient) { return result; }
+    const auto channel = parser->Read<int8_t>();
+
+    const int32_t size = parser->ReadVaruint();
+    if (parser->remaining() < size) { return result; }
+
+    result.channel = channel;
+    result.size = size;
+    parser->ReadRaw(result.data, size);
+
+    return result;
+  }
+};
+
 struct ClockTrim {
   struct Command {
     int32_t trim = 0;

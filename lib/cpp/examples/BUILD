@@ -18,15 +18,16 @@ package(default_visibility = ["//visibility:public"])
 
 cc_binary(
     name = "simple",
-    srcs = [
-        "simple.cc",
-    ],
-    deps = [
-        "//lib/cpp/mjbots/moteus:moteus",
-    ],
-    copts = [
-        "-Ilib/cpp/mjbots/moteus",
-    ],
+    srcs = ["simple.cc",],
+    deps = ["//lib/cpp/mjbots/moteus:moteus",],
+    copts = ["-Ilib/cpp/mjbots/moteus",],
+)
+
+cc_binary(
+    name = "diagnostic_protocol",
+    srcs = ["diagnostic_protocol.cc",],
+    deps = ["//lib/cpp/mjbots/moteus:moteus",],
+    copts = ["-Ilib/cpp/mjbots/moteus",],
 )
 
 test_suite(
@@ -38,6 +39,9 @@ test_suite(
 
 sh_test(
     name = "data_indirect",
-    data = [":simple"],
+    data = [
+        ":simple",
+        ":diagnostic_protocol",
+    ],
     srcs = ["dummy.sh"],
 )

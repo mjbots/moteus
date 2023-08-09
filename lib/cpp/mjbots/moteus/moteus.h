@@ -14,12 +14,13 @@
 
 #pragma once
 
+#include <fcntl.h>
 #include <linux/serial.h>
+#include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <poll.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <atomic>
@@ -27,6 +28,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -108,13 +110,14 @@ class Transport {
     std::mutex m;
     std::condition_variable cv;
 
+    std::unique_lock lock(m);
+
     impl_->Cycle(commands, size, replies, [&]() {
       std::unique_lock lock(m);
       done.store(true);
       cv.notify_one();
     });
 
-    std::unique_lock lock(m);
     cv.wait(lock, [&]() { return done.load(); });
   }
 
@@ -220,7 +223,7 @@ class Fdcanusb : public TransportImpl {
                    size_t size,
                    std::vector<Command>* replies,
                    CompletionCallback completed_callback) {
-    replies->clear();
+    if (replies) { replies->clear(); }
     for (size_t i = 0; i < size; i++) {
       CHILD_CheckReplies(replies, kNoWait, 0, 0);
       CHILD_SendCommand(commands[i]);
@@ -312,10 +315,10 @@ class Fdcanusb : public TransportImpl {
 
   /// Return the number of CAN frames received.
   ConsumeCount CHILD_ConsumeLines(std::vector<Command>* replies) {
-    const auto start_size = replies->size();
+    const auto start_size = replies ? replies->size() : 0;
     ConsumeCount result;
     while (CHILD_ConsumeLine(replies, &result.ok)) {}
-    result.rcv = replies->size() - start_size;
+    result.rcv = replies ? (replies->size() - start_size) : 0;
     return result;
   }
 
@@ -363,6 +366,8 @@ class Fdcanusb : public TransportImpl {
 
     while (true) {
       const auto maybe_flags = tokenizer.next();
+      if (maybe_flags.empty()) { break; }
+      if (maybe_flags.size() != 1) { continue; }
       for (const char c : maybe_flags) {
         if (c == 'b') { this_command.brs = Command::kForceOff; }
         if (c == 'B') { this_command.brs = Command::kForceOn; }
@@ -371,7 +376,9 @@ class Fdcanusb : public TransportImpl {
       }
     }
 
-    replies->emplace_back(std::move(this_command));
+    if (replies) {
+      replies->emplace_back(std::move(this_command));
+    }
   }
 
   void CHILD_SendCommand(const Command& command) {
@@ -593,14 +600,112 @@ class Controller {
     return {};
   }
 
+  enum DiagnosticReplyMode {
+    kExpectOK,
+    kExpectSingleLine,
+  };
+
+  std::string DiagnosticCommand(const std::string& message,
+                                DiagnosticReplyMode reply_mode = kExpectOK) {
+    // First, write everything asked.
+    std::string remaining = message + "\n";
+    while (remaining.size()) {
+      DiagnosticWrite::Command write;
+      write.data = remaining.data();
+      const auto to_write = std::min<size_t>(48, remaining.size());
+      write.size = to_write;
+
+      auto command = DefaultCommand(kNoReply);
+      WriteCanFrame write_frame(command.data, &command.size);
+      DiagnosticWrite::Make(&write_frame, write, {});
+
+      transport()->BlockingCycle(&command, 1, nullptr);
+
+      remaining = remaining.substr(to_write);
+    }
+
+    // Now read either until we get an OK line, or a single line
+    // depending upon our criteria.
+    std::ostringstream output;
+
+    while (true) {
+      DiagnosticRead::Command read;
+      auto command = DefaultCommand(kReplyRequired);
+      WriteCanFrame write_frame(command.data, &command.size);
+      DiagnosticRead::Make(&write_frame, read, {});
+
+      std::vector<Command> replies;
+      transport()->BlockingCycle(&command, 1, &replies);
+
+      for (const auto& reply : replies) {
+        if (reply.source != options_.id ||
+            reply.can_prefix != options_.can_prefix) {
+          continue;
+        }
+
+        const auto parsed = DiagnosticResponse::Parse(reply.data, reply.size);
+        if (parsed.channel != 1) { continue; }
+
+        output.write(reinterpret_cast<const char*>(parsed.data), parsed.size);
+      }
+
+      if (reply_mode == kExpectSingleLine) {
+        const auto first_newline = output.str().find_first_of("\r\n");
+        if (first_newline != std::string::npos) {
+          return output.str().substr(0, first_newline);
+        }
+      } else if (reply_mode == kExpectOK) {
+        // We are looking for "[\r\n]?OK[\r\n]" to determine what to
+        // consider done.
+        const auto str = output.str();
+
+        // TODO: We could only look at the end to avoid the O(n^2)
+        // nature of this stupid approach.
+
+        for (size_t i = 0; i + 3 < str.size(); i++) {
+          if ((i + 4 < str.size() &&
+               ((str[i] == '\r' || str[i] == '\n') &&
+                str.substr(i + 1, 2) == "OK" &&
+                (str[i + 3] == '\r' || str[i + 3] == '\n'))) ||
+              (str.substr(i, 2) == "OK" &&
+               (str[i + 2] == '\r' || str[i + 2] == '\n'))) {
+            return str.substr(0, i + 1);
+          }
+        }
+      }
+    }
+  }
+
+  void DiagnosticFlush() {
+  }
+
  private:
+  enum ReplyMode {
+    kNoReply,
+    kReplyRequired,
+  };
+
+  Command DefaultCommand(ReplyMode reply_mode = kReplyRequired) {
+    Command result;
+    result.destination = options_.id;
+    result.reply_required = (reply_mode == kReplyRequired);
+
+    result.arbitration_id =
+        (result.destination) |
+        (result.source << 8) |
+        (result.reply_required ? 0x8000 : 0x0000) |
+        (options_.can_prefix << 16);
+    result.bus = options_.bus;
+
+    return result;
+  }
+
   template <typename CommandType>
   Command MakeCommand(const CommandType&,
                       const typename CommandType::Command& cmd,
                       const typename CommandType::Format& fmt) {
-    Command result;
-    result.destination = options_.id;
-    result.reply_required = options_.default_query;
+    auto result = DefaultCommand(
+        options_.default_query ? kReplyRequired : kNoReply);
 
     WriteCanFrame write_frame(result.data, &result.size);
     CommandType::Make(&write_frame, cmd, fmt);
@@ -611,13 +716,6 @@ class Controller {
                   query_frame_.size);
       result.size += query_frame_.size;
     }
-
-    result.arbitration_id =
-        (result.destination) |
-        (result.source << 8) |
-        (result.reply_required ? 0x8000 : 0x0000) |
-        (options_.can_prefix << 16);
-    result.bus = options_.bus;
 
     return result;
   }

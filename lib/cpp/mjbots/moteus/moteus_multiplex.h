@@ -323,6 +323,24 @@ class MultiplexParser {
       : data_(data),
         size_(size) {}
 
+  uint32_t ReadVaruint() {
+    uint32_t result = 0;
+    uint32_t shift = 0;
+
+    for (int i = 0; i < 5; i++) {
+      if (remaining() == 0) { return result; }
+
+      const auto this_byte = static_cast<uint8_t>(Read<int8_t>());
+      result |= (this_byte & 0x7f) << shift;
+      shift += 7;
+
+      if ((this_byte & 0x80) == 0) {
+        return result;
+      }
+    }
+    return result;
+  }
+
   struct Result {
     bool done = true;
     uint32_t value = 0;
@@ -386,7 +404,7 @@ class MultiplexParser {
           continue;
         }
 
-        current_register_ = data_[offset_++];
+        current_register_ = ReadVaruint();
         remaining_ = count - 1;
 
         if (offset_ + ResolutionSize(current_resolution_) > size_) {
@@ -486,6 +504,16 @@ class MultiplexParser {
 
   void Ignore(Resolution res) {
     offset_ += ResolutionSize(res);
+  }
+
+  void ReadRaw(uint8_t* output, size_t size) {
+    if ((offset_ + size) > size_) { ::abort(); }
+    std::memcpy(output, &data_[offset_], size);
+    offset_ += size;
+  }
+
+  size_t remaining() const {
+    return size_ - offset_;
   }
 
  private:
