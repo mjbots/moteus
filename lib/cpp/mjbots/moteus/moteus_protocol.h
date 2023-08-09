@@ -242,7 +242,14 @@ struct Query {
     int8_t aux1_gpio = 0;
     int8_t aux2_gpio = 0;
 
-    ItemValue extra[kMaxExtra] = {};
+    // Before gcc-12, initializating non-POD array types can be
+    // painful if done in the idiomatic way with ={} inline.  Instead
+    // we do it in the constructor.
+    //
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=92385
+    ItemValue extra[kMaxExtra];
+
+    Result() : extra() {}
   };
 
   struct ItemFormat {
@@ -268,7 +275,10 @@ struct Query {
     Resolution aux1_gpio = kIgnore;
     Resolution aux2_gpio = kIgnore;
 
-    ItemFormat extra[kMaxExtra] = {};
+    ItemFormat extra[kMaxExtra];
+
+    // gcc bug 92385 again
+    Format() : extra() {}
   };
 
   static int ItemFormatSort(const void* lhs_in, const void* rhs_in) {
