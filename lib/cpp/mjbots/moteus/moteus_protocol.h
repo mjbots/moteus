@@ -21,7 +21,19 @@
 
 #pragma once
 
+#include <string.h>
+
+#ifndef ARDUINO
+
 #include <limits>
+#define NaN std::numeric_limits<double>::quiet_NaN();
+
+#else
+
+#define NaN (0.0 / 0.0)
+
+#endif
+
 
 #include "moteus_multiplex.h"
 
@@ -35,7 +47,7 @@ enum {
   kCurrentRegisterMapVersion = 5,
 };
 
-enum Register : uint32_t {
+enum Register : uint16_t {
   kMode = 0x000,
   kPosition = 0x001,
   kVelocity = 0x002,
@@ -167,6 +179,37 @@ enum class HomeState {
   kOutput = 2,
 };
 
+
+/// This is a single CAN-FD frame, its headers, and other associated
+/// meta-data, like which bus the message was sent or received from in
+/// multi-bus systems.
+struct Command {
+  int8_t destination = 0;
+  int8_t source = 0;
+  bool reply_required = false;
+  uint8_t data[64] = {};
+  uint8_t size = 0;
+
+  uint16_t can_prefix = 0x0000;  // A 13 bit CAN prefix
+
+  // If true, then the ID used is not calculated from destination and
+  // source, but is instead determined directly from arbitration_id.
+  bool raw = false;
+
+  uint32_t arbitration_id = 0;
+  int8_t bus = 0;
+
+  enum Toggle {
+    kDefault,
+    kForceOff,
+    kForceOn,
+  };
+
+  Toggle brs = kDefault;
+  Toggle fdcan_frame = kDefault;
+};
+
+
 struct EmptyMode {
   struct Command {};
   struct Format {};
@@ -175,26 +218,26 @@ struct EmptyMode {
 
 struct Query {
   struct ItemValue {
-    int32_t register_number = std::numeric_limits<int32_t>::max();
+    int16_t register_number = detail::numeric_limits<int16_t>::max();
     double value = 0.0;
   };
 
-  static constexpr int kMaxExtra = 16;
+  static constexpr int16_t kMaxExtra = 16;
 
   struct Result {
     Mode mode = Mode::kStopped;
-    double position = std::numeric_limits<double>::quiet_NaN();
-    double velocity = std::numeric_limits<double>::quiet_NaN();
-    double torque = std::numeric_limits<double>::quiet_NaN();
-    double q_current = std::numeric_limits<double>::quiet_NaN();
-    double d_current = std::numeric_limits<double>::quiet_NaN();
-    double abs_position = std::numeric_limits<double>::quiet_NaN();
-    double motor_temperature = std::numeric_limits<double>::quiet_NaN();
+    double position = NaN;
+    double velocity = NaN;
+    double torque = NaN;
+    double q_current = NaN;
+    double d_current = NaN;
+    double abs_position = NaN;
+    double motor_temperature = NaN;
     bool trajectory_complete = false;
     HomeState home_state = HomeState::kRelative;
-    double voltage = std::numeric_limits<double>::quiet_NaN();
-    double temperature = std::numeric_limits<double>::quiet_NaN();
-    int fault = 0;
+    double voltage = NaN;
+    double temperature = NaN;
+    int8_t fault = 0;
 
     int8_t aux1_gpio = 0;
     int8_t aux2_gpio = 0;
@@ -203,7 +246,7 @@ struct Query {
   };
 
   struct ItemFormat {
-    int32_t register_number = std::numeric_limits<int32_t>::max();
+    int16_t register_number = detail::numeric_limits<int16_t>::max();
     Resolution resolution = moteus::kIgnore;
   };
 
@@ -246,11 +289,11 @@ struct Query {
         format.d_current,
         format.abs_position,
       };
-      const auto kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
+      const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
       WriteCombiner combiner(
           frame, 0x10, Register::kMode,
           kResolutions, kResolutionsSize);
-      for (size_t i = 0; i < kResolutionsSize; i++) {
+      for (uint16_t i = 0; i < kResolutionsSize; i++) {
         combiner.MaybeWrite();
       }
     }
@@ -264,11 +307,11 @@ struct Query {
         format.temperature,
         format.fault,
       };
-      const auto kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
+      const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
       WriteCombiner combiner(
           frame, 0x10, Register::kMotorTemperature,
           kResolutions, kResolutionsSize);
-      for (size_t i = 0; i < kResolutionsSize; i++) {
+      for (uint16_t i = 0; i < kResolutionsSize; i++) {
         combiner.MaybeWrite();
       }
     }
@@ -278,24 +321,24 @@ struct Query {
         format.aux1_gpio,
         format.aux2_gpio,
       };
-      const auto kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
+      const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
       WriteCombiner combiner(
           frame, 0x10, Register::kAux1GpioStatus,
           kResolutions, kResolutionsSize);
-      for (size_t i = 0; i < kResolutionsSize; i++) {
+      for (uint16_t i = 0; i < kResolutionsSize; i++) {
         combiner.MaybeWrite();
       }
     }
 
     {
       ItemFormat sorted_values[kMaxExtra] = {};
-      std::memcpy(&sorted_values[0], &(format.extra[0]), sizeof(format.extra));
+      ::memcpy(&sorted_values[0], &(format.extra[0]), sizeof(format.extra));
       ::qsort(&sorted_values[0], kMaxExtra, sizeof(ItemFormat), ItemFormatSort);
 
-      const int size = [&]() {
-        for (int i = 0; i < kMaxExtra; i++) {
+      const int16_t size = [&]() {
+        for (int16_t i = 0; i < kMaxExtra; i++) {
           if (sorted_values[i].register_number ==
-              std::numeric_limits<int32_t>::max()) {
+              detail::numeric_limits<int16_t>::max()) {
             return i;
           }
         }
@@ -303,19 +346,20 @@ struct Query {
       }();
 
       if (size == 0) { return; }
-      int32_t min_register_number = sorted_values[0].register_number;
-      int32_t max_register_number = sorted_values[size - 1].register_number;
+      const int16_t min_register_number = sorted_values[0].register_number;
+      const int16_t max_register_number = sorted_values[size - 1].register_number;
 
-      int required_registers = max_register_number - min_register_number + 1;
+      const uint16_t required_registers =
+          max_register_number - min_register_number + 1;
 
       // An arbitrary limit to constrain the amount of stack we use
       // below.
       if (required_registers > 512) { ::abort(); }
 
       Resolution resolutions[required_registers];
-      std::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
+      ::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
 
-      for (int this_register = min_register_number, index = 0;
+      for (int16_t this_register = min_register_number, index = 0;
            this_register <= max_register_number;
            this_register++) {
         if (sorted_values[index].register_number == this_register) {
@@ -329,7 +373,7 @@ struct Query {
       WriteCombiner combiner(
           frame, 0x10, min_register_number,
           resolutions, required_registers);
-      for (size_t i = 0; i < required_registers; i++) {
+      for (uint16_t i = 0; i < required_registers; i++) {
         combiner.MaybeWrite();
       }
     }
@@ -350,7 +394,7 @@ struct Query {
   static Result Parse(MultiplexParser* parser) {
     Result result;
 
-    int extra_index = 0;
+    int16_t extra_index = 0;
 
     while (true) {
       const auto current = parser->next();
@@ -436,7 +480,7 @@ struct Query {
   }
 
   static double ParseGeneric(MultiplexParser* parser,
-                             int32_t register_number,
+                             int16_t register_number,
                              Resolution resolution) {
     const auto res = resolution;
     using R = Register;
@@ -550,20 +594,20 @@ struct Query {
 
 struct GenericQuery {
   struct ItemValue {
-    int32_t register_number = -1;
+    int16_t register_number = -1;
     double value = 0.0;
   };
 
   // A CAN-FD frame can only have 64 bytes, so we definitely can't
   // have more than 64 items in a single one ever.
-  static constexpr int kMaxItems = 64;
+  static constexpr int16_t kMaxItems = 64;
 
   struct Result {
     ItemValue values[kMaxItems] = {};
   };
 
   struct ItemFormat {
-    int32_t register_number = std::numeric_limits<int32_t>::max();
+    int16_t register_number = detail::numeric_limits<int16_t>::max();
     Resolution resolution = kIgnore;
   };
 
@@ -580,13 +624,13 @@ struct GenericQuery {
 
   static void Make(WriteCanFrame* frame, const Format& format) {
     ItemFormat sorted_values[64] = {};
-    std::memcpy(&sorted_values[0], &(format.values[0]), sizeof(format.values));
+    ::memcpy(&sorted_values[0], &(format.values[0]), sizeof(format.values));
     ::qsort(&sorted_values[0], kMaxItems, sizeof(ItemFormat), ItemFormatSort);
 
-    const int size = [&]() {
-      for (int i = 0; i < kMaxItems; i++) {
+    const int16_t size = [&]() {
+      for (int16_t i = 0; i < kMaxItems; i++) {
         if (sorted_values[i].register_number ==
-            std::numeric_limits<int32_t>::max()) {
+            detail::numeric_limits<int16_t>::max()) {
           return i;
         }
       }
@@ -594,19 +638,19 @@ struct GenericQuery {
     }();
 
     if (size == 0) { return; }
-    int32_t min_register_number = sorted_values[0].register_number;
-    int32_t max_register_number = sorted_values[size - 1].register_number;
+    const int16_t min_register_number = sorted_values[0].register_number;
+    const int16_t max_register_number = sorted_values[size - 1].register_number;
 
-    int required_registers = max_register_number - min_register_number + 1;
+    const uint16_t required_registers = max_register_number - min_register_number + 1;
 
     // An arbitrary limit to constrain the amount of stack we use
     // below.
     if (required_registers > 512) { ::abort(); }
 
     Resolution resolutions[required_registers];
-    std::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
+    ::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
 
-    for (int this_register = min_register_number, index = 0;
+    for (int16_t this_register = min_register_number, index = 0;
          this_register <= max_register_number;
          this_register++) {
       if (sorted_values[index].register_number == this_register) {
@@ -620,7 +664,7 @@ struct GenericQuery {
     WriteCombiner combiner(
         frame, 0x10, min_register_number,
           resolutions, required_registers);
-    for (size_t i = 0; i < required_registers; i++) {
+    for (uint16_t i = 0; i < required_registers; i++) {
       combiner.MaybeWrite();
     }
   }
@@ -640,7 +684,7 @@ struct GenericQuery {
   static Result Parse(MultiplexParser* parser) {
     Result result;
 
-    int index = 0;
+    int16_t index = 0;
 
     while (true) {
       if (index >= kMaxItems) { return result; }
@@ -664,12 +708,12 @@ struct PositionMode {
     double feedforward_torque = 0.0;
     double kp_scale = 1.0;
     double kd_scale = 1.0;
-    double maximum_torque = std::numeric_limits<double>::quiet_NaN();
-    double stop_position = std::numeric_limits<double>::quiet_NaN();
-    double watchdog_timeout = std::numeric_limits<double>::quiet_NaN();
-    double velocity_limit = std::numeric_limits<double>::quiet_NaN();
-    double accel_limit = std::numeric_limits<double>::quiet_NaN();
-    double fixed_voltage_override = std::numeric_limits<double>::quiet_NaN();
+    double maximum_torque = NaN;
+    double stop_position = NaN;
+    double watchdog_timeout = NaN;
+    double velocity_limit = NaN;
+    double accel_limit = NaN;
+    double fixed_voltage_override = NaN;
   };
 
   struct Format {
@@ -852,13 +896,13 @@ struct CurrentMode {
 
 struct StayWithinMode {
   struct Command {
-    double lower_bound = std::numeric_limits<double>::quiet_NaN();
-    double upper_bound = std::numeric_limits<double>::quiet_NaN();
+    double lower_bound = NaN;
+    double upper_bound = NaN;
     double feedforward_torque = 0.0;
     double kp_scale = 1.0;
     double kd_scale = 1.0;
     double maximum_torque = 0.0;
-    double watchdog_timeout = std::numeric_limits<double>::quiet_NaN();
+    double watchdog_timeout = NaN;
   };
 
   struct Format {
@@ -1022,7 +1066,7 @@ struct DiagnosticWrite {
   struct Command {
     int8_t channel = 1;
     const char* data = nullptr;
-    size_t size = 0;
+    int8_t size = 0;
   };
 
   struct Format {};
@@ -1072,7 +1116,7 @@ struct DiagnosticResponse {
     if (action != Multiplex::kServerToClient) { return result; }
     const auto channel = parser->Read<int8_t>();
 
-    const int32_t size = parser->ReadVaruint();
+    const uint16_t size = parser->ReadVaruint();
     if (parser->remaining() < size) { return result; }
 
     result.channel = channel;

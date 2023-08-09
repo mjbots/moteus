@@ -139,7 +139,7 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
   BOOST_TEST(result.extra[0].value == 0.0032);
   BOOST_TEST(result.extra[1].register_number == moteus::Register::kEncoder0Velocity);
   BOOST_TEST(result.extra[1].value == 0.012);
-  BOOST_TEST(result.extra[2].register_number == std::numeric_limits<int32_t>::max());
+  BOOST_TEST(result.extra[2].register_number == std::numeric_limits<int16_t>::max());
 }
 
 BOOST_AUTO_TEST_CASE(GenericQueryMake) {

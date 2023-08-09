@@ -14,12 +14,17 @@
 
 #pragma once
 
+#include <math.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
 
 namespace mjbots {
 namespace moteus {
@@ -39,7 +44,7 @@ struct CanFrame {
   uint8_t size = 0;
 };
 
-enum Multiplex : uint32_t {
+enum Multiplex : uint16_t {
   kWriteBase = 0x00,
   kWriteInt8 = 0x00,
   kWriteInt16 = 0x04,
@@ -69,16 +74,60 @@ enum Multiplex : uint32_t {
   kNop = 0x50,
 };
 
+namespace detail {
+template <typename T>
+class numeric_limits {
+ public:
+};
+
+template <>
+class numeric_limits<int8_t> {
+ public:
+  static int8_t max() { return 127; }
+  static int8_t min() { return -128; }
+};
+
+template <>
+class numeric_limits<int16_t> {
+ public:
+  static int16_t max() { return 32767; }
+  static int16_t min() { return -32768; }
+};
+
+template <>
+class numeric_limits<int32_t> {
+ public:
+  static int32_t max() { return 2147483647; }
+  static int32_t min() { return -2147483648; }
+};
+
+template <>
+class numeric_limits<double> {
+ public:
+};
+
+template <typename T>
+T max(T lhs, T rhs) {
+  return (lhs >= rhs) ? lhs : rhs;
+}
+
+template <typename T>
+T min(T lhs, T rhs) {
+  return (lhs <= rhs) ? lhs : rhs;
+}
+
+}
+
 namespace {
 template <typename T>
 T Saturate(double value, double scale) {
   // TODO: Implement without numeric_limits
-  if (!std::isfinite(value)) {
-    return std::numeric_limits<T>::min();
+  if (!::isfinite(value)) {
+    return detail::numeric_limits<T>::min();
   }
 
   const double scaled = value / scale;
-  const auto max = std::numeric_limits<T>::max();
+  const auto max = detail::numeric_limits<T>::max();
 
   const double double_max = static_cast<T>(max);
   // We purposefully limit to +- max, rather than to min.  The minimum
@@ -123,22 +172,24 @@ class WriteCanFrame {
     }
   }
 
-  void Write(const char* data, size_t size) {
+  void Write(const char* data, uint16_t size) {
     if ((size + *size_) > 64) {
       abort();
     }
-    std::memcpy(&data_[*size_], data, size);
+    ::memcpy(&data_[*size_], data, size);
     *size_ += size;
   }
 
   void WriteInt(int32_t value, Resolution res) {
     switch (res) {
       case Resolution::kInt8: {
-        Write<int8_t>(std::max(-127, std::min(127, value)));
+        Write<int8_t>(detail::max<int32_t>(
+                          -127, detail::min<int32_t>(127, value)));
         break;
       }
       case Resolution::kInt16: {
-        Write<int16_t>(std::max(-32767, std::min(32767, value)));
+        Write<int16_t>(detail::max<int32_t>(
+                           -32767, detail::min<int32_t>(32767, value)));
         break;
       }
       case Resolution::kInt32: {
@@ -233,9 +284,9 @@ class WriteCombiner {
  public:
   WriteCombiner(WriteCanFrame* frame,
                 int8_t base_command,
-                uint32_t start_register,
+                uint16_t start_register,
                 const Resolution* resolutions,
-                size_t resolutions_size)
+                uint16_t resolutions_size)
       : frame_(frame),
         base_command_(base_command),
         start_register_(start_register),
@@ -267,8 +318,8 @@ class WriteCombiner {
       return false;
     }
 
-    int count = 1;
-    for (size_t i = this_offset + 1;
+    int16_t count = 1;
+    for (uint16_t i = this_offset + 1;
          i < resolutions_size_ && resolutions_[i] == new_resolution;
          i++) {
       count++;
@@ -305,12 +356,12 @@ class WriteCombiner {
  private:
   WriteCanFrame* const frame_;
   int8_t base_command_ = 0;
-  uint32_t start_register_ = 0;
+  uint16_t start_register_ = 0;
   const Resolution* const resolutions_;
-  size_t resolutions_size_ = 0;
+  uint16_t resolutions_size_ = 0;
 
   Resolution current_resolution_ = Resolution::kIgnore;
-  size_t offset_ = 0;
+  uint16_t offset_ = 0;
 };
 
 /// Read typed values from a CAN frame.
@@ -323,11 +374,11 @@ class MultiplexParser {
       : data_(data),
         size_(size) {}
 
-  uint32_t ReadVaruint() {
-    uint32_t result = 0;
-    uint32_t shift = 0;
+  uint16_t ReadVaruint() {
+    uint16_t result = 0;
+    uint16_t shift = 0;
 
-    for (int i = 0; i < 5; i++) {
+    for (int8_t i = 0; i < 5; i++) {
       if (remaining() == 0) { return result; }
 
       const auto this_byte = static_cast<uint8_t>(Read<int8_t>());
@@ -343,14 +394,19 @@ class MultiplexParser {
 
   struct Result {
     bool done = true;
-    uint32_t value = 0;
+    uint16_t value = 0;
     Resolution resolution = kIgnore;
+
+    Result(bool done_in, uint16_t value_in, Resolution resolution_in)
+        : done(done_in), value(value_in), resolution(resolution_in) {}
+
+    Result() {}
   };
 
   Result next() {
     if (offset_ >= size_) {
       // We are done.
-      return Result{true, 0, Resolution::kInt8};
+      return Result(true, 0, Resolution::kInt8);
     }
 
     if (remaining_) {
@@ -359,10 +415,10 @@ class MultiplexParser {
 
       // Do we actually have enough data?
       if (offset_ + ResolutionSize(current_resolution_) > size_) {
-        return Result{true, 0, Resolution::kInt8};
+        return Result(true, 0, Resolution::kInt8);
       }
 
-      return Result{false, this_register, current_resolution_};
+      return Result(false, this_register, current_resolution_);
     }
 
     // We need to look for another command.
@@ -389,7 +445,7 @@ class MultiplexParser {
           // we cannot reach this point
           return Resolution::kInt8;
         }();
-        int count = cmd & 0x03;
+        int8_t count = cmd & 0x03;
         if (count == 0) {
           count = data_[offset_++];
 
@@ -408,10 +464,10 @@ class MultiplexParser {
         remaining_ = count - 1;
 
         if (offset_ + ResolutionSize(current_resolution_) > size_) {
-          return Result{true, 0, Resolution::kInt8};
+          return Result(true, 0, Resolution::kInt8);
         }
 
-        return Result{false, current_register_++, current_resolution_};
+        return Result(false, current_register_++, current_resolution_);
       }
 
       // For anything else, we'll just assume it is an error of some
@@ -419,7 +475,7 @@ class MultiplexParser {
       offset_ = size_;
       break;
     }
-    return Result{true, 0, Resolution::kInt8};
+    return Result(true, 0, Resolution::kInt8);
   }
 
   template <typename T>
@@ -436,8 +492,8 @@ class MultiplexParser {
 
   template <typename T>
   double Nanify(T value) {
-    if (value == std::numeric_limits<T>::min()) {
-      return std::numeric_limits<double>::quiet_NaN();
+    if (value == detail::numeric_limits<T>::min()) {
+      return NaN;
     }
     return value;
   }
@@ -506,18 +562,18 @@ class MultiplexParser {
     offset_ += ResolutionSize(res);
   }
 
-  void ReadRaw(uint8_t* output, size_t size) {
+  void ReadRaw(uint8_t* output, uint16_t size) {
     if ((offset_ + size) > size_) { ::abort(); }
-    std::memcpy(output, &data_[offset_], size);
+    ::memcpy(output, &data_[offset_], size);
     offset_ += size;
   }
 
-  size_t remaining() const {
+  uint16_t remaining() const {
     return size_ - offset_;
   }
 
  private:
-  int ResolutionSize(Resolution res) {
+  int8_t ResolutionSize(Resolution res) {
     switch (res) {
       case Resolution::kInt8: return 1;
       case Resolution::kInt16: return 2;
@@ -530,11 +586,11 @@ class MultiplexParser {
 
   const uint8_t* const data_;
   const uint8_t size_;
-  size_t offset_ = 0;
+  uint16_t offset_ = 0;
 
-  int remaining_ = 0;
+  int8_t remaining_ = 0;
   Resolution current_resolution_ = Resolution::kIgnore;
-  uint32_t current_register_ = 0;
+  uint16_t current_register_ = 0;
 };
 
 }

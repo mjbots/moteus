@@ -42,36 +42,6 @@ namespace moteus {
 
 using CompletionCallback = std::function<void()>;
 
-/// This is a single CAN-FD frame, its headers, and other associated
-/// meta-data, like which bus the message was sent or received from in
-/// multi-bus systems.
-struct Command {
-  int destination = 1;
-  int source = 0;
-  bool reply_required = false;
-  uint8_t data[64] = {};
-  uint8_t size = 0;
-
-  uint16_t can_prefix = 0x0000;  // A 13 bit CAN prefix
-
-  // If true, then the ID used is not calculated from destination and
-  // source, but is instead determined directly from arbitration_id.
-  bool raw = false;
-
-  uint32_t arbitration_id = 0;
-
-  enum Toggle {
-    kForceOff,
-    kForceOn,
-    kDefault,
-  };
-
-  Toggle brs = kDefault;
-  Toggle fdcan_frame = kDefault;
-
-  int bus = 0;
-};
-
 class TransportImpl {
  public:
   virtual ~TransportImpl() {}
