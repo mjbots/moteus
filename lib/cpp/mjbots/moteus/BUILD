@@ -29,6 +29,7 @@ cc_library(
 cc_test(
     name = "test",
     srcs = [
+        "test/moteus_test.cc",
         "test/moteus_protocol_test.cc",
         "test/test_main.cc",
     ],

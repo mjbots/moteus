@@ -40,7 +40,7 @@
 namespace mjbots {
 namespace moteus {
 
-using CompletionCallback = std::function<void()>;
+using CompletionCallback = std::function<void(int /* errno */)>;
 
 class TransportImpl {
  public:
@@ -72,6 +72,8 @@ class Transport {
     impl_->Cycle(commands, size, replies, completed_callback);
   }
 
+  /// Performs the same operation as TransportImpl::Cycle, but sleeps
+  /// until the result is complete.
   void BlockingCycle(const Command* commands,
                      size_t size,
                      std::vector<Command>* replies) {
@@ -82,7 +84,7 @@ class Transport {
 
     std::unique_lock lock(m);
 
-    impl_->Cycle(commands, size, replies, [&]() {
+    impl_->Cycle(commands, size, replies, [&](int) {
       std::unique_lock lock(m);
       done.store(true);
       cv.notify_one();
@@ -100,8 +102,6 @@ class Fdcanusb : public TransportImpl {
   struct Options {
     bool disable_brs = false;
 
-    uint32_t timeout_ns = 0;
-
     uint32_t min_ok_wait_ns = 1000000;
     uint32_t min_rcv_wait_ns = 2000000;
 
@@ -114,30 +114,12 @@ class Fdcanusb : public TransportImpl {
   // system.
   Fdcanusb(const std::string& device_in, const Options& options = {})
       : options_(options) {
-    std::string device = device_in;
-    if (device.empty()) {
-      // TODO: win32/macos/vid/pid
-      device = "/dev/fdcanusb";
-    }
+    Open(device_in);
+  }
 
-    fd_ = ::open(device.c_str(), O_RDWR | O_NOCTTY);
-    FailIfErrno(fd_ == -1);
-
-#ifndef _WIN32
-    {
-      struct serial_struct serial;
-      FailIfErrno(::ioctl(fd_, TIOCGSERIAL, &serial) < 0);
-      serial.flags |= ASYNC_LOW_LATENCY;
-      FailIfErrno(::ioctl(fd_, TIOCSSERIAL, &serial) < 0);
-    }
-#else  // _WIN32
-    {
-      COMMTIMEOUTS new_timeouts = {MAXDWORD, 0, 0, 0, 0};
-      SetCommTimeouts(fd_, &new_timeouts);
-    }
-#endif
-
-    thread_ = std::thread(std::bind(&Fdcanusb::CHILD_Run, this));
+  Fdcanusb(int read_fd, int write_fd, const Options& options = {})
+      : options_(options) {
+    Open(read_fd, write_fd);
   }
 
   virtual ~Fdcanusb() {
@@ -148,12 +130,17 @@ class Fdcanusb : public TransportImpl {
       something_cv_.notify_one();
     }
     thread_.join();
+
+    if (read_fd_ != write_fd_) {
+      ::close(write_fd_);
+    }
+    ::close(read_fd_);
   }
 
   virtual void Cycle(const Command* commands,
                      size_t size,
                      std::vector<Command>* replies,
-                     std::function<void()> completed_callback) {
+                     CompletionCallback completed_callback) {
     std::unique_lock lock(something_mutex_);
     work_ = std::bind(&Fdcanusb::CHILD_Cycle,
                       this, commands, size, replies, completed_callback);
@@ -161,7 +148,6 @@ class Fdcanusb : public TransportImpl {
     something_cv_.notify_one();
   }
 
- private:
   static void Fail(const std::string& str) {
     throw std::runtime_error(str);
   }
@@ -170,6 +156,40 @@ class Fdcanusb : public TransportImpl {
     if (terminate) {
       Fail(::strerror(errno));
     }
+  }
+
+ private:
+  void Open(const std::string& device_in) {
+    std::string device = device_in;
+    if (device.empty()) {
+      // TODO: win32/macos/vid/pid
+      device = "/dev/fdcanusb";
+    }
+
+    const int fd = ::open(device.c_str(), O_RDWR | O_NOCTTY);
+    FailIfErrno(fd == -1);
+
+#ifndef _WIN32
+    {
+      struct serial_struct serial;
+      FailIfErrno(::ioctl(fd, TIOCGSERIAL, &serial) < 0);
+      serial.flags |= ASYNC_LOW_LATENCY;
+      FailIfErrno(::ioctl(fd, TIOCSSERIAL, &serial) < 0);
+    }
+#else  // _WIN32
+    {
+      COMMTIMEOUTS new_timeouts = {MAXDWORD, 0, 0, 0, 0};
+      SetCommTimeouts(fd, &new_timeouts);
+    }
+#endif
+
+    Open(fd, fd);
+  }
+
+  void Open(int read_fd, int write_fd) {
+    read_fd_ = read_fd;
+    write_fd_ = write_fd;
+    thread_ = std::thread(std::bind(&Fdcanusb::CHILD_Run, this));
   }
 
   void CHILD_Run() {
@@ -202,7 +222,7 @@ class Fdcanusb : public TransportImpl {
                          1,
                          commands[i].reply_required ? 1 : 0);
     }
-    completed_callback();
+    completed_callback(0);
   }
 
   enum ReadDelay {
@@ -221,7 +241,7 @@ class Fdcanusb : public TransportImpl {
                   expected_rcv_count != 0 ? options_.min_rcv_wait_ns : 0) : 0);
 
     struct pollfd fds[1] = {};
-    fds[0].fd = fd_;
+    fds[0].fd = read_fd_;
     fds[0].events = POLLIN;
 
     int ok_count = 0;
@@ -232,8 +252,9 @@ class Fdcanusb : public TransportImpl {
       fds[0].revents = 0;
 
       struct timespec tmo = {};
-      tmo.tv_sec = 0;
-      tmo.tv_nsec = std::max<int64_t>(0, end_time - now);
+      const auto to_sleep_ns = std::max<int64_t>(0, end_time - now);
+      tmo.tv_sec = to_sleep_ns / 1000000000;
+      tmo.tv_nsec = to_sleep_ns % 1000000000;
 
       const int poll_ret = ::ppoll(&fds[0], 1, &tmo, nullptr);
       if (poll_ret < 0) {
@@ -248,7 +269,7 @@ class Fdcanusb : public TransportImpl {
       // Read into our line buffer.
       const int to_read = sizeof(line_buffer_) - line_buffer_pos_;
       const int read_ret = ::read(
-          fd_, &line_buffer_[line_buffer_pos_], to_read);
+          read_fd_, &line_buffer_[line_buffer_pos_], to_read);
       if (read_ret < 0) {
         if (errno == EINTR || errno == EAGAIN) { continue; }
         FailIfErrno(true);
@@ -380,7 +401,7 @@ class Fdcanusb : public TransportImpl {
     fmt("\n");
 
     for (int n = 0; n < pos; ) {
-      int ret = ::write(fd_, &buf[n], pos - n);
+      int ret = ::write(write_fd_, &buf[n], pos - n);
       if (ret < 0) {
         if (errno == EINTR || errno == EAGAIN) { continue; }
 
@@ -424,7 +445,8 @@ class Fdcanusb : public TransportImpl {
   // This is set in the parent, then used in the child.
   std::thread thread_;
   const Options options_;
-  int fd_ = -1;
+  int read_fd_ = -1;
+  int write_fd_ = -1;
 
   // The following variables are controlled by 'something_mutex'.
   std::mutex something_mutex_;
@@ -495,6 +517,12 @@ class Controller {
     return ExecuteSingleCommand(MakeQuery());
   }
 
+  /// @p callback may be invoked recursively, or from an arbitrary
+  /// thread.
+  void AsyncQuery(Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakeQuery(), result, callback);
+  }
+
   Command MakeStop() {
     return MakeCommand(StopMode(), {}, {});
   }
@@ -554,20 +582,26 @@ class Controller {
 
   std::optional<Result> ExecuteSingleCommand(const Command& cmd) {
     std::vector<Command> replies;
+
     transport()->BlockingCycle(&cmd, 1, &replies);
-    // Pick off the last reply we got from our target ID.
-    for (auto it = replies.rbegin(); it != replies.rend(); ++it) {
-      if (it->source == options_.id) {
 
-        Result result;
-        result.can_frame = *it;
-        result.values = Query::Parse(it->data, it->size);
-        return result;
-      }
-    }
+    return FindResult(replies);
+  }
 
-    // We didn't get anything.
-    return {};
+  void AsyncStartSingleCommand(const Command& cmd,
+                               Result* result,
+                               CompletionCallback callback) {
+    auto context = std::make_shared<std::vector<Command>>();
+    transport()->Cycle(
+        &cmd,
+        1,
+        context.get(),
+        [context, callback, result, this](int error) {
+          auto maybe_result = this->FindResult(*context);
+          if (maybe_result) { *result = *maybe_result; }
+          callback(!options_.default_query ? 0 :
+                   !!maybe_result ? 0 : ETIMEDOUT);
+        });
   }
 
   enum DiagnosticReplyMode {
@@ -647,9 +681,28 @@ class Controller {
   }
 
   void DiagnosticFlush() {
+    // TODO
   }
 
  private:
+  std::optional<Result> FindResult(const std::vector<Command>& replies) const {
+    // Pick off the last reply we got from our target ID.
+    for (auto it = replies.rbegin(); it != replies.rend(); ++it) {
+      if (it->source == options_.id &&
+          it->destination == options_.source &&
+          it->can_prefix == options_.can_prefix) {
+
+        Result result;
+        result.can_frame = *it;
+        result.values = Query::Parse(it->data, it->size);
+        return result;
+      }
+    }
+
+    // We didn't get anything.
+    return {};
+  }
+
   enum ReplyMode {
     kNoReply,
     kReplyRequired,

@@ -184,20 +184,15 @@ enum class HomeState {
 /// meta-data, like which bus the message was sent or received from in
 /// multi-bus systems.
 struct Command {
-  int8_t destination = 0;
-  int8_t source = 0;
-  bool reply_required = false;
-  uint8_t data[64] = {};
-  uint8_t size = 0;
+  ///////////////////////////////////////////
+  /// First are the raw data from the bus.
 
-  uint16_t can_prefix = 0x0000;  // A 13 bit CAN prefix
-
-  // If true, then the ID used is not calculated from destination and
-  // source, but is instead determined directly from arbitration_id.
-  bool raw = false;
+  // Non-zero if this transport supports multiple busses.
+  int8_t bus = 0;
 
   uint32_t arbitration_id = 0;
-  int8_t bus = 0;
+  uint8_t data[64] = {};
+  uint8_t size = 0;
 
   enum Toggle {
     kDefault,
@@ -207,6 +202,21 @@ struct Command {
 
   Toggle brs = kDefault;
   Toggle fdcan_frame = kDefault;
+
+  //////////////////////////////////////////
+  /// Next are parsed items for moteus frames.  These are not required
+  /// to be set when sending a frame to a transport, but they will be
+  /// filled in on receipt.  Higher level layers than the transport
+  /// layer may use them to populate the bus-level data.
+
+  // If true, then the ID used is not calculated from destination and
+  // source, but is instead determined directly from arbitration_id.
+  bool raw = false;
+
+  int8_t destination = 0;
+  int8_t source = 0;
+  bool reply_required = false;
+  uint16_t can_prefix = 0x0000;  // A 13 bit CAN prefix
 };
 
 
