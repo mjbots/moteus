@@ -23,7 +23,7 @@ using namespace mjbots;
 namespace tt = boost::test_tools;
 
 namespace {
-std::string Hexify(const moteus::CanFrame& frame) {
+std::string Hexify(const moteus::CanData& frame) {
   char buf[10] = {};
   std::string result;
   for (size_t i = 0; i < frame.size; i++) {
@@ -35,16 +35,16 @@ std::string Hexify(const moteus::CanFrame& frame) {
 }
 
 BOOST_AUTO_TEST_CASE(QueryMake) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::Query::Make(&write_frame, {});
 
   BOOST_TEST(Hexify(frame) == "11001f01130d");
 }
 
 BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::Query::Format fmt;
   fmt.q_current = moteus::kFloat;
   fmt.d_current = moteus::kFloat;
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
 
 
 BOOST_AUTO_TEST_CASE(QueryMinimal) {
-  moteus::CanFrame query_data{
+  moteus::CanData query_data{
     {
       0x24, 0x04, 0x00,
       0x0a, 0x00,  // mode
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(QueryMinimal) {
 }
 
 BOOST_AUTO_TEST_CASE(QueryMaximal) {
-  moteus::CanFrame query_data{
+  moteus::CanData query_data{
     {
       0x24, 0x07, 0x00,
       0x0a, 0x00,  // mode
@@ -143,8 +143,8 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
 }
 
 BOOST_AUTO_TEST_CASE(GenericQueryMake) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::GenericQuery::Format fmt;
 
   fmt.values[0].register_number = moteus::Register::kAux1AnalogIn1;
@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_CASE(GenericQueryMake) {
 }
 
 BOOST_AUTO_TEST_CASE(GenericQueryParse) {
-  moteus::CanFrame query_data {
+  moteus::CanData query_data {
     {
       0x24, 0x04, 0x00,
       0x0a, 0x00,  // mode
@@ -201,16 +201,16 @@ BOOST_AUTO_TEST_CASE(GenericQueryParse) {
 }
 
 BOOST_AUTO_TEST_CASE(PositionDefaults) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::PositionMode::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "01000a0e200000000000000000");
 }
 
 BOOST_AUTO_TEST_CASE(PositionMaximal) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::PositionMode::Command cmd;
   cmd.position = 0.25;
@@ -244,8 +244,8 @@ BOOST_AUTO_TEST_CASE(PositionMaximal) {
 }
 
 BOOST_AUTO_TEST_CASE(VFOCMake) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::VFOCMode::Command cmd;
   cmd.theta_rad = 0.2;
@@ -258,8 +258,8 @@ BOOST_AUTO_TEST_CASE(VFOCMake) {
 }
 
 BOOST_AUTO_TEST_CASE(CurrentMake) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::CurrentMode::Command cmd;
   cmd.d_A = 1.0;
@@ -271,8 +271,8 @@ BOOST_AUTO_TEST_CASE(CurrentMake) {
 }
 
 BOOST_AUTO_TEST_CASE(StayWithinDefaults) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::StayWithinMode::Command cmd;
   cmd.lower_bound = 1.0;
@@ -284,8 +284,8 @@ BOOST_AUTO_TEST_CASE(StayWithinDefaults) {
 }
 
 BOOST_AUTO_TEST_CASE(StayWithinMaximal) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::StayWithinMode::Command cmd;
   cmd.lower_bound = 0.5;
@@ -309,8 +309,8 @@ BOOST_AUTO_TEST_CASE(StayWithinMaximal) {
 }
 
 BOOST_AUTO_TEST_CASE(BrakeMode) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::BrakeMode::Make(&write_frame, {}, {});
 
@@ -318,16 +318,16 @@ BOOST_AUTO_TEST_CASE(BrakeMode) {
 }
 
 BOOST_AUTO_TEST_CASE(MakeStop) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::StopMode::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "010000");
 }
 
 BOOST_AUTO_TEST_CASE(GpioWrite) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::GpioWrite::Command cmd;
   cmd.aux1 = 2;
   cmd.aux2 = 4;
@@ -337,8 +337,8 @@ BOOST_AUTO_TEST_CASE(GpioWrite) {
 }
 
 BOOST_AUTO_TEST_CASE(OutputNearest) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::OutputNearest::Command cmd;
   cmd.position = 2.0;
   moteus::OutputNearest::Make(&write_frame, cmd, {});
@@ -347,8 +347,8 @@ BOOST_AUTO_TEST_CASE(OutputNearest) {
 }
 
 BOOST_AUTO_TEST_CASE(OutputExact) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
   moteus::OutputExact::Command cmd;
   cmd.position = 3.0;
   moteus::OutputExact::Make(&write_frame, cmd, {});
@@ -357,8 +357,8 @@ BOOST_AUTO_TEST_CASE(OutputExact) {
 }
 
 BOOST_AUTO_TEST_CASE(RequireReindex) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::RequireReindex::Make(&write_frame, {}, {});
 
@@ -366,8 +366,8 @@ BOOST_AUTO_TEST_CASE(RequireReindex) {
 }
 
 BOOST_AUTO_TEST_CASE(DiagnosticWrite) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   std::string msg = "tel stop\n";
 
@@ -382,8 +382,8 @@ BOOST_AUTO_TEST_CASE(DiagnosticWrite) {
 }
 
 BOOST_AUTO_TEST_CASE(DiagnosticRead) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::DiagnosticRead::Make(&write_frame, {}, {});
 
@@ -391,8 +391,8 @@ BOOST_AUTO_TEST_CASE(DiagnosticRead) {
 }
 
 BOOST_AUTO_TEST_CASE(ClockTrim) {
-  moteus::CanFrame frame;
-  moteus::WriteCanFrame write_frame(&frame);
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
 
   moteus::ClockTrim::Command cmd;
   cmd.trim = 5;

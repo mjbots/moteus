@@ -39,7 +39,7 @@ enum Resolution {
 };
 
 /// A vocabulary type for the basic data in a CAN-FD frame.
-struct CanFrame {
+struct CanData {
   uint8_t data[64] = {};
   uint8_t size = 0;
 };
@@ -140,10 +140,10 @@ T Saturate(double value, double scale) {
 
 /// This class can be used to append values to the end of a CAN-FD
 /// frame.
-class WriteCanFrame {
+class WriteCanData {
  public:
-  WriteCanFrame(CanFrame* frame) : data_(&frame->data[0]), size_(&frame->size) {}
-  WriteCanFrame(uint8_t* data, uint8_t* size) : data_(data), size_(size) {}
+  WriteCanData(CanData* frame) : data_(&frame->data[0]), size_(&frame->size) {}
+  WriteCanData(uint8_t* data, uint8_t* size) : data_(data), size_(size) {}
 
   template <typename T, typename X>
   void Write(X value_in) {
@@ -282,7 +282,7 @@ class WriteCanFrame {
 /// the required bytes.
 class WriteCombiner {
  public:
-  WriteCombiner(WriteCanFrame* frame,
+  WriteCombiner(WriteCanData* frame,
                 int8_t base_command,
                 uint16_t start_register,
                 const Resolution* resolutions,
@@ -354,7 +354,7 @@ class WriteCombiner {
   }
 
  private:
-  WriteCanFrame* const frame_;
+  WriteCanData* const frame_;
   int8_t base_command_ = 0;
   uint16_t start_register_ = 0;
   const Resolution* const resolutions_;
@@ -367,7 +367,7 @@ class WriteCombiner {
 /// Read typed values from a CAN frame.
 class MultiplexParser {
  public:
-  MultiplexParser(const CanFrame* frame)
+  MultiplexParser(const CanData* frame)
       : data_(&frame->data[0]),
         size_(frame->size) {}
   MultiplexParser(const uint8_t* data, uint8_t size)

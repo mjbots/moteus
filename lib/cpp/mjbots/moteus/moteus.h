@@ -471,7 +471,7 @@ class Controller {
   Controller(const Options& options = {}) {
     transport_ = options.transport;
 
-    WriteCanFrame query_write(&query_frame_);
+    WriteCanData query_write(&query_frame_);
     Query::Make(&query_write, options_.query_format);
   }
 
@@ -642,7 +642,7 @@ class Controller {
       write.size = to_write;
 
       auto command = DefaultCommand(kNoReply);
-      WriteCanFrame write_frame(command.data, &command.size);
+      WriteCanData write_frame(command.data, &command.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
       transport()->BlockingCycle(&command, 1, nullptr);
@@ -657,7 +657,7 @@ class Controller {
     while (true) {
       DiagnosticRead::Command read;
       auto command = DefaultCommand(kReplyRequired);
-      WriteCanFrame write_frame(command.data, &command.size);
+      WriteCanData write_frame(command.data, &command.size);
       DiagnosticRead::Make(&write_frame, read, {});
 
       std::vector<Command> replies;
@@ -779,7 +779,7 @@ class Controller {
     auto result = DefaultCommand(
         options_.default_query ? kReplyRequired : kNoReply);
 
-    WriteCanFrame write_frame(result.data, &result.size);
+    WriteCanData write_frame(result.data, &result.size);
     CommandType::Make(&write_frame, cmd, fmt);
 
     if (options_.default_query) {
@@ -794,7 +794,7 @@ class Controller {
 
   const Options options_;
   std::shared_ptr<Transport> transport_;
-  CanFrame query_frame_;
+  CanData query_frame_;
 };
 
 
