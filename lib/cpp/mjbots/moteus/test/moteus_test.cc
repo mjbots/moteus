@@ -709,3 +709,126 @@ BOOST_AUTO_TEST_CASE(ControllerSchemaVersion) {
   };
   BOOST_CHECK_EXCEPTION(test(1), std::runtime_error, verify_exception);
 }
+
+namespace {
+bool StartsWith(const std::string& haystack, const std::string& needle) {
+  return haystack.substr(0, needle.size()) == needle;
+}
+
+// This pretends to be a diagnostic channel server.
+class DiagnosticTestTransport : public moteus::Transport {
+ public:
+  virtual void Cycle(const moteus::CanFdFrame* frames,
+                     size_t size,
+                     std::vector<moteus::CanFdFrame>* replies,
+                     moteus::CompletionCallback completed_callback) {
+    for (size_t i = 0; i < size; i++) {
+      ProcessFrame(frames[i], replies);
+    }
+    completed_callback(0);
+  }
+
+  void ProcessFrame(const moteus::CanFdFrame& frame,
+                    std::vector<moteus::CanFdFrame>* replies) {
+    // Any frame we care about will be at least 3 bytes long.
+    if (frame.size < 3) { return; }
+
+    if (frame.data[0] == moteus::kClientToServer) {
+      if ((frame.arbitration_id & 0x8000) != 0) {
+        throw std::logic_error(
+            "we dont currently handle writes combined with poll");
+      }
+      const int channel = frame.data[1];
+      const int size = frame.data[2];
+      if (size + 3 > frame.size) {
+        throw std::logic_error("malformed frame");
+      }
+
+      // We only look at channel 1.
+      if (channel != 1) { return; }
+
+      client_to_server +=
+          std::string(reinterpret_cast<const char*>(&frame.data[3]), size);
+
+      ProcessClientToServer();
+    } else if (frame.data[0] == moteus::kClientPollServer) {
+      const int channel = frame.data[1];
+      const int max_size = frame.data[2];
+      if (channel != 1) { return; }
+
+      if ((frame.arbitration_id & 0x8000) == 0) { return; }
+
+      // We need to generate a response.
+      moteus::CanFdFrame response;
+      response.source = frame.destination;
+      response.destination = frame.source;
+      response.arbitration_id = (response.source << 8) | response.destination;
+      response.data[0] = moteus::kServerToClient;
+      response.data[1] = channel;
+
+      // We arbitrarily limit our responses to 5 bytes to force the
+      // client to assemble multiple frames together.
+      const auto to_write = std::min<size_t>(
+          5, std::min<size_t>(server_to_client.size(), max_size));
+      response.data[2] = to_write;
+      std::memcpy(&response.data[3], server_to_client.data(), to_write);
+      server_to_client = server_to_client.substr(to_write);
+      response.size = 3 + to_write;
+
+      replies->push_back(response);
+    }
+  }
+
+  void ProcessClientToServer() {
+    const auto maybe_newline = client_to_server.find_first_of("\r\n");
+    if (maybe_newline == std::string::npos) { return; }
+
+    const auto line = client_to_server.substr(0, maybe_newline);
+    client_to_server = client_to_server.substr(maybe_newline + 1);
+    ProcessClientToServerLine(line);
+  }
+
+  void ProcessClientToServerLine(const std::string& line) {
+    if (StartsWith(line, "conf get ")) {
+      // We'll reply with all conf gets in the same way.
+      server_to_client += "4.0000\r\n";
+    } else if (StartsWith(line, "conf set ")) {
+      server_to_client += "OK\r\n";
+    } else if (line == "conf enumerate") {
+      server_to_client += "id.id 0\r\n";
+      server_to_client += "stuff.bar 1\r\n";
+      server_to_client += "bing.baz 234\r\n";
+      server_to_client += "OK\r\n";
+    } else {
+      throw std::logic_error("unhandled diagnostic cmd: " + line);
+    }
+  }
+
+  std::string client_to_server;
+  std::string server_to_client;
+
+};
+}
+
+BOOST_AUTO_TEST_CASE(ControllerDiagnosticTest) {
+  auto transport = std::make_shared<DiagnosticTestTransport>();
+  moteus::Controller::Options options;
+  options.transport = transport;
+  moteus::Controller dut(options);
+
+  {
+    const auto result = dut.DiagnosticCommand("conf set id.id 5");
+    BOOST_TEST(result == "");
+  }
+
+  {
+    const auto result = dut.DiagnosticCommand(
+        "conf get servo.pid_position.kp", moteus::Controller::kExpectSingleLine);
+    BOOST_TEST(result == "4.0000");
+  }
+
+  {
+    const auto result = dut.DiagnosticCommand("conf enumerate");
+    BOOST_TEST(result == "id.id 0\r\nstuff.bar 1\r\nbing.baz 234\r\n");
+  }
+}

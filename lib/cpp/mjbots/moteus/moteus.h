@@ -697,6 +697,7 @@ class Controller {
     // Now read either until we get an OK line, or a single line
     // depending upon our criteria.
     std::ostringstream output;
+    std::string current_line;
 
     while (true) {
       DiagnosticRead::Command read;
@@ -716,31 +717,21 @@ class Controller {
         const auto parsed = DiagnosticResponse::Parse(reply.data, reply.size);
         if (parsed.channel != 1) { continue; }
 
-        output.write(reinterpret_cast<const char*>(parsed.data), parsed.size);
+        current_line += std::string(
+            reinterpret_cast<const char*>(parsed.data), parsed.size);
       }
 
-      if (reply_mode == kExpectSingleLine) {
-        const auto first_newline = output.str().find_first_of("\r\n");
-        if (first_newline != std::string::npos) {
-          return output.str().substr(0, first_newline);
-        }
-      } else if (reply_mode == kExpectOK) {
-        // We are looking for "[\r\n]?OK[\r\n]" to determine what to
-        // consider done.
-        const auto str = output.str();
-
-        // TODO: We could only look at the end to avoid the O(n^2)
-        // nature of this stupid approach.
-
-        for (size_t i = 0; i + 3 < str.size(); i++) {
-          if ((i + 4 < str.size() &&
-               ((str[i] == '\r' || str[i] == '\n') &&
-                str.substr(i + 1, 2) == "OK" &&
-                (str[i + 3] == '\r' || str[i + 3] == '\n'))) ||
-              (str.substr(i, 2) == "OK" &&
-               (str[i + 2] == '\r' || str[i + 2] == '\n'))) {
-            return str.substr(0, i + 1);
-          }
+      size_t first_newline = std::string::npos;
+      while ((first_newline = current_line.find_first_of("\r\n"))
+             != std::string::npos) {
+        const auto this_line = current_line.substr(0, first_newline);
+        if (reply_mode == kExpectSingleLine) {
+          return this_line;
+        } else if (this_line == "OK") {
+          return output.str();
+        } else {
+          output.write(current_line.data(), first_newline + 1);
+          current_line = current_line.substr(first_newline + 1);
         }
       }
     }
