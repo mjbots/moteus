@@ -508,20 +508,25 @@ class Controller {
     Query::Result values;
   };
 
+
+  /////////////////////////////////////////
+  // Query
+
   Command MakeQuery() {
     return MakeCommand(EmptyMode(), {}, {});
   }
 
-  /// Simply query the current state of the controller.
   std::optional<Result> Query() {
     return ExecuteSingleCommand(MakeQuery());
   }
 
-  /// @p callback may be invoked recursively, or from an arbitrary
-  /// thread.
   void AsyncQuery(Result* result, CompletionCallback callback) {
     AsyncStartSingleCommand(MakeQuery(), result, callback);
   }
+
+
+  /////////////////////////////////////////
+  // StopMode
 
   Command MakeStop() {
     return MakeCommand(StopMode(), {}, {});
@@ -531,6 +536,14 @@ class Controller {
     return ExecuteSingleCommand(MakeStop());
   }
 
+  void AsyncStop(Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakeStop(), result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // BrakeMode
+
   Command MakeBrake() {
     return MakeCommand(BrakeMode(), {}, {});
   }
@@ -539,14 +552,25 @@ class Controller {
     return ExecuteSingleCommand(MakeBrake());
   }
 
+  void AsyncBrake(Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakeBrake(), result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // PositionMode
+
   Command MakePosition(const PositionMode::Command& cmd) {
     return MakeCommand(PositionMode(), cmd, options_.position_format);
   }
 
-  /// Send a position command, if default_query == true, then block
-  /// until a response is available and return it.
   std::optional<Result> SetPosition(const PositionMode::Command& cmd) {
     return ExecuteSingleCommand(MakePosition(cmd));
+  }
+
+  void AsyncPosition(const PositionMode::Command& cmd,
+                     Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakePosition(cmd), result, callback);
   }
 
   /// Repeatedly send a position command until the reported
@@ -556,6 +580,10 @@ class Controller {
     return {};
   }
 
+
+  /////////////////////////////////////////
+  // VFOCMode
+
   Command MakeVFOC(const VFOCMode::Command& cmd) {
     return MakeCommand(VFOCMode(), cmd, options_.vfoc_format);
   }
@@ -563,6 +591,15 @@ class Controller {
   std::optional<Result> SetVFOC(const VFOCMode::Command& cmd) {
     return ExecuteSingleCommand(MakeVFOC(cmd));
   }
+
+  void AsyncVFOC(const VFOCMode::Command& cmd,
+                 Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakeVFOC(cmd), result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // CurrentMode
 
   Command MakeCurrent(const CurrentMode::Command& cmd) {
     return MakeCommand(CurrentMode(), cmd, options_.current_format);
@@ -572,6 +609,15 @@ class Controller {
     return ExecuteSingleCommand(MakeCurrent(cmd));
   }
 
+  void AsyncCurrent(const CurrentMode::Command& cmd,
+                    Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakeCurrent(cmd), result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // StayWithinMode
+
   Command MakeStayWithin(const StayWithinMode::Command& cmd) {
     return MakeCommand(StayWithinMode(), cmd, options_.stay_within_format);
   }
@@ -580,29 +626,14 @@ class Controller {
     return ExecuteSingleCommand(MakeStayWithin(cmd));
   }
 
-  std::optional<Result> ExecuteSingleCommand(const Command& cmd) {
-    std::vector<Command> replies;
-
-    transport()->BlockingCycle(&cmd, 1, &replies);
-
-    return FindResult(replies);
+  void AsyncStayWithin(const StayWithinMode::Command& cmd,
+                       Result* result, CompletionCallback callback) {
+    AsyncStartSingleCommand(MakeStayWithin(cmd), result, callback);
   }
 
-  void AsyncStartSingleCommand(const Command& cmd,
-                               Result* result,
-                               CompletionCallback callback) {
-    auto context = std::make_shared<std::vector<Command>>();
-    transport()->Cycle(
-        &cmd,
-        1,
-        context.get(),
-        [context, callback, result, this](int error) {
-          auto maybe_result = this->FindResult(*context);
-          if (maybe_result) { *result = *maybe_result; }
-          callback(!options_.default_query ? 0 :
-                   !!maybe_result ? 0 : ETIMEDOUT);
-        });
-  }
+
+  /////////////////////////////////////////
+  // Diagnostic channel operations
 
   enum DiagnosticReplyMode {
     kExpectOK,
@@ -682,6 +713,33 @@ class Controller {
 
   void DiagnosticFlush() {
     // TODO
+  }
+
+
+  //////////////////////////////////////////////////
+
+  std::optional<Result> ExecuteSingleCommand(const Command& cmd) {
+    std::vector<Command> replies;
+
+    transport()->BlockingCycle(&cmd, 1, &replies);
+
+    return FindResult(replies);
+  }
+
+  void AsyncStartSingleCommand(const Command& cmd,
+                               Result* result,
+                               CompletionCallback callback) {
+    auto context = std::make_shared<std::vector<Command>>();
+    transport()->Cycle(
+        &cmd,
+        1,
+        context.get(),
+        [context, callback, result, this](int error) {
+          auto maybe_result = this->FindResult(*context);
+          if (maybe_result) { *result = *maybe_result; }
+          callback(!options_.default_query ? 0 :
+                   !!maybe_result ? 0 : ETIMEDOUT);
+        });
   }
 
  private:

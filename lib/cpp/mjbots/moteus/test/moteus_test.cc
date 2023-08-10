@@ -516,4 +516,160 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     const auto& c = impl->sent_commands[0];
     BOOST_TEST(Hexify(c.data, c.size) == "01000d0e409a99993f0000004011001f01130d");
   }
+
+  {
+    impl->sent_commands.clear();
+
+    impl->to_reply_with.resize(1);
+    auto& c = impl->to_reply_with[0];
+    c.destination = 0;
+    c.source = 1;
+    c.arbitration_id = 0x100;
+    c.data[0] = 0x26;
+    c.data[1] = 0x00;
+    c.data[2] = 0x0a;
+    c.data[3] = 0x00;
+    c.data[4] = 0x20;
+    c.data[5] = 0x30;
+    c.size = 6;
+
+    const auto maybe_reply = dut.Query();
+    BOOST_TEST(!!maybe_reply);
+
+    BOOST_TEST(impl->sent_commands.size() == 1);
+    const auto& k = impl->sent_commands[0];
+    BOOST_TEST(Hexify(k.data, k.size) == "11001f01130d");
+
+    const auto& r = *maybe_reply;
+    BOOST_TEST(r.can_frame.arbitration_id == 0x100);
+    BOOST_TEST(r.can_frame.size == 6);
+
+    BOOST_TEST(static_cast<int>(r.values.mode) == 10);
+    BOOST_TEST(r.values.position == 1.232);
+  }
+}
+
+namespace {
+class AsyncTestTransport : public moteus::TransportImpl {
+ public:
+  virtual void Cycle(const moteus::Command* commands,
+                     size_t size,
+                     std::vector<moteus::Command>* replies,
+                     moteus::CompletionCallback completed_callback) {
+    sent_commands = std::vector<moteus::Command>(commands, commands + size);
+    to_reply = replies;
+    to_callback = completed_callback;
+  }
+
+  std::vector<moteus::Command> sent_commands;
+
+  std::vector<moteus::Command>* to_reply = nullptr;
+  moteus::CompletionCallback to_callback;
+};
+
+struct TestCallback {
+  void operator()(int value_in) {
+    called = true;
+    value = value_in;
+  }
+
+  bool called = false;
+  int value = -1;
+};
+}
+
+BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
+  auto impl = std::make_shared<AsyncTestTransport>();
+  auto transport = std::make_shared<moteus::Transport>(impl);
+  TestCallback cbk;
+  auto cbk_wrap = [&](int v) { cbk(v); };
+  moteus::Controller::Result result;
+
+  auto start_test = [&]() {
+    impl->sent_commands = {};
+    impl->to_reply = nullptr;
+    impl->to_callback = {};
+    cbk.called = false;
+    cbk.value = -1;
+  };
+
+  auto check_test = [&](const std::string& expected) {
+    BOOST_TEST(!cbk.called);
+    BOOST_TEST(impl->to_reply != nullptr);
+
+    impl->to_reply->resize(1);
+    auto& c = impl->to_reply->at(0);
+    c.destination = 0;
+    c.source = 1;
+    c.arbitration_id = 0x100;
+    c.data[0] = 0x27;
+    c.data[1] = 0x00;
+    c.data[2] = 0x0a;
+    c.data[3] = 0x00;
+    c.data[4] = 0x20;
+    c.data[5] = 0x30;
+    c.data[6] = 0x40;
+    c.data[7] = 0x50;
+    c.size = 8;
+
+    impl->to_callback(0);
+
+    BOOST_TEST(cbk.called);
+    BOOST_TEST(cbk.value == 0);
+    BOOST_TEST(result.can_frame.size == 8);
+    BOOST_TEST(result.values.position == 1.232);
+
+    BOOST_TEST(impl->sent_commands.size() == 1);
+    const auto& r = impl->sent_commands[0];
+    BOOST_TEST(Hexify(r.data, r.size) == expected);
+  };
+
+  moteus::Controller::Options options;
+  options.transport = transport;
+  moteus::Controller dut(options);
+
+  start_test();
+  dut.AsyncQuery(&result, cbk_wrap);
+  check_test("11001f01130d");
+
+  start_test();
+  dut.AsyncStop(&result, cbk_wrap);
+  check_test("01000011001f01130d");
+
+  start_test();
+  dut.AsyncBrake(&result, cbk_wrap);
+  check_test("01000f11001f01130d");
+
+  {
+    start_test();
+    moteus::PositionMode::Command cmd;
+    cmd.position = 4.0;
+    dut.AsyncPosition(cmd, &result, cbk_wrap);
+    check_test("01000a0e20000080400000000011001f01130d");
+  }
+
+  {
+    start_test();
+    moteus::VFOCMode::Command cmd;
+    cmd.theta_rad = 2.0;
+    dut.AsyncVFOC(cmd, &result, cbk_wrap);
+    check_test("0100070e1883f9223f000000000d1e0000000011001f01130d");
+  }
+
+  {
+    start_test();
+    moteus::CurrentMode::Command cmd;
+    cmd.q_A = 5.0;
+    dut.AsyncCurrent(cmd, &result, cbk_wrap);
+    check_test("0100090e1c0000a0400000000011001f01130d");
+  }
+
+  {
+    start_test();
+    moteus::StayWithinMode::Command cmd;
+    cmd.upper_bound = 10.0;
+    cmd.lower_bound = -3.0;
+    dut.AsyncStayWithin(cmd, &result, cbk_wrap);
+    check_test("01000d0e40000040c00000204111001f01130d");
+  }
 }
