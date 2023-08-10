@@ -79,8 +79,8 @@ class Transport {
                      std::vector<Command>* replies) {
     std::atomic<bool> done{false};
 
-    std::mutex m;
-    std::condition_variable cv;
+    std::recursive_mutex m;
+    std::condition_variable_any cv;
 
     std::unique_lock lock(m);
 
@@ -560,7 +560,7 @@ class Controller {
     return MakeCommand(VFOCMode(), cmd, options_.vfoc_format);
   }
 
-  std::optional<Result> SetVfoc(const VFOCMode::Command& cmd) {
+  std::optional<Result> SetVFOC(const VFOCMode::Command& cmd) {
     return ExecuteSingleCommand(MakeVFOC(cmd));
   }
 

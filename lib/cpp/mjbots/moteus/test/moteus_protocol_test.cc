@@ -267,7 +267,7 @@ BOOST_AUTO_TEST_CASE(CurrentMake) {
 
   moteus::CurrentMode::Make(&write_frame, cmd, {});
 
-  BOOST_TEST(Hexify(frame) == "0100090e1c0000803f00000040");
+  BOOST_TEST(Hexify(frame) == "0100090e1c000000400000803f");
 }
 
 BOOST_AUTO_TEST_CASE(StayWithinDefaults) {

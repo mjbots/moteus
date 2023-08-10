@@ -346,3 +346,174 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
          }
        });
 }
+
+namespace {
+// This test transport always makes the completion callback in the
+// same thread.
+class SyncTestTransport : public moteus::TransportImpl {
+ public:
+  virtual void Cycle(const moteus::Command* commands,
+                     size_t size,
+                     std::vector<moteus::Command>* replies,
+                     moteus::CompletionCallback completed_callback) {
+    sent_commands = std::vector<moteus::Command>(commands, commands + size);
+    *replies = to_reply_with;
+
+    count++;
+    completed_callback(0);
+  }
+
+  int count = 0;
+  std::vector<moteus::Command> sent_commands;
+  std::vector<moteus::Command> to_reply_with;
+};
+
+std::string Hexify(const uint8_t* data, size_t size) {
+  char buf[10] = {};
+  std::string result;
+  for (size_t i = 0; i < size; i++) {
+    ::snprintf(buf, sizeof(buf) - 1, "%02x", static_cast<int>(data[i]));
+    result += buf;
+  }
+  return result;
+}
+}
+
+BOOST_AUTO_TEST_CASE(ControllerBasic) {
+  auto impl = std::make_shared<SyncTestTransport>();
+  auto transport = std::make_shared<moteus::Transport>(impl);
+
+  moteus::Controller::Options options;
+  options.transport = transport;
+  moteus::Controller dut(options);
+
+  {
+    impl->sent_commands.clear();
+
+    const auto maybe_reply = dut.SetStop();
+    BOOST_TEST(impl->count == 1);
+    BOOST_TEST(impl->sent_commands.size() == 1);
+
+    // We did not queue a response.
+    BOOST_TEST(!maybe_reply);
+
+    const auto c = impl->sent_commands[0];
+    BOOST_TEST(c.source == 0);
+    BOOST_TEST(c.destination == 1);
+    BOOST_TEST(c.can_prefix == 0);
+    BOOST_TEST(Hexify(c.data, c.size) == "01000011001f01130d");
+  }
+
+  {
+    impl->sent_commands.clear();
+
+    const auto maybe_reply = dut.SetBrake();
+    BOOST_TEST(impl->count == 2);
+    BOOST_TEST(impl->sent_commands.size() == 1);
+
+    // We did not queue a response.
+    BOOST_TEST(!maybe_reply);
+
+    const auto c = impl->sent_commands[0];
+    BOOST_TEST(c.source == 0);
+    BOOST_TEST(c.destination == 1);
+    BOOST_TEST(c.can_prefix == 0);
+    BOOST_TEST(Hexify(c.data, c.size) == "01000f11001f01130d");
+  }
+
+  {
+    impl->sent_commands.clear();
+
+    impl->to_reply_with.resize(1);
+    auto& c = impl->to_reply_with[0];
+    c.destination = 0;
+    c.source = 1;
+    c.arbitration_id = 0x100;
+    c.data[0] = 0x27;
+    c.data[1] = 0x00;
+    c.data[2] = 0x0a;
+    c.data[3] = 0x00;
+    c.data[4] = 0x20;
+    c.data[5] = 0x30;
+    c.data[6] = 0x40;
+    c.data[7] = 0x50;
+    c.size = 8;
+
+    moteus::PositionMode::Command cmd;
+    cmd.position = 1.0;
+    cmd.velocity = 2.0;
+
+    const auto maybe_reply = dut.SetPosition(cmd);
+    BOOST_TEST(impl->count == 3);
+
+    BOOST_TEST(impl->sent_commands.size() == 1);
+    BOOST_TEST(!!maybe_reply);
+    const auto& r = *maybe_reply;
+    BOOST_TEST(r.can_frame.arbitration_id == 0x100);
+    BOOST_TEST(r.can_frame.size == 8);
+
+    BOOST_TEST(static_cast<int>(r.values.mode) == 10);
+    BOOST_TEST(r.values.position == 1.232);
+    BOOST_TEST(r.values.velocity == 5.136);
+
+    BOOST_TEST(Hexify(impl->sent_commands[0].data,
+                      impl->sent_commands[0].size) ==
+               "01000a0e200000803f0000004011001f01130d");
+  }
+
+  {
+    impl->sent_commands.clear();
+    impl->to_reply_with.clear();
+
+    moteus::VFOCMode::Command cmd;
+    cmd.theta_rad = 1.0;
+    cmd.voltage = 2.0;
+
+    const auto maybe_reply = dut.SetVFOC(cmd);
+    BOOST_TEST(!maybe_reply);
+
+    BOOST_TEST(impl->count == 4);
+
+    BOOST_TEST(impl->sent_commands.size() == 1);
+    const auto& c = impl->sent_commands[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "0100070e1883f9a23e000000400d1e0000000011001f01130d");
+  }
+
+  {
+    impl->sent_commands.clear();
+    impl->to_reply_with.clear();
+
+    moteus::CurrentMode::Command cmd;
+    cmd.q_A = 3.0;
+    cmd.d_A = 2.0;
+
+    const auto maybe_reply = dut.SetCurrent(cmd);
+
+    BOOST_TEST(!maybe_reply);
+
+    BOOST_TEST(impl->count == 5);
+
+    BOOST_TEST(impl->sent_commands.size() == 1);
+    const auto& c = impl->sent_commands[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "0100090e1c000040400000004011001f01130d");
+  }
+
+  {
+    impl->sent_commands.clear();
+    impl->to_reply_with.clear();
+
+    moteus::StayWithinMode::Command cmd;
+    cmd.lower_bound = 1.2;
+    cmd.upper_bound = 2.0;
+
+    const auto maybe_reply = dut.SetStayWithin(cmd);
+
+    BOOST_TEST(!maybe_reply);
+
+    BOOST_TEST(impl->count == 6);
+
+    BOOST_TEST(impl->sent_commands.size() == 1);
+    const auto& c = impl->sent_commands[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "01000d0e409a99993f0000004011001f01130d");
+  }
+}

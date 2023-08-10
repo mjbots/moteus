@@ -906,10 +906,10 @@ struct CurrentMode {
         sizeof(kResolutions) / sizeof(*kResolutions));
 
     if (combiner.MaybeWrite()) {
-      frame->WriteCurrent(command.d_A, format.d_A);
+      frame->WriteCurrent(command.q_A, format.q_A);
     }
     if (combiner.MaybeWrite()) {
-      frame->WriteCurrent(command.q_A, format.q_A);
+      frame->WriteCurrent(command.d_A, format.d_A);
     }
   }
 };
