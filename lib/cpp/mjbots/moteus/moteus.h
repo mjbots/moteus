@@ -447,24 +447,66 @@ class Fdcanusb : public Transport {
   size_t line_buffer_pos_ = 0;
 };
 
+
+/// This is the primary interface to a moteus controller.  One
+/// instance of this class should be created per controller that is
+/// commanded or monitored.
+///
+/// The primary control functions each have 3 possible forms:
+///
+///  1. A "Make" variant which constructs a CanFdFrame to be used in a
+///     later call to Transport::Cycle.
+///
+///  2. A "Set" variant which sends a command to the controller and
+///     waits for a response in a blocking manner.
+///
+///  3. An "Async" variant which starts the process of sending a
+///     command and potentially waiting for a response.  When this
+///     operation is finished, a user-provided callback is invoked.
+///     This callback may be called either:
+///      a) from an arbitrary thread
+///      b) recursively from the calling thread before returning
+///
+/// While any async operation is outstanding, it is undefined behavior
+/// to start another async operation or execute a blocking operation.
 class Controller {
  public:
   struct Options {
+    // The ID of the servo to communicate with.
     int id = 1;
+
+    // The source ID to use for the commanding node (i.e. the host or
+    // master).
     int source = 0;
+
+    // Which CAN bus to send commands on and look for responses on.
+    // This may not be used on all transports.
     int bus = 0;
 
+    // For each possible primary command, the resolution for all
+    // command fields is fixed at construction time.  If the
+    // resolution needs to be changed, either a separate 'Controller'
+    // instance should be created, or the 'ExecuteSingleCommand'
+    // formulation should be used.
     Query::Format query_format;
     PositionMode::Format position_format;
     VFOCMode::Format vfoc_format;
     CurrentMode::Format current_format;
     StayWithinMode::Format stay_within_format;
 
+    // Use the given prefix for all CAN IDs.
     uint32_t can_prefix = 0x0000;
+
+    // Request the configured set of registers as a query with every
+    // command.
     bool default_query = true;
 
     double trajectory_period_s = 0.01;
 
+    // Specify a transport to be used.  If left unset, a global common
+    // transport will be constructed to be shared with all Controller
+    // instances in this process.  That will attempt to auto-detect a
+    // reasonable transport on the system.
     std::shared_ptr<Transport> transport;
 
     Options() {}
@@ -709,6 +751,37 @@ class Controller {
   }
 
 
+  /////////////////////////////////////////
+  // Schema version checking
+
+  CanFdFrame MakeSchemaVersionQuery() {
+    GenericQuery::Format query;
+    query.values[0].register_number = Register::kRegisterMapVersion;
+    query.values[0].resolution = kInt32;
+
+    return MakeFrame(GenericQuery(), {}, query);
+  }
+
+  void VerifySchemaVersion() {
+    const auto result = ExecuteSingleCommand(MakeSchemaVersionQuery());
+    if (!result) {
+      throw std::runtime_error("No response to schema version query");
+    }
+    CheckRegisterMapVersion(*result);
+  }
+
+  void AsyncVerifySchemaVersion(CompletionCallback callback) {
+    auto result = std::make_shared<Result>();
+
+    AsyncStartSingleCommand(
+        MakeSchemaVersionQuery(),
+        result.get(),
+        [result, callback](int value) {
+          CheckRegisterMapVersion(*result);
+          callback(value);
+        });
+  }
+
   //////////////////////////////////////////////////
 
   std::optional<Result> ExecuteSingleCommand(const CanFdFrame& cmd) {
@@ -736,6 +809,24 @@ class Controller {
   }
 
  private:
+  static void CheckRegisterMapVersion(const Result& result) {
+    if (result.values.extra[0].register_number !=
+        Register::kRegisterMapVersion) {
+      throw std::runtime_error("Malformed response to schema version query");
+    }
+
+    const auto int_version = static_cast<int>(result.values.extra[0].value);
+    if (kCurrentRegisterMapVersion != int_version) {
+      std::ostringstream ostr;
+      ostr << "Register map version mismatch device is "
+           << int_version
+           << " but library requires "
+           << kCurrentRegisterMapVersion;
+
+      throw std::runtime_error(ostr.str());
+    }
+  }
+
   std::optional<Result> FindResult(const std::vector<CanFdFrame>& replies) const {
     // Pick off the last reply we got from our target ID.
     for (auto it = replies.rbegin(); it != replies.rend(); ++it) {

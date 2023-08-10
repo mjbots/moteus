@@ -671,3 +671,41 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
     check_test("01000d0e40000040c00000204111001f01130d");
   }
 }
+
+BOOST_AUTO_TEST_CASE(ControllerSchemaVersion) {
+  auto test = [](int offset) {
+    auto impl = std::make_shared<SyncTestTransport>();
+
+    moteus::Controller::Options options;
+    options.transport = impl;
+    moteus::Controller dut(options);
+
+    impl->to_reply_with.resize(1);
+    auto& f = impl->to_reply_with[0];
+    f.destination = 0;
+    f.source = 1;
+    f.arbitration_id = 0x100;
+    f.data[0] = 0x29;  // reply with 1 int32_t
+    f.data[1] = 0x82;  // register varuint = 0x102
+    f.data[2] = 0x02;
+    f.data[3] = moteus::kCurrentRegisterMapVersion + offset;
+    f.data[4] = 0;
+    f.data[5] = 0;
+    f.data[6] = 0;
+    f.size = 7;
+
+    dut.VerifySchemaVersion();
+    BOOST_TEST(impl->count == 1);
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& s = impl->sent_frames[0];
+    BOOST_TEST(Hexify(s.data, s.size) == "19820211001f01130d");
+  };
+
+  test(0);
+  auto verify_exception = [](const std::runtime_error& re) {
+    BOOST_TEST(re.what() ==
+               "Register map version mismatch device is 6 but library requires 5");
+    return true;
+  };
+  BOOST_CHECK_EXCEPTION(test(1), std::runtime_error, verify_exception);
+}

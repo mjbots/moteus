@@ -157,7 +157,7 @@ BOOST_AUTO_TEST_CASE(GenericQueryMake) {
   fmt.values[3].register_number = moteus::Register::kEncoder0Velocity;
   fmt.values[3].resolution = moteus::kFloat;
 
-  moteus::GenericQuery::Make(&write_frame, fmt);
+  moteus::GenericQuery::Make(&write_frame, {}, fmt);
   BOOST_TEST(Hexify(frame) == "1e501660");
 }
 

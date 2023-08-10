@@ -346,10 +346,7 @@ class WriteCombiner {
       frame_->Write<int8_t>(write_command);
       frame_->Write<int8_t>(count);
     }
-    if ((start_register_ + this_offset) > 127) {
-      abort();
-    }
-    frame_->Write<int8_t>(start_register_ + this_offset);
+    frame_->WriteVaruint(start_register_ + this_offset);
     return true;
   }
 
