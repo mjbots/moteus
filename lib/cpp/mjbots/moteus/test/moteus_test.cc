@@ -832,3 +832,42 @@ BOOST_AUTO_TEST_CASE(ControllerDiagnosticTest) {
     BOOST_TEST(result == "id.id 0\r\nstuff.bar 1\r\nbing.baz 234\r\n");
   }
 }
+
+BOOST_AUTO_TEST_CASE(ControllerAsyncDiagnosticTest) {
+  auto transport = std::make_shared<DiagnosticTestTransport>();
+  moteus::Controller::Options options;
+  options.transport = transport;
+  moteus::Controller dut(options);
+
+  {
+    TestCallback cbk;
+    auto cbk_wrap = [&](int v) { cbk(v); };
+
+    std::string result;
+    dut.AsyncDiagnosticCommand("conf set id.id 5", &result, cbk_wrap);
+    BOOST_TEST(cbk.called);
+    BOOST_TEST(result == "");
+  }
+
+  {
+    TestCallback cbk;
+    auto cbk_wrap = [&](int v) { cbk(v); };
+
+    std::string result;
+    dut.AsyncDiagnosticCommand(
+        "conf get servo.pid_position.kp", &result, cbk_wrap,
+        moteus::Controller::kExpectSingleLine);
+    BOOST_TEST(cbk.called);
+    BOOST_TEST(result == "4.0000");
+  }
+
+  {
+    TestCallback cbk;
+    auto cbk_wrap = [&](int v) { cbk(v); };
+
+    std::string result;
+    dut.AsyncDiagnosticCommand("conf enumerate", &result, cbk_wrap);
+    BOOST_TEST(cbk.called);
+    BOOST_TEST(result == "id.id 0\r\nstuff.bar 1\r\nbing.baz 234\r\n");
+  }
+}

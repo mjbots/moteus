@@ -42,6 +42,33 @@ namespace moteus {
 
 using CompletionCallback = std::function<void(int /* errno */)>;
 
+/// Turn async methods into synchronous ones.
+class BlockingCallback {
+ public:
+  /// Pass the result of this to a singular async call.
+  CompletionCallback callback() {
+    return [&](int v) {
+      std::unique_lock lock(mutex_);
+      done_.store(true);
+      result_.store(v);
+      cv_.notify_one();
+    };
+  }
+
+  /// Then call this to perform the blocking.
+  int Wait() {
+    cv_.wait(lock_, [&]() { return done_.load(); });
+    return result_.load();
+  }
+
+ private:
+  std::atomic<bool> done_{false};
+  std::atomic<int> result_{0};
+  std::recursive_mutex mutex_;
+  std::condition_variable_any cv_;
+  std::unique_lock<std::recursive_mutex> lock_{mutex_};
+};
+
 class Transport {
  public:
   virtual ~Transport() {}
@@ -65,20 +92,11 @@ class Transport {
   virtual void BlockingCycle(const CanFdFrame* frames,
                              size_t size,
                              std::vector<CanFdFrame>* replies) {
-    std::atomic<bool> done{false};
+    BlockingCallback cbk;
 
-    std::recursive_mutex m;
-    std::condition_variable_any cv;
+    this->Cycle(frames, size, replies, cbk.callback());
 
-    std::unique_lock lock(m);
-
-    this->Cycle(frames, size, replies, [&](int) {
-      std::unique_lock lock(m);
-      done.store(true);
-      cv.notify_one();
-    });
-
-    cv.wait(lock, [&]() { return done.load(); });
+    cbk.Wait();
   }
 };
 
@@ -677,64 +695,25 @@ class Controller {
 
   std::string DiagnosticCommand(const std::string& message,
                                 DiagnosticReplyMode reply_mode = kExpectOK) {
-    // First, write everything asked.
-    std::string remaining = message + "\n";
-    while (remaining.size()) {
-      DiagnosticWrite::Command write;
-      write.data = remaining.data();
-      const auto to_write = std::min<size_t>(48, remaining.size());
-      write.size = to_write;
+    BlockingCallback cbk;
+    std::string response;
+    AsyncDiagnosticCommand(message, &response, cbk.callback(), reply_mode);
+    cbk.Wait();
+    return response;
+  }
 
-      auto frame = DefaultFrame(kNoReply);
-      WriteCanData write_frame(frame.data, &frame.size);
-      DiagnosticWrite::Make(&write_frame, write, {});
+  void AsyncDiagnosticCommand(const std::string& message,
+                              std::string* result,
+                              CompletionCallback callback,
+                              DiagnosticReplyMode reply_mode = kExpectOK) {
+    auto context = std::make_shared<AsyncDiagnosticContext>();
+    context->result = result;
+    context->remaining_command = message + "\n";
+    context->controller = this;
+    context->callback = callback;
+    context->reply_mode = reply_mode;
 
-      transport()->BlockingCycle(&frame, 1, nullptr);
-
-      remaining = remaining.substr(to_write);
-    }
-
-    // Now read either until we get an OK line, or a single line
-    // depending upon our criteria.
-    std::ostringstream output;
-    std::string current_line;
-
-    while (true) {
-      DiagnosticRead::Command read;
-      auto frame = DefaultFrame(kReplyRequired);
-      WriteCanData write_frame(frame.data, &frame.size);
-      DiagnosticRead::Make(&write_frame, read, {});
-
-      std::vector<CanFdFrame> replies;
-      transport()->BlockingCycle(&frame, 1, &replies);
-
-      for (const auto& reply : replies) {
-        if (reply.source != options_.id ||
-            reply.can_prefix != options_.can_prefix) {
-          continue;
-        }
-
-        const auto parsed = DiagnosticResponse::Parse(reply.data, reply.size);
-        if (parsed.channel != 1) { continue; }
-
-        current_line += std::string(
-            reinterpret_cast<const char*>(parsed.data), parsed.size);
-      }
-
-      size_t first_newline = std::string::npos;
-      while ((first_newline = current_line.find_first_of("\r\n"))
-             != std::string::npos) {
-        const auto this_line = current_line.substr(0, first_newline);
-        if (reply_mode == kExpectSingleLine) {
-          return this_line;
-        } else if (this_line == "OK") {
-          return output.str();
-        } else {
-          output.write(current_line.data(), first_newline + 1);
-          current_line = current_line.substr(first_newline + 1);
-        }
-      }
-    }
+    context->Start();
   }
 
   void DiagnosticFlush() {
@@ -800,6 +779,108 @@ class Controller {
   }
 
  private:
+  struct AsyncDiagnosticContext
+      : public std::enable_shared_from_this<AsyncDiagnosticContext> {
+    std::string* result = nullptr;
+    CompletionCallback callback;
+    DiagnosticReplyMode reply_mode = {};
+
+    Controller* controller = nullptr;
+
+    std::vector<CanFdFrame> replies;
+
+    std::string remaining_command;
+    std::string current_line;
+    std::ostringstream output;
+
+    void Start() {
+      DoWrite();
+    }
+
+    void Callback(int error) {
+      if (error != 0) {
+        callback(error);
+        return;
+      }
+
+      if (ProcessReplies()) {
+        callback(0);
+        return;
+      }
+
+      if (remaining_command.size()) {
+        DoWrite();
+      } else {
+        DoRead();
+      }
+    }
+
+    void DoWrite() {
+      DiagnosticWrite::Command write;
+      write.data = remaining_command.data();
+      const auto to_write = std::min<size_t>(48, remaining_command.size());
+      write.size = to_write;
+
+      auto frame = controller->DefaultFrame(kNoReply);
+      WriteCanData write_frame(frame.data, &frame.size);
+      DiagnosticWrite::Make(&write_frame, write, {});
+
+      remaining_command = remaining_command.substr(to_write);
+
+      controller->transport()->Cycle(
+          &frame, 1, nullptr,
+          [s=shared_from_this()](int v) {
+            s->Callback(v);
+          });
+    }
+
+    void DoRead() {
+      DiagnosticRead::Command read;
+      auto frame = controller->DefaultFrame(kReplyRequired);
+      WriteCanData write_frame(frame.data, &frame.size);
+      DiagnosticRead::Make(&write_frame, read, {});
+
+      controller->transport()->Cycle(
+          &frame, 1, &replies,
+          [s=shared_from_this()](int v) {
+            s->Callback(v);
+          });
+    }
+
+    bool ProcessReplies() {
+      for (const auto& reply : replies) {
+        if (reply.source != controller->options_.id ||
+            reply.can_prefix != controller->options_.can_prefix) {
+          continue;
+        }
+
+        const auto parsed = DiagnosticResponse::Parse(reply.data, reply.size);
+        if (parsed.channel != 1) { continue; }
+
+        current_line += std::string(
+            reinterpret_cast<const char*>(parsed.data), parsed.size);
+      }
+
+      size_t first_newline = std::string::npos;
+      while ((first_newline = current_line.find_first_of("\r\n"))
+             != std::string::npos) {
+        const auto this_line = current_line.substr(0, first_newline);
+        if (reply_mode == kExpectSingleLine) {
+          *result = this_line;
+          return true;
+        } else if (this_line == "OK") {
+          *result = output.str();
+          return true;
+        } else {
+          output.write(current_line.data(), first_newline + 1);
+          current_line = current_line.substr(first_newline + 1);
+        }
+      }
+      replies.clear();
+      return false;
+    }
+  };
+
   static void CheckRegisterMapVersion(const Result& result) {
     if (result.values.extra[0].register_number !=
         Register::kRegisterMapVersion) {
