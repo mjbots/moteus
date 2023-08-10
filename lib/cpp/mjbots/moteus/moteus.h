@@ -492,15 +492,21 @@ class Controller {
 
   Transport* transport() {
     if (!transport_) {
-      transport_ = MakeDefaultTransport();
+      transport_ = MakeSingletonTransport();
     }
 
     return transport_.get();
   }
 
-  static std::shared_ptr<Transport> MakeDefaultTransport() {
+  static std::shared_ptr<Transport> MakeSingletonTransport() {
+    static std::shared_ptr<Transport> g_transport;
+
+    if (g_transport) { return g_transport; }
+
     // For now, we only know about trying to find a system Fdcanusb.
-    return std::make_shared<Transport>(std::make_shared<Fdcanusb>(""));
+    g_transport = std::make_shared<Transport>(std::make_shared<Fdcanusb>(""));
+
+    return g_transport;
   }
 
   struct Result {
