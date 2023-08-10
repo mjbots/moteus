@@ -350,7 +350,7 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
 namespace {
 // This test transport always makes the completion callback in the
 // same thread.
-class SyncTestTransport : public moteus::TransportImpl {
+class SyncTestTransport : public moteus::Transport {
  public:
   virtual void Cycle(const moteus::Command* commands,
                      size_t size,
@@ -381,10 +381,9 @@ std::string Hexify(const uint8_t* data, size_t size) {
 
 BOOST_AUTO_TEST_CASE(ControllerBasic) {
   auto impl = std::make_shared<SyncTestTransport>();
-  auto transport = std::make_shared<moteus::Transport>(impl);
 
   moteus::Controller::Options options;
-  options.transport = transport;
+  options.transport = impl;
   moteus::Controller dut(options);
 
   {
@@ -550,7 +549,7 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 }
 
 namespace {
-class AsyncTestTransport : public moteus::TransportImpl {
+class AsyncTestTransport : public moteus::Transport {
  public:
   virtual void Cycle(const moteus::Command* commands,
                      size_t size,
@@ -580,7 +579,6 @@ struct TestCallback {
 
 BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
   auto impl = std::make_shared<AsyncTestTransport>();
-  auto transport = std::make_shared<moteus::Transport>(impl);
   TestCallback cbk;
   auto cbk_wrap = [&](int v) { cbk(v); };
   moteus::Controller::Result result;
@@ -625,7 +623,7 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
   };
 
   moteus::Controller::Options options;
-  options.transport = transport;
+  options.transport = impl;
   moteus::Controller dut(options);
 
   start_test();

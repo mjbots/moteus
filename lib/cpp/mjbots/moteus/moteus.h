@@ -42,9 +42,9 @@ namespace moteus {
 
 using CompletionCallback = std::function<void(int /* errno */)>;
 
-class TransportImpl {
+class Transport {
  public:
-  virtual ~TransportImpl() {}
+  virtual ~Transport() {}
 
   /// Start sending all the commands in the @p commands / @p size list.
   ///
@@ -57,26 +57,14 @@ class TransportImpl {
                      size_t size,
                      std::vector<Command>* replies,
                      CompletionCallback completed_callback) = 0;
-};
 
-class Transport {
- public:
-  Transport(std::shared_ptr<TransportImpl> impl) : impl_(impl) {}
-
-  TransportImpl* impl() { return impl_.get(); }
-
-  void Cycle(const Command* commands,
-             size_t size,
-             std::vector<Command>* replies,
-             CompletionCallback completed_callback) {
-    impl_->Cycle(commands, size, replies, completed_callback);
-  }
-
-  /// Performs the same operation as TransportImpl::Cycle, but sleeps
-  /// until the result is complete.
-  void BlockingCycle(const Command* commands,
-                     size_t size,
-                     std::vector<Command>* replies) {
+  /// The same operation as above, but block until it is complete.
+  ///
+  /// A default implementation is provided which delegates to the
+  /// asynchronous version.
+  virtual void BlockingCycle(const Command* commands,
+                             size_t size,
+                             std::vector<Command>* replies) {
     std::atomic<bool> done{false};
 
     std::recursive_mutex m;
@@ -84,7 +72,7 @@ class Transport {
 
     std::unique_lock lock(m);
 
-    impl_->Cycle(commands, size, replies, [&](int) {
+    this->Cycle(commands, size, replies, [&](int) {
       std::unique_lock lock(m);
       done.store(true);
       cv.notify_one();
@@ -92,12 +80,9 @@ class Transport {
 
     cv.wait(lock, [&]() { return done.load(); });
   }
-
- private:
-  std::shared_ptr<TransportImpl> impl_;
 };
 
-class Fdcanusb : public TransportImpl {
+class Fdcanusb : public Transport {
  public:
   struct Options {
     bool disable_brs = false;
@@ -140,7 +125,7 @@ class Fdcanusb : public TransportImpl {
   virtual void Cycle(const Command* commands,
                      size_t size,
                      std::vector<Command>* replies,
-                     CompletionCallback completed_callback) {
+                     CompletionCallback completed_callback) override {
     std::unique_lock lock(something_mutex_);
     work_ = std::bind(&Fdcanusb::CHILD_Cycle,
                       this, commands, size, replies, completed_callback);
@@ -504,7 +489,7 @@ class Controller {
     if (g_transport) { return g_transport; }
 
     // For now, we only know about trying to find a system Fdcanusb.
-    g_transport = std::make_shared<Transport>(std::make_shared<Fdcanusb>(""));
+    g_transport = std::make_shared<Fdcanusb>("");
 
     return g_transport;
   }
