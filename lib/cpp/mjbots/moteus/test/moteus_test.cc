@@ -92,24 +92,24 @@ BOOST_AUTO_TEST_CASE(FdcanusbBasicSingle) {
     result_errno = errno_in;
   };
 
-  moteus::Command command;
+  moteus::CanFdFrame frame;
 
-  command.destination = 5;
-  command.source = 2;
-  command.can_prefix = 0x20;
-  command.reply_required = true;
+  frame.destination = 5;
+  frame.source = 2;
+  frame.can_prefix = 0x20;
+  frame.reply_required = true;
 
-  command.arbitration_id = 0x8205;
-  command.data[0] = 0x20;
-  command.data[1] = 0x21;
-  command.data[2] = 0x22;
-  command.size = 3;
+  frame.arbitration_id = 0x8205;
+  frame.data[0] = 0x20;
+  frame.data[1] = 0x21;
+  frame.data[2] = 0x22;
+  frame.size = 3;
 
-  std::vector<moteus::Command> replies;
+  std::vector<moteus::CanFdFrame> replies;
 
-  dut.Cycle(&command, 1, &replies, completed);
+  dut.Cycle(&frame, 1, &replies, completed);
 
-  // We should be able to read a command line now.
+  // We should be able to read a frame line now.
   {
     char line_buf[4096] = {};
     const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
@@ -152,18 +152,18 @@ BOOST_AUTO_TEST_CASE(FdcanusbBasicNoResponse) {
     result_errno = errno_in;
   };
 
-  moteus::Command command;
-  command.arbitration_id = 0x123;
-  command.reply_required = false;
-  command.data[0] = 0x45;
-  command.data[1] = 0x67;
-  command.size = 2;
+  moteus::CanFdFrame frame;
+  frame.arbitration_id = 0x123;
+  frame.reply_required = false;
+  frame.data[0] = 0x45;
+  frame.data[1] = 0x67;
+  frame.size = 2;
 
-  std::vector<moteus::Command> replies;
+  std::vector<moteus::CanFdFrame> replies;
 
-  dut.Cycle(&command, 1, &replies, completed);
+  dut.Cycle(&frame, 1, &replies, completed);
 
-  // We should be able to read a command line now.
+  // We should be able to read a frame line now.
   {
     char line_buf[4096] = {};
     const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
@@ -181,9 +181,9 @@ BOOST_AUTO_TEST_CASE(FdcanusbBasicNoResponse) {
 }
 
 BOOST_AUTO_TEST_CASE(FdcanusbOutputVariants) {
-  using Command = moteus::Command;
+  using CanFdFrame = moteus::CanFdFrame;
 
-  auto test = [](const Command& command, const std::string& expected_result) {
+  auto test = [](const CanFdFrame& frame, const std::string& expected_result) {
     RwPipe pipe;
     moteus::Fdcanusb dut(pipe.read_fds[0], pipe.write_fds[1], MakeOptions());
 
@@ -193,11 +193,11 @@ BOOST_AUTO_TEST_CASE(FdcanusbOutputVariants) {
       result_errno = errno_in;
     };
 
-    std::vector<moteus::Command> replies;
+    std::vector<moteus::CanFdFrame> replies;
 
-    dut.Cycle(&command, 1, &replies, completed);
+    dut.Cycle(&frame, 1, &replies, completed);
 
-    // We should be able to read a command line now.
+    // We should be able to read a frame line now.
     {
       char line_buf[4096] = {};
       const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
@@ -210,27 +210,27 @@ BOOST_AUTO_TEST_CASE(FdcanusbOutputVariants) {
     pipe.Write("OK\r\n");
   };
 
-  Command c;
+  CanFdFrame c;
   c.arbitration_id = 1;
   c.data[0] = 1;
   c.size = 1;
 
-  c.brs = Command::kForceOn;
+  c.brs = CanFdFrame::kForceOn;
 
   test(c, "can send 0001 01 B\n");
 
-  c.brs = Command::kForceOff;
+  c.brs = CanFdFrame::kForceOff;
   test(c, "can send 0001 01 b\n");
 
-  c.brs = Command::kDefault;
-  c.fdcan_frame = Command::kForceOff;
+  c.brs = CanFdFrame::kDefault;
+  c.fdcan_frame = CanFdFrame::kForceOff;
 
   test(c, "can send 0001 01 f\n");
 
-  c.fdcan_frame = Command::kForceOn;
+  c.fdcan_frame = CanFdFrame::kForceOn;
   test(c, "can send 0001 01 F\n");
 
-  c.brs = Command::kForceOn;
+  c.brs = CanFdFrame::kForceOn;
   c.arbitration_id = 0x00050001;
   test(c, "can send 50001 01 B F\n");
 
@@ -242,7 +242,7 @@ BOOST_AUTO_TEST_CASE(FdcanusbOutputVariants) {
 }
 
 BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
-  using Command = moteus::Command;
+  using CanFdFrame = moteus::CanFdFrame;
 
   auto test = [](const std::string& rcv_message,
                  auto tester) {
@@ -255,19 +255,19 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
       result_errno = errno_in;
     };
 
-    moteus::Command command;
+    moteus::CanFdFrame frame;
 
-    command.reply_required = true;
+    frame.reply_required = true;
 
-    command.arbitration_id = 0x1;
-    command.data[0] = 0x20;
-    command.size = 1;
+    frame.arbitration_id = 0x1;
+    frame.data[0] = 0x20;
+    frame.size = 1;
 
-    std::vector<moteus::Command> replies;
+    std::vector<moteus::CanFdFrame> replies;
 
-    dut.Cycle(&command, 1, &replies, completed);
+    dut.Cycle(&frame, 1, &replies, completed);
 
-    // We should be able to read a command line now.
+    // We should be able to read a frame line now.
     {
       char line_buf[4096] = {};
       const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
@@ -295,8 +295,8 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
          BOOST_TEST(c.size == 2);
          BOOST_TEST(c.data[0] == 0x23);
          BOOST_TEST(c.data[1] == 0x45);
-         BOOST_TEST(c.brs == Command::kDefault);
-         BOOST_TEST(c.fdcan_frame == Command::kDefault);
+         BOOST_TEST(c.brs == CanFdFrame::kDefault);
+         BOOST_TEST(c.fdcan_frame == CanFdFrame::kDefault);
        });
 
   test("rcv 230204 2345 B\n",
@@ -308,34 +308,34 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
          BOOST_TEST(c.size == 2);
          BOOST_TEST(c.data[0] == 0x23);
          BOOST_TEST(c.data[1] == 0x45);
-         BOOST_TEST(c.brs == Command::kForceOn);
-         BOOST_TEST(c.fdcan_frame == Command::kDefault);
+         BOOST_TEST(c.brs == CanFdFrame::kForceOn);
+         BOOST_TEST(c.fdcan_frame == CanFdFrame::kDefault);
        });
 
   test("rcv 1 01 F\n",
        [](auto c) {
          BOOST_TEST(c.size == 1);
          BOOST_TEST(c.data[0] == 0x01);
-         BOOST_TEST(c.brs == Command::kDefault);
-         BOOST_TEST(c.fdcan_frame == Command::kForceOn);
+         BOOST_TEST(c.brs == CanFdFrame::kDefault);
+         BOOST_TEST(c.fdcan_frame == CanFdFrame::kForceOn);
        });
 
   test("rcv 1 01 B F\n",
        [](auto c) {
-         BOOST_TEST(c.brs == Command::kForceOn);
-         BOOST_TEST(c.fdcan_frame == Command::kForceOn);
+         BOOST_TEST(c.brs == CanFdFrame::kForceOn);
+         BOOST_TEST(c.fdcan_frame == CanFdFrame::kForceOn);
        });
 
   test("rcv 1 01 b F\n",
        [](auto c) {
-         BOOST_TEST(c.brs == Command::kForceOff);
-         BOOST_TEST(c.fdcan_frame == Command::kForceOn);
+         BOOST_TEST(c.brs == CanFdFrame::kForceOff);
+         BOOST_TEST(c.fdcan_frame == CanFdFrame::kForceOn);
        });
 
   test("rcv 1 01 b f\n",
        [](auto c) {
-         BOOST_TEST(c.brs == Command::kForceOff);
-         BOOST_TEST(c.fdcan_frame == Command::kForceOff);
+         BOOST_TEST(c.brs == CanFdFrame::kForceOff);
+         BOOST_TEST(c.fdcan_frame == CanFdFrame::kForceOff);
        });
 
   test("rcv 1 02030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f4041\n",
@@ -352,11 +352,11 @@ namespace {
 // same thread.
 class SyncTestTransport : public moteus::Transport {
  public:
-  virtual void Cycle(const moteus::Command* commands,
+  virtual void Cycle(const moteus::CanFdFrame* frames,
                      size_t size,
-                     std::vector<moteus::Command>* replies,
+                     std::vector<moteus::CanFdFrame>* replies,
                      moteus::CompletionCallback completed_callback) {
-    sent_commands = std::vector<moteus::Command>(commands, commands + size);
+    sent_frames = std::vector<moteus::CanFdFrame>(frames, frames + size);
     *replies = to_reply_with;
 
     count++;
@@ -364,8 +364,8 @@ class SyncTestTransport : public moteus::Transport {
   }
 
   int count = 0;
-  std::vector<moteus::Command> sent_commands;
-  std::vector<moteus::Command> to_reply_with;
+  std::vector<moteus::CanFdFrame> sent_frames;
+  std::vector<moteus::CanFdFrame> to_reply_with;
 };
 
 std::string Hexify(const uint8_t* data, size_t size) {
@@ -387,16 +387,16 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
   moteus::Controller dut(options);
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
 
     const auto maybe_reply = dut.SetStop();
     BOOST_TEST(impl->count == 1);
-    BOOST_TEST(impl->sent_commands.size() == 1);
+    BOOST_TEST(impl->sent_frames.size() == 1);
 
     // We did not queue a response.
     BOOST_TEST(!maybe_reply);
 
-    const auto c = impl->sent_commands[0];
+    const auto c = impl->sent_frames[0];
     BOOST_TEST(c.source == 0);
     BOOST_TEST(c.destination == 1);
     BOOST_TEST(c.can_prefix == 0);
@@ -404,16 +404,16 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
   }
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
 
     const auto maybe_reply = dut.SetBrake();
     BOOST_TEST(impl->count == 2);
-    BOOST_TEST(impl->sent_commands.size() == 1);
+    BOOST_TEST(impl->sent_frames.size() == 1);
 
     // We did not queue a response.
     BOOST_TEST(!maybe_reply);
 
-    const auto c = impl->sent_commands[0];
+    const auto c = impl->sent_frames[0];
     BOOST_TEST(c.source == 0);
     BOOST_TEST(c.destination == 1);
     BOOST_TEST(c.can_prefix == 0);
@@ -421,7 +421,7 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
   }
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
 
     impl->to_reply_with.resize(1);
     auto& c = impl->to_reply_with[0];
@@ -445,23 +445,23 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     const auto maybe_reply = dut.SetPosition(cmd);
     BOOST_TEST(impl->count == 3);
 
-    BOOST_TEST(impl->sent_commands.size() == 1);
+    BOOST_TEST(impl->sent_frames.size() == 1);
     BOOST_TEST(!!maybe_reply);
     const auto& r = *maybe_reply;
-    BOOST_TEST(r.can_frame.arbitration_id == 0x100);
-    BOOST_TEST(r.can_frame.size == 8);
+    BOOST_TEST(r.frame.arbitration_id == 0x100);
+    BOOST_TEST(r.frame.size == 8);
 
     BOOST_TEST(static_cast<int>(r.values.mode) == 10);
     BOOST_TEST(r.values.position == 1.232);
     BOOST_TEST(r.values.velocity == 5.136);
 
-    BOOST_TEST(Hexify(impl->sent_commands[0].data,
-                      impl->sent_commands[0].size) ==
+    BOOST_TEST(Hexify(impl->sent_frames[0].data,
+                      impl->sent_frames[0].size) ==
                "01000a0e200000803f0000004011001f01130d");
   }
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
     impl->to_reply_with.clear();
 
     moteus::VFOCMode::Command cmd;
@@ -473,13 +473,13 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 
     BOOST_TEST(impl->count == 4);
 
-    BOOST_TEST(impl->sent_commands.size() == 1);
-    const auto& c = impl->sent_commands[0];
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
     BOOST_TEST(Hexify(c.data, c.size) == "0100070e1883f9a23e000000400d1e0000000011001f01130d");
   }
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
     impl->to_reply_with.clear();
 
     moteus::CurrentMode::Command cmd;
@@ -492,13 +492,13 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 
     BOOST_TEST(impl->count == 5);
 
-    BOOST_TEST(impl->sent_commands.size() == 1);
-    const auto& c = impl->sent_commands[0];
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
     BOOST_TEST(Hexify(c.data, c.size) == "0100090e1c000040400000004011001f01130d");
   }
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
     impl->to_reply_with.clear();
 
     moteus::StayWithinMode::Command cmd;
@@ -511,13 +511,13 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 
     BOOST_TEST(impl->count == 6);
 
-    BOOST_TEST(impl->sent_commands.size() == 1);
-    const auto& c = impl->sent_commands[0];
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
     BOOST_TEST(Hexify(c.data, c.size) == "01000d0e409a99993f0000004011001f01130d");
   }
 
   {
-    impl->sent_commands.clear();
+    impl->sent_frames.clear();
 
     impl->to_reply_with.resize(1);
     auto& c = impl->to_reply_with[0];
@@ -535,13 +535,13 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     const auto maybe_reply = dut.Query();
     BOOST_TEST(!!maybe_reply);
 
-    BOOST_TEST(impl->sent_commands.size() == 1);
-    const auto& k = impl->sent_commands[0];
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& k = impl->sent_frames[0];
     BOOST_TEST(Hexify(k.data, k.size) == "11001f01130d");
 
     const auto& r = *maybe_reply;
-    BOOST_TEST(r.can_frame.arbitration_id == 0x100);
-    BOOST_TEST(r.can_frame.size == 6);
+    BOOST_TEST(r.frame.arbitration_id == 0x100);
+    BOOST_TEST(r.frame.size == 6);
 
     BOOST_TEST(static_cast<int>(r.values.mode) == 10);
     BOOST_TEST(r.values.position == 1.232);
@@ -551,18 +551,18 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 namespace {
 class AsyncTestTransport : public moteus::Transport {
  public:
-  virtual void Cycle(const moteus::Command* commands,
+  virtual void Cycle(const moteus::CanFdFrame* frames,
                      size_t size,
-                     std::vector<moteus::Command>* replies,
+                     std::vector<moteus::CanFdFrame>* replies,
                      moteus::CompletionCallback completed_callback) {
-    sent_commands = std::vector<moteus::Command>(commands, commands + size);
+    sent_frames = std::vector<moteus::CanFdFrame>(frames, frames + size);
     to_reply = replies;
     to_callback = completed_callback;
   }
 
-  std::vector<moteus::Command> sent_commands;
+  std::vector<moteus::CanFdFrame> sent_frames;
 
-  std::vector<moteus::Command>* to_reply = nullptr;
+  std::vector<moteus::CanFdFrame>* to_reply = nullptr;
   moteus::CompletionCallback to_callback;
 };
 
@@ -584,7 +584,7 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
   moteus::Controller::Result result;
 
   auto start_test = [&]() {
-    impl->sent_commands = {};
+    impl->sent_frames = {};
     impl->to_reply = nullptr;
     impl->to_callback = {};
     cbk.called = false;
@@ -614,11 +614,11 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
 
     BOOST_TEST(cbk.called);
     BOOST_TEST(cbk.value == 0);
-    BOOST_TEST(result.can_frame.size == 8);
+    BOOST_TEST(result.frame.size == 8);
     BOOST_TEST(result.values.position == 1.232);
 
-    BOOST_TEST(impl->sent_commands.size() == 1);
-    const auto& r = impl->sent_commands[0];
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& r = impl->sent_frames[0];
     BOOST_TEST(Hexify(r.data, r.size) == expected);
   };
 

@@ -46,25 +46,25 @@ class Transport {
  public:
   virtual ~Transport() {}
 
-  /// Start sending all the commands in the @p commands / @p size list.
+  /// Start sending all the frames in the @p frames / @p size list.
   ///
   /// Any replies are collated in the @p replies result.
   ///
   /// Upon completion, invoke @p completed_callback from an arbitrary
   /// thread that may or may not be the calling one and may or may not
   /// be invoked rentrantly from within this call.
-  virtual void Cycle(const Command* commands,
+  virtual void Cycle(const CanFdFrame* frames,
                      size_t size,
-                     std::vector<Command>* replies,
+                     std::vector<CanFdFrame>* replies,
                      CompletionCallback completed_callback) = 0;
 
   /// The same operation as above, but block until it is complete.
   ///
   /// A default implementation is provided which delegates to the
   /// asynchronous version.
-  virtual void BlockingCycle(const Command* commands,
+  virtual void BlockingCycle(const CanFdFrame* frames,
                              size_t size,
-                             std::vector<Command>* replies) {
+                             std::vector<CanFdFrame>* replies) {
     std::atomic<bool> done{false};
 
     std::recursive_mutex m;
@@ -72,7 +72,7 @@ class Transport {
 
     std::unique_lock lock(m);
 
-    this->Cycle(commands, size, replies, [&](int) {
+    this->Cycle(frames, size, replies, [&](int) {
       std::unique_lock lock(m);
       done.store(true);
       cv.notify_one();
@@ -122,13 +122,13 @@ class Fdcanusb : public Transport {
     ::close(read_fd_);
   }
 
-  virtual void Cycle(const Command* commands,
+  virtual void Cycle(const CanFdFrame* frames,
                      size_t size,
-                     std::vector<Command>* replies,
+                     std::vector<CanFdFrame>* replies,
                      CompletionCallback completed_callback) override {
     std::unique_lock lock(something_mutex_);
     work_ = std::bind(&Fdcanusb::CHILD_Cycle,
-                      this, commands, size, replies, completed_callback);
+                      this, frames, size, replies, completed_callback);
     do_something_ = true;
     something_cv_.notify_one();
   }
@@ -194,18 +194,18 @@ class Fdcanusb : public Transport {
     }
   }
 
-  void CHILD_Cycle(const Command* commands,
+  void CHILD_Cycle(const CanFdFrame* frames,
                    size_t size,
-                   std::vector<Command>* replies,
+                   std::vector<CanFdFrame>* replies,
                    CompletionCallback completed_callback) {
     if (replies) { replies->clear(); }
     for (size_t i = 0; i < size; i++) {
       CHILD_CheckReplies(replies, kNoWait, 0, 0);
-      CHILD_SendCommand(commands[i]);
+      CHILD_SendCanFdFrame(frames[i]);
       CHILD_CheckReplies(replies,
                          kWait,
                          1,
-                         commands[i].reply_required ? 1 : 0);
+                         frames[i].reply_required ? 1 : 0);
     }
     completed_callback(0);
   }
@@ -215,7 +215,8 @@ class Fdcanusb : public Transport {
     kWait,
   };
 
-  void CHILD_CheckReplies(std::vector<Command>* replies, ReadDelay read_delay,
+  void CHILD_CheckReplies(std::vector<CanFdFrame>* replies,
+                          ReadDelay read_delay,
                           int expected_ok_count,
                           int expected_rcv_count) {
     const auto start = GetNow();
@@ -290,7 +291,7 @@ class Fdcanusb : public Transport {
   };
 
   /// Return the number of CAN frames received.
-  ConsumeCount CHILD_ConsumeLines(std::vector<Command>* replies) {
+  ConsumeCount CHILD_ConsumeLines(std::vector<CanFdFrame>* replies) {
     const auto start_size = replies ? replies->size() : 0;
     ConsumeCount result;
     while (CHILD_ConsumeLine(replies, &result.ok)) {}
@@ -298,7 +299,7 @@ class Fdcanusb : public Transport {
     return result;
   }
 
-  bool CHILD_ConsumeLine(std::vector<Command>* replies, int* ok_count) {
+  bool CHILD_ConsumeLine(std::vector<CanFdFrame>* replies, int* ok_count) {
     int line_end = [&]() {
       for (int i = 0; i < line_buffer_pos_; i++) {
         if (line_buffer_[i] == '\r' || line_buffer_[i] == '\n') { return i; }
@@ -316,7 +317,8 @@ class Fdcanusb : public Transport {
     return true;
   }
 
-  void CHILD_ProcessLine(const std::string& line, std::vector<Command>* replies,
+  void CHILD_ProcessLine(const std::string& line,
+                         std::vector<CanFdFrame>* replies,
                          int* ok_count) {
     if (line == "OK") {
       (*ok_count)++;
@@ -332,32 +334,32 @@ class Fdcanusb : public Transport {
 
     if (address.empty() || data.empty()) { return; }
 
-    Command this_command;
-    this_command.arbitration_id = std::stoul(address, nullptr, 16);
-    this_command.destination = this_command.arbitration_id & 0x7f;
-    this_command.source = (this_command.arbitration_id >> 8) & 0x7f;
-    this_command.can_prefix = (this_command.arbitration_id >> 16);
+    CanFdFrame this_frame;
+    this_frame.arbitration_id = std::stoul(address, nullptr, 16);
+    this_frame.destination = this_frame.arbitration_id & 0x7f;
+    this_frame.source = (this_frame.arbitration_id >> 8) & 0x7f;
+    this_frame.can_prefix = (this_frame.arbitration_id >> 16);
 
-    this_command.size = ParseCanData(data, this_command.data);
+    this_frame.size = ParseCanData(data, this_frame.data);
 
     while (true) {
       const auto maybe_flags = tokenizer.next();
       if (maybe_flags.empty()) { break; }
       if (maybe_flags.size() != 1) { continue; }
       for (const char c : maybe_flags) {
-        if (c == 'b') { this_command.brs = Command::kForceOff; }
-        if (c == 'B') { this_command.brs = Command::kForceOn; }
-        if (c == 'f') { this_command.fdcan_frame = Command::kForceOff; }
-        if (c == 'F') { this_command.fdcan_frame = Command::kForceOn; }
+        if (c == 'b') { this_frame.brs = CanFdFrame::kForceOff; }
+        if (c == 'B') { this_frame.brs = CanFdFrame::kForceOn; }
+        if (c == 'f') { this_frame.fdcan_frame = CanFdFrame::kForceOff; }
+        if (c == 'F') { this_frame.fdcan_frame = CanFdFrame::kForceOn; }
       }
     }
 
     if (replies) {
-      replies->emplace_back(std::move(this_command));
+      replies->emplace_back(std::move(this_frame));
     }
   }
 
-  void CHILD_SendCommand(const Command& command) {
+  void CHILD_SendCanFdFrame(const CanFdFrame& frame) {
     char buf[256] = {};
     size_t pos = 0;
 
@@ -368,19 +370,19 @@ class Fdcanusb : public Transport {
     };
 #pragma GCC diagnostic pop
 
-    fmt("can send %04x ", command.arbitration_id);
-    for (size_t i = 0; i < command.size; i++) {
-      fmt("%02x", static_cast<int>(command.data[i]));
+    fmt("can send %04x ", frame.arbitration_id);
+    for (size_t i = 0; i < frame.size; i++) {
+      fmt("%02x", static_cast<int>(frame.data[i]));
     }
 
-    if (options_.disable_brs || command.brs == Command::kForceOff) {
+    if (options_.disable_brs || frame.brs == CanFdFrame::kForceOff) {
       fmt(" b");
-    } else if (command.brs == Command::kForceOn) {
+    } else if (frame.brs == CanFdFrame::kForceOn) {
       fmt(" B");
     }
-    if (command.fdcan_frame == Command::kForceOff) {
+    if (frame.fdcan_frame == CanFdFrame::kForceOff) {
       fmt(" f");
-    } else if (command.fdcan_frame == Command::kForceOn) {
+    } else if (frame.fdcan_frame == CanFdFrame::kForceOn) {
       fmt(" F");
     }
     fmt("\n");
@@ -495,7 +497,7 @@ class Controller {
   }
 
   struct Result {
-    Command can_frame;
+    CanFdFrame frame;
     Query::Result values;
   };
 
@@ -503,8 +505,8 @@ class Controller {
   /////////////////////////////////////////
   // Query
 
-  Command MakeQuery() {
-    return MakeCommand(EmptyMode(), {}, {});
+  CanFdFrame MakeQuery() {
+    return MakeFrame(EmptyMode(), {}, {});
   }
 
   std::optional<Result> Query() {
@@ -519,8 +521,8 @@ class Controller {
   /////////////////////////////////////////
   // StopMode
 
-  Command MakeStop() {
-    return MakeCommand(StopMode(), {}, {});
+  CanFdFrame MakeStop() {
+    return MakeFrame(StopMode(), {}, {});
   }
 
   std::optional<Result> SetStop() {
@@ -535,8 +537,8 @@ class Controller {
   /////////////////////////////////////////
   // BrakeMode
 
-  Command MakeBrake() {
-    return MakeCommand(BrakeMode(), {}, {});
+  CanFdFrame MakeBrake() {
+    return MakeFrame(BrakeMode(), {}, {});
   }
 
   std::optional<Result> SetBrake() {
@@ -551,8 +553,8 @@ class Controller {
   /////////////////////////////////////////
   // PositionMode
 
-  Command MakePosition(const PositionMode::Command& cmd) {
-    return MakeCommand(PositionMode(), cmd, options_.position_format);
+  CanFdFrame MakePosition(const PositionMode::Command& cmd) {
+    return MakeFrame(PositionMode(), cmd, options_.position_format);
   }
 
   std::optional<Result> SetPosition(const PositionMode::Command& cmd) {
@@ -575,8 +577,8 @@ class Controller {
   /////////////////////////////////////////
   // VFOCMode
 
-  Command MakeVFOC(const VFOCMode::Command& cmd) {
-    return MakeCommand(VFOCMode(), cmd, options_.vfoc_format);
+  CanFdFrame MakeVFOC(const VFOCMode::Command& cmd) {
+    return MakeFrame(VFOCMode(), cmd, options_.vfoc_format);
   }
 
   std::optional<Result> SetVFOC(const VFOCMode::Command& cmd) {
@@ -592,8 +594,8 @@ class Controller {
   /////////////////////////////////////////
   // CurrentMode
 
-  Command MakeCurrent(const CurrentMode::Command& cmd) {
-    return MakeCommand(CurrentMode(), cmd, options_.current_format);
+  CanFdFrame MakeCurrent(const CurrentMode::Command& cmd) {
+    return MakeFrame(CurrentMode(), cmd, options_.current_format);
   }
 
   std::optional<Result> SetCurrent(const CurrentMode::Command& cmd) {
@@ -609,8 +611,8 @@ class Controller {
   /////////////////////////////////////////
   // StayWithinMode
 
-  Command MakeStayWithin(const StayWithinMode::Command& cmd) {
-    return MakeCommand(StayWithinMode(), cmd, options_.stay_within_format);
+  CanFdFrame MakeStayWithin(const StayWithinMode::Command& cmd) {
+    return MakeFrame(StayWithinMode(), cmd, options_.stay_within_format);
   }
 
   std::optional<Result> SetStayWithin(const StayWithinMode::Command& cmd) {
@@ -641,11 +643,11 @@ class Controller {
       const auto to_write = std::min<size_t>(48, remaining.size());
       write.size = to_write;
 
-      auto command = DefaultCommand(kNoReply);
-      WriteCanData write_frame(command.data, &command.size);
+      auto frame = DefaultFrame(kNoReply);
+      WriteCanData write_frame(frame.data, &frame.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
-      transport()->BlockingCycle(&command, 1, nullptr);
+      transport()->BlockingCycle(&frame, 1, nullptr);
 
       remaining = remaining.substr(to_write);
     }
@@ -656,12 +658,12 @@ class Controller {
 
     while (true) {
       DiagnosticRead::Command read;
-      auto command = DefaultCommand(kReplyRequired);
-      WriteCanData write_frame(command.data, &command.size);
+      auto frame = DefaultFrame(kReplyRequired);
+      WriteCanData write_frame(frame.data, &frame.size);
       DiagnosticRead::Make(&write_frame, read, {});
 
-      std::vector<Command> replies;
-      transport()->BlockingCycle(&command, 1, &replies);
+      std::vector<CanFdFrame> replies;
+      transport()->BlockingCycle(&frame, 1, &replies);
 
       for (const auto& reply : replies) {
         if (reply.source != options_.id ||
@@ -709,18 +711,18 @@ class Controller {
 
   //////////////////////////////////////////////////
 
-  std::optional<Result> ExecuteSingleCommand(const Command& cmd) {
-    std::vector<Command> replies;
+  std::optional<Result> ExecuteSingleCommand(const CanFdFrame& cmd) {
+    std::vector<CanFdFrame> replies;
 
     transport()->BlockingCycle(&cmd, 1, &replies);
 
     return FindResult(replies);
   }
 
-  void AsyncStartSingleCommand(const Command& cmd,
+  void AsyncStartSingleCommand(const CanFdFrame& cmd,
                                Result* result,
                                CompletionCallback callback) {
-    auto context = std::make_shared<std::vector<Command>>();
+    auto context = std::make_shared<std::vector<CanFdFrame>>();
     transport()->Cycle(
         &cmd,
         1,
@@ -734,7 +736,7 @@ class Controller {
   }
 
  private:
-  std::optional<Result> FindResult(const std::vector<Command>& replies) const {
+  std::optional<Result> FindResult(const std::vector<CanFdFrame>& replies) const {
     // Pick off the last reply we got from our target ID.
     for (auto it = replies.rbegin(); it != replies.rend(); ++it) {
       if (it->source == options_.id &&
@@ -742,7 +744,7 @@ class Controller {
           it->can_prefix == options_.can_prefix) {
 
         Result result;
-        result.can_frame = *it;
+        result.frame = *it;
         result.values = Query::Parse(it->data, it->size);
         return result;
       }
@@ -757,8 +759,8 @@ class Controller {
     kReplyRequired,
   };
 
-  Command DefaultCommand(ReplyMode reply_mode = kReplyRequired) {
-    Command result;
+  CanFdFrame DefaultFrame(ReplyMode reply_mode = kReplyRequired) {
+    CanFdFrame result;
     result.destination = options_.id;
     result.reply_required = (reply_mode == kReplyRequired);
 
@@ -773,10 +775,10 @@ class Controller {
   }
 
   template <typename CommandType>
-  Command MakeCommand(const CommandType&,
-                      const typename CommandType::Command& cmd,
-                      const typename CommandType::Format& fmt) {
-    auto result = DefaultCommand(
+  CanFdFrame MakeFrame(const CommandType&,
+                       const typename CommandType::Command& cmd,
+                       const typename CommandType::Format& fmt) {
+    auto result = DefaultFrame(
         options_.default_query ? kReplyRequired : kNoReply);
 
     WriteCanData write_frame(result.data, &result.size);

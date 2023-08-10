@@ -181,9 +181,9 @@ enum class HomeState {
 
 
 /// This is a single CAN-FD frame, its headers, and other associated
-/// meta-data, like which bus the message was sent or received from in
+/// metadata, like which bus the message was sent or received from in
 /// multi-bus systems.
-struct Command {
+struct CanFdFrame {
   ///////////////////////////////////////////
   /// First are the raw data from the bus.
 
