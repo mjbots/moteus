@@ -110,7 +110,8 @@ class Controller {
     return transport_.get();
   }
 
-  static std::shared_ptr<Transport> MakeSingletonTransport(const std::vector<std::string>& args) {
+  static std::shared_ptr<Transport> MakeSingletonTransport(
+      const std::vector<std::string>& args) {
     static std::shared_ptr<Transport> g_transport;
 
     if (g_transport) { return g_transport; }
@@ -131,71 +132,90 @@ class Controller {
   /////////////////////////////////////////
   // Query
 
-  CanFdFrame MakeQuery() {
-    return MakeFrame(EmptyMode(), {}, {});
+  CanFdFrame MakeQuery(const Query::Format* format_override = nullptr) {
+    return MakeFrame(EmptyMode(), {}, {}, format_override);
   }
 
-  std::optional<Result> Query() {
-    return ExecuteSingleCommand(MakeQuery());
+  std::optional<Result> Query(const Query::Format* format_override = nullptr) {
+    return ExecuteSingleCommand(MakeQuery(format_override));
   }
 
-  void AsyncQuery(Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakeQuery(), result, callback);
+  void AsyncQuery(Result* result, CompletionCallback callback,
+                  const Query::Format* format_override = nullptr) {
+    AsyncStartSingleCommand(MakeQuery(format_override), result, callback);
   }
 
 
   /////////////////////////////////////////
   // StopMode
 
-  CanFdFrame MakeStop() {
-    return MakeFrame(StopMode(), {}, {});
+  CanFdFrame MakeStop(const Query::Format* query_override = nullptr) {
+    return MakeFrame(StopMode(), {}, {}, query_override);
   }
 
-  std::optional<Result> SetStop() {
-    return ExecuteSingleCommand(MakeStop());
+  std::optional<Result> SetStop(const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(MakeStop(query_override));
   }
 
-  void AsyncStop(Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakeStop(), result, callback);
+  void AsyncStop(Result* result, CompletionCallback callback,
+                 const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(MakeStop(query_override), result, callback);
   }
 
 
   /////////////////////////////////////////
   // BrakeMode
 
-  CanFdFrame MakeBrake() {
-    return MakeFrame(BrakeMode(), {}, {});
+  CanFdFrame MakeBrake(const Query::Format* query_override = nullptr) {
+    return MakeFrame(BrakeMode(), {}, {}, query_override);
   }
 
-  std::optional<Result> SetBrake() {
-    return ExecuteSingleCommand(MakeBrake());
+  std::optional<Result> SetBrake(const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(MakeBrake(query_override));
   }
 
-  void AsyncBrake(Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakeBrake(), result, callback);
+  void AsyncBrake(Result* result, CompletionCallback callback,
+                  const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(MakeBrake(query_override), result, callback);
   }
 
 
   /////////////////////////////////////////
   // PositionMode
 
-  CanFdFrame MakePosition(const PositionMode::Command& cmd) {
-    return MakeFrame(PositionMode(), cmd, options_.position_format);
+  CanFdFrame MakePosition(const PositionMode::Command& cmd,
+                          const PositionMode::Format* command_override = nullptr,
+                          const Query::Format* query_override = nullptr) {
+    return MakeFrame(
+        PositionMode(), cmd,
+        (command_override == nullptr ?
+         options_.position_format : *command_override),
+        query_override);
   }
 
-  std::optional<Result> SetPosition(const PositionMode::Command& cmd) {
-    return ExecuteSingleCommand(MakePosition(cmd));
+  std::optional<Result> SetPosition(
+      const PositionMode::Command& cmd,
+      const PositionMode::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakePosition(cmd, command_override, query_override));
   }
 
   void AsyncPosition(const PositionMode::Command& cmd,
-                     Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakePosition(cmd), result, callback);
+                     Result* result, CompletionCallback callback,
+                     const PositionMode::Format* command_override = nullptr,
+                     const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(MakePosition(cmd, command_override, query_override),
+                            result, callback);
   }
 
   /// Repeatedly send a position command until the reported
   /// trajectory_complete flag is true.  This will always enable the
   /// default query and return the result of the final such response.
-  std::optional<Result> SetTrajectory(const PositionMode::Command&) {
+  std::optional<Result> SetTrajectory(
+      const PositionMode::Command&,
+      const PositionMode::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
     return {};
   }
 
@@ -203,51 +223,86 @@ class Controller {
   /////////////////////////////////////////
   // VFOCMode
 
-  CanFdFrame MakeVFOC(const VFOCMode::Command& cmd) {
-    return MakeFrame(VFOCMode(), cmd, options_.vfoc_format);
+  CanFdFrame MakeVFOC(const VFOCMode::Command& cmd,
+                      const VFOCMode::Format* command_override = nullptr,
+                      const Query::Format* query_override = nullptr) {
+    return MakeFrame(
+        VFOCMode(), cmd,
+        command_override == nullptr ? options_.vfoc_format : *command_override,
+        query_override);
   }
 
-  std::optional<Result> SetVFOC(const VFOCMode::Command& cmd) {
-    return ExecuteSingleCommand(MakeVFOC(cmd));
+  std::optional<Result> SetVFOC(const VFOCMode::Command& cmd,
+                                const VFOCMode::Format* command_override = nullptr,
+                                const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(MakeVFOC(cmd, command_override, query_override));
   }
 
   void AsyncVFOC(const VFOCMode::Command& cmd,
-                 Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakeVFOC(cmd), result, callback);
+                 Result* result, CompletionCallback callback,
+                 const VFOCMode::Format* command_override = nullptr,
+                 const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(MakeVFOC(cmd, command_override, query_override),
+                            result, callback);
   }
 
 
   /////////////////////////////////////////
   // CurrentMode
 
-  CanFdFrame MakeCurrent(const CurrentMode::Command& cmd) {
-    return MakeFrame(CurrentMode(), cmd, options_.current_format);
+  CanFdFrame MakeCurrent(const CurrentMode::Command& cmd,
+                         const CurrentMode::Format* command_override = nullptr,
+                         const Query::Format* query_override = nullptr) {
+    return MakeFrame(CurrentMode(), cmd,
+                     (command_override == nullptr ?
+                      options_.current_format : *command_override),
+                     query_override);
   }
 
-  std::optional<Result> SetCurrent(const CurrentMode::Command& cmd) {
-    return ExecuteSingleCommand(MakeCurrent(cmd));
+  std::optional<Result> SetCurrent(
+      const CurrentMode::Command& cmd,
+      const CurrentMode::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeCurrent(cmd, command_override, query_override));
   }
 
   void AsyncCurrent(const CurrentMode::Command& cmd,
-                    Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakeCurrent(cmd), result, callback);
+                    Result* result, CompletionCallback callback,
+                    const CurrentMode::Format* command_override = nullptr,
+                    const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(MakeCurrent(cmd, command_override, query_override),
+                            result, callback);
   }
 
 
   /////////////////////////////////////////
   // StayWithinMode
 
-  CanFdFrame MakeStayWithin(const StayWithinMode::Command& cmd) {
-    return MakeFrame(StayWithinMode(), cmd, options_.stay_within_format);
+  CanFdFrame MakeStayWithin(
+      const StayWithinMode::Command& cmd,
+      const StayWithinMode::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    return MakeFrame(StayWithinMode(), cmd,
+                     (command_override == nullptr ?
+                      options_.stay_within_format : *command_override),
+                     query_override);
   }
 
-  std::optional<Result> SetStayWithin(const StayWithinMode::Command& cmd) {
-    return ExecuteSingleCommand(MakeStayWithin(cmd));
+  std::optional<Result> SetStayWithin(
+      const StayWithinMode::Command& cmd,
+      const StayWithinMode::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeStayWithin(cmd, command_override, query_override));
   }
 
   void AsyncStayWithin(const StayWithinMode::Command& cmd,
-                       Result* result, CompletionCallback callback) {
-    AsyncStartSingleCommand(MakeStayWithin(cmd), result, callback);
+                       Result* result, CompletionCallback callback,
+                       const StayWithinMode::Format* command_override = nullptr,
+                       const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(
+        MakeStayWithin(cmd, command_override, query_override), result, callback);
   }
 
 
@@ -653,7 +708,8 @@ class Controller {
   template <typename CommandType>
   CanFdFrame MakeFrame(const CommandType&,
                        const typename CommandType::Command& cmd,
-                       const typename CommandType::Format& fmt) {
+                       const typename CommandType::Format& fmt,
+                       const Query::Format* query_format_override = nullptr) {
     auto result = DefaultFrame(
         options_.default_query ? kReplyRequired : kNoReply);
 
@@ -661,10 +717,14 @@ class Controller {
     CommandType::Make(&write_frame, cmd, fmt);
 
     if (options_.default_query) {
-      std::memcpy(&result.data[result.size],
-                  &query_frame_.data[0],
-                  query_frame_.size);
-      result.size += query_frame_.size;
+      if (query_format_override == nullptr) {
+        std::memcpy(&result.data[result.size],
+                    &query_frame_.data[0],
+                    query_frame_.size);
+        result.size += query_frame_.size;
+      } else {
+        Query::Make(&write_frame, *query_format_override);
+      }
     }
 
     return result;
