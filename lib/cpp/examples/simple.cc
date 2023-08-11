@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// @file
+///
+/// Show how to send Position mode commands at a regular interval and
+/// intepret telemetry data from the servo.
+
 #include <unistd.h>
 
 #include <iostream>

@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// @file
+///
+/// Demonstrate how diagnostic mode commands, like configuration
+/// operations, can be performed.
+
 #include <iostream>
 
 #include "moteus.h"

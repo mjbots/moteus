@@ -17,7 +17,7 @@
 /// This example shows how multiple controllers can be commanded using
 /// the Cycle method.  This approach can result in lower overall
 /// latency and improved performance with some transports, such as the
-/// pi3hat.
+/// fdcanusb and pi3hat.
 
 #include <unistd.h>
 
