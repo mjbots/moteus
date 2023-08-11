@@ -18,8 +18,11 @@
 
 #include "moteus.h"
 
-int main() {
+int main(int argc, char** argv) {
   using namespace mjbots;
+
+  moteus::Controller::DefaultArgProcess(argc, argv);
+
   moteus::Controller controller;
 
   controller.SetStop();

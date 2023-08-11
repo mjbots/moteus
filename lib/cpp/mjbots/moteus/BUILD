@@ -22,6 +22,7 @@ cc_library(
         "moteus_multiplex.h",
         "moteus_protocol.h",
         "moteus_tokenizer.h",
+        "moteus_transport.h",
         "moteus.h",
     ],
 )

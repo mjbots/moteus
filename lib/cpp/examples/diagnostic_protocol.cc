@@ -16,8 +16,11 @@
 
 #include "moteus.h"
 
-int main() {
+int main(int argc, char** argv) {
   using namespace mjbots;
+
+  moteus::Controller::DefaultArgProcess(argc, argv);
+
   moteus::Controller controller;
 
   const auto old_kp = std::stod(
