@@ -928,3 +928,58 @@ BOOST_AUTO_TEST_CASE(ControllerDiagnosticRead) {
 
   BOOST_TEST(result == "test");
 }
+
+namespace {
+class PositionWaitTestTransport : public moteus::Transport {
+ public:
+  virtual void Cycle(const moteus::CanFdFrame* frames,
+                     size_t size,
+                     std::vector<moteus::CanFdFrame>* replies,
+                     moteus::CompletionCallback completed_callback) {
+    // Report trajectory complete on the 5th frame.
+    sent_frames.clear();
+    std::copy(frames, frames + size,
+              std::back_inserter(sent_frames));
+    BOOST_REQUIRE(size > 0);
+    const auto& f = frames[0];
+
+    count++;
+
+    moteus::CanFdFrame qr;
+    qr.source = f.destination;
+    qr.destination = f.source;
+    qr.can_prefix = f.can_prefix;
+    qr.arbitration_id = (qr.source << 8) | qr.destination;
+    qr.data[0] = 0x23;
+    qr.data[1] = 0x00;
+    qr.data[2] = 0x0a;
+    qr.data[3] = 0x20;
+    qr.data[4] = 0x30;
+    qr.data[5] = 0x21;
+    qr.data[6] = 0x0b;
+    qr.data[7] = count >= 5 ? 1 : 0;
+    qr.size = 8;
+    replies->push_back(qr);
+
+    completed_callback(0);
+  }
+
+  int count = 0;
+  std::vector<moteus::CanFdFrame> sent_frames;
+};
+}
+
+BOOST_AUTO_TEST_CASE(ControllerPositionWait) {
+  auto impl = std::make_shared<PositionWaitTestTransport>();
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  moteus::PositionMode::Command cmd;
+  cmd.position = 2.0;
+  auto maybe_result = dut.SetPositionWaitComplete(cmd, 0.01);
+  BOOST_TEST(!!maybe_result);
+  BOOST_TEST(impl->count == 5);
+  BOOST_TEST(maybe_result->values.position == 0.32);
+}

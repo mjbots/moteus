@@ -84,8 +84,6 @@ class Controller {
     // command.
     bool default_query = true;
 
-    double trajectory_period_s = 0.01;
-
     // Specify a transport to be used.  If left unset, a global common
     // transport will be constructed to be shared with all Controller
     // instances in this process.  That will attempt to auto-detect a
@@ -210,12 +208,31 @@ class Controller {
   }
 
   /// Repeatedly send a position command until the reported
-  /// trajectory_complete flag is true.  This will always enable the
-  /// default query and return the result of the final such response.
-  std::optional<Result> SetTrajectory(
-      const PositionMode::Command&,
+  /// trajectory_complete flag is true.  This will always enable a
+  /// query and will return the result of the final such response.
+  std::optional<Result> SetPositionWaitComplete(
+      const PositionMode::Command& cmd,
+      double period_s,
       const PositionMode::Format* command_override = nullptr,
       const Query::Format* query_override = nullptr) {
+    Query::Format query_format =
+        query_override == nullptr ? options_.query_format : *query_override;
+    query_format.trajectory_complete = kInt8;
+
+    bool first = true;
+    while (true) {
+      auto maybe_result = SetPosition(cmd, command_override, &query_format);
+      if (!first) {
+        if (!!maybe_result && maybe_result->values.trajectory_complete) {
+          return *maybe_result;
+        }
+      } else if (maybe_result) {
+        first = false;
+      }
+
+      ::usleep(static_cast<int>(period_s * 1e6));
+    }
+
     return {};
   }
 
@@ -716,7 +733,7 @@ class Controller {
     WriteCanData write_frame(result.data, &result.size);
     CommandType::Make(&write_frame, cmd, fmt);
 
-    if (options_.default_query) {
+    if (options_.default_query || query_format_override) {
       if (query_format_override == nullptr) {
         std::memcpy(&result.data[result.size],
                     &query_frame_.data[0],
