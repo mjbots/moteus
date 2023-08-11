@@ -497,6 +497,10 @@ class Controller {
     std::vector<std::string> args;
     for (int i = 0; i < argc; i++) { args.push_back(argv[i]); }
 
+    DefaultArgProcess(args);
+  }
+
+  static void DefaultArgProcess(const std::vector<std::string>& args) {
     if (std::find(args.begin(), args.end(), "--help") != args.end()) {
       std::cout << "Usage: " << FinalName(args[0]) << "\n";
       auto help_strs =

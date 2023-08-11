@@ -38,10 +38,22 @@ static double GetNow() {
 int main(int argc, char** argv) {
   using namespace mjbots;
 
-  moteus::Controller::DefaultArgProcess(argc, argv);
+  std::vector<std::string> args;
+  for (int i = 0; i < argc; i++) { args.push_back(argv[i]); }
+  moteus::Controller::DefaultArgProcess(args);
+
+  int servo_count = 2;
+  {
+    auto it = std::find(args.begin(), args.end(), "--count");
+    if (it != args.end() && (it + 1) != args.end()) {
+      servo_count = std::stol(*(it + 1));
+    }
+  }
 
   std::map<int, std::shared_ptr<moteus::Controller>> controllers;
-  for (int i = 1; i <= 2; i++) {
+  std::map<int, moteus::Query::Result> servo_data;
+
+  for (int i = 1; i <= servo_count; i++) {
     moteus::Controller::Options options;
     options.id = i;
 
@@ -73,20 +85,29 @@ int main(int argc, char** argv) {
     }
 
     std::vector<moteus::CanFdFrame> replies;
+    const auto start = GetNow();
     transport->BlockingCycle(&command_frames[0], command_frames.size(), &replies);
+    const auto end = GetNow();
+    const auto cycle_time = end - start;
 
     char buf[4096] = {};
     std::string status_line;
 
-    ::snprintf(buf, sizeof(buf) - 1, "%10.2f) ", now);
+    ::snprintf(buf, sizeof(buf) - 1, "%10.2f dt=%7.4f) ", now, cycle_time);
 
     status_line += buf;
 
+    // We parse these into a map to both sort and de-duplicate them,
+    // and persist data in the event that any are missing.
     for (const auto& frame : replies) {
-      const auto r = moteus::Query::Parse(frame.data, frame.size);
+      servo_data[frame.source] = moteus::Query::Parse(frame.data, frame.size);
+    }
+
+    for (const auto& pair : servo_data) {
+      const auto r = pair.second;
       ::snprintf(buf, sizeof(buf) - 1,
                  "%2d %3d p/v/t=(%7.3f,%7.3f,%7.3f)  ",
-                 frame.source,
+                 pair.first,
                  static_cast<int>(r.mode),
                  r.position,
                  r.velocity,
