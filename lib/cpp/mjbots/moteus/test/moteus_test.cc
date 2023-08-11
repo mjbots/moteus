@@ -983,3 +983,19 @@ BOOST_AUTO_TEST_CASE(ControllerPositionWait) {
   BOOST_TEST(impl->count == 5);
   BOOST_TEST(maybe_result->values.position == 0.32);
 }
+
+BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
+  auto impl = std::make_shared<SyncTestTransport>();
+
+  moteus::Controller::Options options;
+  options.default_query = false;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  dut.SetStop();
+
+  BOOST_TEST(impl->count == 1);
+  BOOST_REQUIRE(impl->sent_frames.size() == 1);
+  const auto& f = impl->sent_frames[0];
+  BOOST_TEST(Hexify(f.data, f.size) == "010000");
+}
