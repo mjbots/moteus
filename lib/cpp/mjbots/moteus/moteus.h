@@ -67,10 +67,7 @@ class Controller {
     int bus = 0;
 
     // For each possible primary command, the resolution for all
-    // command fields is fixed at construction time.  If the
-    // resolution needs to be changed, either a separate 'Controller'
-    // instance should be created, or the 'ExecuteSingleCommand'
-    // formulation should be used.
+    // command fields has a default set at construction time.
     Query::Format query_format;
     PositionMode::Format position_format;
     VFOCMode::Format vfoc_format;
