@@ -783,8 +783,12 @@ class Controller {
         });
   }
 
-  void DiagnosticFlush() {
-    // TODO
+  void DiagnosticFlush(int channel = 1) {
+    // Read until nothing is left.
+    while (true) {
+      const auto response = DiagnosticRead(channel);
+      if (response.empty()) { return; }
+    }
   }
 
 
