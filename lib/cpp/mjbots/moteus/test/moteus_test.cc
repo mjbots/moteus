@@ -903,3 +903,28 @@ BOOST_AUTO_TEST_CASE(ControllerDiagnosticWrite) {
   BOOST_TEST(std::string(reinterpret_cast<const char*>(&f2.data[3]), 41)
              == message.substr(48));
 }
+
+BOOST_AUTO_TEST_CASE(ControllerDiagnosticRead) {
+  auto transport = std::make_shared<SyncTestTransport>();
+  moteus::Controller::Options options;
+  options.transport = transport;
+  moteus::Controller dut(options);
+
+  transport->to_reply_with.resize(1);
+  auto& f = transport->to_reply_with[0];
+  f.source = 1;
+  f.destination = 0;
+  f.arbitration_id = 0x100;
+  f.data[0] = 0x41;
+  f.data[1] = 0x02;
+  f.data[2] = 0x04;
+  f.data[3] = 't';
+  f.data[4] = 'e';
+  f.data[5] = 's';
+  f.data[6] = 't';
+  f.size = 7;
+
+  const auto result = dut.DiagnosticRead(2);
+
+  BOOST_TEST(result == "test");
+}

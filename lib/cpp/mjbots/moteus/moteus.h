@@ -734,6 +734,55 @@ class Controller {
     context->Start();
   }
 
+  std::string DiagnosticRead(int channel) {
+    std::string response;
+    BlockingCallback cbk;
+    AsyncDiagnosticRead(&response, channel, cbk.callback());
+    cbk.Wait();
+    return response;
+  }
+
+  void AsyncDiagnosticRead(std::string* response,
+                           int channel,
+                           CompletionCallback callback) {
+    DiagnosticRead::Command read;
+    read.channel = channel;
+    read.max_length = 48;
+
+    auto frame = DefaultFrame(kReplyRequired);
+    WriteCanData write_frame(frame.data, &frame.size);
+    DiagnosticRead::Make(&write_frame, read, {});
+
+    struct Context {
+      std::string* response = nullptr;
+      std::vector<CanFdFrame> replies;
+      CompletionCallback callback;
+    };
+    auto context = std::make_shared<Context>();
+    context->response = response;
+    context->callback = callback;
+
+    transport()->Cycle(
+        &frame, 1, &context->replies,
+        [context, this](int v) {
+          for (const auto& frame : context->replies) {
+            if (frame.destination != options_.source ||
+                frame.source != options_.id ||
+                frame.can_prefix != options_.can_prefix) {
+              continue;
+            }
+            auto maybe_data = DiagnosticResponse::Parse(frame.data, frame.size);
+            *context->response = std::string(
+                reinterpret_cast<const char*>(maybe_data.data), maybe_data.size);
+            context->callback(0);
+            return;
+          }
+
+          context->callback(ETIMEDOUT);
+          return;
+        });
+  }
+
   void DiagnosticFlush() {
     // TODO
   }
