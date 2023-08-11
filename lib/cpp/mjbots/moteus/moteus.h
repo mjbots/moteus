@@ -15,6 +15,7 @@
 #pragma once
 
 #include <fcntl.h>
+#include <glob.h>
 #include <linux/serial.h>
 #include <poll.h>
 #include <sys/ioctl.h>
@@ -25,6 +26,7 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -161,12 +163,42 @@ class Fdcanusb : public Transport {
     }
   }
 
+  static std::string DetectFdcanusb() {
+    // For now, we'll only do linux like systems.
+    {
+      std::ifstream inf("/dev/fdcanusb");
+      if (inf.is_open()) { return "/dev/fdcanusb"; }
+    }
+
+    {
+      glob_t glob_data = {};
+      const int result = ::glob(
+          "/dev/serial/by-id/*fdcanusb*", 0,
+          nullptr,
+          &glob_data);
+
+      std::string maybe_path;
+
+      if (result == 0 && glob_data.gl_pathc > 0) {
+        maybe_path = glob_data.gl_pathv[0];
+      }
+
+      globfree(&glob_data);
+
+      if (!maybe_path.empty()) { return maybe_path; }
+    }
+
+    return "";
+  }
+
  private:
   void Open(const std::string& device_in) {
     std::string device = device_in;
     if (device.empty()) {
-      // TODO: win32/macos/vid/pid
-      device = "/dev/fdcanusb";
+      device = DetectFdcanusb();
+      if (device.empty()) {
+        throw std::runtime_error("Could not detect fdcanusb");
+      }
     }
 
     const int fd = ::open(device.c_str(), O_RDWR | O_NOCTTY);
