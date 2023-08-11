@@ -356,8 +356,11 @@ class SyncTestTransport : public moteus::Transport {
                      size_t size,
                      std::vector<moteus::CanFdFrame>* replies,
                      moteus::CompletionCallback completed_callback) {
-    sent_frames = std::vector<moteus::CanFdFrame>(frames, frames + size);
-    *replies = to_reply_with;
+    std::copy(frames, frames + size,
+              std::back_inserter(sent_frames));
+    if (replies) {
+      *replies = to_reply_with;
+    }
 
     count++;
     completed_callback(0);
@@ -870,4 +873,33 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncDiagnosticTest) {
     BOOST_TEST(cbk.called);
     BOOST_TEST(result == "id.id 0\r\nstuff.bar 1\r\nbing.baz 234\r\n");
   }
+}
+
+BOOST_AUTO_TEST_CASE(ControllerDiagnosticWrite) {
+  auto transport = std::make_shared<SyncTestTransport>();
+  moteus::Controller::Options options;
+  options.transport = transport;
+  moteus::Controller dut(options);
+
+  const std::string message = "long test of stuff that will keep going for a very long time and span multiple CAN frames";
+  dut.DiagnosticWrite(message, 2);
+
+  BOOST_TEST(transport->sent_frames.size() == 2);
+  const auto& f1 = transport->sent_frames[0];
+  BOOST_TEST(f1.source == 0);
+  BOOST_TEST(f1.destination == 1);
+  BOOST_TEST(f1.data[0] == 0x40);
+  BOOST_TEST(f1.data[1] == 2);
+  BOOST_TEST(f1.data[2] == 48);
+  BOOST_TEST(std::string(reinterpret_cast<const char*>(&f1.data[3]), 48)
+             == message.substr(0, 48));
+
+  const auto& f2 = transport->sent_frames[1];
+  BOOST_TEST(f2.source == 0);
+  BOOST_TEST(f2.destination == 1);
+  BOOST_TEST(f2.data[0] == 0x40);
+  BOOST_TEST(f2.data[1] == 2);
+  BOOST_TEST(f2.data[2] == 41);
+  BOOST_TEST(std::string(reinterpret_cast<const char*>(&f2.data[3]), 41)
+             == message.substr(48));
 }

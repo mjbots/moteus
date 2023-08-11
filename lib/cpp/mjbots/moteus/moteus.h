@@ -706,12 +706,30 @@ class Controller {
                               std::string* result,
                               CompletionCallback callback,
                               DiagnosticReplyMode reply_mode = kExpectOK) {
-    auto context = std::make_shared<AsyncDiagnosticContext>();
+    auto context = std::make_shared<AsyncDiagnosticCommandContext>();
     context->result = result;
     context->remaining_command = message + "\n";
     context->controller = this;
     context->callback = callback;
     context->reply_mode = reply_mode;
+
+    context->Start();
+  }
+
+  void DiagnosticWrite(const std::string& message, int channel) {
+    BlockingCallback cbk;
+    AsyncDiagnosticWrite(message, channel, cbk.callback());
+    cbk.Wait();
+  }
+
+  void AsyncDiagnosticWrite(const std::string& message,
+                            int channel,
+                            CompletionCallback callback) {
+    auto context = std::make_shared<AsyncDiagnosticWriteContext>();
+    context->message = message;
+    context->channel = channel;
+    context->controller = this;
+    context->callback = callback;
 
     context->Start();
   }
@@ -779,8 +797,10 @@ class Controller {
   }
 
  private:
-  struct AsyncDiagnosticContext
-      : public std::enable_shared_from_this<AsyncDiagnosticContext> {
+  // A helper context to maintain asynchronous state while performing
+  // diagnostic channel commands.
+  struct AsyncDiagnosticCommandContext
+      : public std::enable_shared_from_this<AsyncDiagnosticCommandContext> {
     std::string* result = nullptr;
     CompletionCallback callback;
     DiagnosticReplyMode reply_mode = {};
@@ -825,11 +845,10 @@ class Controller {
       WriteCanData write_frame(frame.data, &frame.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
-      remaining_command = remaining_command.substr(to_write);
-
       controller->transport()->Cycle(
           &frame, 1, nullptr,
-          [s=shared_from_this()](int v) {
+          [s=shared_from_this(), to_write](int v) {
+            s->remaining_command = s->remaining_command.substr(to_write);
             s->Callback(v);
           });
     }
@@ -878,6 +897,45 @@ class Controller {
       }
       replies.clear();
       return false;
+    }
+  };
+
+  struct AsyncDiagnosticWriteContext
+      : public std::enable_shared_from_this<AsyncDiagnosticWriteContext> {
+    std::string message;
+    int channel = 0;
+    Controller* controller = nullptr;
+    CompletionCallback callback;
+
+    void Start() {
+      DoWrite();
+    }
+
+    void DoWrite() {
+      DiagnosticWrite::Command write;
+      write.channel = channel;
+      write.data = message.data();
+      const auto to_write = std::min<size_t>(48, message.size());
+      write.size = to_write;
+
+      auto frame = controller->DefaultFrame(kNoReply);
+      WriteCanData write_frame(frame.data, &frame.size);
+      DiagnosticWrite::Make(&write_frame, write, {});
+
+      controller->transport()->Cycle(
+          &frame, 1, nullptr,
+          [s=shared_from_this(), to_write](int v) {
+            s->message = s->message.substr(to_write);
+            s->Callback(v);
+          });
+    }
+
+    void Callback(int v) {
+      if (message.empty()) {
+        callback(v);
+      } else {
+        DoWrite();
+      }
     }
   };
 
