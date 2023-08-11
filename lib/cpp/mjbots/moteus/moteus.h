@@ -93,7 +93,7 @@ class Controller {
     Options() {}
   };
 
-  Controller(const Options& options = {}) {
+  Controller(const Options& options = {}) : options_(options) {
     transport_ = options.transport;
 
     WriteCanData query_write(&query_frame_);

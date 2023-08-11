@@ -30,6 +30,13 @@ cc_binary(
     copts = ["-Ilib/cpp/mjbots/moteus",],
 )
 
+cc_binary(
+    name = "multiple_cycle",
+    srcs = ["multiple_cycle.cc",],
+    deps = ["//lib/cpp/mjbots/moteus:moteus",],
+    copts = ["-Ilib/cpp/mjbots/moteus",],
+)
+
 test_suite(
     name = "test",
     tests = [
@@ -40,8 +47,9 @@ test_suite(
 sh_test(
     name = "data_indirect",
     data = [
-        ":simple",
         ":diagnostic_protocol",
+        ":multiple_cycle",
+        ":simple",
     ],
     srcs = ["dummy.sh"],
 )
