@@ -244,14 +244,19 @@ class Fdcanusb : public Transport {
                    std::vector<CanFdFrame>* replies,
                    CompletionCallback completed_callback) {
     if (replies) { replies->clear(); }
+    CHILD_CheckReplies(replies, kNoWait, 0, 0);
+
+    int expected_reply_count = 0;
+
     for (size_t i = 0; i < size; i++) {
-      CHILD_CheckReplies(replies, kNoWait, 0, 0);
       CHILD_SendCanFdFrame(frames[i]);
-      CHILD_CheckReplies(replies,
-                         kWait,
-                         1,
-                         frames[i].reply_required ? 1 : 0);
+      if (frames[i].reply_required) { expected_reply_count++; }
     }
+
+    CHILD_CheckReplies(replies,
+                       kWait,
+                       size,
+                       expected_reply_count);
     completed_callback(0);
   }
 
