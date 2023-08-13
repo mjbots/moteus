@@ -17,12 +17,12 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "moteus_optional.h"
 #include "moteus_protocol.h"
 #include "moteus_tokenizer.h"
 #include "moteus_transport.h"
@@ -131,7 +131,7 @@ class Controller {
     return MakeFrame(EmptyMode(), {}, {}, format_override);
   }
 
-  std::optional<Result> Query(const Query::Format* format_override = nullptr) {
+  Optional<Result> Query(const Query::Format* format_override = nullptr) {
     return ExecuteSingleCommand(MakeQuery(format_override));
   }
 
@@ -148,7 +148,7 @@ class Controller {
     return MakeFrame(StopMode(), {}, {}, query_override);
   }
 
-  std::optional<Result> SetStop(const Query::Format* query_override = nullptr) {
+  Optional<Result> SetStop(const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(MakeStop(query_override));
   }
 
@@ -165,7 +165,7 @@ class Controller {
     return MakeFrame(BrakeMode(), {}, {}, query_override);
   }
 
-  std::optional<Result> SetBrake(const Query::Format* query_override = nullptr) {
+  Optional<Result> SetBrake(const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(MakeBrake(query_override));
   }
 
@@ -188,7 +188,7 @@ class Controller {
         query_override);
   }
 
-  std::optional<Result> SetPosition(
+  Optional<Result> SetPosition(
       const PositionMode::Command& cmd,
       const PositionMode::Format* command_override = nullptr,
       const Query::Format* query_override = nullptr) {
@@ -207,7 +207,7 @@ class Controller {
   /// Repeatedly send a position command until the reported
   /// trajectory_complete flag is true.  This will always enable a
   /// query and will return the result of the final such response.
-  std::optional<Result> SetPositionWaitComplete(
+  Optional<Result> SetPositionWaitComplete(
       const PositionMode::Command& cmd,
       double period_s,
       const PositionMode::Format* command_override = nullptr,
@@ -246,9 +246,9 @@ class Controller {
         query_override);
   }
 
-  std::optional<Result> SetVFOC(const VFOCMode::Command& cmd,
-                                const VFOCMode::Format* command_override = nullptr,
-                                const Query::Format* query_override = nullptr) {
+  Optional<Result> SetVFOC(const VFOCMode::Command& cmd,
+                           const VFOCMode::Format* command_override = nullptr,
+                           const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(MakeVFOC(cmd, command_override, query_override));
   }
 
@@ -273,7 +273,7 @@ class Controller {
                      query_override);
   }
 
-  std::optional<Result> SetCurrent(
+  Optional<Result> SetCurrent(
       const CurrentMode::Command& cmd,
       const CurrentMode::Format* command_override = nullptr,
       const Query::Format* query_override = nullptr) {
@@ -303,7 +303,7 @@ class Controller {
                      query_override);
   }
 
-  std::optional<Result> SetStayWithin(
+  Optional<Result> SetStayWithin(
       const StayWithinMode::Command& cmd,
       const StayWithinMode::Format* command_override = nullptr,
       const Query::Format* query_override = nullptr) {
@@ -460,7 +460,7 @@ class Controller {
 
   //////////////////////////////////////////////////
 
-  std::optional<Result> ExecuteSingleCommand(const CanFdFrame& cmd) {
+  Optional<Result> ExecuteSingleCommand(const CanFdFrame& cmd) {
     std::vector<CanFdFrame> replies;
 
     transport()->BlockingCycle(&cmd, 1, &replies);
@@ -597,6 +597,7 @@ class Controller {
     bool ProcessReplies() {
       for (const auto& reply : replies) {
         if (reply.source != controller->options_.id ||
+            reply.destination != controller->options_.source ||
             reply.can_prefix != controller->options_.can_prefix) {
           continue;
         }
@@ -685,7 +686,7 @@ class Controller {
     }
   }
 
-  std::optional<Result> FindResult(const std::vector<CanFdFrame>& replies) const {
+  Optional<Result> FindResult(const std::vector<CanFdFrame>& replies) const {
     // Pick off the last reply we got from our target ID.
     for (auto it = replies.rbegin(); it != replies.rend(); ++it) {
       if (it->source == options_.id &&
