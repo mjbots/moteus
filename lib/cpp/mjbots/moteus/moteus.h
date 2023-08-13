@@ -321,6 +321,122 @@ class Controller {
 
 
   /////////////////////////////////////////
+  // OutputNearest
+
+  CanFdFrame MakeOutputNearest(const OutputNearest::Command& cmd,
+                               const OutputNearest::Format* command_override = nullptr,
+                               const Query::Format* query_override = nullptr) {
+    return MakeFrame(OutputNearest(), cmd,
+                     (command_override == nullptr ?
+                      OutputNearest::Format() : *command_override),
+                     query_override);
+  }
+
+  Optional<Result> SetOutputNearest(const OutputNearest::Command& cmd,
+                                    const OutputNearest::Format* command_override = nullptr,
+                                    const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeOutputNearest(cmd, command_override, query_override));
+  }
+
+  void AsyncOutputNearest(const OutputNearest::Command& cmd,
+                          Result* result, CompletionCallback callback,
+                          const OutputNearest::Format* command_override = nullptr,
+                          const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(
+        MakeOutputNearest(cmd, command_override, query_override),
+        result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // OutputExact
+
+  CanFdFrame MakeOutputExact(const OutputExact::Command& cmd,
+                             const OutputExact::Format* command_override = nullptr,
+                             const Query::Format* query_override = nullptr) {
+    return MakeFrame(OutputExact(), cmd,
+                     (command_override == nullptr ?
+                      OutputExact::Format() : *command_override),
+                     query_override);
+  }
+
+  Optional<Result> SetOutputExact(const OutputExact::Command& cmd,
+                                  const OutputExact::Format* command_override = nullptr,
+                                  const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeOutputExact(cmd, command_override, query_override));
+  }
+
+  void AsyncOutputExact(const OutputExact::Command& cmd,
+                        Result* result, CompletionCallback callback,
+                        const OutputExact::Format* command_override = nullptr,
+                        const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(
+        MakeOutputExact(cmd, command_override, query_override),
+        result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // RequireReindex
+
+  CanFdFrame MakeRequireReindex(const RequireReindex::Command& cmd = {},
+                                const RequireReindex::Format* command_override = nullptr,
+                                const Query::Format* query_override = nullptr) {
+    return MakeFrame(RequireReindex(), cmd,
+                     (command_override == nullptr ?
+                      RequireReindex::Format() : *command_override),
+                     query_override);
+  }
+
+  Optional<Result> SetRequireReindex(const RequireReindex::Command& cmd,
+                                     const RequireReindex::Format* command_override = nullptr,
+                                     const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeRequireReindex(cmd, command_override, query_override));
+  }
+
+  void AsyncRequireReindex(const RequireReindex::Command& cmd,
+                           Result* result, CompletionCallback callback,
+                           const RequireReindex::Format* command_override = nullptr,
+                           const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(
+        MakeRequireReindex(cmd, command_override, query_override),
+        result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // ClockTrim
+
+  CanFdFrame MakeClockTrim(const ClockTrim::Command& cmd,
+                           const ClockTrim::Format* command_override = nullptr,
+                           const Query::Format* query_override = nullptr) {
+    return MakeFrame(ClockTrim(), cmd,
+                     (command_override == nullptr ?
+                      ClockTrim::Format() : *command_override),
+                     query_override);
+  }
+
+  Optional<Result> SetClockTrim(const ClockTrim::Command& cmd,
+                                const ClockTrim::Format* command_override = nullptr,
+                                const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeClockTrim(cmd, command_override, query_override));
+  }
+
+  void AsyncClockTrim(const ClockTrim::Command& cmd,
+                      Result* result, CompletionCallback callback,
+                      const ClockTrim::Format* command_override = nullptr,
+                      const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(
+        MakeClockTrim(cmd, command_override, query_override),
+        result, callback);
+  }
+
+
+  /////////////////////////////////////////
   // Diagnostic channel operations
 
   enum DiagnosticReplyMode {

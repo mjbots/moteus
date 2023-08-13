@@ -521,6 +521,56 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 
   {
     impl->sent_frames.clear();
+    impl->to_reply_with.clear();
+
+    moteus::OutputNearest::Command cmd;
+    cmd.position = 2.5;
+    const auto maybe_reply = dut.SetOutputNearest(cmd);
+    BOOST_TEST(!maybe_reply);
+    BOOST_REQUIRE(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "0db0020000204011001f01130d");
+  }
+
+  {
+    impl->sent_frames.clear();
+    impl->to_reply_with.clear();
+
+    moteus::OutputExact::Command cmd;
+    cmd.position = 2.5;
+    const auto maybe_reply = dut.SetOutputExact(cmd);
+    BOOST_TEST(!maybe_reply);
+    BOOST_REQUIRE(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "0db1020000204011001f01130d");
+  }
+
+  {
+    impl->sent_frames.clear();
+    impl->to_reply_with.clear();
+
+    const auto maybe_reply = dut.SetRequireReindex({});
+    BOOST_TEST(!maybe_reply);
+    BOOST_REQUIRE(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "01b2020111001f01130d");
+  }
+
+  {
+    impl->sent_frames.clear();
+    impl->to_reply_with.clear();
+
+    moteus::ClockTrim::Command cmd;
+    cmd.trim = 4;
+    const auto maybe_reply = dut.SetClockTrim(cmd);
+    BOOST_TEST(!maybe_reply);
+    BOOST_REQUIRE(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "09710400000011001f01130d");
+  }
+
+  {
+    impl->sent_frames.clear();
 
     impl->to_reply_with.resize(1);
     auto& c = impl->to_reply_with[0];
@@ -672,6 +722,36 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
     cmd.lower_bound = -3.0;
     dut.AsyncStayWithin(cmd, &result, cbk_wrap);
     check_test("01000d0e40000040c00000204111001f01130d");
+  }
+
+  {
+    start_test();
+    moteus::OutputNearest::Command cmd;
+    cmd.position = 2.5;
+    dut.AsyncOutputNearest(cmd, &result, cbk_wrap);
+    check_test("0db0020000204011001f01130d");
+  }
+
+  {
+    start_test();
+    moteus::OutputExact::Command cmd;
+    cmd.position = 1.5;
+    dut.AsyncOutputExact(cmd, &result, cbk_wrap);
+    check_test("0db1020000c03f11001f01130d");
+  }
+
+  {
+    start_test();
+    dut.AsyncRequireReindex({}, &result, cbk_wrap);
+    check_test("01b2020111001f01130d");
+  }
+
+  {
+    start_test();
+    moteus::ClockTrim::Command cmd;
+    cmd.trim = 3;
+    dut.AsyncClockTrim(cmd, &result, cbk_wrap);
+    check_test("09710300000011001f01130d");
   }
 }
 
