@@ -28,6 +28,7 @@
 
 #include "moteus.h"
 
+// A simple way to get the current time accurately as a double.
 static double GetNow() {
   struct timespec ts = {};
   ::clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
@@ -38,6 +39,8 @@ static double GetNow() {
 int main(int argc, char** argv) {
   using namespace mjbots;
 
+  // We are going to do some simple argument processing ourselves, so
+  // we will use the std::vector overload of DefaultArgProcess.
   std::vector<std::string> args;
   for (int i = 0; i < argc; i++) { args.push_back(argv[i]); }
   moteus::Controller::DefaultArgProcess(args);
@@ -50,6 +53,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  // This shows how you could construct a runtime number of controller
+  // instances.
   std::map<int, std::shared_ptr<moteus::Controller>> controllers;
   std::map<int, moteus::Query::Result> servo_data;
 
@@ -70,13 +75,16 @@ int main(int argc, char** argv) {
     pair.second->SetStop();
   }
 
+  // We did not specify a transport so the default one was used when
+  // constructing our Controller instances.  We need to get access to
+  // that in order to send commands simultaneously to multiple servos.
   auto transport = moteus::Controller::MakeSingletonTransport({});
 
   while (true) {
     const auto now = GetNow();
     std::vector<moteus::CanFdFrame> command_frames;
 
-
+    // Accumulate all of our command CAN frames.
     for (const auto& pair : controllers) {
       moteus::PositionMode::Command position_command;
       position_command.position = NaN;
@@ -84,11 +92,14 @@ int main(int argc, char** argv) {
       command_frames.push_back(pair.second->MakePosition(position_command));
     }
 
+    // Now send them in a single call to Transport::Cycle.
     std::vector<moteus::CanFdFrame> replies;
     const auto start = GetNow();
     transport->BlockingCycle(&command_frames[0], command_frames.size(), &replies);
     const auto end = GetNow();
     const auto cycle_time = end - start;
+
+    // Finally, print out our current query results.
 
     char buf[4096] = {};
     std::string status_line;

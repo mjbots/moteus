@@ -24,10 +24,14 @@
 int main(int argc, char** argv) {
   using namespace mjbots;
 
+  // Let the user configure a default transport.
   moteus::Controller::DefaultArgProcess(argc, argv);
 
   moteus::Controller controller;
 
+  // DiagnosticCommand will always return the result.  The `conf get`
+  // diagnostic command is unique in that it replies with a single
+  // line and no final "OK", so we use the `kExpectSingleLine` option.
   const auto old_kp = std::stod(
       controller.DiagnosticCommand("conf get servo.pid_position.kp",
                                    moteus::Controller::kExpectSingleLine));
@@ -36,6 +40,7 @@ int main(int argc, char** argv) {
   std::ostringstream ostr;
   ostr << "conf set servo.pid_position.kp " << new_kp;
 
+  // The `conf set` diagnostic command returns nothing.
   controller.DiagnosticCommand(ostr.str());
 
   std::cout << "Changed kp from " << old_kp << " to " << new_kp << "\n";

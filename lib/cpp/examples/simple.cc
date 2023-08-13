@@ -26,10 +26,21 @@
 int main(int argc, char** argv) {
   using namespace mjbots;
 
+  // The following DefaultArgProcess is an optional call.  If made,
+  // then command line arguments will be handled which allow setting
+  // and configuring the default 'transport' to be used if none is
+  // specified in Controller::Options::transport.
   moteus::Controller::DefaultArgProcess(argc, argv);
 
-  moteus::Controller controller;
+  // There are many possible options to set for each controller
+  // instance.  Here we re-set the ID to the default (1), just to show
+  // how it is done.
+  moteus::Controller::Options options;
+  options.id = 1;
 
+  moteus::Controller controller(options);
+
+  // Command a stop to the controller in order to clear any faults.
   controller.SetStop();
 
   while (true) {
