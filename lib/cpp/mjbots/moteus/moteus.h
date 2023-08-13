@@ -131,7 +131,7 @@ class Controller {
     return MakeFrame(EmptyMode(), {}, {}, format_override);
   }
 
-  Optional<Result> Query(const Query::Format* format_override = nullptr) {
+  Optional<Result> SetQuery(const Query::Format* format_override = nullptr) {
     return ExecuteSingleCommand(MakeQuery(format_override));
   }
 

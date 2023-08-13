@@ -535,7 +535,7 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     c.data[5] = 0x30;
     c.size = 6;
 
-    const auto maybe_reply = dut.Query();
+    const auto maybe_reply = dut.SetQuery();
     BOOST_TEST(!!maybe_reply);
 
     BOOST_TEST(impl->sent_frames.size() == 1);
