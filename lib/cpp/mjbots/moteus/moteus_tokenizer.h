@@ -14,6 +14,9 @@
 
 #pragma once
 
+#include <cstring>
+#include <string>
+
 namespace mjbots {
 namespace moteus {
 namespace detail {

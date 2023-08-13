@@ -18,6 +18,7 @@
 #include <glob.h>
 #include <linux/serial.h>
 #include <poll.h>
+#include <stdarg.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -26,6 +27,7 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <functional>
 #include <fstream>
 #include <memory>
 #include <set>
@@ -45,7 +47,7 @@ class BlockingCallback {
   /// Pass the result of this to a singular async call.
   CompletionCallback callback() {
     return [&](int v) {
-      std::unique_lock lock(mutex_);
+      std::unique_lock<std::recursive_mutex> lock(mutex_);
       done_.store(true);
       result_.store(v);
       cv_.notify_one();
@@ -124,7 +126,7 @@ class Fdcanusb : public Transport {
 
   virtual ~Fdcanusb() {
     {
-      std::unique_lock lock(something_mutex_);
+      std::unique_lock<std::mutex> lock(something_mutex_);
       done_ = true;
       do_something_ = true;
       something_cv_.notify_one();
@@ -141,7 +143,7 @@ class Fdcanusb : public Transport {
                      size_t size,
                      std::vector<CanFdFrame>* replies,
                      CompletionCallback completed_callback) override {
-    std::unique_lock lock(something_mutex_);
+    std::unique_lock<std::mutex> lock(something_mutex_);
     work_ = std::bind(&Fdcanusb::CHILD_Cycle,
                       this, frames, size, replies, completed_callback);
     do_something_ = true;
@@ -223,7 +225,7 @@ class Fdcanusb : public Transport {
   }
 
   void CHILD_Run() {
-    std::unique_lock lock(something_mutex_);
+    std::unique_lock<std::mutex> lock(something_mutex_);
 
     while (true) {
       something_cv_.wait(lock, [&]() { return do_something_; });
@@ -350,8 +352,8 @@ class Fdcanusb : public Transport {
   }
 
   bool CHILD_ConsumeLine(std::vector<CanFdFrame>* replies, int* ok_count) {
-    int line_end = [&]() {
-      for (int i = 0; i < line_buffer_pos_; i++) {
+    const auto line_end = [&]() -> int {
+      for (size_t i = 0; i < line_buffer_pos_; i++) {
         if (line_buffer_[i] == '\r' || line_buffer_[i] == '\n') { return i; }
       }
       return -1;
@@ -409,36 +411,51 @@ class Fdcanusb : public Transport {
     }
   }
 
+  struct Printer {
+    Printer(char* buf, size_t capacity) : buf_(buf), capacity_(capacity) {};
+
+    const char* buf() { return buf_; }
+    size_t size() const { return pos_; }
+    size_t remaining() const { return capacity_ - pos_ - 1; }
+
+    void operator()(const char* fmt, ...) {
+      va_list ap;
+      va_start(ap, fmt);
+      auto n = ::vsnprintf(&buf_[pos_], remaining(), fmt, ap);
+      va_end(ap);
+      if (n < 0) { ::abort(); }
+      pos_ += n;
+    };
+
+    char* const buf_;
+    size_t pos_ = 0;
+    const size_t capacity_;
+  };
+
   void CHILD_SendCanFdFrame(const CanFdFrame& frame) {
     char buf[256] = {};
-    size_t pos = 0;
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-security"
-    auto fmt = [&](const char* fmt, auto ...args) {
-      pos += snprintf(&buf[pos], sizeof(buf) - pos - 1, fmt, args...);
-    };
-#pragma GCC diagnostic pop
+    Printer p(buf, sizeof(buf));
 
-    fmt("can send %04x ", frame.arbitration_id);
+    p("can send %04x ", frame.arbitration_id);
     for (size_t i = 0; i < frame.size; i++) {
-      fmt("%02x", static_cast<int>(frame.data[i]));
+      p("%02x", static_cast<int>(frame.data[i]));
     }
 
     if (options_.disable_brs || frame.brs == CanFdFrame::kForceOff) {
-      fmt(" b");
+      p(" b");
     } else if (frame.brs == CanFdFrame::kForceOn) {
-      fmt(" B");
+      p(" B");
     }
     if (frame.fdcan_frame == CanFdFrame::kForceOff) {
-      fmt(" f");
+      p(" f");
     } else if (frame.fdcan_frame == CanFdFrame::kForceOn) {
-      fmt(" F");
+      p(" F");
     }
-    fmt("\n");
+    p("\n");
 
-    for (int n = 0; n < pos; ) {
-      int ret = ::write(write_fd_, &buf[n], pos - n);
+    for (size_t n = 0; n < p.size(); ) {
+      int ret = ::write(write_fd_, &buf[n], p.size() - n);
       if (ret < 0) {
         if (errno == EINTR || errno == EAGAIN) { continue; }
 
@@ -600,7 +617,8 @@ class TransportRegistry {
   std::shared_ptr<Transport> make(const std::vector<std::string>& args) const {
     auto to_try = items_;
     std::sort(to_try.begin(), to_try.end(),
-              [](auto lhs, auto rhs) {
+              [](const std::shared_ptr<TransportFactory>& lhs,
+                 const std::shared_ptr<TransportFactory>& rhs) {
                 return lhs->priority() < rhs->priority();
               });
 

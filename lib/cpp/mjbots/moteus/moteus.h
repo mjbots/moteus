@@ -399,7 +399,7 @@ class Controller {
 
     transport()->Cycle(
         &frame, 1, &context->replies,
-        [context, this](int v) {
+        [context, this](int) {
           for (const auto& frame : context->replies) {
             if (frame.destination != options_.source ||
                 frame.source != options_.id ||
@@ -476,7 +476,7 @@ class Controller {
         &cmd,
         1,
         context.get(),
-        [context, callback, result, this](int error) {
+        [context, callback, result, this](int) {
           auto maybe_result = this->FindResult(*context);
           if (maybe_result) { *result = *maybe_result; }
           callback(!options_.default_query ? 0 :
@@ -573,9 +573,10 @@ class Controller {
       WriteCanData write_frame(frame.data, &frame.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
+      auto s = shared_from_this();
       controller->transport()->Cycle(
           &frame, 1, nullptr,
-          [s=shared_from_this(), to_write](int v) {
+          [s, to_write](int v) {
             s->remaining_command = s->remaining_command.substr(to_write);
             s->Callback(v);
           });
@@ -587,9 +588,11 @@ class Controller {
       WriteCanData write_frame(frame.data, &frame.size);
       DiagnosticRead::Make(&write_frame, read, {});
 
+      auto s = shared_from_this();
+
       controller->transport()->Cycle(
           &frame, 1, &replies,
-          [s=shared_from_this()](int v) {
+          [s](int v) {
             s->Callback(v);
           });
     }
@@ -651,9 +654,11 @@ class Controller {
       WriteCanData write_frame(frame.data, &frame.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
+      auto s = shared_from_this();
+
       controller->transport()->Cycle(
           &frame, 1, nullptr,
-          [s=shared_from_this(), to_write](int v) {
+          [s, to_write](int v) {
             s->message = s->message.substr(to_write);
             s->Callback(v);
           });
