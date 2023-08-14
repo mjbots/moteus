@@ -30,7 +30,7 @@ namespace mjbots {
 namespace moteus {
 
 /// Each value can be sent or received as one of the following.
-enum Resolution {
+enum Resolution : int8_t {
   kInt8 = 0,
   kInt16 = 1,
   kInt32 = 2,
