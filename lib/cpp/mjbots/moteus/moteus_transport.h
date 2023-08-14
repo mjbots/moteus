@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <fstream>
 #include <memory>
@@ -97,6 +98,11 @@ class Transport {
 
     cbk.Wait();
   }
+
+  /// Schedule the given callback to be invoked at a later time.  This
+  /// will either be invoked from an arbitrary thread, or from within
+  /// another call to "Cycle or BlockingCycle".
+  virtual void Post(std::function<void()> callback) = 0;
 };
 
 class Fdcanusb : public Transport {
@@ -126,7 +132,7 @@ class Fdcanusb : public Transport {
 
   virtual ~Fdcanusb() {
     {
-      std::unique_lock<std::mutex> lock(something_mutex_);
+      std::unique_lock<std::recursive_mutex> lock(mutex_);
       done_ = true;
       do_something_ = true;
       something_cv_.notify_one();
@@ -143,9 +149,16 @@ class Fdcanusb : public Transport {
                      size_t size,
                      std::vector<CanFdFrame>* replies,
                      CompletionCallback completed_callback) override {
-    std::unique_lock<std::mutex> lock(something_mutex_);
+    std::unique_lock<std::recursive_mutex> lock(mutex_);
     work_ = std::bind(&Fdcanusb::CHILD_Cycle,
                       this, frames, size, replies, completed_callback);
+    do_something_ = true;
+    something_cv_.notify_one();
+  }
+
+  virtual void Post(std::function<void()> callback) override {
+    std::unique_lock<std::recursive_mutex> lock(mutex_);
+    event_queue_.push_back(std::move(callback));
     do_something_ = true;
     something_cv_.notify_one();
   }
@@ -225,10 +238,13 @@ class Fdcanusb : public Transport {
   }
 
   void CHILD_Run() {
-    std::unique_lock<std::mutex> lock(something_mutex_);
+    std::unique_lock<std::recursive_mutex> lock(mutex_);
 
     while (true) {
-      something_cv_.wait(lock, [&]() { return do_something_; });
+      something_cv_.wait(lock, [&]() {
+        return do_something_ || !event_queue_.empty();
+      });
+      do_something_ = false;
 
       if (done_) {
         return;
@@ -237,7 +253,12 @@ class Fdcanusb : public Transport {
         work_();
         work_ = {};
       }
-      do_something_ = false;
+      // Do at most one event.
+      if (!event_queue_.empty()) {
+        auto top = event_queue_.front();
+        event_queue_.pop_front();
+        top();
+      }
     }
   }
 
@@ -259,7 +280,7 @@ class Fdcanusb : public Transport {
                        kWait,
                        size,
                        expected_reply_count);
-    completed_callback(0);
+    Post(std::bind(completed_callback, 0));
   }
 
   enum ReadDelay {
@@ -503,11 +524,12 @@ class Fdcanusb : public Transport {
   int write_fd_ = -1;
 
   // The following variables are controlled by 'something_mutex'.
-  std::mutex something_mutex_;
-  std::condition_variable something_cv_;
+  std::recursive_mutex mutex_;
+  std::condition_variable_any something_cv_;
   bool do_something_ = false;
   bool done_ = false;
   std::function<void()> work_;
+  std::deque<std::function<void()>> event_queue_;
 
   // The following variables are only used in the child.
   char line_buffer_[4096] = {};

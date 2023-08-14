@@ -348,9 +348,26 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
 }
 
 namespace {
+class PostTransport : public moteus::Transport {
+ public:
+  virtual void Post(std::function<void()> callback) {
+    queue.push_back(std::move(callback));
+  }
+
+  void ProcessQueue() {
+    while (!queue.empty()) {
+      auto top = queue.front();
+      queue.pop_front();
+      top();
+    }
+  }
+
+  std::deque<std::function<void()>> queue;
+};
+
 // This test transport always makes the completion callback in the
 // same thread.
-class SyncTestTransport : public moteus::Transport {
+class SyncTestTransport : public PostTransport {
  public:
   virtual void Cycle(const moteus::CanFdFrame* frames,
                      size_t size,
@@ -363,7 +380,9 @@ class SyncTestTransport : public moteus::Transport {
     }
 
     count++;
-    completed_callback(0);
+
+    Post(std::bind(completed_callback, 0));
+    ProcessQueue();
   }
 
   int count = 0;
@@ -602,7 +621,7 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
 }
 
 namespace {
-class AsyncTestTransport : public moteus::Transport {
+class AsyncTestTransport : public PostTransport {
  public:
   virtual void Cycle(const moteus::CanFdFrame* frames,
                      size_t size,
@@ -616,7 +635,23 @@ class AsyncTestTransport : public moteus::Transport {
   std::vector<moteus::CanFdFrame> sent_frames;
 
   std::vector<moteus::CanFdFrame>* to_reply = nullptr;
+
   moteus::CompletionCallback to_callback;
+
+  void ProcessQueue() {
+    while (to_callback || !queue.empty()) {
+      if (to_callback) {
+        auto copy = to_callback;
+        to_callback = {};
+        copy(0);
+      }
+      if (!queue.empty()) {
+        auto top = queue.front();
+        queue.pop_front();
+        top();
+      }
+    }
+  }
 };
 
 struct TestCallback {
@@ -640,6 +675,7 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
     impl->sent_frames = {};
     impl->to_reply = nullptr;
     impl->to_callback = {};
+    impl->queue = {};
     cbk.called = false;
     cbk.value = -1;
   };
@@ -663,7 +699,7 @@ BOOST_AUTO_TEST_CASE(ControllerAsyncBasic) {
     c.data[7] = 0x50;
     c.size = 8;
 
-    impl->to_callback(0);
+    impl->ProcessQueue();
 
     BOOST_TEST(cbk.called);
     BOOST_TEST(cbk.value == 0);
@@ -799,7 +835,7 @@ bool StartsWith(const std::string& haystack, const std::string& needle) {
 }
 
 // This pretends to be a diagnostic channel server.
-class DiagnosticTestTransport : public moteus::Transport {
+class DiagnosticTestTransport : public PostTransport {
  public:
   virtual void Cycle(const moteus::CanFdFrame* frames,
                      size_t size,
@@ -808,7 +844,9 @@ class DiagnosticTestTransport : public moteus::Transport {
     for (size_t i = 0; i < size; i++) {
       ProcessFrame(frames[i], replies);
     }
-    completed_callback(0);
+
+    Post(std::bind(completed_callback, 0));
+    ProcessQueue();
   }
 
   void ProcessFrame(const moteus::CanFdFrame& frame,
@@ -1010,7 +1048,7 @@ BOOST_AUTO_TEST_CASE(ControllerDiagnosticRead) {
 }
 
 namespace {
-class PositionWaitTestTransport : public moteus::Transport {
+class PositionWaitTestTransport : public PostTransport {
  public:
   virtual void Cycle(const moteus::CanFdFrame* frames,
                      size_t size,
@@ -1041,7 +1079,8 @@ class PositionWaitTestTransport : public moteus::Transport {
     qr.size = 8;
     replies->push_back(qr);
 
-    completed_callback(0);
+    Post(std::bind(completed_callback, 0));
+    ProcessQueue();
   }
 
   int count = 0;

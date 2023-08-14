@@ -461,6 +461,7 @@ class Controller {
     context->result = result;
     context->remaining_command = message + "\n";
     context->controller = this;
+    context->transport = transport();
     context->callback = callback;
     context->reply_mode = reply_mode;
 
@@ -480,6 +481,7 @@ class Controller {
     context->message = message;
     context->channel = channel;
     context->controller = this;
+    context->transport = transport();
     context->callback = callback;
 
     context->Start();
@@ -508,12 +510,14 @@ class Controller {
       std::string* response = nullptr;
       std::vector<CanFdFrame> replies;
       CompletionCallback callback;
+      Transport* transport = nullptr;
     };
     auto context = std::make_shared<Context>();
     context->response = response;
     context->callback = callback;
+    context->transport = transport();
 
-    transport()->Cycle(
+    context->transport->Cycle(
         &frame, 1, &context->replies,
         [context, this](int) {
           for (const auto& frame : context->replies) {
@@ -525,11 +529,11 @@ class Controller {
             auto maybe_data = DiagnosticResponse::Parse(frame.data, frame.size);
             *context->response = std::string(
                 reinterpret_cast<const char*>(maybe_data.data), maybe_data.size);
-            context->callback(0);
+            context->transport->Post(std::bind(context->callback, 0));
             return;
           }
 
-          context->callback(ETIMEDOUT);
+          context->transport->Post(std::bind(context->callback, ETIMEDOUT));
           return;
         });
   }
@@ -564,13 +568,14 @@ class Controller {
 
   void AsyncVerifySchemaVersion(CompletionCallback callback) {
     auto result = std::make_shared<Result>();
+    auto t = transport();
 
     AsyncStartSingleCommand(
         MakeSchemaVersionQuery(),
         result.get(),
-        [result, callback](int value) {
+        [result, callback, t](int value) {
           CheckRegisterMapVersion(*result);
-          callback(value);
+          t->Post(std::bind(callback, value));
         });
   }
 
@@ -588,15 +593,19 @@ class Controller {
                                Result* result,
                                CompletionCallback callback) {
     auto context = std::make_shared<std::vector<CanFdFrame>>();
-    transport()->Cycle(
+    auto t = transport();
+    t->Cycle(
         &cmd,
         1,
         context.get(),
-        [context, callback, result, this](int) {
+        [context, callback, result, this, t](int) {
           auto maybe_result = this->FindResult(*context);
           if (maybe_result) { *result = *maybe_result; }
-          callback(!options_.default_query ? 0 :
-                   !!maybe_result ? 0 : ETIMEDOUT);
+
+          t->Post(
+              std::bind(
+                  callback, !options_.default_query ? 0 :
+                  !!maybe_result ? 0 : ETIMEDOUT));
         });
   }
 
@@ -650,6 +659,7 @@ class Controller {
     DiagnosticReplyMode reply_mode = {};
 
     Controller* controller = nullptr;
+    Transport* transport = nullptr;
 
     std::vector<CanFdFrame> replies;
 
@@ -663,12 +673,12 @@ class Controller {
 
     void Callback(int error) {
       if (error != 0) {
-        callback(error);
+        transport->Post(std::bind(callback, error));
         return;
       }
 
       if (ProcessReplies()) {
-        callback(0);
+        transport->Post(std::bind(callback, 0));
         return;
       }
 
@@ -753,6 +763,7 @@ class Controller {
     std::string message;
     int channel = 0;
     Controller* controller = nullptr;
+    Transport* transport = nullptr;
     CompletionCallback callback;
 
     void Start() {
@@ -782,7 +793,7 @@ class Controller {
 
     void Callback(int v) {
       if (message.empty()) {
-        callback(v);
+        transport->Post(std::bind(callback, v));
       } else {
         DoWrite();
       }
