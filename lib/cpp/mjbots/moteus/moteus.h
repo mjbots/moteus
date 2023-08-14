@@ -81,6 +81,8 @@ class Controller {
     // command.
     bool default_query = true;
 
+    int64_t diagnostic_retry_sleep_ns = 200000;
+
     // Specify a transport to be used.  If left unset, a global common
     // transport will be constructed to be shared with all Controller
     // instances in this process.  That will attempt to auto-detect a
@@ -502,8 +504,8 @@ class Controller {
     read.channel = channel;
     read.max_length = 48;
 
-    auto frame = DefaultFrame(kReplyRequired);
-    WriteCanData write_frame(frame.data, &frame.size);
+    output_frame_ = DefaultFrame(kReplyRequired);
+    WriteCanData write_frame(output_frame_.data, &output_frame_.size);
     DiagnosticRead::Make(&write_frame, read, {});
 
     struct Context {
@@ -518,7 +520,7 @@ class Controller {
     context->transport = transport();
 
     context->transport->Cycle(
-        &frame, 1, &context->replies,
+        &output_frame_, 1, &context->replies,
         [context, this](int) {
           for (const auto& frame : context->replies) {
             if (frame.destination != options_.source ||
@@ -594,8 +596,9 @@ class Controller {
                                CompletionCallback callback) {
     auto context = std::make_shared<std::vector<CanFdFrame>>();
     auto t = transport();
+    output_frame_ = cmd;
     t->Cycle(
-        &cmd,
+        &output_frame_,
         1,
         context.get(),
         [context, callback, result, this, t](int) {
@@ -661,8 +664,10 @@ class Controller {
     Controller* controller = nullptr;
     Transport* transport = nullptr;
 
+    CanFdFrame output_frame_;
     std::vector<CanFdFrame> replies;
 
+    int empty_replies = 0;
     std::string remaining_command;
     std::string current_line;
     std::ostringstream output;
@@ -695,13 +700,13 @@ class Controller {
       const auto to_write = std::min<size_t>(48, remaining_command.size());
       write.size = to_write;
 
-      auto frame = controller->DefaultFrame(kNoReply);
-      WriteCanData write_frame(frame.data, &frame.size);
+      output_frame_ = controller->DefaultFrame(kNoReply);
+      WriteCanData write_frame(output_frame_.data, &output_frame_.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
       auto s = shared_from_this();
       controller->transport()->Cycle(
-          &frame, 1, nullptr,
+          &output_frame_, 1, nullptr,
           [s, to_write](int v) {
             s->remaining_command = s->remaining_command.substr(to_write);
             s->Callback(v);
@@ -709,15 +714,24 @@ class Controller {
     }
 
     void DoRead() {
+      if (empty_replies >= 5) {
+        // We will call this a timeout.
+        transport->Post(std::bind(callback, ETIMEDOUT));
+        return;
+      } else if (empty_replies >= 2) {
+        // Sleep before each subsequent read.
+        ::usleep(controller->options_.diagnostic_retry_sleep_ns / 1000);
+      }
+
       DiagnosticRead::Command read;
-      auto frame = controller->DefaultFrame(kReplyRequired);
-      WriteCanData write_frame(frame.data, &frame.size);
+      output_frame_ = controller->DefaultFrame(kReplyRequired);
+      WriteCanData write_frame(output_frame_.data, &output_frame_.size);
       DiagnosticRead::Make(&write_frame, read, {});
 
       auto s = shared_from_this();
 
-      controller->transport()->Cycle(
-          &frame, 1, &replies,
+      transport->Cycle(
+          &output_frame_, 1, &replies,
           [s](int v) {
             s->Callback(v);
           });
@@ -733,6 +747,12 @@ class Controller {
 
         const auto parsed = DiagnosticResponse::Parse(reply.data, reply.size);
         if (parsed.channel != 1) { continue; }
+
+        if (parsed.size == 0) {
+          empty_replies++;
+        } else {
+          empty_replies = 0;
+        }
 
         current_line += std::string(
             reinterpret_cast<const char*>(parsed.data), parsed.size);
@@ -766,6 +786,8 @@ class Controller {
     Transport* transport = nullptr;
     CompletionCallback callback;
 
+    CanFdFrame output_frame_;
+
     void Start() {
       DoWrite();
     }
@@ -777,14 +799,14 @@ class Controller {
       const auto to_write = std::min<size_t>(48, message.size());
       write.size = to_write;
 
-      auto frame = controller->DefaultFrame(kNoReply);
-      WriteCanData write_frame(frame.data, &frame.size);
+      output_frame_ = controller->DefaultFrame(kNoReply);
+      WriteCanData write_frame(output_frame_.data, &output_frame_.size);
       DiagnosticWrite::Make(&write_frame, write, {});
 
       auto s = shared_from_this();
 
       controller->transport()->Cycle(
-          &frame, 1, nullptr,
+          &output_frame_, 1, nullptr,
           [s, to_write](int v) {
             s->message = s->message.substr(to_write);
             s->Callback(v);
@@ -884,6 +906,7 @@ class Controller {
   const Options options_;
   std::shared_ptr<Transport> transport_;
   CanData query_frame_;
+  CanFdFrame output_frame_;
 };
 
 

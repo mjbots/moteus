@@ -29,6 +29,16 @@ int main(int argc, char** argv) {
 
   moteus::Controller controller;
 
+  // When using the diagnostic protocol, it is important to know that
+  // applications like tview may leave the controller "spewing" on the
+  // diagnostic channel, i.e. sending unsolicited data.  In order stop
+  // that, a client needs to issue a "tel stop" command, and then
+  // flush all data that is present.  After that point, normal
+  // commands can be issued.
+  controller.DiagnosticCommand("tel stop");
+  controller.DiagnosticFlush();
+
+
   // DiagnosticCommand will always return the result.  The `conf get`
   // diagnostic command is unique in that it replies with a single
   // line and no final "OK", so we use the `kExpectSingleLine` option.

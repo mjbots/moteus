@@ -118,6 +118,10 @@ class Fdcanusb : public Transport {
     Options() {}
   };
 
+  // This is purely to catch out of control queues earlier, as
+  // typically there will just be 1 outstanding event at a time.
+  static constexpr int kMaxQueueSize = 2;
+
   // If @p device is empty, attempt to auto-detect a fdcanusb in the
   // system.
   Fdcanusb(const std::string& device_in, const Options& options = {})
@@ -159,6 +163,9 @@ class Fdcanusb : public Transport {
   virtual void Post(std::function<void()> callback) override {
     std::unique_lock<std::recursive_mutex> lock(mutex_);
     event_queue_.push_back(std::move(callback));
+    if (event_queue_.size() > kMaxQueueSize) {
+      throw std::runtime_error("There should never be more than one!");
+    }
     do_something_ = true;
     something_cv_.notify_one();
   }
