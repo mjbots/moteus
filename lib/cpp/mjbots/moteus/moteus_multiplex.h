@@ -529,6 +529,7 @@ class MultiplexParser {
   static constexpr int8_t kTemperature = 6;
   static constexpr int8_t kTime = 7;
   static constexpr int8_t kCurrent = 8;
+  static constexpr int8_t kTheta = 9;
 
   double ReadConcrete(Resolution res, int8_t concrete_type) {
 #ifndef ARDUINO
@@ -545,6 +546,7 @@ class MultiplexParser {
       1.0, 0.1, 0.001,         // kTemperature
       0.01, 0.001, 0.000001,   // kTime
       1.0, 0.1, 0.001,         // kCurrent
+      1.0 / 127.0 * M_PI, 1.0 / 32767.0 * M_PI, 1.0 / 2147483647.0 * M_PI, // kTheta
     };
 
 #ifndef ARDUINO
