@@ -245,7 +245,11 @@ struct Query {
     double value = 0.0;
   };
 
+#ifndef ARDUINO
   static constexpr int16_t kMaxExtra = 16;
+#else
+  static constexpr int16_t kMaxExtra = 8;
+#endif
 
   struct Result {
     Mode mode = Mode::kStopped;
@@ -298,18 +302,12 @@ struct Query {
     Resolution aux1_gpio = kIgnore;
     Resolution aux2_gpio = kIgnore;
 
+    // Any values here must be sorted by register number.
     ItemFormat extra[kMaxExtra];
 
     // gcc bug 92385 again
     Format() : extra() {}
   };
-
-  static int ItemFormatSort(const void* lhs_in, const void* rhs_in) {
-    const auto* lhs = reinterpret_cast<const ItemFormat*>(lhs_in);
-    const auto* rhs = reinterpret_cast<const ItemFormat*>(rhs_in);
-
-    return lhs->register_number - rhs->register_number;
-  }
 
   static void Make(WriteCanData* frame, const Format& format) {
     {
@@ -364,13 +362,9 @@ struct Query {
     }
 
     {
-      ItemFormat sorted_values[kMaxExtra] = {};
-      ::memcpy(&sorted_values[0], &(format.extra[0]), sizeof(format.extra));
-      ::qsort(&sorted_values[0], kMaxExtra, sizeof(ItemFormat), ItemFormatSort);
-
       const int16_t size = [&]() {
         for (int16_t i = 0; i < kMaxExtra; i++) {
-          if (sorted_values[i].register_number ==
+          if (format.extra[i].register_number ==
               detail::numeric_limits<int16_t>::max()) {
             return i;
           }
@@ -379,8 +373,8 @@ struct Query {
       }();
 
       if (size == 0) { return; }
-      const int16_t min_register_number = sorted_values[0].register_number;
-      const int16_t max_register_number = sorted_values[size - 1].register_number;
+      const int16_t min_register_number = format.extra[0].register_number;
+      const int16_t max_register_number = format.extra[size - 1].register_number;
 
       const uint16_t required_registers =
           max_register_number - min_register_number + 1;
@@ -395,9 +389,9 @@ struct Query {
       for (int16_t this_register = min_register_number, index = 0;
            this_register <= max_register_number;
            this_register++) {
-        if (sorted_values[index].register_number == this_register) {
+        if (format.extra[index].register_number == this_register) {
           resolutions[this_register - min_register_number] =
-              sorted_values[index].resolution;
+              format.extra[index].resolution;
           index++;
         } else {
           resolutions[this_register - min_register_number] = kIgnore;
@@ -647,6 +641,7 @@ struct GenericQuery {
   };
 
   struct Format {
+    // These values must be sorted by register number.
     ItemFormat values[kMaxItems] = {};
   };
 
@@ -658,13 +653,9 @@ struct GenericQuery {
   }
 
   static void Make(WriteCanData* frame, const Command&, const Format& format) {
-    ItemFormat sorted_values[64] = {};
-    ::memcpy(&sorted_values[0], &(format.values[0]), sizeof(format.values));
-    ::qsort(&sorted_values[0], kMaxItems, sizeof(ItemFormat), ItemFormatSort);
-
     const int16_t size = [&]() {
       for (int16_t i = 0; i < kMaxItems; i++) {
-        if (sorted_values[i].register_number ==
+        if (format.values[i].register_number ==
             detail::numeric_limits<int16_t>::max()) {
           return i;
         }
@@ -673,8 +664,8 @@ struct GenericQuery {
     }();
 
     if (size == 0) { return; }
-    const int16_t min_register_number = sorted_values[0].register_number;
-    const int16_t max_register_number = sorted_values[size - 1].register_number;
+    const int16_t min_register_number = format.values[0].register_number;
+    const int16_t max_register_number = format.values[size - 1].register_number;
 
     const uint16_t required_registers = max_register_number - min_register_number + 1;
 
@@ -688,9 +679,9 @@ struct GenericQuery {
     for (int16_t this_register = min_register_number, index = 0;
          this_register <= max_register_number;
          this_register++) {
-      if (sorted_values[index].register_number == this_register) {
+      if (format.values[index].register_number == this_register) {
         resolutions[this_register - min_register_number] =
-            sorted_values[index].resolution;
+            format.values[index].resolution;
         index++;
       } else {
         resolutions[this_register - min_register_number] = kIgnore;

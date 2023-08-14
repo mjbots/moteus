@@ -147,15 +147,15 @@ BOOST_AUTO_TEST_CASE(GenericQueryMake) {
   moteus::WriteCanData write_frame(&frame);
   moteus::GenericQuery::Format fmt;
 
-  fmt.values[0].register_number = moteus::Register::kAux1AnalogIn1;
-  fmt.values[0].resolution = moteus::kInt16;
-  fmt.values[1].register_number = moteus::Register::kAux1AnalogIn2;
-  fmt.values[1].resolution = moteus::kInt16;
+  fmt.values[0].register_number = moteus::Register::kEncoder0Position;
+  fmt.values[0].resolution = moteus::kFloat;
+  fmt.values[1].register_number = moteus::Register::kEncoder0Velocity;
+  fmt.values[1].resolution = moteus::kFloat;
 
-  fmt.values[2].register_number = moteus::Register::kEncoder0Position;
-  fmt.values[2].resolution = moteus::kFloat;
-  fmt.values[3].register_number = moteus::Register::kEncoder0Velocity;
-  fmt.values[3].resolution = moteus::kFloat;
+  fmt.values[2].register_number = moteus::Register::kAux1AnalogIn1;
+  fmt.values[2].resolution = moteus::kInt16;
+  fmt.values[3].register_number = moteus::Register::kAux1AnalogIn2;
+  fmt.values[3].resolution = moteus::kInt16;
 
   moteus::GenericQuery::Make(&write_frame, {}, fmt);
   BOOST_TEST(Hexify(frame) == "1e501660");

@@ -147,14 +147,15 @@ class WriteCanData {
 
   template <typename T, typename X>
   void Write(X value_in) {
+#ifndef __ORDER_LITTLE_ENDIAN__
+#error "only little endian architectures supported"
+#endif
+
     T value = static_cast<T>(value_in);
     if (sizeof(value) + *size_ > 64) {
       abort();
     }
 
-#ifndef __ORDER_LITTLE_ENDIAN__
-#error "only little endian architectures supported"
-#endif
     ::memcpy(&data_[*size_],
              reinterpret_cast<const char*>(&value),
              sizeof(value));
@@ -519,40 +520,98 @@ class MultiplexParser {
     abort();
   }
 
+  static constexpr int8_t kInt = 0;
+  static constexpr int8_t kPosition = 1;
+  static constexpr int8_t kVelocity = 2;
+  static constexpr int8_t kTorque = 3;
+  static constexpr int8_t kPwm = 4;
+  static constexpr int8_t kVoltage = 5;
+  static constexpr int8_t kTemperature = 6;
+  static constexpr int8_t kTime = 7;
+  static constexpr int8_t kCurrent = 8;
+
+  double ReadConcrete(Resolution res, int8_t concrete_type) {
+#ifndef ARDUINO
+    static constexpr double kMappingValues[] = {
+#else
+    static constexpr double PROGMEM kMappingValues[] = {
+#endif
+      1.0, 1.0, 1.0,           // kInt
+      0.01, 0.0001, 0.00001,   // kPosition
+      0.1, 0.00025, 0.00001,   // kVelocity
+      0.5, 0.01, 0.001,        // kTorque
+      1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0,  // kPwm
+      0.5, 0.1, 0.001,         // kVoltage
+      1.0, 0.1, 0.001,         // kTemperature
+      0.01, 0.001, 0.000001,   // kTime
+      1.0, 0.1, 0.001,         // kCurrent
+    };
+
+#ifndef ARDUINO
+    const double int8_scale = kMappingValues[concrete_type * 3 + 0];
+    const double int16_scale = kMappingValues[concrete_type * 3 + 1];
+    const double int32_scale = kMappingValues[concrete_type * 3 + 2];
+#else
+    const double int8_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 0);
+    const double int16_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 1);
+    const double int32_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 2);
+#endif
+
+    switch (res) {
+      case Resolution::kInt8: {
+        return Nanify<int8_t>(Read<int8_t>()) * int8_scale;
+      }
+      case Resolution::kInt16: {
+        return Nanify<int16_t>(Read<int16_t>()) * int16_scale;
+      }
+      case Resolution::kInt32: {
+        return Nanify<int32_t>(Read<int32_t>()) * int32_scale;
+      }
+      case Resolution::kFloat: {
+        return Read<float>();
+      }
+      default: {
+        break;
+      }
+    }
+
+    abort();
+  }
+
   int ReadInt(Resolution res) {
-    return static_cast<int>(ReadMapped(res, 1.0, 1.0, 1.0));
+    return static_cast<int>(ReadConcrete(res, kInt));
   }
 
   double ReadPosition(Resolution res) {
-    return ReadMapped(res, 0.01, 0.0001, 0.00001);
+    return ReadConcrete(res, kPosition);
   }
 
   double ReadVelocity(Resolution res) {
-    return ReadMapped(res, 0.1, 0.00025, 0.00001);
+    return ReadConcrete(res, kVelocity);
   }
 
   double ReadTorque(Resolution res) {
-    return ReadMapped(res, 0.5, 0.01, 0.001);
+    return ReadConcrete(res, kTorque);
   }
 
   double ReadPwm(Resolution res) {
-    return ReadMapped(res, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0);
+    return ReadConcrete(res, kPwm);
   }
 
   double ReadVoltage(Resolution res) {
-    return ReadMapped(res, 0.5, 0.1, 0.001);
+    return ReadConcrete(res, kVoltage);
   }
 
   double ReadTemperature(Resolution res) {
-    return ReadMapped(res, 1.0, 0.1, 0.001);
+    return ReadConcrete(res, kTemperature);
   }
 
   double ReadTime(Resolution res) {
-    return ReadMapped(res, 0.01, 0.001, 0.000001);
+    return ReadConcrete(res, kTime);
   }
 
   double ReadCurrent(Resolution res) {
-    return ReadMapped(res, 1.0, 0.1, 0.001);
+    return ReadConcrete(res, kCurrent);
   }
 
   void Ignore(Resolution res) {
