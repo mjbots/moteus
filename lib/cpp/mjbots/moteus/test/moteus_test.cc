@@ -1111,10 +1111,65 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
   options.transport = impl;
   moteus::Controller dut(options);
 
-  dut.SetStop();
+  {
+    dut.SetStop();
 
-  BOOST_TEST(impl->count == 1);
-  BOOST_REQUIRE(impl->sent_frames.size() == 1);
-  const auto& f = impl->sent_frames[0];
-  BOOST_TEST(Hexify(f.data, f.size) == "010000");
+    BOOST_TEST(impl->count == 1);
+    BOOST_REQUIRE(impl->sent_frames.size() == 1);
+    const auto& f = impl->sent_frames[0];
+    BOOST_TEST(Hexify(f.data, f.size) == "010000");
+  }
+
+  // Set up our common reply for the next tests.
+  impl->to_reply_with.resize(1);
+  auto& c = impl->to_reply_with[0];
+  c.destination = 0;
+  c.source = 1;
+  c.arbitration_id = 0x100;
+  c.data[0] = 0x27;
+  c.data[1] = 0x00;
+  c.data[2] = 0x0a;
+  c.data[3] = 0x00;
+  c.data[4] = 0x20;
+  c.data[5] = 0x30;
+  c.data[6] = 0x40;
+  c.data[7] = 0x50;
+  c.size = 8;
+
+  {
+    impl->sent_frames.clear();
+
+    const auto maybe_reply = dut.SetQuery();
+    BOOST_TEST(!!maybe_reply);
+    const auto& r = *maybe_reply;
+    BOOST_TEST(r.frame.arbitration_id == 0x100);
+    BOOST_TEST(r.frame.size == 8);
+    BOOST_TEST(static_cast<int>(r.values.mode) == 10);
+    BOOST_TEST(r.values.position == 1.232);
+    BOOST_TEST(r.values.velocity == 5.136);
+
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& f = impl->sent_frames[0];
+    BOOST_TEST(Hexify(f.data, f.size) == "11001f01130d");
+  }
+
+  {
+    impl->sent_frames.clear();
+
+    moteus::Query::Format query_override;
+    query_override.trajectory_complete = moteus::kInt8;
+
+    const auto maybe_reply = dut.SetQuery(&query_override);
+    BOOST_TEST(!!maybe_reply);
+    const auto& r = *maybe_reply;
+    BOOST_TEST(r.frame.arbitration_id == 0x100);
+    BOOST_TEST(r.frame.size == 8);
+    BOOST_TEST(static_cast<int>(r.values.mode) == 10);
+    BOOST_TEST(r.values.position == 1.232);
+    BOOST_TEST(r.values.velocity == 5.136);
+
+    BOOST_TEST(impl->sent_frames.size() == 1);
+    const auto& f = impl->sent_frames[0];
+    BOOST_TEST(Hexify(f.data, f.size) == "11001f01110b130d");
+  }
 }

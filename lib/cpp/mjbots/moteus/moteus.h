@@ -130,7 +130,12 @@ class Controller {
   // Query
 
   CanFdFrame MakeQuery(const Query::Format* format_override = nullptr) {
-    return MakeFrame(EmptyMode(), {}, {}, format_override);
+    // We force there to always be an override for the query format,
+    // because if we're directly asking for a query, we should get it
+    // no matter the Options::default_query state.
+    return MakeFrame(EmptyMode(), {}, {},
+                     format_override == nullptr ?
+                     &options_.query_format : format_override);
   }
 
   Optional<Result> SetQuery(const Query::Format* format_override = nullptr) {
