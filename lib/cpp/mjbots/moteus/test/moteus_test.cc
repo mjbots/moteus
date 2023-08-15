@@ -1151,6 +1151,7 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
     BOOST_TEST(impl->sent_frames.size() == 1);
     const auto& f = impl->sent_frames[0];
     BOOST_TEST(Hexify(f.data, f.size) == "11001f01130d");
+    BOOST_TEST(f.arbitration_id == 0x8001);
   }
 
   {
@@ -1171,5 +1172,6 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
     BOOST_TEST(impl->sent_frames.size() == 1);
     const auto& f = impl->sent_frames[0];
     BOOST_TEST(Hexify(f.data, f.size) == "11001f01110b130d");
+    BOOST_TEST(f.arbitration_id == 0x8001);
   }
 }

@@ -889,6 +889,7 @@ class Controller {
                        const typename CommandType::Format& fmt,
                        const Query::Format* query_format_override = nullptr) {
     auto result = DefaultFrame(
+        query_format_override != nullptr ? kReplyRequired :
         options_.default_query ? kReplyRequired : kNoReply);
 
     WriteCanData write_frame(result.data, &result.size);
