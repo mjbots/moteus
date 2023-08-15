@@ -218,15 +218,15 @@ class Controller {
         query_override == nullptr ? options_.query_format : *query_override;
     query_format.trajectory_complete = kInt8;
 
-    bool first = true;
+    int count = 2;
     while (true) {
       auto maybe_result = SetPosition(cmd, command_override, &query_format);
-      if (!first) {
-        if (!!maybe_result && maybe_result->values.trajectory_complete) {
-          return *maybe_result;
-        }
-      } else if (maybe_result) {
-        first = false;
+      if (!!maybe_result) { count = std::max(count - 1, 0); }
+
+      if (count == 0 &&
+          !!maybe_result &&
+          maybe_result->values.trajectory_complete) {
+        return *maybe_result;
       }
 
       ::usleep(static_cast<int>(period_s * 1e6));
