@@ -895,15 +895,13 @@ class Controller {
     WriteCanData write_frame(result.data, &result.size);
     CommandType::Make(&write_frame, cmd, fmt);
 
-    if (options_.default_query || query_format_override) {
-      if (query_format_override == nullptr) {
-        std::memcpy(&result.data[result.size],
-                    &query_frame_.data[0],
-                    query_frame_.size);
-        result.size += query_frame_.size;
-      } else {
-        Query::Make(&write_frame, *query_format_override);
-      }
+    if (query_format_override) {
+      Query::Make(&write_frame, *query_format_override);
+    } else if (options_.default_query) {
+      std::memcpy(&result.data[result.size],
+                  &query_frame_.data[0],
+                  query_frame_.size);
+      result.size += query_frame_.size;
     }
 
     return result;
