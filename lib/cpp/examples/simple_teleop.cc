@@ -97,9 +97,12 @@ int main(int argc, char** argv) {
     return options;
   }());
 
+  // We initially send a stop command to each in order to clear any
+  // faults.
   primary.SetStop();
   secondary.SetStop();
 
+  // Determine the initial position for each.
   auto get_initial = [&](auto* controller) {
     while (true) {
       auto maybe_result = controller->SetQuery();
@@ -124,17 +127,22 @@ int main(int argc, char** argv) {
     cycles++;
     hz_count++;
 
+    // First query the sensor.
     auto maybe_primary_state = primary.SetQuery();
     if (!maybe_primary_state) { continue; }
     const auto& ps = maybe_primary_state->values;
 
+    // Our command will just be to exactly match the position and
+    // velocity of the sensor servo.
     position_cmd.position = ps.position - primary_initial + secondary_initial;
     position_cmd.velocity = ps.velocity;
 
+    // The command the driven servo.
     auto maybe_secondary_state = secondary.SetPosition(position_cmd);
     if (!maybe_secondary_state) { continue; }
     const auto& ss = maybe_secondary_state->values;
 
+    // And finally, print out status at a semi-regular interval.
     const auto now = GetNow();
     if (now > next_status) {
       printf("%6" PRIu64 " %6.1fHz  %d/%2d/%6.3f/%6.3f  %d/%2d/%6.3f/%6.3f    \r",
