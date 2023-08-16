@@ -552,10 +552,13 @@ class TransportFactory {
 
   virtual int priority() = 0;
   virtual std::string name() = 0;
-  virtual std::shared_ptr<Transport> make(const std::vector<std::string>&) = 0;
+  using TransportArgPair = std::pair<std::shared_ptr<Transport>,
+                                     std::vector<std::string>>;
+  virtual TransportArgPair make(const std::vector<std::string>&) = 0;
 
   struct Argument {
     std::string name;
+    int nargs = 1;
     std::string help;
 
     bool operator<(const Argument& rhs) const {
@@ -574,35 +577,47 @@ class FdcanusbFactory : public TransportFactory {
  public:
   virtual ~FdcanusbFactory() {}
 
-  virtual int priority() { return 10; }
-  virtual std::string name() { return "fdcanusb"; }
+  virtual int priority() override { return 10; }
+  virtual std::string name() override { return "fdcanusb"; }
 
-  std::shared_ptr<Transport> make(const std::vector<std::string>& args) {
+  virtual TransportArgPair make(const std::vector<std::string>& args_in) override {
+    auto args = args_in;
 
     Fdcanusb::Options options;
     std::string device;
 
-    if (std::find(args.begin(), args.end(), "--can-disable-brs") != args.end()) {
-      options.disable_brs = true;
+    {
+      auto it = std::find(args.begin(), args.end(), "--can-disable-brs");
+      if (it != args.end()) {
+        options.disable_brs = true;
+        args.erase(it);
+      }
     }
 
-    auto it = std::find(args.begin(), args.end(), "--fdcanusb");
-    if (it != args.end() && (it + 1) != args.end()) {
-      device = *(it + 1);
+    {
+      auto it = std::find(args.begin(), args.end(), "--fdcanusb");
+      if (it != args.end()) {
+        if ((it + 1) != args.end()) {
+          device = *(it + 1);
+          args.erase(it, it + 2);
+        } else {
+          throw std::runtime_error("--fdcanusb requires a path");
+        }
+      }
     }
 
     auto result = std::make_shared<Fdcanusb>(device, options);
-    return result;
+    return TransportArgPair(result, args);
   }
 
-  virtual std::vector<Argument> cmdline_arguments() {
+  virtual std::vector<Argument> cmdline_arguments() override {
     return {
-      { "--fdcanusb", "path to fdcanusb device" },
-      { "--can-disable-brs", "do not set BRS" },
+      { "--fdcanusb", 1, "path to fdcanusb device" },
+      { "--can-disable-brs", 0, "do not set BRS" },
     };
   }
 
-  virtual bool is_args_set(const std::vector<std::string>& args) {
+  virtual bool is_args_set(const std::vector<std::string>& args) override {
     for (const auto& arg : args) {
       if (arg == "--fdcanusb") { return true; }
     }
@@ -626,7 +641,7 @@ class TransportRegistry {
     std::vector<TransportFactory::Argument> result;
     std::set<TransportFactory::Argument> uniqifier;
 
-    result.push_back({"--force-transport",
+    result.push_back({"--force-transport", 1,
         "force the given transport type to be used"});
     uniqifier.insert(result.back());
 
@@ -643,8 +658,10 @@ class TransportRegistry {
     return result;
   }
 
-  std::shared_ptr<Transport> make(const std::vector<std::string>& args) const {
+  TransportFactory::TransportArgPair make(const std::vector<std::string>& args_in) const {
+    auto args = args_in;
     auto to_try = items_;
+
     std::sort(to_try.begin(), to_try.end(),
               [](const std::shared_ptr<TransportFactory>& lhs,
                  const std::shared_ptr<TransportFactory>& rhs) {
@@ -653,11 +670,16 @@ class TransportRegistry {
 
     // Is the transport forced?
     const auto it = std::find(args.begin(), args.end(), "--force-transport");
-    if (it != args.end() && (it + 1) != args.end()) {
-      to_try = {};
-      const auto name_to_find = *(it + 1);
-      for (auto item : items_) {
-        if (item->name() == name_to_find) { to_try.push_back(item); }
+    if (it != args.end()) {
+      if ((it + 1) != args.end()) {
+        to_try = {};
+        const auto name_to_find = *(it + 1);
+        for (auto item : items_) {
+          if (item->name() == name_to_find) { to_try.push_back(item); }
+        }
+        args.erase(it, it + 2);
+      } else {
+        throw std::runtime_error("--force-transport requires an argument");
       }
     } else {
       std::vector<std::shared_ptr<TransportFactory>> options_set;
@@ -674,7 +696,9 @@ class TransportRegistry {
     for (auto factory : to_try) {
       try {
         auto maybe_result = factory->make(args);
-        if (maybe_result) { return maybe_result; }
+        if (maybe_result.first) {
+          return maybe_result;
+        }
       } catch (std::runtime_error& re) {
         if (!errors.empty()) { errors += ", "; }
         errors += factory->name() + ": " + re.what();
