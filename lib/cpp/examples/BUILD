@@ -38,6 +38,13 @@ cc_binary(
 )
 
 cc_binary(
+    name = "simple_teleop",
+    srcs = ["simple_teleop.cc",],
+    deps = ["//lib/cpp/mjbots/moteus:moteus",],
+    copts = ["-Ilib/cpp/mjbots/moteus",],
+)
+
+cc_binary(
     name = "nlateral_teleop",
     srcs = ["nlateral_teleop.cc",],
     deps = ["//lib/cpp/mjbots/moteus:moteus",],
@@ -57,6 +64,7 @@ sh_test(
         ":diagnostic_protocol",
         ":multiple_cycle",
         ":simple",
+        ":simple_teleop",
         ":nlateral_teleop",
     ],
     srcs = ["dummy.sh"],
