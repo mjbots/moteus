@@ -423,6 +423,8 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     BOOST_TEST(c.destination == 1);
     BOOST_TEST(c.can_prefix == 0);
     BOOST_TEST(Hexify(c.data, c.size) == "01000011001f01130d");
+    BOOST_TEST(c.reply_required == true);
+    BOOST_TEST(c.expected_reply_size == 22);
   }
 
   {
@@ -440,6 +442,8 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     BOOST_TEST(c.destination == 1);
     BOOST_TEST(c.can_prefix == 0);
     BOOST_TEST(Hexify(c.data, c.size) == "01000f11001f01130d");
+    BOOST_TEST(c.reply_required == true);
+    BOOST_TEST(c.expected_reply_size == 22);
   }
 
   {
@@ -1118,6 +1122,8 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
     BOOST_REQUIRE(impl->sent_frames.size() == 1);
     const auto& f = impl->sent_frames[0];
     BOOST_TEST(Hexify(f.data, f.size) == "010000");
+    BOOST_TEST(f.reply_required == false);
+    BOOST_TEST(f.expected_reply_size == 0);
   }
 
   // Set up our common reply for the next tests.
@@ -1152,6 +1158,8 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
     const auto& f = impl->sent_frames[0];
     BOOST_TEST(Hexify(f.data, f.size) == "11001f01130d");
     BOOST_TEST(f.arbitration_id == 0x8001);
+    BOOST_TEST(f.reply_required == true);
+    BOOST_TEST(f.expected_reply_size == 22);
   }
 
   {
@@ -1173,5 +1181,7 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
     const auto& f = impl->sent_frames[0];
     BOOST_TEST(Hexify(f.data, f.size) == "11001f01110b130d");
     BOOST_TEST(f.arbitration_id == 0x8001);
+    BOOST_TEST(f.reply_required == true);
+    BOOST_TEST(f.expected_reply_size == 25);
   }
 }

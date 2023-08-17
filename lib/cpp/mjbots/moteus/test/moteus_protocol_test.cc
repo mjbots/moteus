@@ -37,9 +37,10 @@ std::string Hexify(const moteus::CanData& frame) {
 BOOST_AUTO_TEST_CASE(QueryMake) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
-  moteus::Query::Make(&write_frame, {});
+  const auto reply_size = moteus::Query::Make(&write_frame, {});
 
   BOOST_TEST(Hexify(frame) == "11001f01130d");
+  BOOST_TEST(reply_size == 22);
 }
 
 BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
@@ -62,8 +63,9 @@ BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
   fmt.extra[1].register_number = moteus::Register::kEncoder0Velocity;
   fmt.extra[1].resolution = moteus::kFloat;
 
-  moteus::Query::Make(&write_frame, fmt);
+  const auto reply_size = moteus::Query::Make(&write_frame, fmt);
   BOOST_TEST(Hexify(frame) == "11001c060110060a125e1e50");
+  BOOST_TEST(reply_size == 53);
 }
 
 
@@ -157,8 +159,9 @@ BOOST_AUTO_TEST_CASE(GenericQueryMake) {
   fmt.values[3].register_number = moteus::Register::kAux1AnalogIn2;
   fmt.values[3].resolution = moteus::kInt16;
 
-  moteus::GenericQuery::Make(&write_frame, {}, fmt);
+  const auto reply_size = moteus::GenericQuery::Make(&write_frame, {}, fmt);
   BOOST_TEST(Hexify(frame) == "1e501660");
+  BOOST_TEST(reply_size == 16);
 }
 
 BOOST_AUTO_TEST_CASE(GenericQueryParse) {
@@ -203,9 +206,10 @@ BOOST_AUTO_TEST_CASE(GenericQueryParse) {
 BOOST_AUTO_TEST_CASE(PositionDefaults) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
-  moteus::PositionMode::Make(&write_frame, {}, {});
+  const auto reply_size = moteus::PositionMode::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "01000a0e200000000000000000");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(PositionMaximal) {
@@ -238,9 +242,10 @@ BOOST_AUTO_TEST_CASE(PositionMaximal) {
   fmt.accel_limit = moteus::kInt16;
   fmt.fixed_voltage_override = moteus::kInt16;
 
-  moteus::PositionMode::Make(&write_frame, cmd, fmt);
+  const auto reply_size = moteus::PositionMode::Make(&write_frame, cmd, fmt);
 
   BOOST_TEST(Hexify(frame) == "01000a040b20c409d0076400ff1fff0f2003204ec800204ed0072800");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(VFOCMake) {
@@ -252,9 +257,10 @@ BOOST_AUTO_TEST_CASE(VFOCMake) {
   cmd.voltage = 0.5;
   cmd.theta_rad_rate = 1.0;
 
-  moteus::VFOCMode::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::VFOCMode::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "0100070e183661823d0000003f0d1e83f9a23e");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(CurrentMake) {
@@ -265,9 +271,10 @@ BOOST_AUTO_TEST_CASE(CurrentMake) {
   cmd.d_A = 1.0;
   cmd.q_A = 2.0;
 
-  moteus::CurrentMode::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::CurrentMode::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "0100090e1c000000400000803f");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(StayWithinDefaults) {
@@ -278,9 +285,10 @@ BOOST_AUTO_TEST_CASE(StayWithinDefaults) {
   cmd.lower_bound = 1.0;
   cmd.upper_bound = 2.0;
 
-  moteus::StayWithinMode::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::StayWithinMode::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "01000d0e400000803f00000040");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(StayWithinMaximal) {
@@ -303,26 +311,29 @@ BOOST_AUTO_TEST_CASE(StayWithinMaximal) {
   fmt.maximum_torque = moteus::kFloat;
   fmt.watchdog_timeout = moteus::kFloat;
 
-  moteus::StayWithinMode::Make(&write_frame, cmd, fmt);
+  const auto reply_size = moteus::StayWithinMode::Make(&write_frame, cmd, fmt);
 
   BOOST_TEST(Hexify(frame) == "01000d0c07400000003f0000803f000000400000803e0000003f00000040cdcc4c3d");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(BrakeMode) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
 
-  moteus::BrakeMode::Make(&write_frame, {}, {});
+  const auto reply_size = moteus::BrakeMode::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "01000f");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(MakeStop) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
-  moteus::StopMode::Make(&write_frame, {}, {});
+  const auto reply_size = moteus::StopMode::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "010000");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(GpioWrite) {
@@ -331,9 +342,10 @@ BOOST_AUTO_TEST_CASE(GpioWrite) {
   moteus::GpioWrite::Command cmd;
   cmd.aux1 = 2;
   cmd.aux2 = 4;
-  moteus::GpioWrite::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::GpioWrite::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "025c0204");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(OutputNearest) {
@@ -341,9 +353,10 @@ BOOST_AUTO_TEST_CASE(OutputNearest) {
   moteus::WriteCanData write_frame(&frame);
   moteus::OutputNearest::Command cmd;
   cmd.position = 2.0;
-  moteus::OutputNearest::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::OutputNearest::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "0db00200000040");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(OutputExact) {
@@ -351,18 +364,20 @@ BOOST_AUTO_TEST_CASE(OutputExact) {
   moteus::WriteCanData write_frame(&frame);
   moteus::OutputExact::Command cmd;
   cmd.position = 3.0;
-  moteus::OutputExact::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::OutputExact::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "0db10200004040");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(RequireReindex) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
 
-  moteus::RequireReindex::Make(&write_frame, {}, {});
+  const auto reply_size = moteus::RequireReindex::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "01b20201");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(DiagnosticWrite) {
@@ -376,18 +391,20 @@ BOOST_AUTO_TEST_CASE(DiagnosticWrite) {
   cmd.data = msg.data();
   cmd.size = msg.size();
 
-  moteus::DiagnosticWrite::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::DiagnosticWrite::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "40010974656c2073746f700a");
+  BOOST_TEST(reply_size == 0);
 }
 
 BOOST_AUTO_TEST_CASE(DiagnosticRead) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
 
-  moteus::DiagnosticRead::Make(&write_frame, {}, {});
+  const auto reply_size = moteus::DiagnosticRead::Make(&write_frame, {}, {});
 
   BOOST_TEST(Hexify(frame) == "420130");
+  BOOST_TEST(reply_size == 51);
 }
 
 BOOST_AUTO_TEST_CASE(ClockTrim) {
@@ -397,7 +414,8 @@ BOOST_AUTO_TEST_CASE(ClockTrim) {
   moteus::ClockTrim::Command cmd;
   cmd.trim = 5;
 
-  moteus::ClockTrim::Make(&write_frame, cmd, {});
+  const auto reply_size = moteus::ClockTrim::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "097105000000");
+  BOOST_TEST(reply_size == 0);
 }

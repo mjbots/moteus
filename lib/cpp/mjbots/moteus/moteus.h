@@ -96,7 +96,7 @@ class Controller {
     transport_ = options.transport;
 
     WriteCanData query_write(&query_frame_);
-    Query::Make(&query_write, options_.query_format);
+    query_reply_size_ = Query::Make(&query_write, options_.query_format);
   }
 
   Transport* transport() {
@@ -942,15 +942,17 @@ class Controller {
         options_.default_query ? kReplyRequired : kNoReply);
 
     WriteCanData write_frame(result.data, &result.size);
-    CommandType::Make(&write_frame, cmd, fmt);
+    result.expected_reply_size = CommandType::Make(&write_frame, cmd, fmt);
 
     if (query_format_override) {
-      Query::Make(&write_frame, *query_format_override);
+      result.expected_reply_size =
+          Query::Make(&write_frame, *query_format_override);
     } else if (options_.default_query) {
       std::memcpy(&result.data[result.size],
                   &query_frame_.data[0],
                   query_frame_.size);
       result.size += query_frame_.size;
+      result.expected_reply_size = query_reply_size_;
     }
 
     return result;
@@ -959,6 +961,7 @@ class Controller {
   const Options options_;
   std::shared_ptr<Transport> transport_;
   CanData query_frame_;
+  uint8_t query_reply_size_ = 0;
   CanFdFrame output_frame_;
 };
 
