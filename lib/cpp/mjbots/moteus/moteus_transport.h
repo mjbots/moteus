@@ -37,6 +37,9 @@
 #include <thread>
 #include <vector>
 
+#include "moteus_protocol.h"
+#include "moteus_tokenizer.h"
+
 namespace mjbots {
 namespace moteus {
 
