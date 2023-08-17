@@ -123,14 +123,19 @@ int main(int argc, char** argv) {
   auto next_status = GetNow() + kStatusPeriod;
   uint64_t hz_count = 0;
 
+  moteus::Query::Result primary_query;
+  moteus::Query::Result secondary_query;
+
   while (true) {
     cycles++;
     hz_count++;
 
     // First query the sensor.
     auto maybe_primary_state = primary.SetQuery();
-    if (!maybe_primary_state) { continue; }
-    const auto& ps = maybe_primary_state->values;
+    if (!!maybe_primary_state) {
+      primary_query = maybe_primary_state->values;
+    }
+    const auto& ps = primary_query;
 
     // Our command will just be to exactly match the position and
     // velocity of the sensor servo.
@@ -139,13 +144,16 @@ int main(int argc, char** argv) {
 
     // The command the driven servo.
     auto maybe_secondary_state = secondary.SetPosition(position_cmd);
-    if (!maybe_secondary_state) { continue; }
-    const auto& ss = maybe_secondary_state->values;
+    if (!!maybe_secondary_state) {
+      secondary_query = maybe_secondary_state->values;
+    }
+    const auto& ss = secondary_query;
 
     // And finally, print out status at a semi-regular interval.
     const auto now = GetNow();
     if (now > next_status) {
-      printf("%6" PRIu64 " %6.1fHz  %d/%2d/%6.3f/%6.3f  %d/%2d/%6.3f/%6.3f    \r",
+      printf("%.3f %6" PRIu64 " %6.1fHz  %d/%2d/%6.3f/%6.3f  %d/%2d/%6.3f/%6.3f    \r",
+             now,
              cycles,
              hz_count / kStatusPeriod,
 
