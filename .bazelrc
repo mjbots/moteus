@@ -1,5 +1,4 @@
 build --incompatible_enable_cc_toolchain_resolution
-build --experimental_allow_incremental_repository_updates
 
 build --features=c++20
 build --features=-c++17
