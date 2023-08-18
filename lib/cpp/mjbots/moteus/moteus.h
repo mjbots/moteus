@@ -593,25 +593,24 @@ class Controller {
   //////////////////////////////////////////////////
 
   Optional<Result> ExecuteSingleCommand(const CanFdFrame& cmd) {
-    std::vector<CanFdFrame> replies;
+    single_command_replies_.resize(0);
 
-    transport()->BlockingCycle(&cmd, 1, &replies);
+    transport()->BlockingCycle(&cmd, 1, &single_command_replies_);
 
-    return FindResult(replies);
+    return FindResult(single_command_replies_);
   }
 
   void AsyncStartSingleCommand(const CanFdFrame& cmd,
                                Result* result,
                                CompletionCallback callback) {
-    auto context = std::make_shared<std::vector<CanFdFrame>>();
     auto t = transport();
     output_frame_ = cmd;
     t->Cycle(
         &output_frame_,
         1,
-        context.get(),
-        [context, callback, result, this, t](int) {
-          auto maybe_result = this->FindResult(*context);
+        &single_command_replies_,
+        [callback, result, this, t](int) {
+          auto maybe_result = this->FindResult(single_command_replies_);
           if (maybe_result) { *result = *maybe_result; }
 
           t->Post(
@@ -963,6 +962,10 @@ class Controller {
   CanData query_frame_;
   uint8_t query_reply_size_ = 0;
   CanFdFrame output_frame_;
+
+  // This is a member variable so we can avoid re-allocating it on
+  // every call.
+  std::vector<CanFdFrame> single_command_replies_;
 };
 
 
