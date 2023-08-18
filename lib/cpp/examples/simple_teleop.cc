@@ -117,11 +117,14 @@ int main(int argc, char** argv) {
 
   moteus::PositionMode::Command position_cmd;
 
-  constexpr double kStatusPeriod = 0.05;
+  constexpr double kStatusPeriod = 0.1;
 
   uint64_t cycles = 0;
   auto next_status = GetNow() + kStatusPeriod;
   uint64_t hz_count = 0;
+
+  int rx_timeout = 0;
+  int tx_timeout = 0;
 
   moteus::Query::Result primary_query;
   moteus::Query::Result secondary_query;
@@ -130,29 +133,47 @@ int main(int argc, char** argv) {
     cycles++;
     hz_count++;
 
+    bool new_data = false;
+
     // First query the sensor.
     auto maybe_primary_state = primary.SetQuery();
     if (!!maybe_primary_state) {
       primary_query = maybe_primary_state->values;
+      new_data = true;
+    } else {
+      rx_timeout++;
     }
     const auto& ps = primary_query;
 
-    // Our command will just be to exactly match the position and
-    // velocity of the sensor servo.
-    position_cmd.position = ps.position - primary_initial + secondary_initial;
-    position_cmd.velocity = ps.velocity;
+    if (new_data) {
+      // Our command will just be to exactly match the position and
+      // velocity of the sensor servo.
+      position_cmd.position = ps.position - primary_initial + secondary_initial;
+      position_cmd.velocity = ps.velocity;
 
-    // The command the driven servo.
-    auto maybe_secondary_state = secondary.SetPosition(position_cmd);
-    if (!!maybe_secondary_state) {
-      secondary_query = maybe_secondary_state->values;
+      // The command the driven servo.
+      auto maybe_secondary_state = secondary.SetPosition(position_cmd);
+      if (!!maybe_secondary_state) {
+        secondary_query = maybe_secondary_state->values;
+      } else {
+        tx_timeout++;
+      }
+    } else {
+      auto maybe_secondary_state = secondary.SetQuery();
+      if (!!maybe_secondary_state) {
+        secondary_query = maybe_secondary_state->values;
+      } else {
+        tx_timeout++;
+      }
     }
     const auto& ss = secondary_query;
+
+    // ::usleep(1000);
 
     // And finally, print out status at a semi-regular interval.
     const auto now = GetNow();
     if (now > next_status) {
-      printf("%.3f %6" PRIu64 " %6.1fHz  %d/%2d/%6.3f/%6.3f  %d/%2d/%6.3f/%6.3f    \r",
+      printf("%.3f %6" PRIu64 " %6.1fHz  %d/%2d/%6.3f/%6.3f/%3d  %d/%2d/%6.3f/%6.3f/%3d    \r",
              now,
              cycles,
              hz_count / kStatusPeriod,
@@ -161,11 +182,13 @@ int main(int argc, char** argv) {
              static_cast<int>(ps.mode),
              ps.position,
              ps.velocity,
+             rx_timeout,
 
              secondary_id,
              static_cast<int>(ss.mode),
              ss.position,
-             ss.velocity);
+             ss.velocity,
+             tx_timeout);
       fflush(stdout);
 
       hz_count = 0;
