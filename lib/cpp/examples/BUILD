@@ -16,40 +16,22 @@
 
 package(default_visibility = ["//visibility:public"])
 
-cc_binary(
-    name = "simple",
-    srcs = ["simple.cc",],
-    deps = ["//lib/cpp/mjbots/moteus:moteus",],
-    copts = ["-Ilib/cpp/mjbots/moteus",],
-)
+EXAMPLES = [
+    "simple",
+    "diagnostic_protocol",
+    "multiple_cycle",
+    "simple_teleop",
+    "nlateral_teleop",
+    "timeout_debug",
+]
 
-cc_binary(
-    name = "diagnostic_protocol",
-    srcs = ["diagnostic_protocol.cc",],
+[cc_binary(
+    name = x,
+    srcs = [x + ".cc"],
     deps = ["//lib/cpp/mjbots/moteus:moteus",],
     copts = ["-Ilib/cpp/mjbots/moteus",],
 )
-
-cc_binary(
-    name = "multiple_cycle",
-    srcs = ["multiple_cycle.cc",],
-    deps = ["//lib/cpp/mjbots/moteus:moteus",],
-    copts = ["-Ilib/cpp/mjbots/moteus",],
-)
-
-cc_binary(
-    name = "simple_teleop",
-    srcs = ["simple_teleop.cc",],
-    deps = ["//lib/cpp/mjbots/moteus:moteus",],
-    copts = ["-Ilib/cpp/mjbots/moteus",],
-)
-
-cc_binary(
-    name = "nlateral_teleop",
-    srcs = ["nlateral_teleop.cc",],
-    deps = ["//lib/cpp/mjbots/moteus:moteus",],
-    copts = ["-Ilib/cpp/mjbots/moteus",],
-)
+ for x in EXAMPLES]
 
 test_suite(
     name = "test",
@@ -60,12 +42,6 @@ test_suite(
 
 sh_test(
     name = "data_indirect",
-    data = [
-        ":diagnostic_protocol",
-        ":multiple_cycle",
-        ":simple",
-        ":simple_teleop",
-        ":nlateral_teleop",
-    ],
+    data = [ ":" + x for x in EXAMPLES ],
     srcs = ["dummy.sh"],
 )
