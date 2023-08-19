@@ -249,28 +249,24 @@ class Teleop {
       }
     }
 
-    next_cycle_ = std::chrono::steady_clock::now() + period_;
-    next_status_ = next_cycle_;
+    next_status_ = std::chrono::steady_clock::now();
 
     while (true) {
       cycle_count_++;
-      margin_cycles_++;
+      hz_count_++;
 
       const bool is_fault = ExecuteControl();
       if (is_fault) { break; }
 
       const auto now = std::chrono::steady_clock::now();
-      SleepCycle(now);
       MaybePrintStatus(now);
     }
 
     while (true) {
       cycle_count_++;
-      margin_cycles_++;
 
       CommandAll([](moteus::Controller* c) { return c->MakeBrake(); });
       const auto now = std::chrono::steady_clock::now();
-      SleepCycle(now);
       MaybePrintStatus(now);
     }
   }
@@ -281,8 +277,6 @@ class Teleop {
     PrintStatus();
 
     next_status_ += status_period_;
-    total_margin_ = 0;
-    margin_cycles_ = 0;
   }
 
   bool ExecuteControl() {
@@ -306,6 +300,7 @@ class Teleop {
       const auto position_error = pos - average_position;
       if (std::abs(position_error) > kFaultPosition) {
         // Count this as a fault too.
+        std::cout << "\n\nposition fault\n\n";
         return true;
       }
       const auto p = -args_.kp * position_error * servo.position_scale;
@@ -313,6 +308,7 @@ class Teleop {
       const auto velocity_error = servo.query.velocity - average_velocity;
       if (std::abs(velocity_error) > kFaultVelocity) {
         // We will count this as a fault.
+        std::cout << "\n\nvelocity fault\n\n";
         return true;
       }
       const auto d = -args_.kd * velocity_error * servo.position_scale;
@@ -347,31 +343,23 @@ class Teleop {
 
     for (const auto& servo : servos_) {
       if (servo.query.mode == moteus::Mode::kFault) {
+        std::cout << "\n\nservo fault\n\n";
         return true;
       }
     }
 
+    // If we are running on an isolcpus cpu in linux, we have to sleep
+    // every now and then or linux imposes a big delay on us. This
+    // would typically manifest as a every 1s blip.
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
+
     return false;
   }
 
-  void SleepCycle(const TimePoint& now) {
-    if (now > next_cycle_) {
-      skip_count_++;
-      next_cycle_ += period_;
-      std::cout << "\nSkipped " << skip_count_ << " cycles\n";
-      return;
-    }
-
-    const auto pre_sleep = std::chrono::steady_clock::now();
-    std::this_thread::sleep_until(next_cycle_);
-    const auto post_sleep = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed = post_sleep - pre_sleep;
-    total_margin_ += elapsed.count();
-
-    next_cycle_ += period_;
-  }
-
   void PrintStatus() {
+    const double update_hz = hz_count_ / kStatusPeriod;
+    hz_count_ = 0;
+
     std::map<int, moteus::Query::Result> results;
     for (auto& servo : servos_) {
       results[servo.id << 8 | servo.bus] = servo.query;
@@ -389,8 +377,8 @@ class Teleop {
     }
 
     Printer p(buf, sizeof(buf));
-    p("Cycles %6d  margin: %6.4f  ",
-      cycle_count_, total_margin_ / margin_cycles_);
+    p("Cycles %6d %5.0f Hz ",
+      cycle_count_, update_hz);
     std::cout << buf;
     std::cout << modes;
     std::cout << "\r";
@@ -425,18 +413,14 @@ class Teleop {
   std::vector<CanFdFrame> send_commands_;
   std::vector<CanFdFrame> receive_commands_;
 
-  Duration period_{
-    std::chrono::microseconds(static_cast<int64_t>(args_.period_s * 1e6))};
-  Duration status_period_{std::chrono::milliseconds(100)};
+  const double kStatusPeriod = 0.1;
+  Duration status_period_{std::chrono::milliseconds(
+        static_cast<int>(kStatusPeriod * 1000))};
 
-  TimePoint next_cycle_;
   TimePoint next_status_;
 
   uint64_t cycle_count_ = 0;
-  uint64_t margin_cycles_ = 0;
-
-  double total_margin_ = 0.0;
-  uint64_t skip_count_ = 0;
+  uint64_t hz_count_ = 0;
 };
 
 }
