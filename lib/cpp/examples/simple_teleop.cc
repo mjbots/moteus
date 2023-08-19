@@ -168,7 +168,10 @@ int main(int argc, char** argv) {
     }
     const auto& ss = secondary_query;
 
-    // ::usleep(1000);
+    // If we are running on an isolcpus cpu in linux, we have to sleep
+    // every now and then or linux imposes a big delay on us.  This
+    // would typically manifest as a every 1s blip.
+    ::usleep(10);
 
     // And finally, print out status at a semi-regular interval.
     const auto now = GetNow();
