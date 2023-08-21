@@ -102,6 +102,9 @@ struct Servo {
   std::optional<moteus::Controller> controller;
   double initial_position = std::numeric_limits<double>::quiet_NaN();
   moteus::Query::Result query;
+  int skipped = 0;
+
+  bool seen_this_cycle = false;
 
   static Servo Parse(const std::string& message) {
     auto fields = Split(message);
@@ -334,14 +337,18 @@ class Teleop {
         send_commands_.size(),
         &receive_commands_);
 
+    for (auto& servo : servos_) { servo.seen_this_cycle = false; }
+
     // File away our responses.
     for (const auto& result : receive_commands_) {
       auto* const servo = FindServo(result);
       if (!servo) { continue; }
+      servo->seen_this_cycle = true;
       servo->query = moteus::Query::Parse(result.data, result.size);
     }
 
-    for (const auto& servo : servos_) {
+    for (auto& servo : servos_) {
+      if (!servo.seen_this_cycle) { servo.skipped++; }
       if (servo.query.mode == moteus::Mode::kFault) {
         std::cout << "\n\nservo fault\n\n";
         return true;
@@ -360,9 +367,9 @@ class Teleop {
     const double update_hz = hz_count_ / kStatusPeriod;
     hz_count_ = 0;
 
-    std::map<int, moteus::Query::Result> results;
+    std::map<int, Servo*> results;
     for (auto& servo : servos_) {
-      results[servo.id << 8 | servo.bus] = servo.query;
+      results[servo.id << 8 | servo.bus] = &servo;
     }
     std::string modes;
     char buf[4096] = {};
@@ -370,9 +377,10 @@ class Teleop {
       Printer p(buf, sizeof(buf));
       const auto id = result_pair.first >> 8;
       const auto bus = result_pair.first & 0xff;
-      const auto& q = result_pair.second;
-      p("%d/%d/%2d/%7.4f/%6.3f , ",
-        id, bus, static_cast<int>(q.mode), q.position, q.torque);
+      const auto& q = result_pair.second->query;
+      p("%d/%d/%2d/%7.4f/%6.3f/%d , ",
+        id, bus, static_cast<int>(q.mode), q.position, q.torque,
+        result_pair.second->skipped);
       modes += buf;
     }
 
