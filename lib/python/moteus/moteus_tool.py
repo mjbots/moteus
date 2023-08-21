@@ -1203,7 +1203,8 @@ class Stream:
             await self.command(f"conf set servo.encoder_filter.kp {kp}")
             await self.command(f"conf set servo.encoder_filter.ki {ki}")
         elif motor_position_style:
-            await self.command(f"conf set motor_position.sources.0.pll_filter_hz {encoder_bw_hz}")
+            commutation_source = await self.read_config_int("motor_position.commutation_source")
+            await self.command(f"conf set motor_position.sources.{commutation_source}.pll_filter_hz {encoder_bw_hz}")
         else:
             assert False
         return kp, ki, encoder_bw_hz
