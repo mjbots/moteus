@@ -20,6 +20,7 @@
 #include <cmath>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <vector>
 
 #include "moteus.h"
