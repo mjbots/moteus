@@ -19,6 +19,7 @@ class Command():
     reply_required = False
     data = b''
     can_prefix = 0x0000  # a 13 bit CAN prefix
+    expected_reply_size = 0
 
     # If True, then the following parameters are used directly instead
     # of being calculated from destination and source (i.e. for

@@ -35,6 +35,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(result.destination, 1)
         self.assertEqual(result.source, 0)
         self.assertEqual(result.reply_required, False)
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_position(self):
         dut = mot.Controller()
@@ -56,6 +57,7 @@ class MoteusTest(unittest.TestCase):
             0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
         ]))
+        self.assertEqual(result.expected_reply_size, 0)
 
         result = dut.make_position(
             position=math.nan, velocity=1, maximum_torque=0.0, stop_position=0.15)
@@ -68,6 +70,7 @@ class MoteusTest(unittest.TestCase):
             0x00, 0x00, 0x00, 0x00,
             0x9a, 0x99, 0x19, 0x3e,
         ]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_position_query(self):
         dut = mot.Controller()
@@ -79,6 +82,7 @@ class MoteusTest(unittest.TestCase):
                    0x1f, 0x01,
                    0x13, 0x0d]))
         self.assertEqual(result.reply_required, True)
+        self.assertEqual(result.expected_reply_size, 22)
 
         parsed = result.parse(CanMessage())
         self.assertEqual(parsed.id, 1)
@@ -128,6 +132,7 @@ class MoteusTest(unittest.TestCase):
                    0x13, 0x0d,
                    0x1c, 0x04, 0x30]))
         self.assertEqual(result.reply_required, True)
+        self.assertEqual(result.expected_reply_size, 41)
 
     def test_make_query2(self):
         qr = mot.QueryResolution()
@@ -144,6 +149,7 @@ class MoteusTest(unittest.TestCase):
                    0x1e, 0x0d,
                    0x11, 0x0f]))
         self.assertEqual(result.reply_required, True)
+        self.assertEqual(result.expected_reply_size, 30)
 
     def test_make_diagnostic_read(self):
         dut = mot.Controller()
@@ -152,6 +158,7 @@ class MoteusTest(unittest.TestCase):
             result.data,
             bytes([0x42, 0x01, 0x30]))
         self.assertEqual(result.reply_required, True)
+        self.assertEqual(result.expected_reply_size, 51)
 
         parsed = result.parse(CanMessage())
         self.assertEqual(parsed.id, 1)
@@ -175,6 +182,7 @@ class MoteusTest(unittest.TestCase):
                    0x0d, 0x1e,
                    0x00, 0x00, 0x00, 0x40,
             ]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_current(self):
         dut = mot.Controller()
@@ -186,6 +194,7 @@ class MoteusTest(unittest.TestCase):
                    0x00, 0x00, 0x00, 0x40,
                    0x00, 0x00, 0x80, 0x3f,
             ]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_brake(self):
         dut = mot.Controller()
@@ -193,6 +202,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x01, 0x00, 0x0f]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_set_output_nearest(self):
         dut = mot.Controller()
@@ -200,6 +210,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x0d, 0xb0, 0x02, 0x00, 0x00, 0x00, 0x40]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_set_output_exact(self):
         dut = mot.Controller()
@@ -207,6 +218,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x0d, 0xb1, 0x02, 0x00, 0x00, 0x00, 0x40]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_rezero(self):
         dut = mot.Controller()
@@ -214,6 +226,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x0d, 0xb0, 0x02, 0x00, 0x00, 0x00, 0x40]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_require_reindex(self):
         dut = mot.Controller()
@@ -221,6 +234,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x01, 0xb2, 0x02, 0x01]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_write_gpio(self):
         dut = mot.Controller()
@@ -228,6 +242,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x02, 0x5c, 0x03, 0x05]))
+        self.assertEqual(result.expected_reply_size, 0)
 
     def test_make_read_gpio(self):
         dut = mot.Controller()
@@ -235,6 +250,7 @@ class MoteusTest(unittest.TestCase):
         self.assertEqual(
             result.data,
             bytes([0x12, 0x5e]))
+        self.assertEqual(result.expected_reply_size, 22)
 
     def test_query_extra_disjoint(self):
         qr = mot.QueryResolution()
@@ -257,6 +273,7 @@ class MoteusTest(unittest.TestCase):
                 0x13, 0x0d,
                 0x1e, 0x30,
                 0x1c, 0x04, 0x33, ]))
+        self.assertEqual(result.expected_reply_size, 51)
 
 
 if __name__ == '__main__':

@@ -606,7 +606,7 @@ class Controller:
         self._can_prefix = can_prefix
 
         # Pre-compute our query string.
-        self._query_data = self._make_query_data()
+        self._query_data, self._default_query_reply_size = self._make_query_data()
 
     def _get_transport(self):
         if self.transport:
@@ -618,6 +618,8 @@ class Controller:
         return self.transport
 
     def _make_query_data(self):
+        expected_reply_size = 0
+
         buf = io.BytesIO()
         writer = Writer(buf)
         qr = self.query_resolution
@@ -633,6 +635,8 @@ class Controller:
         for i in range(c1.size()):
             c1.maybe_write()
 
+        expected_reply_size += c1.reply_size
+
         c2 = mp.WriteCombiner(writer, 0x10, int(Register.MOTOR_TEMPERATURE), [
             qr.motor_temperature,
             qr.trajectory_complete,
@@ -644,12 +648,16 @@ class Controller:
         for i in range(c2.size()):
             c2.maybe_write()
 
+        expected_reply_size += c2.reply_size
+
         c3 = mp.WriteCombiner(writer, 0x10, int(Register.AUX1_GPIO_STATUS), [
             qr.aux1_gpio,
             qr.aux2_gpio,
         ])
         for i in range(c3.size()):
             c3.maybe_write()
+
+        expected_reply_size += c3.reply_size
 
         if len(qr._extra):
             min_val = int(min(qr._extra.keys()))
@@ -660,8 +668,9 @@ class Controller:
                  for i in range(min_val, max_val +1)])
             for _ in range(c4.size()):
                 c4.maybe_write()
+            expected_reply_size += c4.reply_size
 
-        return buf.getvalue()
+        return buf.getvalue(), expected_reply_size
 
     def _make_command(self, *, query, source=0):
         result = cmd.Command()
@@ -671,6 +680,7 @@ class Controller:
         result.reply_required = query
         result.parse = self._parser
         result.can_prefix = self._can_prefix
+        result.expected_reply_size = self._default_query_reply_size if query else 0
 
         return result
 
@@ -702,6 +712,7 @@ class Controller:
             c.maybe_write()
 
         result.data = buf.getvalue()
+        result.expected_reply_size = c.reply_size
         return result
 
     async def custom_query(self, *args, **kwargs):
@@ -1157,6 +1168,7 @@ class Controller:
         result.parse = make_diagnostic_parser(self.id, channel)
 
         result.data = data_buf.getvalue()
+        result.expected_reply_size = 3 + max_length
         return result
 
     async def diagnostic_read(self, *args, **kwargs):

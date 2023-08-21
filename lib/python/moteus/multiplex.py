@@ -244,21 +244,30 @@ class WriteFrame:
 
     def __init__(self, buf):
         self._buf = buf
+        self._size = 0
+
+    def size(self):
+        return self._size
 
     def write(self, value, resolution):
         self._buf.write(TYPES[resolution].pack(value))
+        self._size += TYPES[resolution].size
 
     def write_int8(self, value):
         self._buf.write(TYPES[INT8].pack(value))
+        self._size += 1
 
     def write_int16(self, value):
         self._buf.write(TYPES[INT16].pack(value))
+        self._size += 2
 
     def write_int32(self, value):
         self._buf.write(TYPES[INT32].pack(value))
+        self._size += 4
 
     def write_f32(self, value):
         self._buf.write(TYPES[F32].pack(value))
+        self._size += 4
 
     def write_varuint(self, value):
         while True:
@@ -266,6 +275,7 @@ class WriteFrame:
             value >>= 7
             this_byte |= 0x80 if value else 0x00
             self._buf.write(bytes([this_byte]))
+            self._size += 1
 
             if value == 0:
                 break
@@ -286,6 +296,7 @@ class WriteCombiner:
         self.base_command = base_command
         self.start_register = start_register
         self.resolutions = resolutions
+        self.reply_size = 0
         self._offset = 0
         self._current_resolution = -1
 
@@ -320,6 +331,8 @@ class WriteCombiner:
 
         write_command = [0x00, 0x04, 0x08, 0x0c][new_resolution] | self.base_command
 
+        start_size = self.writer.size()
+
         if count <= 3:
             # Use the shorthand formulation.
             self.writer.write_int8(write_command + count)
@@ -329,4 +342,10 @@ class WriteCombiner:
             self.writer.write_int8(count)
 
         self.writer.write_varuint(self.start_register + this_offset)
+
+        end_size = self.writer.size()
+
+        self.reply_size += end_size - start_size
+        self.reply_size += count * resolution_size(new_resolution)
+
         return True
