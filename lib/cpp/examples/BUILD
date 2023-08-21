@@ -45,3 +45,8 @@ sh_test(
     data = [ ":" + x for x in EXAMPLES ],
     srcs = ["dummy.sh"],
 )
+
+filegroup(
+    name = "src",
+    srcs = [ x + ".cc" for x in EXAMPLES ],
+)

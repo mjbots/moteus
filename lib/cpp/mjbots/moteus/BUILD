@@ -16,9 +16,9 @@
 
 package(default_visibility = ["//visibility:public"])
 
-cc_library(
-    name = "moteus",
-    hdrs = [
+filegroup(
+    name = "src",
+    srcs = [
         "moteus_multiplex.h",
         "moteus_optional.h",
         "moteus_protocol.h",
@@ -26,6 +26,11 @@ cc_library(
         "moteus_transport.h",
         "moteus.h",
     ],
+)
+
+cc_library(
+    name = "moteus",
+    hdrs = [":src"],
 )
 
 cc_test(
