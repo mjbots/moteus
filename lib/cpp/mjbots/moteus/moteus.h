@@ -531,6 +531,9 @@ class Controller {
     context->transport->Cycle(
         &output_frame_, 1, &context->replies,
         [context, this](int) {
+          std::string response;
+          bool any_response = false;
+
           for (const auto& frame : context->replies) {
             if (frame.destination != options_.source ||
                 frame.source != options_.id ||
@@ -538,8 +541,13 @@ class Controller {
               continue;
             }
             auto maybe_data = DiagnosticResponse::Parse(frame.data, frame.size);
-            *context->response = std::string(
+            response += std::string(
                 reinterpret_cast<const char*>(maybe_data.data), maybe_data.size);
+            any_response = true;
+          }
+
+          if (any_response) {
+            *context->response = response;
             context->transport->Post(std::bind(context->callback, 0));
             return;
           }
