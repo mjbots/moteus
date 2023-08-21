@@ -43,7 +43,7 @@ void DisplayUsage() {
   std::cout << "  -s, --servo ID[,BUS]   servo to communicate with\n";
 
   auto pad = [](const std::string str, int size) {
-    if (str.size() < size) {
+    if (static_cast<int>(str.size()) < size) {
       return str + std::string(size - str.size(), ' ');
     }
     return str;
@@ -108,9 +108,9 @@ IdBus ParseIdBus(const std::string& str) {
   return {id, bus};
 }
 
-template <typename T>
+template <typename T, typename GetFlag>
 std::optional<T> ParseFormat(const std::string& str,
-                             auto get_flag) {
+                             GetFlag get_flag) {
   if (str.empty()) { return {}; }
 
   T result;

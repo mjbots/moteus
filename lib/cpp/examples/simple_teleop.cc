@@ -46,7 +46,7 @@ void DisplayUsage() {
   std::cout << "  --secondary-bus BUS   bus for secondary servo [default: 1]\n";
 
   auto pad = [](const std::string str, int size) {
-    if (str.size() < size) {
+    if (static_cast<int>(str.size()) < size) {
       return str + std::string(size - str.size(), ' ');
     }
     return str;
