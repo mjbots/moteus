@@ -818,7 +818,8 @@ class Stream:
             await self.check_for_fault()
 
         enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(
-            torque_bw_hz, control_rate_hz=control_rate_hz)
+            torque_bw_hz, inductance,
+            control_rate_hz=control_rate_hz)
         await self.check_for_fault()
 
         v_per_hz = await self.calibrate_kv_rating(
@@ -1163,7 +1164,7 @@ class Stream:
         print(f"Calculated inductance: {inductance}H")
         return inductance
 
-    async def set_encoder_filter(self, torque_bw_hz, control_rate_hz = None):
+    async def set_encoder_filter(self, torque_bw_hz, inductance, control_rate_hz = None):
         # Check to see if our firmware supports encoder filtering.
         motor_position_style = await self.is_config_supported("motor_position.sources.0.pll_filter_hz")
         servo_style = await self.is_config_supported("servo.encoder_filter.enabled")
@@ -1173,18 +1174,17 @@ class Stream:
         if self.args.encoder_bw_hz:
             desired_encoder_bw_hz = self.args.encoder_bw_hz
         else:
-            if self.args.cal_hall:
-                # Hall effect configurations require a low encoder BW
-                # if the hall effects are also used for position and
-                # velocity control.  Since that is one of the most
-                # common ways of using hall effects, we by default cap
-                # the bw at 20Hz and use a lower one if the torque bw
-                # would otherwise have been lower.
-                desired_encoder_bw_hz = min(20, 2 * torque_bw_hz)
-            else:
-                # We default to an encoder bandwidth of 50Hz, or 2x the
-                # torque bw, whichever is larger.
-                desired_encoder_bw_hz = max(50, 2 * torque_bw_hz)
+            # Don't let the encoder bandwidth be less than 10Hz by default.
+            desired_encoder_bw_hz = max(10, 2 * torque_bw_hz)
+
+            # However, we limit the maximum encoder bandwidth for high
+            # inductance motors, because they shouldn't be able to
+            # accelerate that fast anyways.
+            if inductance:
+                # This is just a random constant that seems to work
+                # well in practice.
+                desired_encoder_bw_hz = min(
+                    desired_encoder_bw_hz, 2e-2 / inductance)
 
         # And our bandwidth with the filter can be no larger than
         # 1/10th the control rate.
