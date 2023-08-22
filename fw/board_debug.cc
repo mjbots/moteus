@@ -444,6 +444,10 @@ class BoardDebug::Impl {
       // Do we at least have a rotor level home on our commutation
       // source?
       const auto& motor_position = bldc_->motor_position();
+      if (motor_position.error != MotorPosition::Status::kNone) {
+        WriteMessage(response, "ERR encoder configuration error\r\n");
+        return;
+      }
       if (!motor_position.theta_valid) {
         WriteMessage(response, "ERR no theta available\r\n");
         return;
