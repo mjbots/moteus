@@ -116,7 +116,7 @@ class Fdcanusb : public Transport {
     uint32_t min_ok_wait_ns = 1000000;
     uint32_t min_rcv_wait_ns = 2000000;
 
-    uint32_t rx_extra_wait_ns = 250000;
+    uint32_t rx_extra_wait_ns = 1000000;
 
     Options() {}
   };
