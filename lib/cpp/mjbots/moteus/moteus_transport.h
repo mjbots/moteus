@@ -211,6 +211,13 @@ class Fdcanusb : public Transport {
     return "";
   }
 
+  static int64_t GetNow() {
+    struct timespec ts = {};
+    ::clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+    return static_cast<int64_t>(ts.tv_sec) * 1000000000ll +
+      static_cast<int64_t>(ts.tv_nsec);
+  }
+
  private:
   void Open(const std::string& device_in) {
     std::string device = device_in;
@@ -495,13 +502,6 @@ class Fdcanusb : public Transport {
         n += ret;
       }
     }
-  }
-
-  static int64_t GetNow() {
-    struct timespec ts = {};
-    ::clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    return static_cast<int64_t>(ts.tv_sec) * 1000000000ll +
-      static_cast<int64_t>(ts.tv_nsec);
   }
 
   static int ParseHexNybble(char c) {

@@ -483,7 +483,7 @@ class Controller {
     context->Start();
   }
 
-  void DiagnosticWrite(const std::string& message, int channel) {
+  void DiagnosticWrite(const std::string& message, int channel = 1) {
     BlockingCallback cbk;
     AsyncDiagnosticWrite(message, channel, cbk.callback());
     cbk.Wait();
@@ -561,11 +561,25 @@ class Controller {
         });
   }
 
-  void DiagnosticFlush(int channel = 1) {
-    // Read until nothing is left.
+  void DiagnosticFlush(int channel = 1, double timeout_s = 0.2) {
+    // Read until nothing is left or the timeout hits.
+    const auto timeout = timeout_s * 1000000000ll;
+    const auto start = Fdcanusb::GetNow();
+    auto end_time = start + timeout;
+
     while (true) {
       const auto response = DiagnosticRead(channel);
-      if (response.empty()) { return; }
+      const auto now = Fdcanusb::GetNow();
+      if (!response.empty()) {
+        // Every time we get something, bump out timeout further into
+        // the future.
+        end_time = now + timeout;
+        continue;
+      }
+      if (now > end_time) {
+        break;
+      }
+      ::usleep(options_.diagnostic_retry_sleep_ns / 1000);
     }
   }
 

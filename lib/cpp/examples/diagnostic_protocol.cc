@@ -35,7 +35,7 @@ int main(int argc, char** argv) {
   // that, a client needs to issue a "tel stop" command, and then
   // flush all data that is present.  After that point, normal
   // commands can be issued.
-  controller.DiagnosticCommand("tel stop");
+  controller.DiagnosticWrite("tel stop\n");
   controller.DiagnosticFlush();
 
 
