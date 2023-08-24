@@ -142,6 +142,10 @@ class Controller {
                      &options_.query_format : format_override);
   }
 
+  // This is prefixed "Set" despite the fact that it sets nothing
+  // because (a) it is consistent with the other methods with
+  // "Make/Set/Async" prefixes, and (b) it would otherwise shadow the
+  // mjbots::moteus::Query structure.
   Optional<Result> SetQuery(const Query::Format* format_override = nullptr) {
     return ExecuteSingleCommand(MakeQuery(format_override));
   }
