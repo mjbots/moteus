@@ -22,6 +22,7 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -237,6 +238,17 @@ class Fdcanusb : public Transport {
       FailIfErrno(::ioctl(fd, TIOCGSERIAL, &serial) < 0);
       serial.flags |= ASYNC_LOW_LATENCY;
       FailIfErrno(::ioctl(fd, TIOCSSERIAL, &serial) < 0);
+
+      struct termios toptions;
+      FailIfErrno(::tcgetattr(fd, &toptions) < 0);
+
+      // Turn off things that could munge our byte stream to the
+      // device.
+      toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+      toptions.c_oflag &= ~OPOST;
+
+      FailIfErrno(::tcsetattr(fd, TCSANOW, &toptions) < 0);
+      FailIfErrno(::tcsetattr(fd, TCSAFLUSH, &toptions) < 0);
     }
 #else  // _WIN32
     {
