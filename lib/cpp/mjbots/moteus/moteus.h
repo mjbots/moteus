@@ -99,6 +99,8 @@ class Controller {
     query_reply_size_ = Query::Make(&query_write, options_.query_format);
   }
 
+  const Options& options() const { return options_; }
+
   Transport* transport() {
     if (!transport_) {
       transport_ = MakeSingletonTransport({});
