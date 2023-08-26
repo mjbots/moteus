@@ -488,8 +488,13 @@ class Fdcanusb : public Transport {
     Printer p(buf, sizeof(buf));
 
     p("can send %04x ", frame.arbitration_id);
+
+    const auto dlc = RoundUpDlc(frame.size);
     for (size_t i = 0; i < frame.size; i++) {
       p("%02x", static_cast<int>(frame.data[i]));
+    }
+    for (size_t i = frame.size; i < dlc; i++) {
+      p("50");
     }
 
     if (options_.disable_brs || frame.brs == CanFdFrame::kForceOff) {
@@ -514,6 +519,26 @@ class Fdcanusb : public Transport {
         n += ret;
       }
     }
+  }
+
+  static size_t RoundUpDlc(size_t size) {
+    if (size <= 0) { return 0; }
+    if (size <= 1) { return 1; }
+    if (size <= 2) { return 2; }
+    if (size <= 3) { return 3; }
+    if (size <= 4) { return 4; }
+    if (size <= 5) { return 5; }
+    if (size <= 6) { return 6; }
+    if (size <= 7) { return 7; }
+    if (size <= 8) { return 8; }
+    if (size <= 12) { return 12; }
+    if (size <= 16) { return 16; }
+    if (size <= 20) { return 20; }
+    if (size <= 24) { return 24; }
+    if (size <= 32) { return 32; }
+    if (size <= 48) { return 48; }
+    if (size <= 64) { return 64; }
+    return size;
   }
 
   static int ParseHexNybble(char c) {
