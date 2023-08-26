@@ -119,6 +119,10 @@ class Fdcanusb : public Transport {
 
     uint32_t rx_extra_wait_ns = 1000000;
 
+    // Send at most this many frames before waiting for responses.  -1
+    // means no limit.
+    int max_pipeline = -1;
+
     Options() {}
   };
 
@@ -298,17 +302,25 @@ class Fdcanusb : public Transport {
     if (replies) { replies->clear(); }
     CHILD_CheckReplies(replies, kNoWait, 0, 0);
 
-    int expected_reply_count = 0;
+    const auto advance = options_.max_pipeline < 0 ?
+        size : options_.max_pipeline;
 
-    for (size_t i = 0; i < size; i++) {
-      CHILD_SendCanFdFrame(frames[i]);
-      if (frames[i].reply_required) { expected_reply_count++; }
+    for (size_t start = 0; start < size; start += advance) {
+      int expected_ok_count = 0;
+      int expected_reply_count = 0;
+
+      for (size_t i = start; i < (start + advance) && i < size; i++) {
+        expected_ok_count++;
+        CHILD_SendCanFdFrame(frames[i]);
+        if (frames[i].reply_required) { expected_reply_count++; }
+      }
+
+      CHILD_CheckReplies(replies,
+                         kWait,
+                         expected_ok_count,
+                         expected_reply_count);
     }
 
-    CHILD_CheckReplies(replies,
-                       kWait,
-                       size,
-                       expected_reply_count);
     Post(std::bind(completed_callback, 0));
   }
 
@@ -326,7 +338,8 @@ class Fdcanusb : public Transport {
         start +
         (read_delay == kWait ?
          std::max(expected_ok_count != 0 ? options_.min_ok_wait_ns : 0,
-                  expected_rcv_count != 0 ? options_.min_rcv_wait_ns : 0) : 0);
+                  expected_rcv_count != 0 ? options_.min_rcv_wait_ns : 0) :
+         0);
 
     struct pollfd fds[1] = {};
     fds[0].fd = read_fd_;
