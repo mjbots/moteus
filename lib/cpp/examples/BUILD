@@ -23,6 +23,7 @@ EXAMPLES = [
     "simple_teleop",
     "nlateral_teleop",
     "timeout_debug",
+    "bandwidth_test",
 ]
 
 [cc_binary(
