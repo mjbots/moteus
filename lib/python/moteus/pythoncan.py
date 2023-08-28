@@ -87,10 +87,13 @@ class PythonCan:
         arbitration_id = (command.destination |
                           (0x8000 if reply_required else 0) |
                           (command.can_prefix << 16))
+        on_wire_size = self._round_up_dlc(len(command.data))
+        full_message = (command.data +
+                        bytes([0x50]) * (on_wire_size - len(command.data)))
         message = can.Message(arbitration_id=arbitration_id,
                               is_extended_id=(arbitration_id >= 0x7ff),
-                              dlc=len(command.data),
-                              data=bytearray(command.data),
+                              dlc=on_wire_size,
+                              data=full_message,
                               is_fd=True,
                               bitrate_switch=not self._disable_brs)
 
@@ -99,3 +102,22 @@ class PythonCan:
     async def read(self):
         self._maybe_setup()
         return await self._reader.get_message()
+
+    def _round_up_dlc(self, size):
+        if size <= 8:
+            return size
+        if size <= 12:
+            return 12
+        if size <= 16:
+            return 16
+        if size <= 20:
+            return 20
+        if size <= 24:
+            return 24
+        if size <= 32:
+            return 32
+        if size <= 48:
+            return 48
+        if size <= 64:
+            return 64
+        return size

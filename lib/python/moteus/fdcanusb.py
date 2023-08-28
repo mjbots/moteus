@@ -173,8 +173,11 @@ class Fdcanusb:
             bus_id = (command.destination |
                       (0x8000 if command.reply_required else 0) |
                       (command.can_prefix << 16))
+        hexdata = _hexify(command.data)
+        on_wire_size = self._round_up_dlc(len(command.data))
+        hexdata += '50' * (on_wire_size - len(command.data))
         cmd = "can send {:04x} {}{}\n".format(
-            bus_id, _hexify(command.data), self._send_flags).encode('latin1')
+            bus_id, hexdata, self._send_flags).encode('latin1')
         self._serial.write(cmd)
         if self._debug_log:
             self._debug_log.write(f'{time.time()} > '.encode('latin1') +
@@ -197,3 +200,22 @@ class Fdcanusb:
             message.data = _dehexify(fields[2])
             message.arbitration_id = int(fields[1], 16)
             return message
+
+    def _round_up_dlc(self, size):
+        if size <= 8:
+            return size
+        if size <= 12:
+            return 12
+        if size <= 16:
+            return 16
+        if size <= 20:
+            return 20
+        if size <= 24:
+            return 24
+        if size <= 32:
+            return 32
+        if size <= 48:
+            return 48
+        if size <= 64:
+            return 64
+        return size

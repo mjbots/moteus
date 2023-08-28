@@ -535,15 +535,7 @@ class Fdcanusb : public Transport {
   }
 
   static size_t RoundUpDlc(size_t size) {
-    if (size <= 0) { return 0; }
-    if (size <= 1) { return 1; }
-    if (size <= 2) { return 2; }
-    if (size <= 3) { return 3; }
-    if (size <= 4) { return 4; }
-    if (size <= 5) { return 5; }
-    if (size <= 6) { return 6; }
-    if (size <= 7) { return 7; }
-    if (size <= 8) { return 8; }
+    if (size <= 8) { return size; }
     if (size <= 12) { return 12; }
     if (size <= 16) { return 16; }
     if (size <= 20) { return 20; }
