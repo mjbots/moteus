@@ -278,7 +278,7 @@ BOOST_AUTO_TEST_CASE(FdcanusbInputVariants) {
     BOOST_TEST(!result_errno);
 
     pipe.Write("OK\n" + rcv_message);
-    ::usleep(100000);
+    ::usleep(500000);
 
     BOOST_TEST(!!result_errno);
     BOOST_TEST(*result_errno == 0);

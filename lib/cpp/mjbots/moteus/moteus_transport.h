@@ -115,9 +115,9 @@ class Fdcanusb : public Transport {
     bool disable_brs = false;
 
     uint32_t min_ok_wait_ns = 1000000;
-    uint32_t min_rcv_wait_ns = 2000000;
+    uint32_t min_rcv_wait_ns = 5000000;
 
-    uint32_t rx_extra_wait_ns = 1000000;
+    uint32_t rx_extra_wait_ns = 5000000;
 
     // Send at most this many frames before waiting for responses.  -1
     // means no limit.
@@ -300,53 +300,67 @@ class Fdcanusb : public Transport {
                    std::vector<CanFdFrame>* replies,
                    CompletionCallback completed_callback) {
     if (replies) { replies->clear(); }
-    CHILD_CheckReplies(replies, kNoWait, 0, 0);
+    CHILD_CheckReplies(replies, kFlush, 0, nullptr);
 
     const auto advance = options_.max_pipeline < 0 ?
         size : options_.max_pipeline;
 
     for (size_t start = 0; start < size; start += advance) {
       int expected_ok_count = 0;
-      int expected_reply_count = 0;
+      for (auto& v : expected_reply_count_) { v = 0; }
 
       for (size_t i = start; i < (start + advance) && i < size; i++) {
         expected_ok_count++;
         CHILD_SendCanFdFrame(frames[i]);
-        if (frames[i].reply_required) { expected_reply_count++; }
+        if (frames[i].reply_required) {
+          if ((frames[i].destination + 1) > expected_reply_count_.size()) {
+            expected_reply_count_.resize(frames[i].destination + 1);
+          }
+          expected_reply_count_[frames[i].destination]++;
+        }
       }
+
+      CHILD_FlushTransmit();
 
       CHILD_CheckReplies(replies,
                          kWait,
                          expected_ok_count,
-                         expected_reply_count);
+                         &expected_reply_count_);
     }
 
     Post(std::bind(completed_callback, 0));
   }
 
   enum ReadDelay {
-    kNoWait,
     kWait,
+    kFlush,
   };
 
   void CHILD_CheckReplies(std::vector<CanFdFrame>* replies,
                           ReadDelay read_delay,
                           int expected_ok_count,
-                          int expected_rcv_count) {
+                          std::vector<int>* expected_reply_count) {
     const auto start = GetNow();
+
+    const auto any_reply_checker = [&]() {
+      if (!expected_reply_count) { return false; }
+      for (auto v : *expected_reply_count) {
+        if (v) { return true; }
+      }
+      return false;
+    };
     auto end_time =
         start +
         (read_delay == kWait ?
          std::max(expected_ok_count != 0 ? options_.min_ok_wait_ns : 0,
-                  expected_rcv_count != 0 ? options_.min_rcv_wait_ns : 0) :
-         0);
+                  any_reply_checker() ? options_.min_rcv_wait_ns : 0) :
+         5000);
 
     struct pollfd fds[1] = {};
     fds[0].fd = read_fd_;
     fds[0].events = POLLIN;
 
     int ok_count = 0;
-    int rcv_count = 0;
 
     while (true) {
       const auto now = GetNow();
@@ -377,23 +391,24 @@ class Fdcanusb : public Transport {
       }
       line_buffer_pos_ += read_ret;
 
-      const auto consume_count = CHILD_ConsumeLines(replies);
+      const auto consume_count = CHILD_ConsumeLines(
+          replies, expected_reply_count);
       if (line_buffer_pos_ >= sizeof(line_buffer_)) {
         // We overran our line buffer.  For now, just drop everything
         // and start from 0.
         line_buffer_pos_ = 0;
       }
 
-      rcv_count += consume_count.rcv;
       ok_count += consume_count.ok;
 
-      if (rcv_count >= expected_rcv_count && ok_count >= expected_ok_count) {
+      if (read_delay != kFlush &&
+          !any_reply_checker() && ok_count >= expected_ok_count) {
         // Once we have the expected number of CAN replies and OKs,
         // return immediately.
         return;
       }
 
-      if (read_delay == kWait && consume_count.rcv) {
+      if (consume_count.rcv || consume_count.ok) {
         const auto finish_time = GetNow();
         end_time = finish_time + options_.rx_extra_wait_ns;
       }
@@ -406,15 +421,17 @@ class Fdcanusb : public Transport {
   };
 
   /// Return the number of CAN frames received.
-  ConsumeCount CHILD_ConsumeLines(std::vector<CanFdFrame>* replies) {
+  ConsumeCount CHILD_ConsumeLines(std::vector<CanFdFrame>* replies,
+                                  std::vector<int>* expected_reply_count) {
     const auto start_size = replies ? replies->size() : 0;
     ConsumeCount result;
-    while (CHILD_ConsumeLine(replies, &result.ok)) {}
+    while (CHILD_ConsumeLine(replies, &result.ok, expected_reply_count)) {}
     result.rcv = replies ? (replies->size() - start_size) : 0;
     return result;
   }
 
-  bool CHILD_ConsumeLine(std::vector<CanFdFrame>* replies, int* ok_count) {
+  bool CHILD_ConsumeLine(std::vector<CanFdFrame>* replies, int* ok_count,
+                         std::vector<int>* expected_reply_count) {
     const auto line_end = [&]() -> int {
       for (size_t i = 0; i < line_buffer_pos_; i++) {
         if (line_buffer_[i] == '\r' || line_buffer_[i] == '\n') { return i; }
@@ -423,10 +440,11 @@ class Fdcanusb : public Transport {
     }();
     if (line_end < 0) { return false; }
 
-    CHILD_ProcessLine(std::string(&line_buffer_[0], line_end), replies, ok_count);
+    CHILD_ProcessLine(std::string(&line_buffer_[0], line_end), replies,
+                      ok_count, expected_reply_count);
 
     std::memmove(&line_buffer_[0], &line_buffer_[line_end + 1],
-                 line_buffer_pos_ - line_end);
+                 line_buffer_pos_ - line_end - 1);
     line_buffer_pos_ -= (line_end + 1);
 
     return true;
@@ -434,7 +452,8 @@ class Fdcanusb : public Transport {
 
   void CHILD_ProcessLine(const std::string& line,
                          std::vector<CanFdFrame>* replies,
-                         int* ok_count) {
+                         int* ok_count,
+                         std::vector<int>* expected_reply_count) {
     if (line == "OK") {
       (*ok_count)++;
       return;
@@ -466,6 +485,13 @@ class Fdcanusb : public Transport {
         if (c == 'B') { this_frame.brs = CanFdFrame::kForceOn; }
         if (c == 'f') { this_frame.fdcan_frame = CanFdFrame::kForceOff; }
         if (c == 'F') { this_frame.fdcan_frame = CanFdFrame::kForceOn; }
+      }
+    }
+
+    if (expected_reply_count) {
+      if (this_frame.source < expected_reply_count->size()) {
+        (*expected_reply_count)[this_frame.source] = std::min(
+            (*expected_reply_count)[this_frame.source] - 1, 0);
       }
     }
 
@@ -522,8 +548,17 @@ class Fdcanusb : public Transport {
     }
     p("\n");
 
-    for (size_t n = 0; n < p.size(); ) {
-      int ret = ::write(write_fd_, &buf[n], p.size() - n);
+    if (p.size() > (sizeof(tx_buffer_) - tx_buffer_size_)) {
+      CHILD_FlushTransmit();
+    }
+
+    std::memcpy(&tx_buffer_[tx_buffer_size_], &buf[0], p.size());
+    tx_buffer_size_ += p.size();
+  }
+
+  void CHILD_FlushTransmit() {
+    for (size_t n = 0; n < tx_buffer_size_; ) {
+      int ret = ::write(write_fd_, &tx_buffer_[n], tx_buffer_size_ - n);
       if (ret < 0) {
         if (errno == EINTR || errno == EAGAIN) { continue; }
 
@@ -532,6 +567,7 @@ class Fdcanusb : public Transport {
         n += ret;
       }
     }
+    tx_buffer_size_ = 0;
   }
 
   static size_t RoundUpDlc(size_t size) {
@@ -586,6 +622,11 @@ class Fdcanusb : public Transport {
   // The following variables are only used in the child.
   char line_buffer_[4096] = {};
   size_t line_buffer_pos_ = 0;
+
+  char tx_buffer_[4096] = {};
+  size_t tx_buffer_size_ = 0;
+
+  std::vector<int> expected_reply_count_;
 };
 
 
