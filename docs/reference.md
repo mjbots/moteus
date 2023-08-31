@@ -2463,3 +2463,17 @@ The following design considerations can be used to minimize the risk of damage t
 - *Lower the over-voltage fault*: The configuration parameter `servo.max_voltage` can be lowered for all devices on the bus.  If set above the highest expected transient, this can reduce the likelihood of severe transients causing damage.
 
 - *Use a supply which can sink as well as source*: Powering from an inexpensive lab supply is the most dangerous, as they typically have no ability to sink current, only source it.  A "two quadrant" supply is the necessary device.
+
+## PID Tuning ##
+
+There are two configurable PI(D) controllers on moteus.  The "current loop" gains are set in `servo.pid_dq`, and are set during calibration based on the desired torque bandwidth.  They are not normally changed by the user.
+
+The position control PID loop parameters are set in `servo.pid_position` and are selected by the user to achieve a desired control response.
+
+Rough tuning rules are as follows:
+
+1. Set kp to be small and kd, ki, and ilimit to be 0.  The kp at this stage should be low enough that any restorative torque is very gradual.
+2. Increase kp by 50% at a time until the desired stiffness is reached.  A command like `d pos nan 0 nan` can be used to "hold position", then manual external disturbances can be used to judge the response.  If the control becomes unstable or vibrates, back off by 50%.
+3. Set kd initially to 1/100th of the kp value.  Increase it by roughly 50% at a time until the desired damping is reached.  If instability or vibration results, back off by 50%.
+4. If zero steady state error is required, then an integrative term is required.  If not, leave `ilimit` at 0 and you are done.
+5. If configuring an integrative term, set `ilimit` to be 20% higher than the maximum expected steady state torque.  Then increase ki until the desired response is achieved.  `ki` will likely need to be numerically much larger than kp, on the order of 10-1000x larger.  A more representative control profile than just a "hold position" may be needed to determine if the selected integrative constants are sufficient.
