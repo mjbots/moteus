@@ -28,7 +28,8 @@ Assembled and tested boards can be purchased at: https://mjbots.com
 # Directory structure #
 
 * hw/ - hardware (mechanical and electrical designs)
-  * controller/ - PCB design for servo controller
+  * controller/ - PCB design for moteus-r4.11
+  * n1/ - PCB design for moteus-n1
 * fw/ - firmware for brushless controller
 * lib/ - client side software
 * utils/ - diagnostic tools
@@ -39,6 +40,7 @@ Assembled and tested boards can be purchased at: https://mjbots.com
 
 * [Getting Started](docs/getting_started.md)
 * [Reference](docs/reference.md)
+* [Discord](https://discord.gg/W4hUpBb)
 
 # Misc #
 
