@@ -114,6 +114,23 @@ class MoteusTest(unittest.TestCase):
 
         self.assertEqual(repr(parsed), '1/{MODE(0x000): 10, POSITION(0x001): 0.0528, VELOCITY(0x002): -0.128, TORQUE(0x003): 0.32, VOLTAGE(0x00d): 16.0, TEMPERATURE(0x00e): 48.0, FAULT(0x00f): 64}')
 
+    def test_make_position_query_override(self):
+        qr = mot.QueryResolution()
+        qr.trajectory_complete = mot.mp.INT8
+
+        dut = mot.Controller()
+        result = dut.make_position(query_override=qr)
+
+        self.assertEqual(
+            result.data,
+            bytes([0x01, 0x00, 0x0a,
+                   0x11, 0x00,
+                   0x1f, 0x01,
+                   0x11, 0x0b,
+                   0x13, 0x0d]))
+        self.assertEqual(result.reply_required, True)
+        self.assertEqual(result.expected_reply_size, 25)
+
     def test_make_query(self):
         qr = mot.QueryResolution()
         qr._extra = {

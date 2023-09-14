@@ -14,6 +14,7 @@
 
 import asyncio
 import argparse
+import copy
 import enum
 import importlib_metadata
 import io
@@ -617,12 +618,15 @@ class Controller:
         self.transport = get_singleton_transport()
         return self.transport
 
-    def _make_query_data(self):
+    def _make_query_data(self, query_resolution=None):
+        if query_resolution is None:
+            query_resolution = self.query_resolution
+
         expected_reply_size = 0
 
         buf = io.BytesIO()
         writer = Writer(buf)
-        qr = self.query_resolution
+        qr = query_resolution
         c1 = mp.WriteCombiner(writer, 0x10, int(Register.MODE), [
             qr.mode,
             qr.position,
@@ -672,21 +676,37 @@ class Controller:
 
         return buf.getvalue(), expected_reply_size
 
-    def _make_command(self, *, query, source=0):
+    def _format_query(self, query, query_override, data_buf, result):
+        if query_override is not None:
+            query_data, expected_reply_size = \
+                self._make_query_data(query_override)
+            data_buf.write(query_data)
+            result.expected_reply_size = expected_reply_size
+        elif query:
+            data_buf.write(self._query_data)
+            result.expected_reply_size = self._default_query_reply_size
+
+    def _make_command(self, *, query, query_override=None, source=0):
         result = cmd.Command()
 
         result.destination = self.id
         result.source = source
-        result.reply_required = query
+        result.reply_required = query or (query_override is not None)
         result.parse = self._parser
         result.can_prefix = self._can_prefix
         result.expected_reply_size = self._default_query_reply_size if query else 0
 
         return result
 
-    def make_query(self):
-        result = self._make_command(query=True)
-        result.data = self._query_data
+    def make_query(self, query_override=None):
+        result = self._make_command(
+            query=True, query_override=query_override)
+        if query_override:
+            result.data, result.expected_reply_size = \
+                self._make_query_data(query_override)
+        else:
+            result.data = self._query_data
+            result.expected_reply_size = self._default_query_reply_size
         return result;
 
     async def query(self, **kwargs):
@@ -718,11 +738,12 @@ class Controller:
     async def custom_query(self, *args, **kwargs):
         return await self.execute(self.make_custom_query(*args, **kwargs))
 
-    def make_stop(self, *, query=False):
+    def make_stop(self, *, query=False, query_override=None):
         """Return a moteus.Command structure with data necessary to send a
         stop mode command."""
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
@@ -730,8 +751,7 @@ class Controller:
         writer.write_int8(int(Register.MODE))
         writer.write_int8(int(Mode.STOPPED))
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
 
@@ -743,12 +763,14 @@ class Controller:
     def make_set_output(self, *,
                         position=0.0,
                         query=False,
+                        query_override=None,
                         cmd=None
     ):
         """Return a moteus.Command structure with data necessary to send a
         set output nearest command."""
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
@@ -756,23 +778,26 @@ class Controller:
         writer.write_varuint(cmd)
         writer.write_f32(position)
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
         return result
 
     def make_set_output_nearest(self, *,
                                 position=0.0,
-                                query=False):
+                                query=False,
+                                query_override=None):
         return self.make_set_output(
-            position=position, query=query, cmd=Register.SET_OUTPUT_NEAREST)
+            position=position, query=query, query_override=query_override,
+            cmd=Register.SET_OUTPUT_NEAREST)
 
     def make_set_output_exact(self, *,
                               position=0.0,
-                              query=False):
+                              query=False,
+                              query_override=None):
         return self.make_set_output(
-            position=position, query=query, cmd=Register.SET_OUTPUT_EXACT)
+            position=position, query=query, query_override=query_override,
+            cmd=Register.SET_OUTPUT_EXACT)
 
     async def set_output(self, *args, cmd=None, **kwargs):
         return await self.execute(self.make_set_output(**kwargs, cmd=cmd))
@@ -788,15 +813,20 @@ class Controller:
     # "make/set_rezero".
     def make_rezero(self, *,
                     rezero=0.0,
-                    query=False):
+                    query=False,
+                    query_override=None):
         return self.make_set_output(
-            position=rezero, query=query, cmd=Register.SET_OUTPUT_NEAREST)
+            position=rezero, query=query, query_override=query_override,
+            cmd=Register.SET_OUTPUT_NEAREST)
 
     async def set_rezero(self, *args, **kwargs):
         return await self.execute(self.make_rezero(**kwargs))
 
-    def make_require_reindex(self):
-        result = self._make_command(query=False)
+    def make_require_reindex(self,
+                             query=False,
+                             query_override=None):
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
@@ -807,8 +837,9 @@ class Controller:
         result.data = data_buf.getvalue()
         return result
 
-    async def set_require_reindex(self):
-        return await self.execute(self.make_require_reindex())
+    async def set_require_reindex(self, query=False, query_override=None):
+        return await self.execute(self.make_require_reindex(
+            query=query, query_override=query_override))
 
     def make_position(self,
                       *,
@@ -823,11 +854,13 @@ class Controller:
                       velocity_limit=None,
                       accel_limit=None,
                       fixed_voltage_override=None,
-                      query=False):
+                      query=False,
+                      query_override=None):
         """Return a moteus.Command structure with data necessary to send a
         position mode command with the given values."""
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         pr = self.position_resolution
         resolutions = [
@@ -877,8 +910,7 @@ class Controller:
         if combiner.maybe_write():
             writer.write_voltage(fixed_voltage_override, pr.fixed_voltage_override)
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
 
@@ -887,16 +919,51 @@ class Controller:
     async def set_position(self, *args, **kwargs):
         return await self.execute(self.make_position(**kwargs))
 
+    async def set_position_wait_complete(
+            self,
+            period_s=0.025,
+            query_override=None,
+            *args, **kwargs):
+        """Repeatedly send a position mode command to a device until it
+        reports that the trajectory has been completed.
+
+        If the controller is unresponsive, this method will never return.
+        """
+
+        if query_override is None:
+            query_override = copy.deepcopy(self.query_resolution)
+        else:
+            query_override = copy.deepcopy(query_override)
+
+        query_override.trajectory_complete = mp.INT8
+
+        count = 2
+        while True:
+            result = await self.set_position(
+                query_override=query_override, *args, **kwargs)
+
+            if result is not None:
+                count = max(count - 1, 0)
+
+            if (count == 0 and
+                result is not None and
+                result.values[Register.TRAJECTORY_COMPLETE]):
+                return result
+
+            await asyncio.sleep(period_s)
+
     def make_vfoc(self,
                   *,
                   theta,
                   voltage,
                   theta_rate=0.0,
-                  query=False):
+                  query=False,
+                  query_override=None):
         """Return a moteus.Command structure with data necessary to send a
         voltage mode FOC command."""
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
         cr = self.vfoc_resolution
         resolutions = [
             cr.theta if theta is not None else mp.IGNORE,
@@ -932,8 +999,7 @@ class Controller:
         if combiner.maybe_write():
             writer.write_velocity(theta_rate / math.pi, cr.theta_rate)
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
 
@@ -946,12 +1012,14 @@ class Controller:
                      *,
                      d_A,
                      q_A,
-                     query=False):
+                     query=False,
+                     query_override=None):
         """Return a moteus.Command structure with data necessary to send a
         current mode command.
         """
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
         cr = self.current_resolution
         resolutions = [
             cr.d_A if d_A is not None else mp.IGNORE,
@@ -976,8 +1044,7 @@ class Controller:
         if combiner.maybe_write():
             writer.write_current(d_A, cr.d_A)
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
 
@@ -997,11 +1064,13 @@ class Controller:
             maximum_torque=None,
             stop_position=None,
             watchdog_timeout=None,
-            query=False):
+            query=False,
+            query_override=None):
         """Return a moteus.Command structure with data necessary to send a
         within mode command with the given values."""
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         pr = self.position_resolution
         resolutions = [
@@ -1040,8 +1109,7 @@ class Controller:
         if combiner.maybe_write():
             writer.write_time(watchdog_timeout, pr.watchdog_timeout)
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
 
@@ -1050,8 +1118,9 @@ class Controller:
     async def set_stay_within(self, *args, **kwargs):
         return await self.execute(self.make_stay_within(**kwargs))
 
-    def make_brake(self, *, query=False):
-        result = self._make_command(query=query)
+    def make_brake(self, *, query=False, query_override=None):
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
@@ -1059,8 +1128,7 @@ class Controller:
         writer.write_int8(int(Register.MODE))
         writer.write_int8(int(Mode.BRAKE))
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
 
@@ -1069,7 +1137,8 @@ class Controller:
     async def set_brake(self, *args, **kwargs):
         return await self.execute(self.make_brake(**kwargs))
 
-    def make_write_gpio(self, aux1=None, aux2=None, query=False):
+    def make_write_gpio(self, aux1=None, aux2=None,
+                        query=False, query_override=None):
         """Return a moteus.Command structure with data necessary to set one or
         more GPIO registers.
 
@@ -1077,7 +1146,8 @@ class Controller:
         significant bit is pin 0 on the respective port.
         """
 
-        result = self._make_command(query=query)
+        result = self._make_command(
+            query=query, query_override=query_override)
 
         data_buf = io.BytesIO()
         writer = Writer(data_buf)
@@ -1093,8 +1163,7 @@ class Controller:
         if combiner.maybe_write():
             writer.write_int8(aux2)
 
-        if query:
-            data_buf.write(self._query_data)
+        self._format_query(query, query_override, data_buf, result)
 
         result.data = data_buf.getvalue()
         return result
