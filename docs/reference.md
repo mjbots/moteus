@@ -620,9 +620,12 @@ complete, and the controller is following the final velocity.
 
 Mode: Read only
 
-Non-zero if the controller has had its output position set since power
-on.  This could have been from a source configured for multi-turn, as
-an index, or the "set output nearest" or "set output exact" commands.
+* 0 - *relative only* - the position is not referenced to anything
+* 1 - *rotor* - the position is referenced to the rotor
+* 2 - *output* - the position has been referenced to the output,
+  either with an output referenced encoder, or with a "set output
+  nearest" or "set output exact" command
+
 
 #### 0x00d - Voltage ####
 
