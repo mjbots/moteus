@@ -2078,6 +2078,9 @@ class BldcServo::Impl {
         MotorPosition::FloatToInt(*target_position) -
         absolute_relative_delta;
     data->velocity = 0.0;
+    status_.control_position_raw = data->position_relative_raw;
+    status_.control_position = *target_position;
+    status_.control_velocity = 0.0f;
 
     ISR_DoPositionCommon(
         sin_cos, data, apply_options,
