@@ -439,7 +439,7 @@ class Fdcanusb : public details::TimeoutTransport {
   }
 
   virtual ~Fdcanusb() {
-    event_loop_.reset();
+    std::atomic_store(&UNPROTECTED_event_loop_, {});
 
     if (read_fd_ == write_fd_) {
       write_fd_.release();
