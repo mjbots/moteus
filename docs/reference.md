@@ -358,7 +358,9 @@ that feature.
 
 `motor_position.commutation_source` selects which source is used to
 provide rotor position for commutation purposes.  It is typically left
-at source 0 and is required.
+at source 0 and is required.  Note, quadrature sources are not
+recommended for commutation as they can lose counts and require
+additional application level homing support on each power-on.
 
 `motor_position.output.source` selects which source is used to provide
 output position and velocity and is required.
@@ -2041,6 +2043,10 @@ do not natively measure velocity will produce no velocity readings
 A 0-based index into the source list that selects the source to use
 for commutation.  This means it should have an accurate measure of the
 relationship between the rotor and stator.
+
+It is not recommended to use quadrature sources for commutation as
+they can lose counts and require additional application level homing
+support at each power-on.
 
 ## `motor_position.output.source` ##
 
