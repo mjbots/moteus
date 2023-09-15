@@ -744,11 +744,16 @@ electrical phase.  Integral types use the velocity mapping.
 
 Mode: Read/write
 
-When in Position mode, this controls the desired position.  The
-maximally negative integer, or NaN for float represents, "use the
-current position value".  If unspecified, 0.0 is used.  Note, the
-controller will attempt to achieve this position *right now* subject
-to the kp and kd constants.
+When in Position mode, this controls the desired position.
+
+The maximally negative integer, or NaN for float represents, "use the
+current position value".
+
+If unspecified, 0.0 is used.
+
+Note, in the absence of any configured or commanded velocity or
+acceleration limits, the controller will attempt to achieve this
+position *right now* subject to the kp and kd constants.
 
 #### 0x021 - Velocity command ####
 
@@ -759,8 +764,12 @@ velocity in Hz.
 
 As a special case, if the 0x020 position is unset, and 0x026 stop
 position is set, the sign of this is ignored, and is instead selected
-so that the motor will move towards the stop position.  If
-unspecified, 0.0 is used.
+so that the motor will move towards the stop position.
+
+The maximally negative integer, or NaN for float, is treated the same
+as 0.0.
+
+If unspecified, 0.0 is used.
 
 #### 0x022 - Feedforward torque ####
 

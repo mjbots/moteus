@@ -1,4 +1,4 @@
-// Copyright 2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2022-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -169,6 +169,22 @@ BOOST_AUTO_TEST_CASE(StartupPositionSet) {
   BOOST_TEST(!ctx.data.position_relative_raw);
 }
 
+BOOST_AUTO_TEST_CASE(StartupVelocityUnset) {
+  // When starting with no limits and a set position if we have a
+  // non-finite velocity, then 0 is assumed.
+  Context ctx;
+  ctx.data.position = 2.0f;
+  ctx.data.velocity = NaN;
+
+  ctx.position.velocity = 3.0f;
+  ctx.status.velocity_filt = 3.0f;
+
+  ctx.Call();
+
+  BOOST_TEST(ctx.status.control_position_raw.value() == ctx.to_raw(2.0f));
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+}
+
 BOOST_AUTO_TEST_CASE(RunningPositionSet) {
   // When running, we still take actual command positions immediately.
   Context ctx;
@@ -191,6 +207,21 @@ BOOST_AUTO_TEST_CASE(RunningPositionCapture) {
   ctx.Call();
 
   BOOST_TEST(ctx.status.control_position_raw.value() == ctx.to_raw(4.0f));
+}
+
+BOOST_AUTO_TEST_CASE(RunningVelocityCapture) {
+  // When running, an unset velocity is treated the same as 0.0.
+  Context ctx;
+
+  ctx.status.control_position_raw = ctx.to_raw(4.0f);
+  ctx.status.control_velocity = 2.0f;
+  ctx.data.position = 0.5f;
+  ctx.data.velocity = NaN;
+  ctx.Call();
+
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == 0.5f,
+             boost::test_tools::tolerance(1e-3));
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 }
 
 BOOST_AUTO_TEST_CASE(PositionLimit) {

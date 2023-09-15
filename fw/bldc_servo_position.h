@@ -1,4 +1,4 @@
-// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2018-2023 Josh Pieper, jjp@pobox.com.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -220,6 +220,10 @@ class BldcServoPosition {
       float rate_hz,
       BldcServoCommandData* data,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
+
+    if (std::isnan(velocity)) {
+      velocity = 0.0f;
+    }
 
     // We go to some lengths in our conversions to and from
     // control_position_raw so as to avoid converting a float directly to
