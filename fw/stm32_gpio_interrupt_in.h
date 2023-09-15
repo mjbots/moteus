@@ -222,7 +222,7 @@ class Stm32GpioInterruptIn {
     }
   }
 
-  static constexpr int kMaxCallbacks = 2;
+  static constexpr int kMaxCallbacks = 3;
 
   static Callback entries_[kMaxCallbacks];
 

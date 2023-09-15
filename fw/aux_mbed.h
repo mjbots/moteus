@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "mbed.h"
 
 #include "fw/aux_common.h"
@@ -304,6 +306,14 @@ class Stm32Index {
         }();
         if (mbed == NC) { continue; }
         index_.emplace(mbed, MbedMapPull(cfg.pull));
+        index_isr_ = Stm32GpioInterruptIn::Make(
+            mbed,
+            &Stm32Index::ISR_CallbackDelegate,
+            reinterpret_cast<uint32_t>(this));
+        if (!index_isr_) {
+          error_ = aux::AuxError::kIndexPinError;
+          return;
+        }
       }
     }
     if (!index_) {
@@ -316,15 +326,29 @@ class Stm32Index {
     if (error_ != aux::AuxError::kNone) { return; }
 
     const bool old_raw = status->raw;
-    status->raw = index_->read() ? true : false;
+    const bool observed = observed_.exchange(false);
+    status->raw = observed || index_isr_->read();
     status->value = status->raw && !old_raw;
     status->active = true;
   }
 
   aux::AuxError error() { return error_; }
 
+  void ISR_Callback() MOTEUS_CCM_ATTRIBUTE {
+    // The principle here is that we capture any high readings in the
+    // ISR so that the minimum pulse width we can read is determined
+    // by the ISR latency, not by the control period.
+    if (index_isr_->read()) { observed_.store(true); }
+  }
+
+  static void ISR_CallbackDelegate(uint32_t my_this) MOTEUS_CCM_ATTRIBUTE {
+    reinterpret_cast<Stm32Index*>(my_this)->ISR_Callback();
+  }
+
  private:
   aux::AuxError error_ = aux::AuxError::kNone;
+  std::atomic<bool> observed_{false};
+  std::optional<Stm32GpioInterruptIn> index_isr_;
   std::optional<DigitalIn> index_;
 };
 
