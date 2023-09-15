@@ -150,7 +150,7 @@ class Stm32GpioInterruptIn {
 
     const auto pin_index = STM_PIN(pin_);
 
-    EXTI->IMR1 &= (1 << pin_index);
+    EXTI->IMR1 &= ~(1 << pin_index);
 
     const auto irq_index = FindIrqIndex(pin_);
 
