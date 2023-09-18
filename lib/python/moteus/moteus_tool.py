@@ -560,6 +560,27 @@ class Stream:
         await self.command("conf write")
         await self.command(f"d rezero {value}")
 
+    async def do_restore_config(self, config_file):
+        errors = []
+
+        with open(config_file, "r") as fp:
+            for line in fp.readlines():
+                if '#' in line:
+                    line = line[0:line.index('#')]
+                line = line.rstrip()
+                if len(line) == 0:
+                    continue
+
+                try:
+                    await self.command(f'conf set {line}'.encode('latin1'))
+                except moteus.CommandError as ce:
+                    errors.append(line)
+
+        if len(errors):
+            print("\nSome config could not be set:")
+            for line in errors:
+                print(f" {line}")
+            print()
 
     async def do_write_config(self, config_file):
         fp = open(config_file, "rb")
@@ -1532,6 +1553,8 @@ class Runner:
             await stream.do_set_offset(0.0)
         elif self.args.set_offset:
             await stream.do_set_offset(self.args.set_offset)
+        elif self.args.restore_config:
+            await stream.do_restore_config(self.args.restore_config)
         elif self.args.write_config:
             await stream.do_write_config(self.args.write_config)
         elif self.args.flash:
@@ -1569,6 +1592,8 @@ async def async_main():
                        help='create a serial console')
     group.add_argument('--dump-config', action='store_true',
                        help='emit all configuration to the console')
+    group.add_argument('--restore-config', metavar='FILE',
+                       help='restore a config saved with --dump-config')
     group.add_argument('--write-config', metavar='FILE',
                        help='write the given configuration')
     group.add_argument('--flash', metavar='FILE',
