@@ -32,6 +32,7 @@
 #include "fw/aux_common.h"
 #include "fw/aux_mbed.h"
 #include "fw/ccm.h"
+#include "fw/cui_amt21.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
 #include "fw/ma732.h"
@@ -203,6 +204,10 @@ class AuxPort {
 
     if (aksim2_) {
       aksim2_->ISR_Update(&status_.uart);
+    }
+
+    if (cui_amt21_) {
+      cui_amt21_->ISR_Update(&status_.uart);
     }
   }
 
@@ -700,6 +705,7 @@ class AuxPort {
     if (rs422_de_) { rs422_de_->write(0); }
     if (rs422_re_) { rs422_re_->write(1); }
     aksim2_.reset();
+    cui_amt21_.reset();
 
     for (auto& cfg : adc_info_.config) {
       cfg.adc_num = -1;
@@ -980,6 +986,10 @@ class AuxPort {
           // Nothing special to do here.
           break;
         }
+        case C::kCuiAmt21: {
+          cui_amt21_.emplace(config_.uart, &*uart_, timer_);
+          break;
+        }
         default: {
           status_.error = aux::AuxError::kUartPinError;
           return;
@@ -1102,6 +1112,7 @@ class AuxPort {
   std::optional<aux::Stm32Index> index_;
   std::optional<Stm32G4DmaUart> uart_;
   std::optional<Aksim2> aksim2_;
+  std::optional<CuiAmt21> cui_amt21_;
   std::optional<DigitalOut> rs422_re_;
   std::optional<DigitalOut> rs422_de_;
 

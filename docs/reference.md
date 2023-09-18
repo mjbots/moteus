@@ -240,8 +240,13 @@ register protocol.
 
 Pins: select
 
-Currently supported are the RLS AksIM-2 encoder, and a transparent
-UART tunnel.
+A variety of asynchronous serial encoders and debugging facilities are
+supported.
+
+The moteus-n1 additionally has a hardware RS422 transceiver connected
+to aux1's pins D and E which can be enabled through configuration.
+RS485 devices like the CUI AMT21x can be used if the RS422 pin Y is
+connected to A and RS422 pin Z is connected to B.
 
 ### Pin Options ###
 
@@ -1930,6 +1935,7 @@ The type of UART device.
 * 1 - RLS AksIM-2
 * 2 - Tunnel
 * 3 - Per-control cycle debug information (undocumented)
+* 4 - CUI AMT21x series RS422
 
 When the tunnel mode is selected, data may be sent or received using
 the CAN diagnostic protocol.  For aux1, use diagnostic channel 2.  For
@@ -1943,6 +1949,18 @@ The baud rate to use for the UART.
 
 For encoder modes, the interval at which to poll the encoder for new
 position information.
+
+## `aux[12].uart.rs422` ##
+
+Enable the RS422 transceiver.  This is only valid for 'aux1', and
+requires that pin D and E (`aux1.pins.3` and `aux1.pins.4`) be
+used for UART.
+
+## `aux[12].uart.cui_amt21_address` ##
+
+Select the CUI AMT21 address to communicate with.  The default is 0x54
+(84 decimal), which is the default address CUI AMT21 encoders are
+configured with.
 
 ## `aux[12].quadrature.enabled` ##
 

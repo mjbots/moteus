@@ -74,6 +74,7 @@ struct UartEncoder {
       kAksim2,
       kTunnel,
       kDebug,
+      kCuiAmt21,
 
       kNumModes,
     };
@@ -82,6 +83,7 @@ struct UartEncoder {
     int32_t baud_rate = 115200;
     int32_t poll_rate_us = 100;
     bool rs422 = false;
+    uint8_t cui_amt21_address = 0x54;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -89,6 +91,7 @@ struct UartEncoder {
       a->Visit(MJ_NVP(baud_rate));
       a->Visit(MJ_NVP(poll_rate_us));
       a->Visit(MJ_NVP(rs422));
+      a->Visit(MJ_NVP(cui_amt21_address));
     }
   };
 
@@ -100,6 +103,7 @@ struct UartEncoder {
     bool aksim2_err = false;
     bool aksim2_warn = false;
     uint16_t aksim2_status = 0;
+    uint16_t checksum_errors = 0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -110,6 +114,7 @@ struct UartEncoder {
       a->Visit(MJ_NVP(aksim2_err));
       a->Visit(MJ_NVP(aksim2_warn));
       a->Visit(MJ_NVP(aksim2_status));
+      a->Visit(MJ_NVP(checksum_errors));
     }
   };
 };
@@ -444,6 +449,7 @@ struct IsEnum<moteus::aux::UartEncoder::Config::Mode> {
         { M::kAksim2, "aksim2" },
         { M::kTunnel, "tunnel" },
         { M::kDebug, "debug" },
+        { M::kCuiAmt21, "cui_amt21" },
       }};
   }
 };
