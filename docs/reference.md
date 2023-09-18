@@ -1906,11 +1906,13 @@ less than 5.
 
 The type of SPI device.
 
-* 0 - The onboard AS5047P.  Only valid for aux1.  If selected, the
-  CLK, MOSI, and MISO lines must be either NC or selected as SPI.
+* 0 - The onboard AS5047P (CPR == 16384). Only valid for aux1.  If
+  selected, the CLK, MOSI, and MISO lines must be either NC or
+  selected as SPI.
 * 1 - Disabled.
-* 2 - AS5047P
+* 2 - AS5047P (CPR == 16384)
 * 3 - iC-PZ
+* 4 - MA732 (CPR == 65536)
 
 NOTE: iC-PZ devices require significant configuration and calibration
 before use.  Diagnostic mode commands are provided for low level
@@ -1918,9 +1920,7 @@ access.
 
 ## `aux[12].spi.rate_hz` ##
 
-The frequency to operate the SPI bus at.  The default is 12000000,
-which is required for AS5047P devices.  Other devices may support
-lower rates.
+The frequency to operate the SPI bus at.  The default is 12000000.
 
 ## `aux[12].uart.mode` ##
 

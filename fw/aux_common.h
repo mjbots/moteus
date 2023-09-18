@@ -29,16 +29,23 @@ struct Spi {
       kDisabled,
       kAs5047,
       kIcPz,
+      kMa732,
 
       kNumModes,
     };
     Mode mode = kOnboardAs5047;
     uint32_t rate_hz = 12000000;
 
+    // For now, only the MA732 uses these.
+    uint16_t filter_us = 64;
+    uint8_t bct = 0;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(mode));
       a->Visit(MJ_NVP(rate_hz));
+      a->Visit(MJ_NVP(filter_us));
+      a->Visit(MJ_NVP(bct));
     }
   };
   struct Status {
@@ -420,6 +427,7 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
         { M::kDisabled, "disabled" },
         { M::kAs5047, "ext_as5047" },
         { M::kIcPz, "ic_pz" },
+        { M::kMa732, "ma732" },
       }};
   }
 };
