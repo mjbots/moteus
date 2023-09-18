@@ -426,6 +426,17 @@ class BldcServo::Impl {
 
     telemetry_data_ = *next;
 
+    if (!!next->stop_position_relative_raw &&
+        (std::isfinite(next->accel_limit) ||
+         std::isfinite(next->velocity_limit))) {
+      // There is no valid use case for using a stop position along
+      // with an acceleration or velocity limit.
+      volatile auto* mode_volatile = &status_.mode;
+      volatile auto* fault_volatile = &status_.fault;
+      *fault_volatile = errc::kStopPositionDeprecated;
+      *mode_volatile = kFault;
+    }
+
     std::swap(current_data_, next_data_);
   }
 

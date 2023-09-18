@@ -42,6 +42,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kThetaInvalid: return "theta invalid";
       case errc::kPositionInvalid: return "position invalid";
       case errc::kDriverEnableFault: return "driver enable";
+      case errc::kStopPositionDeprecated: return "stop position deprecated";
     }
     return "unknown";
   }

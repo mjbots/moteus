@@ -46,6 +46,7 @@ enum class errc {
   kThetaInvalid = 42,
   kPositionInvalid = 43,
   kDriverEnableFault = 44,
+  kStopPositionDeprecated = 45,
 };
 
 mjlib::micro::error_code make_error_code(errc);
