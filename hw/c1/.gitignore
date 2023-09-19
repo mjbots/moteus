@@ -1,0 +1,5 @@
+moteus_c1-backups/
+~*.lck
+moteus_c1.xml
+moteus_c1_bom.xlsx
+fp-info-cache
