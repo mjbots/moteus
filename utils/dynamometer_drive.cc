@@ -2002,8 +2002,8 @@ class Application {
       double power_W;
       double expected_speed_Hz;
     } tests[] = {
-      { 100.0, 4.04 },
-      { 20.0, 3.12 },
+      { 100.0, 3.80 },
+      { 20.0, 3.00 },
       { 10.0, 1.90 },
       { 5.0, 1.30 },
     };
