@@ -576,6 +576,8 @@ class Stream:
                 except moteus.CommandError as ce:
                     errors.append(line)
 
+        await self.command(b'conf write')
+
         if len(errors):
             print("\nSome config could not be set:")
             for line in errors:
