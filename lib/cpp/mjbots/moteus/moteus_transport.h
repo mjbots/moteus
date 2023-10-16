@@ -902,6 +902,13 @@ class TransportFactory {
       if (name > rhs.name) { return false; }
       return help < rhs.help;
     }
+
+    Argument(const std::string& name_in,
+             int nargs_in,
+             const std::string& help_in)
+        : name(name_in),
+          nargs(nargs_in),
+          help(help_in) {}
   };
 
   virtual std::vector<Argument> cmdline_arguments() = 0;
@@ -1029,8 +1036,9 @@ class TransportRegistry {
     std::vector<TransportFactory::Argument> result;
     std::set<TransportFactory::Argument> uniqifier;
 
-    result.push_back({"--force-transport", 1,
-        "force the given transport type to be used"});
+    result.push_back(TransportFactory::Argument(
+                         "--force-transport", 1,
+                         "force the given transport type to be used"));
     uniqifier.insert(result.back());
 
     for (const auto& item : items_) {
