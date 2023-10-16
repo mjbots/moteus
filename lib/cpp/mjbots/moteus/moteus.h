@@ -674,7 +674,8 @@ class Controller {
       auto help_strs =
           moteus::TransportRegistry::singleton().cmdline_arguments();
       help_strs.insert(help_strs.begin(),
-                       {"--help", 0, "Display this usage message"});
+                       TransportFactory::Argument(
+                           "--help", 0, "Display this usage message"));
 
       int max_item = 0;
       for (const auto& item : help_strs) {
