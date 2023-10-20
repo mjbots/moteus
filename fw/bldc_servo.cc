@@ -1865,12 +1865,19 @@ class BldcServo::Impl {
   }
 
   void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    CommandData zero_velocity;
+
+    zero_velocity.mode = kPosition;
+    zero_velocity.position = std::numeric_limits<float>::quiet_NaN();
+    zero_velocity.velocity = 0.0f;
+    zero_velocity.timeout_s = std::numeric_limits<float>::quiet_NaN();
+
     PID::ApplyOptions apply_options;
     apply_options.kp_scale = 0.0f;
     apply_options.kd_scale = data->kd_scale;
     apply_options.ki_scale = 0.0f;
 
-    ISR_DoPositionCommon(sin_cos, data,
+    ISR_DoPositionCommon(sin_cos, &zero_velocity,
                          apply_options, config_.timeout_max_torque_Nm,
                          0.0f, 0.0f);
   }
