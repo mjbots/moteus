@@ -139,9 +139,26 @@ encoders for:
 - *Output*: moteus needs to know the position and velocity of the
   output shaft in order to follow commanded trajectories.
 
-By default, the onboard magnetic encoder is assumed to sense the
-rotor.  It is also used as the source for position and velocity of the
-output constrained by a configurable reduction ratio.
+A variety of hardware encoder types can be used to fulfill those
+functions.  Currently supported options include:
+
+| Name            | Interface Method | Max Resolution | Mounting    | Price     |
+|-----------------|------------------|----------------|-------------|-----------|
+| Onboard AS5047P | SPI (integrated) | 14 bits        | on-axis     | Included  |
+| AS5047x         | SPI              | 14 bits        | on-axis     | $         |
+| AS5048B         | I2C              | 14 bits        | on-axis     | $         |
+| AS5600          | I2C              | 12 bits        | on-axis     | $         |
+| AksIM-2         | RS422 w/ 5V      | 20 bits        | off-axis    | $$$       |
+| CUI AMT21x      | RS422 w/ 5V      | 14 bits        | shaft       | $$        |
+| MA732           | SPI              | 14 bits        | on/off-axis | $         |
+| iC-PZ           | SPI w/ 5V        | 22 bits        | off-axis    | $$$       |
+| Quadrature      | Quadrature       | N/A            | x           | x         |
+| Sine/Cosine     | Sine/Cosine      | 10 bits        | x           | x         |
+| Hall effect     | Hall effect      | x              | x           | $         |
+
+By default, the onboard magnetic encoder (AS5047P) is assumed to sense
+the rotor.  It is also used as the source for position and velocity of
+the output constrained by a configurable reduction ratio.
 
 Configuration is performed in 3 stages, first is the auxiliary port
 configuration, second is encoder source configuration, and finally is
@@ -157,7 +174,10 @@ used for various functions.
 ELECTRICAL NOTES:
  * The 3.3V supply pins can power external peripherals:
    * r4.5: 50mA
-   * r4.8/11: 100mA
+   * r4.8/r4.11/n1: 100mA
+ * The 5V supply pins can power external peripherals:
+   * r4: not present
+   * n1: 100mA
  * Some pins are 5V tolerant.  Those not marked as such in the pin
    option table are 3.3V only.
 
@@ -376,7 +396,8 @@ and rotational direction.
 
 `motor_position.output.reference_source` optionally configures a
 source that is used solely to disambiguate the output position at
-startup.  It could be a low-rate I2C based sensor for instance.
+startup.  It could be a low-rate I2C based sensor for instance, or an
+index source configured from a homing switch.
 
 Finally, `motor_position.rotor_to_output_ratio` defines the number of
 turns of the output for one turn of the rotor.  This is used to map
