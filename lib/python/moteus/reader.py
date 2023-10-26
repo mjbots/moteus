@@ -336,6 +336,10 @@ class EnumType:
                     pseudo_member = cls._value2member_map_.setdefault(value, new_member)
                 return pseudo_member
 
+        if len(items) == 0:
+            # Newer versions of python (>= 3.11.6) require enum
+            # classes to have at least one member.
+            items = { '_' : -1 }
         self.enum_class = Enum(name, items)
 
     def read(self, data_stream):
