@@ -2273,14 +2273,8 @@ controllers have no termination resistors.  For very short runs, the
 system will work terminated only on one side.  However, when runs
 become longer than 0.5m, you will likely need to terminate both ends.
 This can be done by crimping a 120 ohm resistor into a JST PH3
-connector and connecting it to the open data connector.
-
-NOTE 2: Ground may not be necessary, only one path through ground in a
-system should exist to avoid ground loops.  In a typical robot
-application with a common ground, that role is filled by the power
-ground.  However, in desktop applications, it may be appropriate to
-connect the CAN ground if the device power supply is otherwise
-isolated.
+connector and connecting it to the open data connector or by
+purchasing a CAN terminating cable.
 
 ### JST ZH-6 SWD ###
 
