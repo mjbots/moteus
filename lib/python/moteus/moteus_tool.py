@@ -1207,7 +1207,8 @@ class Stream:
                 # This is just a random constant that seems to work
                 # well in practice.
                 desired_encoder_bw_hz = min(
-                    desired_encoder_bw_hz, 2e-2 / inductance)
+                    desired_encoder_bw_hz, max(
+                        2 * torque_bw_hz, 2e-2 / inductance))
 
         # And our bandwidth with the filter can be no larger than
         # 1/10th the control rate.
@@ -1255,11 +1256,11 @@ class Stream:
         # too large.  The current sense noise on the moteus controller
         # limits how large Kp can get before the loop becomes unstable
         # or very noisy.
-        kp_limit_rad_s = current_sense_scale * 0.20 / inductance
+        kp_limit_rad_s = current_sense_scale * 1.0 / inductance
 
         # Finally, we limit the bandwidth such that the Ki value is
         # not too large.
-        ki_limit_rad_s = current_sense_scale * 500.0 / resistance
+        ki_limit_rad_s = current_sense_scale * 2500.0 / resistance
 
         cal_bw_rad_s = self.args.cal_bw_hz * twopi
 
