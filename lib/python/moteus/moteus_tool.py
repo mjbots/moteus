@@ -1198,24 +1198,28 @@ class Stream:
             desired_encoder_bw_hz = self.args.encoder_bw_hz
         else:
             # Don't let the encoder bandwidth be less than 10Hz by default.
-            desired_encoder_bw_hz = max(10, 2 * torque_bw_hz)
+            desired_encoder_bw_hz = max(10, torque_bw_hz)
 
-            # However, we limit the maximum encoder bandwidth for high
-            # inductance motors, because they shouldn't be able to
-            # accelerate that fast anyways.
-            if inductance:
-                # This is just a random constant that seems to work
-                # well in practice.
+            # If we are using hall effects as the output encoder, then
+            # limit the bandwidth based on inductance as a rough
+            # heuristic.
+            hall_output = False
+            if await self.is_config_supported("motor_position.rotor_to_output_ratio"):
+                output_encoder = await self.read_config_int("motor_position.output.source")
+                output_type = await self.read_config_int(f"motor_position.sources.{output_encoder}.type")
+                if output_type == 4:  # kHall
+                    hall_output = True
+
+            if inductance and hall_output:
                 desired_encoder_bw_hz = min(
-                    desired_encoder_bw_hz, max(
-                        2 * torque_bw_hz, 2e-2 / inductance))
+                    desired_encoder_bw_hz, 2e-2 / inductance)
 
         # And our bandwidth with the filter can be no larger than
-        # 1/10th the control rate.
-        encoder_bw_hz = min(control_rate_hz / 10, desired_encoder_bw_hz)
+        # 1/30th the control rate.
+        encoder_bw_hz = min(control_rate_hz / 30, desired_encoder_bw_hz)
 
         if encoder_bw_hz != desired_encoder_bw_hz:
-            print(f"Warning: using lower encoder filter than "+
+            print(f"Warning: using lower encoder bandwidth than "+
                   f"requested: {encoder_bw_hz:.1f}Hz")
 
         w_3db = encoder_bw_hz * 2 * math.pi
@@ -1252,25 +1256,13 @@ class Stream:
         # discretization.
         board_limit_rad_s = (control_rate_hz / 30) * 2 * math.pi
 
-        # Second, we limit the bandwidth such that the Kp value is not
-        # too large.  The current sense noise on the moteus controller
-        # limits how large Kp can get before the loop becomes unstable
-        # or very noisy.
-        kp_limit_rad_s = current_sense_scale * 1.0 / inductance
-
-        # Finally, we limit the bandwidth such that the Ki value is
-        # not too large.
-        ki_limit_rad_s = current_sense_scale * 2500.0 / resistance
-
         cal_bw_rad_s = self.args.cal_bw_hz * twopi
 
         w_3db = min(board_limit_rad_s,
-                    kp_limit_rad_s,
-                    ki_limit_rad_s,
                     cal_bw_rad_s)
 
         if w_3db != cal_bw_rad_s:
-            print(f"Warning: using lower bandwidth " +
+            print(f"Warning: using lower torque bandwidth " +
                   f"than requested: {w_3db/twopi:.1f}Hz")
 
         kp = w_3db * inductance
