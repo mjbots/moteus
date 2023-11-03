@@ -1768,7 +1768,7 @@ respect to the PWM rate.
 
 ## `servo.pwm_rate_hz` ##
 
-The PWM rate to use, defaulting to 40000.  Allowable values are
+The PWM rate to use, defaulting to 30000.  Allowable values are
 between 15000 and 60000.  Lower values increase efficiency, but limit
 peak power and reduce the maximum speed and control bandwidth.
 
