@@ -1,0 +1,21 @@
+#!bash
+# fail fast when something goes wrong
+set -e
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+REPO_DIR="$SCRIPT_DIR/../.."
+CACHE_DIR="$REPO_DIR/.cache"
+
+mkdir -p "$CACHE_DIR"
+
+docker build -t myimage \
+  --build-arg USER_ID=$(id -u) \
+  --build-arg GROUP_ID=$(id -g) "$SCRIPT_DIR" \
+  --platform linux/amd64
+
+docker run -it --rm \
+  --mount "type=bind,src=$CACHE_DIR,dst=/home/user/.cache" \
+  --mount "type=bind,src=$REPO_DIR,dst=/src" \
+  --workdir /src \
+  --platform linux/amd64 \
+  myimage bash
