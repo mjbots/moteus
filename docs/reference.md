@@ -2494,6 +2494,8 @@ When connecting more than 3 moteus controllers or servos in a system on a single
 
 2. CAN bus electrical performance can be a limiting factor.  To operate at the default 5Mbps, you will need to ensure that CAN wires are twisted, all crimps are high quality, and that termination is installed.  Split termination may be required, where two 60 ohm resistors are connected in series with a small filter capacitor connected between the center tap of the resistors and ground.  A 4.7nF capacitor is recommended.  If that is insufficient, BRS can be disabled to operate only at 1Mbps.  With `moteus_tool` or `tview`, the `--can-disable-brs` flag can be used.
 
+mjbots sells a CAN terminator that can be used for this purpose: https://mjbots.com/products/jst-ph3-can-fd-terminator
+
 ## Regenerative Braking Safety ##
 
 moteus can be commanded to sharply decelerate loads, either directly in response to commands, or due to external disturbances.  When braking a load, moteus by default applies the generated power to the input DC bus.
