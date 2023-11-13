@@ -45,3 +45,12 @@ class AioSerial(AioStream):
             serial.win32.SetCommTimeouts(self.serial._port_handle, ctypes.byref(timeouts))
 
         super(AioSerial, self).__init__(self.serial)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+    def close(self):
+        self.serial.close()

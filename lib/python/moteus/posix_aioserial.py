@@ -61,6 +61,15 @@ class AioSerial:
     def loop(self, value: Optional[asyncio.AbstractEventLoop]):
         self.loop = value
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+    def close(self):
+        self.serial.close()
+
     async def read(self, size: int = 1, block=True) -> bytes:
         result = bytearray()
 

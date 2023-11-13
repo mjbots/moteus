@@ -70,6 +70,12 @@ class Fdcanusb:
         if debug_log:
             self._debug_log = open(debug_log, 'wb')
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self._serial.close()
+
     async def _readline(self, stream):
         while True:
             offset = min((self._stream_data.find(c) for c in b"\r\n"

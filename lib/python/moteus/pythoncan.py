@@ -48,6 +48,15 @@ class PythonCan:
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
+
+    def close(self):
+        self._can.shutdown()
+
     def _maybe_setup(self):
         if self._setup:
             return

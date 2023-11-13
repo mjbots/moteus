@@ -1471,9 +1471,17 @@ class Runner:
     def __init__(self, args):
         self.args = args
         self.cmdline_targets = expand_targets(args.target)
+        self.transport = None
 
         # Was our target list found through discovery?
         self._discovered = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        if self.transport and hasattr(self.transport, 'close'):
+            self.transport.close()
 
     async def start(self):
         self.transport = moteus.get_singleton_transport(self.args)
@@ -1687,8 +1695,8 @@ async def async_main():
 
     args = parser.parse_args()
 
-    runner = Runner(args)
-    await runner.start()
+    with Runner(args) as runner:
+        await runner.start()
 
 
 def main():
