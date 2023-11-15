@@ -1,0 +1,13 @@
+:root.light {
+  --prose-li-margin: 4px;
+  --prose-h3-margin: 0px;
+  --prose-h4-margin: 0px;
+  --elements-backdrop-filter: none;
+}
+
+:root.dark {
+  --prose-li-margin: 4px;
+  --prose-h3-margin: 0px;
+  --prose-h4-margin: 0px;
+  --elements-backdrop-filter: none;
+}
