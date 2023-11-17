@@ -367,7 +367,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionNearestReferenceSource,
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
     BOOST_TEST(status.position == 0.25126f);
-    BOOST_TEST(status.position_relative == 0.001266f);
+    BOOST_TEST(status.position_relative == 0.00125122f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }

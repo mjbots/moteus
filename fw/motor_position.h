@@ -938,6 +938,16 @@ class MotorPosition {
 
           status.velocity +=
               status.time_since_update * filter.ki * error;
+
+          // We don't let our velocity get beyond 1 revolution in 8
+          // encoder samples.
+          const float max_velocity =
+              0.125f * config.cpr / status.time_since_update;
+          if (status.velocity > max_velocity) {
+            status.velocity = max_velocity;
+          } else if (status.velocity < -max_velocity) {
+            status.velocity = -max_velocity;
+          }
         } else {
           status.filtered_value = status.compensated_value;
           status.velocity = 0.0f;
