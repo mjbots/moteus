@@ -54,8 +54,10 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        if new > 0x0106:
-            raise RuntimeError("Firmware to be flashed has a newer version than we support")
+        SUPPORTED_ABI_VERSION = 0x0106
+
+        if new > SUPPORTED_ABI_VERSION:
+            raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
 
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
