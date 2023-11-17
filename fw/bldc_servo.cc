@@ -2218,6 +2218,22 @@ class BldcServo::Impl {
       write_scalar(static_cast<int16_t>(32767.0f * control_.torque_Nm / 30.0f));
     }
 
+    if (config_.emit_debug & (1 << 11)) {
+      write_scalar(static_cast<uint16_t>(position_.sources[0].raw));
+    }
+
+    if (config_.emit_debug & (1 << 12)) {
+      write_scalar(static_cast<uint16_t>(position_.sources[1].raw));
+    }
+
+    if (config_.emit_debug & (1 << 13)) {
+      write_scalar(static_cast<uint16_t>(position_.sources[2].raw));
+    }
+
+    if (config_.emit_debug & (1 << 14)) {
+      write_scalar(static_cast<uint16_t>(status_.final_timer));
+    }
+
     // We rely on the FIFO to queue these things up.
     for (int i = 0; i < pos; i++) {
       debug_uart_->TDR = debug_buf_[i];
