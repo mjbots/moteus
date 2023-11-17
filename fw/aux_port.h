@@ -527,6 +527,7 @@ class AuxPort {
   static constexpr uint8_t AS5048_REG_ANGLE_HIGH = 0xFE;
   static constexpr uint8_t AS5048_REG_ANGLE_LOW = 0xFF;
 
+  static constexpr uint8_t AS5600_REG_CONF = 0x07;
   static constexpr uint8_t AS5600_REG_STATUS = 0x0B;
   static constexpr uint8_t AS5600_REG_RAW_ANGLE_HIGH = 0x0C;
   static constexpr uint8_t AS5600_REG_RAW_ANGLE_LOW = 0x0D;
@@ -580,8 +581,8 @@ class AuxPort {
 
     __disable_irq();
     status->value =
-        (encoder_raw_data_[1] << 8) |
-        (encoder_raw_data_[2]);
+        ((encoder_raw_data_[1] << 8) |
+         (encoder_raw_data_[2])) & 0x0fff;
     status->nonce += 1;
     __enable_irq();
 
@@ -598,6 +599,40 @@ class AuxPort {
       auto& state = i2c_state_[i];
 
       if (config.type == DC::kNone) { continue; }
+
+      if (!state.initialized) {
+        switch (config.type) {
+          case DC::kAs5048: {
+            break;
+          }
+          case DC::kAs5600: {
+            encoder_raw_data_[0] = 0
+                | (0 << 5) // watchdog = off
+                | (1 << 2) // fast filter threshold = 6/1
+                | (3 << 0) // slow filter = 2x
+                | 0;
+            encoder_raw_data_[1] = 0
+                | (0 << 6) // PWM frequency = 115Hz
+                | (0 << 4) // Output stage = 0-100%
+                | (0 << 2) // Hysteresis = OFF
+                | (0 << 0) // Power Mode = NOM
+                | 0;
+            i2c_->StartWriteMemory(
+                config.address, AS5600_REG_CONF,
+                std::string_view(reinterpret_cast<const char*>(
+                                     encoder_raw_data_), 2));
+            break;
+          }
+          case DC::kNone:
+          case DC::kNumTypes: {
+            MJ_ASSERT(false);
+            break;
+          }
+        }
+        // We can initialize at most one device per ms poll cycle.
+        state.initialized = true;
+        return;
+      }
 
       state.ms_since_last_poll++;
 
@@ -620,6 +655,8 @@ class AuxPort {
             break;
           }
         }
+        // We can start at most 1 device per polling cycle, so bail
+        // out here.
         return;
       }
     }
@@ -674,6 +711,8 @@ class AuxPort {
       // tri-stated again.
       DigitalIn din(hw_config_.options.i2c_pullup);
     }
+    i2c_state_ = {};
+
     as5047_.reset();
     as5047_options_.reset();
     ma732_.reset();
@@ -1127,6 +1166,7 @@ class AuxPort {
   std::optional<Stm32I2c> i2c_;
 
   struct I2cState {
+    bool initialized = false;
     int32_t ms_since_last_poll = 0;
     bool pending = false;
   };

@@ -90,14 +90,39 @@ class Stm32I2c {
 
     i2c_->CR2 = (
         I2C_CR2_START |
-        // I2C_CR2_RD_WRN | // we are reading
+        // I2C_CR2_RD_WRN | // we are writing the address to read from
         // I2C_CR2_AUTOEND | // we are going to send a repeated start
         (1 << I2C_CR2_NBYTES_Pos) |
         ((slave_address_ << 1) << I2C_CR2_SADD_Pos) |
         0);
     i2c_->TXDR = address;
 
-    mode_ = Mode::kSentRegister;
+    mode_ = Mode::kSentRegisterRead;
+  }
+
+  void StartWriteMemory(uint8_t slave_address,
+                        uint8_t address,
+                        std::string_view data) {
+    if (!valid_) { return; }
+    if (mode_ != Mode::kIdle ||
+        (i2c_->CR2 & I2C_CR2_START) != 0 ||
+        (i2c_->ISR & I2C_ISR_BUSY) != 0) {
+      mode_ = Mode::kError;
+      return;
+    }
+
+    tx_data_ = data;
+
+    i2c_->CR2 = (
+        I2C_CR2_START |
+        I2C_CR2_AUTOEND |
+        ((1 + data.size()) << I2C_CR2_NBYTES_Pos) |
+        ((slave_address << 1) << I2C_CR2_SADD_Pos) |
+        0);
+    i2c_->TXDR = address;
+
+    offset_ = 0;
+    mode_ = Mode::kWritingData;
   }
 
   enum class ReadStatus {
@@ -132,7 +157,7 @@ class Stm32I2c {
       case Mode::kError: {
         break;
       }
-      case Mode::kSentRegister: {
+      case Mode::kSentRegisterRead: {
         if ((i2c_->ISR & I2C_ISR_TC) == 0) {
           break;
         }
@@ -143,7 +168,7 @@ class Stm32I2c {
         // Now we send our repeated start to retrieve the result.
         i2c_->CR2 =
             (I2C_CR2_START |
-             I2C_CR2_RD_WRN |
+             I2C_CR2_RD_WRN |  // we need to read the data
              I2C_CR2_AUTOEND |
              ((slave_address_ << 1) << I2C_CR2_SADD_Pos) |
              (rx_data_.size() << I2C_CR2_NBYTES_Pos) |
@@ -171,6 +196,23 @@ class Stm32I2c {
 
         break;
       }
+      case Mode::kWritingData: {
+        if ((i2c_->ISR & I2C_ISR_TXE) == 0) {
+          break;
+        }
+
+        // We can send the next byte.
+        if (offset_ >= static_cast<int32_t>(tx_data_.size())) {
+          // We are done.
+          i2c_->ICR |= I2C_ICR_NACKCF;
+
+          mode_ = Mode::kComplete;
+        } else {
+          i2c_->TXDR = tx_data_[offset_];
+          offset_++;
+        }
+        break;
+      }
     }
 
     if (i2c_->ISR & I2C_ISR_NACKF) {
@@ -187,8 +229,9 @@ class Stm32I2c {
 
   enum class Mode {
     kIdle,
-    kSentRegister,
+    kSentRegisterRead,
     kReadingData,
+    kWritingData,
     kComplete,
     kError,
   };
@@ -197,6 +240,7 @@ class Stm32I2c {
   I2C_TypeDef* i2c_ = nullptr;
   uint8_t slave_address_ = 0;
   mjlib::base::string_span rx_data_;
+  std::string_view tx_data_;
   int32_t offset_ = 0;
 };
 
