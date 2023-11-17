@@ -93,6 +93,7 @@ class MA732 {
 
     spi_.write(0x8000 | (reg << 8) | desired);
 
+    // TODO: This must be fixed!
     timer_->wait_ms(20);
 
     const auto final_value = (spi_.write(0x0000) >> 8);
