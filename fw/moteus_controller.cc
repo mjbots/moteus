@@ -336,10 +336,17 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
               }},
           aux_options,
           };
-  } else if (g_measured_hw_family == 1) {
-    aux_options.i2c_pullup = PB_8;
-    aux_options.rs422_re = PB_10;
-    aux_options.rs422_de = PB_11;
+  } else if (g_measured_hw_family == 1 ||
+             g_measured_hw_family == 2) {
+    // Family 2 has no I2C pullup on AUX1.
+    aux_options.i2c_pullup =
+        g_measured_hw_family == 1 ? PB_8 : NC;
+
+    // Family 2 has no RS422.
+    aux_options.rs422_re =
+        g_measured_hw_family == 1 ? PB_10 : NC;
+    aux_options.rs422_de =
+        g_measured_hw_family == 1 ? PB_11 : NC;
     return aux::AuxHardwareConfig{
       {{
           //          ADC#  CHN    I2C      SPI      USART    TIMER
@@ -378,7 +385,8 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
               }},
           aux_options,
           };
-  } else if (g_measured_hw_family == 1) {
+  } else if (g_measured_hw_family == 1 ||
+             g_measured_hw_family == 2) {
     aux_options.i2c_pullup = PA_12;
     return aux::AuxHardwareConfig{
       {{

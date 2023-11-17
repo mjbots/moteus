@@ -418,7 +418,9 @@ struct BldcServoConfig {
       30000;
 
   float i_gain = 20.0f;  // should match csa_gain from drv8323
-  float current_sense_ohm = 0.0005f;
+  float current_sense_ohm =
+      (g_measured_hw_family == 2 ? 0.002f :
+       0.0005f);
 
   // PWM rise time compensation
   float pwm_comp_off =
@@ -426,8 +428,8 @@ struct BldcServoConfig {
        ((g_measured_hw_rev <= 6) ? 0.015f :
         (g_measured_hw_rev <= 7) ? 0.055f :
         0.027f) :
-      g_measured_hw_family == 1 ?
-       0.027f :
+      g_measured_hw_family == 1 ? 0.027f :
+      g_measured_hw_family == 2 ? 0.015f :
       invalid_float()
       ;
   float pwm_comp_mag =
@@ -435,21 +437,29 @@ struct BldcServoConfig {
        ((g_measured_hw_rev <= 6) ? 0.005f :
         (g_measured_hw_rev <= 7) ? 0.005f :
         0.005f) :
-      g_measured_hw_family == 1 ?
-       0.005f :
-       invalid_float()
+      g_measured_hw_family == 1 ? 0.005f :
+      g_measured_hw_family == 2 ? 0.003f :
+      invalid_float()
       ;
-  float pwm_scale = 1.0f;
+  float pwm_scale =
+      g_measured_hw_family == 0 ? 1.0f :
+      g_measured_hw_family == 1 ? 1.0f :
+      g_measured_hw_family == 2 ? 1.38f :
+      invalid_float();
 
   // We pick a default maximum voltage based on the board revision.
   float max_voltage =
       g_measured_hw_family == 0 ?
       ((g_measured_hw_rev <= 5) ? 37.0f : 46.0f) :
-      g_measured_hw_family == 1 ?
-      56.0f :
+      g_measured_hw_family == 1 ? 56.0f :
+      g_measured_hw_family == 2 ? 54.0f :
       invalid_float()
       ;
-  float max_power_W = 450.0f;
+  float max_power_W =
+      (g_measured_hw_family == 0 ||
+       g_measured_hw_family == 1) ? 450.0f :
+      g_measured_hw_family == 2 ? 100.0f :
+      invalid_float();
 
   float derate_temperature = 50.0f;
   float fault_temperature = 75.0f;
@@ -526,13 +536,21 @@ struct BldcServoConfig {
   float flux_brake_min_voltage =
       g_measured_hw_family == 0 ?
       ((g_measured_hw_rev <= 5) ? 34.5f : 43.5f) :
-      g_measured_hw_family == 1 ?
-      53.0f :
+      g_measured_hw_family == 1 ? 53.0f :
+      g_measured_hw_family == 2 ? 51.0f :
       invalid_float();
   float flux_brake_resistance_ohm = 0.025f;
 
-  float max_current_A = 100.0f;
-  float derate_current_A = -20.0f;
+  float max_current_A =
+      (g_measured_hw_family == 0 ||
+       g_measured_hw_family == 1) ? 100.0f :
+      g_measured_hw_family == 2 ? 20.0f :
+      invalid_float();
+  float derate_current_A =
+      (g_measured_hw_family == 0 ||
+       g_measured_hw_family == 1) ? -20.0f :
+      g_measured_hw_family == 2 ? -3.0f :
+      invalid_float();
 
   // When the maximum velocity exceeds this value, a current limit
   // will begin to be applied.  When it reaches max_velocity +

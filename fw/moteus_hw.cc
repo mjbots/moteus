@@ -102,45 +102,78 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
   FamilyAndVersion result;
   result.family = 0;
 
-  // We check for family 1, "moteus n1", by seeing if we can find a
-  // DRV8323 on a chip select that is different from that used on all
-  // family 0 boards.
-  while (true) {
-    timer->wait_ms(2);
-    {
-      // Ensure that on family 0 boards, the drv8323 will be not
-      // selected.
-      DigitalOut family0_drv8323_cs(PC_4, 1);
+  uint8_t family_pullup = 0;
+  {
+    DigitalIn family_detect_a(PB_10, PullUp);
+    DigitalIn family_detect_b(PB_11, PullUp);
+    timer->wait_us(10);
+    family_pullup =
+        (family_detect_a.read() ? 1 : 0) |
+        (family_detect_b.read() ? 2 : 0);
+  }
+  uint8_t family_pulldown = 0;
+  {
+    DigitalIn family_detect_a(PB_10, PullDown);
+    DigitalIn family_detect_b(PB_11, PullDown);
+    timer->wait_us(10);
+    family_pulldown =
+        (family_detect_a.read() ? 1 : 0) |
+        (family_detect_b.read() ? 2 : 0);
+  }
+  const uint8_t family_code = (family_pullup | family_pulldown << 2);
 
-      if (DetectGateDriver(timer,
-                           PB_0, // CS
-                           PC_14, // enable
-                           PC_13, // MOSI,
-                           PC_11, // MISO,
-                           PC_10) // SCK
-          ) {
-        result.family = 1;
-        break;
+  {
+    // Family 2 boards can be identified by the external pull down on
+    // PB10 and PB11 being floating.
+    if (family_code == 0x02) {
+      result.family = 2;
+    } else if (family_code == 0x03) {
+      // If both are floating, then we are family 0 or 1.
+
+      // We check for family 1, "moteus n1", by seeing if we can find a
+      // DRV8323 on a chip select that is different from that used on all
+      // family 0 boards.
+      while (true) {
+        timer->wait_ms(2);
+        {
+          // Ensure that on family 0 boards, the drv8323 will be not
+          // selected.
+          DigitalOut family0_drv8323_cs(PC_4, 1);
+
+          if (DetectGateDriver(timer,
+                               PB_0, // CS
+                               PC_14, // enable
+                               PC_13, // MOSI,
+                               PC_11, // MISO,
+                               PC_10) // SCK
+              ) {
+            result.family = 1;
+            break;
+          }
+        }
+        if (result.family == 0) {
+          // Verify we are actually on a moteus-r4 by looking for its gate
+          // driver.
+          if (!DetectGateDriver(timer,
+                                PC_4, // CS
+                                PA_3, // enable
+                                PA_7, // MOSI,
+                                PA_6, // MISO,
+                                PA_5) // SCK
+              ) {
+            // If we can detect a gate driver in neither place, loop back
+            // and try again after a while.  Maybe the input voltage is
+            // just slewing up *really* slowly and our gate driver is not
+            // at a voltage level where it will work yet.
+            continue;
+          }
+          // Yes, we are on a r4.
+          break;
+        }
       }
-    }
-    if (result.family == 0) {
-      // Verify we are actually on a moteus-r4 by looking for its gate
-      // driver.
-      if (!DetectGateDriver(timer,
-                            PC_4, // CS
-                            PA_3, // enable
-                            PA_7, // MOSI,
-                            PA_6, // MISO,
-                            PA_5) // SCK
-          ) {
-        // If we can detect a gate driver in neither place, loop back
-        // and try again after a while.  Maybe the input voltage is
-        // just slewing up *really* slowly and our gate driver is not
-        // at a voltage level where it will work yet.
-        continue;
-      }
-      // Yes, we are on a r4.
-      break;
+    } else {
+      // Unknown family.  Just die as we don't support whatever it is.
+      MJ_ASSERT(false);
     }
   }
 
@@ -168,7 +201,7 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
           return -1;
         }();
     result.hw_version = measured_hw_rev;
-  } else if (result.family == 1) {
+  } else if (result.family == 1 || result.family == 2) {
     __HAL_RCC_ADC12_CLK_ENABLE();
 
     DisableAdc(ADC2);
@@ -191,15 +224,20 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
 
     const uint16_t this_reading = ADC2->DR << 4;
 
-    if (this_reading < 0x0200) {
-      // silk moteus r1.2
+    if (result.family == 1) {
+      if (this_reading < 0x0200) {
+        // silk moteus r1.2
+        result.hw_version = 0;
+      } else if (this_reading > 0xfe00) {
+        // silk moteus r1.3
+        result.hw_version = 1;
+      } else {
+        // Unknown version.
+        result.hw_version = -1;
+      }
+    } else if (result.family == 2) {
+      // We don't have any uniformly specified versions yet.
       result.hw_version = 0;
-    } else if (this_reading > 0xfe00) {
-      // silk moteus r1.3
-      result.hw_version = 1;
-    } else {
-      // Unknown version.
-      result.hw_version = -1;
     }
   } else {
     MJ_ASSERT(false);
@@ -267,7 +305,7 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.debug1 = PC_14;
     result.debug2 = PC_15;
-  } else {
+  } else if (fv.family == 1 || fv.family == 2) {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
     result.drv8323_cs = PB_0;
@@ -303,6 +341,8 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.debug1 = NC;
     result.debug2 = NC;
+  } else {
+    MJ_ASSERT(false);
   }
 
   return result;

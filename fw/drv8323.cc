@@ -258,7 +258,8 @@ class Drv8323::Impl {
     };
 
     const bool drv8323 =
-        (g_measured_hw_family == 0 && g_measured_hw_rev <= 6);
+        (g_measured_hw_family == 0 && g_measured_hw_rev <= 6) ||
+        (g_measured_hw_family == 1);
 
     constexpr uint16_t idrivep_table_drv8323[] = {
       10, 30, 60, 80, 120, 140, 170, 190,
@@ -427,14 +428,21 @@ MotorDriver::EnableResult Drv8323::StartEnable(bool value) {
 void Drv8323::Power(bool value) { impl_->Power(value); }
 
 bool Drv8323::fault() {
-  return impl_->status_.fault_config ||
-      ((impl_->enable_state_ == kEnabled) &&
-       ((g_measured_hw_family == 0 && g_measured_hw_rev == 3) ?
-        // This revision seems to be unable to read the fault line
-        // properly.  Thus we get a laggier version over SPI.
-        (impl_->status_.fault == 1) :
-        (impl_->fault_.read() == 0))
-       );
+  const bool check_fault_config = !!impl_->status_.fault_config;
+  if (check_fault_config) { return true; }
+
+  const bool check_enable = impl_->enable_state_ == MotorDriver::kEnabled;
+  if (!check_enable) { return false; }
+
+  const bool check_family0_rev3 =
+      (g_measured_hw_family == 0 && g_measured_hw_rev == 3);
+  if (check_family0_rev3) {
+    const bool check_spi_fault = impl_->status_.fault == 1;
+    return check_spi_fault;
+  } else {
+    const bool check_hw_fault =impl_->fault_.read() == 0;
+    return check_hw_fault;
+  }
 }
 
 void Drv8323::PollMillisecond() { impl_->PollMillisecond(); }
