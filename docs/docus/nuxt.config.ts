@@ -19,10 +19,10 @@ export default defineNuxtConfig({
       content: {
         driver: 'fs',
         base: resolve(__dirname, './../content'),
-        experimental: {
-          search: true
-        }
       }
+    },
+    experimental: {
+      search: true
     },
     // markdown code highlight syntax's 
     highlight: {
