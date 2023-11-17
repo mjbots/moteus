@@ -222,6 +222,23 @@ class Stm32I2c {
     }
   }
 
+  bool busy() const {
+    switch (mode_) {
+      case Mode::kIdle:
+      case Mode::kComplete:
+      case Mode::kError: {
+        return false;
+      }
+      case Mode::kSentRegisterRead:
+      case Mode::kReadingData:
+      case Mode::kWritingData: {
+        return true;
+      }
+    }
+    MJ_ASSERT(false);
+    return false;
+  }
+
  private:
   const Options options_;
   bool valid_ = false;

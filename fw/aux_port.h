@@ -209,6 +209,42 @@ class AuxPort {
     if (cui_amt21_) {
       cui_amt21_->ISR_Update(&status_.uart);
     }
+
+    if (i2c_) {
+      ISR_I2C_Update();
+    }
+  }
+
+  void ISR_I2C_Update() {
+    if (!i2c_startup_complete_) {
+      if (timer_->read_ms() > config_.i2c_startup_delay_ms) {
+        i2c_startup_complete_ = true;
+      }
+    }
+
+    ISR_PollI2c();
+
+    i2c_->Poll();
+
+    const auto read_status = i2c_->CheckRead();
+
+    if (read_status != Stm32I2c::ReadStatus::kNoStatus) {
+      for (size_t i = 0; i < status_.i2c.devices.size(); i++) {
+        auto& state = i2c_state_[i];
+        auto& status = status_.i2c.devices[i];
+
+        if (!state.pending) { continue; }
+
+        state.pending = false;
+        if (read_status == Stm32I2c::ReadStatus::kError) {
+          status.error_count++;
+          break;
+        }
+
+        ISR_ParseI2c(i);
+        break;
+      }
+    }
   }
 
   // Call this after AuxADC::ISR_EndSample() has completed.
@@ -246,16 +282,6 @@ class AuxPort {
   }
 
   void PollMillisecond() {
-    if (!i2c_startup_complete_) {
-      if (timer_->read_ms() > config_.i2c_startup_delay_ms) {
-        i2c_startup_complete_ = true;
-      }
-    }
-    if (i2c_) {
-      // We have I2C devices to potentially process.
-      PollI2c();
-    }
-
     if (!as5047_ && as5047_options_) {
       // We can only start sampling the as5047 after 10ms have passed
       // since boot.
@@ -321,29 +347,6 @@ class AuxPort {
             });
         std::swap(current_tunnel_write_buf_, next_tunnel_write_buf_);
         uart_->start_dma_read(current_tunnel_write_buf_);
-      }
-    }
-
-    if (i2c_) {
-      i2c_->Poll();
-      const auto read_status = i2c_->CheckRead();
-
-      if (read_status != Stm32I2c::ReadStatus::kNoStatus) {
-        for (size_t i = 0; i < status_.i2c.devices.size(); i++) {
-          auto& state = i2c_state_[i];
-          auto& status = status_.i2c.devices[i];
-
-          if (!state.pending) { continue; }
-
-          state.pending = false;
-          if (read_status == Stm32I2c::ReadStatus::kError) {
-            status.error_count++;
-            break;
-          }
-
-          ParseI2c(i);
-          break;
-        }
       }
     }
   }
@@ -537,18 +540,18 @@ class AuxPort {
   static constexpr uint8_t AS5600_REG_MAG_HIGH = 0x1B;
   static constexpr uint8_t AS5600_REG_MAG_LOW = 0x1C;
 
-  void ParseI2c(size_t index) {
+  void ISR_ParseI2c(size_t index) {
     const auto& config = config_.i2c.devices[index];
     auto& status = status_.i2c.devices[index];
 
     using DC = aux::I2C::DeviceConfig;
     switch (config.type) {
       case DC::kAs5048: {
-        ParseAs5048(&status);
+        ISR_ParseAs5048(&status);
         break;
       }
       case DC::kAs5600: {
-        ParseAs5600(&status);
+        ISR_ParseAs5600(&status);
         break;
       }
       case DC::kNone:
@@ -559,15 +562,13 @@ class AuxPort {
     }
   }
 
-  void ParseAs5048(aux::I2C::DeviceStatus* status) {
+  void ISR_ParseAs5048(aux::I2C::DeviceStatus* status) {
     status->active = i2c_startup_complete_;
 
-    __disable_irq();
     status->value =
         (encoder_raw_data_[4] << 8) |
         (encoder_raw_data_[5] << 2);
     status->nonce += 1;
-    __enable_irq();
 
     status->ams_agc = encoder_raw_data_[0];
     status->ams_diag = encoder_raw_data_[1];
@@ -576,29 +577,33 @@ class AuxPort {
         (encoder_raw_data_[3] << 2);
   }
 
-  void ParseAs5600(aux::I2C::DeviceStatus* status) {
+  void ISR_ParseAs5600(aux::I2C::DeviceStatus* status) {
     status->active = i2c_startup_complete_;
 
-    __disable_irq();
     status->value =
         ((encoder_raw_data_[1] << 8) |
          (encoder_raw_data_[2])) & 0x0fff;
     status->nonce += 1;
-    __enable_irq();
 
     status->ams_agc = 0;
     status->ams_diag = encoder_raw_data_[0];
     status->ams_mag = 0;
   }
 
-  void PollI2c() {
+  void ISR_PollI2c() {
     using DC = aux::I2C::DeviceConfig;
+
+    // If our periperhal is currently busy, nothing we can do.
+    if (i2c_->busy()) { return; }
+
+    const auto now_us = timer_->read_us();
 
     for (size_t i = 0; i < i2c_state_.size(); i++) {
       const auto& config = config_.i2c.devices[i];
-      auto& state = i2c_state_[i];
 
       if (config.type == DC::kNone) { continue; }
+
+      auto& state = i2c_state_[i];
 
       if (!state.initialized) {
         switch (config.type) {
@@ -629,15 +634,16 @@ class AuxPort {
             break;
           }
         }
-        // We can initialize at most one device per ms poll cycle.
+        // We can initialize at most one device per poll cycle.
         state.initialized = true;
         return;
       }
 
-      state.ms_since_last_poll++;
+      const auto delta_us =
+          timer_->subtract_us(now_us, state.last_poll_us);
 
-      if (state.ms_since_last_poll >= config.poll_ms) {
-        state.ms_since_last_poll = 0;
+      if (delta_us >= config.poll_rate_us) {
+        state.last_poll_us = now_us;
         state.pending = true;
 
         switch (config.type) {
@@ -760,7 +766,7 @@ class AuxPort {
     cosine_pin_ = -1;
 
     for (auto& device : config_.i2c.devices) {
-      device.poll_ms = std::max<int32_t>(1, device.poll_ms);
+      device.poll_rate_us = std::max<int32_t>(100, device.poll_rate_us);
     }
 
     for (auto& pin : hw_config_.pins) {
@@ -1167,7 +1173,7 @@ class AuxPort {
 
   struct I2cState {
     bool initialized = false;
-    int32_t ms_since_last_poll = 0;
+    int32_t last_poll_us = 0;
     bool pending = false;
   };
 

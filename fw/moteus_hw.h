@@ -123,8 +123,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 //
 // * Switched to a new encoder and position subsystem.
 
+// # 0x0106 #
+//
+// * Switched aux?.sources.x.i2c.poll_ms to poll_rate_us to match UART
+//   and give more resolution.
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x000105
+#define MOTEUS_FIRMWARE_VERSION 0x000106
 
 extern MoteusHwPins g_hw_pins;
 

@@ -425,8 +425,8 @@ class MotorPosition {
           // filter bandwidth is no more than 1/10th of the expected
           // update rate.
           const float source_rate_hz =
-              1000.0f /
-              aux_config->i2c.devices[source_config.i2c_device].poll_ms;
+              1000000.0f /
+              aux_config->i2c.devices[source_config.i2c_device].poll_rate_us;
           const float max_pll_hz = source_rate_hz / 10.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);

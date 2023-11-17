@@ -54,12 +54,24 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        if new > 0x0105:
+        if new > 0x0106:
             raise RuntimeError("Firmware to be flashed has a newer version than we support")
 
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x0105 and self.old >= 0x0106:
+            # Downgrade the I2C polling rate.
+            for aux in [1, 2]:
+                for i2c_device in [0, 1, 2]:
+                    poll_rate_us_key = f'aux{aux}.i2c.devices.{i2c_device}.poll_rate_us'.encode('utf8')
+                    poll_ms_key = f'aux{aux}.i2c.devices.{i2c_device}.poll_ms'.encode('utf8')
+
+                    poll_rate_us = items[poll_rate_us_key]
+                    items.pop(poll_rate_us_key)
+                    items[poll_ms_key] = str(max(1, int(poll_rate_us) // 1000)).encode('utf8')
+            print("Reverting I2C rates for version 0x0105")
 
         if self.new <= 0x0104 and self.old >= 0x0105:
             # For now, we will only attempt to downgrade a config
@@ -249,6 +261,17 @@ class FirmwareUpgrade:
                     items[b'servo.pwm_rate_hz'] = b'30000'
 
             print('Upgraded encoder configuration for version 0x0105')
+
+        if self.new >= 0x0106 and self.old <= 0x0105:
+            # We gave I2C encoders more timing resolution.
+            for aux in [1, 2]:
+                for i2c_device in [0, 1, 2]:
+                    poll_rate_us_key = f'aux{aux}.i2c.devices.{i2c_device}.poll_rate_us'.encode('utf8')
+                    poll_ms_key = f'aux{aux}.i2c.devices.{i2c_device}.poll_ms'.encode('utf8')
+                    poll_ms = items[poll_ms_key]
+                    items.pop(poll_ms_key)
+                    items[poll_rate_us_key] = str(int(poll_ms) * 1000).encode('utf8')
+            print("Upgrading I2C rates for version 0x0106")
 
 
         lines = [key + b' ' + value for key, value in items.items()]

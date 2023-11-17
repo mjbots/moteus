@@ -238,13 +238,13 @@ struct I2C {
     };
     Type type = kNone;
     uint8_t address = 0x40;
-    int32_t poll_ms = 10;
+    int32_t poll_rate_us = 1000;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(type));
       a->Visit(MJ_NVP(address));
-      a->Visit(MJ_NVP(poll_ms));
+      a->Visit(MJ_NVP(poll_rate_us));
     }
   };
 
