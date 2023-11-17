@@ -567,6 +567,17 @@ class BldcServo::Impl {
     __enable_irq();
   }
 
+  void Fault(moteus::errc fault_code) {
+    __disable_irq();
+
+    if (status_.mode != kFault) {
+      status_.mode = kFault;
+      status_.fault = fault_code;
+    }
+
+    __enable_irq();
+  }
+
  private:
   void ConfigurePwmIrq() {
     // NOTE: We don't use micro::CallbackTable here because we need the
@@ -2410,6 +2421,10 @@ void BldcServo::SetOutputPosition(float position) {
 
 void BldcServo::RequireReindex() {
   impl_->RequireReindex();
+}
+
+void BldcServo::Fault(moteus::errc fault_code) {
+  impl_->Fault(fault_code);
 }
 
 }

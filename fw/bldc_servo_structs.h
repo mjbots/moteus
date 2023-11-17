@@ -549,6 +549,9 @@ struct BldcServoConfig {
   // exactly 0.0.
   float velocity_zero_capture_threshold = 0.05f;
 
+  // Trigger a fault if timing violations are found.
+  bool timing_fault = false;
+
   // A bitfield that selects one of several things to emit from the
   // debug UART at full control rate.
   uint32_t emit_debug = 0;
@@ -604,6 +607,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(max_velocity_derate));
     a->Visit(MJ_NVP(cooldown_cycles));
     a->Visit(MJ_NVP(velocity_zero_capture_threshold));
+    a->Visit(MJ_NVP(timing_fault));
     a->Visit(MJ_NVP(emit_debug));
   }
 

@@ -321,6 +321,12 @@ int main(void) {
     const auto new_time = timer.read_us();
 
     const auto delta_us = MillisecondTimer::subtract_us(new_time, old_time);
+    if (moteus_controller.bldc_servo()->config().timing_fault &&
+        delta_us >= 4000) {
+      // We missed several entire polling cycles.  Fault if we can.
+      moteus_controller.bldc_servo()->Fault(moteus::errc::kTimingViolation);
+    }
+
     if (delta_us >= 1000) {
       telemetry_manager.PollMillisecond();
       system_info.PollMillisecond();

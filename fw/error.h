@@ -47,6 +47,7 @@ enum class errc {
   kPositionInvalid = 43,
   kDriverEnableFault = 44,
   kStopPositionDeprecated = 45,
+  kTimingViolation = 46,
 };
 
 mjlib::micro::error_code make_error_code(errc);

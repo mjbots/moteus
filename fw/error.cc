@@ -43,6 +43,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kPositionInvalid: return "position invalid";
       case errc::kDriverEnableFault: return "driver enable";
       case errc::kStopPositionDeprecated: return "stop position deprecated";
+      case errc::kTimingViolation: return "timing violation";
     }
     return "unknown";
   }

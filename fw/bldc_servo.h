@@ -147,6 +147,7 @@ class BldcServo {
   void SetOutputPositionNearest(float position);
   void SetOutputPosition(float position);
   void RequireReindex();
+  void Fault(moteus::errc fault_code);
 
  private:
   class Impl;
