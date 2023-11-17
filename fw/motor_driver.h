@@ -18,8 +18,17 @@ namespace moteus {
 
 class MotorDriver {
  public:
-  /// Turn on or off the driver.  Return true on success.
-  virtual bool Enable(bool) = 0;
+  enum EnableResult {
+    kDisabled,
+    kEnabled,
+    kEnabling1,
+    kEnabling2,
+    kEnabling3,
+    kCalibrateFailed,
+  };
+
+  /// Start the process of turning on or off the driver.
+  virtual EnableResult StartEnable(bool) = 0;
 
   /// Enable power to the output stage.
   virtual void Power(bool) = 0;

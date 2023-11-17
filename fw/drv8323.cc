@@ -73,23 +73,54 @@ class Drv8323::Impl {
     status_update_ = telemetry_manager->Register("drv8323", &status_);
   }
 
-  bool Enable(bool value) {
-    const bool old_enable = enable_cache_ != 0;
-    enable_ = enable_cache_ = value ? 1 : 0;
+  EnableResult StartEnable(bool value) {
+    enable_.write(value ? 1 : 0);
 
-    if (value) {
-      if (!old_enable) {
-        // We need to wait 1ms before the chip will be ready to
-        // operate when first enabled.
-        timer_->wait_us(1000);
-      }
-      WriteConfig();
-      if (!Calibrate()) { return false; }
-    } else {
+    if (!value) {
+      enable_state_ = kDisabled;
       status_.fault_config = 0;
+    } else {
+      switch (enable_state_) {
+        case kDisabled: {
+          enable_start_us_ = timer_->read_us();
+          enable_state_ = kEnabling1;
+          break;
+        }
+        case kEnabling1: {
+          const uint32_t delta =
+              timer_->subtract_us(timer_->read_us(), enable_start_us_);
+          if (delta > 1000) {
+            enable_state_ = kEnabled;
+            WriteConfig();
+            StartCalibrate();
+            enable_state_ = kEnabling2;
+          }
+          break;
+        }
+        case kEnabling2: {
+          StopCalibrate();
+          enable_state_ = kEnabling3;
+          break;
+        }
+        case kEnabling3: {
+          const bool calibrate_success = FinishCalibrate();
+          if (!calibrate_success) {
+            enable_state_ = kCalibrateFailed;
+          } else {
+            enable_state_ = kEnabled;
+          }
+          break;
+        }
+        case kEnabled: {
+          break;
+        }
+        case kCalibrateFailed: {
+          break;
+        }
+      }
     }
 
-    return true;
+    return enable_state_;
   }
 
   void Power(bool value) {
@@ -117,9 +148,9 @@ class Drv8323::Impl {
 
     s.fault_line = fault_.read() == 0;
     s.power = (hiz_.read() != 0);
-    s.enabled = (enable_cache_ != 0);
+    s.enabled = enable_state_ != kDisabled;
 
-    if (enable_cache_ == 0) {
+    if (enable_state_ != kEnabled) {
       // If we are not enabled, then we can not communicate over SPI.
       return;
     }
@@ -188,7 +219,7 @@ class Drv8323::Impl {
     WriteConfig();
   }
 
-  bool Calibrate() {
+  void StartCalibrate() {
     // The offset calibration is done by temporarily setting the CAL
     // bits to one.
     const uint16_t old_reg6 = Read(6);
@@ -201,14 +232,16 @@ class Drv8323::Impl {
     // MJ_ASSERT((old_reg6 & 0x1c) == 0);
 
     spi_.write((6 << 11) | (old_reg6 | 0x1c));
+  }
 
-    timer_->wait_us(200);
+  void StopCalibrate() {
+    const uint16_t old_reg6 = Read(6);
 
     // Now unset the cal bits.
     spi_.write((6 << 11) | (old_reg6 & ~0x1c));
+  }
 
-    timer_->wait_us(100);
-
+  bool FinishCalibrate() {
     // Verify that they are now 0.
     const uint16_t new_reg6 = Read(6);
     if ((new_reg6 & 0x1c) != 0) {
@@ -368,11 +401,12 @@ class Drv8323::Impl {
 
   Stm32BitbangSpi spi_;
   DigitalOut enable_;
-  int32_t enable_cache_ = false;
   DigitalOut hiz_;
   DigitalIn fault_;
 
   uint16_t loop_count_ = 0;
+  uint32_t enable_start_us_ = 0;
+  EnableResult enable_state_ = kDisabled;
 
   mjlib::base::inplace_function<void()> status_update_;
 };
@@ -386,7 +420,10 @@ Drv8323::Drv8323(micro::Pool* pool,
 
 Drv8323::~Drv8323() {}
 
-bool Drv8323::Enable(bool value) { return impl_->Enable(value); }
+MotorDriver::EnableResult Drv8323::StartEnable(bool value) {
+  return impl_->StartEnable(value);
+}
+
 void Drv8323::Power(bool value) { impl_->Power(value); }
 
 bool Drv8323::fault() {

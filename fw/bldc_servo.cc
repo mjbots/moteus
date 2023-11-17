@@ -507,12 +507,24 @@ class BldcServo::Impl {
     volatile auto* fault_volatile = &status_.fault;
     Mode mode = *mode_volatile;
     if (mode == kEnabling) {
-      const bool success = motor_driver_->Enable(true);
-      if (success) {
-        *mode_volatile = kCalibrating;
-      } else {
-        *fault_volatile = errc::kDriverEnableFault;
-        *mode_volatile = kFault;
+      const auto enable_result = motor_driver_->StartEnable(true);
+      switch (enable_result) {
+        case MotorDriver::kEnabled: {
+          *mode_volatile = kCalibrating;
+          break;
+        }
+        case MotorDriver::kCalibrateFailed: {
+          *fault_volatile = errc::kDriverEnableFault;
+          *mode_volatile = kFault;
+          break;
+        }
+        case MotorDriver::kDisabled:
+        case MotorDriver::kEnabling1:
+        case MotorDriver::kEnabling2:
+        case MotorDriver::kEnabling3: {
+          // Not done yet.
+          break;
+        }
       }
     }
 
@@ -1515,7 +1527,9 @@ class BldcServo::Impl {
       return;
     }
 
-    motor_driver_->Enable(false);
+    const auto result = motor_driver_->StartEnable(false);
+    // We should always be able to disable immediately.
+    MJ_ASSERT(result == MotorDriver::kDisabled);
     motor_driver_->Power(false);
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;

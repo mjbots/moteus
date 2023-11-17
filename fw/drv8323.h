@@ -54,7 +54,7 @@ class Drv8323 : public MotorDriver {
   // be invoked from an interrupt context.
   //
   // Return true for success, false for failure.
-  bool Enable(bool) override;
+  EnableResult StartEnable(bool) override;
 
   void Power(bool) override;
   bool fault() override;
