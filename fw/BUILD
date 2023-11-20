@@ -110,7 +110,7 @@ MOTEUS_SOURCES = [
     "ma732.h",
     "moteus_controller.h",
     "moteus_controller.cc",
-    "moteus_hardfault_handler.c",
+    "moteus_hardfault_handler.cc",
     "moteus_hw.h",
     "moteus_hw.cc",
     "millisecond_timer.h",

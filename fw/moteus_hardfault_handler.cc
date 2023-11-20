@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "fw/millisecond_timer.h"
+#include "fw/moteus_hw.h"
 #include "fw/stm32.h"
 
+extern "C" {
 void hard_fault_handler_c (unsigned int * hardfault_args)
 {
   volatile unsigned int stacked_r0;
@@ -52,5 +55,28 @@ void hard_fault_handler_c (unsigned int * hardfault_args)
   // TODO(jpieper): Verify that the 8323 pin assignments match these
   // hard-coded constants.
 
-  while (1);
+  const auto debug_led = moteus::g_hw_pins.debug_led1;
+  volatile GPIO_TypeDef* io_port =
+      (debug_led == PF_0) ? GPIOF :
+      (debug_led == PB_15) ? GPIOB :
+      GPIOF;
+  const uint32_t bitmask =
+      (debug_led == PF_0) ? (1 << 0) :
+      (debug_led == PB_15) ? (1 << 15) :
+      (1 << 0);
+
+  moteus::MillisecondTimer timer;
+
+  while (1) {
+    io_port->ODR &= ~bitmask;
+    timer.wait_ms(200);
+    io_port->ODR |= bitmask;
+    timer.wait_ms(200);
+
+    io_port->ODR &= ~bitmask;
+    timer.wait_ms(200);
+    io_port->ODR |= bitmask;
+    timer.wait_ms(500);
+  }
+}
 }
