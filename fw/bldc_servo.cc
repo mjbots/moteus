@@ -600,6 +600,7 @@ class BldcServo::Impl {
     HAL_NVIC_SetPriority(PendSV_IRQn, 6, 0);
 
     NVIC_EnableIRQ(PendSV_IRQn);
+    pwm_irqn_ = irqn;
     NVIC_EnableIRQ(irqn);
   }
 
@@ -852,6 +853,10 @@ class BldcServo::Impl {
     // position sensors.
     ISR_DoSenseCritical();
 
+    // We should not re-enter into this interrupt until our low
+    // priority portion is complete.
+    NVIC_DisableIRQ(pwm_irqn_);
+
     SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
   }
 
@@ -907,6 +912,8 @@ class BldcServo::Impl {
 #ifdef MOTEUS_DEBUG_OUT
     debug_out_ = 0;
 #endif
+
+    NVIC_EnableIRQ(pwm_irqn_);
   }
 
   void ISR_DoSenseCritical() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
@@ -922,8 +929,8 @@ class BldcServo::Impl {
 #endif
 
     // We are now out of the most time critical portion of the ISR,
-    // although it is still all pretty time critical since it runs
-    // at 40kHz.  But time spent until now actually limits the
+    // although it is still all pretty time critical since it runs at
+    // up to 30kHz.  But time spent until now actually limits the
     // maximum duty cycle we can achieve, whereas time spent below
     // just eats cycles the rest of the code could be using.
 
@@ -2354,6 +2361,8 @@ class BldcServo::Impl {
   uint32_t adc2_sqr_ = 0;
   uint32_t adc3_sqr_ = 0;
   uint32_t adc4_sqr_ = 0;
+
+  IRQn_Type pwm_irqn_ = {};
 
   const bool family0_rev4_and_older_ = (
       g_measured_hw_family == 0 &&
