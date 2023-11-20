@@ -706,7 +706,11 @@ class AuxPort {
     // Disable our ISR before changing any config.
     any_isr_enabled_ = false;
 
+    const auto old_epoch = status_.epoch;
+
     status_ = {};
+
+    status_.epoch = old_epoch + 1;
 
     ////////////////////////////////////////////
     // Reset everything to a known default.

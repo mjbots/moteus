@@ -487,6 +487,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
     aux2_port_.PollMillisecond();
     drv8323_.PollMillisecond();
     bldc_.PollMillisecond();
+    motor_position_.PollMillisecond();
   }
 
   uint32_t Write(multiplex::MicroServer::Register reg,

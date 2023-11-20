@@ -398,6 +398,9 @@ struct AuxStatus {
   uint8_t analog_bit_active = 0;
   std::array<float, 5> analog_inputs = { {} };
 
+  // Increases anytime the configuration changes.
+  uint8_t epoch = 0;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(i2c));
@@ -412,6 +415,7 @@ struct AuxStatus {
     a->Visit(MJ_NVP(pins));
     a->Visit(MJ_NVP(analog_bit_active));
     a->Visit(MJ_NVP(analog_inputs));
+    a->Visit(MJ_NVP(epoch));
   }
 };
 

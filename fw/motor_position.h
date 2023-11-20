@@ -265,6 +265,7 @@ class MotorPosition {
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(error));
       a->Visit(MJ_NVP(sources));
+      a->Visit(MJ_NVP(epoch));
       a->Visit(MJ_NVP(position_relative_valid));
       a->Visit(MJ_NVP(position_relative_raw));
       a->Visit(MJ_NVP(position_relative));
@@ -299,6 +300,16 @@ class MotorPosition {
     HandleConfigUpdate();
   }
 
+  void PollMillisecond() {
+    if (aux_status_[0]->epoch != aux_epoch_[0] ||
+        aux_status_[1]->epoch != aux_epoch_[1]) {
+      aux_epoch_[0] = aux_status_[0]->epoch;
+      aux_epoch_[1] = aux_status_[1]->epoch;
+
+      HandleConfigUpdate();
+    }
+  }
+
   void ISR_Update(float dt) MOTEUS_CCM_ATTRIBUTE {
     // First, fill in each of our sources raw data and do source level
     // filtering.
@@ -306,10 +317,6 @@ class MotorPosition {
 
     // Then update our output structures.
     ISR_UpdateState();
-  }
-
-  void RegisterConfigUpdated(mjlib::base::inplace_function<void ()> handler) {
-    config_updated_ = handler;
   }
 
   // Force the output position to be the given value.
@@ -566,10 +573,6 @@ class MotorPosition {
       const float w_3db = config.pll_filter_hz * k2Pi;
       constants.kp = 2.0f * w_3db;
       constants.ki = w_3db * w_3db;
-    }
-
-    if (config_updated_) {
-      config_updated_();
     }
   }
 
@@ -1066,6 +1069,7 @@ class MotorPosition {
 
   const aux::AuxStatus* const aux_status_[2];
   const aux::AuxConfig* const aux_config_[2];
+  uint8_t aux_epoch_[2] = {};
 
   mjlib::base::inplace_function<void ()> config_updated_;
 
