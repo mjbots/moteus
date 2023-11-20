@@ -38,6 +38,8 @@ struct SystemInfoData {
   // properly.
   uint32_t ms_count = (1ull<<31) - 300000;
 
+  uint32_t mem_error = 0;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(pool_size));
@@ -45,6 +47,7 @@ struct SystemInfoData {
     a->Visit(MJ_NVP(idle_rate));
     a->Visit(MJ_NVP(can_reset_count));
     a->Visit(MJ_NVP(ms_count));
+    a->Visit(MJ_NVP(mem_error));
   }
 };
 }
@@ -71,6 +74,11 @@ class SystemInfo::Impl {
     const auto this_idle_count = idle_count;
     data_.idle_rate = this_idle_count - last_idle_count_;
     last_idle_count_ = this_idle_count;
+
+    if (FLASH->SR & FLASH_SR_PGSERR_Msk) {
+      data_.mem_error++;
+      FLASH->SR |= FLASH_SR_PGSERR_Msk;
+    }
 
     data_updater_();
   }
