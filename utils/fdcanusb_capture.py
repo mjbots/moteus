@@ -20,7 +20,7 @@ import sys
 import time
 
 fd = open(sys.argv[1])
-out = open(sys.argv[2])
+out = open(sys.argv[2], "w")
 while True:
     line = fd.readline()
     print(f'{time.time()} {line}', file=out)
