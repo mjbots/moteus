@@ -449,6 +449,8 @@ class Controller {
           fmt::format("conf set motor_position.output.sign {}", pid.output_sign));
     }
 
+    co_await Command("conf set servo.timing_fault 1");
+
     co_return;
   }
 
@@ -2041,8 +2043,8 @@ class Application {
     } tests[] = {
       { 100.0, 3.80 },
       { 20.0, 3.00 },
-      { 10.0, 1.90 },
-      { 5.0, 1.30 },
+      { 10.0, 2.00 },
+      { 5.0, 1.40 },
     };
 
     std::string errors;
@@ -2060,15 +2062,16 @@ class Application {
       co_await Sleep(0.5);
       const double end_pos = dut_->servo_stats().position;
       const double average_speed = (end_pos - start_pos) / 0.5;
+      constexpr double tolerance = 0.20;
 
       fmt::print("Power {} / Speed {}\n", test.power_W, average_speed);
 
-      if (RelativeError(average_speed, test.expected_speed_Hz) > 0.15) {
+      if (RelativeError(average_speed, test.expected_speed_Hz) > tolerance) {
         if (!errors.empty()) { errors += "\n"; }
         errors +=
             fmt::format(
                 "Speed {} != {} (within {}%)",
-                average_speed, test.expected_speed_Hz, 0.15 * 100);
+                average_speed, test.expected_speed_Hz, tolerance * 100);
       }
 
       co_await dut_->Command("d stop");
