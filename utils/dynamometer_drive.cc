@@ -239,6 +239,19 @@ class ServoStatsReader {
   mjlib::telemetry::MappedBinaryReader<ServoStats> reader_{&parser_};
 };
 
+class SystemInfoReader {
+ public:
+  SystemInfoReader(const std::string& schema) : schema_(schema) {}
+  SystemInfo Read(const std::string& data) {
+    return reader_.Read(data);
+  }
+
+ private:
+  const std::string schema_;
+  mjlib::telemetry::BinarySchemaParser parser_{schema_, "system_info"};
+  mjlib::telemetry::MappedBinaryReader<SystemInfo> reader_{&parser_};
+};
+
 class Controller {
  public:
   Controller(const std::string& log_prefix,
@@ -333,6 +346,7 @@ class Controller {
       "servo_control",
       "servo_cmd",
       "git",
+      "system_info",
     };
 
     for (const auto& name : names) {
@@ -479,6 +493,8 @@ class Controller {
 
         if (name == "servo_stats") {
           servo_stats_reader_.emplace(schema);
+        } else if (name == "system_info") {
+          system_info_reader_.emplace(schema);
         }
       } else if (boost::starts_with(line, "emit ")) {
         const auto name = StringValue(line);
@@ -489,6 +505,8 @@ class Controller {
           file_writer_->WriteData({}, ident, data);
           if (name == "servo_stats") {
             HandleServoStats(servo_stats_reader_->Read(data));
+          } else if (name == "system_info") {
+            HandleSystemInfo(system_info_reader_->Read(data));
           }
         }
       } else {
@@ -525,6 +543,23 @@ class Controller {
     }
   }
 
+  void HandleSystemInfo(const SystemInfo& system_info) {
+    // Throw an error if we ever report that the can bus was reset or
+    // that a memory error occurred.
+    if (system_info.can_reset_count != 0) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("system_info.can_reset_count == {} ({})",
+                      system_info.can_reset_count,
+                      log_prefix_));
+    }
+    if (system_info.mem_error != 0) {
+      throw mjlib::base::system_error::einval(
+          fmt::format("system_info.mem_error == {} ({})",
+                      system_info.mem_error,
+                      log_prefix_));
+    }
+  }
+
   const std::string log_prefix_;
   mjlib::io::SharedStream stream_;
   mjlib::telemetry::FileWriter* const file_writer_;
@@ -547,6 +582,8 @@ class Controller {
 
   std::optional<ServoStatsReader> servo_stats_reader_;
   ServoStats servo_stats_;
+
+  std::optional<SystemInfoReader> system_info_reader_;
 };
 
 class Application {

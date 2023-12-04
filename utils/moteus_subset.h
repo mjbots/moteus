@@ -119,6 +119,17 @@ struct Git {
   }
 };
 
+struct SystemInfo {
+  uint32_t can_reset_count = 0;
+  uint32_t mem_error = 0;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(can_reset_count));
+    a->Visit(MJ_NVP(mem_error));
+  }
+};
+
 }  // namespace tool
 }  // namespace moteus
 
