@@ -93,7 +93,11 @@ class MA732 {
 
     spi_.write(0x8000 | (reg << 8) | desired);
 
-    // TODO: This must be fixed!
+    // Eventually it would be nice to restructure this so as to not
+    // block the main loop for 20ms every time we change the MA732
+    // config.  However, given that each device only has ~1000 writes
+    // available, it isn't like it is something that will be happening
+    // all that often.
     timer_->wait_ms(20);
 
     const auto final_value = (spi_.write(0x0000) >> 8);
