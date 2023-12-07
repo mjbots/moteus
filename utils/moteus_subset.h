@@ -96,6 +96,7 @@ struct Firmware {
   std::array<uint32_t, 3> serial_number = {};
   uint32_t model = 0;
   uint8_t hwrev = 0;
+  uint8_t family = 0;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -103,6 +104,7 @@ struct Firmware {
     a->Visit(MJ_NVP(serial_number));
     a->Visit(MJ_NVP(model));
     a->Visit(MJ_NVP(hwrev));
+    a->Visit(MJ_NVP(family));
   }
 };
 
