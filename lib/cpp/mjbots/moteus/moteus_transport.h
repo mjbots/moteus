@@ -45,6 +45,10 @@
 #include "moteus_protocol.h"
 #include "moteus_tokenizer.h"
 
+#ifdef CANFD_FDF
+#define MJBOTS_MOTEUS_ENABLE_SOCKETCAN 1
+#endif
+
 namespace mjbots {
 namespace moteus {
 
@@ -754,6 +758,7 @@ class Fdcanusb : public details::TimeoutTransport {
 };
 
 
+#ifdef MJBOTS_MOTEUS_ENABLE_SOCKETCAN
 class Socketcan : public details::TimeoutTransport {
  public:
   struct Options : details::TimeoutTransport::Options {
@@ -878,7 +883,7 @@ class Socketcan : public details::TimeoutTransport {
   const Options options_;
   details::FileDescriptor socket_;
 };
-
+#endif  // MJBOTS_MOTEUS_ENABLE_SOCKETCAN
 
 /// A factory which can create transports given an optional set of
 /// commandline arguments.
@@ -968,6 +973,7 @@ class FdcanusbFactory : public TransportFactory {
   }
 };
 
+#ifdef MJBOTS_MOTEUS_ENABLE_SOCKETCAN
 class SocketcanFactory : public TransportFactory {
  public:
   virtual ~SocketcanFactory() {}
@@ -1019,6 +1025,7 @@ class SocketcanFactory : public TransportFactory {
     return false;
   }
 };
+#endif  // MJBOTS_MOTEUS_ENABLE_SOCKETCAN
 
 class TransportRegistry {
  public:
@@ -1106,7 +1113,9 @@ class TransportRegistry {
  private:
   TransportRegistry() {
     Register<FdcanusbFactory>();
+#ifdef MJBOTS_MOTEUS_ENABLE_SOCKETCAN
     Register<SocketcanFactory>();
+#endif
   }
 
   std::vector<std::shared_ptr<TransportFactory>> items_;
