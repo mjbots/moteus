@@ -53,7 +53,7 @@ async def main():
         results = await c.set_position(
             position=current_command,
             velocity=0.0,
-            accel_limit=2.0,
+            accel_limit=8.0,
             velocity_limit=3.0,
             query=True,
         )
