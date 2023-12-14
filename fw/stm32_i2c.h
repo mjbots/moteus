@@ -142,9 +142,14 @@ class Stm32I2c {
     }
     if (mode_ == Mode::kError) {
       // Re-initialize.
-      Initialize();
+      i2c_->CR1 &= ~(I2C_CR1_PE);
 
-      mode_ = Mode::kIdle;
+      if ((i2c_->CR1 & I2C_CR1_PE) == 0) {
+        // The peripheral is off and ready be re-enabled.
+        mode_ = Mode::kIdle;
+        i2c_->CR1 |= I2C_CR1_PE;
+      }
+
       return ReadStatus::kError;
     }
     return ReadStatus::kNoStatus;
