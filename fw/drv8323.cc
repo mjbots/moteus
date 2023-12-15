@@ -428,7 +428,7 @@ void Drv8323::Power(bool value) { impl_->Power(value); }
 
 bool Drv8323::fault() {
   return impl_->status_.fault_config ||
-      ((impl_->enable_.read() != 0) &&
+      ((impl_->enable_state_ == kEnabled) &&
        ((g_measured_hw_family == 0 && g_measured_hw_rev == 3) ?
         // This revision seems to be unable to read the fault line
         // properly.  Thus we get a laggier version over SPI.
