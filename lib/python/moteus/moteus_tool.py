@@ -270,6 +270,10 @@ class FirmwareUpgrade:
                 for i2c_device in [0, 1, 2]:
                     poll_rate_us_key = f'aux{aux}.i2c.devices.{i2c_device}.poll_rate_us'.encode('utf8')
                     poll_ms_key = f'aux{aux}.i2c.devices.{i2c_device}.poll_ms'.encode('utf8')
+
+                    if poll_rate_us_key not in items:
+                        continue
+
                     poll_ms = items[poll_ms_key]
                     items.pop(poll_ms_key)
                     items[poll_rate_us_key] = str(int(poll_ms) * 1000).encode('utf8')
