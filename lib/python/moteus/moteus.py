@@ -259,6 +259,7 @@ class Register(enum.IntEnum):
     SET_OUTPUT_NEAREST = 0x130
     SET_OUTPUT_EXACT = 0x131
     REQUIRE_REINDEX = 0x132
+    RECAPTURE_POSITION_VELOCITY = 0x133
 
     DRIVER_FAULT1 = 0x140
     DRIVER_FAULT2 = 0x141
@@ -839,6 +840,27 @@ class Controller:
 
     async def set_require_reindex(self, query=False, query_override=None):
         return await self.execute(self.make_require_reindex(
+            query=query, query_override=query_override))
+
+    def make_recapture_position_velocity(self,
+                                         query=False,
+                                         query_override=None):
+        result = self._make_command(
+            query=query, query_override=query_override)
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_varuint(Register.RECAPTURE_POSITION_VELOCITY)
+        writer.write_int8(1)
+
+        result.data = data_buf.getvalue()
+        return result
+
+    async def set_recapture_position_velocity(self,
+                                              query=False,
+                                              query_override=None):
+        return await self.execute(self.make_recapture_position_velocity(
             query=query, query_override=query_override))
 
     def make_position(self,

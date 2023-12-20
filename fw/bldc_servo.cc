@@ -567,6 +567,17 @@ class BldcServo::Impl {
     __enable_irq();
   }
 
+  void RecapturePositionVelocity() {
+    __disable_irq();
+
+    status_.pid_position.Clear();
+    status_.control_position_raw = {};
+    status_.control_position = std::numeric_limits<float>::quiet_NaN();
+    status_.control_velocity = {};
+
+    __enable_irq();
+  }
+
   void Fault(moteus::errc fault_code) {
     __disable_irq();
 
@@ -2441,6 +2452,10 @@ void BldcServo::SetOutputPosition(float position) {
 
 void BldcServo::RequireReindex() {
   impl_->RequireReindex();
+}
+
+void BldcServo::RecapturePositionVelocity() {
+  impl_->RecapturePositionVelocity();
 }
 
 void BldcServo::Fault(moteus::errc fault_code) {

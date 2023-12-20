@@ -198,6 +198,7 @@ enum Register : uint16_t {
   kSetOutputNearest = 0x130,
   kSetOutputExact = 0x131,
   kRequireReindex = 0x132,
+  kRecapturePositionVelocity = 0x133,
 
   kDriverFault1 = 0x140,
   kDriverFault2 = 0x141,
@@ -641,6 +642,7 @@ struct Query {
       { R::kSetOutputNearest, 3, MP::kInt, },
       // { R::kSetOutputExact, 1, MP::kInt, },
       // { R::kRequireReindex, 1, MP::kInt, },
+      // { R::kRecapturePositionVelocity, 1, MP::kInt, }
 
       { R::kDriverFault1, 2, MP::kInt, },
       // { R::kDriverFault2, 1, MP::kInt, },
@@ -1146,6 +1148,18 @@ struct RequireReindex {
   static uint8_t Make(WriteCanData* frame, const Command&, const Format&) {
     frame->Write<int8_t>(Multiplex::kWriteInt8 | 0x01);
     frame->WriteVaruint(Register::kRequireReindex);
+    frame->Write<int8_t>(1);
+    return 0;
+  }
+};
+
+struct RecapturePositionVelocity {
+  struct Command {};
+  struct Format {};
+
+  static uint8_t Make(WriteCanData* frame, const Command&, const Format&) {
+    frame->Write<int8_t>(Multiplex::kWriteInt8 | 0x01);
+    frame->WriteVaruint(Register::kRecapturePositionVelocity);
     frame->Write<int8_t>(1);
     return 0;
   }

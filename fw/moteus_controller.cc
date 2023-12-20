@@ -315,6 +315,7 @@ enum class Register {
   kSetOutputNearest = 0x130,
   kSetOutputExact = 0x131,
   kRequireReindex = 0x132,
+  kRecapturePositionVelocity = 0x133,
 
   kDriverFault1 = 0x140,
   kDriverFault2 = 0x141,
@@ -642,6 +643,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kRequireReindex: {
         bldc_.RequireReindex();
+        return 0;
+      }
+      case Register::kRecapturePositionVelocity: {
+        bldc_.RecapturePositionVelocity();
         return 0;
       }
 
@@ -990,7 +995,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kSetOutputNearest:
       case Register::kSetOutputExact:
-      case Register::kRequireReindex: {
+      case Register::kRequireReindex:
+      case Register::kRecapturePositionVelocity: {
         break;
       }
       case Register::kDriverFault1: {

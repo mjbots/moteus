@@ -425,6 +425,38 @@ class Controller {
 
 
   /////////////////////////////////////////
+  // RecapturePositionVelocity
+
+  CanFdFrame MakeRecapturePositionVelocity(
+      const RecapturePositionVelocity::Command& cmd = {},
+      const RecapturePositionVelocity::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    return MakeFrame(RecapturePositionVelocity(), cmd,
+                     (command_override == nullptr ?
+                      RecapturePositionVelocity::Format() : *command_override),
+                     query_override);
+  }
+
+  Optional<Result> SetRecapturePositionVelocity(
+      const RecapturePositionVelocity::Command& cmd,
+      const RecapturePositionVelocity::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeRecapturePositionVelocity(cmd, command_override, query_override));
+  }
+
+  void AsyncRecapturePositionVelocity(
+      const RecapturePositionVelocity::Command& cmd,
+      Result* result, CompletionCallback callback,
+      const RecapturePositionVelocity::Format* command_override = nullptr,
+      const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(
+        MakeRecapturePositionVelocity(cmd, command_override, query_override),
+        result, callback);
+  }
+
+
+  /////////////////////////////////////////
   // ClockTrim
 
   CanFdFrame MakeClockTrim(const ClockTrim::Command& cmd,

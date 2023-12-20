@@ -1185,6 +1185,18 @@ position be re-located before control can begin.  Regardless, the
 position will reset to an arbitrary value consistent with the current
 encoder settings.
 
+### 0x133 - Recapture Position and Velocity ###
+
+Mode: Write only
+
+When sent with any value, and if in "position" mode, the servo will
+re-initialize the current control position and velocity to the sensed
+values.  This also forces any pre-existing position integrative term
+to zero.  It is expected that this will mostly be used when the
+current applied torque is 0, either because of an in-place maximum
+torque limit of zero, or because of an in-place kp and kd scale of
+zero.
+
 ### 0x140 - Driver Fault 1 ###
 
 Mode: Read only
@@ -1399,6 +1411,15 @@ procedure to be re-run.
 
 ```
 d req-reindex
+```
+
+### `d recapture` ###
+
+When in position mode, reset the control position and velocity to the
+currently sensed values.
+
+```
+d recapture
 ```
 
 ### `d cfg-set-output` ###

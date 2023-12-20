@@ -711,6 +711,13 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "recapture") {
+      bldc_->RecapturePositionVelocity();
+
+      WriteOk(response);
+      return;
+    }
+
     if (cmd_text == "hstart") {
       histogram_count_ms_ = 0;
 
