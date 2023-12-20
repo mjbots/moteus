@@ -1018,11 +1018,6 @@ class BldcServo::Impl {
 #endif
     motor_position_->ISR_Update(rate_config_.period_s);
 
-    if (!std::isnan(status_.position_to_set)) {
-      motor_position_->ISR_SetOutputPositionNearest(status_.position_to_set);
-      status_.position_to_set = std::numeric_limits<float>::quiet_NaN();
-    }
-
     ISR_UpdateFilteredValue(position_.velocity, &status_.velocity_filt, 0.01f);
 
     // The temperature sensing should be done by now, but just double
