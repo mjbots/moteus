@@ -30,7 +30,14 @@ EXAMPLES = [
     name = x,
     srcs = [x + ".cc"],
     deps = ["//lib/cpp/mjbots/moteus:moteus",],
-    copts = ["-Ilib/cpp/mjbots/moteus",],
+    copts = ["-Ilib/cpp/mjbots/moteus",
+             "-Werror",
+             "-Wvla",
+             "-Wsign-compare",
+             "-Wunused-parameter",
+             "-Wpedantic",
+             "-Wno-extra-semi",
+             ],
 )
  for x in EXAMPLES]
 

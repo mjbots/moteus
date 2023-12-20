@@ -317,7 +317,8 @@ class TimeoutTransport : public Transport {
         expected_ok_count++;
         CHILD_SendCanFdFrame(frames[i]);
         if (frames[i].reply_required) {
-          if ((frames[i].destination + 1) > expected_reply_count_.size()) {
+          if ((frames[i].destination + 1) >
+              static_cast<int>(expected_reply_count_.size())) {
             expected_reply_count_.resize(frames[i].destination + 1);
           }
           expected_reply_count_[frames[i].destination]++;
@@ -532,7 +533,7 @@ class Fdcanusb : public details::TimeoutTransport {
 
   virtual ConsumeCount CHILD_ConsumeData(
       std::vector<CanFdFrame>* replies,
-      int expected_ok_count,
+      int /* expected_ok_count */,
       std::vector<int>* expected_reply_count) override {
     // Read into our line buffer.
     const int to_read = sizeof(line_buffer_) - line_buffer_pos_;
@@ -624,7 +625,8 @@ class Fdcanusb : public details::TimeoutTransport {
     }
 
     if (expected_reply_count) {
-      if (this_frame.source < expected_reply_count->size()) {
+      if (this_frame.source <
+          static_cast<int>(expected_reply_count->size())) {
         (*expected_reply_count)[this_frame.source] = std::max(
             (*expected_reply_count)[this_frame.source] - 1, 0);
       }
@@ -841,7 +843,7 @@ class Socketcan : public details::TimeoutTransport {
 
   virtual ConsumeCount CHILD_ConsumeData(
       std::vector<CanFdFrame>* replies,
-      int expected_ok_count,
+      int /* expected_ok_count */,
       std::vector<int>* expected_reply_count) override {
     struct canfd_frame recv_frame = {};
     FailIf(::read(socket_, &recv_frame, sizeof(recv_frame)) < 0,
@@ -862,7 +864,8 @@ class Socketcan : public details::TimeoutTransport {
     this_frame.size = recv_frame.len;
 
     if (expected_reply_count) {
-      if (this_frame.source < expected_reply_count->size()) {
+      if (this_frame.source <
+          static_cast<int>(expected_reply_count->size())) {
         (*expected_reply_count)[this_frame.source] = std::max(
             (*expected_reply_count)[this_frame.source] - 1, 0);
       }

@@ -26,6 +26,7 @@
 #ifndef ARDUINO
 
 #include <limits>
+#include <vector>
 #define NaN std::numeric_limits<double>::quiet_NaN();
 
 #else
@@ -399,7 +400,7 @@ struct Query {
       // below.
       if (required_registers > 512) { ::abort(); }
 
-      Resolution resolutions[required_registers];
+      std::vector<Resolution> resolutions(required_registers);
       ::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
 
       for (int16_t this_register = min_register_number, index = 0;
@@ -415,7 +416,7 @@ struct Query {
       }
       WriteCombiner combiner(
           frame, 0x10, min_register_number,
-          resolutions, required_registers);
+          &resolutions[0], required_registers);
       for (uint16_t i = 0; i < required_registers; i++) {
         combiner.MaybeWrite();
       }
@@ -721,7 +722,7 @@ struct GenericQuery {
     // below.
     if (required_registers > 512) { ::abort(); }
 
-    Resolution resolutions[required_registers];
+    std::vector<Resolution> resolutions(required_registers);
     ::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
 
     for (int16_t this_register = min_register_number, index = 0;
@@ -737,7 +738,7 @@ struct GenericQuery {
     }
     WriteCombiner combiner(
         frame, 0x10, min_register_number,
-          resolutions, required_registers);
+          &resolutions[0], required_registers);
     for (uint16_t i = 0; i < required_registers; i++) {
       combiner.MaybeWrite();
     }
