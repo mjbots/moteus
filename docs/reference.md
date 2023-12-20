@@ -1776,6 +1776,15 @@ control position and the current measured position measured in
 revolutions.  It can be used to prevent "catching up" when the
 controller is used in velocity mode.
 
+## `servo.max_velocity_slip` ##
+
+When finite, this enforces a limit on the difference between the
+control velocity and the current measured velocity, measured i Hz.  It
+can be used to ensure that acceleration limits are obeyed in velocity
+mode when external torques exceed the maximum.  If used, typically
+`servo.max_position_slip` must be relatively small to avoid
+instability.
+
 ## `servo.max_voltage` ##
 
 If the input voltage reaches this value, a fault is triggered and all

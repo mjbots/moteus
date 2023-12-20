@@ -507,6 +507,7 @@ struct BldcServoConfig {
   float fixed_voltage_control_V = 0.0f;
 
   float max_position_slip = std::numeric_limits<float>::quiet_NaN();
+  float max_velocity_slip = std::numeric_limits<float>::quiet_NaN();
 
   float default_timeout_s = 0.1f;
   float timeout_max_torque_Nm = 5.0f;
@@ -594,6 +595,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(fixed_voltage_mode));
     a->Visit(MJ_NVP(fixed_voltage_control_V));
     a->Visit(MJ_NVP(max_position_slip));
+    a->Visit(MJ_NVP(max_velocity_slip));
     a->Visit(MJ_NVP(default_timeout_s));
     a->Visit(MJ_NVP(timeout_max_torque_Nm));
     a->Visit(MJ_NVP(timeout_mode));

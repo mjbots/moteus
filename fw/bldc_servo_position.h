@@ -299,6 +299,17 @@ class BldcServoPosition {
       }
     }
 
+    if (std::isfinite(config->max_velocity_slip)) {
+      const float slip = config->max_velocity_slip;
+      const float error = status->velocity - *status->control_velocity;
+      if (error < -slip) {
+        status->control_velocity = status->velocity + slip;
+      }
+      if (error > slip) {
+        status->control_velocity = status->velocity - slip;
+      }
+    }
+
     bool hit_limit = false;
     const auto delta = absolute_relative_delta;
 
