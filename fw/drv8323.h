@@ -22,6 +22,7 @@
 #include "mjlib/micro/pool_ptr.h"
 #include "mjlib/micro/telemetry_manager.h"
 
+#include "fw/ccm.h"
 #include "fw/measured_hw_rev.h"
 #include "fw/millisecond_timer.h"
 #include "fw/motor_driver.h"
@@ -57,7 +58,7 @@ class Drv8323 : public MotorDriver {
   EnableResult StartEnable(bool) override;
 
   void Power(bool) override;
-  bool fault() override;
+  bool fault() override MOTEUS_CCM_ATTRIBUTE;
 
   void PollMillisecond();
 
