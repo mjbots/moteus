@@ -10,17 +10,17 @@ for moderately high power electronics.  It has not yet burned down my
 
 # Specifications #
 
-| Name                  | r4.11          | n1        |
-|-----------------------|----------------|-----------|
-| Voltage Input         | 10-44V         | 10-54V    |
-| Peak Electrical Power | 500W           | 1200W     |
-| Mass                  | 14.2g          | 14.6g     |
-| Control Rate          | 15-30kHz       | -         |
-| PWM Switching Rate    | 15-60kHz       | -         |
-| CPU                   | 170Mhz STM32G4 | -         |
-| Peak phase current    | 100A           | -         |
-| Communications        | 5Mbps CAN-FD   | -         |
-| Dimensions            | 46x53mm        | 46x46x8mm |
+| Name                  | r4.11          | c1        | n1        |
+|-----------------------|----------------|-----------|-----------|
+| Voltage Input         | 10-44V         | 10-51V    | 10-54V    |
+| Peak Electrical Power | 500W           | 100W      | 1200W     |
+| Mass                  | 14.2g          | 8.9g      | 14.6g     |
+| Control Rate          | 15-30kHz       | -         | -         |
+| PWM Switching Rate    | 15-60kHz       | -         | -         |
+| CPU                   | 170Mhz STM32G4 | -         | -         |
+| Peak phase current    | 100A           | 20A       | 100A      |
+| Communications        | 5Mbps CAN-FD   | -         | -         |
+| Dimensions            | 46x53mm        | 38x38x9mm | 46x46x8mm |
 
 Assembled and tested boards can be purchased at: https://mjbots.com
 
