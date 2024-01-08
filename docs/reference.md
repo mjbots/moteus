@@ -173,11 +173,11 @@ used for various functions.
 
 ELECTRICAL NOTES:
  * The 3.3V supply pins can power external peripherals:
-   * r4.5: 50mA
+   * r4.5/c1: 50mA
    * r4.8/r4.11/n1: 100mA
  * The 5V supply pins can power external peripherals:
    * r4: not present
-   * n1: 100mA
+   * n1/c1: 100mA
  * Some pins are 5V tolerant.  Those not marked as such in the pin
    option table are 3.3V only.
 
@@ -283,7 +283,7 @@ The following table shows which pins can be used for the unique capabilities:
 | I                | 5   | 2   | MISO | X           |     |         |      |     |
 | O                | 6   | 3   | MOSI | X           |     |         |      |     |
 
-| moteus n1        | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
+| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
 |------------------|-----|-----|------|-------------|-----|---------|------|-----|
 | 5V (5)           | 1   |     |      |             |     |         |      |     |
 | 3.3V (3)         | 2   |     |      |             |     |         |      |     |
@@ -298,6 +298,10 @@ NOTE: For moteus n1, the B pin software configured pullup cannot be
 used effectively.  Thus the B pin is unsuitable for open-drain inputs
 like hall effect sensors unless external pullups are provided.
 
+NOTE: For moteus c1, only the D and E pins are exposed, and only on an
+unpopulated 0.05" through hole land pattern.  Additionally, I2C
+pullups are not available on moteus-c1 for aux1.
+
 #### AUX2 / ABS ####
 
 | moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
@@ -309,7 +313,7 @@ like hall effect sensors unless external pullups are provided.
 | DBG 1            |     | 2   |      |             |     |         |      | X   |
 | DBG 2            |     | 3   |      |             |     |         |      | X   |
 
-| moteus n1        | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
+| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
 |------------------|-----|-----|------|-------------|-----|---------|------|-----|
 | 5V (5)           | 1   |     |      |             |     |         |      |     |
 | 3.3V (3)         | 2   |     |      |             |     |         |      |     |
@@ -2349,7 +2353,7 @@ RS422, configured by AUX1 D/E to USART and enabling RS422 on AUX1.
  - 7 - E
  - 8 - GND
 
-### moteus n1 - AUX2 - JST GH-7 ###
+### moteus n1/c1 - AUX2 - JST GH-7 ###
 
  - 1 - 5V
  - 2 - 3.3V
