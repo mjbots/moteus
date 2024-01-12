@@ -55,7 +55,7 @@ setuptools.setup(
         'matplotlib>=3.5',
         # For some reason, matplotlib can barf without this, but
         # doesn't actually list it as a dependency on Windows.
-        'msvc-runtime;platform_system=="Windows"',
+        'msvc-runtime;platform_system=="Windows" and python_version<"3.12"',
         'numpy',
         'PySide2;platform_system=="Linux"',
         'PySide6>=6.2;platform_system!="Linux"',
