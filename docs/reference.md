@@ -2435,8 +2435,9 @@ timings have been observed to work:
 
 ```
 ip link set can0 up type can \
-  tq 12 prop-seg 25 phase-seg1 25 phase-seg2 29 sjw 10 \
-  dtq 12 dprop-seg 6 dphase-seg1 2 dphase-seg2 7 dsjw 12 \
+  bitrate 1000000 dbitrate 5000000 \
+  sjw 10 dsjw 5 \
+  sample-point 0.666 dsample-point 0.666 \
   restart-ms 1000 fd on
 ```
 
