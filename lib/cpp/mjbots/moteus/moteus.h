@@ -407,7 +407,7 @@ class Controller {
                      query_override);
   }
 
-  Optional<Result> SetRequireReindex(const RequireReindex::Command& cmd,
+  Optional<Result> SetRequireReindex(const RequireReindex::Command& cmd = {},
                                      const RequireReindex::Format* command_override = nullptr,
                                      const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(
@@ -438,7 +438,7 @@ class Controller {
   }
 
   Optional<Result> SetRecapturePositionVelocity(
-      const RecapturePositionVelocity::Command& cmd,
+      const RecapturePositionVelocity::Command& cmd = {},
       const RecapturePositionVelocity::Format* command_override = nullptr,
       const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(

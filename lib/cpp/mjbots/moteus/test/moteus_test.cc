@@ -572,11 +572,22 @@ BOOST_AUTO_TEST_CASE(ControllerBasic) {
     impl->sent_frames.clear();
     impl->to_reply_with.clear();
 
-    const auto maybe_reply = dut.SetRequireReindex({});
+    const auto maybe_reply = dut.SetRequireReindex();
     BOOST_TEST(!maybe_reply);
     BOOST_REQUIRE(impl->sent_frames.size() == 1);
     const auto& c = impl->sent_frames[0];
     BOOST_TEST(Hexify(c.data, c.size) == "01b2020111001f01130d");
+  }
+
+  {
+    impl->sent_frames.clear();
+    impl->to_reply_with.clear();
+
+    const auto maybe_reply = dut.SetRecapturePositionVelocity();
+    BOOST_TEST(!maybe_reply);
+    BOOST_REQUIRE(impl->sent_frames.size() == 1);
+    const auto& c = impl->sent_frames[0];
+    BOOST_TEST(Hexify(c.data, c.size) == "01b3020111001f01130d");
   }
 
   {
