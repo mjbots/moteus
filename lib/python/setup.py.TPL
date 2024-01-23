@@ -17,8 +17,6 @@
 import setuptools
 import pathlib
 
-import moteus
-
 here = pathlib.Path(__file__).parent.resolve()
 
 # Get the long description from the README file
