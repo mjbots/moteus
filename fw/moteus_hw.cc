@@ -52,60 +52,97 @@ constexpr int kFamily0HardwareInterlock[] = {
   4,   // r4.10
 };
 
+bool DetectGateDriver(
+    MillisecondTimer* timer,
+    PinName drv8353_cs,
+    PinName drv8353_enable,
+    PinName drv8353_mosi,
+    PinName drv8353_miso,
+    PinName drv8353_sck) {
+  DigitalOut enable(drv8353_enable, 1);
+
+  timer->wait_us(1000);
+
+  Stm32BitbangSpi maybe_drv8323(
+      timer,
+      [&]() {
+        Stm32BitbangSpi::Options out;
+        out.mosi = drv8353_mosi;
+        out.miso = drv8353_miso;
+        out.sck = drv8353_sck;
+        out.cs = drv8353_cs;
+
+        // We can use a slow speed since this is just a one-time
+        // test.
+        out.frequency = 500000;
+        return out;
+      }());
+  pin_mode(drv8353_miso, PullUp);
+  auto read_reg =
+      [&](int reg) {
+        timer->wait_us(1);
+        return maybe_drv8323.write(0x8000 | (reg << 11)) & 0x7ff;
+      };
+  bool found = false;
+  for (int reg = 2; reg < 6; reg++) {
+    const auto value = read_reg(reg);
+    if (value != 0x7ff && value != 0) {
+      found = true;
+      break;
+    }
+  }
+
+
+  return found;
+}
+
 }
 
 FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
-  timer->wait_ms(2);
-
   FamilyAndVersion result;
   result.family = 0;
 
   // We check for family 1, "moteus n1", by seeing if we can find a
   // DRV8323 on a chip select that is different from that used on all
   // family 0 boards.
-  {
-    // Ensure that on family 0 boards, the drv8323 will be not
-    // selected.
-    DigitalOut family0_drv8323_cs(PC_4, 1);
-    DigitalOut drv8323_family1_enable(PC_14, 1);
+  while (true) {
+    timer->wait_ms(2);
+    {
+      // Ensure that on family 0 boards, the drv8323 will be not
+      // selected.
+      DigitalOut family0_drv8323_cs(PC_4, 1);
 
-    // Wait 1ms after enabling.
-    timer->wait_us(1000);
-
-    Stm32BitbangSpi maybe_drv8323(
-        timer,
-        [&]() {
-          Stm32BitbangSpi::Options out;
-          out.mosi = PC_13;
-          out.miso = PC_11;
-          out.sck = PC_10;
-          out.cs = PB_0;
-
-          // We can use a slow speed since this is just a one-time
-          // test.
-          out.frequency = 500000;
-          return out;
-        }());
-    pin_mode(PC_11, PullUp);
-    auto read_reg =
-        [&](int reg) {
-          timer->wait_us(1);
-          return maybe_drv8323.write(0x8000 | (reg << 11)) & 0x7ff;
-        };
-    bool found = false;
-    for (int reg = 2; reg < 6; reg++) {
-      const auto value = read_reg(reg);
-      if (value != 0x7ff) {
-        found = true;
+      if (DetectGateDriver(timer,
+                           PB_0, // CS
+                           PC_14, // enable
+                           PC_13, // MOSI,
+                           PC_11, // MISO,
+                           PC_10) // SCK
+          ) {
+        result.family = 1;
         break;
       }
     }
-
-    if (found) {
-      result.family = 1;
+    if (result.family == 0) {
+      // Verify we are actually on a moteus-r4 by looking for its gate
+      // driver.
+      if (!DetectGateDriver(timer,
+                            PC_4, // CS
+                            PA_3, // enable
+                            PA_7, // MOSI,
+                            PA_6, // MISO,
+                            PA_5) // SCK
+          ) {
+        // If we can detect a gate driver in neither place, loop back
+        // and try again after a while.  Maybe the input voltage is
+        // just slewing up *really* slowly and our gate driver is not
+        // at a voltage level where it will work yet.
+        continue;
+      }
+      // Yes, we are on a r4.
+      break;
     }
   }
-
 
   if (result.family == 0) {
     DigitalIn hwrev0(PC_6, PullUp);
