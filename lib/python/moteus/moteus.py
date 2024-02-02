@@ -761,7 +761,7 @@ class Controller:
     async def set_stop(self, *args, **kwargs):
         return await self.execute(self.make_stop(**kwargs))
 
-    def make_set_output(self, *,
+    def make_set_output(self, *args,
                         position=0.0,
                         query=False,
                         query_override=None,
@@ -769,6 +769,9 @@ class Controller:
     ):
         """Return a moteus.Command structure with data necessary to send a
         set output nearest command."""
+
+        if len(args):
+            raise ValueError(f'unexpected positional arguments: {args}')
 
         result = self._make_command(
             query=query, query_override=query_override)
@@ -784,39 +787,42 @@ class Controller:
         result.data = data_buf.getvalue()
         return result
 
-    def make_set_output_nearest(self, *,
+    def make_set_output_nearest(self, *args,
                                 position=0.0,
                                 query=False,
                                 query_override=None):
         return self.make_set_output(
+            *args,
             position=position, query=query, query_override=query_override,
             cmd=Register.SET_OUTPUT_NEAREST)
 
-    def make_set_output_exact(self, *,
+    def make_set_output_exact(self, *args,
                               position=0.0,
                               query=False,
                               query_override=None):
         return self.make_set_output(
+            *args,
             position=position, query=query, query_override=query_override,
             cmd=Register.SET_OUTPUT_EXACT)
 
     async def set_output(self, *args, cmd=None, **kwargs):
-        return await self.execute(self.make_set_output(**kwargs, cmd=cmd))
+        return await self.execute(self.make_set_output(*args, **kwargs, cmd=cmd))
 
     async def set_output_nearest(self, *args, **kwargs):
-        return await self.set_output(cmd=Register.SET_OUTPUT_NEAREST, **kwargs)
+        return await self.set_output(*args, cmd=Register.SET_OUTPUT_NEAREST, **kwargs)
 
     async def set_output_exact(self, *args, **kwargs):
-        return await self.set_output(cmd=Register.SET_OUTPUT_EXACT, **kwargs)
+        return await self.set_output(*args, cmd=Register.SET_OUTPUT_EXACT, **kwargs)
 
 
     # For backwards compatibility, "*_output_nearest" used to be named
     # "make/set_rezero".
-    def make_rezero(self, *,
+    def make_rezero(self, *args,
                     rezero=0.0,
                     query=False,
                     query_override=None):
         return self.make_set_output(
+            *args,
             position=rezero, query=query, query_override=query_override,
             cmd=Register.SET_OUTPUT_NEAREST)
 
