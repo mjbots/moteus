@@ -306,6 +306,7 @@ class Stm32Index {
         }();
         if (mbed == NC) { continue; }
         index_.emplace(mbed, MbedMapPull(cfg.pull));
+        pull_ = cfg.pull;
         index_isr_ = Stm32GpioInterruptIn::Make(
             mbed,
             &Stm32Index::ISR_CallbackDelegate,
@@ -327,7 +328,11 @@ class Stm32Index {
 
     const bool old_raw = status->raw;
     const bool observed = observed_.exchange(false);
-    status->raw = observed || index_isr_->read();
+    if(pull_ == Pin::Pull::kPullUp) {
+      status->raw = observed || index_isr_->read() ? false : true;
+    } else {
+      status->raw = observed || index_isr_->read() ? true : false;
+    }
     status->value = status->raw && !old_raw;
     status->active = true;
   }
@@ -350,6 +355,7 @@ class Stm32Index {
   std::atomic<bool> observed_{false};
   std::optional<Stm32GpioInterruptIn> index_isr_;
   std::optional<DigitalIn> index_;
+  Pin::Pull pull_;
 };
 
 enum RequireCs {
