@@ -283,6 +283,10 @@ enum class Register {
   kEncoder2Position = 0x054,
   kEncoder2Velocity = 0x055,
   kEncoderValidity = 0x058,
+
+  kAux1IndexRaw = 0x059,
+  kAux2IndexRaw = 0x05a,
+
   kAux1GpioCommand = 0x05c,
   kAux2GpioCommand = 0x05d,
   kAux1GpioStatus = 0x05e,
@@ -680,6 +684,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kEncoder2Position:
       case Register::kEncoder2Velocity:
       case Register::kEncoderValidity:
+      case Register::kAux1IndexRaw:
+      case Register::kAux2IndexRaw:
       case Register::kAux1GpioStatus:
       case Register::kAux2GpioStatus:
       case Register::kAux1AnalogIn1:
@@ -919,6 +925,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             ((status.sources[2].active_theta ? 1 : 0) << 4);
             ((status.sources[2].active_velocity ? 1 : 0) << 5);
         return IntMapping(validity, type);
+      }
+      case Register::kAux1IndexRaw: {
+        return IntMapping(bldc_.aux1().index.raw, type);
+      }
+      case Register::kAux2IndexRaw: {
+        return IntMapping(bldc_.aux2().index.raw, type);
       }
       case Register::kAux1GpioCommand: {
         return IntMapping(PinsToBits(bldc_.aux1().pins), type);
