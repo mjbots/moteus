@@ -2416,10 +2416,25 @@ can be resolved by specifying custom bit timings to the linux
 socketcan subsystem.  The following timings are known to work for at
 least some systems:
 
+### 20MHz clock systems ###
+
+Some rare MCP2517/8 adapters have a 20MHz clock rate.  The following
+timings have been observed to work.  Note, that with 20MHz adapters,
+BRS cannot be used (so for tview/moteus_tool, specify
+`--can-disable-brs`).
+
+```
+ip link set can0 up type can \
+  bitrate 1000000 dbitrate 5000000 \
+  sjw 2 dsjw 2 \
+  sample-point 0.666 dsample-point 0.666 \
+  restart-ms 1000 fd on
+```
+
 ### 40MHz clock systems ###
 
-Chips such as the MCP2517/8 often use a 40MHz system clock.  The
-following timings have been observed to work:
+More commonly, chips such as the MCP2517/8 use a 40MHz system clock.
+The following timings have been observed to work:
 
 ```
 ip link set can0 up type can \
