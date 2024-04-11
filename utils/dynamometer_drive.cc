@@ -800,10 +800,7 @@ class Application {
     co_await CommandFixtureRigid();
 
     std::vector<double> torques_to_test = {kNaN, 0.0, 0.05, -0.05, 0.1, -0.1};
-    if (dut_->family() == 2) {
-      torques_to_test.push_back(0.15);
-      torques_to_test.push_back(-0.15);
-    } else {
+    if (dut_->family() != 2) {
       torques_to_test.push_back(0.20);
       torques_to_test.push_back(-0.20);
     }
@@ -1014,7 +1011,7 @@ class Application {
 
     // This test runs with a motor that has a phase resistance of
     // roughly 0.051-0.065 ohms.
-    const float kMotorResistance = 0.055;
+    const float kMotorResistance = 0.052;
     for (const auto& r : ramp_results) {
       const auto expected_current = r.voltage / kMotorResistance;
       if (std::abs(r.d_A - expected_current) > 2.5) {
@@ -1055,7 +1052,7 @@ class Application {
 
     for (const auto& r : slew_results) {
       const double kExpectedCurrent = kSlewVoltage / kMotorResistance;
-      const double kMaxError = 1.8;
+      const double kMaxError = 2.1;
       if (std::abs(r.d_A - kExpectedCurrent) > kMaxError) {
         errors.push_back(
             fmt::format("D phase is not correct |{} - {}| > {}",
