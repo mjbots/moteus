@@ -2193,6 +2193,25 @@ d pos nan 0.5 1 s0.5 && :1000 && d stop
 
 Will command a position mode, wait 1s, then command a stop.
 
+### Waiting for a trajectory to complete ###
+
+A sequence of commands can be paused until a controller has finished
+its trajectory using the `?` character.
+
+```
+d pos 0 0 nan a2 && ? && d pos 1 0 nan a2
+```
+
+Will move to position 0, wait until that motion is complete, then move
+to position 1, all with an acceleration limit of 2.
+
+Specific devices can be queried by following the question mark with an
+ID number.
+
+```
+2>d pos 0 0 nan a2 && 1>d pos 10 0 0 nan a2 && ?2 && 2>d stop
+```
+
 ## Calibration ##
 
 Assuming your controller has firmware installed already, you can

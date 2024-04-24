@@ -611,6 +611,10 @@ class Device:
         self._config_tree_items = {}
         self._config_callback = None
 
+        self._events = {}
+        self._data_update_time = {}
+        self._data = {}
+
         self._updating_config = False
 
     async def start(self):
@@ -764,6 +768,26 @@ class Device:
             record.update(struct)
             _set_tree_widget_data(record.tree_item, struct, record.archive)
 
+            self._data[name] = struct
+            if name not in self._events:
+                self._events[name] = asyncio.Event()
+            self._events[name].set()
+            self._data_update_time[name] = time.time()
+
+    async def wait_for_data(self, name):
+        if name not in self._events:
+            self._events[name] = asyncio.Event()
+
+        await self._events[name].wait()
+        self._events[name].clear()
+        return self._data[name]
+
+    async def ensure_record_active(self, name):
+        now = time.time()
+        if (now - self._data_update_time.get(name, 0.0)) > 0.2:
+            print(f"trying to enable {name}")
+            self.write_line(f'tel rate {name} 100\r\n')
+
     async def read_sized_block(self):
         return await self._stream.read_sized_block()
 
@@ -901,6 +925,8 @@ class TviewMainWindow():
         self.port = None
         self.devices = []
         self.default_rate = 100
+
+        self.user_task = None
 
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
         uifilename = os.path.join(current_script_dir, "tview_main_window.ui")
@@ -1066,30 +1092,70 @@ class TviewMainWindow():
         return write
 
     def _handle_user_input(self, line):
-        device_lines = [x.strip() for x in line.split('&&')]
-        now = time.time()
-        current_delay_ms = 0
-        for line in device_lines:
-            delay_re = re.search(r"^:(\d+)$", line)
-            device_re = re.search(r"^(A|\d+)>(.*)$", line)
-            if delay_re:
-                current_delay_ms += int(delay_re.group(1))
-                continue
-            elif device_re:
-                if device_re.group(1) == 'A':
-                    device_nums = [x.number for x in self.devices]
-                else:
-                    device_nums = [int(device_re.group(1))]
-                line = device_re.group(2)
-            else:
-                device_nums = [self.devices[0].number]
-            devices = [x for x in self.devices if x.number in device_nums]
-            writer = self.make_writer(devices, line)
+        if self.user_task is not None:
+            # We have an outstanding one, so cancel it.
+            self.user_task.cancel()
+            self.user_task = None
 
-            if current_delay_ms > 0:
-                QtCore.QTimer.singleShot(current_delay_ms, writer)
+        self.user_task = asyncio.create_task(
+            self._run_user_command_line(line))
+
+    async def _run_user_command_line(self, line):
+        try:
+            for command in [x.strip() for x in line.split('&&')]:
+                await self._run_user_command(command)
+        except Exception as e:
+            print("Error:", str(e))
+
+            # Otherwise ignore problems so that tview keeps running.
+
+    async def _wait_user_query(self, maybe_id):
+        device_nums = [self.devices[0].number]
+        if maybe_id:
+            device_nums = [int(maybe_id)]
+
+        devices = [x for x in self.devices if x.number in device_nums]
+
+        record = 'servo_stats'
+
+        if len(devices) == 0:
+            # Nothing to wait on, so return immediately
+            return
+
+        for d in devices:
+            await d.ensure_record_active(record)
+            await d.wait_for_data(record)
+            await d.wait_for_data(record)
+
+        while True:
+            # Now look for at least to have trajectory_done == True
+            for d in devices:
+                servo_stats = await d.wait_for_data(record)
+                if getattr(servo_stats, 'trajectory_done', False):
+                    return
+
+    async def _run_user_command(self, command):
+        delay_re = re.search(r"^:(\d+)$", command)
+        device_re = re.search(r"^(A|\d+)>(.*)$", command)
+        traj_re = re.search(r"^(\?(\d+)?)$", command)
+
+        device_nums = [self.devices[0].number]
+
+        if traj_re:
+            await self._wait_user_query(traj_re.group(2))
+            return
+        if delay_re:
+            await asyncio.sleep(int(delay_re.group(2)) / 1000.0)
+            return
+        elif device_re:
+            command = device_re.group(2)
+            if device_re.group(1) == 'A':
+                device_nums = [x.number for x in self.devices]
             else:
-                writer()
+                device_nums = [int(device_re.group(1))]
+
+        for device in [x for x in self.devices if x.number in device_nums]:
+            device.write((command + '\n').encode('latin1'))
 
     def _handle_tree_expanded(self, item):
         self.ui.telemetryTreeWidget.resizeColumnToContents(0)
