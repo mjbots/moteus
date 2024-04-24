@@ -1182,8 +1182,8 @@ class Controller:
 
         combiner = mp.WriteCombiner(
             writer, 0x00, int(Register.AUX1_GPIO_COMMAND), [
-                mp.INT8 if aux1 else mp.IGNORE,
-                mp.INT8 if aux2 else mp.IGNORE,
+                mp.INT8 if aux1 is not None else mp.IGNORE,
+                mp.INT8 if aux2 is not None else mp.IGNORE,
         ])
 
         if combiner.maybe_write():
