@@ -619,6 +619,12 @@ class Controller:
         self.transport = get_singleton_transport()
         return self.transport
 
+    async def flush_transport(self):
+        try:
+            await asyncio.wait_for(self.transport.read(), 0.02)
+        except asyncio.TimeoutError:
+            pass
+
     def _make_query_data(self, query_resolution=None):
         if query_resolution is None:
             query_resolution = self.query_resolution
@@ -1361,11 +1367,7 @@ class Stream:
         self._read_data = b''
 
         # Now flush anything from the underlying transport if applicable.
-        try:
-            await asyncio.wait_for(self.controller._get_transport().read(), 0.02)
-        except asyncio.TimeoutError:
-            # This is the expected path.
-            pass
+        await self.controller.flush_transport()
 
     async def _read_maybe_empty_line(self):
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
