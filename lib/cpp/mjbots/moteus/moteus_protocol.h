@@ -401,7 +401,11 @@ struct Query {
       // below.
       if (required_registers > 512) { ::abort(); }
 
+#ifndef ARDUINO
       std::vector<Resolution> resolutions(required_registers);
+#else
+      Resolution resolutions[required_registers];
+#endif
       ::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
 
       for (int16_t this_register = min_register_number, index = 0;
@@ -724,7 +728,11 @@ struct GenericQuery {
     // below.
     if (required_registers > 512) { ::abort(); }
 
+#ifndef ARDUINO
     std::vector<Resolution> resolutions(required_registers);
+#else
+    Resolution resolutions[required_registers];
+#endif
     ::memset(&resolutions[0], 0, sizeof(Resolution) * required_registers);
 
     for (int16_t this_register = min_register_number, index = 0;
