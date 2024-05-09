@@ -454,7 +454,7 @@ class MultiplexParser {
 #ifndef ARDUINO
     static constexpr double kMappingValues[] = {
 #else
-    static constexpr double PROGMEM kMappingValues[] = {
+    static constexpr float PROGMEM kMappingValues[] = {
 #endif
       1.0, 1.0, 1.0,           // kInt
       0.01, 0.0001, 0.00001,   // kPosition
@@ -473,9 +473,9 @@ class MultiplexParser {
     const double int16_scale = kMappingValues[concrete_type * 3 + 1];
     const double int32_scale = kMappingValues[concrete_type * 3 + 2];
 #else
-    const double int8_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 0);
-    const double int16_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 1);
-    const double int32_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 2);
+    const float int8_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 0);
+    const float int16_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 1);
+    const float int32_scale = pgm_read_float_near(kMappingValues + concrete_type * 3 + 2);
 #endif
 
     switch (res) {
