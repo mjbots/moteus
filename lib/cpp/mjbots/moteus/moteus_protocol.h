@@ -659,7 +659,7 @@ struct Query {
 #else
       const int16_t start_reg = pgm_read_word_near(&kRegisterDefinitions[i].register_number);
       const uint8_t block_size = pgm_read_byte_near(&kRegisterDefinitions[i].block_size);
-      const int8_t concrete_type = pgm_read_byte_near(kRegisterDefinitions[i].concrete);
+      const int8_t concrete_type = pgm_read_byte_near(&kRegisterDefinitions[i].concrete);
 #endif
       if (register_number >= start_reg &&
           register_number < (start_reg + block_size)) {
