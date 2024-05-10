@@ -951,16 +951,12 @@ class Stream:
             if encoder_type == 4:  # hall
                 hall_configured = True
 
-        if self.args.cal_hall:
+        if self.args.cal_hall or hall_configured:
             if not hall_configured:
                 raise RuntimeError("--cal-hall specified, but hall sensors " +
                                    "not configured on device")
             return await self.calibrate_encoder_mapping_hall(encoder_cal_voltage)
         else:
-            if hall_configured:
-                raise RuntimeError(
-                    "Cannot perform encoder mapping with hall sensors, " +
-                    "use --cal-hall")
             try:
                 return await self.calibrate_encoder_mapping_absolute(encoder_cal_voltage)
             except:
