@@ -58,7 +58,10 @@ setuptools.setup(
         'msvc-runtime;platform_system=="Windows" and python_version<"3.12"',
         'numpy',
         'PySide2;platform_system=="Linux"',
-        'PySide6>=6.2;platform_system!="Linux"',
+        # At the time of this writing, 6.7.0 on Windows causes qtpy
+        # and qtconsole to fail miserably, so we just stay with 6.6 or
+        # earlier.
+        'PySide6>=6.2,<6.7;platform_system!="Linux"',
         'qtconsole>=0.5.2',
         'qtpy>=2.0.1',
     ],
