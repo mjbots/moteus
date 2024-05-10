@@ -14,6 +14,7 @@
 
 #include "fw/board_debug.h"
 
+#include <cctype>
 #include <cstdlib>
 #include <functional>
 #include <numeric>
@@ -43,6 +44,23 @@ void recurse(int count, base::inplace_function<void(int)> callback) {
   callback(count - 1);
 }
 
+std::optional<float> Strtof(const char* data) {
+  if (data == nullptr) {
+    return {};
+  }
+  char* end = nullptr;
+  const float result = std::strtof(&data[0], &end);
+  if (end == nullptr ||
+      (*end != 0 && !std::isspace(*end))) {
+    return {};
+  }
+  return result;
+}
+
+std::optional<float> Strtof(const std::string_view& view) {
+  return Strtof(view.data());
+}
+
 bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
                   const char* valid_options) {
   while (tokenizer->remaining().size()) {
@@ -55,7 +73,11 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
       return false;
     }
 
-    const float value = std::strtof(&token[1], nullptr);
+    const auto maybe_value = Strtof(&token[1]);
+    if (!maybe_value) {
+      return false;
+    }
+    const auto value = *maybe_value;
     switch (option) {
       case 'p': {
         command->kp_scale = value;
@@ -362,20 +384,20 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "raw") {
-      const auto pwm1_str = tokenizer.next();
-      const auto pwm2_str = tokenizer.next();
-      const auto pwm3_str = tokenizer.next();
+      const auto maybe_pwm1 = Strtof(tokenizer.next());
+      const auto maybe_pwm2 = Strtof(tokenizer.next());
+      const auto maybe_pwm3 = Strtof(tokenizer.next());
 
-      if (pwm1_str.empty() || pwm2_str.empty() || pwm3_str.empty()) {
+      if (!maybe_pwm1 || !maybe_pwm2 || !maybe_pwm3) {
         WriteMessage(response, "ERR missing pwm value\r\n");
         return;
       }
 
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kPwm;
-      command.pwm.a = std::strtof(pwm1_str.data(), nullptr);
-      command.pwm.b = std::strtof(pwm2_str.data(), nullptr);
-      command.pwm.c = std::strtof(pwm3_str.data(), nullptr);
+      command.pwm.a = *maybe_pwm1;
+      command.pwm.b = *maybe_pwm2;
+      command.pwm.c = *maybe_pwm3;
 
       bldc_->Command(command);
       WriteOk(response);
@@ -383,17 +405,17 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "pwm") {
-      const auto phase_str = tokenizer.next();
-      const auto magnitude_str = tokenizer.next();
-      const auto phase_rate_str = tokenizer.next();
+      const auto maybe_phase = Strtof(tokenizer.next());
+      const auto maybe_magnitude = Strtof(tokenizer.next());
+      const auto maybe_phase_rate = Strtof(tokenizer.next());
 
-      if (phase_str.empty() || magnitude_str.empty()) {
+      if (!maybe_phase || !maybe_magnitude) {
         WriteMessage(response, "ERR missing phase or mag\r\n");
         return;
       }
 
-      const float phase = std::strtof(phase_str.data(), nullptr);
-      const float magnitude = std::strtof(magnitude_str.data(), nullptr);
+      const float phase = *maybe_phase;
+      const float magnitude = *maybe_magnitude;
 
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kVoltageFoc;
@@ -401,8 +423,8 @@ class BoardDebug::Impl {
       command.theta = phase;
       command.voltage = magnitude;
 
-      if (!phase_rate_str.empty()) {
-        command.theta_rate = std::strtof(phase_rate_str.data(), nullptr);
+      if (!!maybe_phase_rate) {
+        command.theta_rate = *maybe_phase_rate;
       }
 
       bldc_->Command(command);
@@ -427,11 +449,16 @@ class BoardDebug::Impl {
 
         if (token.size() < 1) { continue; }
         const char option = token[0];
-        const float value = std::strtof(&token[1], nullptr);
+
+        const auto maybe_value = Strtof(&token[1]);
+        if (!maybe_value) {
+          WriteMessage(response, "ERR unknown cal option\r\n");
+          return;
+        }
 
         switch (option) {
           case 's': {
-            cal_speed_ = value;
+            cal_speed_ = *maybe_value;
             break;
           }
           default: {
@@ -461,7 +488,12 @@ class BoardDebug::Impl {
       cal_old_position_raw_.reset();
       cal_position_delta_ = 0;
 
-      cal_magnitude_ = std::strtof(magnitude_str.data(), nullptr);
+      const auto maybe_magnitude = Strtof(magnitude_str);
+      if (!maybe_magnitude) {
+        WriteMessage(response, "ERR malformed mag\r\n");
+        return;
+      }
+      cal_magnitude_ = *maybe_magnitude;
 
       write_outstanding_ = true;
       AsyncWrite(*cal_response_.stream, "CAL start 2\r\n", [this](auto) {
@@ -472,20 +504,20 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "v") {
-      const auto a_str = tokenizer.next();
-      const auto b_str = tokenizer.next();
-      const auto c_str = tokenizer.next();
+      const auto maybe_a = Strtof(tokenizer.next());
+      const auto maybe_b = Strtof(tokenizer.next());
+      const auto maybe_c = Strtof(tokenizer.next());
 
-      if (a_str.empty() || b_str.empty() || c_str.empty()) {
+      if (!maybe_a || !maybe_b || !maybe_c) {
         WriteMessage(response, "ERR missing a/b/c voltage\r\n");
         return;
       }
 
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kVoltage;
-      command.phase_v.a = std::strtof(a_str.data(), nullptr);
-      command.phase_v.b = std::strtof(b_str.data(), nullptr);
-      command.phase_v.c = std::strtof(c_str.data(), nullptr);
+      command.phase_v.a = *maybe_a;
+      command.phase_v.b = *maybe_b;
+      command.phase_v.c = *maybe_c;
 
       bldc_->Command(command);
       WriteOk(response);
@@ -493,16 +525,16 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "vdq") {
-      const auto d_str = tokenizer.next();
-      const auto q_str = tokenizer.next();
+      const auto maybe_d = Strtof(tokenizer.next());
+      const auto maybe_q = Strtof(tokenizer.next());
 
-      if (d_str.empty() || q_str.empty()) {
+      if (!maybe_d || !maybe_q) {
         WriteMessage(response, "ERR missing d/q voltage\r\n");
         return;
       }
 
-      const float d_V = std::strtof(d_str.data(), nullptr);
-      const float q_V = std::strtof(q_str.data(), nullptr);
+      const float d_V = *maybe_d;
+      const float q_V = *maybe_q;
 
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kVoltageDq;
@@ -516,16 +548,16 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "dq") {
-      const auto d_str = tokenizer.next();
-      const auto q_str = tokenizer.next();
+      const auto maybe_d = Strtof(tokenizer.next());
+      const auto maybe_q = Strtof(tokenizer.next());
 
-      if (d_str.empty() || q_str.empty()) {
+      if (!maybe_d || !maybe_q) {
         WriteMessage(response, "ERR missing d/q current\r\n");
         return;
       }
 
-      const float d = std::strtof(d_str.data(), nullptr);
-      const float q = std::strtof(q_str.data(), nullptr);
+      const float d = *maybe_d;
+      const float q = *maybe_q;
 
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kCurrent;
@@ -539,20 +571,20 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "pos" || cmd_text == "tmt" || cmd_text == "zero") {
-      const auto pos_str = tokenizer.next();
-      const auto vel_str = tokenizer.next();
-      const auto max_t_str = tokenizer.next();
+      const auto maybe_pos = Strtof(tokenizer.next());
+      const auto maybe_vel = Strtof(tokenizer.next());
+      const auto maybe_max_t = Strtof(tokenizer.next());
 
-      if (pos_str.empty() ||
-          vel_str.empty() ||
-          max_t_str.empty()) {
+      if (!maybe_pos ||
+          !maybe_vel ||
+          !maybe_max_t) {
         WriteMessage(response, "ERR missing p/v/i\r\n");
         return;
       }
 
-      const float pos = std::strtof(pos_str.data(), nullptr);
-      const float vel = std::strtof(vel_str.data(), nullptr);
-      const float max_t = std::strtof(max_t_str.data(), nullptr);
+      const float pos = *maybe_pos;
+      const float vel = *maybe_vel;
+      const float max_t = *maybe_max_t;
 
       BldcServo::CommandData command;
       // We default to no timeout for debug commands.
@@ -579,20 +611,20 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "within") {
-      const auto min_str = tokenizer.next();
-      const auto max_str = tokenizer.next();
-      const auto max_t_str = tokenizer.next();
+      const auto maybe_min = Strtof(tokenizer.next());
+      const auto maybe_max = Strtof(tokenizer.next());
+      const auto maybe_max_t = Strtof(tokenizer.next());
 
-      if (min_str.empty() ||
-          max_str.empty() ||
-          max_t_str.empty()) {
+      if (!maybe_min ||
+          !maybe_max ||
+          !maybe_max_t) {
         WriteMessage(response, "ERR missing min/max/t\r\n");
         return;
       }
 
-      const float min_pos = std::strtof(min_str.data(), nullptr);
-      const float max_pos = std::strtof(max_str.data(), nullptr);
-      const float max_t = std::strtof(max_t_str.data(), nullptr);
+      const float min_pos = *maybe_min;
+      const float max_pos = *maybe_max;
+      const float max_t = *maybe_max_t;
 
       BldcServo::CommandData command;
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
@@ -615,17 +647,17 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "ind") {
-      const auto volt_str = tokenizer.next();
-      const auto period_str = tokenizer.next();
+      const auto maybe_volt = Strtof(tokenizer.next());
+      const auto maybe_period = Strtof(tokenizer.next());
 
-      if (volt_str.empty() ||
-          period_str.empty()) {
+      if (!maybe_volt ||
+          !maybe_period) {
         WriteMessage(response, "ERR missing volt/period\r\n");
         return;
       }
 
-      const float volt = std::strtof(volt_str.data(), nullptr);
-      const int8_t period = std::strtol(period_str.data(), nullptr, 10);
+      const float volt = *maybe_volt;
+      const int8_t period = static_cast<int>(*maybe_period);
       if (period <= 0) {
         WriteMessage(response, "ERR period must > 0\r\n");
         return;
@@ -653,13 +685,13 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "exact" || cmd_text == "index" /* deprecated */) {
-      const auto pos_value = tokenizer.next();
-      if (pos_value.empty()) {
+      const auto maybe_pos = Strtof(tokenizer.next());
+      if (!maybe_pos) {
         WriteMessage(response, "ERR missing index value\r\n");
         return;
       }
 
-      const float index_value = std::strtof(pos_value.data(), nullptr);
+      const float index_value = *maybe_pos;
 
       bldc_->SetOutputPosition(index_value);
 
@@ -671,10 +703,10 @@ class BoardDebug::Impl {
       BldcServo::CommandData command;
       command.mode = BldcServo::Mode::kStopped;
 
-      const auto pos_value = tokenizer.next();
+      const auto maybe_pos_value = Strtof(tokenizer.next());
       const float rezero_value =
-          (pos_value.empty()) ? 0.0f :
-          std::strtof(pos_value.data(), nullptr);
+          !maybe_pos_value ? 0.0f :
+          *maybe_pos_value;
 
       bldc_->SetOutputPositionNearest(rezero_value);
 
@@ -683,10 +715,10 @@ class BoardDebug::Impl {
     }
 
     if (cmd_text == "cfg-set-output") {
-      const auto pos_value = tokenizer.next();
+      const auto maybe_pos_value = Strtof(tokenizer.next());
       const float set_value =
-          (pos_value.empty()) ? 0.0f :
-          std::strtof(pos_value.data(), nullptr);
+          !maybe_pos_value ? 0.0f :
+          *maybe_pos_value;
 
       // Get us within 1 revolution.
       auto* const config = bldc_->motor_position_config();
@@ -745,9 +777,19 @@ class BoardDebug::Impl {
         } else if (maybe_option[0] == 'y') {
           err |= ParseHistogramChannel(&hist_y_source_, maybe_option);
         } else if (maybe_option[0] == 'm') {
-          hist_xmin_ = std::strtof(&maybe_option[1], nullptr);
+          const auto maybe_hist_xmin = Strtof(&maybe_option[1]);
+          if (!maybe_hist_xmin) {
+            err = true;
+          } else {
+            hist_xmin_ = *maybe_hist_xmin;
+          }
         } else if (maybe_option[0] == 'M') {
-          hist_xmax_ = std::strtof(&maybe_option[1], nullptr);
+          const auto maybe_hist_xmax = Strtof(&maybe_option[1]);
+          if (!maybe_hist_xmax) {
+            err = true;
+          } else {
+            hist_xmax_ = *maybe_hist_xmax;
+          }
         } else {
           err = true;
         }
