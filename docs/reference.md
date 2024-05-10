@@ -2388,7 +2388,7 @@ Looking at the pins of the power connector with the top of the board
 up, the ground pin is to the left with the chamfered corner and the
 positive supply is to the right with the square corner.
 
-### Pico-SPOX 6 ENC ###
+### moteus-r4 - Pico-SPOX 6 ENC ###
 
 Looking at the back of the board with the ENC connector at the top,
 pins are numbered 1 as the rightmost, and 6 as the leftmost.
