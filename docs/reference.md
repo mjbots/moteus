@@ -884,41 +884,49 @@ If specified and not-NaN, then the control mode will temporarily be in
 the "fixed voltage" mode, regardless of the current setting of
 `servo.fixed_voltage_mode`.
 
-### 0x030 - Proportional torque ###
+#### 0x02b - Ki ilimit scale ####
+
+Mode: Read/write
+
+When in Position mode, shrink the integral term's windup limit by the
+given factor.  Integral types are applied as for PWM.  If unspecified,
+1.0 is used.
+
+#### 0x030 - Proportional torque ####
 
 Mode: Read
 
 This reports the torque contribution from the proportional term in the
 PID controller.
 
-### 0x031 - Integral torque ###
+#### 0x031 - Integral torque ####
 
 Mode: Read
 
 This reports the torque contribution from the integral term in the
 PID controller.
 
-### 0x032 - Derivative torque ###
+#### 0x032 - Derivative torque ####
 
 Mode: Read
 
 This reports the torque contribution from the derivative term in the
 PID controller.
 
-### 0x033 - Feedforward torque ###
+#### 0x033 - Feedforward torque ####
 
 Mode: Read
 
 This reports the feedforward contribution in the PID controller.
 
-### 0x034 - Total control torque ###
+#### 0x034 - Total control torque ####
 
 Mode: Read
 
 This reports the total commanded torque from the position mode
 controller.  This is also reported in 0x03a.
 
-### 0x038 - Control Position ###
+#### 0x038 - Control Position ####
 
 Mode: Read
 
@@ -927,7 +935,7 @@ that is valid.  When velocity or acceleration limiting is enabled, the
 control position will follow the desired limits to achieve the command
 position.
 
-### 0x039 - Control Velocity ###
+#### 0x039 - Control Velocity ####
 
 Mode: Read
 
@@ -936,32 +944,32 @@ is valid.  When velocity or acceleration limiting is enabled, the
 control velocity will follow the desired limits to achieve the control
 position and velocity.
 
-### 0x03a - Control Torque ###
+#### 0x03a - Control Torque ####
 
 Mode: Read
 
 The torque commanded by the control loop.  This is the same as 0x034.
 
-### 0x03b - Position Error ###
+#### 0x03b - Position Error ####
 
 Mode: Read
 
 The current sensed position minus the control position.
 
-### 0x03c - Velocity Error ###
+#### 0x03c - Velocity Error ####
 
 Mode: Read
 
 The current sensed velocity minus the control velocity.
 
-### 0x03d - Torque Error ###
+#### 0x03d - Torque Error ####
 
 Mode: Read
 
 The current sensed torque minus the control torque.
 
 
-### 0x040 - Stay within lower bound ###
+#### 0x040 - Stay within lower bound ####
 
 Mode: Read/write
 
@@ -973,7 +981,7 @@ feedforward torque is applied.  When outside this bound, the PID
 controller is used to force the position back to the bound.  If
 unspecified, 0.0 is used.
 
-### 0x041 - Stay within upper bound ###
+#### 0x041 - Stay within upper bound ####
 
 Mode: Read/write
 
@@ -985,76 +993,80 @@ a feedforward torque is applied.  When outside this bound, the PID
 controller is used to force the position back to the bound.  If
 unspecified, 0.0 is used.
 
-### 0x042 - Feedforward torque ###
+#### 0x042 - Feedforward torque ####
 
 A shadow of the 0x022 register.
 
-### 0x043 - Kp scale ###
+#### 0x043 - Kp scale ####
 
 A shadow of the 0x023 register.
 
-### 0x044 - Kd scale ###
+#### 0x044 - Kd scale ####
 
 A shadow of the 0x024 register.
 
-### 0x045 - Maximum torque ###
+#### 0x045 - Maximum torque ####
 
 A shadow of the 0x025 register.
 
-### 0x046 - Watchdog timeout ###
+#### 0x046 - Watchdog timeout ####
 
 A shadow of the 0x027 register.
 
-### 0x050 - Encoder 0 Position ###
+#### 0x047 - Ki ilimit scale ####
+
+A shadow of the 0x02b register.
+
+#### 0x050 - Encoder 0 Position ####
 
 Mode: Read only
 
 Reports the current filtered position of the encoder configured in
 slot 0.
 
-### 0x051 - Encoder 0 Velocity ###
+#### 0x051 - Encoder 0 Velocity ####
 
 Mode: Read only
 
 Reports the current filtered velocity of the encoder configured in
 slot 0.
 
-### 0x052 - Encoder 1 Position ###
+#### 0x052 - Encoder 1 Position ####
 
 Mode: Read only
 
 Reports the current filtered position of the encoder configured in
 slot 1.
 
-### 0x053 - Encoder 1 Velocity ###
+#### 0x053 - Encoder 1 Velocity ####
 
 Mode: Read only
 
 Reports the current filtered velocity of the encoder configured in
 slot 1.
 
-### 0x054 - Encoder 2 Position ###
+#### 0x054 - Encoder 2 Position ####
 
 Mode: Read only
 
 Reports the current filtered position of the encoder configured in
 slot 2.
 
-### 0x055 - Encoder 2 Velocity ###
+#### 0x055 - Encoder 2 Velocity ####
 
 Mode: Read only
 
 Reports the current filtered velocity of the encoder configured in
 slot 2.
 
-### 0x058 - Encoder Validity ###
+#### 0x058 - Encoder Validity ####
 
 Mode: Read only
 
 Returns a bitfield, where bit 0 indicates whether encoder 0 is active,
 bit 1 indicates whether encoder 1 is active, etc.
 
-### 0x05c - Aux1 GPIO Command ###
+#### 0x05c - Aux1 GPIO Command ####
 
 Mode: Read/write
 
@@ -1062,7 +1074,7 @@ The current output command for any GPIOs configured as an output on
 aux1 as a bitfield.  Not all bits may be used, as bit 0 is always for
 pin 1, whether or not it is configured as a GPIO output.
 
-### 0x05d - Aux2 GPIO Command ###
+#### 0x05d - Aux2 GPIO Command ####
 
 Mode: Read/write
 
@@ -1070,7 +1082,7 @@ The current output command for any GPIOs configured as an output on
 aux2 as a bitfield.  Not all bits may be used, as bit 0 is always for
 pin 1, whether or not it is configured as a GPIO output.
 
-### 0x05e - Aux1 GPIO Status ###
+#### 0x05e - Aux1 GPIO Status ####
 
 Mode: Read only
 
@@ -1078,7 +1090,7 @@ The current input value of any GPIOs configured as an input on aux1 as
 a bitfield.  Not all bits may be used, as bit 0 is always for pin 1,
 whether or not it is configured as a GPIO input.
 
-### 0x05f - Aux2 GPIO Status ###
+#### 0x05f - Aux2 GPIO Status ####
 
 Mode: Read only
 
@@ -1086,7 +1098,7 @@ The current input value of any GPIOs configured as an input on aux2 as
 a bitfield.  Not all bits may be used, as bit 0 is always for pin 1,
 whether or not it is configured as a GPIO input.
 
-### 0x060/0x064 - Aux1 Analog Inputs ###
+#### 0x060/0x064 - Aux1 Analog Inputs ####
 
 Mode: Read only
 
@@ -1095,7 +1107,7 @@ registers are associated with pins 1-5, regardless of whether they are
 configured as an analog input.  Each value is scaled as a PWM from 0
 to 1.
 
-### 0x068/0x06c - Aux2 Analog Inputs ###
+#### 0x068/0x06c - Aux2 Analog Inputs ####
 
 Mode: Read only
 
@@ -1104,7 +1116,7 @@ registers are associated with pins 1-5, regardless of whether they are
 configured as an analog input.  Each value is scaled as a PWM from 0
 to 1.
 
-### 0x070 - Millisecond Counter ###
+#### 0x070 - Millisecond Counter ####
 
 Mode: Read only
 
@@ -1112,7 +1124,7 @@ Increments once per millisecond.  It wraps at the maximum value for
 the queried type to the minimum value for that type.  For floating
 point types, it counts integers from 0 to 8388608.
 
-### 0x071 - Clock Trim ###
+#### 0x071 - Clock Trim ####
 
 Mode: Read/write
 
@@ -1126,14 +1138,14 @@ microcontroller, including CAN communication.  Thus setting this to a
 non-zero value may prevent future CAN communications.
 
 
-### 0x100 - Model Number ###
+#### 0x100 - Model Number ####
 
 Name: Model Number
 Mode: Read only
 
 This returns a 32 bit model number.
 
-### 0x101 - Firmware Version ###
+#### 0x101 - Firmware Version ####
 
 Mode: Read only
 
@@ -1141,14 +1153,14 @@ This returns a 32 bit firmware version, encoded bytewise as
 major.minor.micro.  i.e. 0x010304 is version 1.3.4
 
 
-### 0x102 - Register map version ###
+#### 0x102 - Register map version ####
 
 Mode: Read only
 
 This returns a number that indicates how to interpret all registers.
 
 
-### 0x110 - Multiplex ID ###
+#### 0x110 - Multiplex ID ####
 
 Name: Multiplex ID
 Mode: Configurable
@@ -1157,7 +1169,7 @@ This controls the primary ID used to access the device over the
 multiplex RS485 bus.  It can only be between 1 and 127.  (0 is
 reserved as the broadcast address).
 
-### 0x120 - 0x122 - Serial Number ###
+#### 0x120 - 0x122 - Serial Number ####
 
 Name: Serial Number
 Mode: Read only
@@ -1165,7 +1177,7 @@ Mode: Read only
 This returns a 96 bit serial number, least significant word first.
 
 
-### 0x130 - Set Output Nearest ###
+#### 0x130 - Set Output Nearest ####
 
 Mode: Write only
 
@@ -1173,14 +1185,14 @@ When sent, this causes the servo to select a whole number of internal
 motor rotations so that the final position is as close to the given
 position as possible.
 
-### 0x131 - Set Output Exact ###
+#### 0x131 - Set Output Exact ####
 
 Mode: Write only
 
 When sent, the servo will force the output position to be the exact
 specified value.
 
-### 0x132 - Require Reindex ###
+#### 0x132 - Require Reindex ####
 
 Mode: Write only
 
@@ -1189,7 +1201,7 @@ position be re-located before control can begin.  Regardless, the
 position will reset to an arbitrary value consistent with the current
 encoder settings.
 
-### 0x133 - Recapture Position and Velocity ###
+#### 0x133 - Recapture Position and Velocity ####
 
 Mode: Write only
 
@@ -1201,7 +1213,7 @@ current applied torque is 0, either because of an in-place maximum
 torque limit of zero, or because of an in-place kp and kd scale of
 zero.
 
-### 0x140 - Driver Fault 1 ###
+#### 0x140 - Driver Fault 1 ####
 
 Mode: Read only
 
@@ -1210,7 +1222,7 @@ for fault register 1.  Up to 16 bits may be set.  This will only be
 non-zero if the current mode is fault (1) and the fault code is 33
 (motor driver fault).
 
-### 0x141 - Driver Fault 2 ###
+#### 0x141 - Driver Fault 2 ####
 
 Mode: Read only.
 
@@ -1334,6 +1346,8 @@ Each optional element consists of a prefix character followed by a value.  Permi
   constant for the duration of this command
 - `d` - kd scale: the configured kd value is multiplied by this
   constant for the duration of this command
+- `i` - ki ilimit scale: the configured ilimit value is multiplied by
+  this constant for the duration of this command
 - `s` - stop position: when a non-zero velocity is given, motion stops
   when the control position reaches this value.
 - `f` - feedforward torque in Nm

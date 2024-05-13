@@ -87,6 +87,10 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
         command->kd_scale = value;
         break;
       }
+      case 'i': {
+        command->ilimit_scale = value;
+        break;
+      }
       case 's': {
         command->stop_position = value;
         break;
@@ -590,7 +594,7 @@ class BoardDebug::Impl {
       // We default to no timeout for debug commands.
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pdsftavo")) {
+      if (!ParseOptions(&command, &tokenizer, "pdisftavo")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }

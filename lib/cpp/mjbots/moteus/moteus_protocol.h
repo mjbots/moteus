@@ -137,6 +137,10 @@ enum Register : uint16_t {
   kCommandPositionMaxTorque = 0x025,
   kCommandStopPosition = 0x026,
   kCommandTimeout = 0x027,
+  kCommandVelocityLimit = 0x028,
+  kCommandAccelLimit = 0x029,
+  kCommandFixedVoltageOverride = 0x02a,
+  kCommandIlimitScale = 0x02b,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -158,6 +162,7 @@ enum Register : uint16_t {
   kCommandStayWithinKdScale = 0x044,
   kCommandStayWithinPositionMaxTorque = 0x045,
   kCommandStayWithinTimeout = 0x046,
+  kCommandStayWithinIlimitScale = 0x047,
 
   kEncoder0Position = 0x050,
   kEncoder0Velocity = 0x051,
@@ -587,6 +592,9 @@ struct Query {
       { R::kCommandPositionMaxTorque, 1, MP::kTorque, },
       { R::kCommandStopPosition, 1, MP::kPosition, },
       { R::kCommandTimeout, 1, MP::kTime, },
+      { R::kCommandVelocityLimit, 1, MP::kVelocity, },
+      { R::kCommandAccelLimit, 1, MP::kAcceleration, },
+      { R::kCommandFixedVoltageOverride, 1, MP::kVoltage },
 
       { R::kPositionKp, 5, MP::kTorque, },
       // { R::kPositionKi, 1, MP::kTorque, },
@@ -608,6 +616,7 @@ struct Query {
       // { R::kCommandStayWithinKdScale, 1, MP::kPwm, },
       { R::kCommandStayWithinPositionMaxTorque, 1, MP::kTorque, },
       { R::kCommandStayWithinTimeout, 1, MP::kTime, },
+      { R::kCommandStayWithinIlimitScale, 1, MP::kPwm },
 
       { R::kEncoder0Position, 1, MP::kPosition, },
       { R::kEncoder0Velocity, 1, MP::kVelocity, },
@@ -801,6 +810,7 @@ struct PositionMode {
     double velocity_limit = NaN;
     double accel_limit = NaN;
     double fixed_voltage_override = NaN;
+    double ilimit_scale = 1.0;
   };
 
   struct Format {
@@ -815,6 +825,7 @@ struct PositionMode {
     Resolution velocity_limit = kIgnore;
     Resolution accel_limit = kIgnore;
     Resolution fixed_voltage_override = kIgnore;
+    Resolution ilimit_scale = kIgnore;
   };
 
   static uint8_t Make(WriteCanData* frame,
@@ -838,6 +849,7 @@ struct PositionMode {
       format.velocity_limit,
       format.accel_limit,
       format.fixed_voltage_override,
+      format.ilimit_scale,
     };
     WriteCombiner combiner(
         frame, 0x00,
@@ -878,6 +890,9 @@ struct PositionMode {
     if (combiner.MaybeWrite()) {
       frame->WriteVoltage(command.fixed_voltage_override,
                           format.fixed_voltage_override);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.ilimit_scale, format.ilimit_scale);
     }
     return 0;
   }
@@ -995,6 +1010,7 @@ struct StayWithinMode {
     double kd_scale = 1.0;
     double maximum_torque = 0.0;
     double watchdog_timeout = NaN;
+    double ilimit_scale = 1.0;
   };
 
   struct Format {
@@ -1005,6 +1021,7 @@ struct StayWithinMode {
     Resolution kd_scale = kIgnore;
     Resolution maximum_torque = kIgnore;
     Resolution watchdog_timeout = kIgnore;
+    Resolution ilimit_scale = kIgnore;
   };
 
   static uint8_t Make(WriteCanData* frame,
@@ -1022,6 +1039,7 @@ struct StayWithinMode {
       format.kd_scale,
       format.maximum_torque,
       format.watchdog_timeout,
+      format.ilimit_scale,
     };
 
     WriteCombiner combiner(
@@ -1051,6 +1069,9 @@ struct StayWithinMode {
     }
     if (combiner.MaybeWrite()) {
       frame->WriteTime(command.watchdog_timeout, format.watchdog_timeout);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.ilimit_scale, format.ilimit_scale);
     }
     return 0;
   }

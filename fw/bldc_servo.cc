@@ -1917,7 +1917,7 @@ class BldcServo::Impl {
     PID::ApplyOptions apply_options;
     apply_options.kp_scale = 0.0f;
     apply_options.kd_scale = data->kd_scale;
-    apply_options.ki_scale = 0.0f;
+    apply_options.ilimit_scale = 0.0f;
 
     ISR_DoPositionCommon(sin_cos, &zero_velocity,
                          apply_options, config_.timeout_max_torque_Nm,
@@ -1928,6 +1928,7 @@ class BldcServo::Impl {
     PID::ApplyOptions apply_options;
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
+    apply_options.ilimit_scale = data->ilimit_scale;
 
     ISR_DoPositionCommon(sin_cos, data, apply_options, data->max_torque_Nm,
                          data->feedforward_Nm, data->velocity);

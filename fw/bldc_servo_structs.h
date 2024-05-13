@@ -308,6 +308,7 @@ struct BldcServoCommandData {
 
   float kp_scale = 1.0f;
   float kd_scale = 1.0f;
+  float ilimit_scale = 1.0f;
 
   float velocity_limit = std::numeric_limits<float>::quiet_NaN();
   float accel_limit = std::numeric_limits<float>::quiet_NaN();
@@ -351,6 +352,7 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(feedforward_Nm));
     a->Visit(MJ_NVP(kp_scale));
     a->Visit(MJ_NVP(kd_scale));
+    a->Visit(MJ_NVP(ilimit_scale));
     a->Visit(MJ_NVP(velocity_limit));
     a->Visit(MJ_NVP(accel_limit));
     a->Visit(MJ_NVP(fixed_voltage_override));

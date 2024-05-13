@@ -199,6 +199,7 @@ class Register(enum.IntEnum):
     COMMAND_VELOCITY_LIMIT = 0x028
     COMMAND_ACCEL_LIMIT = 0x029
     COMMAND_FIXED_VOLTAGE_OVERRIDE = 0x02a
+    COMMAND_ILIMIT_SCALE = 0x02b
 
     POSITION_KP = 0x030
     POSITION_KI = 0x031
@@ -220,6 +221,7 @@ class Register(enum.IntEnum):
     COMMAND_WITHIN_KD_SCALE = 0x044
     COMMAND_WITHIN_MAX_TORQUE = 0x045
     COMMAND_WITHIN_TIMEOUT = 0x046
+    COMMAND_WITHIN_ILIMIT_SCALE = 0x047
 
     ENCODER_0_POSITION = 0x050
     ENCODER_0_VELOCITY = 0x051
@@ -329,6 +331,7 @@ class PositionResolution:
     velocity_limit = mp.F32
     accel_limit = mp.F32
     fixed_voltage_override = mp.F32
+    ilimit_scale = mp.F32
 
 
 class VFOCResolution:
@@ -888,6 +891,7 @@ class Controller:
                       velocity_limit=None,
                       accel_limit=None,
                       fixed_voltage_override=None,
+                      ilimit_scale=None,
                       query=False,
                       query_override=None):
         """Return a moteus.Command structure with data necessary to send a
@@ -909,6 +913,7 @@ class Controller:
             pr.velocity_limit if velocity_limit is not None else mp.IGNORE,
             pr.accel_limit if accel_limit is not None else mp.IGNORE,
             pr.fixed_voltage_override if fixed_voltage_override is not None else mp.IGNORE,
+            pr.ilimit_scale if ilimit_scale is not None else mp.IGNORE
         ]
 
         data_buf = io.BytesIO()
@@ -943,6 +948,8 @@ class Controller:
             writer.write_accel(accel_limit, pr.accel_limit)
         if combiner.maybe_write():
             writer.write_voltage(fixed_voltage_override, pr.fixed_voltage_override)
+        if combiner.maybe_write():
+            writer.write_voltage(ilimit_scale, pr.ilimit_scale)
 
         self._format_query(query, query_override, data_buf, result)
 
@@ -1098,6 +1105,7 @@ class Controller:
             maximum_torque=None,
             stop_position=None,
             watchdog_timeout=None,
+            ilimit_scale=None,
             query=False,
             query_override=None):
         """Return a moteus.Command structure with data necessary to send a
@@ -1115,6 +1123,7 @@ class Controller:
             pr.kd_scale if kd_scale is not None else mp.IGNORE,
             pr.maximum_torque if maximum_torque is not None else mp.IGNORE,
             pr.watchdog_timeout if watchdog_timeout is not None else mp.IGNORE,
+            pr.ilimit_scale if ilimit_scale is not None else mp.IGNORE,
         ]
 
         data_buf = io.BytesIO()
@@ -1142,6 +1151,8 @@ class Controller:
             writer.write_torque(maximum_torque, pr.maximum_torque)
         if combiner.maybe_write():
             writer.write_time(watchdog_timeout, pr.watchdog_timeout)
+        if combiner.maybe_write():
+            writer.write_pwm(ilimit_scale, pr.ilimit_scale)
 
         self._format_query(query, query_override, data_buf, result)
 
