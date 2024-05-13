@@ -100,7 +100,7 @@ class PID {
   struct ApplyOptions {
     float kp_scale = 1.0f;
     float kd_scale = 1.0f;
-    float ki_scale = 1.0f;
+    float ilimit_scale = 1.0f;
 
     ApplyOptions() {}
   };
@@ -144,10 +144,11 @@ class PID {
 
     state_->integral += to_update_i;
 
-    if (state_->integral > config_->ilimit) {
-      state_->integral = config_->ilimit;
-    } else if (state_->integral < -config_->ilimit) {
-      state_->integral = -config_->ilimit;
+    const float ilimit = config_->ilimit * apply_options.ilimit_scale;
+    if (state_->integral > ilimit) {
+      state_->integral = ilimit;
+    } else if (state_->integral < -ilimit) {
+      state_->integral = -ilimit;
     }
 
     state_->p = apply_options.kp_scale * config_->kp * state_->error;
@@ -155,7 +156,7 @@ class PID {
     state_->pd = state_->p + state_->d;
 
     state_->command = config_->sign *
-        (state_->pd + apply_options.ki_scale * state_->integral);
+        (state_->pd + state_->integral);
 
     return state_->command;
   }

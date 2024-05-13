@@ -259,6 +259,7 @@ enum class Register {
   kCommandVelocityLimit = 0x028,
   kCommandAccelLimit = 0x029,
   kCommandFixedVoltageOverride = 0x02a,
+  kCommandIlimitScale = 0x02b,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -280,6 +281,7 @@ enum class Register {
   kStayWithinKdScale = 0x044,
   kStayWithinMaxTorque = 0x045,
   kStayWithinTimeout = 0x046,
+  kStayWithinIlimitScale = 0x047,
 
   kEncoder0Position = 0x050,
   kEncoder0Velocity = 0x051,
@@ -621,6 +623,11 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.kd_scale = ReadPwm(value);
         return 0;
       }
+      case Register::kCommandIlimitScale:
+      case Register::kStayWithinIlimitScale: {
+        command_.ilimit_scale = ReadPwm(value);
+        return 0;
+      }
       case Register::kStayWithinLower: {
         command_.bounds_min = ReadPosition(value);
         return 0;
@@ -861,7 +868,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kStayWithinKdScale: {
         return ScalePwm(command_.kd_scale, type);
       }
-
+      case Register::kCommandIlimitScale:
+      case Register::kStayWithinIlimitScale: {
+        return ScalePwm(command_.ilimit_scale, type);
+      }
       case Register::kPositionKp: {
         return ScaleTorque(bldc_.status().pid_position.p, type);
       }
