@@ -305,6 +305,10 @@ def _round_nearest_4v(input_V):
     return round(input_V / 4) * 4
 
 
+def _average(x):
+    return sum(x) / len(x)
+
+
 def expand_targets(targets):
     result = set()
 
@@ -1239,6 +1243,16 @@ class Stream:
                 desired_encoder_bw_hz = min(
                     desired_encoder_bw_hz, 2e-2 / inductance)
 
+            # Also, limit the bandwidth for halls based on the number
+            # of poles and the estimated calibration speed.
+            if hall_output:
+                max_pole_bandwidth_hz = (
+                    0.5 * self.args.cal_motor_poles *
+                    self.args.cal_motor_speed)
+                desired_encoder_bw_hz = min(
+                    desired_encoder_bw_hz, max_pole_bandwidth_hz)
+
+
         # And our bandwidth with the filter can be no larger than
         # 1/30th the control rate.
         encoder_bw_hz = min(control_rate_hz / 30, desired_encoder_bw_hz)
@@ -1308,32 +1322,42 @@ class Stream:
 
         start_time = time.time()
 
+        SAMPLE_PERIOD_S = 0.02
+        AVERAGE_PERIOD_S = 0.10
+
+        AVERAGE_COUNT = int(AVERAGE_PERIOD_S / SAMPLE_PERIOD_S)
+
         def sign(x):
             return 1 if x >= 0 else -1
 
-        old_change = None
-        old_vel = None
+        velocity_samples = []
+
         while True:
             data = await self.read_servo_stats()
-            velocity = data.velocity
+            velocity_samples.append(data.velocity)
 
-            # As a fallback, timeout after 1s of waiting.
+            if len(velocity_samples) > (3 * AVERAGE_COUNT):
+                del velocity_samples[0]
+
+            recent_average = _average(velocity_samples[-AVERAGE_COUNT:])
+
+            # As a fallback, timeout after a fixed amount of waiting.
             if (time.time() - start_time) > 2.0:
-                return velocity
+                return recent_average
 
-            if abs(velocity) < 0.2:
-                return velocity
+            if (len(velocity_samples) >= AVERAGE_COUNT and
+                abs(recent_average) < 0.2):
+                return recent_average
 
-            if old_vel is not None:
-                change = velocity - old_vel
-                if old_change is not None:
-                    if sign(old_change) != sign(change):
-                        return velocity
-                old_change = change
+            if len(velocity_samples) == 3 * AVERAGE_COUNT:
+                average_1 = _average(velocity_samples[:AVERAGE_COUNT])
+                average_2 = _average(velocity_samples[AVERAGE_COUNT:2*AVERAGE_COUNT])
+                average_3 = recent_average
 
-            old_vel = velocity
+                if sign(average_3 - average_2) != sign(average_2 - average_1):
+                    return recent_average
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(SAMPLE_PERIOD_S)
 
         return velocity
 
