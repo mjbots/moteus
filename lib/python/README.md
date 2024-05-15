@@ -90,10 +90,10 @@ pr.kp_scale = moteus.F32
 pr.kd_scale = moteus.F32
 
 qr = moteus.QueryResolution()
-qr.mode = mp.INT8
-qr.position = mp.F32
-qr.velocity = mp.F32
-qr.torque = mp.F32
+qr.mode = moteus.INT8
+qr.position = moteus.F32
+qr.velocity = moteus.F32
+qr.torque = moteus.F32
 
 c = moteus.Controller(position_resolution=pr, query_resolution=qr)
 ```
