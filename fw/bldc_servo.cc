@@ -1136,7 +1136,7 @@ class BldcServo::Impl {
           status_.cur2_A
           };
     status_.d_A = dq.d;
-    status_.q_A = dq.q;
+    status_.q_A = motor_position_config()->output.sign * dq.q;
     status_.torque_Nm = torque_on() ? (
         current_to_torque(status_.q_A) /
         motor_position_->config()->rotor_to_output_ratio) : 0.0f;
@@ -1814,8 +1814,7 @@ class BldcServo::Impl {
           Limit(
               pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
               i_q_A * config_.current_feedforward * motor_.resistance_ohm +
-              (motor_position_config()->output.sign *
-               feedforward_velocity_rotor *
+              (feedforward_velocity_rotor *
                config_.bemf_feedforward *
                motor_.v_per_hz),
               -max_V, max_V);
@@ -1828,8 +1827,7 @@ class BldcServo::Impl {
       ISR_DoVoltageDQ(sin_cos,
                       i_d_A * motor_.resistance_ohm,
                       i_q_A * motor_.resistance_ohm +
-                      (motor_position_config()->output.sign *
-                       feedforward_velocity_rotor *
+                      (feedforward_velocity_rotor *
                        config_.bemf_feedforward *
                        motor_.v_per_hz));
     }
@@ -1856,8 +1854,9 @@ class BldcServo::Impl {
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
-    InverseDqTransform idt(sin_cos, limit_v(control_.d_V),
-                           limit_v(control_.q_V));
+    InverseDqTransform idt(
+        sin_cos, limit_v(control_.d_V),
+        limit_v(motor_position_config()->output.sign * control_.q_V));
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control_done_cur = DWT->CYCCNT;
@@ -1977,6 +1976,7 @@ class BldcServo::Impl {
       // with a fixed voltage drive based on the desired position.
       const float synthetic_electrical_theta =
           WrapZeroToTwoPi(
+              motor_position_config()->output.sign *
               MotorPosition::IntToFloat(*status_.control_position_raw)
               / motor_position_->config()->rotor_to_output_ratio
               * motor_.poles
@@ -2016,7 +2016,6 @@ class BldcServo::Impl {
     // that we get equal performance across the entire viable integral
     // position range.
     const float unlimited_torque_Nm =
-        motor_position_config()->output.sign *
         (pid_position_.Apply(
             (static_cast<int32_t>(
                 (position_.position_relative_raw -
