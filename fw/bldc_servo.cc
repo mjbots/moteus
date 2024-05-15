@@ -1562,6 +1562,8 @@ class BldcServo::Impl {
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
+
+    status_.power_W = 0.0f;
   }
 
   void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
@@ -1570,6 +1572,8 @@ class BldcServo::Impl {
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
+
+    status_.power_W = 0.0f;
   }
 
   void ISR_DoCalibrating() {
@@ -1822,8 +1826,16 @@ class BldcServo::Impl {
           status_.pid_q.integral,
           -max_current_integral, max_current_integral);
 
+      status_.power_W =
+          status_.d_A * d_V +
+          status_.q_A * q_V;
+
       ISR_DoVoltageDQ(sin_cos, d_V, q_V);
     } else {
+      status_.power_W =
+          i_d_A * i_d_A * motor_.resistance_ohm +
+          i_q_A * i_q_A * motor_.resistance_ohm;
+
       ISR_DoVoltageDQ(sin_cos,
                       i_d_A * motor_.resistance_ohm,
                       i_q_A * motor_.resistance_ohm +

@@ -143,6 +143,7 @@ struct BldcServoStatus {
   float position = 0.0f;
   float velocity = 0.0f;
   float torque_Nm = 0.0f;
+  float power_W = 0.0f;
 
   float velocity_filt = 0.0f;
 
@@ -238,6 +239,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(velocity));
     a->Visit(MJ_NVP(torque_Nm));
+    a->Visit(MJ_NVP(power_W));
 
     a->Visit(MJ_NVP(velocity_filt));
 
