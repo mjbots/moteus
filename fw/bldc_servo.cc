@@ -1814,7 +1814,10 @@ class BldcServo::Impl {
           Limit(
               pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
               i_q_A * config_.current_feedforward * motor_.resistance_ohm +
-              feedforward_velocity_rotor * config_.bemf_feedforward * motor_.v_per_hz,
+              (motor_position_config()->output.sign *
+               feedforward_velocity_rotor *
+               config_.bemf_feedforward *
+               motor_.v_per_hz),
               -max_V, max_V);
       status_.pid_q.integral = Limit(
           status_.pid_q.integral,
@@ -1825,7 +1828,10 @@ class BldcServo::Impl {
       ISR_DoVoltageDQ(sin_cos,
                       i_d_A * motor_.resistance_ohm,
                       i_q_A * motor_.resistance_ohm +
-                      feedforward_velocity_rotor * config_.bemf_feedforward * motor_.v_per_hz);
+                      (motor_position_config()->output.sign *
+                       feedforward_velocity_rotor *
+                       config_.bemf_feedforward *
+                       motor_.v_per_hz));
     }
   }
 
