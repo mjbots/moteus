@@ -106,6 +106,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_fixed_voltage_mode(self):
         dyno('--validate_fixed_voltage_mode', '1')
 
+    def test_validate_fixed_voltage_mode_reverse(self):
+        dyno('--validate_fixed_voltage_mode_reverse', '1')
+
     def test_validate_brake_mode(self):
         dyno('--validate_brake_mode', '1')
 

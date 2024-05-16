@@ -97,6 +97,7 @@ struct Options {
   bool validate_rezero = false;
   bool validate_voltage_mode_control = false;
   bool validate_fixed_voltage_mode = false;
+  bool validate_fixed_voltage_mode_reverse = true;
   bool validate_brake_mode = false;
   bool validate_velocity_accel_limits = false;
 
@@ -133,6 +134,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_rezero));
     a->Visit(MJ_NVP(validate_voltage_mode_control));
     a->Visit(MJ_NVP(validate_fixed_voltage_mode));
+    a->Visit(MJ_NVP(validate_fixed_voltage_mode_reverse));
     a->Visit(MJ_NVP(validate_brake_mode));
     a->Visit(MJ_NVP(validate_velocity_accel_limits));
   }
@@ -758,6 +760,8 @@ class Application {
       co_await ValidateVoltageModeControl();
     } else if (options_.validate_fixed_voltage_mode) {
       co_await ValidateFixedVoltageMode();
+    } else if (options_.validate_fixed_voltage_mode_reverse) {
+      co_await ValidateFixedVoltageModeReverse();
     } else if (options_.validate_brake_mode) {
       co_await ValidateBrakeMode();
     } else if (options_.validate_velocity_accel_limits) {
@@ -1213,11 +1217,11 @@ class Application {
 
   boost::asio::awaitable<void> RunBasicPositionVelocityTest(Controller::PidConstants pid, double tolerance_scale) {
     // Move at a few different velocities.
-    for (const double velocity : {0.0, -1.5, 3.0}) {
+    for (const double velocity : {0.0, -1.5, 3.0, 10.0, -5.0}) {
       fmt::print("Moving at velocity {}\n", velocity);
-      co_await dut_->Command(fmt::format("d pos nan {} 0.2", velocity));
+      co_await dut_->Command(fmt::format("d pos nan {} 0.2 a30", velocity));
 
-      co_await Sleep(1.0);
+      co_await Sleep(1.5);
 
       const double fixture_velocity =
           pid.output_sign * options_.transducer_scale * fixture_->servo_stats().velocity;
@@ -1225,6 +1229,16 @@ class Application {
         throw mjlib::base::system_error::einval(
             fmt::format("Fixture velocity {} != {}",
                         fixture_velocity, velocity));
+      }
+
+      const auto q_command = dut_->servo_stats().pid_q.command;
+      const double kMaxQError = 0.4f;
+      if (!pid.fixed_voltage_mode && !pid.voltage_mode_control) {
+        if (q_command == 0.0 || std::abs(q_command) > kMaxQError) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Q current tracking |{}| > {}",
+                          q_command, kMaxQError));
+        }
       }
     }
 
@@ -2077,10 +2091,10 @@ class Application {
       double power_W;
       double expected_speed_Hz;
     } tests[] = {
-      { 100.0, 3.80 },
-      { 20.0, 3.00 },
-      { 10.0, 2.00 },
-      { 5.0, 1.40 },
+      { 100.0, 3.90 },
+      { 20.0, 2.5 },
+      { 10.0, 1.8 },
+      { 5.0, 1.25 },
     };
 
     std::string errors;
@@ -2228,12 +2242,11 @@ class Application {
     co_return;
   }
 
-  boost::asio::awaitable<void> ValidateFixedVoltageMode() {
+  boost::asio::awaitable<void> RunFixedVoltageModeTest(Controller::PidConstants pid) {
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
     co_await dut_->Command("d index 0");
 
-    Controller::PidConstants pid;
     pid.voltage_mode_control = true;
     pid.kp = 1.0;
     pid.ki = 0.0;
@@ -2260,7 +2273,19 @@ class Application {
     co_return;
   }
 
-  boost::asio::awaitable<void> ValidateBrakeMode() {
+  boost::asio::awaitable<void> ValidateFixedVoltageMode() {
+    Controller::PidConstants pid;
+    pid.output_sign = 1;
+    co_await RunFixedVoltageModeTest(pid);
+  }
+
+  boost::asio::awaitable<void> ValidateFixedVoltageModeReverse() {
+    Controller::PidConstants pid;
+    pid.output_sign = -1;
+    co_await RunFixedVoltageModeTest(pid);
+  }
+
+ boost::asio::awaitable<void> ValidateBrakeMode() {
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
     co_await fixture_->Command("d index 0");

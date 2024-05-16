@@ -56,16 +56,19 @@ struct ServoStats {
   float velocity = 0.0f;
   float velocity_filt = 0.0f;
 
-  struct PidPosition {
+  struct PidState {
     float error = 0.0;
+    float command = 0.0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(error));
+      a->Visit(MJ_NVP(command));
     }
   };
 
-  PidPosition pid_position;
+  PidState pid_q;
+  PidState pid_position;
 
   uint32_t final_timer = 0;
   uint32_t total_timer = 0;
@@ -84,6 +87,7 @@ struct ServoStats {
     a->Visit(MJ_NVP(velocity));
     a->Visit(MJ_NVP(velocity_filt));
 
+    a->Visit(MJ_NVP(pid_q));
     a->Visit(MJ_NVP(pid_position));
 
     a->Visit(MJ_NVP(final_timer));
