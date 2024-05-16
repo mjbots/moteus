@@ -162,6 +162,7 @@ class Register(enum.IntEnum):
     Q_CURRENT = 0x004
     D_CURRENT = 0x005
     ABS_POSITION = 0x006
+    POWER = 0x007
     MOTOR_TEMPERATURE = 0x00a
     TRAJECTORY_COMPLETE = 0x00b
     REZERO_STATE = 0x00c
@@ -299,6 +300,7 @@ class QueryResolution:
     q_current = mp.IGNORE
     d_current = mp.IGNORE
     abs_position = mp.IGNORE
+    power = mp.IGNORE
     motor_temperature = mp.IGNORE
     trajectory_complete = mp.IGNORE
     rezero_state = mp.IGNORE
@@ -371,6 +373,9 @@ class Parser(mp.RegisterParser):
     def read_current(self, resolution):
         return self.read_mapped(resolution, 1.0, 0.1, 0.001)
 
+    def read_power(self, resolution):
+        return self.read_mapped(resolution, 10.0, 0.05, 0.0001)
+
     def ignore(self, resolution):
         self._offset += mp.resolution_size(resolution)
 
@@ -407,6 +412,9 @@ class Writer(mp.WriteFrame):
     def write_current(self, value, resolution):
         self.write_mapped(value, 1.0, 0.1, 0.001, resolution)
 
+    def write_power(self, value, resolution):
+        self.write_mapped(value, 10.0, 0.05, 0.0001, resolution)
+
 
 def parse_register(parser, register, resolution):
     if register == Register.MODE:
@@ -423,6 +431,8 @@ def parse_register(parser, register, resolution):
         return parser.read_current(resolution)
     elif register == Register.ABS_POSITION:
         return parser.read_position(resolution)
+    elif register == Register.POWER:
+        return parser.read_power(resolution)
     elif register == Register.TRAJECTORY_COMPLETE:
         return parser.read_int(resolution)
     elif register == Register.HOME_STATE or register == Register.REZERO_STATE:
@@ -642,6 +652,7 @@ class Controller:
             qr.q_current,
             qr.d_current,
             qr.abs_position,
+            qr.power,
             ])
         for i in range(c1.size()):
             c1.maybe_write()

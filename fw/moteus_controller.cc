@@ -122,6 +122,10 @@ Value ScaleTime(float value, size_t type) {
   return ScaleMapping(value, 0.01f, 0.001f, 0.000001f, type);
 }
 
+Value ScalePower(float value, size_t type) {
+  return ScaleMapping(value, 10.0f, 0.05f, 0.0001f, type);
+}
+
 int8_t ReadIntMapping(Value value) {
   return std::visit([](auto a) {
       return static_cast<int8_t>(a);
@@ -217,6 +221,7 @@ enum class Register {
   kQCurrent = 0x004,
   kDCurrent = 0x005,
   kAbsPosition = 0x006,
+  kPower = 0x007,
 
   kMotorTemperature = 0x00a,
   kTrajectoryComplete = 0x00b,
@@ -665,6 +670,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kQCurrent:
       case Register::kDCurrent:
       case Register::kAbsPosition:
+      case Register::kPower:
       case Register::kTrajectoryComplete:
       case Register::kHomeState:
       case Register::kVoltage:
@@ -757,6 +763,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kAbsPosition: {
         return ScalePosition(encoder_value(1).filtered_value / encoder_config(1).cpr, type);
+      }
+      case Register::kPower: {
+        return ScalePower(bldc_.status().power_W, type);
       }
       case Register::kTrajectoryComplete: {
         return IntMapping(bldc_.status().trajectory_done ? 1 : 0, type);

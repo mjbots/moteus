@@ -50,6 +50,7 @@ BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
   fmt.q_current = moteus::kFloat;
   fmt.d_current = moteus::kFloat;
   fmt.abs_position = moteus::kFloat;
+  fmt.power = moteus::kFloat;
 
   fmt.motor_temperature = moteus::kInt8;
   fmt.trajectory_complete = moteus::kInt8;
@@ -64,8 +65,8 @@ BOOST_AUTO_TEST_CASE(QueryMakeEverything) {
   fmt.extra[1].resolution = moteus::kFloat;
 
   const auto reply_size = moteus::Query::Make(&write_frame, fmt);
-  BOOST_TEST(Hexify(frame) == "11001c060110060a125e1e50");
-  BOOST_TEST(reply_size == 53);
+  BOOST_TEST(Hexify(frame) == "11001c070110060a125e1e50");
+  BOOST_TEST(reply_size == 57);
 }
 
 
@@ -98,7 +99,7 @@ BOOST_AUTO_TEST_CASE(QueryMinimal) {
 BOOST_AUTO_TEST_CASE(QueryMaximal) {
   moteus::CanData query_data{
     {
-      0x24, 0x07, 0x00,
+      0x24, 0x08, 0x00,
       0x0a, 0x00,  // mode
       0x10, 0x02,  // position
       0x00, 0xfe,  // velocity
@@ -106,6 +107,7 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
       0x10, 0x00,  // q current
       0x40, 0x00,  // d current
       0x70, 0x00,  // abs_position
+      0x50, 0x00,  // power
 
       0x20, 0x06, 0x0a,
       0x10,  // motor temp
@@ -119,7 +121,7 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
       0x20, 0x00,  // encoder 0 position
       0x30, 0x00,  // encoder 0 velocity
     },
-    33,
+    35,
   };
 
   const auto result = moteus::Query::Parse(&query_data);
@@ -130,6 +132,7 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
   BOOST_TEST(result.q_current == 1.6);
   BOOST_TEST(result.d_current == 6.4);
   BOOST_TEST(result.abs_position == 0.0112);
+  BOOST_TEST(result.power == 4.0);
   BOOST_TEST(result.motor_temperature == 16.0);
   BOOST_TEST(result.trajectory_complete == true);
   BOOST_TEST((result.home_state == moteus::HomeState::kOutput));

@@ -567,6 +567,12 @@ values.
 - int16 => 1 LSB => (1/32767) - 0.000030519
 - int32 => 1 LSB => (1/2147483647) - 4.657e-10
 
+#### A.2.a.10 Power (W) ####
+
+- int8 => 1 LSB => 10.0 W
+- int16 => 1 LSB => 0.05 W
+- int32 => 1 LSB => 0.0001 W
+
 ### A.2.b Registers ###
 
 #### 0x000 - Mode ####
@@ -633,7 +639,14 @@ Mode: Read only
 If an absolute encoder is configured on the ABS port, its value will
 be reported here in revolutions.
 
-#### 0x00a - Motor Temperature ####
+#### 0x007 - Measured electrical power ####
+
+Mode: Read only
+
+The estimated electrical power applied to the motor if positive.  If
+negative, power applied to the DC input bus.
+
+#### 0x00a - Motor temperature ####
 
 Mode: Read only
 

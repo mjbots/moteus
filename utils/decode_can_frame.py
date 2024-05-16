@@ -185,6 +185,8 @@ SCALE_TYPES = [
     ScaleType([moteus.Register.COMMAND_TIMEOUT,
                moteus.Register.COMMAND_WITHIN_TIMEOUT],
               0.01, 0.001, 0.000001),
+    ScaleType([moteus.Register.POWER,],
+              10.0, 0.05, 0.0001),
 ]
 
 

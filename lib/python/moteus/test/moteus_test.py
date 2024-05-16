@@ -114,6 +114,80 @@ class MoteusTest(unittest.TestCase):
 
         self.assertEqual(repr(parsed), '1/{MODE(0x000): 10, POSITION(0x001): 0.0528, VELOCITY(0x002): -0.128, TORQUE(0x003): 0.32, VOLTAGE(0x00d): 16.0, TEMPERATURE(0x00e): 48.0, FAULT(0x00f): 64}')
 
+    def test_make_position_query_all(self):
+        dut = mot.Controller()
+        qr = mot.QueryResolution()
+        qr.mode = mot.mp.INT16
+        qr.position = mot.mp.INT16
+        qr.velocity = mot.mp.INT16
+        qr.torque = mot.mp.INT16
+        qr.q_current = mot.mp.INT16
+        qr.d_current = mot.mp.INT16
+        qr.abs_position = mot.mp.INT16
+        qr.power = mot.mp.INT16
+        qr.motor_temperature = mot.mp.INT8
+        qr.trajectory_complete = mot.mp.INT8
+        qr.home_state = mot.mp.INT8
+        qr.voltage = mot.mp.INT8
+        qr.temperature = mot.mp.INT8
+        qr.fault = mot.mp.INT8
+        qr.aux1_gpio = mot.mp.INT8
+        qr.aux2_gpio = mot.mp.INT8
+
+        result = dut.make_position(query=True, query_override=qr)
+        self.assertEqual(
+            result.data.hex(),
+            bytes([0x01, 0x00, 0x0a,
+                   0x14, 0x08, 0x00,
+                   0x10, 0x06, 0x0a,
+                   0x12, 0x5e]).hex())
+        self.assertEqual(result.reply_required, True)
+        self.assertEqual(result.expected_reply_size, 32)
+
+        parsed = result.parse(CanMessage())
+        self.assertEqual(parsed.id, 1)
+        self.assertEqual(len(parsed.values), 0)
+
+        parsed = result.parse(CanMessage(data=bytes([
+            0x24, 0x08, 0x00,
+            0x0a, 0x00, # mode
+            0x10, 0x02, # position
+            0x00, 0xfe, # velocity
+            0x20, 0x00, # torque
+            0x30, 0x00, # q current
+            0x40, 0x00, # d current
+            0x50, 0x00, # abs position
+            0x60, 0x00, # power
+            0x20, 0x06, 0x0a,
+            0x10,  # motor temp
+            0x01,  # trajectory complete
+            0x01,  # home state
+            0x20,  # voltage
+            0x30,  # temperature
+            0x40,  # fault
+        ])))
+
+        self.assertEqual(
+            parsed.values,
+            {
+                0: 10,
+                1: 0.0528,
+                2: -0.128,
+                3: 0.32,
+                4: 4.800000000000001,
+                5: 6.4,
+                6: 0.008,
+                7: 4.800000000000001,
+                10: 16.0,
+                11: 1,
+                12: 1,
+                13: 16.0,
+                14: 48.0,
+                15: 64,
+            })
+
+        self.assertEqual(repr(parsed), '1/{MODE(0x000): 10, POSITION(0x001): 0.0528, VELOCITY(0x002): -0.128, TORQUE(0x003): 0.32, Q_CURRENT(0x004): 4.800000000000001, D_CURRENT(0x005): 6.4, ABS_POSITION(0x006): 0.008, POWER(0x007): 4.800000000000001, MOTOR_TEMPERATURE(0x00a): 16.0, TRAJECTORY_COMPLETE(0x00b): 1, REZERO_STATE(0x00c): 1, VOLTAGE(0x00d): 16.0, TEMPERATURE(0x00e): 48.0, FAULT(0x00f): 64}')
+
     def test_make_position_query_override(self):
         qr = mot.QueryResolution()
         qr.trajectory_complete = mot.mp.INT8
