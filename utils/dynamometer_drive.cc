@@ -1701,6 +1701,17 @@ class Application {
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
 
+    // Wait until the temperature is low enough.
+    while (true) {
+      const auto temp_C = dut_->servo_stats().filt_fet_temp_C;
+      const float kRequiredTempC = 37.0;
+      if (temp_C <= kRequiredTempC) { break; }
+      fmt::print("Waiting for temperature to drop, {} > {}\n",
+                 temp_C, kRequiredTempC);
+
+      co_await Sleep(5.0);
+    }
+
     Controller::PidConstants pid;
     pid.kp = 2;
     co_await dut_->ConfigurePid(pid);

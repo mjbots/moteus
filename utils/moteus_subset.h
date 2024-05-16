@@ -50,6 +50,8 @@ struct ServoStats {
 
   float torque_Nm = 0.0f;
 
+  float filt_fet_temp_C = 0.0f;
+
   float d_A = 0.0f;
   float q_A = 0.0f;
 
@@ -80,6 +82,8 @@ struct ServoStats {
     a->Visit(MJ_NVP(fault));
     a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(torque_Nm));
+
+    a->Visit(MJ_NVP(filt_fet_temp_C));
 
     a->Visit(MJ_NVP(d_A));
     a->Visit(MJ_NVP(q_A));
