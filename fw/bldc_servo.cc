@@ -1798,8 +1798,10 @@ class BldcServo::Impl {
     // This is conservative... we could use std::hypot(d, q), however
     // that would take more CPU cycles, and most of the time we'll
     // only be seeing q != 0.
+    //
+    // The 1.5f is the inverse of the calculation for power_W below.
     const float max_V = adjusted_max_power_W_ /
-        (std::abs(status_.d_A) + std::abs(status_.q_A));
+        (1.5f * (std::abs(status_.d_A) + std::abs(status_.q_A)));
 
     if (!config_.voltage_mode_control) {
       const float d_V =
@@ -1826,15 +1828,17 @@ class BldcServo::Impl {
           status_.pid_q.integral,
           -max_current_integral, max_current_integral);
 
+      // eq 2.28 from "DYNAMIC MODEL OF PM SYNCHRONOUS MOTORS" D. Ohm,
+      // 2000
       status_.power_W =
-          status_.d_A * d_V +
-          status_.q_A * q_V;
+          1.5f * (status_.d_A * d_V +
+                  status_.q_A * q_V);
 
       ISR_DoVoltageDQ(sin_cos, d_V, q_V);
     } else {
       status_.power_W =
-          i_d_A * i_d_A * motor_.resistance_ohm +
-          i_q_A * i_q_A * motor_.resistance_ohm;
+          1.5f * (i_d_A * i_d_A * motor_.resistance_ohm +
+                  i_q_A * i_q_A * motor_.resistance_ohm);
 
       ISR_DoVoltageDQ(sin_cos,
                       i_d_A * motor_.resistance_ohm,
