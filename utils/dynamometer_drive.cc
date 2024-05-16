@@ -2252,7 +2252,7 @@ class Application {
     pid.ki = 0.0;
     pid.kd = 0.01;
     pid.fixed_voltage_mode = true;
-    pid.fixed_voltage_control_V = 0.45;
+    pid.fixed_voltage_control_V = 0.25;
 
     co_await dut_->ConfigurePid(pid);
 
