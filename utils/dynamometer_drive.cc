@@ -1702,16 +1702,6 @@ class Application {
     co_await fixture_->Command("d stop");
 
     // Wait until the temperature is low enough.
-    while (true) {
-      const auto temp_C = dut_->servo_stats().filt_fet_temp_C;
-      const float kRequiredTempC = 37.0;
-      if (temp_C <= kRequiredTempC) { break; }
-      fmt::print("Waiting for temperature to drop, {} > {}\n",
-                 temp_C, kRequiredTempC);
-
-      co_await Sleep(5.0);
-    }
-
     Controller::PidConstants pid;
     pid.kp = 2;
     co_await dut_->ConfigurePid(pid);
@@ -1719,6 +1709,16 @@ class Application {
     constexpr double kSpeed = 2.0;
 
     for (const double feedforward : {0.0, -0.1, 0.1}) {
+      while (true) {
+        const auto temp_C = dut_->servo_stats().filt_fet_temp_C;
+        const float kRequiredTempC = 37.0;
+        if (temp_C <= kRequiredTempC) { break; }
+        fmt::print("Waiting for temperature to drop, {} > {}\n",
+                   temp_C, kRequiredTempC);
+
+        co_await Sleep(5.0);
+      }
+
       for (const double max_torque : {0.25, 0.10}) {
         for (const double bounds_low : {kNaN, -0.5, -1.5}) {
           for (const double bounds_high : { kNaN, 0.5, 1.5}) {
@@ -1733,7 +1733,7 @@ class Application {
                             bounds_low, bounds_high, max_torque, feedforward));
 
             co_await fixture_->Command(
-                fmt::format("d pos nan {} 0.20",
+                fmt::format("d pos nan {} 0.22",
                             -kSpeed * options_.transducer_scale));
             co_await Sleep(3.0 / kSpeed);
             const double low_position =
