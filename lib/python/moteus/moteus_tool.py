@@ -54,7 +54,7 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        SUPPORTED_ABI_VERSION = 0x0106
+        SUPPORTED_ABI_VERSION = 0x0107
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
@@ -62,6 +62,13 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x0106 and self.old >= 0x0107:
+            # motor_position.output.sign was broken in older versions.
+            if int(items[b'motor_position.output.sign']) != 1:
+                print("WARNING: motor_position.output.sign==-1 is broken in order versions, disabling")
+                items[b'motor_position.output.sign'] = '1'
+            pass
 
         if self.new <= 0x0105 and self.old >= 0x0106:
             # Downgrade the I2C polling rate.
@@ -279,6 +286,13 @@ class FirmwareUpgrade:
                     items[poll_rate_us_key] = str(int(poll_ms) * 1000).encode('utf8')
             print("Upgrading I2C rates for version 0x0106")
 
+        if self.new >= 0x0107 and self.old <= 0x0106:
+            if int(items.get(b'motor_position.output.sign', 1)) == -1:
+                print("Upgrading from motor_position.output.sign == -1, " +
+                      "this was broken before, behavior will change")
+
+            # No actual configuration updating is required here.
+            pass
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
@@ -798,6 +812,8 @@ class Stream:
             return cal_voltage
 
     async def do_calibrate(self):
+        self.firmware = await self.read_data("firmware")
+
         # Determine what our calibration parameters are.
         self.calculate_calibration_parameters()
 
@@ -1417,8 +1433,10 @@ class Stream:
             geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
 
             v_per_hz = (geared_v_per_hz *
-                        unwrapped_position_scale *
-                        motor_output_sign)
+                        unwrapped_position_scale)
+            if self.firmware.version <= 0x0106:
+                v_per_hz *= motor_output_sign
+
             print(f"v_per_hz (pre-gearbox)={v_per_hz}")
 
             await self.command(f"conf set servopos.position_min {original_position_min}")

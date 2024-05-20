@@ -129,8 +129,14 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 // * Switched aux?.sources.x.i2c.poll_ms to poll_rate_us to match UART
 //   and give more resolution.
 
+// # 0x0107 #
+//
+// * Fixed motor_position.output.sign == -1 so that DQ commands for
+//   voltage or current are inverted, so that positive Q axis voltage
+//   or current results in positive speed
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x000106
+#define MOTEUS_FIRMWARE_VERSION 0x000107
 
 extern MoteusHwPins g_hw_pins;
 
