@@ -406,7 +406,9 @@ index source configured from a homing switch.
 Finally, `motor_position.rotor_to_output_ratio` defines the number of
 turns of the output for one turn of the rotor.  This is used to map
 the readings from sensors that are defined relative to one into the
-other.
+other.  For gear reducers (almost all configurations), this will be
+less than one.  For example, a 4x gear reduction would be entered as
+0.25.
 
 # A. register command set #
 
@@ -2174,6 +2176,8 @@ position for multi-turn scenarios or when a reducer is configured.
 ## `motor_position.rotor_to_output_ratio` ##
 
 The number of times the output turns for each revolution of the rotor.
+For gear reducers (almost all configurations), this will be less than
+one.  For example, a 4x gear reduction would be entered as 0.25.
 
 
 # D. Maintenance #
