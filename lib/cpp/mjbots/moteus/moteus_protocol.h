@@ -27,7 +27,7 @@
 
 #include <limits>
 #include <vector>
-#define NaN std::numeric_limits<double>::quiet_NaN();
+#define NaN std::numeric_limits<double>::quiet_NaN()
 
 #else
 
