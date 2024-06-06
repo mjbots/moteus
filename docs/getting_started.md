@@ -50,7 +50,7 @@ python3 -m moteus.moteus_tool --target 1 --calibrate
 WARNING: Any attached motor must be able to spin freely.  It will be
 spun in both directions and at high speed.
 
-# Software {#software} #
+# Software #
 
 Binary versions of `tview` and `moteus_tool` can be installed for most
 platforms (desktop Linux, Windows, Mac) via python using the
