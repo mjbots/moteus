@@ -64,6 +64,7 @@ class MotorPosition {
     float offset = 0.0f;
     int8_t sign = 1;
     int32_t debug_override = -1;
+    float timeout_s = 0.2f;
 
     enum Reference {
       kRotor,
@@ -99,6 +100,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(offset));
       a->Visit(MJ_NVP(sign));
       a->Visit(MJ_NVP(debug_override));
+      a->Visit(MJ_NVP(timeout_s));
       a->Visit(MJ_NVP(reference));
       a->Visit(MJ_NVP(pll_filter_hz));
       a->Visit(MJ_NVP(compensation_table));
@@ -226,6 +228,7 @@ class MotorPosition {
     // The "relative" position is initialized to 0 at power on (or on
     // a 0 reset).
     bool position_relative_valid = false;
+    bool position_relative_ever_valid = false;
     int64_t position_relative_raw = 0;
     float position_relative = 0.0f;
 
@@ -272,6 +275,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(sources));
       a->Visit(MJ_NVP(epoch));
       a->Visit(MJ_NVP(position_relative_valid));
+      a->Visit(MJ_NVP(position_relative_ever_valid));
       a->Visit(MJ_NVP(position_relative_raw));
       a->Visit(MJ_NVP(position_relative));
       a->Visit(MJ_NVP(position_relative_modulo));
@@ -632,12 +636,13 @@ class MotorPosition {
 
       // If this is our very first relative position output, select
       // our modulo so that we start at position 0.
-      if (!status_.position_relative_valid) {
+      if (!status_.position_relative_ever_valid) {
         status_.position_relative_modulo = -scaled_int_encoder_ratio;
       }
 
       // We can update our relative position at least.
       status_.position_relative_valid = true;
+      status_.position_relative_ever_valid = true;
       const auto old_position_relative_raw = status_.position_relative_raw;
 
       // We update our relative position by adding in the current
@@ -921,12 +926,12 @@ class MotorPosition {
                 comp_fraction * config.cpr, config.cpr);
       }
 
+      status.time_since_update += dt;
+
       if (!status.active_theta &&
           !status.active_velocity) {
         continue;
       }
-
-      status.time_since_update += dt;
 
       status.filtered_value += dt * status.velocity;
 
@@ -937,6 +942,7 @@ class MotorPosition {
           // This is our first update.  Just snap to the position.
           status.filtered_value = status.compensated_value;
           status.velocity = 0;
+          status.time_since_update = 0.0f;
         } else if (!old_active_theta && status.active_theta) {
           // Our velocity was valid before, so leave it alone.
           status.filtered_value = status.compensated_value;
@@ -970,6 +976,12 @@ class MotorPosition {
         }
 
         status.time_since_update = 0.0f;
+      } else {
+        if (status.time_since_update > config.timeout_s) {
+          status.active_velocity = false;
+          status.active_theta = false;
+          status.active_absolute = false;
+        }
       }
 
       status.filtered_value = WrapCpr(status.filtered_value, cpr);

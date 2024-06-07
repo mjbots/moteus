@@ -126,6 +126,49 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.position_raw == 422231792418816ll);
   }
+
+  ctx.aux1_status.spi.active = false;
+
+  int cycles_to_inactive = 0;
+  while (true) {
+    cycles_to_inactive++;
+    ctx.dut.ISR_Update(kDt);
+
+    if (ctx.dut.status().theta_valid == false) { break; }
+    if (cycles_to_inactive > 10000) { break; }
+  }
+
+  {
+    BOOST_TEST(cycles_to_inactive == 2000);
+
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.position_relative_valid == false);
+    BOOST_TEST(status.theta_valid == false);
+    BOOST_TEST(status.homed == MotorPosition::Status::kRelative);
+  }
+
+  // Becoming active again should be like a restart.
+  ctx.aux1_status.spi.active = true;
+  ctx.aux1_status.spi.nonce++;
+
+  ctx.dut.ISR_Update(kDt);
+
+  {
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.position_relative_raw == 68719476736ll);
+    BOOST_TEST(status.position_relative == 0.000244140625f);
+
+    BOOST_TEST(std::abs(status.position_raw - 70437463654400ll) <= (2ll << 24));
+    BOOST_TEST(status.position == 0.250244141f);
+
+    BOOST_TEST(status.velocity == 0.0f);
+
+    BOOST_TEST(status.theta_valid == true);
+    BOOST_TEST(status.electrical_theta == 3.14466071f);
+  }
 }
 
 BOOST_AUTO_TEST_CASE(MotorPositionStartupCapture,
