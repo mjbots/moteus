@@ -90,7 +90,8 @@ class Aksim2 {
         (buffer_[5] << 0);
 
     status->nonce++;
-    status->active = true;
+    // The reported error is active low.
+    status->active = status->aksim2_err;
   }
 
  private:
