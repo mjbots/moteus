@@ -38,6 +38,7 @@ struct Context {
   Context() {
     position_config.position_min = NaN;
     position_config.position_max = NaN;
+    status.motor_max_velocity = 100.0f;
 
     data.mode = BldcServoMode::kPosition;
     set_position(3.2f);

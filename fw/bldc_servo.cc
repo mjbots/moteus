@@ -1156,6 +1156,9 @@ class BldcServo::Impl {
     if (!torque_on()) {
       status_.torque_error_Nm = 0.0f;
     }
+    status_.motor_max_velocity =
+        rate_config_.max_voltage_ratio *
+        0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
     DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
 #endif

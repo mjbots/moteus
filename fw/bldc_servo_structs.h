@@ -160,6 +160,8 @@ struct BldcServoStatus {
   float timeout_s = 0.0;
   bool trajectory_done = false;
 
+  float motor_max_velocity = 0.0f;
+
   float torque_error_Nm = 0.0f;
 
   float sin = 0.0f;
@@ -253,6 +255,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(trajectory_done));
 
+    a->Visit(MJ_NVP(motor_max_velocity));
     a->Visit(MJ_NVP(torque_error_Nm));
 
     a->Visit(MJ_NVP(sin));
