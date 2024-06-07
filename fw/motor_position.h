@@ -145,6 +145,10 @@ class MotorPosition {
     // should be less than 1.0f, otherwise greater.
     float rotor_to_output_ratio = 1.0f;
 
+    // Set if you want to enable ratios greater than 1.0, which should
+    // be extremely rare as most motors use a reducer.
+    bool rotor_to_output_override = false;
+
     Config() {
       // The factory default is to get rotor position directly from
       // the onboard SPI encoder (attached to aux1).
@@ -159,6 +163,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(commutation_source));
       a->Visit(MJ_NVP(output));
       a->Visit(MJ_NVP(rotor_to_output_ratio));
+      a->Visit(MJ_NVP(rotor_to_output_override));
     }
   };
 
@@ -516,6 +521,14 @@ class MotorPosition {
          1.0f :
          config_.rotor_to_output_ratio);
 
+
+    if (config_.rotor_to_output_ratio > 1.0f &&
+        !config_.rotor_to_output_override) {
+      // A non-reducer gear ratio has been configured, without the
+      // necessary override.  Bail.
+      status_.error = Status::kInvalidConfig;
+      return;
+    }
 
     // If we have a reference source, check it out.
     if (config_.output.reference_source >= 0) {

@@ -2185,6 +2185,14 @@ The number of times the output turns for each revolution of the rotor.
 For gear reducers (almost all configurations), this will be less than
 one.  For example, a 4x gear reduction would be entered as 0.25.
 
+## `motor_position.rotor_to_output_override` ##
+
+If you *REALLY* know what you are doing, and want to configure a
+non-reducing ratio, this can be set to true/non-zero.  Otherwise, a
+ratio of greater than 1.0 will cause a fault.  This should only be
+used if the system has a gearbox which is not a reducer, but speeds up
+the output.
+
 
 # D. Maintenance #
 
