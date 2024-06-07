@@ -722,6 +722,12 @@ A fault code which will be set if the primary mode is 1 (Fault).
   acceleration limits.  Prefer to instead command the desired position
   directly with a target velocity of 0.0, or secondarily, disable
   acceleration and velocity limits.
+* 45 - *timing violation* - internal checks are enabled, and the
+  controller violated an internal timing constraint
+* 46 - *bemf feedforward no accel* - `servo.bemf_feedforward` is
+  configured, but no acceleration limit was specified.  If you
+  *really* know what you are doing, you can disable this with
+  `servo.bemf_feedforward_override`.
 
 The full list can be found at: [fw/error.h](../fw/error.h#L25)
 

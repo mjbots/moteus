@@ -135,8 +135,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 //   voltage or current are inverted, so that positive Q axis voltage
 //   or current results in positive speed
 
+// # 0x0108 #
+//
+// * The default value of `servo.bemf_feedforward` was changed from
+//   1.0 to 0.0.
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x000107
+#define MOTEUS_FIRMWARE_VERSION 0x000108
 
 extern MoteusHwPins g_hw_pins;
 

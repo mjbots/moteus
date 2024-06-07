@@ -44,6 +44,7 @@ struct MoteusErrorCategory : mjlib::micro::error_category {
       case errc::kDriverEnableFault: return "driver enable";
       case errc::kStopPositionDeprecated: return "stop position deprecated";
       case errc::kTimingViolation: return "timing violation";
+      case errc::kBemfFeedforwardNoAccelLimit: return "bemf no accel limit";
     }
     return "unknown";
   }

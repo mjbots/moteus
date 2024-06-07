@@ -426,14 +426,27 @@ class BldcServo::Impl {
 
     telemetry_data_ = *next;
 
+    volatile auto* mode_volatile = &status_.mode;
+    volatile auto* fault_volatile = &status_.fault;
+
     if (!!next->stop_position_relative_raw &&
         (std::isfinite(next->accel_limit) ||
          std::isfinite(next->velocity_limit))) {
       // There is no valid use case for using a stop position along
       // with an acceleration or velocity limit.
-      volatile auto* mode_volatile = &status_.mode;
-      volatile auto* fault_volatile = &status_.fault;
       *fault_volatile = errc::kStopPositionDeprecated;
+      *mode_volatile = kFault;
+    }
+
+    if (config_.bemf_feedforward != 0.0f &&
+        !std::isfinite(next->accel_limit) &&
+        !config_.bemf_feedforward_override) {
+      // We normally don't allow bemf feedforward if an acceleration
+      // limit is not applied, as that can easily result in output
+      // currents exceeding any configured limits.  Even with limits,
+      // if they are non-realistic this can happen, but we're mostly
+      // trying to catch gross problems here.
+      *fault_volatile = errc::kBemfFeedforwardNoAccelLimit;
       *mode_volatile = kFault;
     }
 

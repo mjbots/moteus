@@ -54,14 +54,22 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        SUPPORTED_ABI_VERSION = 0x0107
+        SUPPORTED_ABI_VERSION = 0x0108
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
 
+        if old > SUPPORTED_ABI_VERSION:
+            raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this board\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe board firmware is ABI version 0x{old:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
+
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x0107 and self.old >= 0x0108:
+            if float(items.get(b'servo.bemf_feedforward', '0')) == 0.0:
+                print("Reverting servo.bemf_feedforward to 1.0")
+                items[b'servo.bemf_feedforward'] = b'1.0'
 
         if self.new <= 0x0106 and self.old >= 0x0107:
             # motor_position.output.sign was broken in older versions.
@@ -293,6 +301,11 @@ class FirmwareUpgrade:
 
             # No actual configuration updating is required here.
             pass
+
+        if self.new >= 0x0108 and self.old <= 0x0107:
+            if float(items.get(b'servo.bemf_feedforward', 1.0)) == 1.0:
+                print("Upgrading servo.bemf_feedforward to 0.0")
+                items[b'servo.bemf_feedforward'] = b'0.0'
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
