@@ -31,7 +31,7 @@ Using sudo is one mechanism to do so:
 ```
 sudo apt install libraspberrypi-dev
 
-source moteus-venv/bin/active
+source moteus-venv/bin/activate
 pip install moteus-pi3hat
 
 sudo moteus-venv/bin/tview
