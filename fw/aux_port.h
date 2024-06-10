@@ -900,6 +900,12 @@ class AuxPort {
           MA732::Options options = spi_options;
           options.filter_us = config_.spi.filter_us;
           options.bct = config_.spi.bct;
+          using T = aux::Spi::Config::Trim;
+          options.enable_trim =
+              (config_.spi.trim == T::kNone) ? 0 :
+              (config_.spi.trim == T::kTrimX) ? 1 :
+              (config_.spi.trim == T::kTrimY) ? 2 :
+              0;
           ma732_options_ = options;
           break;
         }

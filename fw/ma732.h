@@ -29,6 +29,7 @@ class MA732 {
   struct Options : public Stm32Spi::Options {
     uint16_t filter_us = 1024;
     uint8_t bct = 0;
+    uint8_t enable_trim = 0;
 
     Options(const Stm32Spi::Options& v) : Stm32Spi::Options(v) {}
   };
@@ -75,8 +76,11 @@ class MA732 {
     // FW = 0x0e
     if (SetRegister(0x0e, desired_filter)) { return true; }
 
-    // BCT = 0x01
-    if (SetRegister(0x01, options.bct)) { return true; }
+    // BCT = 0x02
+    if (SetRegister(0x02, options.bct)) { return true; }
+
+    // ENABLE TRIMMING = 0x03
+    if (SetRegister(0x03, options.enable_trim)) { return true; }
 
     return false;
   }
