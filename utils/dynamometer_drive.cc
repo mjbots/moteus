@@ -2296,7 +2296,7 @@ class Application {
     co_await RunFixedVoltageModeTest(pid);
   }
 
- boost::asio::awaitable<void> ValidateBrakeMode() {
+  boost::asio::awaitable<void> ValidateBrakeMode() {
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
     co_await fixture_->Command("d index 0");
