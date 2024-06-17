@@ -97,7 +97,7 @@ struct Options {
   bool validate_rezero = false;
   bool validate_voltage_mode_control = false;
   bool validate_fixed_voltage_mode = false;
-  bool validate_fixed_voltage_mode_reverse = true;
+  bool validate_fixed_voltage_mode_reverse = false;
   bool validate_brake_mode = false;
   bool validate_velocity_accel_limits = false;
 
