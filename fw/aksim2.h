@@ -83,8 +83,8 @@ class Aksim2 {
         ((buffer_[1] << 16) |
          (buffer_[2] << 8) |
          (buffer_[3] << 0)) >> 2;
-    status->aksim2_err = buffer_[3] & 0x01;
-    status->aksim2_warn = buffer_[3] & 0x02;
+    status->aksim2_err = buffer_[3] & 0x02;
+    status->aksim2_warn = buffer_[3] & 0x01;
     status->aksim2_status =
         (buffer_[4] << 8) |
         (buffer_[5] << 0);
