@@ -422,6 +422,8 @@ class Controller {
     double fixed_voltage_control_V = 0.0;
 
     double output_sign = 1;
+
+    double bemf_feedforward = 0.0;
   };
 
   boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
@@ -466,6 +468,12 @@ class Controller {
       co_await Command(
           fmt::format("conf set motor_position.output.sign {}", pid.output_sign));
     }
+
+    co_await Command(
+        fmt::format("conf set servo.bemf_feedforward {}", pid.bemf_feedforward));
+    co_await Command(
+        fmt::format("conf set servo.bemf_feedforward_override {}",
+                    pid.bemf_feedforward != 0 ? 1 : 0));
 
     co_await Command("conf set servo.timing_fault 1");
 
@@ -1233,7 +1241,8 @@ class Application {
 
       const auto q_command = dut_->servo_stats().pid_q.command;
       const double kMaxQError = 0.4f;
-      if (!pid.fixed_voltage_mode && !pid.voltage_mode_control) {
+      if (!pid.fixed_voltage_mode && !pid.voltage_mode_control &&
+          pid.bemf_feedforward != 0.0) {
         if (q_command == 0.0 || std::abs(q_command) > kMaxQError) {
           throw mjlib::base::system_error::einval(
               fmt::format("Q current tracking |{}| > {}",
@@ -1330,81 +1339,86 @@ class Application {
   }
 
   boost::asio::awaitable<void> ValidatePositionBasic() {
-    co_await dut_->Command("d stop");
-    co_await fixture_->Command("d stop");
-    co_await fixture_->Command("d index 0");
-    co_await dut_->Command("d index 0");
+    for (double bemf : {0.0, 1.0}) {
+      fmt::print("Testing bemf {}\n", bemf);
 
-    // Set some constants that should work for basic position control.
-    Controller::PidConstants pid;
-    pid.kp = 1.0;
-    pid.ki = 0.0;
-    pid.kd = 0.05;
-    co_await dut_->ConfigurePid(pid);
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
+      co_await fixture_->Command("d index 0");
+      co_await dut_->Command("d index 0");
 
-    co_await RunBasicPositionTest(pid);
+      // Set some constants that should work for basic position control.
+      Controller::PidConstants pid;
+      pid.kp = 1.0;
+      pid.ki = 0.0;
+      pid.kd = 0.05;
+      pid.bemf_feedforward = bemf;
+      co_await dut_->ConfigurePid(pid);
 
-    // Now we'll do the basic tests with the fixture locked rigidly in
-    // place.
-    co_await fixture_->Command("d index 0");
-    co_await dut_->Command("d index 0");
+      co_await RunBasicPositionTest(pid);
 
-    co_await CommandFixtureRigid();
-    co_await fixture_->Command(
-        fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
+      // Now we'll do the basic tests with the fixture locked rigidly in
+      // place.
+      co_await fixture_->Command("d index 0");
+      co_await dut_->Command("d index 0");
 
-    for (const double max_torque : {0.15, 0.3}) {
-      fmt::print("Testing max torque {}\n", max_torque);
-      co_await dut_->Command(fmt::format("d pos 5 0 {}", max_torque));
-      co_await Sleep(1.0);
+      co_await CommandFixtureRigid();
+      co_await fixture_->Command(
+          fmt::format("d pos 0 0 {}", options_.max_torque_Nm));
 
-      if (std::abs(current_torque_Nm_ - max_torque) > 0.15) {
+      for (const double max_torque : {0.15, 0.3}) {
+        fmt::print("Testing max torque {}\n", max_torque);
+        co_await dut_->Command(fmt::format("d pos 5 0 {}", max_torque));
+        co_await Sleep(1.0);
+
+        if (std::abs(current_torque_Nm_ - max_torque) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format(
                   "kp torque not as expected {} != {} (within {})",
                   current_torque_Nm_, max_torque, 0.15));
-      }
+        }
 
-      co_await dut_->Command(fmt::format("d pos -5 0 {}", max_torque));
-      co_await Sleep(1.0);
-      if (std::abs(current_torque_Nm_ - (-max_torque)) > 0.15) {
+        co_await dut_->Command(fmt::format("d pos -5 0 {}", max_torque));
+        co_await Sleep(1.0);
+        if (std::abs(current_torque_Nm_ - (-max_torque)) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format(
                   "kp torque not as expected {} != {} (within {})",
                   current_torque_Nm_, -max_torque, 0.15));
+        }
       }
-    }
 
-    for (const double feedforward_torque : {0.15, 0.3}) {
-      fmt::print("Testing feedforward torque {}\n", feedforward_torque);
-      co_await dut_->Command(
-          fmt::format("d pos 0 0 {} f{}",
-                      options_.max_torque_Nm, feedforward_torque));
-      co_await Sleep(1.0);
+      for (const double feedforward_torque : {0.15, 0.3}) {
+        fmt::print("Testing feedforward torque {}\n", feedforward_torque);
+        co_await dut_->Command(
+            fmt::format("d pos 0 0 {} f{}",
+                        options_.max_torque_Nm, feedforward_torque));
+        co_await Sleep(1.0);
 
-      if (std::abs(current_torque_Nm_ - feedforward_torque) > 0.15) {
+        if (std::abs(current_torque_Nm_ - feedforward_torque) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format(
                   "kp torque not as expected {} != {} (within {})",
                   current_torque_Nm_, feedforward_torque, 0.15));
-      }
+        }
 
-      co_await dut_->Command(
-          fmt::format("d pos 0 0 {} f{}",
-                      options_.max_torque_Nm, -feedforward_torque));
-      co_await Sleep(1.0);
-      if (std::abs(current_torque_Nm_ - (-feedforward_torque)) > 0.15) {
+        co_await dut_->Command(
+            fmt::format("d pos 0 0 {} f{}",
+                        options_.max_torque_Nm, -feedforward_torque));
+        co_await Sleep(1.0);
+        if (std::abs(current_torque_Nm_ - (-feedforward_torque)) > 0.15) {
           throw mjlib::base::system_error::einval(
               fmt::format(
                   "kp torque not as expected {} != {} (within {})",
                   current_torque_Nm_, -feedforward_torque, 0.15));
+        }
       }
+
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
     }
 
     fmt::print("SUCCESS\n");
-
-    co_await dut_->Command("d stop");
-    co_await fixture_->Command("d stop");
 
     co_return;
   }
@@ -1680,21 +1694,26 @@ class Application {
   }
 
   boost::asio::awaitable<void> ValidatePositionReverse() {
-    co_await dut_->Command("d stop");
-    co_await fixture_->Command("d stop");
+    for (double bemf : {0.0, 1.0}) {
+      fmt::print("Testing bemf {}\n", bemf);
 
-    // Set some constants that should work for basic position control.
-    Controller::PidConstants pid;
-    pid.kp = 1.0;
-    pid.ki = 0.0;
-    pid.kd = 0.05;
-    pid.output_sign = -1;
-    co_await dut_->ConfigurePid(pid);
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
 
-    co_await fixture_->Command("d index 0");
-    co_await dut_->Command("d index 0");
+      // Set some constants that should work for basic position control.
+      Controller::PidConstants pid;
+      pid.kp = 1.0;
+      pid.ki = 0.0;
+      pid.kd = 0.05;
+      pid.bemf_feedforward = bemf;
+      pid.output_sign = -1;
+      co_await dut_->ConfigurePid(pid);
 
-    co_await RunBasicPositionTest(pid);
+      co_await fixture_->Command("d index 0");
+      co_await dut_->Command("d index 0");
+
+      co_await RunBasicPositionTest(pid);
+    }
   }
 
   boost::asio::awaitable<void> ValidateStayWithin() {
@@ -2243,6 +2262,7 @@ class Application {
     pid.kp = 1.0;
     pid.ki = 0.0;
     pid.kd = 0.01;
+    pid.bemf_feedforward = 1.0;
 
     co_await dut_->ConfigurePid(pid);
 
@@ -2262,6 +2282,7 @@ class Application {
     pid.kp = 1.0;
     pid.ki = 0.0;
     pid.kd = 0.01;
+    pid.bemf_feedforward = 1.0;
     pid.fixed_voltage_mode = true;
     pid.fixed_voltage_control_V = 0.25;
 
