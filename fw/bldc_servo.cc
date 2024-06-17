@@ -1150,10 +1150,11 @@ class BldcServo::Impl {
           };
     status_.d_A = dq.d;
     status_.q_A = motor_position_config()->output.sign * dq.q;
-    status_.torque_Nm = torque_on() ? (
+    const bool is_torque_on = torque_on();
+    status_.torque_Nm = is_torque_on ? (
         current_to_torque(status_.q_A) /
         motor_position_->config()->rotor_to_output_ratio) : 0.0f;
-    if (!torque_on()) {
+    if (!is_torque_on) {
       status_.torque_error_Nm = 0.0f;
     }
     status_.motor_max_velocity =
