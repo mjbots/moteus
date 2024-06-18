@@ -1,0 +1,8 @@
+moteus_x1-backups/
+~*.lck
+moteus_x1.xml
+moteus_x1_bom.xlsx
+fp-info-cache
+_autosave*
+*.bak
+#auto_saved_files#
