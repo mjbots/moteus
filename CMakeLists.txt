@@ -6,14 +6,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(moteus VERSION 0.1.20230821)
 
-set(MAIN_PROJECT OFF)
-
-# The "cpp" target exposes the C++ client side header files.
-add_library(cpp INTERFACE)
-add_library(moteus::cpp ALIAS cpp)
-
-target_include_directories(cpp
-  INTERFACE lib/cpp/mjbots/moteus)
+add_subdirectory(lib/cpp)
 
 
 # A client project can use this as follows:
