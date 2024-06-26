@@ -44,6 +44,14 @@ MAX_FLASH_BLOCK_SIZE = 32
 FIND_TARGET_TIMEOUT = 0.01 if sys.platform != 'win32' else 0.05
 
 
+def _wrap_neg_pi_to_pi(value):
+    while value > math.pi:
+        value -= 2.0 * math.pi
+    while value < -math.pi:
+        value += 2.0 * math.pi
+    return value
+
+
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
     how to munge configuration options so as to not cause behavior
@@ -306,6 +314,36 @@ class FirmwareUpgrade:
             if float(items.get(b'servo.bemf_feedforward', 1.0)) == 1.0:
                 print("Upgrading servo.bemf_feedforward to 0.0")
                 items[b'servo.bemf_feedforward'] = b'0.0'
+
+        # Anytime we are flashing a firmware with 0x0108 or newer, try
+        # to fix up the motor commutation offset tables.
+        if self.new >= 0x0108:
+            old_offsets = []
+            i = 0
+            while True:
+                key = f'motor.offset.{i}'.encode('utf8')
+                if key not in items:
+                    break
+                old_offsets.append(float(items.get(key)))
+                i += 1
+
+            offsets = old_offsets[:]
+
+            # Unwrap this, then re-center the whole thing around 0.
+            for i in range(1, len(offsets)):
+                offsets[i] = (offsets[i - 1] +
+                              _wrap_neg_pi_to_pi(offsets[i] -
+                                                 offsets[i - 1]))
+            mean_offset = sum(offsets) / len(offsets)
+            delta = mean_offset - _wrap_neg_pi_to_pi(mean_offset)
+            offsets = [x - delta for x in offsets]
+
+            if any([abs(a - b) > 0.01
+                    for a, b in zip(offsets, old_offsets)]):
+                print("Re-wrapping motor commutation offsets")
+                for i in range(len(offsets)):
+                    key = f'motor.offset.{i}'.encode('utf8')
+                    items[key] = f'{offsets[i]}'.encode('utf8')
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
