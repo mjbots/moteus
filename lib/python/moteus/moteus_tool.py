@@ -1402,9 +1402,19 @@ class Stream:
             return 1 if x >= 0 else -1
 
         velocity_samples = []
+        power_samples = []
 
         while True:
             data = await self.read_servo_stats()
+
+            total_current_A = math.hypot(data.d_A, data.q_A)
+            total_power_W = voltage * total_current_A
+
+            power_samples.append(total_power_W)
+
+            if len(power_samples) > AVERAGE_COUNT:
+                del power_samples[0]
+
             velocity_samples.append(data.velocity)
 
             if len(velocity_samples) > (3 * AVERAGE_COUNT):
@@ -1415,6 +1425,24 @@ class Stream:
             # As a fallback, timeout after a fixed amount of waiting.
             if (time.time() - start_time) > 2.0:
                 return recent_average
+
+            if len(power_samples) >= AVERAGE_COUNT:
+                average_power_W = sum(power_samples) / len(power_samples)
+                max_power_W = (self.args.cal_max_kv_power_factor *
+                               self.args.cal_motor_power)
+
+                # This is a safety.  During speed measurement, current
+                # should always be near 0.  However, if the encoder
+                # commutation calibration failed, we can sometimes
+                # trigger large currents during the Kv detection phase
+                # while not actually moving.
+                if (abs(recent_average) < 0.2 and
+                    average_power_W > max_power_W):
+                    await self.command("d stop")
+
+                    raise RuntimeError(
+                        f"Motor failed to spin, {average_power_W} > " +
+                        f"{max_power_W}")
 
             if (len(velocity_samples) >= AVERAGE_COUNT and
                 abs(recent_average) < 0.2):
@@ -1812,6 +1840,8 @@ async def async_main():
     parser.add_argument('--cal-max-remainder', metavar='F',
                         type=float, default=0.1,
                         help='maximum allowed error in calibration')
+    parser.add_argument('--cal-max-kv-power-factor', type=float,
+                        default=1.0)
     parser.add_argument('--cal-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
 
