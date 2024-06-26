@@ -90,6 +90,9 @@ class MotorPosition {
     //  31    248-255        252
     std::array<float, kCompensationSize> compensation_table = {};
 
+    // This is not serialized, but is calculated during configuration.
+    bool cached_any_compensation_enabled = false;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(aux_number));
@@ -436,6 +439,14 @@ class MotorPosition {
           std::min<uint8_t>(source_config.i2c_device,
                             aux_status_[0]->i2c.devices.size());
 
+      source_config.cached_any_compensation_enabled = false;
+      for (const auto value : source_config.compensation_table) {
+        if (value != 0.0f) {
+          source_config.cached_any_compensation_enabled = true;
+          break;
+        }
+      }
+
       if (source_config.incremental_index > 2) {
         source_config.incremental_index = 2;
       }
@@ -626,9 +637,7 @@ class MotorPosition {
       status_.theta_valid = true;
       status_.electrical_theta = WrapZeroToTwoPi(
           ratio * commutation_pole_scale_ / commutation_rotor_scale_ +
-          lerp(motor_.offset,
-               commutation_status.filtered_value,
-               commutation_config.cpr));
+          lerp(motor_.offset, ratio));
     }
   }
 
@@ -906,6 +915,8 @@ class MotorPosition {
         }
       }
 
+      const float cpr = config.cpr;
+
       if (config.debug_override >= 0) {
         status.active_theta = true;
         status.active_velocity = true;
@@ -914,14 +925,16 @@ class MotorPosition {
         status.compensated_value = config.debug_override;
         status.filtered_value = config.debug_override;
         updated = true;
-      } else {
+      } else if (config.cached_any_compensation_enabled) {
         status.compensated_value =
             WrapCpr(
                 status.offset_value +
                 lerp(config.compensation_table,
-                     status.offset_value,
-                     config.cpr) * config.cpr,
-                config.cpr);
+                     static_cast<float>(status.offset_value) /
+                     cpr) * cpr,
+                cpr);
+      } else {
+        status.compensated_value = status.offset_value;
       }
 
       status.time_since_update += dt;
@@ -932,8 +945,6 @@ class MotorPosition {
       }
 
       status.filtered_value += dt * status.velocity;
-
-      const float cpr = config.cpr;
 
       if (updated) {
         if (!old_active_velocity && status.active_velocity) {
@@ -962,7 +973,7 @@ class MotorPosition {
           // We don't let our velocity get beyond 1 revolution in 8
           // encoder samples.
           const float max_velocity =
-              0.125f * config.cpr / status.time_since_update;
+              0.125f * cpr / status.time_since_update;
           if (status.velocity > max_velocity) {
             status.velocity = max_velocity;
           } else if (status.velocity < -max_velocity) {
@@ -1087,15 +1098,23 @@ class MotorPosition {
   }
 
   template <typename Array>
-  static float lerp(const Array& array, float x, float max_x) {
-    const float ratio = x / max_x;
+  static float lerp(const Array& array, float ratio) {
     const auto array_size = array.size();
-    const auto left_index = std::min<int>(array_size - 1, ratio * array_size);
+
+    const auto left_index =
+        std::min<int>(array_size - 1, ratio * array_size);
 
     const auto right_index = (left_index + 1) % array_size;
-    const auto fraction = (ratio - static_cast<float>(left_index) / array_size) * array_size;
+    const auto fraction =
+        (ratio - static_cast<float>(left_index) / array_size) * array_size;
     const float left_comp = array[left_index];
     const float right_comp = array[right_index];
+
+    // You might think that
+    //
+    // left_comp + (right_comp - left_comp) * fraction
+    //
+    // would be faster, but experiments prove that not to be the case.
     return (left_comp * (1.0f - fraction)) + (right_comp * fraction);
   }
 
