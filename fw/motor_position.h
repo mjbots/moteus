@@ -211,6 +211,7 @@ class MotorPosition {
       kMotorNotConfigured,
       kInvalidConfig,
       kSourceError,
+      kDiscontinuousOffset,
 
       kNumErrors,
     };
@@ -411,6 +412,20 @@ class MotorPosition {
 
     status_.epoch = old_epoch + 1;
 
+    for (size_t i = 0; i < motor_.offset.size(); i++) {
+      const size_t next = (i + 1) % motor_.offset.size();
+
+      const auto delta = std::abs(motor_.offset[next] - motor_.offset[i]);
+      if (delta > 3.14159f) {
+        // These offsets are unlikely to be suitable for
+        // interpolation, trigger a fault.  They may have been
+        // generated with an old version of moteus_tool that performed
+        // per-bin wrapping.
+        status_.error = Status::kDiscontinuousOffset;
+        return;
+      }
+    }
+
     for (size_t i = 0; i < config_.sources.size(); i++) {
       auto& source_config = config_.sources[i];
 
@@ -608,14 +623,21 @@ class MotorPosition {
       const float ratio =
           commutation_status.filtered_value / commutation_config.cpr;
       const int offset_size = motor_.offset.size();
-      const int offset_index =
+      const int left_offset_index =
           std::min<int>(offset_size - 1, ratio * offset_size);
+      const int right_offset_index = (left_offset_index + 1) % offset_size;
+      const float fraction =
+          (ratio - (static_cast<float>(left_offset_index) / offset_size)) *
+          offset_size;
+      const float left_comp = motor_.offset[left_offset_index];
+      const float right_comp = motor_.offset[right_offset_index];
+      const float comp_theta = (right_comp - left_comp) * fraction + left_comp;
       // MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
 
       status_.theta_valid = true;
       status_.electrical_theta = WrapZeroToTwoPi(
           ratio * commutation_pole_scale_ / commutation_rotor_scale_ +
-          motor_.offset[offset_index]);
+          comp_theta);
     }
   }
 
@@ -1168,6 +1190,7 @@ struct IsEnum<moteus::MotorPosition::Status::Error> {
         { E::kMotorNotConfigured, "motor_not_conf" },
         { E::kInvalidConfig, "invalid_config" },
         { E::kSourceError, "source_error" },
+        { E::kDiscontinuousOffset, "discontinuous_offset" },
       }};
   }
 };

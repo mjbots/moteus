@@ -47,6 +47,7 @@ struct Context {
 
   void Update() {
     dut.ISR_Update(kDt);
+
   }
 };
 }
@@ -1352,6 +1353,63 @@ BOOST_AUTO_TEST_CASE(MotorPositionDrift) {
         BOOST_TEST(status.position_relative_valid == true);
         // Check for within so many counts of the 16384 count encoder.
         BOOST_TEST(std::abs(status.position_relative) < ((0.6 / 16384) * ratio));
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(MotorPositionInvalidOffset) {
+  Context ctx;
+
+  // If the offsets are discontinuous, then we should error upon
+  // starting.
+  ctx.dut.motor()->offset[1] = 4.5;
+
+  ctx.pcf.persistent_config.Load();
+
+  ctx.dut.ISR_Update(kDt);
+
+  const auto status = ctx.dut.status();
+  BOOST_TEST(status.error == MotorPosition::Status::kDiscontinuousOffset);
+  BOOST_TEST(status.theta_valid == false);
+}
+
+BOOST_AUTO_TEST_CASE(MotorPositionThetaInterpolate) {
+  // The theta offsets should be interpolated, not just added binwise.
+  Context ctx;
+
+  ctx.dut.motor()->offset[0] = 0.0;
+  ctx.dut.motor()->offset[1] = 0.5;
+  ctx.dut.motor()->offset[2] = 0.6;
+
+  ctx.pcf.persistent_config.Load();
+
+  struct TestCase {
+    uint32_t initial;
+    float expected_theta;
+  };
+
+  TestCase test_cases[] = {
+    {0, 0.0f},
+    {8, 0.0217610598f},
+    {32, 0.0870438889f},
+    {48, 0.130565688f},
+    {64, 0.174087569f},
+    {128, 0.34817487f},
+  };
+
+  for (const auto& test : test_cases) {
+    BOOST_TEST_CONTEXT("initial " << test.initial) {
+      for (int i = 0; i < 100; i++) {
+        ctx.aux1_status.spi.active = true;
+        ctx.aux1_status.spi.value = test.initial;
+        ctx.aux1_status.spi.nonce += 1;
+
+        ctx.dut.ISR_Update(kDt);
+      }
+      {
+        const auto status = ctx.dut.status();
+        BOOST_TEST(status.electrical_theta == test.expected_theta);
       }
     }
   }
