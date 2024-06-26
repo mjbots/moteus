@@ -39,6 +39,7 @@ def main():
 
     ax.plot(r.debug['xpos'], r.debug['err'], label='err')
     ax.plot(r.debug['xpos'], r.debug['avg_err'], label='avg_err')
+    ax.plot(r.debug['offset_x'], r.debug['offset'], label='offset')
     ax.legend()
 
     pyplot.show()

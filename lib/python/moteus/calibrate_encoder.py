@@ -340,6 +340,8 @@ def calibrate(parsed,
         'avg_interp' : avg_interp,
         'err' : err,
         'avg_err' : avg_err,
+        'offset_x' : offset_x,
+        'offset' : offset,
     }
 
     return result
