@@ -58,11 +58,16 @@ def sample(values, num_bins):
     xvals = []
     result = []
 
+    # Rotate values by half the bin size so that our results line up
+    # at even position boundaries.
+    bin_size = len(values) // num_bins
+    values = values[-bin_size // 2:] + values[:-bin_size // 2]
+
     for i in range(num_bins):
         start = i * len(values) // num_bins
         end = (i + 1) * len(values) // num_bins
 
-        xvals.append(0.5 * (start + end))
+        xvals.append(start)
         result.append(sum(values[start:end]) / (end - start))
 
     return xvals, result
@@ -147,8 +152,8 @@ async def main():
         ax.plot([x - mean for x in values], label='raw unbiased')
         ax.plot(unbiased, label='smoothed')
 
-        ax2.plot(unbiased_integrated, label='integrated')
-        ax2.plot(xsampled, sampled, label='sampled')
+        ax2.plot(unbiased_integrated, label='integrated', color='red')
+        ax2.plot(xsampled, sampled, label='sampled', color='green')
 
     ax.legend(loc="upper left")
     ax2.legend(loc="upper right")

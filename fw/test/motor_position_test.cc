@@ -674,15 +674,15 @@ BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
   };
 
   TestCase test_cases[] = {
-    { 0, 819.2f },
-    { 256, 1894.4f }, // exactly mid-bucket
-    { 511, 1333.4f },
-    { 512, 1331.2f },
-    { 768, 768.0f }, // exactly mid-bucket
-    { 1023, 615.0f },
-    { 1024, 614.4f },
-    { 1280, 460.8f }, // exactly mid-bucket
-    { 1536, 15872.0f },
+    { 0, 1638.4f },
+    { 256, 1075.2f }, // exactly mid-bucket
+    { 511, 514.2f },
+    { 512, 512.0f },
+    { 768, 358.4f }, // exactly mid-bucket
+    { 1023, 205.4f },
+    { 1024, 204.8f },
+    { 1280, 15616.0f }, // exactly mid-bucket
+    { 1536, 14643.2f },
   };
 
   for (const auto& test : test_cases) {

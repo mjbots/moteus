@@ -622,22 +622,13 @@ class MotorPosition {
     if (commutation_status.active_theta) {
       const float ratio =
           commutation_status.filtered_value / commutation_config.cpr;
-      const int offset_size = motor_.offset.size();
-      const int left_offset_index =
-          std::min<int>(offset_size - 1, ratio * offset_size);
-      const int right_offset_index = (left_offset_index + 1) % offset_size;
-      const float fraction =
-          (ratio - (static_cast<float>(left_offset_index) / offset_size)) *
-          offset_size;
-      const float left_comp = motor_.offset[left_offset_index];
-      const float right_comp = motor_.offset[right_offset_index];
-      const float comp_theta = (right_comp - left_comp) * fraction + left_comp;
-      // MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
 
       status_.theta_valid = true;
       status_.electrical_theta = WrapZeroToTwoPi(
           ratio * commutation_pole_scale_ / commutation_rotor_scale_ +
-          comp_theta);
+          lerp(motor_.offset,
+               commutation_status.filtered_value,
+               commutation_config.cpr));
     }
   }
 
@@ -924,28 +915,13 @@ class MotorPosition {
         status.filtered_value = config.debug_override;
         updated = true;
       } else {
-        const int bin_size = std::max<int>(1, config.cpr / kCompensationSize);
-        // Perform compensation.
-        const int left_offset =
-            ((status.offset_value - bin_size / 2) *
-             kCompensationSize / config.cpr + kCompensationSize) %
-            kCompensationSize;
-        const int right_offset = (left_offset + 1) % kCompensationSize;
-        const int delta =
-            (status.offset_value + config.cpr -
-             left_offset * bin_size -
-             bin_size / 2) % bin_size;
-        const float fraction =
-            static_cast<float>(delta) / bin_size;
-        const float left_comp = config.compensation_table[left_offset];
-        const float right_comp = config.compensation_table[right_offset];
-        const float comp_fraction =
-            (right_comp - left_comp) * fraction + left_comp;
-
         status.compensated_value =
             WrapCpr(
                 status.offset_value +
-                comp_fraction * config.cpr, config.cpr);
+                lerp(config.compensation_table,
+                     status.offset_value,
+                     config.cpr) * config.cpr,
+                config.cpr);
       }
 
       status.time_since_update += dt;
@@ -1108,6 +1084,19 @@ class MotorPosition {
     status_.position = IntToFloat(status_.position_raw);
 
     status_.homed = Status::kOutput;
+  }
+
+  template <typename Array>
+  static float lerp(const Array& array, float x, float max_x) {
+    const float ratio = x / max_x;
+    const auto array_size = array.size();
+    const auto left_index = std::min<int>(array_size - 1, ratio * array_size);
+
+    const auto right_index = (left_index + 1) % array_size;
+    const auto fraction = (ratio - static_cast<float>(left_index) / array_size) * array_size;
+    const float left_comp = array[left_index];
+    const float right_comp = array[right_index];
+    return (left_comp * (1.0f - fraction)) + (right_comp * fraction);
   }
 
   Config config_;
