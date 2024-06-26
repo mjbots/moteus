@@ -1099,21 +1099,26 @@ class Stream:
         await self.command("d stop")
 
     async def ensure_valid_theta(self, encoder_cal_voltage):
-        try:
-            # We might need to have some sense of pole count first.
-            if await self.read_config_double("motor.poles") == 0:
-                # Pick something arbitrary for now.
-                await self.command(f"conf set motor.poles 2")
+        # We might need to have some sense of pole count first.
+        if await self.read_config_double("motor.poles") == 0:
+            # Pick something arbitrary for now.
+            await self.command(f"conf set motor.poles 2")
 
+        try:
             motor_position = await self.read_data("motor_position")
-            if motor_position.homed == 0 and not motor_position.theta_valid:
-                # We need to find an index.
-                await self.find_index(encoder_cal_voltage)
         except RuntimeError:
             # Odds are we don't support motor_position, in which case
             # theta is always valid for the older versions that don't
             # support it.
-            pass
+            return
+
+        if motor_position.error != 0:
+            raise RuntimeError(
+                f"encoder error: {repr(motor_position.error)}")
+
+        if motor_position.homed == 0 and not motor_position.theta_valid:
+            # We need to find an index.
+            await self.find_index(encoder_cal_voltage)
 
     async def calibrate_encoder_mapping_absolute(self, encoder_cal_voltage):
         await self.ensure_valid_theta(encoder_cal_voltage)
