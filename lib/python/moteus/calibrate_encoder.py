@@ -315,18 +315,34 @@ def calibrate(parsed,
 
     expected = [(2.0 * math.pi / 65536.0) * (result.poles / 2) * x for x in xpos]
 
-    err = [_wrap_neg_pi_to_pi(a - b) for a, b in zip(avg_interp, expected)]
+    err = [a - b for a, b in zip(avg_interp, expected)]
 
-    # Make the error seem reasonable, so unwrap if we happen to span
-    # the pi boundary.
-    if (max(err) - min(err)) > 1.5 * math.pi:
-        err = [x if x > 0 else x + 2 * math.pi for x in err]
+    # Make the error balanced about 0.
+    mean_err = sum(err) / len(err)
+    wrapped_mean_err = _wrap_neg_pi_to_pi(mean_err)
+    delta_mean_err = mean_err - wrapped_mean_err
+    err = [x - delta_mean_err for x in err]
 
     avg_window = int(len(err) / result.poles)
     avg_err = _window_average(err, avg_window)
 
     offset_x = list(range(0, 65536, 1024))
     offset = _interpolate(offset_x, xpos, avg_err)
+
+
+    # Now double check our results.
+    resampled_offset = _interpolate(xpos, offset_x + [65536],
+                                    offset + [offset[0]])
+    MAX_ERROR = 0.8
+    any_sample_error = False
+    sample_errors = []
+    for a, b in zip(err, resampled_offset):
+        sample_error = _wrap_neg_pi_to_pi(a - b)
+        sample_errors.append(sample_error)
+        if not any_sample_error and abs(sample_error) > MAX_ERROR:
+            result.errors.append(
+                f"excessive error in curve fit |{sample_error}| > {MAX_ERROR}")
+            any_sample_error = True
 
     result.offset = offset
 
@@ -342,6 +358,7 @@ def calibrate(parsed,
         'avg_err' : avg_err,
         'offset_x' : offset_x,
         'offset' : offset,
+        'sample_errors' : sample_errors,
     }
 
     return result

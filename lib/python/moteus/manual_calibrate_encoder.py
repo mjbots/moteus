@@ -37,10 +37,15 @@ def main():
 
     ax = pyplot.subplot(212)
 
-    ax.plot(r.debug['xpos'], r.debug['err'], label='err')
-    ax.plot(r.debug['xpos'], r.debug['avg_err'], label='avg_err')
-    ax.plot(r.debug['offset_x'], r.debug['offset'], label='offset')
-    ax.legend()
+    ax.plot(r.debug['xpos'], r.debug['sample_errors'], label='fit error',
+             color='magenta')
+    ax.legend(loc='upper right')
+
+    ax2 = ax.twinx()
+    ax2.plot(r.debug['xpos'], r.debug['err'], label='err')
+    ax2.plot(r.debug['xpos'], r.debug['avg_err'], label='avg_err')
+    ax2.plot(r.debug['offset_x'], r.debug['offset'], label='offset')
+    ax2.legend(loc='upper left')
 
     pyplot.show()
 
