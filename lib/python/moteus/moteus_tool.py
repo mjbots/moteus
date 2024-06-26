@@ -1039,6 +1039,10 @@ class Stream:
             raise RuntimeError(
                 'hall effect calibration requires specifying --cal-motor-poles')
 
+        if (self.args.cal_motor_poles % 2) == 1:
+            raise RuntimeError(
+                'only motors with even numbers of poles are supported')
+
         commutation_source = await self.read_config_int(
             "motor_position.commutation_source")
         aux_number = await self.read_config_int(
