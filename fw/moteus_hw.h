@@ -140,8 +140,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 // * The default value of `servo.bemf_feedforward` was changed from
 //   1.0 to 0.0.
 
+// # 0x0109 #
+//
+// * Commutation compensation now interpolates, which means old tables
+//   need to be upgraded during the flash process.
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x000108
+#define MOTEUS_FIRMWARE_VERSION 0x000109
 
 extern MoteusHwPins g_hw_pins;
 

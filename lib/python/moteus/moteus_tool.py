@@ -62,7 +62,7 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        SUPPORTED_ABI_VERSION = 0x0108
+        SUPPORTED_ABI_VERSION = 0x0109
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
@@ -315,9 +315,8 @@ class FirmwareUpgrade:
                 print("Upgrading servo.bemf_feedforward to 0.0")
                 items[b'servo.bemf_feedforward'] = b'0.0'
 
-        # Anytime we are flashing a firmware with 0x0108 or newer, try
-        # to fix up the motor commutation offset tables.
-        if self.new >= 0x0108:
+        if self.new >= 0x0109 and self.old <= 0x0108:
+            # Try to fix up the motor commutation offset tables.
             old_offsets = []
             i = 0
             while True:
