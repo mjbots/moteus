@@ -35,8 +35,8 @@ import histogram
 
 class Searcher:
     def __init__(self):
-        self.low = -240
-        self.high = 240
+        self.low = -248
+        self.high = 248
         self.count = 16
 
         self.start_range()
