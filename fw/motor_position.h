@@ -419,7 +419,7 @@ class MotorPosition {
       const size_t next = (i + 1) % motor_.offset.size();
 
       const auto delta = std::abs(motor_.offset[next] - motor_.offset[i]);
-      if (delta > 3.14159f) {
+      if (delta > 3.5f) {
         // These offsets are unlikely to be suitable for
         // interpolation, trigger a fault.  They may have been
         // generated with an old version of moteus_tool that performed
