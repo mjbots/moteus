@@ -1845,7 +1845,7 @@ async def async_main():
                         type=float, default=0.1,
                         help='maximum allowed error in calibration')
     parser.add_argument('--cal-max-kv-power-factor', type=float,
-                        default=1.0)
+                        default=1.25)
     parser.add_argument('--cal-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
 
