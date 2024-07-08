@@ -1165,7 +1165,10 @@ class Stream:
             cal_file,
             desired_direction=1 if not self.args.cal_invert else -1,
             max_remainder_error=self.args.cal_max_remainder,
-            allow_phase_invert=allow_phase_invert)
+            allow_phase_invert=allow_phase_invert,
+            allow_optimize=not self.args.cal_disable_optimize,
+            force_optimize=self.args.cal_force_optimize,
+        )
 
         if cal_result.errors:
             raise RuntimeError(f"Error(s) calibrating: {cal_result.errors}")
@@ -1839,6 +1842,10 @@ async def async_main():
     parser.add_argument('--cal-force-kv', metavar='Kv', type=float,
                         default=None,
                         help='do not calibrate Kv, but use the specified value')
+    parser.add_argument('--cal-force-optimize', action='store_true',
+                        help='require nonlinear commutation optimization')
+    parser.add_argument('--cal-disable-optimize', action='store_true',
+                        help='prevent nonlinear commutation optimization')
 
 
     parser.add_argument('--cal-max-remainder', metavar='F',
