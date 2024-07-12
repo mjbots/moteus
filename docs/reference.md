@@ -734,14 +734,14 @@ A fault code which will be set if the primary mode is 1 (Fault).
 The full list can be found at: [fw/error.h](../fw/error.h#L25)
 
 
-### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ###
+#### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ####
 
 Mode: Read/write
 
 When in Pwm mode, this controls the raw PWM value for phase A, B, and
 C.  If unspecified, 0.0 is used.
 
-### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ###
+#### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ####
 
 Mode: Read/write
 
@@ -749,42 +749,42 @@ When in Voltage mode, this controls the voltage applied to phase A,
 B, and C.  If unspecified, 0.0 is used.
 
 
-### 0x018 - Voltage FOC Theta ###
+#### 0x018 - Voltage FOC Theta ####
 
 Mode: Read/write
 
 When in Voltage Foc mode, this controls the desired electrical phase.
 Integral types use the PWM mapping.  If unspecified, 0.0 is used.
 
-### 0x019 - Voltage FOC Voltage ###
+#### 0x019 - Voltage FOC Voltage ####
 
 Mode: Read/write
 
 When in Voltage Foc mode, this controls the desired applied phase
 voltage.  If unspecified, 0.0 is used.
 
-### 0x01a - D Voltage ###
+#### 0x01a - D Voltage ####
 
 Mode: Read/write
 
 When in Voltage Dq mode, this controls the desired applied D voltage.
 If unspecified, 0.0 is used.
 
-### 0x01b - Q Voltage ###
+#### 0x01b - Q Voltage ####
 
 Mode: Read/write
 
 When in kVoltageDq mode, this controls the desired applied Q voltage.
 If unspecified, 0.0 is used.
 
-### 0x01c - Commanded Q Phase Current ###
+#### 0x01c - Commanded Q Phase Current ####
 
 Mode: Read/write
 
 When in Current mode, this controls the desired Q phase current.  If
 unspecified, 0.0 is used.
 
-### 0x01d - Commanded D Phase Current ###
+#### 0x01d - Commanded D Phase Current ####
 
 Mode: Read/write
 
@@ -792,7 +792,7 @@ When in Current mode, this controls the desired D phase current.  Unless
 you like burning power, with a BLDC motor you will typically want this
 set to 0.  If unspecified, 0.0 is used.
 
-### 0x1e - Voltage FOC Theta Rate ###
+#### 0x1e - Voltage FOC Theta Rate ####
 
 Mode: Read/write
 
