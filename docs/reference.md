@@ -717,14 +717,16 @@ A fault code which will be set if the primary mode is 1 (Fault).
   operation that requires a stop
 * 42 - *theta invalid* - no valid commutation encoder is available
 * 43 - *position invalid* - no valid output encoder is available
-* 44 - *stop position deprecated* - an attempt was made to use the
+* 44 - *driver enable fault* - the MOSFET gate driver could not be
+  enabled
+* 45 - *stop position deprecated* - an attempt was made to use the
   deprecated "stop position" feature along with velocity or
   acceleration limits.  Prefer to instead command the desired position
   directly with a target velocity of 0.0, or secondarily, disable
   acceleration and velocity limits.
-* 45 - *timing violation* - internal checks are enabled, and the
+* 46 - *timing violation* - internal checks are enabled, and the
   controller violated an internal timing constraint
-* 46 - *bemf feedforward no accel* - `servo.bemf_feedforward` is
+* 47 - *bemf feedforward no accel* - `servo.bemf_feedforward` is
   configured, but no acceleration limit was specified.  If you
   *really* know what you are doing, you can disable this with
   `servo.bemf_feedforward_override`.
