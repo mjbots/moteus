@@ -39,6 +39,7 @@
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
+#include "fw/strtof.h"
 
 namespace moteus {
 
@@ -159,6 +160,8 @@ class AuxPort {
           status_.pins[i] = digital_inputs_[i]->read() ? true : false;
         } else if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
           digital_outputs_[i]->write(status_.pins[i]);
+        } else if (config_.pins[i].mode == aux::Pin::Mode::kPwmOut) {
+          pwm_[i]->write(status_.pwm[i]);
         }
       }
     }
@@ -360,6 +363,11 @@ class AuxPort {
     }
   }
 
+  void WritePwmOut(int pin, float value) {
+    pin = std::max<int>(0, std::min<int>(config_.pins.size() - 1, pin));
+    status_.pwm[pin] = std::max(0.0f, std::min(1.0f, value));
+  }
+
   USART_TypeDef* debug_uart() const {
     if (config_.uart.mode == aux::UartEncoder::Config::kDebug) {
       return uart_->uart();
@@ -386,6 +394,22 @@ class AuxPort {
       const auto value = std::strtol(value_str.data(), nullptr, 0);
 
       WriteDigitalOut(value);
+      WriteOk(response);
+      return;
+    }
+
+    if (cmd_text == "pwm") {
+      const auto pin_str = tokenizer.next();
+      const auto maybe_value = Strtof(tokenizer.next());
+      if (pin_str.empty() ||
+          !maybe_value) {
+        WriteMessage(response, "ERR missing pin or value\r\n");
+        return;
+      }
+
+      const auto pin = std::strtol(pin_str.data(), nullptr, 0);
+      WritePwmOut(pin, *maybe_value);
+
       WriteOk(response);
       return;
     }
@@ -733,6 +757,8 @@ class AuxPort {
 
     for (auto& in : digital_inputs_) { in.reset(); }
     for (auto& out : digital_outputs_) { out.reset(); }
+    pwm_timer_set_.reset();
+    for (auto& pwm : pwm_) { pwm.reset(); }
     halla_.reset();
     hallb_.reset();
     hallc_.reset();
@@ -1074,6 +1100,32 @@ class AuxPort {
         digital_outputs_[i].emplace(first_mbed,
                                     aux::MbedMapPull(cfg.pull));
         updated_any_isr = true;
+      } else if (cfg.mode == aux::Pin::Mode::kPwmOut) {
+        const auto timer = [&]() -> TIM_TypeDef* {
+          for (const auto& pin: hw_config_.pins) {
+            if (pin.number == static_cast<int>(i) &&
+                pin.timer) {
+              if (quad_ && quad_->hwtimer() == pin.timer) {
+                // If a hardware quadrature input is already using
+                // this timer, then we can't.
+                continue;
+              }
+              return pin.timer;
+            }
+          }
+          // There were no available hardware timers for this pin.
+          return nullptr;
+        }();
+
+        if (timer == nullptr) {
+          status_.error = aux::AuxError::kPwmPinError;
+          return;
+        }
+        auto* pwm_timer = pwm_timer_set_.get(timer, config_.pwm_period_us);
+
+        status_.gpio_bit_active |= (1 << i);
+        pwm_[i].emplace(first_mbed, pwm_timer);
+        updated_any_isr = true;
       } else if (cfg.mode == aux::Pin::Mode::kAnalogInput ||
                  cfg.mode == aux::Pin::Mode::kSine ||
                  cfg.mode == aux::Pin::Mode::kCosine) {
@@ -1118,6 +1170,8 @@ class AuxPort {
       }
     }
 
+    pwm_timer_set_.Start();
+
     adc_info_.config_update();
     any_isr_enabled_ = updated_any_isr;
   }
@@ -1158,6 +1212,9 @@ class AuxPort {
              aux::AuxConfig::kNumPins> digital_inputs_;
   std::array<std::optional<DigitalOut>,
              aux::AuxConfig::kNumPins> digital_outputs_;
+  aux::Stm32PwmTimerSet pwm_timer_set_;
+  std::array<std::optional<aux::Stm32Pwm>,
+             aux::AuxConfig::kNumPins> pwm_;
 
   std::optional<DigitalIn> halla_;
   std::optional<DigitalIn> hallb_;

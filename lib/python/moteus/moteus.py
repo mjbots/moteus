@@ -252,6 +252,17 @@ class Register(enum.IntEnum):
     MILLISECOND_COUNTER = 0x070
     CLOCK_TRIM = 0x071
 
+    AUX1_PWM1 = 0x076,
+    AUX1_PWM2 = 0x077,
+    AUX1_PWM3 = 0x078,
+    AUX1_PWM4 = 0x079,
+    AUX1_PWM5 = 0x07a,
+    AUX2_PWM1 = 0x07b,
+    AUX2_PWM2 = 0x07c,
+    AUX2_PWM3 = 0x07d,
+    AUX2_PWM4 = 0x07e,
+    AUX2_PWM5 = 0x07f,
+
     REGISTER_MAP_VERSION = 0x102
     SERIAL_NUMBER = 0x120
     SERIAL_NUMBER1 = 0x120
@@ -345,6 +356,19 @@ class VFOCResolution:
 class CurrentResolution:
     d_A = mp.F32
     q_A = mp.F32
+
+
+class PwmResolution:
+    aux1_pwm1 = mp.INT16
+    aux1_pwm2 = mp.INT16
+    aux1_pwm3 = mp.INT16
+    aux1_pwm4 = mp.INT16
+    aux1_pwm5 = mp.INT16
+    aux2_pwm1 = mp.INT16
+    aux2_pwm2 = mp.INT16
+    aux2_pwm3 = mp.INT16
+    aux2_pwm4 = mp.INT16
+    aux2_pwm5 = mp.INT16
 
 
 class Parser(mp.RegisterParser):
@@ -507,6 +531,9 @@ def parse_register(parser, register, resolution):
         return parser.read_int(resolution)
     elif register == Register.CLOCK_TRIM:
         return parser.read_int(resolution)
+    elif (register >= Register.AUX1_PWM1 and
+          register <= Register.AUX2_PWM5):
+        return parser.read_pwm(resolution)
     else:
         # We don't know what kind of value this is, so we don't know
         # the units.
@@ -609,6 +636,7 @@ class Controller:
                  position_resolution=PositionResolution(),
                  vfoc_resolution=VFOCResolution(),
                  current_resolution=CurrentResolution(),
+                 pwm_resolution=PwmResolution(),
                  transport=None,
                  can_prefix=0x0000):
         self.id = id
@@ -616,6 +644,7 @@ class Controller:
         self.position_resolution = position_resolution
         self.vfoc_resolution = vfoc_resolution
         self.current_resolution = current_resolution
+        self.pwm_resolution = pwm_resolution
         self.transport = transport
         self._parser = make_parser(id)
         self._can_prefix = can_prefix
@@ -1314,6 +1343,70 @@ class Controller:
 
     async def set_trim(self, *args, **kwargs):
         return await self.execute(self.make_set_trim(*args, **kwargs))
+
+    def make_aux_pwm(self, *,
+                     aux1_pwm1=None,
+                     aux1_pwm2=None,
+                     aux1_pwm3=None,
+                     aux1_pwm4=None,
+                     aux1_pwm5=None,
+                     aux2_pwm1=None,
+                     aux2_pwm2=None,
+                     aux2_pwm3=None,
+                     aux2_pwm4=None,
+                     aux2_pwm5=None,
+                     query=False,
+                     query_override=None):
+        result = self._make_command(query=query, query_override=query_override)
+
+        pr = self.pwm_resolution
+        resolutions = [
+            pr.aux1_pwm1 if aux1_pwm1 is not None else mp.IGNORE,
+            pr.aux1_pwm2 if aux1_pwm2 is not None else mp.IGNORE,
+            pr.aux1_pwm3 if aux1_pwm3 is not None else mp.IGNORE,
+            pr.aux1_pwm4 if aux1_pwm4 is not None else mp.IGNORE,
+            pr.aux1_pwm5 if aux1_pwm5 is not None else mp.IGNORE,
+            pr.aux2_pwm1 if aux2_pwm1 is not None else mp.IGNORE,
+            pr.aux2_pwm2 if aux2_pwm2 is not None else mp.IGNORE,
+            pr.aux2_pwm3 if aux2_pwm3 is not None else mp.IGNORE,
+            pr.aux2_pwm4 if aux2_pwm4 is not None else mp.IGNORE,
+            pr.aux2_pwm5 if aux2_pwm5 is not None else mp.IGNORE,
+        ]
+
+        data_buf = io.BytesIO()
+        writer = Writer(data_buf)
+        combiner = mp.WriteCombiner(
+            writer, 0x00, int(Register.AUX1_PWM1), resolutions)
+
+        if combiner.maybe_write():
+            writer.write_pwm(aux1_pwm1, pr.aux1_pwm1)
+        if combiner.maybe_write():
+            writer.write_pwm(aux1_pwm2, pr.aux1_pwm2)
+        if combiner.maybe_write():
+            writer.write_pwm(aux1_pwm3, pr.aux1_pwm3)
+        if combiner.maybe_write():
+            writer.write_pwm(aux1_pwm4, pr.aux1_pwm4)
+        if combiner.maybe_write():
+            writer.write_pwm(aux1_pwm5, pr.aux1_pwm5)
+        if combiner.maybe_write():
+            writer.write_pwm(aux2_pwm1, pr.aux2_pwm1)
+        if combiner.maybe_write():
+            writer.write_pwm(aux2_pwm2, pr.aux2_pwm2)
+        if combiner.maybe_write():
+            writer.write_pwm(aux2_pwm3, pr.aux2_pwm3)
+        if combiner.maybe_write():
+            writer.write_pwm(aux2_pwm4, pr.aux2_pwm4)
+        if combiner.maybe_write():
+            writer.write_pwm(aux2_pwm5, pr.aux2_pwm5)
+
+        self._format_query(query, query_override, data_buf, result)
+
+        result.data = data_buf.getvalue()
+
+        return result
+
+    async def set_aux_pwm(self, *args, **kwargs):
+        return await self.execute(self.make_aux_pwm(*args, **kwargs))
 
     def _extract(self, value):
         if len(value):

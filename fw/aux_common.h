@@ -328,6 +328,7 @@ struct Pin {
     kDigitalInput,
     kDigitalOutput,
     kAnalogInput,
+    kPwmOut,
 
     kLength,
   };
@@ -358,6 +359,7 @@ struct AuxConfig {
   aux::Index::Config index;
   aux::SineCosine::Config sine_cosine;
   int32_t i2c_startup_delay_ms = 30;
+  int32_t pwm_period_us = 1000;
 
   static constexpr size_t kNumPins = 5;
   std::array<Pin, kNumPins> pins = { {} };
@@ -372,6 +374,7 @@ struct AuxConfig {
     a->Visit(MJ_NVP(index));
     a->Visit(MJ_NVP(sine_cosine));
     a->Visit(MJ_NVP(i2c_startup_delay_ms));
+    a->Visit(MJ_NVP(pwm_period_us));
     a->Visit(MJ_NVP(pins));
   }
 };
@@ -388,6 +391,7 @@ enum class AuxError {
   kAdcPinError,
   kSineCosinePinError,
   kUartPinError,
+  kPwmPinError,
 
   kLength,
 };
@@ -408,6 +412,7 @@ struct AuxStatus {
 
   uint8_t analog_bit_active = 0;
   std::array<float, 5> analog_inputs = { {} };
+  std::array<float, 5> pwm = { {} };
 
   // Increases anytime the configuration changes.
   uint8_t epoch = 0;
@@ -426,6 +431,7 @@ struct AuxStatus {
     a->Visit(MJ_NVP(pins));
     a->Visit(MJ_NVP(analog_bit_active));
     a->Visit(MJ_NVP(analog_inputs));
+    a->Visit(MJ_NVP(pwm));
     a->Visit(MJ_NVP(epoch));
   }
 };
@@ -524,6 +530,7 @@ struct IsEnum<moteus::aux::Pin::Mode> {
         { P::kDigitalInput, "digital_in" },
         { P::kDigitalOutput, "digital_out" },
         { P::kAnalogInput, "analog_in" },
+        { P::kPwmOut, "pwm_out" },
       }};
   }
 };
@@ -563,6 +570,7 @@ struct IsEnum<moteus::aux::AuxError> {
         { A::kAdcPinError, "adc_pin_error" },
         { A::kSineCosinePinError, "sine_cosine_pin_error" },
         { A::kUartPinError, "uart_pin_error" },
+        { A::kPwmPinError, "pwm_pin_error" },
       }};
   }
 };

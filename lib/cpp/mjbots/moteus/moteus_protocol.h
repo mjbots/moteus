@@ -194,6 +194,17 @@ enum Register : uint16_t {
   kMillisecondCounter = 0x070,
   kClockTrim = 0x071,
 
+  kAux1Pwm1 = 0x076,
+  kAux1Pwm2 = 0x077,
+  kAux1Pwm3 = 0x078,
+  kAux1Pwm4 = 0x079,
+  kAux1Pwm5 = 0x07a,
+  kAux2Pwm1 = 0x07b,
+  kAux2Pwm2 = 0x07c,
+  kAux2Pwm3 = 0x07d,
+  kAux2Pwm4 = 0x07e,
+  kAux2Pwm5 = 0x07f,
+
   kRegisterMapVersion = 0x102,
   kSerialNumber = 0x120,
   kSerialNumber1 = 0x120,
@@ -656,6 +667,17 @@ struct Query {
       { R::kMillisecondCounter, 2, MP::kInt, },
       // { R::kClockTrim, 1, MP::kInt, },
 
+      { R::kAux1Pwm1, 10, MP::kPwm },
+      // { R::kAux1Pwm2, 1, MP::kPwm },
+      // { R::kAux1Pwm3, 1, MP::kPwm },
+      // { R::kAux1Pwm4, 1, MP::kPwm },
+      // { R::kAux1Pwm5, 1, MP::kPwm },
+      // { R::kAux2Pwm1, 1, MP::kPwm },
+      // { R::kAux2Pwm2, 1, MP::kPwm },
+      // { R::kAux2Pwm3, 1, MP::kPwm },
+      // { R::kAux2Pwm4, 1, MP::kPwm },
+      // { R::kAux2Pwm5, 1, MP::kPwm },
+
       { R::kRegisterMapVersion, 1, MP::kInt, },
       { R::kSerialNumber1,  3, MP::kInt, },
       // { R::kSerialNumber2, 1, MP::kInt, },
@@ -669,7 +691,11 @@ struct Query {
       { R::kDriverFault1, 2, MP::kInt, },
       // { R::kDriverFault2, 1, MP::kInt, },
 
+#ifndef ARDUINO
     };
+#else
+    };
+#endif
     for (uint16_t i = 0;
          i < sizeof(kRegisterDefinitions) / sizeof (*kRegisterDefinitions);
          i ++) {
@@ -1149,6 +1175,33 @@ struct GpioWrite {
   }
 };
 
+struct GpioRead {
+  struct Format {
+    Resolution aux1 = kInt8;
+    Resolution aux2 = kInt8;
+  };
+
+  static uint8_t Make(WriteCanData* frame, const Format& format) {
+    uint8_t reply_size = 0;
+
+    const Resolution kResolutions[] = {
+      format.aux1,
+      format.aux2,
+    };
+    const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
+    WriteCombiner combiner(
+        frame, 0x10, Register::kAux1GpioStatus,
+        kResolutions, kResolutionsSize);
+    for (uint16_t i = 0; i < kResolutionsSize; i++) {
+      combiner.MaybeWrite();
+    }
+
+    reply_size += combiner.reply_size();
+
+    return reply_size;
+  }
+};
+
 struct OutputNearest {
   struct Command {
     double position = 0.0;
@@ -1281,6 +1334,90 @@ struct ClockTrim {
     frame->Write<int8_t>(Multiplex::kWriteInt32 | 0x01);
     frame->WriteVaruint(Register::kClockTrim);
     frame->Write<int32_t>(command.trim);
+    return 0;
+  }
+};
+
+struct AuxPwmWrite {
+  struct Command {
+    float aux1_pwm1 = 0.0;
+    float aux1_pwm2 = 0.0;
+    float aux1_pwm3 = 0.0;
+    float aux1_pwm4 = 0.0;
+    float aux1_pwm5 = 0.0;
+    float aux2_pwm1 = 0.0;
+    float aux2_pwm2 = 0.0;
+    float aux2_pwm3 = 0.0;
+    float aux2_pwm4 = 0.0;
+    float aux2_pwm5 = 0.0;
+  };
+
+  struct Format {
+    Resolution aux1_pwm1 = kInt16;
+    Resolution aux1_pwm2 = kInt16;
+    Resolution aux1_pwm3 = kInt16;
+    Resolution aux1_pwm4 = kInt16;
+    Resolution aux1_pwm5 = kInt16;
+    Resolution aux2_pwm1 = kInt16;
+    Resolution aux2_pwm2 = kInt16;
+    Resolution aux2_pwm3 = kInt16;
+    Resolution aux2_pwm4 = kInt16;
+    Resolution aux2_pwm5 = kInt16;
+  };
+
+  static uint8_t Make(WriteCanData* frame,
+                      const Command& command,
+                      const Format& format) {
+    const Resolutions kResolutions[] = {
+      format.aux1_pwm1,
+      format.aux1_pwm2,
+      format.aux1_pwm3,
+      format.aux1_pwm4,
+      format.aux1_pwm5,
+      format.aux2_pwm1,
+      format.aux2_pwm2,
+      format.aux2_pwm3,
+      format.aux2_pwm4,
+      format.aux2_pwm5,
+    };
+
+    WriterCombiner combiner(
+        frame, 0x00,
+        Register::kAux1Pwm1,
+        kResolutions,
+        sizeof(kResolutions) / sizeof(*kResolutions));
+
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux1_pwm1, format.aux1_pwm1);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux1_pwm2, format.aux1_pwm2);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux1_pwm3, format.aux1_pwm3);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux1_pwm4, format.aux1_pwm4);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux1_pwm5, format.aux1_pwm5);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux2_pwm1, format.aux2_pwm1);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux2_pwm2, format.aux2_pwm2);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux2_pwm3, format.aux2_pwm3);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux2_pwm4, format.aux2_pwm4);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WritePwm(command.aux2_pwm5, format.aux2_pwm5);
+    }
+
     return 0;
   }
 };
