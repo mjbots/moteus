@@ -40,6 +40,7 @@ cc_library(
         "simple_pi.h",
         "torque_model.h",
         "stm32_i2c_timing.h",
+        "strtof.h",
     ],
     srcs = [
         "foc.cc",

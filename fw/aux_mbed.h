@@ -71,6 +71,20 @@ inline PinMode MbedMapPull(aux::Pin::Pull pull) {
   return PullNone;
 }
 
+/// Figure out which mbed alt pin is associated with the given STM32
+/// timer.
+inline PinName FindTimerAlt(PinName pin, TIM_TypeDef* timer) {
+  const auto int_timer = reinterpret_cast<uint32_t>(timer);
+
+  for (uint32_t alt : {0, 0x100, 0x200, 0x300, 0x400}) {
+    const PinName mbed_pin = static_cast<PinName>(pin | alt);
+    if (pinmap_find_peripheral(mbed_pin, PinMap_PWM) == int_timer) {
+      return mbed_pin;
+    }
+  }
+  return NC;
+}
+
 class Stm32Quadrature {
  public:
   template <typename PinArray>
@@ -151,21 +165,8 @@ class Stm32Quadrature {
       a_in_.emplace(pina.mbed);
       b_in_.emplace(pinb.mbed);
 
-      const auto int_timer = reinterpret_cast<uint32_t>(pina.timer);
-
-      const auto find_timer_alt =
-          [&](auto pin) {
-            for (uint32_t alt : {0, 0x100, 0x200, 0x300, 0x400}) {
-              const PinName mbed_pin = static_cast<PinName>(pin | alt);
-              if (pinmap_find_peripheral(mbed_pin, PinMap_PWM) == int_timer) {
-                return mbed_pin;
-              }
-            }
-            return NC;
-          };
-
-      const auto pina_alt = find_timer_alt(pina.mbed);
-      const auto pinb_alt = find_timer_alt(pinb.mbed);
+      const auto pina_alt = FindTimerAlt(pina.mbed, pina.timer);
+      const auto pinb_alt = FindTimerAlt(pinb.mbed, pinb.timer);
 
       // Set the alternate function for each pin.
       pinmap_pinout(pina_alt, PinMap_PWM);
@@ -176,6 +177,7 @@ class Stm32Quadrature {
 
       hwtimer_->CR1 = 0;
 
+      hwtimer_->PSC = 0;  // no prescaler
       hwtimer_->ARR = 0xffff;
       hwtimer_->SMCR = (0x03 << TIM_SMCR_SMS_Pos);
       hwtimer_->CCMR1 =
@@ -270,6 +272,10 @@ class Stm32Quadrature {
     status_->error += kQuadError[update];
   }
 
+  TIM_TypeDef* hwtimer() const {
+    return hwtimer_;
+  }
+
  private:
   const Quadrature::Config config_;
   Quadrature::Status* const status_;
@@ -350,6 +356,153 @@ class Stm32Index {
   std::atomic<bool> observed_{false};
   std::optional<Stm32GpioInterruptIn> index_isr_;
   std::optional<DigitalIn> index_;
+};
+
+/// This manages a single STM32 timer for PWM purposes, which may have
+/// one or more pins operating on it at a time.
+class Stm32PwmTimer {
+ public:
+  Stm32PwmTimer(TIM_TypeDef* timer,
+                int period_us)
+      : hwtimer_(timer) {
+    // Configure the prescaler to get maximum resolution within the
+    // desired period.
+    const auto ticks_per_period =
+        static_cast<int64_t>(HAL_RCC_GetPCLK1Freq() * 2) *
+        period_us / 1000000;
+    const auto prescale_ratio = ticks_per_period / 65536 + 1;
+
+    hwtimer_->CR1 = 0;
+
+    hwtimer_->PSC = prescale_ratio - 1;
+    hwtimer_->ARR = ticks_per_period / prescale_ratio;
+    counts_per_cycle_ = hwtimer_->ARR;
+
+    hwtimer_->SMCR = 0;
+    hwtimer_->CCMR1 = 0;
+    hwtimer_->CCMR2 = 0;
+    hwtimer_->CCER = 0;
+    hwtimer_->EGR = 0;
+  }
+
+  void Start() {
+    hwtimer_->CR1 = (TIM_CR1_CEN);
+  }
+
+  void Stop() {
+    hwtimer_->CR1 = 0;
+  }
+
+  TIM_TypeDef* hwtimer() const {
+    return hwtimer_;
+  }
+
+  uint32_t counts_per_cycle() const { return counts_per_cycle_; }
+
+ private:
+  TIM_TypeDef* const hwtimer_;
+  uint32_t counts_per_cycle_ = 0;
+};
+
+/// This keeps track of all timers currently active on a given aux
+/// port that are used for PWM purposes.
+class Stm32PwmTimerSet {
+ public:
+  void reset() {
+    for (auto& item : timers_) {
+      if (!!item) {
+        item->Stop();
+      }
+      item.reset();
+    }
+  }
+
+  Stm32PwmTimer* get(TIM_TypeDef* timer, int period_us) {
+    for (auto& item : timers_) {
+      if (!!item && item->hwtimer() == timer) {
+        return &*item;
+      } else if (!item) {
+        item.emplace(timer, period_us);
+        return &*item;
+      }
+    }
+    MJ_ASSERT(false);
+    return nullptr;
+  }
+
+  void Start() {
+    for (auto& item : timers_) {
+      if (!!item) {
+        item->Start();
+      }
+    }
+  }
+
+ private:
+  std::array<std::optional<Stm32PwmTimer>, 2> timers_;
+};
+
+/// This manages a single PWM pin.  Before construction, it assumes
+/// that the only thing that has happened since the Stm32PwmTimer was
+/// constructed is that other instances of non-conflicting Stm32Pwm
+/// pins have been created.
+class Stm32Pwm {
+ public:
+  Stm32Pwm(PinName pin,
+           const Stm32PwmTimer* timer)
+      : counts_per_cycle_(timer->counts_per_cycle()) {
+
+    const auto pin_alt = FindTimerAlt(pin, timer->hwtimer());
+
+    pinmap_pinout(pin_alt, PinMap_PWM);
+
+    const auto hwtimer = timer->hwtimer();
+
+    // Figure out which TIM_CHx we are
+    const auto function = pinmap_function(pin_alt, PinMap_PWM);
+    const auto channel = STM_PIN_CHANNEL(function);
+
+    const auto output_compare_mode = 6; // PWM mode 1
+
+    // Channels 2 and 4 are shifted in their ccmr register.
+    const auto ccmr = (output_compare_mode << TIM_CCMR1_OC1M_Pos)
+        << (((channel % 2) == 0) ? 8 : 0);
+
+    if (channel == 1 || channel == 2) {
+      hwtimer->CCMR1 |= ccmr;
+    } else if (channel == 3 || channel == 4) {
+      hwtimer->CCMR2 |= ccmr;
+    }
+
+    // Configure the output enable for the output comparator.
+    hwtimer->CCER |= (1 << ((channel - 1) * 4));
+
+    ocr_ = [&]() {
+      switch (channel) {
+        case 1: { return &hwtimer->CCR1; }
+        case 2: { return &hwtimer->CCR2; }
+        case 3: { return &hwtimer->CCR3; }
+        case 4: { return &hwtimer->CCR4; }
+      }
+      MJ_ASSERT(false);
+      return &hwtimer->CCR1;
+    }();
+  }
+
+  void write(float value) {
+    // For now, this is formulated as "truncate", so you have to have
+    // exactly 1.0 as an output to get continuously on, whereas there
+    // is a small range of values that give completely off.
+    const uint16_t int_value =
+        std::max(
+            0, std::min(
+                65535,
+                static_cast<int>(value * (counts_per_cycle_ + 1))));
+    *ocr_ = int_value;
+  }
+
+  const uint32_t counts_per_cycle_;
+  volatile uint32_t* ocr_ = nullptr;
 };
 
 enum RequireCs {
