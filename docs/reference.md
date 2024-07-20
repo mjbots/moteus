@@ -1254,6 +1254,23 @@ for fault register 2.  Up to 16 bits may be set.  This will only be
 non-zero if the current mode is fault (1) and the fault code is 33
 (motor driver fault).
 
+#### 0x150 - 0x153 - UUID ####
+
+Name: UUID
+Mode: Read only, int32 only
+
+This returns a 128 bit UUID, this is the value printed on mjbots
+packaging and returned by `moteus_tool --info`
+
+#### 0x154 - 0x157 - UUID Mask ####
+
+Name: UUID
+Mode: Write only, int32 only
+
+If one or more of these fields are written, then the entire frame
+after this point will be discarded unless the devices corresponding
+UUID matches what was written.
+
 ## A.3 Example ##
 
 A single CAN-FD frame can be used to command the servo, and initiate a

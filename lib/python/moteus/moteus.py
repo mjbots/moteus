@@ -267,6 +267,16 @@ class Register(enum.IntEnum):
     DRIVER_FAULT1 = 0x140
     DRIVER_FAULT2 = 0x141
 
+    UUID1 = 0x150
+    UUID2 = 0x151
+    UUID3 = 0x152
+    UUID4 = 0x153
+
+    UUID_MASK1 = 0x0154
+    UUID_MASK2 = 0x0155
+    UUID_MASK3 = 0x0156
+    UUID_MASK4 = 0x0157
+
 
 class Mode(enum.IntEnum):
     """Valid values for the Register.MODE register"""

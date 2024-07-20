@@ -35,6 +35,8 @@ class Uuid {
     }
   };
 
+  const uint8_t* uuid() const;
+
  private:
   void Update();
 
