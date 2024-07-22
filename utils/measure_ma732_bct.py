@@ -105,6 +105,10 @@ class BctDetector:
             self.stream, f"{self.auxstr}.spi.trim")
         num_poles = await histogram.read_config_double(
             self.stream, f"motor.poles")
+        position_min = await histogram.read_config_double(
+            self.stream, f"servopos.position_min")
+        position_max = await histogram.read_config_double(
+            self.stream, f"servopos.position_max")
 
         self.espeed = self.args.speed * num_poles
         self.eaccel = self.args.acceleration * num_poles
@@ -121,6 +125,8 @@ class BctDetector:
         await self.command(f"conf set {self.auxstr}.spi.trim 0")
 
         await self.command(f"conf set motor.poles 2")
+        await self.command(f"conf set servopos.position_min nan")
+        await self.command(f"conf set servopos.position_max nan")
 
         try:
             # Now we will hunt through BCT in X and Y to see which gives the
@@ -139,6 +145,9 @@ class BctDetector:
 
             # Restore our motor pole count.
             await self.command(f"conf set motor.poles {num_poles}")
+
+            await self.command(f"conf set servopos.position_min {position_min}")
+            await self.command(f"conf set servopos.position_max {position_max}")
 
         # We'll get here if we had no exceptions.
         await self.command("conf write")
