@@ -90,6 +90,9 @@ class MotorPosition {
     //  31    248-255        252
     std::array<float, kCompensationSize> compensation_table = {};
 
+    // This is not serialized, but is calculated during configuration.
+    bool cached_any_compensation_enabled = false;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(aux_number));
@@ -211,6 +214,7 @@ class MotorPosition {
       kMotorNotConfigured,
       kInvalidConfig,
       kSourceError,
+      kDiscontinuousOffset,
 
       kNumErrors,
     };
@@ -411,6 +415,20 @@ class MotorPosition {
 
     status_.epoch = old_epoch + 1;
 
+    for (size_t i = 0; i < motor_.offset.size(); i++) {
+      const size_t next = (i + 1) % motor_.offset.size();
+
+      const auto delta = std::abs(motor_.offset[next] - motor_.offset[i]);
+      if (delta > 3.5f) {
+        // These offsets are unlikely to be suitable for
+        // interpolation, trigger a fault.  They may have been
+        // generated with an old version of moteus_tool that performed
+        // per-bin wrapping.
+        status_.error = Status::kDiscontinuousOffset;
+        return;
+      }
+    }
+
     for (size_t i = 0; i < config_.sources.size(); i++) {
       auto& source_config = config_.sources[i];
 
@@ -420,6 +438,14 @@ class MotorPosition {
       source_config.i2c_device =
           std::min<uint8_t>(source_config.i2c_device,
                             aux_status_[0]->i2c.devices.size());
+
+      source_config.cached_any_compensation_enabled = false;
+      for (const auto value : source_config.compensation_table) {
+        if (value != 0.0f) {
+          source_config.cached_any_compensation_enabled = true;
+          break;
+        }
+      }
 
       if (source_config.incremental_index > 2) {
         source_config.incremental_index = 2;
@@ -607,15 +633,11 @@ class MotorPosition {
     if (commutation_status.active_theta) {
       const float ratio =
           commutation_status.filtered_value / commutation_config.cpr;
-      const int offset_size = motor_.offset.size();
-      const int offset_index =
-          std::min<int>(offset_size - 1, ratio * offset_size);
-      // MJ_ASSERT(offset_index >= 0 && offset_index < offset_size);
 
       status_.theta_valid = true;
       status_.electrical_theta = WrapZeroToTwoPi(
           ratio * commutation_pole_scale_ / commutation_rotor_scale_ +
-          motor_.offset[offset_index]);
+          lerp(motor_.offset, ratio));
     }
   }
 
@@ -893,6 +915,8 @@ class MotorPosition {
         }
       }
 
+      const float cpr = config.cpr;
+
       if (config.debug_override >= 0) {
         status.active_theta = true;
         status.active_velocity = true;
@@ -901,29 +925,16 @@ class MotorPosition {
         status.compensated_value = config.debug_override;
         status.filtered_value = config.debug_override;
         updated = true;
-      } else {
-        const int bin_size = std::max<int>(1, config.cpr / kCompensationSize);
-        // Perform compensation.
-        const int left_offset =
-            ((status.offset_value - bin_size / 2) *
-             kCompensationSize / config.cpr + kCompensationSize) %
-            kCompensationSize;
-        const int right_offset = (left_offset + 1) % kCompensationSize;
-        const int delta =
-            (status.offset_value + config.cpr -
-             left_offset * bin_size -
-             bin_size / 2) % bin_size;
-        const float fraction =
-            static_cast<float>(delta) / bin_size;
-        const float left_comp = config.compensation_table[left_offset];
-        const float right_comp = config.compensation_table[right_offset];
-        const float comp_fraction =
-            (right_comp - left_comp) * fraction + left_comp;
-
+      } else if (config.cached_any_compensation_enabled) {
         status.compensated_value =
             WrapCpr(
                 status.offset_value +
-                comp_fraction * config.cpr, config.cpr);
+                lerp(config.compensation_table,
+                     static_cast<float>(status.offset_value) /
+                     cpr) * cpr,
+                cpr);
+      } else {
+        status.compensated_value = status.offset_value;
       }
 
       status.time_since_update += dt;
@@ -934,8 +945,6 @@ class MotorPosition {
       }
 
       status.filtered_value += dt * status.velocity;
-
-      const float cpr = config.cpr;
 
       if (updated) {
         if (!old_active_velocity && status.active_velocity) {
@@ -964,7 +973,7 @@ class MotorPosition {
           // We don't let our velocity get beyond 1 revolution in 8
           // encoder samples.
           const float max_velocity =
-              0.125f * config.cpr / status.time_since_update;
+              0.125f * cpr / status.time_since_update;
           if (status.velocity > max_velocity) {
             status.velocity = max_velocity;
           } else if (status.velocity < -max_velocity) {
@@ -1088,6 +1097,27 @@ class MotorPosition {
     status_.homed = Status::kOutput;
   }
 
+  template <typename Array>
+  static float lerp(const Array& array, float ratio) {
+    const auto array_size = array.size();
+
+    const auto left_index =
+        std::min<int>(array_size - 1, ratio * array_size);
+
+    const auto right_index = (left_index + 1) % array_size;
+    const auto fraction =
+        (ratio - static_cast<float>(left_index) / array_size) * array_size;
+    const float left_comp = array[left_index];
+    const float right_comp = array[right_index];
+
+    // You might think that
+    //
+    // left_comp + (right_comp - left_comp) * fraction
+    //
+    // would be faster, but experiments prove that not to be the case.
+    return (left_comp * (1.0f - fraction)) + (right_comp * fraction);
+  }
+
   Config config_;
   BldcServoMotor motor_;
   Status status_;
@@ -1168,6 +1198,7 @@ struct IsEnum<moteus::MotorPosition::Status::Error> {
         { E::kMotorNotConfigured, "motor_not_conf" },
         { E::kInvalidConfig, "invalid_config" },
         { E::kSourceError, "source_error" },
+        { E::kDiscontinuousOffset, "discontinuous_offset" },
       }};
   }
 };

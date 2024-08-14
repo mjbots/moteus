@@ -14,6 +14,9 @@
 
 import json
 import math
+import scipy.optimize
+
+BIN_COUNT = 64
 
 class Entry:
     direction = 0
@@ -159,8 +162,8 @@ def _window_average(values, window_size):
         end = i + window_size // 2
         errs = [0] * (end - start)
         for j in range(start, end):
-            errs[j - start] = _wrap_neg_pi_to_pi(values[wrap(j)] - values[wrap(start)])
-        result[i] = values[wrap(start)] + (sum(errs) / len(errs))
+            errs[j - start] = values[wrap(j)]
+        result[i] = sum(errs) / len(errs)
 
     return result
 
@@ -176,6 +179,8 @@ class CalibrationResult:
         self.total_delta = None
         self.ratio = None
 
+        self.fit_metric = None
+
         self.errors = []
 
     def __repr__(self):
@@ -184,6 +189,7 @@ class CalibrationResult:
             "phase_invert": self.phase_invert,
             "poles": self.poles,
             "offset": self.offset,
+            "fit_metric": self.fit_metric,
             "errors": self.errors,
             })
 
@@ -193,13 +199,16 @@ class CalibrationResult:
             'phase_invert': self.phase_invert,
             'poles': self.poles,
             'offset': self.offset,
+            'fit_metric': self.fit_metric,
         }
 
 
 def calibrate(parsed,
               desired_direction=1,
               max_remainder_error=0.1,
-              allow_phase_invert=True):
+              allow_phase_invert=True,
+              allow_optimize=True,
+              force_optimize=False):
     '''Calibrate the motor.
 
     :param desired_direction: For positive unwrapped_position, should
@@ -315,18 +324,89 @@ def calibrate(parsed,
 
     expected = [(2.0 * math.pi / 65536.0) * (result.poles / 2) * x for x in xpos]
 
-    err = [_wrap_neg_pi_to_pi(a - b) for a, b in zip(avg_interp, expected)]
+    err = [a - b for a, b in zip(avg_interp, expected)]
 
-    # Make the error seem reasonable, so unwrap if we happen to span
-    # the pi boundary.
-    if (max(err) - min(err)) > 1.5 * math.pi:
-        err = [x if x > 0 else x + 2 * math.pi for x in err]
+    # Make the error balanced about 0.
+    mean_err = sum(err) / len(err)
+    wrapped_mean_err = _wrap_neg_pi_to_pi(mean_err)
+    delta_mean_err = mean_err - wrapped_mean_err
+    err = [x - delta_mean_err for x in err]
 
     avg_window = int(len(err) / result.poles)
     avg_err = _window_average(err, avg_window)
 
-    offset_x = list(range(0, 65536, 1024))
+    offset_x = list(range(0, 65536, 65536 // BIN_COUNT))
     offset = _interpolate(offset_x, xpos, avg_err)
+
+    MAX_ERROR = 0.8
+
+    # The firmware will complain if individual steps are more
+    # than this apart.
+    MAX_STEP_CHANGE = 3.5
+
+    # Penalize solutions that have error greater than this.
+    PENALTY_RATIO = 0.80
+
+    def full_metric(x, *args):
+        errors = 0
+        result = 0
+        resampled = _interpolate(xpos, offset_x + [65536],
+                                 list(x) + [x[0]])
+        for a, b in zip(err, resampled):
+            this_err = abs(_wrap_neg_pi_to_pi(a - b))
+            # Heavily penalize if we would have an error.
+            if this_err > PENALTY_RATIO * MAX_ERROR:
+                this_err = (PENALTY_RATIO * MAX_ERROR +
+                            (this_err - PENALTY_RATIO * MAX_ERROR) * 10)
+            if this_err > MAX_ERROR:
+                errors += 1
+            result += this_err ** 2
+
+        for i in range(0, len(list(x))):
+            nexti = (i + 1) % len(list(x))
+            delta = abs(x[nexti] - x[i])
+            if delta > (PENALTY_RATIO * MAX_STEP_CHANGE):
+                result += (
+                    10 * (delta - PENALTY_RATIO * MAX_STEP_CHANGE) ** 2)
+        return result, errors
+
+    def metric(x, *args):
+        result = full_metric(x, *args)[0]
+        print(f"optimizing - metric={result:.5f}     ", end='\r', flush=True)
+        return result
+
+    starting_metric, starting_errors = full_metric(offset)
+
+    if (force_optimize or (
+            allow_optimize and
+            (starting_metric > 30 or
+             starting_errors > 0))):
+        print()
+        print(f"Initial metric: {starting_metric}")
+        # Optimize these initial offsets.
+        optimres = scipy.optimize.minimize(metric, offset, tol=1e1)
+
+        if not optimres.success:
+            result.errors.append(
+                f"optimization failed {result.message}")
+
+        print()
+        offset = list(optimres.x)
+
+    result.fit_metric, _ = full_metric(offset)
+
+    # Now double check our results.
+    resampled_offset = _interpolate(xpos, offset_x + [65536],
+                                    offset + [offset[0]])
+    any_sample_error = False
+    sample_errors = []
+    for a, b in zip(err, resampled_offset):
+        sample_error = _wrap_neg_pi_to_pi(a - b)
+        sample_errors.append(sample_error)
+        if not any_sample_error and abs(sample_error) > MAX_ERROR:
+            result.errors.append(
+                f"excessive error in curve fit |{sample_error}| > {MAX_ERROR}")
+            any_sample_error = True
 
     result.offset = offset
 
@@ -340,6 +420,9 @@ def calibrate(parsed,
         'avg_interp' : avg_interp,
         'err' : err,
         'avg_err' : avg_err,
+        'offset_x' : offset_x,
+        'offset' : offset,
+        'sample_errors' : sample_errors,
     }
 
     return result

@@ -44,6 +44,14 @@ MAX_FLASH_BLOCK_SIZE = 32
 FIND_TARGET_TIMEOUT = 0.01 if sys.platform != 'win32' else 0.05
 
 
+def _wrap_neg_pi_to_pi(value):
+    while value > math.pi:
+        value -= 2.0 * math.pi
+    while value < -math.pi:
+        value += 2.0 * math.pi
+    return value
+
+
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
     how to munge configuration options so as to not cause behavior
@@ -54,7 +62,7 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
 
-        SUPPORTED_ABI_VERSION = 0x0108
+        SUPPORTED_ABI_VERSION = 0x0109
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
@@ -306,6 +314,35 @@ class FirmwareUpgrade:
             if float(items.get(b'servo.bemf_feedforward', 1.0)) == 1.0:
                 print("Upgrading servo.bemf_feedforward to 0.0")
                 items[b'servo.bemf_feedforward'] = b'0.0'
+
+        if self.new >= 0x0109 and self.old <= 0x0108:
+            # Try to fix up the motor commutation offset tables.
+            old_offsets = []
+            i = 0
+            while True:
+                key = f'motor.offset.{i}'.encode('utf8')
+                if key not in items:
+                    break
+                old_offsets.append(float(items.get(key)))
+                i += 1
+
+            offsets = old_offsets[:]
+
+            # Unwrap this, then re-center the whole thing around 0.
+            for i in range(1, len(offsets)):
+                offsets[i] = (offsets[i - 1] +
+                              _wrap_neg_pi_to_pi(offsets[i] -
+                                                 offsets[i - 1]))
+            mean_offset = sum(offsets) / len(offsets)
+            delta = mean_offset - _wrap_neg_pi_to_pi(mean_offset)
+            offsets = [x - delta for x in offsets]
+
+            if any([abs(a - b) > 0.01
+                    for a, b in zip(offsets, old_offsets)]):
+                print("Re-wrapping motor commutation offsets")
+                for i in range(len(offsets)):
+                    key = f'motor.offset.{i}'.encode('utf8')
+                    items[key] = f'{offsets[i]}'.encode('utf8')
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
@@ -1002,6 +1039,10 @@ class Stream:
             raise RuntimeError(
                 'hall effect calibration requires specifying --cal-motor-poles')
 
+        if (self.args.cal_motor_poles % 2) == 1:
+            raise RuntimeError(
+                'only motors with even numbers of poles are supported')
+
         commutation_source = await self.read_config_int(
             "motor_position.commutation_source")
         aux_number = await self.read_config_int(
@@ -1062,21 +1103,26 @@ class Stream:
         await self.command("d stop")
 
     async def ensure_valid_theta(self, encoder_cal_voltage):
-        try:
-            # We might need to have some sense of pole count first.
-            if await self.read_config_double("motor.poles") == 0:
-                # Pick something arbitrary for now.
-                await self.command(f"conf set motor.poles 2")
+        # We might need to have some sense of pole count first.
+        if await self.read_config_double("motor.poles") == 0:
+            # Pick something arbitrary for now.
+            await self.command(f"conf set motor.poles 2")
 
+        try:
             motor_position = await self.read_data("motor_position")
-            if motor_position.homed == 0 and not motor_position.theta_valid:
-                # We need to find an index.
-                await self.find_index(encoder_cal_voltage)
         except RuntimeError:
             # Odds are we don't support motor_position, in which case
             # theta is always valid for the older versions that don't
             # support it.
-            pass
+            return
+
+        if motor_position.error != 0:
+            raise RuntimeError(
+                f"encoder error: {repr(motor_position.error)}")
+
+        if motor_position.homed == 0 and not motor_position.theta_valid:
+            # We need to find an index.
+            await self.find_index(encoder_cal_voltage)
 
     async def calibrate_encoder_mapping_absolute(self, encoder_cal_voltage):
         await self.ensure_valid_theta(encoder_cal_voltage)
@@ -1119,7 +1165,10 @@ class Stream:
             cal_file,
             desired_direction=1 if not self.args.cal_invert else -1,
             max_remainder_error=self.args.cal_max_remainder,
-            allow_phase_invert=allow_phase_invert)
+            allow_phase_invert=allow_phase_invert,
+            allow_optimize=not self.args.cal_disable_optimize,
+            force_optimize=self.args.cal_force_optimize,
+        )
 
         if cal_result.errors:
             raise RuntimeError(f"Error(s) calibrating: {cal_result.errors}")
@@ -1360,9 +1409,19 @@ class Stream:
             return 1 if x >= 0 else -1
 
         velocity_samples = []
+        power_samples = []
 
         while True:
             data = await self.read_servo_stats()
+
+            total_current_A = math.hypot(data.d_A, data.q_A)
+            total_power_W = voltage * total_current_A
+
+            power_samples.append(total_power_W)
+
+            if len(power_samples) > AVERAGE_COUNT:
+                del power_samples[0]
+
             velocity_samples.append(data.velocity)
 
             if len(velocity_samples) > (3 * AVERAGE_COUNT):
@@ -1373,6 +1432,24 @@ class Stream:
             # As a fallback, timeout after a fixed amount of waiting.
             if (time.time() - start_time) > 2.0:
                 return recent_average
+
+            if len(power_samples) >= AVERAGE_COUNT:
+                average_power_W = sum(power_samples) / len(power_samples)
+                max_power_W = (self.args.cal_max_kv_power_factor *
+                               self.args.cal_motor_power)
+
+                # This is a safety.  During speed measurement, current
+                # should always be near 0.  However, if the encoder
+                # commutation calibration failed, we can sometimes
+                # trigger large currents during the Kv detection phase
+                # while not actually moving.
+                if (abs(recent_average) < 0.2 and
+                    average_power_W > max_power_W):
+                    await self.command("d stop")
+
+                    raise RuntimeError(
+                        f"Motor failed to spin, {average_power_W} > " +
+                        f"{max_power_W}")
 
             if (len(velocity_samples) >= AVERAGE_COUNT and
                 abs(recent_average) < 0.2):
@@ -1765,11 +1842,17 @@ async def async_main():
     parser.add_argument('--cal-force-kv', metavar='Kv', type=float,
                         default=None,
                         help='do not calibrate Kv, but use the specified value')
+    parser.add_argument('--cal-force-optimize', action='store_true',
+                        help='require nonlinear commutation optimization')
+    parser.add_argument('--cal-disable-optimize', action='store_true',
+                        help='prevent nonlinear commutation optimization')
 
 
     parser.add_argument('--cal-max-remainder', metavar='F',
                         type=float, default=0.1,
                         help='maximum allowed error in calibration')
+    parser.add_argument('--cal-max-kv-power-factor', type=float,
+                        default=1.25)
     parser.add_argument('--cal-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
 

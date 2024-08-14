@@ -128,8 +128,14 @@ Value ScalePower(float value, size_t type) {
 
 int8_t ReadIntMapping(Value value) {
   return std::visit([](auto a) {
-      return static_cast<int8_t>(a);
-    }, value);
+    return static_cast<int8_t>(a);
+  }, value);
+}
+
+int32_t ReadInt32Mapping(Value value) {
+  return std::visit([](auto a) {
+    return static_cast<int32_t>(a);
+  }, value);
 }
 
 struct ValueScaler {
@@ -326,6 +332,16 @@ enum class Register {
 
   kDriverFault1 = 0x140,
   kDriverFault2 = 0x141,
+
+  kUuid1 = 0x150,
+  kUuid2 = 0x151,
+  kUuid3 = 0x152,
+  kUuid4 = 0x153,
+
+  kUuidMask1 = 0x154,
+  kUuidMask2 = 0x155,
+  kUuidMask3 = 0x156,
+  kUuidMask4 = 0x157,
 };
 
 aux::AuxHardwareConfig GetAux1HardwareConfig() {
@@ -426,7 +442,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        ClockManager* clock_manager,
        SystemInfo* system_info,
        MillisecondTimer* timer,
-       FirmwareInfo* firmware)
+       FirmwareInfo* firmware,
+       Uuid* uuid)
       : aux1_port_("aux1", "ic_pz1", GetAux1HardwareConfig(),
                    &aux_adc_.aux_info[0],
                    persistent_config, command_manager, telemetry_manager,
@@ -482,7 +499,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
           }()),
         clock_manager_(clock_manager),
         system_info_(system_info),
-        firmware_(firmware) {}
+        firmware_(firmware),
+        uuid_(uuid) {}
 
   void Start() {
     bldc_.Start();
@@ -506,9 +524,24 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
     motor_position_.PollMillisecond();
   }
 
+  void StartFrame() override {
+    command_valid_ = false;
+    discard_all_ = false;
+  }
+
+  Action CompleteFrame() override {
+    if (discard_all_) {
+      command_valid_ = false;
+      return kDiscard;
+    }
+    return kAccept;
+  }
+
   uint32_t Write(multiplex::MicroServer::Register reg,
                  const multiplex::MicroServer::Value& value) override
       __attribute__ ((optimize("O3"))){
+    if (discard_all_) { return 0; }
+
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
         const auto new_mode_int = ReadIntMapping(value);
@@ -670,6 +703,23 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return 0;
       }
 
+      case Register::kUuidMask1:
+      case Register::kUuidMask2:
+      case Register::kUuidMask3:
+      case Register::kUuidMask4: {
+        const auto uuid = uuid_->uuid();
+        const auto index =
+            (static_cast<int>(reg) -
+             static_cast<int>(Register::kUuidMask1)) * 4;
+
+        const auto expected = *(reinterpret_cast<const int32_t*>(&uuid[index]));
+        const auto written = ReadInt32Mapping(value);
+        if (expected != written) {
+          discard_all_ = true;
+        }
+        return 0;
+      }
+
       case Register::kPosition:
       case Register::kVelocity:
       case Register::kMotorTemperature:
@@ -718,6 +768,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
       case Register::kSerialNumber3:
+      case Register::kUuid1:
+      case Register::kUuid2:
+      case Register::kUuid3:
+      case Register::kUuid4:
       case Register::kRegisterMapVersion:
       case Register::kFirmwareVersion:
       case Register::kMultiplexId:
@@ -744,6 +798,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       multiplex::MicroServer::Register reg,
       size_t type) const override
       __attribute__ ((optimize("O3"))) {
+
+    if (discard_all_) {
+      // report unknown register for anything else
+      return static_cast<uint32_t>(1);
+    }
+
     auto vi32 = [](auto v) { return Value(static_cast<int32_t>(v)); };
 
     switch (static_cast<Register>(reg)) {
@@ -1017,13 +1077,29 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             static_cast<int>(Register::kSerialNumber1);
         return Value(vi32(serial_number.number[index]));
       }
+      case Register::kUuid1:
+      case Register::kUuid2:
+      case Register::kUuid3:
+      case Register::kUuid4: {
+        if (type != 2) { break; }
+
+        const auto uuid = uuid_->uuid();
+        const auto index =
+            (static_cast<int>(reg) -
+             static_cast<int>(Register::kUuid1)) * 4;
+        return Value(*(reinterpret_cast<const int32_t*>(&uuid[index])));
+      }
       case Register::kMultiplexId: {
         break;
       }
       case Register::kSetOutputNearest:
       case Register::kSetOutputExact:
       case Register::kRequireReindex:
-      case Register::kRecapturePositionVelocity: {
+      case Register::kRecapturePositionVelocity:
+      case Register::kUuidMask1:
+      case Register::kUuidMask2:
+      case Register::kUuidMask3:
+      case Register::kUuidMask4: {
         break;
       }
       case Register::kDriverFault1: {
@@ -1047,8 +1123,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   ClockManager* const clock_manager_;
   SystemInfo* const system_info_;
   FirmwareInfo* const firmware_;
+  Uuid* const uuid_;
 
   bool command_valid_ = false;
+  bool discard_all_ = false;
   BldcServo::CommandData command_;
 };
 
@@ -1060,9 +1138,11 @@ MoteusController::MoteusController(micro::Pool* pool,
                                    ClockManager* clock_manager,
                                    SystemInfo* system_info,
                                    MillisecondTimer* timer,
-                                   FirmwareInfo* firmware)
+                                   FirmwareInfo* firmware,
+                                   Uuid* uuid)
     : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
-            multiplex_protocol, clock_manager, system_info, timer, firmware) {}
+            multiplex_protocol, clock_manager, system_info, timer, firmware,
+            uuid) {}
 
 MoteusController::~MoteusController() {}
 

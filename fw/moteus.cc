@@ -260,7 +260,8 @@ int main(void) {
       &clock,
       &system_info,
       &timer,
-      &firmware_info);
+      &firmware_info,
+      &uuid);
 
   BoardDebug board_debug(
       &pool, &command_manager, &telemetry_manager, &multiplex_protocol,

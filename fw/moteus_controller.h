@@ -23,6 +23,7 @@
 #include "fw/firmware_info.h"
 #include "fw/millisecond_timer.h"
 #include "fw/system_info.h"
+#include "fw/uuid.h"
 
 namespace moteus {
 
@@ -38,7 +39,8 @@ class MoteusController {
                    ClockManager*,
                    SystemInfo*,
                    MillisecondTimer*,
-                   FirmwareInfo*);
+                   FirmwareInfo*,
+                   Uuid*);
   ~MoteusController();
 
   void Start();

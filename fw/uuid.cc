@@ -24,6 +24,8 @@ Uuid::Uuid(mjlib::micro::PersistentConfig& config) {
   Update();
 }
 
+const uint8_t* Uuid::uuid() const { return &data_.uuid[0]; }
+
 void Uuid::Update() {
   // If any of the UUID bytes are non- 0xff, then just force our UUID
   // to be that from OTP.

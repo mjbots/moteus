@@ -717,14 +717,16 @@ A fault code which will be set if the primary mode is 1 (Fault).
   operation that requires a stop
 * 42 - *theta invalid* - no valid commutation encoder is available
 * 43 - *position invalid* - no valid output encoder is available
-* 44 - *stop position deprecated* - an attempt was made to use the
+* 44 - *driver enable fault* - the MOSFET gate driver could not be
+  enabled
+* 45 - *stop position deprecated* - an attempt was made to use the
   deprecated "stop position" feature along with velocity or
   acceleration limits.  Prefer to instead command the desired position
   directly with a target velocity of 0.0, or secondarily, disable
   acceleration and velocity limits.
-* 45 - *timing violation* - internal checks are enabled, and the
+* 46 - *timing violation* - internal checks are enabled, and the
   controller violated an internal timing constraint
-* 46 - *bemf feedforward no accel* - `servo.bemf_feedforward` is
+* 47 - *bemf feedforward no accel* - `servo.bemf_feedforward` is
   configured, but no acceleration limit was specified.  If you
   *really* know what you are doing, you can disable this with
   `servo.bemf_feedforward_override`.
@@ -732,14 +734,14 @@ A fault code which will be set if the primary mode is 1 (Fault).
 The full list can be found at: [fw/error.h](../fw/error.h#L25)
 
 
-### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ###
+#### 0x010 / 0x011 / 0x012 - PWM phase A / B / C ####
 
 Mode: Read/write
 
 When in Pwm mode, this controls the raw PWM value for phase A, B, and
 C.  If unspecified, 0.0 is used.
 
-### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ###
+#### 0x014 / 0x15 / 0x16 - Voltage phase A / B / C ####
 
 Mode: Read/write
 
@@ -747,42 +749,42 @@ When in Voltage mode, this controls the voltage applied to phase A,
 B, and C.  If unspecified, 0.0 is used.
 
 
-### 0x018 - Voltage FOC Theta ###
+#### 0x018 - Voltage FOC Theta ####
 
 Mode: Read/write
 
 When in Voltage Foc mode, this controls the desired electrical phase.
 Integral types use the PWM mapping.  If unspecified, 0.0 is used.
 
-### 0x019 - Voltage FOC Voltage ###
+#### 0x019 - Voltage FOC Voltage ####
 
 Mode: Read/write
 
 When in Voltage Foc mode, this controls the desired applied phase
 voltage.  If unspecified, 0.0 is used.
 
-### 0x01a - D Voltage ###
+#### 0x01a - D Voltage ####
 
 Mode: Read/write
 
 When in Voltage Dq mode, this controls the desired applied D voltage.
 If unspecified, 0.0 is used.
 
-### 0x01b - Q Voltage ###
+#### 0x01b - Q Voltage ####
 
 Mode: Read/write
 
 When in kVoltageDq mode, this controls the desired applied Q voltage.
 If unspecified, 0.0 is used.
 
-### 0x01c - Commanded Q Phase Current ###
+#### 0x01c - Commanded Q Phase Current ####
 
 Mode: Read/write
 
 When in Current mode, this controls the desired Q phase current.  If
 unspecified, 0.0 is used.
 
-### 0x01d - Commanded D Phase Current ###
+#### 0x01d - Commanded D Phase Current ####
 
 Mode: Read/write
 
@@ -790,7 +792,7 @@ When in Current mode, this controls the desired D phase current.  Unless
 you like burning power, with a BLDC motor you will typically want this
 set to 0.  If unspecified, 0.0 is used.
 
-### 0x1e - Voltage FOC Theta Rate ###
+#### 0x1e - Voltage FOC Theta Rate ####
 
 Mode: Read/write
 
@@ -1251,6 +1253,23 @@ The exact bitfield reported by the motor driver in fault conditions
 for fault register 2.  Up to 16 bits may be set.  This will only be
 non-zero if the current mode is fault (1) and the fault code is 33
 (motor driver fault).
+
+#### 0x150 - 0x153 - UUID ####
+
+Name: UUID
+Mode: Read only, int32 only
+
+This returns a 128 bit UUID, this is the value printed on mjbots
+packaging and returned by `moteus_tool --info`
+
+#### 0x154 - 0x157 - UUID Mask ####
+
+Name: UUID
+Mode: Write only, int32 only
+
+If one or more of these fields are written, then the entire frame
+after this point will be discarded unless the devices corresponding
+UUID matches what was written.
 
 ## A.3 Example ##
 

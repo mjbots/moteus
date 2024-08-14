@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import matplotlib.pyplot as pyplot
 import sys
 
@@ -21,8 +22,26 @@ import calibrate_encoder as ce
 
 
 def main():
-    f = ce.parse_file(open(sys.argv[1], "rb"))
-    r = ce.calibrate(f)
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('file', type=str)
+
+    parser.add_argument('--cal-max-remainder', metavar='F',
+                        type=float, default=0.1,
+                        help='maximum allowed error in calibration')
+    parser.add_argument('--cal-force-optimize', action='store_true',
+                        help='require nonlinear commutation optimization')
+    parser.add_argument('--cal-disable-optimize', action='store_true',
+                        help='prevent nonlinear commutation optimization')
+
+
+    args = parser.parse_args()
+
+    f = ce.parse_file(open(args.file, "rb"))
+    r = ce.calibrate(f,
+                     max_remainder_error=args.cal_max_remainder,
+                     allow_optimize=not args.cal_disable_optimize,
+                     force_optimize=args.cal_force_optimize)
 
     print(r)
 
@@ -37,9 +56,15 @@ def main():
 
     ax = pyplot.subplot(212)
 
-    ax.plot(r.debug['xpos'], r.debug['err'], label='err')
-    ax.plot(r.debug['xpos'], r.debug['avg_err'], label='avg_err')
-    ax.legend()
+    ax.plot(r.debug['xpos'], r.debug['sample_errors'], label='fit error',
+             color='magenta')
+    ax.legend(loc='upper right')
+
+    ax2 = ax.twinx()
+    ax2.plot(r.debug['xpos'], r.debug['err'], label='err')
+    ax2.plot(r.debug['xpos'], r.debug['avg_err'], label='avg_err')
+    ax2.plot(r.debug['offset_x'], r.debug['offset'], label='offset')
+    ax2.legend(loc='upper left')
 
     pyplot.show()
 
