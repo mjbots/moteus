@@ -2152,16 +2152,14 @@ class BldcServo::Impl {
 
       // In this region, we still apply feedforward torques if they
       // are present.
-      const float limited_torque_Nm =
-          Limit(data->feedforward_Nm, -data->max_torque_Nm, data->max_torque_Nm);
-      control_.torque_Nm = limited_torque_Nm;
-      status_.torque_error_Nm = status_.torque_Nm - control_.torque_Nm;
-      const float limited_q_A =
-          torque_to_current(
-              limited_torque_Nm *
-              motor_position_->config()->rotor_to_output_ratio);
+      PID::ApplyOptions apply_options;
+      apply_options.kp_scale = 0.0;
+      apply_options.kd_scale = 0.0;
+      apply_options.ilimit_scale = 0.0;
 
-      ISR_DoCurrent(sin_cos, 0.0f, limited_q_A, 0.0f);
+      ISR_DoPositionCommon(
+          sin_cos, data, apply_options,
+          data->max_torque_Nm, data->feedforward_Nm, 0.0f);
       return;
     }
 
@@ -2169,6 +2167,7 @@ class BldcServo::Impl {
     PID::ApplyOptions apply_options;
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
+    apply_options.ilimit_scale = data->ilimit_scale;
 
     const int64_t absolute_relative_delta =
         (static_cast<int64_t>(
