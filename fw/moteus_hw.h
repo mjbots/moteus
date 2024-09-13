@@ -144,6 +144,8 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 //
 // * Commutation compensation now interpolates, which means old tables
 //   need to be upgraded during the flash process.
+// * The motor thermistor value is now configurable and defaults to
+//   10k instead of 47k.
 
 #define MOTEUS_MODEL_NUMBER 0x0000
 #define MOTEUS_FIRMWARE_VERSION 0x000109

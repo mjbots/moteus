@@ -30,6 +30,7 @@
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32g4_adc.h"
+#include "fw/thermistor.h"
 #include "fw/torque_model.h"
 
 #if defined(TARGET_STM32G4)
@@ -79,42 +80,6 @@ float BilinearRate(float offset, float mag, float val) {
     return sign * ((0.5f - offset) * (std::abs(val) - mag) / (0.5f - mag) + offset);
   }
 }
-
-// From make_thermistor_table.py
-constexpr float g_thermistor_lookup[] = {
-  -74.17f, // 0
-  -11.36f, // 128
-  1.53f, // 256
-  9.97f, // 384
-  16.51f, // 512
-  21.98f, // 640
-  26.79f, // 768
-  31.15f, // 896
-  35.19f, // 1024
-  39.00f, // 1152
-  42.65f, // 1280
-  46.18f, // 1408
-  49.64f, // 1536
-  53.05f, // 1664
-  56.45f, // 1792
-  59.87f, // 1920
-  63.33f, // 2048
-  66.87f, // 2176
-  70.51f, // 2304
-  74.29f, // 2432
-  78.25f, // 2560
-  82.44f, // 2688
-  86.92f, // 2816
-  91.78f, // 2944
-  97.13f, // 3072
-  103.13f, // 3200
-  110.01f, // 3328
-  118.16f, // 3456
-  128.23f, // 3584
-  141.49f, // 3712
-  161.02f, // 3840
-  197.66f, // 3968
-};
 
 template <typename Array>
 int MapConfig(const Array& array, int value) {
@@ -513,6 +478,9 @@ class BldcServo::Impl {
         (static_cast<float>(config_.pwm_rate_hz) / 40000.0f);
     adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate;
     adjusted_max_power_W_ = config_.max_power_W * pwm_derate;
+
+    fet_thermistor_.Reset(47000.0f);
+    motor_thermistor_.Reset(config_.motor_thermistor_ohm);
   }
 
   void PollMillisecond() {
@@ -1078,31 +1046,11 @@ class BldcServo::Impl {
 #endif
 
     {
-      constexpr int adc_max = 4096;
-      constexpr size_t size_thermistor_table =
-          sizeof(g_thermistor_lookup) / sizeof(*g_thermistor_lookup);
-
-      const auto calculate_temp =
-          [&](uint16_t adc_raw) {
-            const size_t offset = std::max<size_t>(
-                1, std::min<size_t>(
-                    size_thermistor_table - 2,
-                    adc_raw * size_thermistor_table / adc_max));
-            const int16_t this_value = offset * adc_max / size_thermistor_table;
-            const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
-            const float temp1 = g_thermistor_lookup[offset];
-            const float temp2 = g_thermistor_lookup[offset + 1];
-            return temp1 +
-                (temp2 - temp1) *
-                static_cast<float>(adc_raw - this_value) /
-                static_cast<float>(next_value - this_value);
-          };
-
-      status_.fet_temp_C = calculate_temp(status_.adc_fet_temp_raw);
+      status_.fet_temp_C = fet_thermistor_.Calculate(status_.adc_fet_temp_raw);
       ISR_UpdateFilteredValue(status_.fet_temp_C, &status_.filt_fet_temp_C, 0.01f);
 
       if (config_.enable_motor_temperature) {
-        status_.motor_temp_C = calculate_temp(status_.adc_motor_temp_raw);
+        status_.motor_temp_C = motor_thermistor_.Calculate(status_.adc_motor_temp_raw);
         ISR_UpdateFilteredValue(status_.motor_temp_C, &status_.filt_motor_temp_C, 0.01f);
       } else {
         status_.motor_temp_C = status_.filt_motor_temp_C = 0.0f;
@@ -2362,6 +2310,9 @@ class BldcServo::Impl {
   RateConfig rate_config_;
 
   int32_t phase_ = 0;
+
+  Thermistor fet_thermistor_;
+  Thermistor motor_thermistor_;
 
   CommandData data_buffers_[2] = {};
 

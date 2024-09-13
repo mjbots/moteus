@@ -38,6 +38,7 @@ cc_library(
         "motor_position.h",
         "pid.h",
         "simple_pi.h",
+        "thermistor.h",
         "torque_model.h",
         "stm32_i2c_timing.h",
         "strtof.h",

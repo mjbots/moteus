@@ -74,6 +74,14 @@ class FirmwareUpgrade:
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
 
+        if self.new <= 0x0108 and self.old >= 0x0109:
+            # When downgrading, we should warn if a motor thermistor
+            # value other than 47k is configured and enabled.
+            if (int(items.get(b'servo.enable_motor_temperature', '0')) != 0 and
+                int(float(items.get(b'servo.motor_thermistor_ohm', b'0.0'))) != 47000):
+                print("Motor thermistor values other than 47000 ohm not supported in firmware <= 0x0108, disabling")
+                items[b'servo.enable_motor_temperature'] = b'0'
+
         if self.new <= 0x0107 and self.old >= 0x0108:
             if float(items.get(b'servo.bemf_feedforward', '0')) == 0.0:
                 print("Reverting servo.bemf_feedforward to 1.0")
@@ -83,7 +91,7 @@ class FirmwareUpgrade:
             # motor_position.output.sign was broken in older versions.
             if int(items[b'motor_position.output.sign']) != 1:
                 print("WARNING: motor_position.output.sign==-1 is broken in order versions, disabling")
-                items[b'motor_position.output.sign'] = '1'
+                items[b'motor_position.output.sign'] = b'1'
             pass
 
         if self.new <= 0x0105 and self.old >= 0x0106:
@@ -343,6 +351,13 @@ class FirmwareUpgrade:
                 for i in range(len(offsets)):
                     key = f'motor.offset.{i}'.encode('utf8')
                     items[key] = f'{offsets[i]}'.encode('utf8')
+
+        if self.new >= 0x0109 and self.old <= 0x0108:
+            # If we had a motor thermistor enabled in previous
+            # versions, it was with a value of 47000.
+            if int(items.get(b'servo.enable_motor_temperature', b'0')) != 0:
+                print("Thermistor from <= 0x0109 assumed to be 47000")
+                items[b'servo.motor_thermistor_ohm'] = b'47000'
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
