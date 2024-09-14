@@ -622,22 +622,22 @@ class Controller {
   // GPIO Write
 
   CanFdFrame MakeWriteGpio(const GpioWrite::Command& cmd,
-                           const GpioWrite::Format& command_override = nullptr,
+                           const GpioWrite::Format* command_override = nullptr,
                            const Query::Format* query_override = nullptr) {
     return MakeFrame(GpioWrite(), cmd,
-                     (command_override = nullptr ?
+                     (command_override == nullptr ?
                       GpioWrite::Format() : *command_override),
                      query_override);
   }
 
-  Optional<Result> SetWriteGpio(const GpioWrite& cmd,
-                                const GpioWrite::Format& command_override = nullptr,
+  Optional<Result> SetWriteGpio(const GpioWrite::Command& cmd,
+                                const GpioWrite::Format* command_override = nullptr,
                                 const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(
         MakeWriteGpio(cmd, command_override, query_override));
   }
 
-  void AsyncWriteGpio(const GpioWrite& cmd,
+  void AsyncWriteGpio(const GpioWrite::Command& cmd,
                       Result* result, CompletionCallback callback,
                       const GpioWrite::Format* command_override = nullptr,
                       const Query::Format* query_override = nullptr) {
@@ -649,17 +649,17 @@ class Controller {
   /////////////////////////////////////////
   // GPIO Read
 
-  CanFdFrame MakeGpioRead(const GpioRead::Format& command_override = nullptr,
+  CanFdFrame MakeGpioRead(const GpioRead::Format* command_override = nullptr,
                           const Query::Format* query_override = nullptr) {
-    return MakeFrame(GpioRead(), {},
+    return MakeFrame(GpioRead(), GpioRead::Command(),
                      (command_override == nullptr ?
                       GpioRead::Format() : *command_override),
                      query_override);
 
   }
 
-  Optional<Result> SeGpioRead(const GpioWrite::Format& command_override = nullptr,
-                               const Query::Format* query_override = nullptr) {
+  Optional<Result> SeGpioRead(const GpioRead::Format* command_override = nullptr,
+                              const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(
         MakeGpioRead(command_override, query_override));
   }
@@ -677,22 +677,22 @@ class Controller {
   // Aux PWM Write
 
   CanFdFrame MakeAuxPwmWrite(const AuxPwmWrite::Command& cmd,
-                             const AuxPwmWrite::Format& command_override = nullptr,
-                             const AuxPwmWrite::Format* query_override = nullptr) {
+                             const AuxPwmWrite::Format* command_override = nullptr,
+                             const Query::Format* query_override = nullptr) {
     return MakeFrame(AuxPwmWrite(), cmd,
-                     (command_override = nullptr ?
+                     (command_override == nullptr ?
                       AuxPwmWrite::Format() : *command_override),
                      query_override);
   }
 
-  Optional<Result> SetAuxPwmWrite(const AuxPwmWrite& cmd,
-                                const AuxPwmWrite::Format& command_override = nullptr,
-                                const Query::Format* query_override = nullptr) {
+  Optional<Result> SetAuxPwmWrite(const AuxPwmWrite::Command& cmd,
+                                  const AuxPwmWrite::Format* command_override = nullptr,
+                                  const Query::Format* query_override = nullptr) {
     return ExecuteSingleCommand(
         MakeAuxPwmWrite(cmd, command_override, query_override));
   }
 
-  void AsyncAuxPwmWrite(const AuxPwmWrite& cmd,
+  void AsyncAuxPwmWrite(const AuxPwmWrite::Command& cmd,
                         Result* result, CompletionCallback callback,
                         const AuxPwmWrite::Format* command_override = nullptr,
                         const Query::Format* query_override = nullptr) {

@@ -25,6 +25,7 @@
 
 #ifndef ARDUINO
 
+#include <cmath>
 #include <limits>
 #include <vector>
 #define NaN std::numeric_limits<double>::quiet_NaN()
@@ -1176,12 +1177,17 @@ struct GpioWrite {
 };
 
 struct GpioRead {
+  struct Command {
+  };
+
   struct Format {
     Resolution aux1 = kInt8;
     Resolution aux2 = kInt8;
   };
 
-  static uint8_t Make(WriteCanData* frame, const Format& format) {
+  static uint8_t Make(WriteCanData* frame,
+                      const Command&,
+                      const Format& format) {
     uint8_t reply_size = 0;
 
     const Resolution kResolutions[] = {
@@ -1340,16 +1346,16 @@ struct ClockTrim {
 
 struct AuxPwmWrite {
   struct Command {
-    float aux1_pwm1 = 0.0;
-    float aux1_pwm2 = 0.0;
-    float aux1_pwm3 = 0.0;
-    float aux1_pwm4 = 0.0;
-    float aux1_pwm5 = 0.0;
-    float aux2_pwm1 = 0.0;
-    float aux2_pwm2 = 0.0;
-    float aux2_pwm3 = 0.0;
-    float aux2_pwm4 = 0.0;
-    float aux2_pwm5 = 0.0;
+    float aux1_pwm1 = NaN;
+    float aux1_pwm2 = NaN;
+    float aux1_pwm3 = NaN;
+    float aux1_pwm4 = NaN;
+    float aux1_pwm5 = NaN;
+    float aux2_pwm1 = NaN;
+    float aux2_pwm2 = NaN;
+    float aux2_pwm3 = NaN;
+    float aux2_pwm4 = NaN;
+    float aux2_pwm5 = NaN;
   };
 
   struct Format {
@@ -1368,20 +1374,20 @@ struct AuxPwmWrite {
   static uint8_t Make(WriteCanData* frame,
                       const Command& command,
                       const Format& format) {
-    const Resolutions kResolutions[] = {
-      format.aux1_pwm1,
-      format.aux1_pwm2,
-      format.aux1_pwm3,
-      format.aux1_pwm4,
-      format.aux1_pwm5,
-      format.aux2_pwm1,
-      format.aux2_pwm2,
-      format.aux2_pwm3,
-      format.aux2_pwm4,
-      format.aux2_pwm5,
+    const Resolution kResolutions[] = {
+      std::isfinite(command.aux1_pwm1) ? format.aux1_pwm1 : kIgnore,
+      std::isfinite(command.aux1_pwm2) ? format.aux1_pwm2 : kIgnore,
+      std::isfinite(command.aux1_pwm3) ? format.aux1_pwm3 : kIgnore,
+      std::isfinite(command.aux1_pwm4) ? format.aux1_pwm4 : kIgnore,
+      std::isfinite(command.aux1_pwm5) ? format.aux1_pwm5 : kIgnore,
+      std::isfinite(command.aux2_pwm1) ? format.aux2_pwm1 : kIgnore,
+      std::isfinite(command.aux2_pwm2) ? format.aux2_pwm2 : kIgnore,
+      std::isfinite(command.aux2_pwm3) ? format.aux2_pwm3 : kIgnore,
+      std::isfinite(command.aux2_pwm4) ? format.aux2_pwm4 : kIgnore,
+      std::isfinite(command.aux2_pwm5) ? format.aux2_pwm5 : kIgnore,
     };
 
-    WriterCombiner combiner(
+    WriteCombiner combiner(
         frame, 0x00,
         Register::kAux1Pwm1,
         kResolutions,
