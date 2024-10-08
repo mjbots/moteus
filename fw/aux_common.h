@@ -30,13 +30,14 @@ struct Spi {
       kAs5047,
       kIcPz,
       kMa732,
+      kMa600,
 
       kNumModes,
     };
     Mode mode = kOnboardAs5047;
     uint32_t rate_hz = 12000000;
 
-    // For now, only the MA732 uses these.
+    // For now, only the MA732/MA600 uses these.
     uint16_t filter_us = 64;
     uint8_t bct = 0;
 
@@ -392,6 +393,7 @@ enum class AuxError {
   kSineCosinePinError,
   kUartPinError,
   kPwmPinError,
+  kMaXXXConfigError,
 
   kLength,
 };
@@ -454,6 +456,7 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
         { M::kAs5047, "ext_as5047" },
         { M::kIcPz, "ic_pz" },
         { M::kMa732, "ma732" },
+        { M::kMa600, "ma600" },
       }};
   }
 };
@@ -571,6 +574,7 @@ struct IsEnum<moteus::aux::AuxError> {
         { A::kSineCosinePinError, "sine_cosine_pin_error" },
         { A::kUartPinError, "uart_pin_error" },
         { A::kPwmPinError, "pwm_pin_error" },
+        { A::kMaXXXConfigError, "maxxx_config" },
       }};
   }
 };

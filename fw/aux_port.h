@@ -314,9 +314,12 @@ class AuxPort {
         __disable_irq();
         status_.error = aux::AuxError::kNone;
         ma732_.emplace(timer_, *ma732_options_);
-
-        // Ensure we have at least one sample under our belt.
-        ma732_->Sample();
+        if (ma732_->error()) {
+          status_.error = aux::AuxError::kMaXXXConfigError;
+        } else {
+          // Ensure we have at least one sample under our belt.
+          ma732_->Sample();
+        }
 
         __enable_irq();
       }
@@ -926,6 +929,21 @@ class AuxPort {
           MA732::Options options = spi_options;
           options.filter_us = config_.spi.filter_us;
           options.bct = config_.spi.bct;
+          options.model = MA732::kMa732;
+          using T = aux::Spi::Config::Trim;
+          options.enable_trim =
+              (config_.spi.trim == T::kNone) ? 0 :
+              (config_.spi.trim == T::kTrimX) ? 1 :
+              (config_.spi.trim == T::kTrimY) ? 2 :
+              0;
+          ma732_options_ = options;
+          break;
+        }
+        case aux::Spi::Config::kMa600: {
+          MA732::Options options = spi_options;
+          options.filter_us = config_.spi.filter_us;
+          options.bct = config_.spi.bct;
+          options.model = MA732::kMa600;
           using T = aux::Spi::Config::Trim;
           options.enable_trim =
               (config_.spi.trim == T::kNone) ? 0 :
