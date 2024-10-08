@@ -112,6 +112,9 @@ class Stm32Spi {
     // to worry about the extra stuff the HAL does.
     uint16_t timeout = options_.timeout;
     while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
+
+    // Ensure there is nothing in the FIFO.
+    while (spi->SR & SPI_SR_RXNE) { (void) spi->DR; }
     spi->DR = value;
     spi->CR1 |= SPI_CR1_SPE;
   }
