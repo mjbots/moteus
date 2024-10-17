@@ -876,6 +876,19 @@ class Stream:
 
             return cal_voltage
 
+    async def clear_motor_offsets(self):
+        i = 0
+        while True:
+            try:
+                await self.command(f"conf set motor.offset.{i} 0")
+            except moteus.CommandError as ce:
+                if 'error setting' in ce.message:
+                    # This means we hit the end of the offsets.
+                    break
+                else:
+                    raise
+            i += 1
+
     async def do_calibrate(self):
         self.firmware = await self.read_data("firmware")
 
@@ -884,6 +897,11 @@ class Stream:
 
         print("This will move the motor, ensure it can spin freely!")
         await asyncio.sleep(2.0)
+
+        # Force all existing offsets to 0, that way if we had a
+        # discontinuous offset error, sending the stop will be able to
+        # clear it (and we are about to overwrite them anyway).
+        await self.clear_motor_offsets()
 
         # Clear any faults that may be there.
         await self.command("d stop")
