@@ -703,7 +703,13 @@ class Stream:
     async def write_config_stream(self, fp):
         errors = []
 
-        for line in fp.readlines():
+        config_lines = fp.readlines()
+
+        for i, line in enumerate(config_lines):
+            if i % 20 == 0:
+                print(f"Writing config {100*i/len(config_lines):.0f}%  ",
+                      end='\r', flush=True)
+
             line = line.rstrip()
             if len(line) == 0:
                 continue
@@ -712,6 +718,8 @@ class Stream:
                 await self.command(line)
             except moteus.CommandError as ce:
                 errors.append(line.decode('latin1'))
+
+        print()
 
         if len(errors):
             print("\nSome config could not be set:")
