@@ -52,6 +52,18 @@ def _wrap_neg_pi_to_pi(value):
     return value
 
 
+def lerp(array, ratio):
+    array_size = len(array)
+
+    left_index = int(math.floor(ratio * array_size))
+    right_index = (left_index + 1) % array_size
+    fraction = (ratio - left_index / array_size) * array_size
+    left_comp = array[left_index]
+    right_comp = array[right_index]
+
+    return (left_comp * (1.0 - fraction)) + (right_comp * fraction)
+
+
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
     how to munge configuration options so as to not cause behavior
@@ -81,6 +93,34 @@ class FirmwareUpgrade:
                 int(float(items.get(b'servo.motor_thermistor_ohm', b'0.0'))) != 47000):
                 print("Motor thermistor values other than 47000 ohm not supported in firmware <= 0x0108, disabling")
                 items[b'servo.enable_motor_temperature'] = b'0'
+
+            items.pop(b'servo.motor_thermistor_ohm')
+
+            # Aux PWM out is not supported on <= 0x0108.
+            items.pop(b'aux1.pwm_period_us')
+            items.pop(b'aux2.pwm_period_us')
+
+            def make_key(mpsource, index):
+                return f'motor_position.sources.{mpsource}.compensation_table.{index}'.encode('utf8')
+
+            if make_key(0, 0) in items:
+                # Downsample encoder compensation bins.
+                print("Downsampling encoder compensation tables from version >= 0x0109")
+                for mpsource in range(0, 3):
+                    bins = []
+
+                    scale = float(items.pop(f'motor_position.sources.{mpsource}.compensation_scale'.encode('utf8'), 0.0)) / 127.0
+                    new_size = 256
+                    old_size = 32
+                    ratio = new_size // old_size
+
+                    for i in range(0, new_size):
+                        key = make_key(mpsource, i)
+                        bins.append(float(items.get(key)) * scale)
+                        del items[key]
+
+                    for i in range(0, old_size):
+                        items[make_key(mpsource, i)] = str(bins[i*ratio]).encode('utf8')
 
         if self.new <= 0x0107 and self.old >= 0x0108:
             if float(items.get(b'servo.bemf_feedforward', '0')) == 0.0:
@@ -358,6 +398,31 @@ class FirmwareUpgrade:
             if int(items.get(b'servo.enable_motor_temperature', b'0')) != 0:
                 print("Thermistor from <= 0x0109 assumed to be 47000")
                 items[b'servo.motor_thermistor_ohm'] = b'47000'
+
+            def make_key(mpsource, index):
+                return f'motor_position.sources.{mpsource}.compensation_table.{index}'.encode('utf8')
+
+            new_size = 256
+            old_size = 32
+            ratio = new_size // old_size
+
+            if make_key(0, 0) in items:
+                print("Upsampling encoder compensation tables for version >= 0x0109")
+                for mpsource in range(0, 3):
+                    old_bins = [float(items.get(make_key(mpsource, i)).decode('latin1')) for i in range(0, 32)]
+                    scale = max([abs(x) for x in old_bins])
+                    bins = []
+                    for i in range(new_size):
+                        if scale != 0.0:
+                            old_i = i // ratio
+                            value = lerp(old_bins, i / new_size)
+                            int_value = int(127 * value / scale)
+                        else:
+                            int_value = 0
+                        items[make_key(mpsource, i)] = str(int_value).encode('utf8')
+
+                    items[f'motor_position.sources.{mpsource}.compensation_scale'.encode('utf8')] = str(scale).encode('utf8')
+
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)

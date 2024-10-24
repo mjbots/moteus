@@ -110,8 +110,8 @@ class BctDetector:
         position_max = await histogram.read_config_double(
             self.stream, f"servopos.position_max")
 
-        self.espeed = self.args.speed * num_poles
-        self.eaccel = self.args.acceleration * num_poles
+        self.espeed = self.args.speed
+        self.eaccel = self.args.acceleration
 
         print(f"start_bct={start_bct} start_trim={start_trim}")
 
@@ -275,8 +275,8 @@ async def main():
 
     parser.add_argument('--target', '-t', type=int, default=1)
     parser.add_argument('--aux', '-a', type=int, default=2)
-    parser.add_argument('--speed', '-s', type=float, default=1.0)
-    parser.add_argument('--acceleration', type=float, default=2.0)
+    parser.add_argument('--speed', '-s', type=float, default=10.0)
+    parser.add_argument('--acceleration', type=float, default=20.0)
     parser.add_argument('--power', '-p', type=float, default=3.0)
     parser.add_argument('--force-voltage', type=float, default=None)
     parser.add_argument('--split-count', type=int, default=2)
