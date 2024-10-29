@@ -114,107 +114,132 @@ class AuxPort {
   }
 
   void ISR_MaybeStartSample() MOTEUS_CCM_ATTRIBUTE {
-    // For now, we will just always sample.
-    if (as5047_) {
-      as5047_->StartSample();
-    }
-    if (ma732_) {
-      ma732_->StartSample();
-    }
-    if (ic_pz_) {
-      ic_pz_->ISR_StartSample();
+    for (size_t i = 0;; i++) {
+      const auto this_type = start_sample_types_[i];
+      switch (this_type) {
+        case SampleType::kAs5047: {
+          as5047_->StartSample();
+          break;
+        }
+        case SampleType::kMa732: {
+          ma732_->StartSample();
+          break;
+        }
+        case SampleType::kIcPz: {
+          ic_pz_->ISR_StartSample();
+          break;
+        }
+        case SampleType::kNone: {
+          return;
+        }
+        default: {
+          break;
+        }
+      }
     }
   }
 
   void ISR_MaybeFinishSample() MOTEUS_CCM_ATTRIBUTE {
     if (!any_isr_enabled_) { return; }
 
-    if (as5047_) {
-      status_.spi.active = true;
-      status_.spi.value = as5047_->FinishSample();
-      status_.spi.nonce += 1;
-    }
+    for (size_t i = 0;; i++) {
+      const auto this_type = finish_sample_types_[i];
+      switch (this_type) {
+        case SampleType::kAs5047: {
+          status_.spi.active = true;
+          status_.spi.value = as5047_->FinishSample();
+          status_.spi.nonce += 1;
+          break;
+        }
+        case SampleType::kMa732: {
+          status_.spi.active = true;
+          status_.spi.value = ma732_->FinishSample();
+          status_.spi.nonce += 1;
+          break;
+        }
+        case SampleType::kIcPz: {
+          ic_pz_->ISR_MaybeFinishSample();
+          const auto& status = ic_pz_->status();
+          if (status.active) {
+            status_.spi.active = true;
+            status_.spi.value = status.value;
+            status_.spi.nonce = status.nonce;
+            status_.spi.ic_pz_bits =
+                (status.warn ? 1 : 0) |
+                (status.err ? 2 : 0);
+          }
+          break;
+        }
+        case SampleType::kGpio: {
+          for (size_t i = 0; i < config_.pins.size(); i++) {
+            if (config_.pins[i].mode == aux::Pin::Mode::kDigitalInput) {
+              status_.pins[i] = digital_inputs_[i]->read() ? true : false;
+            } else if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
+              digital_outputs_[i]->write(status_.pins[i]);
+            } else if (config_.pins[i].mode == aux::Pin::Mode::kPwmOut) {
+              pwm_[i]->write(status_.pwm[i]);
+            }
+          }
+          break;
+        }
+        case SampleType::kHall: {
+          status_.hall.active = true;
+          const auto old_bits = status_.hall.bits;
+          status_.hall.bits =
+              ((halla_->read() ? 1 : 0) << 0) |
+              ((hallb_->read() ? 1 : 0) << 1) |
+              ((hallc_->read() ? 1 : 0) << 2);
+          const auto delta = status_.hall.bits ^ old_bits;
+          const auto numbits_changed =
+              (delta & 0x01) ? 1 : 0 +
+              (delta & 0x02) ? 1 : 0 +
+              (delta & 0x04) ? 1 : 0;
 
-    if (ma732_) {
-      status_.spi.active = true;
-      status_.spi.value = ma732_->FinishSample();
-      status_.spi.nonce += 1;
-    }
+          if (numbits_changed > 1) {
+            status_.hall.error++;
+          }
 
-    if (ic_pz_) {
-      ic_pz_->ISR_MaybeFinishSample();
-      const auto& status = ic_pz_->status();
-      if (status.active) {
-        status_.spi.active = true;
-        status_.spi.value = status.value;
-        status_.spi.nonce = status.nonce;
-        status_.spi.ic_pz_bits =
-            (status.warn ? 1 : 0) |
-            (status.err ? 2 : 0);
-      }
-    }
-
-    if (status_.gpio_bit_active != 0) {
-      for (size_t i = 0; i < config_.pins.size(); i++) {
-        if (config_.pins[i].mode == aux::Pin::Mode::kDigitalInput) {
-          status_.pins[i] = digital_inputs_[i]->read() ? true : false;
-        } else if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
-          digital_outputs_[i]->write(status_.pins[i]);
-        } else if (config_.pins[i].mode == aux::Pin::Mode::kPwmOut) {
-          pwm_[i]->write(status_.pwm[i]);
+          static constexpr uint8_t kHallMapping[] = {
+            0,  // invalid
+            0,  // 0b001 => 0
+            2,  // 0b010 => 2
+            1,  // 0b011 => 1
+            4,  // 0b100 => 4
+            5,  // 0b101 => 5
+            3,  // 0b110 => 3
+            0,  // invalid
+          };
+          status_.hall.count =
+              kHallMapping[status_.hall.bits ^ config_.hall.polarity];
+          break;
+        }
+        case SampleType::kQuad: {
+          quad_->ISR_Update(&status_.quadrature);
+          break;
+        }
+        case SampleType::kIndex: {
+          index_->ISR_Update(&status_.index);
+          break;
+        }
+        case SampleType::kAksim2: {
+          aksim2_->ISR_Update(&status_.uart);
+          break;
+        }
+        case SampleType::kCuiAmt21: {
+          cui_amt21_->ISR_Update(&status_.uart);
+          break;
+        }
+        case SampleType::kI2c: {
+          ISR_I2C_Update();
+          break;
+        }
+        case SampleType::kNone: {
+          return;
+        }
+        default: {
+          break;
         }
       }
-    }
-
-    if (config_.hall.enabled) {
-      status_.hall.active = true;
-      const auto old_bits = status_.hall.bits;
-      status_.hall.bits =
-          ((halla_->read() ? 1 : 0) << 0) |
-          ((hallb_->read() ? 1 : 0) << 1) |
-          ((hallc_->read() ? 1 : 0) << 2);
-      const auto delta = status_.hall.bits ^ old_bits;
-      const auto numbits_changed =
-          (delta & 0x01) ? 1 : 0 +
-          (delta & 0x02) ? 1 : 0 +
-          (delta & 0x04) ? 1 : 0;
-
-      if (numbits_changed > 1) {
-        status_.hall.error++;
-      }
-
-      static constexpr uint8_t kHallMapping[] = {
-        0,  // invalid
-        0,  // 0b001 => 0
-        2,  // 0b010 => 2
-        1,  // 0b011 => 1
-        4,  // 0b100 => 4
-        5,  // 0b101 => 5
-        3,  // 0b110 => 3
-        0,  // invalid
-      };
-      status_.hall.count =
-          kHallMapping[status_.hall.bits ^ config_.hall.polarity];
-    }
-
-    if (quad_) {
-      quad_->ISR_Update(&status_.quadrature);
-    }
-
-    if (index_) {
-      index_->ISR_Update(&status_.index);
-    }
-
-    if (aksim2_) {
-      aksim2_->ISR_Update(&status_.uart);
-    }
-
-    if (cui_amt21_) {
-      cui_amt21_->ISR_Update(&status_.uart);
-    }
-
-    if (i2c_) {
-      ISR_I2C_Update();
     }
   }
 
@@ -295,6 +320,7 @@ class AuxPort {
         status_.error = aux::AuxError::kNone;
 
         as5047_.emplace(*as5047_options_);
+        AddSampleType(SampleType::kAs5047, true, true);
 
         // The very first SPI reading after power on returns bogus
         // results.  So we do one here to ensure that all those that
@@ -317,6 +343,7 @@ class AuxPort {
         if (ma732_->error()) {
           status_.error = aux::AuxError::kMaXXXConfigError;
         } else {
+          AddSampleType(SampleType::kMa732, true, true);
           // Ensure we have at least one sample under our belt.
           ma732_->Sample();
         }
@@ -382,6 +409,25 @@ class AuxPort {
   const Config* config() const { return &config_; }
 
  private:
+  enum class SampleType {
+    kNone = 0,
+
+    // Sort these so that those that have start sampling functions are first.
+    kAs5047 = 1,
+    kMa732 = 2,
+    kIcPz = 3,
+
+    kGpio = 4,
+    kHall = 5,
+    kQuad = 6,
+    kIndex = 7,
+    kAksim2 = 8,
+    kCuiAmt21 = 9,
+    kI2c = 10,
+
+    kLastEntry,
+  };
+
   void HandleCommand(const std::string_view& message,
                      const mjlib::micro::CommandManager::Response& response) {
     mjlib::base::Tokenizer tokenizer(message, " ");
@@ -771,6 +817,10 @@ class AuxPort {
     ic_pz_.reset();
 
     uart_.reset();
+
+    start_sample_types_ = {};
+    finish_sample_types_ = {};
+
     tunnel_write_outstanding_ = false;
     tunnel_polling_enabled_ = false;
 
@@ -1188,10 +1238,40 @@ class AuxPort {
       }
     }
 
+    if (ic_pz_) { AddSampleType(SampleType::kIcPz, true, true); }
+    if (status_.gpio_bit_active != 0) {
+      AddSampleType(SampleType::kGpio, false, true);
+    }
+    if (config_.hall.enabled) { AddSampleType(SampleType::kHall, false, true); }
+    if (quad_) { AddSampleType(SampleType::kQuad, false, true); }
+    if (index_) { AddSampleType(SampleType::kIndex, false, true); }
+    if (aksim2_) { AddSampleType(SampleType::kAksim2, false, true); }
+    if (cui_amt21_) { AddSampleType(SampleType::kCuiAmt21, false, true); }
+    if (i2c_) { AddSampleType(SampleType::kI2c, false, true); }
+
     pwm_timer_set_.Start();
 
     adc_info_.config_update();
     any_isr_enabled_ = updated_any_isr;
+  }
+
+  void AddSampleType(SampleType stype, bool start, bool finish) {
+    if (start) {
+      for (size_t i = 0; ; i++) {
+        if (start_sample_types_[i] == SampleType::kNone) {
+          start_sample_types_[i] = stype;
+          break;
+        }
+      }
+    }
+    if (finish) {
+      for (size_t i = 0; ; i++) {
+        if (finish_sample_types_[i] == SampleType::kNone) {
+          finish_sample_types_[i] = stype;
+          break;
+        }
+      }
+    }
   }
 
   static int ParseHexNybble(char c) {
@@ -1283,6 +1363,9 @@ class AuxPort {
   std::optional<DigitalOut> i2c_pullup_dout_;
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;
+
+  std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> start_sample_types_ = {};
+  std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> finish_sample_types_ = {};
 };
 
 }
