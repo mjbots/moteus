@@ -245,6 +245,27 @@ class PhaseMonitors {
   volatile uint32_t* reg_in_ = nullptr;
   uint32_t mask_ = 0;
 };
+
+class ExponentialFilter {
+ public:
+  ExponentialFilter() {}
+
+  ExponentialFilter(float rate_hz, float period_s)
+      : alpha_(1.0f / (rate_hz * period_s)),
+        one_minus_alpha_(1.0f - alpha_) {}
+
+  void operator()(float input, float* filtered) {
+    if (std::isnan(*filtered)) {
+      *filtered = input;
+    } else {
+      *filtered = alpha_ * input + one_minus_alpha_ * *filtered;
+    }
+  }
+
+ private:
+  float alpha_ = 1.0;
+  float one_minus_alpha_ = 0.0;
+};
 }
 
 class BldcServo::Impl {
@@ -458,6 +479,11 @@ class BldcServo::Impl {
     rate_config_ = RateConfig(config_.pwm_rate_hz);
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
+
+    velocity_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
+    temperature_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
+    slow_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.5f);
+    fast_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.001f);
 
     ConfigurePwmTimer();
 
@@ -1017,7 +1043,7 @@ class BldcServo::Impl {
 #endif
     motor_position_->ISR_Update(rate_config_.period_s);
 
-    ISR_UpdateFilteredValue(position_.velocity, &status_.velocity_filt, 0.01f);
+    velocity_filter_(position_.velocity, &status_.velocity_filt);
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -1050,11 +1076,11 @@ class BldcServo::Impl {
 
     {
       status_.fet_temp_C = fet_thermistor_.Calculate(status_.adc_fet_temp_raw);
-      ISR_UpdateFilteredValue(status_.fet_temp_C, &status_.filt_fet_temp_C, 0.01f);
+      temperature_filter_(status_.fet_temp_C, &status_.filt_fet_temp_C);
 
       if (config_.enable_motor_temperature) {
         status_.motor_temp_C = motor_thermistor_.Calculate(status_.adc_motor_temp_raw);
-        ISR_UpdateFilteredValue(status_.motor_temp_C, &status_.filt_motor_temp_C, 0.01f);
+        temperature_filter_(status_.motor_temp_C, &status_.filt_motor_temp_C);
       } else {
         status_.motor_temp_C = status_.filt_motor_temp_C = 0.0f;
       }
@@ -1068,19 +1094,6 @@ class BldcServo::Impl {
     aux2_port_->ISR_EndAnalogSample();
   }
 
-  void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
-    if (std::isnan(*filtered)) {
-      *filtered = input;
-    } else {
-      const float alpha = 1.0f / (rate_config_.rate_hz * period_s);
-      *filtered = alpha * input + (1.0f - alpha) * *filtered;
-    }
-  }
-
-  void ISR_UpdateFilteredBusV(float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
-    ISR_UpdateFilteredValue(status_.bus_V, filtered, period_s);
-  }
-
   // This is called from the ISR.
   void ISR_CalculateCurrentState(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     status_.cur1_A = (status_.adc_cur1_raw - status_.adc_cur1_offset) * adc_scale_;
@@ -1091,8 +1104,8 @@ class BldcServo::Impl {
     }
     status_.bus_V = status_.adc_voltage_sense_raw * vsense_adc_scale_;
 
-    ISR_UpdateFilteredBusV(&status_.filt_bus_V, 0.5f);
-    ISR_UpdateFilteredBusV(&status_.filt_1ms_bus_V, 0.001f);
+    slow_bus_v_filter_(status_.bus_V, &status_.filt_bus_V);
+    fast_bus_v_filter_(status_.bus_V, &status_.filt_1ms_bus_V);
 
     DqTransform dq{sin_cos,
           status_.cur1_A,
@@ -2365,6 +2378,11 @@ class BldcServo::Impl {
   uint32_t adc4_sqr_ = 0;
 
   IRQn_Type pwm_irqn_ = {};
+
+  ExponentialFilter velocity_filter_;
+  ExponentialFilter temperature_filter_;
+  ExponentialFilter slow_bus_v_filter_;
+  ExponentialFilter fast_bus_v_filter_;
 
   const bool family0_rev4_and_older_ = (
       g_measured_hw_family == 0 &&
