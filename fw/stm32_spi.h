@@ -23,6 +23,7 @@
 #include "mjlib/base/string_span.h"
 
 #include "fw/ccm.h"
+#include "fw/stm32_digital_output.h"
 #include "fw/stm32_dma.h"
 
 namespace moteus {
@@ -105,7 +106,7 @@ class Stm32Spi {
 
   void start_write(uint16_t value) MOTEUS_CCM_ATTRIBUTE {
     auto* const spi = spi_.spi.handle.Instance;
-    *cs_ = 0;
+    cs_->clear();
 
     // This doesn't seem to be a whole lot faster than the HAL in
     // practice, but it doesn't hurt to do it ourselves and not have
@@ -130,14 +131,14 @@ class Stm32Spi {
     while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
     spi->CR1 &= ~(SPI_CR1_SPE);
 
-    *cs_ = 1;
+    cs_->set();
     return result;
   }
 
   void start_dma_transfer(
       std::string_view tx_buffer,
       mjlib::base::string_span rx_buffer) MOTEUS_CCM_ATTRIBUTE {
-    *cs_ = 0;
+    cs_->clear();
 
     auto* const spi = spi_.spi.handle.Instance;
 
@@ -188,7 +189,7 @@ class Stm32Spi {
 
     spi->CR2 &= ~(SPI_CR2_TXDMAEN | SPI_CR2_RXDMAEN);
 
-    *cs_ = 1;
+    cs_->set();
   }
 
  private:
@@ -218,7 +219,7 @@ class Stm32Spi {
   // We don't use the mbed SPI class because we want to be invokable
   // from an ISR.
   spi_t spi_;
-  std::optional<DigitalOut> cs_;
+  std::optional<Stm32DigitalOutput> cs_;
   const Options options_;
   DMAMUX_Channel_TypeDef* dmamux_rx_ = nullptr;
   DMAMUX_Channel_TypeDef* dmamux_tx_ = nullptr;

@@ -31,7 +31,8 @@ class MotorDriver {
   virtual EnableResult StartEnable(bool) = 0;
 
   /// Enable power to the output stage.
-  virtual void Power(bool) = 0;
+  virtual void PowerOn() = 0;
+  virtual void PowerOff() = 0;
 
   /// Return true if the driver is currently reporting a fault.
   virtual bool fault() = 0;

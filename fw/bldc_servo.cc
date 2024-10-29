@@ -1297,7 +1297,7 @@ class BldcServo::Impl {
 
     // Power should already be false for any state we could possibly
     // be in, but lets just be certain.
-    motor_driver_->Power(false);
+    motor_driver_->PowerOff();
 
     calibrate_adc1_ = 0;
     calibrate_adc2_ = 0;
@@ -1526,7 +1526,7 @@ class BldcServo::Impl {
     const auto result = motor_driver_->StartEnable(false);
     // We should always be able to disable immediately.
     MJ_ASSERT(result == MotorDriver::kDisabled);
-    motor_driver_->Power(false);
+    motor_driver_->PowerOff();
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
@@ -1535,7 +1535,7 @@ class BldcServo::Impl {
   }
 
   void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
-    motor_driver_->Power(false);
+    motor_driver_->PowerOff();
 
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
@@ -1596,7 +1596,7 @@ class BldcServo::Impl {
       *pwm3_ccr_ = pwm3;
     }
 
-    motor_driver_->Power(true);
+    motor_driver_->PowerOn();
   }
 
   void ISR_DoBalancedVoltageControlRotated(const Vec3& voltage, int shift) MOTEUS_CCM_ATTRIBUTE {
@@ -2165,7 +2165,7 @@ class BldcServo::Impl {
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
 
-    motor_driver_->Power(true);
+    motor_driver_->PowerOn();
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {

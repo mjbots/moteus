@@ -38,7 +38,8 @@ class Drv8323::Impl {
   Impl(micro::PersistentConfig* config,
        micro::TelemetryManager* telemetry_manager,
        MillisecondTimer* timer,
-       const Options& options)
+       const Options& options,
+       Stm32DigitalOutput* hiz)
       : timer_(timer),
         spi_(
             timer,
@@ -61,7 +62,7 @@ class Drv8323::Impl {
               return out;
             }()),
         enable_(options.enable, 0),
-        hiz_(options.hiz, 0),
+        hiz_(hiz),
         fault_(options.fault, PullUp) {
     // We need to enable the built-in pullup on the MISO pin, but
     // mbed's SPI class provides no mechanism to do that. :( Thus we
@@ -123,10 +124,6 @@ class Drv8323::Impl {
     return enable_state_;
   }
 
-  void Power(bool value) {
-    hiz_.write(value ? 1 : 0);
-  }
-
   uint16_t Read(int reg) {
     const uint16_t result = spi_.write(0x8000 | (reg << 11)) & 0x7ff;
     timer_->wait_us(1);
@@ -147,7 +144,7 @@ class Drv8323::Impl {
     auto& s = status_;
 
     s.fault_line = fault_.read() == 0;
-    s.power = (hiz_.read() != 0);
+    s.power = (hiz_->read() != 0);
     s.enabled = enable_state_ != kDisabled;
 
     if (enable_state_ != kEnabled) {
@@ -401,8 +398,8 @@ class Drv8323::Impl {
   Config config_;
 
   Stm32BitbangSpi spi_;
-  DigitalOut enable_;
-  DigitalOut hiz_;
+  Stm32DigitalOutput enable_;
+  Stm32DigitalOutput* const hiz_;
   DigitalIn fault_;
 
   uint16_t loop_count_ = 0;
@@ -417,15 +414,14 @@ Drv8323::Drv8323(micro::Pool* pool,
                  micro::TelemetryManager* telemetry_manager,
                  MillisecondTimer* timer,
                  const Options& options)
-    : impl_(pool, persistent_config, telemetry_manager, timer, options) {}
+    : impl_(pool, persistent_config, telemetry_manager, timer, options, &hiz_),
+      hiz_(options.hiz, 0) {}
 
 Drv8323::~Drv8323() {}
 
 MotorDriver::EnableResult Drv8323::StartEnable(bool value) {
   return impl_->StartEnable(value);
 }
-
-void Drv8323::Power(bool value) { impl_->Power(value); }
 
 bool Drv8323::fault() {
   const bool check_fault_config = !!impl_->status_.fault_config;
