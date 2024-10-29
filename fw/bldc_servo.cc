@@ -929,11 +929,14 @@ class BldcServo::Impl {
     // Check to see if any motor outputs are now high.  If so, fault,
     // because we have exceeded the maximum duty cycle we can achieve
     // while still sampling current correctly.
+
+#ifndef MOTEUS_DISABLE_PWM_CYCLE_OVERRUN
     if (status_.mode != kFault &&
         phase_monitors_.read()) {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
     }
+#endif
   }
 
   void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
