@@ -2014,6 +2014,7 @@ Selects what functionality will be used on the given pin.
 * 14 - Digital input
 * 15 - Digital output (not implemented)
 * 16 - Analog input
+* 17 - PWM output
 
 ## `aux[12].pins.X.pull` ##
 
