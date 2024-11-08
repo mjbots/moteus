@@ -25,6 +25,7 @@ ALL = [
     'TRANSPORT_FACTORIES',
     'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
     'reader',
+    'RegisterParser', 'QueryParser',
 ]
 from moteus.command import Command
 from moteus.fdcanusb import Fdcanusb
@@ -36,7 +37,8 @@ from moteus.moteus import (
     Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
     make_transport_args, get_singleton_transport,
     TRANSPORT_FACTORIES)
-from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE)
+from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE,
+                              RegisterParser, QueryParser)
 import moteus.reader as reader
 import moteus.aiostream as aiostream
 

@@ -238,6 +238,74 @@ class RegisterParser:
         return int(self.read(resolution))
 
 
+class QueryParser:
+    '''Parse a query to see what fields will be queried and at what
+    resolution.'''
+
+    def __init__(self, data):
+        self.data = data
+        self.size = len(data)
+        self._offset = 0
+        self._remaining = 0
+        self._current_register = 0
+        self._current_resolution = INT8
+
+    @staticmethod
+    def parse(data):
+        qp = QueryParser(data)
+        return [x for x in qp]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._remaining:
+            self._remaining -= 1
+            this_register = self._current_register
+            self._current_register += 1
+
+            return this_register, self._current_resolution
+
+        if self._offset >= self.size:
+            raise StopIteration()
+
+        while self._offset < self.size:
+            cmd = self.data[self._offset]
+            self._offset += 1
+
+            if cmd == NOP:
+                continue
+
+            if cmd >= 0x10 and cmd < 0x20:
+                resolution = (cmd >> 2) & 0x03
+                self._current_resolution = resolution
+
+                count = cmd & 0x03
+
+                if count == 0 and self._offset >= self.size:
+                    # This is malformed.
+                    raise RuntimeError("malformed query")
+
+                if count == 0:
+                    count = self.data[self._offset]
+                    self._offset += 1
+
+                if count == 0:
+                    # Empty, guess we can ignore.
+                    continue
+
+                maybe_current_register, self._offset = read_varuint(self._offset, self.data)
+                if maybe_current_register is None:
+                    raise RuntimeError("malformed query")
+
+                self._current_register = maybe_current_register
+                self._remaining = count - 1
+
+                result_register = self._current_register
+                self._current_register += 1
+                return result_register, self._current_resolution
+
+
 class WriteFrame:
     """Provides helper methods for writing structured data into a byte
     buffer."""
