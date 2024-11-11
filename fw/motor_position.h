@@ -462,7 +462,28 @@ class MotorPosition {
       const auto* aux_config = aux_config_[source_config.aux_number - 1];
 
       switch (source_config.type) {
+        case SourceConfig::kUart: {
+          using M = aux::UartEncoder::Config::Mode;
+          const auto mode = aux_config->uart.mode;
+          if (mode == M::kAksim2) {
+            source_config.cpr = 4194304;
+          } else if (mode == M::kCuiAmt21) {
+            source_config.cpr = 16384;
+          }
+          break;
+        }
         case SourceConfig::kSpi: {
+          // For some source types, we know what the CPRs have to be.
+          using M = aux::Spi::Config::Mode;
+          const auto mode = aux_config->spi.mode;
+          if (mode == M::kAs5047 || mode == M::kOnboardAs5047) {
+            source_config.cpr = 16384;
+          } else if (mode == M::kMa732 || mode == M::kMa600) {
+            source_config.cpr = 65536;
+          } else if (mode == M::kIcPz) {
+            source_config.cpr = 16777216;
+          }
+
           break;
         }
         case SourceConfig::kI2C: {
