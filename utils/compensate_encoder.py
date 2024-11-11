@@ -149,15 +149,24 @@ async def run_reference_compensation(args, m, s, ax):
     results = []
     start_time = time.time()
     last_print = start_time
-    total_duration = args.reference_revolutions / args.reference_velocity
+    total_duration = args.reference_revolutions / args.reference_velocity + args.reference_initial_time
 
     print(f"Running for {total_duration:.0f}s")
     while True:
-        results.append(await m.set_position(
+        this_result = await m.set_position(
             position=math.nan, velocity=args.reference_velocity,
             kp_scale=args.reference_kp_scale,
-            query=True))
-        last_result = results[-1]
+            query=True)
+
+        last_result = this_result
+
+        now = time.time()
+        duration = now - start_time
+        if duration > total_duration:
+            break
+
+        if duration > args.reference_initial_time:
+            results.append(this_result)
 
         mode = last_result.values[moteus.Register.MODE]
         fault = last_result.values[moteus.Register.FAULT]
@@ -165,11 +174,6 @@ async def run_reference_compensation(args, m, s, ax):
             raise RuntimeError(f"controller mode {mode} / fault: {fault}")
 
         await asyncio.sleep(args.reference_period)
-
-        now = time.time()
-        duration = now - start_time
-        if duration > total_duration:
-            break
 
         if now - last_print > PRINT_DURATION:
             last_print = now
@@ -311,13 +315,15 @@ async def main():
     # This encoder will be the one that is compensated.
     parser.add_argument('--encoder-channel', '-c', type=int, default=0)
 
-    # If specified, then use "reference mode" instead of "inertial mode".
+    # If specified, then use "reference mode" instead of "inertial
+    # mode".  Implies --absolute.
     parser.add_argument('--reference-encoder', '-r', type=int, default=None)
 
     ##############################################3
     # Additional parameters for reference mode.
     parser.add_argument('--reference-revolutions', type=float, default=2)
     parser.add_argument('--reference-velocity', type=float, default=0.1)
+    parser.add_argument('--reference-initial-time', type=float, default=1.0)
     parser.add_argument('--reference-period', type=float, default=0.005)
     parser.add_argument('--reference-kp-scale', type=float, default=1.0)
 
@@ -351,6 +357,9 @@ async def main():
     parser.add_argument('--verbose', '-v', action='store_true')
 
     args = parser.parse_args()
+
+    if args.reference_encoder is not None:
+        args.absolute = True
 
     qr = moteus.QueryResolution()
 
