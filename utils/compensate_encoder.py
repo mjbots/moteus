@@ -443,41 +443,40 @@ async def main():
         ax2.plot(*unpack_plot(unbiased_integrated_velocities), label='integrated position deviation', color='red')
         ax2.plot(*unpack_plot(sampled), label='downsampled position deviation', color='green')
 
-    if args.no_store:
-        print("--no-store specified, not saving values to device")
-        return
+    if not args.no_store:
+        print("Saving new encoder compensation to device")
 
-    print("Saving new encoder compensation to device")
+        scale = 1.0
+        if has_compensation_scale:
+            scale = float(conf_motor_position[f"motor_position.sources.{args.encoder_channel}.compensation_scale"]) / 127.0
 
-    scale = 1.0
-    if has_compensation_scale:
-        scale = float(conf_motor_position[f"motor_position.sources.{args.encoder_channel}.compensation_scale"]) / 127.0
+        table = [float(conf_motor_position[f"motor_position.sources.{args.encoder_channel}.compensation_table.{i}"]) * scale
+                 for i in range(COMPENSATION_SIZE)]
 
-    table = [float(conf_motor_position[f"motor_position.sources.{args.encoder_channel}.compensation_table.{i}"]) * scale
-             for i in range(COMPENSATION_SIZE)]
+        for i, x in enumerate(sampled):
+            update = -x[1]
+            if args.incremental:
+                table[i] += args.incremental_factor * update
+            else:
+                table[i] = update
 
-    for i, x in enumerate(sampled):
-        update = -x[1]
-        if args.incremental:
-            table[i] += args.incremental_factor * update
+        if has_compensation_scale:
+            new_scale = max([abs(x) for x in table])
+            for i in range(COMPENSATION_SIZE):
+                int_value = int(127 * table[i] / new_scale)
+                await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_table.{i} {int_value}".encode('utf8'))
+            await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_scale {new_scale}".encode('utf8'))
         else:
-            table[i] = update
+            for i in range(COMPENSATION_SIZE):
+                await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_table.{i} {table[i]}".encode('utf8'))
 
-    if has_compensation_scale:
-        new_scale = max([abs(x) for x in table])
-        for i in range(COMPENSATION_SIZE):
-            int_value = int(127 * table[i] / new_scale)
-            await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_table.{i} {int_value}".encode('utf8'))
-        await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_scale {new_scale}".encode('utf8'))
+        if used_for_commutation:
+            print("Compensated encoder used for commutation, invalidating motor calibration")
+            await s.command(b"conf set motor.poles 0")
+
+        await s.command(b'conf write')
     else:
-        for i in range(COMPENSATION_SIZE):
-            await s.command(f"conf set motor_position.sources.{args.encoder_channel}.compensation_table.{i} {table[i]}".encode('utf8'))
-
-    if used_for_commutation:
-        print("Compensated encoder used for commutation, invalidating motor calibration")
-        await s.command(b"conf set motor.poles 0")
-
-    await s.command(b'conf write')
+        print("--no-store specified, not saving values to device")
 
     if args.plot:
         ax.legend(loc="upper left")
