@@ -235,7 +235,7 @@ async def run_inertial_compensation(args, m, s, ax):
     # the value post-compensation.  If we are computing a value from
     # scratch, then the y value will be 'o' for "offset" value, or
     # pre-compensation.
-    tap = 'o' if not (args.analyze or args.incremental) else 'c'
+    tap = 'o' if not (args.analyze or not args.absolute) else 'c'
 
     sample_channel = args.encoder_channel
 
@@ -343,7 +343,7 @@ async def main():
 
     # Adjust the existing compensation table by a fraction of the
     # observed error.
-    parser.add_argument('--incremental', action='store_true')
+    parser.add_argument('--absolute', action='store_true')
 
     parser.add_argument('--write-unbiased', type=str, default=None)
     parser.add_argument('--write-integrated', type=str, default=None)
@@ -455,7 +455,7 @@ async def main():
 
         for i, x in enumerate(sampled):
             update = -x[1]
-            if args.incremental:
+            if not args.absolute:
                 table[i] += args.incremental_factor * update
             else:
                 table[i] = update
