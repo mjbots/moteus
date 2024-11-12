@@ -470,6 +470,12 @@ class MotorPosition {
           } else if (mode == M::kCuiAmt21) {
             source_config.cpr = 16384;
           }
+          const float source_rate_hz =
+              1000000.0f /
+              aux_config->uart.poll_rate_us;
+          const float max_pll_hz = source_rate_hz / 10.0f;
+          source_config.pll_filter_hz =
+              std::min(source_config.pll_filter_hz, max_pll_hz);
           break;
         }
         case SourceConfig::kSpi: {
