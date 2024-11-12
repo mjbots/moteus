@@ -118,7 +118,7 @@ struct RateConfig {
   float period_s;
   int16_t max_position_delta;
 
-  RateConfig(int pwm_rate_hz_in = 30000) {
+  RateConfig(float pwm_scale = 1.0f, int pwm_rate_hz_in = 30000) {
     const int board_min_pwm_rate_hz =
         (g_measured_hw_family == 0 &&
          g_measured_hw_rev == 2) ? 60000 :
@@ -144,7 +144,7 @@ struct RateConfig {
 
     min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
     max_pwm = 1.0f - min_pwm;
-    max_voltage_ratio = (max_pwm - 0.5f) * 2.0f;
+    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f) / pwm_scale;
 
     rate_hz = int_rate_hz;
     period_s = 1.0f / rate_hz;
@@ -476,7 +476,7 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    rate_config_ = RateConfig(config_.pwm_rate_hz);
+    rate_config_ = RateConfig(config_.pwm_scale, config_.pwm_rate_hz);
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
 
@@ -1847,7 +1847,9 @@ class BldcServo::Impl {
     control_.d_V = d_V;
     control_.q_V = q_V;
 
-    const float max_voltage = (0.5f - rate_config_.min_pwm) * status_.filt_bus_V;
+    const float max_voltage =
+        (0.5f - rate_config_.min_pwm) * status_.filt_bus_V /
+        config_.pwm_scale;
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
