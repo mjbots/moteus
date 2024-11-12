@@ -1121,9 +1121,10 @@ class BldcServo::Impl {
     if (!is_torque_on) {
       status_.torque_error_Nm = 0.0f;
     }
+
     status_.motor_max_velocity =
         rate_config_.max_voltage_ratio *
-        0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
+        kSvpwmRatio * 0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
     DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
 #endif
@@ -1648,9 +1649,11 @@ class BldcServo::Impl {
     const float dpb = scale(fdb, fdc) * config_.pwm_scale;
     const float dpc = scale(fdc, fdb) * config_.pwm_scale;
 
-    // And then balance them.
-    const float avg = (dpb + dpc) / 3.0f;
-    const float pwm1 = 0.5f - avg;
+    // And then balance them so as to keep the lowest and highest duty
+    // cycle phases equidistant from the midpoint.  Note, this results
+    // in a waveform that is identical to SVPWM, or min/max injection.
+    const float extent = 0.5f * std::max(dpb, dpc);
+    const float pwm1 = 0.5f - extent;
     const float pwm2 = pwm1 + dpb;
     const float pwm3 = pwm1 + dpc;
 
@@ -1792,7 +1795,8 @@ class BldcServo::Impl {
               -max_V, max_V);
 
       const float max_current_integral =
-          rate_config_.max_voltage_ratio * 0.5f * status_.filt_bus_V;
+          rate_config_.max_voltage_ratio * kSvpwmRatio *
+          0.5f * status_.filt_bus_V;
       status_.pid_d.integral = Limit(
           status_.pid_d.integral,
           -max_current_integral, max_current_integral);
@@ -1848,8 +1852,8 @@ class BldcServo::Impl {
     control_.q_V = q_V;
 
     const float max_voltage =
-        (0.5f - rate_config_.min_pwm) * status_.filt_bus_V /
-        config_.pwm_scale;
+        (0.5f - rate_config_.min_pwm) * status_.filt_bus_V *
+        kSvpwmRatio / config_.pwm_scale;
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
