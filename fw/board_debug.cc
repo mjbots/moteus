@@ -30,6 +30,7 @@
 #include "fw/bootloader.h"
 #include "fw/drv8323.h"
 #include "fw/moteus_hw.h"
+#include "fw/strtof.h"
 
 namespace base = mjlib::base;
 namespace micro = mjlib::micro;
@@ -42,23 +43,6 @@ constexpr float kMaxCalPoleCount = 50.0f;
 namespace {
 void recurse(int count, base::inplace_function<void(int)> callback) {
   callback(count - 1);
-}
-
-std::optional<float> Strtof(const char* data) {
-  if (data == nullptr) {
-    return {};
-  }
-  char* end = nullptr;
-  const float result = std::strtof(&data[0], &end);
-  if (end == nullptr ||
-      (*end != 0 && !std::isspace(*end))) {
-    return {};
-  }
-  return result;
-}
-
-std::optional<float> Strtof(const std::string_view& view) {
-  return Strtof(view.data());
 }
 
 bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
@@ -633,7 +617,7 @@ class BoardDebug::Impl {
       BldcServo::CommandData command;
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pdtf")) {
+      if (!ParseOptions(&command, &tokenizer, "pditf")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }

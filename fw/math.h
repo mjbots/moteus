@@ -27,6 +27,7 @@ constexpr float kSqrt3_4 = 0.86602540378f;
 constexpr float kSqrt6 = 2.449489742783178f;
 constexpr float kSqrt3 = 1.7320508075688772f;
 constexpr float kSqrt2 = 1.4142135623730951f;
+constexpr float kSvpwmRatio = 1.1547f;  // 2/sqrt(3)
 
 float WrapZeroToTwoPi(float) __attribute__((always_inline));
 

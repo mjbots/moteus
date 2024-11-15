@@ -38,8 +38,10 @@ cc_library(
         "motor_position.h",
         "pid.h",
         "simple_pi.h",
+        "thermistor.h",
         "torque_model.h",
         "stm32_i2c_timing.h",
+        "strtof.h",
     ],
     srcs = [
         "foc.cc",
@@ -120,6 +122,7 @@ MOTEUS_SOURCES = [
     "stm32g4_adc.cc",
     "stm32g4_dma_uart.h",
     "stm32_bitbang_spi.h",
+    "stm32_digital_output.h",
     "stm32_gpio_interrupt_in.h",
     "stm32_gpio_interrupt_in.cc",
     "stm32_i2c.h",

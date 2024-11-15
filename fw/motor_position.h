@@ -36,7 +36,7 @@ class MotorPosition {
  public:
   static constexpr int kNumSources = 3;
   static constexpr int kHallCounts = 6;
-  static constexpr int kCompensationSize = 32;
+  static constexpr int kCompensationSize = 256;
 
   struct SourceConfig {
     uint8_t aux_number = 1;
@@ -88,7 +88,8 @@ class MotorPosition {
     //  3     24-31          28
     //  ... etc ...
     //  31    248-255        252
-    std::array<float, kCompensationSize> compensation_table = {};
+    std::array<int8_t, kCompensationSize> compensation_table = {};
+    float compensation_scale = 0.0f;
 
     // This is not serialized, but is calculated during configuration.
     bool cached_any_compensation_enabled = false;
@@ -107,6 +108,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(reference));
       a->Visit(MJ_NVP(pll_filter_hz));
       a->Visit(MJ_NVP(compensation_table));
+      a->Visit(MJ_NVP(compensation_scale));
     }
   };
 
@@ -440,10 +442,12 @@ class MotorPosition {
                             aux_status_[0]->i2c.devices.size());
 
       source_config.cached_any_compensation_enabled = false;
-      for (const auto value : source_config.compensation_table) {
-        if (value != 0.0f) {
-          source_config.cached_any_compensation_enabled = true;
-          break;
+      if (source_config.compensation_scale != 0.0f) {
+        for (const auto value : source_config.compensation_table) {
+          if (value != 0.0f) {
+            source_config.cached_any_compensation_enabled = true;
+            break;
+          }
         }
       }
 
@@ -458,7 +462,34 @@ class MotorPosition {
       const auto* aux_config = aux_config_[source_config.aux_number - 1];
 
       switch (source_config.type) {
+        case SourceConfig::kUart: {
+          using M = aux::UartEncoder::Config::Mode;
+          const auto mode = aux_config->uart.mode;
+          if (mode == M::kAksim2) {
+            source_config.cpr = 4194304;
+          } else if (mode == M::kCuiAmt21) {
+            source_config.cpr = 16384;
+          }
+          const float source_rate_hz =
+              1000000.0f /
+              aux_config->uart.poll_rate_us;
+          const float max_pll_hz = source_rate_hz / 10.0f;
+          source_config.pll_filter_hz =
+              std::min(source_config.pll_filter_hz, max_pll_hz);
+          break;
+        }
         case SourceConfig::kSpi: {
+          // For some source types, we know what the CPRs have to be.
+          using M = aux::Spi::Config::Mode;
+          const auto mode = aux_config->spi.mode;
+          if (mode == M::kAs5047 || mode == M::kOnboardAs5047) {
+            source_config.cpr = 16384;
+          } else if (mode == M::kMa732 || mode == M::kMa600) {
+            source_config.cpr = 65536;
+          } else if (mode == M::kIcPz) {
+            source_config.cpr = 16777216;
+          }
+
           break;
         }
         case SourceConfig::kI2C: {
@@ -637,7 +668,7 @@ class MotorPosition {
       status_.theta_valid = true;
       status_.electrical_theta = WrapZeroToTwoPi(
           ratio * commutation_pole_scale_ / commutation_rotor_scale_ +
-          lerp(motor_.offset, ratio));
+          lerp(motor_.offset, 1.0f, ratio));
     }
   }
 
@@ -930,6 +961,7 @@ class MotorPosition {
             WrapCpr(
                 status.offset_value +
                 lerp(config.compensation_table,
+                     config.compensation_scale / 127.0f,
                      static_cast<float>(status.offset_value) /
                      cpr) * cpr,
                 cpr);
@@ -1098,7 +1130,7 @@ class MotorPosition {
   }
 
   template <typename Array>
-  static float lerp(const Array& array, float ratio) {
+  static float lerp(const Array& array, float scale, float ratio) {
     const auto array_size = array.size();
 
     const auto left_index =
@@ -1107,8 +1139,8 @@ class MotorPosition {
     const auto right_index = (left_index + 1) % array_size;
     const auto fraction =
         (ratio - static_cast<float>(left_index) / array_size) * array_size;
-    const float left_comp = array[left_index];
-    const float right_comp = array[right_index];
+    const float left_comp = array[left_index] * scale;
+    const float right_comp = array[right_index] * scale;
 
     // You might think that
     //

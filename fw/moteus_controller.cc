@@ -316,6 +316,17 @@ enum class Register {
   kMillisecondCounter = 0x070,
   kClockTrim = 0x071,
 
+  kAux1Pwm1 = 0x076,
+  kAux1Pwm2 = 0x077,
+  kAux1Pwm3 = 0x078,
+  kAux1Pwm4 = 0x079,
+  kAux1Pwm5 = 0x07a,
+  kAux2Pwm1 = 0x07b,
+  kAux2Pwm2 = 0x07c,
+  kAux2Pwm3 = 0x07d,
+  kAux2Pwm4 = 0x07e,
+  kAux2Pwm5 = 0x07f,
+
   kModelNumber = 0x100,
   kFirmwareVersion = 0x101,
   kRegisterMapVersion = 0x102,
@@ -684,6 +695,28 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return 0;
       }
 
+      case Register::kAux1Pwm1:
+      case Register::kAux1Pwm2:
+      case Register::kAux1Pwm3:
+      case Register::kAux1Pwm4:
+      case Register::kAux1Pwm5: {
+        const int pin =
+            static_cast<int>(reg) - static_cast<int>(Register::kAux1Pwm1);
+        aux1_port_.WritePwmOut(pin, ReadPwm(value));
+        return 0;
+      }
+
+      case Register::kAux2Pwm1:
+      case Register::kAux2Pwm2:
+      case Register::kAux2Pwm3:
+      case Register::kAux2Pwm4:
+      case Register::kAux2Pwm5: {
+        const int pin =
+            static_cast<int>(reg) - static_cast<int>(Register::kAux2Pwm1);
+        aux2_port_.WritePwmOut(pin, ReadPwm(value));
+        return 0;
+      }
+
       case Register::kSetOutputNearest: {
         const float position = ReadPosition(value);
         bldc_.SetOutputPositionNearest(position);
@@ -1049,6 +1082,26 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kClockTrim: {
         return IntMapping(clock_manager_->trim(), type);
+      }
+
+      case Register::kAux1Pwm1:
+      case Register::kAux1Pwm2:
+      case Register::kAux1Pwm3:
+      case Register::kAux1Pwm4:
+      case Register::kAux1Pwm5: {
+        const int pin =
+            static_cast<int>(reg) - static_cast<int>(Register::kAux1Pwm1);
+        return ScalePwm(bldc_.aux1().pwm[pin], type);
+      }
+
+      case Register::kAux2Pwm1:
+      case Register::kAux2Pwm2:
+      case Register::kAux2Pwm3:
+      case Register::kAux2Pwm4:
+      case Register::kAux2Pwm5: {
+        const int pin =
+            static_cast<int>(reg) - static_cast<int>(Register::kAux2Pwm1);
+        return ScalePwm(bldc_.aux2().pwm[pin], type);
       }
 
       case Register::kModelNumber: {

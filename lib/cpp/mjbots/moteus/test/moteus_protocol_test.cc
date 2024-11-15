@@ -351,6 +351,17 @@ BOOST_AUTO_TEST_CASE(GpioWrite) {
   BOOST_TEST(reply_size == 0);
 }
 
+BOOST_AUTO_TEST_CASE(GpioRead) {
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
+  moteus::GpioRead::Command cmd;
+
+  const auto reply_size = moteus::GpioRead::Make(&write_frame, cmd, {});
+
+  BOOST_TEST(Hexify(frame) == "125e");
+  BOOST_TEST(reply_size == 4);
+}
+
 BOOST_AUTO_TEST_CASE(OutputNearest) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);
@@ -420,5 +431,19 @@ BOOST_AUTO_TEST_CASE(ClockTrim) {
   const auto reply_size = moteus::ClockTrim::Make(&write_frame, cmd, {});
 
   BOOST_TEST(Hexify(frame) == "097105000000");
+  BOOST_TEST(reply_size == 0);
+}
+
+BOOST_AUTO_TEST_CASE(AuxPwmWrite) {
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
+
+  moteus::AuxPwmWrite::Command cmd;
+  cmd.aux1_pwm1 = 0.2;
+  cmd.aux2_pwm3 = 0.4;
+
+  const auto reply_size = moteus::AuxPwmWrite::Make(&write_frame, cmd, {});
+
+  BOOST_TEST(Hexify(frame) == "05769919057d3233");
   BOOST_TEST(reply_size == 0);
 }

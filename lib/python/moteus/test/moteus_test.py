@@ -343,6 +343,23 @@ class MoteusTest(unittest.TestCase):
             bytes([0x12, 0x5e]))
         self.assertEqual(result.expected_reply_size, 22)
 
+    def test_make_set_trim(self):
+        dut = mot.Controller()
+        result = dut.make_set_trim(trim=2)
+        self.assertEqual(
+            result.data.hex(),
+            "097102000000")
+        self.assertEqual(result.expected_reply_size, 0)
+
+    def test_make_aux_pwm(self):
+        dut = mot.Controller()
+        result = dut.make_aux_pwm(aux1_pwm2=0.2,
+                                  aux2_pwm4=0.4)
+        self.assertEqual(
+            result.data.hex(),
+            "05779919057e3233")
+        self.assertEqual(result.expected_reply_size, 0)
+
     def test_query_extra_disjoint(self):
         qr = mot.QueryResolution()
         qr._extra = {

@@ -661,10 +661,11 @@ BOOST_AUTO_TEST_CASE(MotorPositionIncrementalReferenceSource,
 BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
                      * boost::unit_test::tolerance(1e-2f)) {
   Context ctx;
-  ctx.dut.config()->sources[0].compensation_table[0] = 0.1;
-  ctx.dut.config()->sources[0].compensation_table[1] = 0.0;
-  ctx.dut.config()->sources[0].compensation_table[2] = -0.05;
-  ctx.dut.config()->sources[0].compensation_table[3] = -0.2;
+  ctx.dut.config()->sources[0].compensation_table[0] = 10;  // 0.10
+  ctx.dut.config()->sources[0].compensation_table[1] = 0;   // 0.00
+  ctx.dut.config()->sources[0].compensation_table[2] = -5;  // -0.05
+  ctx.dut.config()->sources[0].compensation_table[3] = -2;  // -0.02
+  ctx.dut.config()->sources[0].compensation_scale = 1.27;
   ctx.dut.config()->sources[0].pll_filter_hz = 0.1;
   ctx.pcf.persistent_config.Load();
 
@@ -675,14 +676,14 @@ BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
 
   TestCase test_cases[] = {
     { 0, 1638.4f },
-    { 256, 1075.2f }, // exactly mid-bucket
-    { 511, 514.2f },
-    { 512, 512.0f },
-    { 768, 358.4f }, // exactly mid-bucket
-    { 1023, 205.4f },
-    { 1024, 204.8f },
-    { 1280, 15616.0f }, // exactly mid-bucket
-    { 1536, 14643.2f },
+    { 32, 851.2f }, // exactly mid-bucket
+    { 63, 88.6f },
+    { 64, 64.f },
+    { 96, 16070.4f }, // exactly mid-bucket
+    { 127, 15704.6f },
+    { 128, 15692.8f },
+    { 160, 15970.56f }, // exactly mid-bucket
+    { 192, 16248.32f },
   };
 
   for (const auto& test : test_cases) {
