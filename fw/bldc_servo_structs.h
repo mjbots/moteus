@@ -434,6 +434,7 @@ struct BldcServoConfig {
   uint16_t pwm_rate_hz =
       (g_measured_hw_family == 0 &&
        g_measured_hw_rev <= 2) ? 60000 :
+      g_measured_hw_family == 3 ? 15000 :
       30000;
 
   float current_sense_ohm =
@@ -446,6 +447,7 @@ struct BldcServoConfig {
       ((g_measured_hw_rev <= 5) ? 37.0f : 46.0f) :
       g_measured_hw_family == 1 ? 56.0f :
       g_measured_hw_family == 2 ? 54.0f :
+      g_measured_hw_family == 3 ? 56.0f :
       invalid_float()
       ;
 
@@ -460,8 +462,12 @@ struct BldcServoConfig {
 
   // If we are within this many degrees C of the `fault_temperature`,
   // begin limiting current.
-  float temperature_margin = 25.0f;
-  float fault_temperature = 75.0f;
+  float temperature_margin =
+      (g_measured_hw_family == 3) ? 15.0f :
+      25.0f;
+  float fault_temperature =
+      (g_measured_hw_family == 3) ? 105.0f :
+      75.0f;
 
   // If enabled, slightly more instructions are used per cycle, but
   // the motor temperature will be available for throttling in
@@ -545,10 +551,12 @@ struct BldcServoConfig {
       (g_measured_hw_family == 0 ||
        g_measured_hw_family == 1) ? 100.0f :
       g_measured_hw_family == 2 ? 20.0f :
+      g_measured_hw_family == 3 ? 120.0f :
       invalid_float();
   float derate_current_A =
       (g_measured_hw_family == 0 ||
-       g_measured_hw_family == 1) ? -20.0f :
+       g_measured_hw_family == 1 ||
+       g_measured_hw_family == 3) ? -20.0f :
       g_measured_hw_family == 2 ? -3.0f :
       invalid_float();
 

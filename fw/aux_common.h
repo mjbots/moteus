@@ -31,10 +31,12 @@ struct Spi {
       kIcPz,
       kMa732,
       kMa600,
+      kOnboardMa600,
+      kBoardDefault,
 
       kNumModes,
     };
-    Mode mode = kOnboardAs5047;
+    Mode mode = kBoardDefault;
     uint32_t rate_hz = 12000000;
 
     // For now, only the MA732/MA600 uses these.
@@ -457,6 +459,8 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
         { M::kIcPz, "ic_pz" },
         { M::kMa732, "ma732" },
         { M::kMa600, "ma600" },
+        { M::kOnboardMa600, "onboard_ma600" },
+        { M::kBoardDefault, "board_default" },
       }};
   }
 };

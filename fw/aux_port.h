@@ -50,7 +50,8 @@ class AuxPort {
 
   enum SpiDefault {
     kNoDefaultSpi,
-    kDefaultOnboardSpi
+    kDefaultOnboardSpi,
+    kDefaultOnboardMa600,
   };
 
   AuxPort(const char* aux_name,
@@ -68,18 +69,8 @@ class AuxPort {
         timer_(timer),
         adc_info_(*adc_info),
         hw_config_(hw_config),
-        dma_channels_(dma_channels) {
-    switch (spi_default) {
-      case kNoDefaultSpi: {
-        config_.spi.mode = aux::Spi::Config::Mode::kDisabled;
-        break;
-      }
-      case kDefaultOnboardSpi: {
-        onboard_spi_available_ = true;
-        // This is the upstream default.
-        break;
-      }
-    }
+        dma_channels_(dma_channels),
+        spi_default_(spi_default) {
     persistent_config->Register(aux_name, &config_,
                                 std::bind(&AuxPort::HandleConfigUpdate, this));
     telemetry_manager->Register(aux_name, &status_);
@@ -858,6 +849,29 @@ class AuxPort {
     }
 
     ////////////////////////////////////////////
+    // Now that everything is reset, reset any board defaults to the
+    // correct value.
+
+    if (config_.spi.mode == aux::Spi::Config::kBoardDefault) {
+      switch (spi_default_) {
+        case kNoDefaultSpi: {
+          config_.spi.mode = aux::Spi::Config::Mode::kDisabled;
+          break;
+        }
+        case kDefaultOnboardSpi: {
+          onboard_spi_available_ = true;
+          config_.spi.mode = aux::Spi::Config::Mode::kOnboardAs5047;
+          break;
+        }
+        case kDefaultOnboardMa600: {
+          onboard_spi_available_ = true;
+          config_.spi.mode = aux::Spi::Config::Mode::kOnboardMa600;
+          break;
+        }
+      }
+    }
+
+    ////////////////////////////////////////////
     // Validate our config, one option at a time.
 
     const bool any_i2c =
@@ -924,13 +938,15 @@ class AuxPort {
       updated_any_isr = true;
     }
 
-    if (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 &&
+    if ((config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
+         config_.spi.mode == aux::Spi::Config::kOnboardMa600) &&
         !onboard_spi_available_) {
       status_.error = aux::AuxError::kSpiPinError;
       return;
     }
 
-    if (config_.spi.mode != aux::Spi::Config::kOnboardAs5047 &&
+    if ((config_.spi.mode != aux::Spi::Config::kOnboardAs5047 &&
+         config_.spi.mode != aux::Spi::Config::kOnboardMa600) &&
         onboard_spi_available_) {
       // If we're not using the onboard encoder, ensure that its CS
       // line is not asserted.
@@ -941,14 +957,16 @@ class AuxPort {
     if (config_.spi.mode != aux::Spi::Config::kDisabled) {
       const auto maybe_spi = aux::FindSpiOption(
           config_.pins, hw_config_,
-          (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ?
+          ((config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
+            config_.spi.mode == aux::Spi::Config::kOnboardMa600) ?
            aux::kDoNotRequireCs : aux::kRequireCs));
       if (!maybe_spi) {
         status_.error = aux::AuxError::kSpiPinError;
         return;
       }
       const PinName spi_cs_pin =
-          config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ?
+          (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
+           config_.spi.mode == aux::Spi::Config::kOnboardMa600) ?
           g_hw_pins.as5047_cs : maybe_spi->cs;
 
       Stm32Spi::Options spi_options;
@@ -989,7 +1007,8 @@ class AuxPort {
           ma732_options_ = options;
           break;
         }
-        case aux::Spi::Config::kMa600: {
+        case aux::Spi::Config::kMa600:
+        case aux::Spi::Config::kOnboardMa600: {
           MA732::Options options = spi_options;
           options.filter_us = config_.spi.filter_us;
           options.bct = config_.spi.bct;
@@ -1004,6 +1023,7 @@ class AuxPort {
           break;
         }
         case aux::Spi::Config::kDisabled:
+        case aux::Spi::Config::kBoardDefault:
         case aux::Spi::Config::kNumModes: {
           MJ_ASSERT(false);
           break;
@@ -1363,6 +1383,7 @@ class AuxPort {
   std::optional<DigitalOut> i2c_pullup_dout_;
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;
+  const SpiDefault spi_default_;
 
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> start_sample_types_ = {};
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> finish_sample_types_ = {};

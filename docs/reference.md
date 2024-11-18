@@ -175,10 +175,14 @@ used for various functions.
 ELECTRICAL NOTES:
  * The 3.3V supply pins can power external peripherals:
    * r4.5/c1: 50mA
-   * r4.8/r4.11/n1: 100mA
+   * r4.8/r4.11/n1/x1: 100mA
  * The 5V supply pins can power external peripherals:
    * r4: not present
-   * n1/c1: 100mA
+   * c1: 100mA
+   * n1/x1: 200mA
+ * The 12V supply pins can power external peripherals:
+   * r4/c1/n1: not present
+   * x1: 150mA
  * Some pins are 5V tolerant.  Those not marked as such in the pin
    option table are 3.3V only.
 
@@ -264,10 +268,11 @@ Pins: select
 A variety of asynchronous serial encoders and debugging facilities are
 supported.
 
-The moteus-n1 additionally has a hardware RS422 transceiver connected
-to aux1's pins D and E which can be enabled through configuration.
-RS485 devices like the CUI AMT21x can be used if the RS422 pin Y is
-connected to A and RS422 pin Z is connected to B.
+The moteus-n1 and moteus-x1 additionally have a hardware RS422
+transceiver connected to aux1's pins D and E which can be enabled
+through configuration.  RS485 devices like the CUI AMT21x can be used
+if the RS422 pin Y is connected to A and RS422 pin Z is connected to
+B.
 
 ### Pin Options ###
 
@@ -284,7 +289,7 @@ The following table shows which pins can be used for the unique capabilities:
 | I                | 5   | 2   | MISO | X           |     |             |      |     |
 | O                | 6   | 3   | MOSI | X           |     |             |      |     |
 
-| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+| moteus c1/n1/x1  | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
 |------------------|-----|-----|------|-------------|-----|-------------|------|-----|
 | 5V (5)           | 1   |     |      |             |     |             |      |     |
 | 3.3V (3)         | 2   |     |      |             |     |             |      |     |
@@ -314,7 +319,7 @@ pullups are not available on moteus-c1 for aux1.
 | DBG 1            |     | 2   |      |             |     |             |      | X   |
 | DBG 2            |     | 3   |      |             |     |             |      | X   |
 
-| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+| moteus c1/n1/x1  | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
 |------------------|-----|-----|------|-------------|-----|-------------|------|-----|
 | 5V (5)           | 1   |     |      |             |     |             |      |     |
 | 3.3V (3)         | 2   |     |      |             |     |             |      |     |
@@ -2529,7 +2534,7 @@ Pin 1 is closest to the ABS label.  They are assigned as follows:
  - 3 - SDA
  - 4 - GND
 
-### moteus n1 - J3 - JST GH-6 ###
+### moteus n1/x1 - J3 - JST GH-6 ###
 
 RS422, configured by AUX1 D/E to USART and enabling RS422 on AUX1.
 
@@ -2540,7 +2545,7 @@ RS422, configured by AUX1 D/E to USART and enabling RS422 on AUX1.
  - 5 - Z
  - 6 - GND
 
-### moteus n1 - AUX1 - JST GH-8 ###
+### moteus n1/x1 - AUX1 - JST GH-8 ###
 
  - 1 - 5V
  - 2 - 3.3V
@@ -2551,7 +2556,7 @@ RS422, configured by AUX1 D/E to USART and enabling RS422 on AUX1.
  - 7 - E
  - 8 - GND
 
-### moteus n1/c1 - AUX2 - JST GH-7 ###
+### moteus c1/n1/x1 - AUX2 - JST GH-7 ###
 
  - 1 - 5V
  - 2 - 3.3V

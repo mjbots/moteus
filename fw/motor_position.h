@@ -484,7 +484,9 @@ class MotorPosition {
           const auto mode = aux_config->spi.mode;
           if (mode == M::kAs5047 || mode == M::kOnboardAs5047) {
             source_config.cpr = 16384;
-          } else if (mode == M::kMa732 || mode == M::kMa600) {
+          } else if (mode == M::kMa732 ||
+                     mode == M::kMa600 ||
+                     mode == M::kOnboardMa600) {
             source_config.cpr = 65536;
           } else if (mode == M::kIcPz) {
             source_config.cpr = 16777216;
