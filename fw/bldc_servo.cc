@@ -495,6 +495,15 @@ class BldcServo::Impl {
     slow_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.5f);
     fast_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.001f);
 
+    // Ensure that our maximum current stays within the range that can
+    // be sensed.
+    constexpr float kSensableCurrentMargin = 0.95f;
+    const float max_sensable_current_A =
+        kSensableCurrentMargin *
+        motor_driver_->max_sense_V() / config_.current_sense_ohm;
+    config_.max_current_A = std::min(config_.max_current_A,
+                                     max_sensable_current_A);
+
     ConfigurePwmTimer();
 
     const float kv = 0.5f * 60.0f / motor_.v_per_hz;
@@ -508,7 +517,9 @@ class BldcServo::Impl {
         kFudge * 60.0f / (2.0f * kPi * kv) :
         kDefaultTorqueConstant;
 
-    adc_scale_ = 3.3f / (4096.0f * config_.current_sense_ohm * config_.i_gain);
+    adc_scale_ = 3.3f / (4096.0f *
+                         config_.current_sense_ohm *
+                         motor_driver_->i_gain());
 
     pwm_derate_ = (static_cast<float>(config_.pwm_rate_hz) / 30000.0f);
     adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate_;

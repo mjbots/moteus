@@ -197,6 +197,17 @@ class Drv8323::Impl {
     // what we commanded.
   }
 
+  float max_sense_V() {
+    // The datasheet specifies a 0.25V margin on both the top and
+    // bottom of the range, and we are bidirectional so we only get
+    // half the range.
+    return 0.5f * (3.3f - 0.5f) / static_cast<float>(config_.csa_gain);
+  }
+
+  float i_gain() {
+    return config_.csa_gain;
+  }
+
   void HandleConfigUpdate() {
     if (g_measured_hw_family == 0 &&
         g_measured_hw_rev == 7) {
@@ -442,6 +453,8 @@ bool Drv8323::fault() {
 }
 
 void Drv8323::PollMillisecond() { impl_->PollMillisecond(); }
+float Drv8323::max_sense_V() { return impl_->max_sense_V(); }
+float Drv8323::i_gain() { return impl_->i_gain(); }
 const Drv8323::Status* Drv8323::status() const { return &impl_->status_; }
 
 }

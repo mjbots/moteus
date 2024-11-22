@@ -70,6 +70,14 @@ class Drv8323 : public MotorDriver {
 
   void PollMillisecond();
 
+  // The maximum voltage that can be observed at the sense resistor
+  // while remaining within the range of the device (and its
+  // configured gains).
+  float max_sense_V() override;
+
+  // The current configured sense amplifier gain.
+  float i_gain() override;
+
   struct Status {
     // Fault Status Register 1
     bool fault = false;

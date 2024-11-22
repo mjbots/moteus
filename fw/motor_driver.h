@@ -36,6 +36,13 @@ class MotorDriver {
 
   /// Return true if the driver is currently reporting a fault.
   virtual bool fault() = 0;
+
+  /// Return the maximum resistor sense voltage for the current
+  /// config.
+  virtual float max_sense_V() = 0;
+
+  /// Return the current configured sense amplifier gain.
+  virtual float i_gain() = 0;
 };
 
 }

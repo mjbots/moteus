@@ -426,7 +426,6 @@ struct BldcServoConfig {
        g_measured_hw_rev <= 2) ? 60000 :
       30000;
 
-  float i_gain = 20.0f;  // should match csa_gain from drv8323
   float current_sense_ohm =
       (g_measured_hw_family == 2 ? 0.002f :
        0.0005f);
@@ -610,7 +609,6 @@ struct BldcServoConfig {
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(pwm_rate_hz));
-    a->Visit(MJ_NVP(i_gain));
     a->Visit(MJ_NVP(current_sense_ohm));
     a->Visit(MJ_NVP(pwm_comp_off));
     a->Visit(MJ_NVP(pwm_comp_mag));
