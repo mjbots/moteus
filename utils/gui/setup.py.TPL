@@ -51,17 +51,17 @@ setuptools.setup(
     python_requires = '>=3.7, <4',
     install_requires = [
         'asyncqt>=0.8',
-        'moteus>=0.3.26',
-        'matplotlib>=3.5',
+        'moteus>=0.3.74',
+        'matplotlib>=3.9',
         # For some reason, matplotlib can barf without this, but
         # doesn't actually list it as a dependency on Windows.
         'msvc-runtime;platform_system=="Windows" and python_version<"3.12"',
-        'numpy<2',
         # At the time of this writing, 6.7.0 on Windows causes qtpy
         # and qtconsole to fail miserably, so we just stay with 6.6 or
         # earlier.
-        'PySide6>=6.2,<6.7',
-        'qtconsole>=0.5.2',
+        'PySide6>=6.8',
+        'qtconsole>=5.6',
         'qtpy>=2.0.1',
+        'scipy>=1.14',
     ],
 )
