@@ -889,17 +889,24 @@ negative means apply no enforced timeout.
 Mode: Read/write
 
 This can be used to override the global velocity limit for internally
-generated trajectories.  If unspecified, it is NaN / maximally
-negative, which implies to use the global configurable default.
+generated trajectories.
+
+If negative, then no limit is applied.
+
+If unspecified, it is NaN / maximally negative, which implies to use
+the global configurable default.
 
 #### 0x029 - Acceleration limit ####
 
 Mode: Read/write
 
 This can be used to override the global acceleration limit for
-internally generated trajectories.  If unspecified, it is NaN /
-maximally negative, which implies to use the global configurable
-default.
+internally generated trajectories.
+
+If negative, then no limit is applied.
+
+If unspecified, it is NaN / maximally negative, which implies to use
+the global configurable default.
 
 #### 0x02a - Fixed voltage override ####
 
