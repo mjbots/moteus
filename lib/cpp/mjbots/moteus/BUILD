@@ -16,22 +16,7 @@
 
 package(default_visibility = ["//visibility:public"])
 
-filegroup(
-    name = "src",
-    srcs = [
-        "moteus_multiplex.h",
-        "moteus_optional.h",
-        "moteus_protocol.h",
-        "moteus_tokenizer.h",
-        "moteus_transport.h",
-        "moteus.h",
-    ],
-)
 
-cc_library(
-    name = "moteus",
-    hdrs = [":src"],
-)
 
 cc_test(
     name = "test",
@@ -44,7 +29,7 @@ cc_test(
         "-Ilib/cpp",
     ],
     deps = [
-        ":moteus",
+        "//lib/cpp/mjbots:moteus",
         "@boost//:test",
     ],
     size = "small",
