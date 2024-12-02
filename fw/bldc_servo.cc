@@ -30,6 +30,7 @@
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32g4_adc.h"
+#include "fw/thermistor.h"
 #include "fw/torque_model.h"
 
 #if defined(TARGET_STM32G4)
@@ -80,42 +81,6 @@ float BilinearRate(float offset, float mag, float val) {
   }
 }
 
-// From make_thermistor_table.py
-constexpr float g_thermistor_lookup[] = {
-  -74.17f, // 0
-  -11.36f, // 128
-  1.53f, // 256
-  9.97f, // 384
-  16.51f, // 512
-  21.98f, // 640
-  26.79f, // 768
-  31.15f, // 896
-  35.19f, // 1024
-  39.00f, // 1152
-  42.65f, // 1280
-  46.18f, // 1408
-  49.64f, // 1536
-  53.05f, // 1664
-  56.45f, // 1792
-  59.87f, // 1920
-  63.33f, // 2048
-  66.87f, // 2176
-  70.51f, // 2304
-  74.29f, // 2432
-  78.25f, // 2560
-  82.44f, // 2688
-  86.92f, // 2816
-  91.78f, // 2944
-  97.13f, // 3072
-  103.13f, // 3200
-  110.01f, // 3328
-  118.16f, // 3456
-  128.23f, // 3584
-  141.49f, // 3712
-  161.02f, // 3840
-  197.66f, // 3968
-};
-
 template <typename Array>
 int MapConfig(const Array& array, int value) {
   static_assert(sizeof(array) > 0);
@@ -153,7 +118,7 @@ struct RateConfig {
   float period_s;
   int16_t max_position_delta;
 
-  RateConfig(int pwm_rate_hz_in = 30000) {
+  RateConfig(float pwm_scale = 1.0f, int pwm_rate_hz_in = 30000) {
     const int board_min_pwm_rate_hz =
         (g_measured_hw_family == 0 &&
          g_measured_hw_rev == 2) ? 60000 :
@@ -179,7 +144,7 @@ struct RateConfig {
 
     min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
     max_pwm = 1.0f - min_pwm;
-    max_voltage_ratio = (max_pwm - 0.5f) * 2.0f;
+    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f) / pwm_scale;
 
     rate_hz = int_rate_hz;
     period_s = 1.0f / rate_hz;
@@ -279,6 +244,27 @@ class PhaseMonitors {
  private:
   volatile uint32_t* reg_in_ = nullptr;
   uint32_t mask_ = 0;
+};
+
+class ExponentialFilter {
+ public:
+  ExponentialFilter() {}
+
+  ExponentialFilter(float rate_hz, float period_s)
+      : alpha_(1.0f / (rate_hz * period_s)),
+        one_minus_alpha_(1.0f - alpha_) {}
+
+  void operator()(float input, float* filtered) {
+    if (std::isnan(*filtered)) {
+      *filtered = input;
+    } else {
+      *filtered = alpha_ * input + one_minus_alpha_ * *filtered;
+    }
+  }
+
+ private:
+  float alpha_ = 1.0;
+  float one_minus_alpha_ = 0.0;
 };
 }
 
@@ -490,9 +476,14 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    rate_config_ = RateConfig(config_.pwm_rate_hz);
+    rate_config_ = RateConfig(config_.pwm_scale, config_.pwm_rate_hz);
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
+
+    velocity_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
+    temperature_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
+    slow_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.5f);
+    fast_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.001f);
 
     ConfigurePwmTimer();
 
@@ -513,6 +504,9 @@ class BldcServo::Impl {
         (static_cast<float>(config_.pwm_rate_hz) / 40000.0f);
     adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate;
     adjusted_max_power_W_ = config_.max_power_W * pwm_derate;
+
+    fet_thermistor_.Reset(47000.0f);
+    motor_thermistor_.Reset(config_.motor_thermistor_ohm);
   }
 
   void PollMillisecond() {
@@ -961,11 +955,14 @@ class BldcServo::Impl {
     // Check to see if any motor outputs are now high.  If so, fault,
     // because we have exceeded the maximum duty cycle we can achieve
     // while still sampling current correctly.
+
+#ifndef MOTEUS_DISABLE_PWM_CYCLE_OVERRUN
     if (status_.mode != kFault &&
         phase_monitors_.read()) {
       status_.mode = kFault;
       status_.fault = errc::kPwmCycleOverrun;
     }
+#endif
   }
 
   void ISR_DoSense() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
@@ -1046,7 +1043,7 @@ class BldcServo::Impl {
 #endif
     motor_position_->ISR_Update(rate_config_.period_s);
 
-    ISR_UpdateFilteredValue(position_.velocity, &status_.velocity_filt, 0.01f);
+    velocity_filter_(position_.velocity, &status_.velocity_filt);
 
     // The temperature sensing should be done by now, but just double
     // check.
@@ -1078,32 +1075,12 @@ class BldcServo::Impl {
 #endif
 
     {
-      constexpr int adc_max = 4096;
-      constexpr size_t size_thermistor_table =
-          sizeof(g_thermistor_lookup) / sizeof(*g_thermistor_lookup);
-
-      const auto calculate_temp =
-          [&](uint16_t adc_raw) {
-            const size_t offset = std::max<size_t>(
-                1, std::min<size_t>(
-                    size_thermistor_table - 2,
-                    adc_raw * size_thermistor_table / adc_max));
-            const int16_t this_value = offset * adc_max / size_thermistor_table;
-            const int16_t next_value = (offset + 1) * adc_max / size_thermistor_table;
-            const float temp1 = g_thermistor_lookup[offset];
-            const float temp2 = g_thermistor_lookup[offset + 1];
-            return temp1 +
-                (temp2 - temp1) *
-                static_cast<float>(adc_raw - this_value) /
-                static_cast<float>(next_value - this_value);
-          };
-
-      status_.fet_temp_C = calculate_temp(status_.adc_fet_temp_raw);
-      ISR_UpdateFilteredValue(status_.fet_temp_C, &status_.filt_fet_temp_C, 0.01f);
+      status_.fet_temp_C = fet_thermistor_.Calculate(status_.adc_fet_temp_raw);
+      temperature_filter_(status_.fet_temp_C, &status_.filt_fet_temp_C);
 
       if (config_.enable_motor_temperature) {
-        status_.motor_temp_C = calculate_temp(status_.adc_motor_temp_raw);
-        ISR_UpdateFilteredValue(status_.motor_temp_C, &status_.filt_motor_temp_C, 0.01f);
+        status_.motor_temp_C = motor_thermistor_.Calculate(status_.adc_motor_temp_raw);
+        temperature_filter_(status_.motor_temp_C, &status_.filt_motor_temp_C);
       } else {
         status_.motor_temp_C = status_.filt_motor_temp_C = 0.0f;
       }
@@ -1117,19 +1094,6 @@ class BldcServo::Impl {
     aux2_port_->ISR_EndAnalogSample();
   }
 
-  void ISR_UpdateFilteredValue(float input, float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
-    if (std::isnan(*filtered)) {
-      *filtered = input;
-    } else {
-      const float alpha = 1.0f / (rate_config_.rate_hz * period_s);
-      *filtered = alpha * input + (1.0f - alpha) * *filtered;
-    }
-  }
-
-  void ISR_UpdateFilteredBusV(float* filtered, float period_s) const MOTEUS_CCM_ATTRIBUTE {
-    ISR_UpdateFilteredValue(status_.bus_V, filtered, period_s);
-  }
-
   // This is called from the ISR.
   void ISR_CalculateCurrentState(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     status_.cur1_A = (status_.adc_cur1_raw - status_.adc_cur1_offset) * adc_scale_;
@@ -1140,8 +1104,8 @@ class BldcServo::Impl {
     }
     status_.bus_V = status_.adc_voltage_sense_raw * vsense_adc_scale_;
 
-    ISR_UpdateFilteredBusV(&status_.filt_bus_V, 0.5f);
-    ISR_UpdateFilteredBusV(&status_.filt_1ms_bus_V, 0.001f);
+    slow_bus_v_filter_(status_.bus_V, &status_.filt_bus_V);
+    fast_bus_v_filter_(status_.bus_V, &status_.filt_1ms_bus_V);
 
     DqTransform dq{sin_cos,
           status_.cur1_A,
@@ -1157,9 +1121,10 @@ class BldcServo::Impl {
     if (!is_torque_on) {
       status_.torque_error_Nm = 0.0f;
     }
+
     status_.motor_max_velocity =
         rate_config_.max_voltage_ratio *
-        0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
+        kSvpwmRatio * 0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
     DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
 #endif
@@ -1346,7 +1311,7 @@ class BldcServo::Impl {
 
     // Power should already be false for any state we could possibly
     // be in, but lets just be certain.
-    motor_driver_->Power(false);
+    motor_driver_->PowerOff();
 
     calibrate_adc1_ = 0;
     calibrate_adc2_ = 0;
@@ -1575,7 +1540,7 @@ class BldcServo::Impl {
     const auto result = motor_driver_->StartEnable(false);
     // We should always be able to disable immediately.
     MJ_ASSERT(result == MotorDriver::kDisabled);
-    motor_driver_->Power(false);
+    motor_driver_->PowerOff();
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
@@ -1584,7 +1549,7 @@ class BldcServo::Impl {
   }
 
   void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
-    motor_driver_->Power(false);
+    motor_driver_->PowerOff();
 
     *pwm1_ccr_ = 0;
     *pwm2_ccr_ = 0;
@@ -1645,7 +1610,7 @@ class BldcServo::Impl {
       *pwm3_ccr_ = pwm3;
     }
 
-    motor_driver_->Power(true);
+    motor_driver_->PowerOn();
   }
 
   void ISR_DoBalancedVoltageControlRotated(const Vec3& voltage, int shift) MOTEUS_CCM_ATTRIBUTE {
@@ -1684,9 +1649,11 @@ class BldcServo::Impl {
     const float dpb = scale(fdb, fdc) * config_.pwm_scale;
     const float dpc = scale(fdc, fdb) * config_.pwm_scale;
 
-    // And then balance them.
-    const float avg = (dpb + dpc) / 3.0f;
-    const float pwm1 = 0.5f - avg;
+    // And then balance them so as to keep the lowest and highest duty
+    // cycle phases equidistant from the midpoint.  Note, this results
+    // in a waveform that is identical to SVPWM, or min/max injection.
+    const float extent = 0.5f * std::max(dpb, dpc);
+    const float pwm1 = 0.5f - extent;
     const float pwm2 = pwm1 + dpb;
     const float pwm3 = pwm1 + dpc;
 
@@ -1828,7 +1795,8 @@ class BldcServo::Impl {
               -max_V, max_V);
 
       const float max_current_integral =
-          rate_config_.max_voltage_ratio * 0.5f * status_.filt_bus_V;
+          rate_config_.max_voltage_ratio * kSvpwmRatio *
+          0.5f * status_.filt_bus_V;
       status_.pid_d.integral = Limit(
           status_.pid_d.integral,
           -max_current_integral, max_current_integral);
@@ -1883,7 +1851,9 @@ class BldcServo::Impl {
     control_.d_V = d_V;
     control_.q_V = q_V;
 
-    const float max_voltage = (0.5f - rate_config_.min_pwm) * status_.filt_bus_V;
+    const float max_voltage =
+        (0.5f - rate_config_.min_pwm) * status_.filt_bus_V *
+        kSvpwmRatio / config_.pwm_scale;
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
@@ -2152,16 +2122,14 @@ class BldcServo::Impl {
 
       // In this region, we still apply feedforward torques if they
       // are present.
-      const float limited_torque_Nm =
-          Limit(data->feedforward_Nm, -data->max_torque_Nm, data->max_torque_Nm);
-      control_.torque_Nm = limited_torque_Nm;
-      status_.torque_error_Nm = status_.torque_Nm - control_.torque_Nm;
-      const float limited_q_A =
-          torque_to_current(
-              limited_torque_Nm *
-              motor_position_->config()->rotor_to_output_ratio);
+      PID::ApplyOptions apply_options;
+      apply_options.kp_scale = 0.0;
+      apply_options.kd_scale = 0.0;
+      apply_options.ilimit_scale = 0.0;
 
-      ISR_DoCurrent(sin_cos, 0.0f, limited_q_A, 0.0f);
+      ISR_DoPositionCommon(
+          sin_cos, data, apply_options,
+          data->max_torque_Nm, data->feedforward_Nm, 0.0f);
       return;
     }
 
@@ -2169,6 +2137,7 @@ class BldcServo::Impl {
     PID::ApplyOptions apply_options;
     apply_options.kp_scale = data->kp_scale;
     apply_options.kd_scale = data->kd_scale;
+    apply_options.ilimit_scale = data->ilimit_scale;
 
     const int64_t absolute_relative_delta =
         (static_cast<int64_t>(
@@ -2215,7 +2184,7 @@ class BldcServo::Impl {
     *pwm2_ccr_ = 0;
     *pwm3_ccr_ = 0;
 
-    motor_driver_->Power(true);
+    motor_driver_->PowerOn();
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
@@ -2364,6 +2333,9 @@ class BldcServo::Impl {
 
   int32_t phase_ = 0;
 
+  Thermistor fet_thermistor_;
+  Thermistor motor_thermistor_;
+
   CommandData data_buffers_[2] = {};
 
   // CommandData has its data updated to the ISR by first writing the
@@ -2412,6 +2384,11 @@ class BldcServo::Impl {
   uint32_t adc4_sqr_ = 0;
 
   IRQn_Type pwm_irqn_ = {};
+
+  ExponentialFilter velocity_filter_;
+  ExponentialFilter temperature_filter_;
+  ExponentialFilter slow_bus_v_filter_;
+  ExponentialFilter fast_bus_v_filter_;
 
   const bool family0_rev4_and_older_ = (
       g_measured_hw_family == 0 &&

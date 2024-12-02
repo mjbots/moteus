@@ -150,6 +150,7 @@ functions.  Currently supported options include:
 | AS5600          | I2C              | 12 bits        | on-axis     | $         |
 | AksIM-2         | RS422 w/ 5V      | 20 bits        | off-axis    | $$$       |
 | CUI AMT21x      | RS422 w/ 5V      | 14 bits        | shaft       | $$        |
+| MA600           | SPI              | 16 bits        | on/off-axis | $         |
 | MA732           | SPI              | 14 bits        | on/off-axis | $         |
 | iC-PZ           | SPI w/ 5V        | 22 bits        | off-axis    | $$$       |
 | Quadrature      | Quadrature       | N/A            | x           | x         |
@@ -274,25 +275,25 @@ The following table shows which pins can be used for the unique capabilities:
 
 #### AUX1 / ENC ####
 
-| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
-|------------------|-----|-----|------|-------------|-----|---------|------|-----|
-| 3.3V  (3)        | 1   |     |      |             |     |         |      |     |
-| C                | 2   | 0   | X    |             |     |         |      | X   |
-| GND (G)          | 3   |     |      |             |     |         |      |     |
-| K                | 4   | 1   | CLK  | X           |     |         |      |     |
-| I                | 5   | 2   | MISO | X           |     |         |      |     |
-| O                | 6   | 3   | MOSI | X           |     |         |      |     |
+| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|-------------|------|-----|
+| 3.3V  (3)        | 1   |     |      |             |     |             |      |     |
+| C                | 2   | 0   | X    |             |     |             |      | X   |
+| GND (G)          | 3   |     |      |             |     |             |      |     |
+| K                | 4   | 1   | CLK  | X           |     |             |      |     |
+| I                | 5   | 2   | MISO | X           |     |             |      |     |
+| O                | 6   | 3   | MOSI | X           |     |             |      |     |
 
-| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
-|------------------|-----|-----|------|-------------|-----|---------|------|-----|
-| 5V (5)           | 1   |     |      |             |     |         |      |     |
-| 3.3V (3)         | 2   |     |      |             |     |         |      |     |
-| A                | 3   | 0   | CLK  | X           |     |         |      |     |
-| B *              | 4   | 1   | MISO |             |     | 3.1     | RX   |     |
-| C                | 5   | 2   | MOSI | X           |     | 3.2     |      |     |
-| D                | 6   | 3   |      |             | SCL | 2.1     | RX   | X   |
-| E                | 7   | 4   |      |             | SDA | 2.2     | TX   | X   |
-| GND (G)          | 8   |     |      |             |     |         |      |     |
+| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|-------------|------|-----|
+| 5V (5)           | 1   |     |      |             |     |             |      |     |
+| 3.3V (3)         | 2   |     |      |             |     |             |      |     |
+| A                | 3   | 0   | CLK  | X           |     |             |      |     |
+| B *              | 4   | 1   | MISO |             |     | 3.1         | RX   |     |
+| C                | 5   | 2   | MOSI | X           |     | 3.2         |      |     |
+| D                | 6   | 3   |      |             | SCL | 2.1         | RX   | X   |
+| E                | 7   | 4   |      |             | SDA | 2.2         | TX   | X   |
+| GND (G)          | 8   |     |      |             |     |             |      |     |
 
 NOTE: For moteus n1, the B pin software configured pullup cannot be
 used effectively.  Thus the B pin is unsuitable for open-drain inputs
@@ -304,24 +305,24 @@ pullups are not available on moteus-c1 for aux1.
 
 #### AUX2 / ABS ####
 
-| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
-|------------------|-----|-----|------|-------------|-----|---------|------|-----|
-| 3.3V (3)         | 1   |     |      |             |     |         |      |     |
-|                  | 2   | 0   |      |             | SCL |         | RX   | X   |
-|                  | 3   | 1   |      |             | SDA |         | TX   | X   |
-| GND (G)          | 4   |     |      |             |     |         |      |     |
-| DBG 1            |     | 2   |      |             |     |         |      | X   |
-| DBG 2            |     | 3   |      |             |     |         |      | X   |
+| moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|-------------|------|-----|
+| 3.3V (3)         | 1   |     |      |             |     |             |      |     |
+|                  | 2   | 0   |      |             | SCL |             | RX   | X   |
+|                  | 3   | 1   |      |             | SDA |             | TX   | X   |
+| GND (G)          | 4   |     |      |             |     |             |      |     |
+| DBG 1            |     | 2   |      |             |     |             |      | X   |
+| DBG 2            |     | 3   |      |             |     |             |      | X   |
 
-| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad | UART | 5VT |
-|------------------|-----|-----|------|-------------|-----|---------|------|-----|
-| 5V (5)           | 1   |     |      |             |     |         |      |     |
-| 3.3V (3)         | 2   |     |      |             |     |         |      |     |
-| A                | 3   | 0   | CLK  | X           |     |         |      | X   |
-| B                | 4   | 1   | MISO | X           | SDA |         | RX   | X   |
-| C                | 5   | 2   | MOSI | X           | SCL | 4.1     | TX   | X   |
-| D                | 6   | 3   |      |             |     | 4.2     | RX   | X   |
-| GND (G)          | 7   |     |      |             |     |         |      |     |
+| moteus n1/c1     | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+|------------------|-----|-----|------|-------------|-----|-------------|------|-----|
+| 5V (5)           | 1   |     |      |             |     |             |      |     |
+| 3.3V (3)         | 2   |     |      |             |     |             |      |     |
+| A                | 3   | 0   | CLK  | X           |     |             |      | X   |
+| B                | 4   | 1   | MISO | X           | SDA |             | RX   | X   |
+| C                | 5   | 2   | MOSI | X           | SCL | 4.1         | TX   | X   |
+| D                | 6   | 3   |      |             |     | 4.2         | RX   | X   |
+| GND (G)          | 7   |     |      |             |     |             |      |     |
 
 NOTE: For moteus r4.5/8/11, DBG 1/2 are not present on the ABS
 connector, but are exposed pads on the circuit board.
@@ -653,8 +654,9 @@ negative, power applied to the DC input bus.
 Mode: Read only
 
 The current motor temperature, measured in degrees celsius.  This will
-only be valid if a 47k NTC thermistor is connected to the TEMP pads
-and `servo.enable_motor_temperature` is set to 1.
+only be valid if an NTC thermistor is connected to the TEMP pads,
+`motor.thermistor_ohm` is set to the correct resistance, and
+`servo.enable_motor_temperature` is set to 1.
 
 #### 0x00b - Trajectory complete ####
 
@@ -1160,6 +1162,19 @@ WARNING: Changing the speed affects all processes driven by the
 microcontroller, including CAN communication.  Thus setting this to a
 non-zero value may prevent future CAN communications.
 
+#### 0x076/0x07a - Aux1 PWM Outputs ####
+
+Mode: Read/write
+
+The current output PWM value for the given pin on Aux1.  PWM mapping
+is used for integral types.
+
+#### 0x07b/0x07f - Aux2 PWM Outputs ####
+
+Mode: Read/write
+
+The current output PWM value for the given pin on Aux1.  PWM mapping
+is used for integral types.
 
 #### 0x100 - Model Number ####
 
@@ -1532,6 +1547,17 @@ aux1 out <data>
 
 'data' is a single decimal integer.  Only bits associated with pins
 configured as digital outputs are used, the remainder are ignored.
+
+### `aux1 pwm` - Set PWM Output Values ###
+
+```
+aux1 pwm <pin> <value>
+```
+
+'pin' is a number from 0 to 4 that gives the pin to set.
+
+'value' is a floating point value between 0.0 and 1.0 that gives the
+output duty cycle for the pin.
 
 ### `aux1 ic-cmd` - Initiate an iC-PZ command ###
 
@@ -1962,6 +1988,11 @@ For mode 10, `servo.default_velocity_limit` and
 profile to zero speed.  The default PID gains are used.  The only
 limit on torque when in this timeout mode is `servo.max_current_A`.
 
+## `motor.thermistor_ohm` ##
+
+The resistance of any attached motor NTC thermistor as measured at 25C
+in ohms.
+
 ## `aux[12].pins.X.mode` ##
 
 Selects what functionality will be used on the given pin.
@@ -1983,6 +2014,7 @@ Selects what functionality will be used on the given pin.
 * 14 - Digital input
 * 15 - Digital output (not implemented)
 * 16 - Analog input
+* 17 - PWM output
 
 ## `aux[12].pins.X.pull` ##
 
@@ -2032,6 +2064,7 @@ The type of SPI device.
 * 2 - AS5047P (CPR == 16384)
 * 3 - iC-PZ
 * 4 - MA732 (CPR == 65536)
+* 5 - MA600 (CPR == 65536)
 
 NOTE: iC-PZ devices require significant configuration and calibration
 before use.  Diagnostic mode commands are provided for low level
@@ -2108,6 +2141,16 @@ The common mode voltage to use for the sine cosine.  The sampling is
 done with 12 bits, so 2048 would be exactly 0.5 * 3.3V.  However, it
 is best to calibrate this with actual readings as observed over the
 diagnostic protocol for optimal performance.
+
+## `aux[12].i2c_startup_delay_ms` ##
+
+A delay in milliseconds after power-on (or upon reconfiguring), before
+I2C devices associated with this auxiliary port are first used.
+
+## `aux[12].pwm_period_us` ##
+
+The period in microseconds to be used for PWM outputs on this
+auxiliary port.
 
 ## `motor_position.sources.X.aux_number` ##
 
@@ -2306,8 +2349,8 @@ python3 -m moteus.moteus_tool --target 1 --zero-offset
 
 ## Flashing and building firmware ##
 
-To build the moteus firmware, an x86-64 Ubuntu 20.04 or 22.04 system
-is required.
+To build the moteus firmware, an x86-64 Ubuntu 20.04, 22.04, or 24.04
+system is required.
 
 ### Flashing over CAN ###
 

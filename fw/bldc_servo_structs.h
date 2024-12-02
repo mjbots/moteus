@@ -475,6 +475,7 @@ struct BldcServoConfig {
   // the motor temperature will be available for throttling in
   // addition to the FET temperature.
   bool enable_motor_temperature = false;
+  float motor_thermistor_ohm = 10000.0f;
   float motor_derate_temperature = 50.0f;
   float motor_fault_temperature = std::numeric_limits<float>::quiet_NaN();
 
@@ -609,6 +610,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(derate_temperature));
     a->Visit(MJ_NVP(fault_temperature));
     a->Visit(MJ_NVP(enable_motor_temperature));
+    a->Visit(MJ_NVP(motor_thermistor_ohm));
     a->Visit(MJ_NVP(motor_derate_temperature));
     a->Visit(MJ_NVP(motor_fault_temperature));
     a->Visit(MJ_NVP(velocity_threshold));

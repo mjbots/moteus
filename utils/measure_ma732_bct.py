@@ -15,11 +15,11 @@
 # limitations under the License.
 
 '''This tool can be used to select an optimal BCT and trim axis for
-MA732 off axis encoders.
+MA600/MA732 off axis encoders.
 
-Before running, the MA732 must be enabled in the corresponding aux
-port, and at least one motor_position source must be configured to use
-it as an input.
+Before running, the MA600/MA732 must be enabled in the corresponding
+aux port, and at least one motor_position source must be configured to
+use it as an input.
 
 '''
 
@@ -110,8 +110,8 @@ class BctDetector:
         position_max = await histogram.read_config_double(
             self.stream, f"servopos.position_max")
 
-        self.espeed = self.args.speed * num_poles
-        self.eaccel = self.args.acceleration * num_poles
+        self.espeed = self.args.speed
+        self.eaccel = self.args.acceleration
 
         print(f"start_bct={start_bct} start_trim={start_trim}")
 
@@ -199,8 +199,8 @@ class BctDetector:
         # AUX port with SPI.
 
         auxconfig = await self.get_config(self.auxstr)
-        if int(auxconfig[f'{self.auxstr}.spi.mode']) != 4:
-            raise RuntimeError(f'{self.auxstr} not configured for MA732')
+        if not int(auxconfig[f'{self.auxstr}.spi.mode']) in [4, 5]:
+            raise RuntimeError(f'{self.auxstr} not configured for MA600/MA732')
 
         config = await self.get_config("motor_position")
 
@@ -275,8 +275,8 @@ async def main():
 
     parser.add_argument('--target', '-t', type=int, default=1)
     parser.add_argument('--aux', '-a', type=int, default=2)
-    parser.add_argument('--speed', '-s', type=float, default=1.0)
-    parser.add_argument('--acceleration', type=float, default=2.0)
+    parser.add_argument('--speed', '-s', type=float, default=10.0)
+    parser.add_argument('--acceleration', type=float, default=20.0)
     parser.add_argument('--power', '-p', type=float, default=3.0)
     parser.add_argument('--force-voltage', type=float, default=None)
     parser.add_argument('--split-count', type=int, default=2)

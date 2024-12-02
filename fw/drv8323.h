@@ -27,6 +27,7 @@
 #include "fw/millisecond_timer.h"
 #include "fw/motor_driver.h"
 #include "fw/moteus_hw.h"
+#include "fw/stm32_digital_output.h"
 
 namespace moteus {
 
@@ -57,7 +58,14 @@ class Drv8323 : public MotorDriver {
   // Return true for success, false for failure.
   EnableResult StartEnable(bool) override;
 
-  void Power(bool) override;
+  void PowerOn() override {
+    hiz_.set();
+  }
+
+  void PowerOff() override {
+    hiz_.clear();
+  }
+
   bool fault() override MOTEUS_CCM_ATTRIBUTE;
 
   void PollMillisecond();
@@ -304,6 +312,8 @@ class Drv8323 : public MotorDriver {
  private:
   class Impl;
   mjlib::micro::PoolPtr<Impl> impl_;
+
+  Stm32DigitalOutput hiz_;
 };
 
 }

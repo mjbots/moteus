@@ -36,6 +36,7 @@
 #include <functional>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <string>

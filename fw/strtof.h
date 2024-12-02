@@ -1,4 +1,4 @@
-// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
+// Copyright 2024 mjbots Robotic Systems, LLC.  info@mjbots.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,28 +14,26 @@
 
 #pragma once
 
+#include <cstdlib>
+#include <string_view>
+
 namespace moteus {
 
-class MotorDriver {
- public:
-  enum EnableResult {
-    kDisabled,
-    kEnabled,
-    kEnabling1,
-    kEnabling2,
-    kEnabling3,
-    kCalibrateFailed,
-  };
+inline std::optional<float> Strtof(const char* data) {
+  if (data == nullptr) {
+    return {};
+  }
+  char* end = nullptr;
+  const float result = std::strtof(&data[0], &end);
+  if (end == nullptr ||
+      (*end != 0 && !std::isspace(*end))) {
+    return {};
+  }
+  return result;
+}
 
-  /// Start the process of turning on or off the driver.
-  virtual EnableResult StartEnable(bool) = 0;
-
-  /// Enable power to the output stage.
-  virtual void PowerOn() = 0;
-  virtual void PowerOff() = 0;
-
-  /// Return true if the driver is currently reporting a fault.
-  virtual bool fault() = 0;
-};
+inline std::optional<float> Strtof(const std::string_view& view) {
+  return Strtof(view.data());
+}
 
 }

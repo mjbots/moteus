@@ -26,6 +26,9 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-t', '--time', type=float, default=3)
     parser.add_argument('-s', '--split', type=int, default=1)
+    parser.add_argument('--title', default=None)
+    parser.add_argument('--xlabel', default=None)
+    parser.add_argument('--ylabel', default=None)
     parser.add_argument('-o', '--output')
     parser.add_argument('hist_options', nargs='*')
     args = parser.parse_args()
@@ -57,6 +60,13 @@ async def main():
     plt.annotate(f"stddev={stddev}", (10, 40), xycoords="figure pixels")
     if splits:
         plt.plot(splits, [mean] * len(splits), '+')
+
+    if args.title:
+        plt.title(args.title)
+    if args.xlabel:
+        plt.xlabel(args.xlabel)
+    if args.ylabel:
+        plt.ylabel(args.ylabel)
     plt.show()
 
 

@@ -1145,7 +1145,7 @@ class TviewMainWindow():
             await self._wait_user_query(traj_re.group(2))
             return
         if delay_re:
-            await asyncio.sleep(int(delay_re.group(2)) / 1000.0)
+            await asyncio.sleep(int(delay_re.group(1)) / 1000.0)
             return
         elif device_re:
             command = device_re.group(2)

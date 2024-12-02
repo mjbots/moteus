@@ -84,6 +84,16 @@ class MultiplexTest(unittest.TestCase):
         dut.write_mapped(2, 2, 1, 0.5, mp.INT8)
         self.assertEqual(buf.getvalue(), bytes([1]))
 
+    def test_query_parser(self):
+       self.assertEqual(mp.QueryParser.parse([]), [])
+       self.assertEqual(mp.QueryParser.parse([0x11, 0x01]), [(0x001, 0)])
+       self.assertEqual(mp.QueryParser.parse([0x12, 0x01]),
+                        [(0x001, 0), (0x002, 0)])
+       self.assertEqual(mp.QueryParser.parse([0x17, 0x81, 0x03]),
+                        [(0x181, 1), (0x182, 1), (0x183, 1)])
+       self.assertEqual(mp.QueryParser.parse([0x1f, 0x02, 0x11, 0x08]),
+                        [(0x002, 3), (0x003, 3), (0x004, 3), (0x008, 0)])
+
 
 if __name__ == '__main__':
     unittest.main()
