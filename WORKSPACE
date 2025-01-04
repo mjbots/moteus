@@ -16,8 +16,8 @@
 
 workspace(name = "com_github_mjbots_moteus")
 
-BAZEL_VERSION = "5.4.1"
-BAZEL_VERSION_SHA = "5d90515f84b5ee1fd6ec22ee9e83103e77ed1a907ee5eec198fef3a5b45abf13"
+BAZEL_VERSION = "7.4.1"
+BAZEL_VERSION_SHA = "c97f02133adce63f0c28678ac1f21d65fa8255c80429b588aeeba8a1fac6202b"
 
 load("//tools/workspace:default.bzl", "add_default_repositories")
 
