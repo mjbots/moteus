@@ -590,6 +590,10 @@ struct BldcServoConfig {
     pid_dq.kp = 0.005f;
     pid_dq.ki = 30.0f;
 
+    // 100A in 10ms seems like a reasonably unrestricted default yet
+    // still provides a fair amount of control smoothing.
+    pid_dq.max_desired_rate = 10000.0f;
+
     pid_position.kp = 4.0f;
     pid_position.ki = 1.0f;
     pid_position.ilimit = 0.0f;

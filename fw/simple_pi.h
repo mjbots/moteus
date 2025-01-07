@@ -29,11 +29,13 @@ class SimplePI {
   struct Config {
     float kp = 0.0f;
     float ki = 0.0f;
+    float max_desired_rate = 0.0f;  // 0 is unlimited
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(kp));
       a->Visit(MJ_NVP(ki));
+      a->Visit(MJ_NVP(max_desired_rate));
     }
   };
 
@@ -82,7 +84,16 @@ class SimplePI {
               int rate_hz) MOTEUS_CCM_ATTRIBUTE {
     float desired = {};
 
-    desired = input_desired;
+    if (config_->max_desired_rate != 0.0f &&
+        std::isfinite(state_->desired)) {
+      const float max_step = config_->max_desired_rate / rate_hz;
+      const float proposed_step = input_desired - state_->desired;
+      const float actual_step =
+          mjlib::base::Limit(proposed_step, -max_step, max_step);
+      desired = state_->desired + actual_step;
+    } else {
+      desired = input_desired;
+    }
 
     state_->desired = desired;
     state_->error = measured - desired;
