@@ -480,6 +480,25 @@ class Fdcanusb : public details::TimeoutTransport {
     return "";
   }
 
+  std::string Write(const std::string& value) {
+    // Put data into buffer:
+    const auto* value_buf = value.c_str();
+    auto size = value.size();
+    for (std::size_t n = 0; n < size;) {
+      int ret = ::write(write_fd_, &value_buf[n], size);
+      if (ret < 0) {
+        if (errno == EINTR || errno == EAGAIN) { continue; }
+        FailIfErrno(true);
+      } else {
+        n += ret;
+        size -= ret;
+      }
+    }
+
+    // Read the result
+    
+  }
+
  private:
   void Open(const std::string& device_in) {
     std::string device = device_in;
