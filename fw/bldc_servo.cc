@@ -355,9 +355,13 @@ class BldcServo::Impl {
     }
     if (std::isnan(next->velocity_limit)) {
       next->velocity_limit = config_.default_velocity_limit;
+    } else if (next->velocity_limit < 0.0f) {
+      next->velocity_limit = std::numeric_limits<float>::quiet_NaN();
     }
     if (std::isnan(next->accel_limit)) {
       next->accel_limit = config_.default_accel_limit;
+    } else if (next->accel_limit < 0.0f) {
+      next->accel_limit = std::numeric_limits<float>::quiet_NaN();
     }
     // If we are going to limit at all, ensure that we have a velocity
     // limit, and that is is no more than the configured maximum

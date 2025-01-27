@@ -1,3 +1,4 @@
+common --noenable_bzlmod
 build --incompatible_enable_cc_toolchain_resolution
 
 build --features=c++20
@@ -5,8 +6,6 @@ build --features=-c++17
 build --compiler=compiler
 
 build --nostart_end_lib
-
-build --experimental_dont_emit_static_libgcc
 
 build --strip never
 

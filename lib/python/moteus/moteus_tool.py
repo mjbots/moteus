@@ -1164,8 +1164,8 @@ class Stream:
             hall_cal_data.append(
                 (phase, motor_position.sources[commutation_source].raw))
 
-        if self.args.cal_raw:
-            with open(self.args.cal_raw, "wb") as f:
+        if self.args.cal_write_raw:
+            with open(self.args.cal_write_raw, "wb") as f:
                 f.write(json.dumps(hall_cal_data, indent=2).encode('utf8'))
 
         await self.command("d stop")
@@ -1257,8 +1257,8 @@ class Stream:
                 # Some problem
                 raise RuntimeError(f'Error calibrating: {line}')
 
-        if self.args.cal_raw:
-            with open(self.args.cal_raw, "wb") as f:
+        if self.args.cal_write_raw:
+            with open(self.args.cal_write_raw, "wb") as f:
                 f.write(cal_data)
 
         cal_file = ce.parse_file(io.BytesIO(cal_data))
@@ -1959,7 +1959,7 @@ async def async_main():
                         help='maximum allowed error in calibration')
     parser.add_argument('--cal-max-kv-power-factor', type=float,
                         default=1.25)
-    parser.add_argument('--cal-raw', metavar='FILE', type=str,
+    parser.add_argument('--cal-write-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
 
     args = parser.parse_args()
