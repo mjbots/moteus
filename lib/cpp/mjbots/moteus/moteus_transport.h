@@ -480,24 +480,80 @@ class Fdcanusb : public details::TimeoutTransport {
     return "";
   }
 
-  std::string Write(const std::string& value) {
+  enum class CanCommand {
+    STATUS, ON, OFF
+  };
+
+  std::string SendCANCommand(CanCommand command, int timeout_ns = 1'000'000'000) {
+    std::string line = [command]{
+      switch(command) {
+        case CanCommand::STATUS:
+          return "can status\n";
+        case CanCommand::ON:
+          return "can on\n";
+        case CanCommand::OFF:
+          return "can off\n";
+      }
+    }();
+
     // Put data into buffer:
-    const auto* value_buf = value.c_str();
-    auto size = value.size();
-    for (std::size_t n = 0; n < size;) {
-      int ret = ::write(write_fd_, &value_buf[n], size);
-      if (ret < 0) {
+    const auto* buffer = line.c_str();
+    auto size = line.size();
+    for (std::size_t n = 0; n < line.size();) {
+      int written_chars = ::write(write_fd_, &buffer[n], size);
+      if (written_chars < 0) {
         if (errno == EINTR || errno == EAGAIN) { continue; }
         FailIfErrno(true);
       } else {
-        n += ret;
-        size -= ret;
+        n += written_chars;
+        size -= written_chars;
       }
     }
 
+    // wait for the result
+    struct pollfd fds = {
+      .fd = write_fd_,
+      .events = POLLIN,
+      .revents = 0
+    };
+
+    struct timespec tmo = {};
+    tmo.tv_sec = timeout_ns / 1'000'000'000;
+    tmo.tv_nsec = timeout_ns % 1'000'000'000;
+
+    while(true) {
+      const auto poll_ret = ::ppoll(&fds, 1, &tmo, nullptr);
+      if (poll_ret < 0) {
+        if (errno == EINTR) {
+          continue;
+        }
+        FailIfErrno(true);
+      } else if (poll_ret == 0) {
+        return "timeout";
+      }
+
+      break;
+    }
+
     // Read the result
-    
+    const int to_read = sizeof(line_buffer_);
+
+    for (int i = 0; i < 4; ++i) {
+    const auto read_count = ::read(
+        read_fd_, line_buffer_, to_read);
+      if (read_count < 0) {
+        if (errno == EINTR || errno == EAGAIN) {
+          continue;
+        }
+        FailIfErrno(true);
+      } else if (read_count == 0) { continue; }
+
+      return std::string(line_buffer_, read_count);
+    }
+
+    return "";
   }
+
 
  private:
   void Open(const std::string& device_in) {
