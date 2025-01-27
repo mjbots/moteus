@@ -548,7 +548,7 @@ class Fdcanusb : public details::TimeoutTransport {
         FailIfErrno(true);
       } else if (read_count == 0) { continue; }
 
-      return std::string(line_buffer_, read_count);
+      return std::string(line_buffer_, read_count-2); // Remove end of line
     }
 
     return "";

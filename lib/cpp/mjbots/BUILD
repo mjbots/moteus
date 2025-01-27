@@ -15,7 +15,7 @@ filegroup(
 cc_library(
     name = "moteus",
     hdrs = [":src"],
-    includes = ["./"],
+    includes = ["./", "./moteus"],
 )
 
 

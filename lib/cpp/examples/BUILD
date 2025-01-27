@@ -29,9 +29,8 @@ EXAMPLES = [
 [cc_binary(
     name = x,
     srcs = [x + ".cc"],
-    deps = ["//lib/cpp/mjbots/moteus:moteus",],
-    copts = ["-Ilib/cpp/mjbots/moteus",
-             "-Werror",
+    deps = ["//lib/cpp/mjbots:moteus",],
+    copts = ["-Werror",
              "-Wvla",
              "-Wsign-compare",
              "-Wunused-parameter",
