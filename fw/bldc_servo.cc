@@ -70,6 +70,12 @@ float Threshold(float value, float lower, float upper) {
   return value;
 }
 
+float Interpolate(float, float, float, float, float) MOTEUS_CCM_ATTRIBUTE;
+
+float Interpolate(float x, float xl, float xh, float vl, float vh) {
+  return (x - xl) / (xh - xl) * (vh - vl) + vl;
+}
+
 float BilinearRate(float offset, float mag, float val) MOTEUS_CCM_ATTRIBUTE;
 
 float BilinearRate(float offset, float mag, float val) {
@@ -504,10 +510,8 @@ class BldcServo::Impl {
 
     adc_scale_ = 3.3f / (4096.0f * config_.current_sense_ohm * config_.i_gain);
 
-    const float pwm_derate =
-        (static_cast<float>(config_.pwm_rate_hz) / 40000.0f);
-    adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate;
-    adjusted_max_power_W_ = config_.max_power_W * pwm_derate;
+    pwm_derate_ = (static_cast<float>(config_.pwm_rate_hz) / 30000.0f);
+    adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate_;
 
     fet_thermistor_.Reset(47000.0f);
     motor_thermistor_.Reset(config_.motor_thermistor_ohm);
@@ -1129,6 +1133,24 @@ class BldcServo::Impl {
     status_.motor_max_velocity =
         rate_config_.max_voltage_ratio *
         kSvpwmRatio * 0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
+
+    status_.max_power_W = [&]() {
+      if (config_.override_board_max_power &&
+          std::isfinite(config_.max_power_W)) {
+        return config_.max_power_W;
+      }
+      const float board_power_limit =
+          Limit(
+              Interpolate(status_.filt_bus_V,
+                          g_hw_pins.power_V_l, g_hw_pins.power_V_h,
+                          g_hw_pins.power_P_l_W, g_hw_pins.power_P_h_W),
+              g_hw_pins.power_P_h_W,
+              g_hw_pins.power_P_l_W) * pwm_derate_;
+      if (!std::isfinite(config_.max_power_W)) {
+        return board_power_limit;
+      }
+      return std::min(config_.max_power_W, board_power_limit);
+    }();
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
     DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
 #endif
@@ -1403,6 +1425,9 @@ class BldcServo::Impl {
     // current_data_ is volatile, so read it out now, and operate on
     // the pointer for the rest of the routine.
     CommandData* data = current_data_;
+
+    old_d_V = control_.d_V;
+    old_q_V = control_.q_V;
 
     control_.Clear();
 
@@ -1774,48 +1799,84 @@ class BldcServo::Impl {
       return Limit(in, -temp_limit_A, temp_limit_A);
     };
 
-    const float i_q_A =
+
+    const float almost_i_q_A =
         limit_either_current(
             limit_q_velocity(
                 limit_q_current(i_q_A_in)));
-    const float i_d_A = limit_either_current(i_d_A_in);
+    const float almost_i_d_A = limit_either_current(i_d_A_in);
+
+    // Apply our power limits by limiting the maximum current command.
+    // This has a feedback loop from the previous cycle's voltage
+    // output, which is not ideal, but is what we've got.
+
+    // Applying the limit here, rather than at the voltage stage has
+    // proven to be more stable when activated under load.
+    const float used_d_power_W = 1.5f * old_d_V * almost_i_d_A;
+    const float used_q_power_W = 1.5f * old_q_V * almost_i_q_A;
+    const float used_power = used_q_power_W + used_d_power_W;
+
+    const auto [i_d_A, i_q_A] = [&]() {
+      // If we have slack, then no limiting needs to occur.
+      if (std::abs(used_power) < status_.max_power_W) {
+        return std::make_pair(almost_i_d_A, almost_i_q_A);
+      }
+
+      // Scale both currents equally in power terms.
+      const float scale = status_.max_power_W / std::abs(used_power);
+
+      const float scaled_d_power = used_d_power_W * scale;
+      const float scaled_q_power = used_q_power_W * scale;
+
+      return std::make_pair(
+          scaled_d_power / (1.5f * old_d_V),
+          scaled_q_power / (1.5f * old_q_V));
+    }();
 
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
 
-    // This is conservative... we could use std::hypot(d, q), however
-    // that would take more CPU cycles, and most of the time we'll
-    // only be seeing q != 0.
-    //
-    // The 1.5f is the inverse of the calculation for power_W below.
-    const float max_V = adjusted_max_power_W_ /
-        (1.5f * (std::abs(status_.d_A) + std::abs(status_.q_A)));
+    const float max_V =
+        rate_config_.max_voltage_ratio * kSvpwmRatio *
+        0.5f * status_.filt_bus_V;
+
+    const auto limit_to_max_voltage = [max_V](float denorm_d_V, float denorm_q_V) {
+      const float max_V_sq = max_V * max_V;
+      const float denorm_len =
+          denorm_d_V * denorm_d_V + denorm_q_V * denorm_q_V;
+      if (denorm_len < max_V_sq) {
+        return std::make_pair(denorm_d_V, denorm_q_V);
+      }
+
+      const float scale = sqrtf(max_V_sq / denorm_len);
+      return std::make_pair(denorm_d_V * scale, denorm_q_V * scale);
+    };
 
     if (!config_.voltage_mode_control) {
-      const float d_V =
-          Limit(
-              pid_d_.Apply(status_.d_A, i_d_A, rate_config_.rate_hz) +
-              i_d_A * config_.current_feedforward * motor_.resistance_ohm,
-              -max_V, max_V);
+      const float denorm_d_V =
+          pid_d_.Apply(status_.d_A, i_d_A, rate_config_.rate_hz) +
+          i_d_A * config_.current_feedforward * motor_.resistance_ohm;
 
-      const float max_current_integral =
-          rate_config_.max_voltage_ratio * kSvpwmRatio *
-          0.5f * status_.filt_bus_V;
+      const float denorm_q_V =
+          pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
+          i_q_A * config_.current_feedforward * motor_.resistance_ohm +
+          (feedforward_velocity_rotor *
+           config_.bemf_feedforward *
+           motor_.v_per_hz);
+
+      auto [d_V, q_V] = limit_to_max_voltage(denorm_d_V, denorm_q_V);
+
+      // We also limit the integral to be no more than the maximal
+      // applied voltage for each phase independently.  This helps to
+      // more quickly recover if things saturate in the case of no or
+      // incomplete feedforward terms.
       status_.pid_d.integral = Limit(
           status_.pid_d.integral,
-          -max_current_integral, max_current_integral);
+          -max_V, max_V);
 
-      const float q_V =
-          Limit(
-              pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
-              i_q_A * config_.current_feedforward * motor_.resistance_ohm +
-              (feedforward_velocity_rotor *
-               config_.bemf_feedforward *
-               motor_.v_per_hz),
-              -max_V, max_V);
       status_.pid_q.integral = Limit(
           status_.pid_q.integral,
-          -max_current_integral, max_current_integral);
+          -max_V, max_V);
 
       // eq 2.28 from "DYNAMIC MODEL OF PM SYNCHRONOUS MOTORS" D. Ohm,
       // 2000
@@ -1829,12 +1890,14 @@ class BldcServo::Impl {
           1.5f * (i_d_A * i_d_A * motor_.resistance_ohm +
                   i_q_A * i_q_A * motor_.resistance_ohm);
 
-      ISR_DoVoltageDQ(sin_cos,
-                      i_d_A * motor_.resistance_ohm,
-                      i_q_A * motor_.resistance_ohm +
-                      (feedforward_velocity_rotor *
-                       config_.bemf_feedforward *
-                       motor_.v_per_hz));
+      auto [d_V, q_V] = limit_to_max_voltage(
+          i_d_A * motor_.resistance_ohm,
+          i_q_A * motor_.resistance_ohm +
+          (feedforward_velocity_rotor *
+           config_.bemf_feedforward *
+           motor_.v_per_hz));
+
+      ISR_DoVoltageDQ(sin_cos, d_V, q_V);
     }
   }
 
@@ -2374,8 +2437,11 @@ class BldcServo::Impl {
   float torque_constant_ = 0.01f;
 
   float adc_scale_ = 0.0f;
+  float pwm_derate_ = 1.0f;
   float adjusted_pwm_comp_off_ = 0.0f;
-  float adjusted_max_power_W_ = 0.0f;
+
+  float old_d_V = 0.0f;
+  float old_q_V = 0.0f;
 
   float vsense_adc_scale_ = 0.0f;
 

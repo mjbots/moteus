@@ -1883,9 +1883,13 @@ torque is stopped.
 
 ## `servo.max_power_W` ##
 
-The controller will limit the output power to this value.  The value
-is defined relative to a PWM rate of 40kHz and is scaled linearly with
-respect to the PWM rate.
+If set, set the allowable maximum power to the lower of this and the
+factory board power profile.
+
+## `servo.override_board_max_power` ##
+
+If true, then `servo.max_power_W` is used as the power limit even if
+it is larger than the factory board power profile.
 
 ## `servo.pwm_rate_hz` ##
 
@@ -2421,7 +2425,31 @@ The current mechanical drawing for the controller can be found at:
 The current mechanical drawing for the qdd100 servo can be found at:
 [20200315-qdd100-mechanical.pdf](https://drive.google.com/file/d/1KUQyR853e2uw8WOVrQHaeskWYHGSm3nI/view?usp=sharing)
 
-## Electrical / Pinout ##
+## Power ##
+
+The allowable maximum power for each moteus controller depends upon
+the input voltage and PWM switching frequency.  The below table gives
+the maximum allowable power at `servo.pwm_rate_hz=30000`.
+
+| Name       | Peak power   |                | High input power |
+|------------|--------------|----------------|------------------|
+| moteus-r4  | <= 30V 900W  | linear derated | >= 38V 400W      |
+| moteus-c1  | <= 28V 250W  | linear derated | >= 41V 150W      |
+| moteus-n1  | <= 36V 2000W | linear derated | >= 44V 1000W     |
+
+For other values of `servo.pwm_rate_hz`, the allowable maximum power
+changes linearly with the PWM rate, so that at 15000, the maximum
+power is half of that in the above table and at 60000 it is double
+that.  Note however, that efficiency of the controller goes down
+significantly at higher PWM rates.
+
+The current power limit is reported in `servo_stats.max_power_W`.  The
+controller will attempt to limit output phase current so as to stay
+within this reported power limit in either direction, i.e. applying
+power or regenerating energy.
+
+
+## Pinout ##
 
 ### JST PH-3 CAN ###
 

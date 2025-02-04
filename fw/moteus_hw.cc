@@ -305,6 +305,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.debug1 = PC_14;
     result.debug2 = PC_15;
+
+
+    result.power_P_l_W = 900.0f;
+    result.power_V_l = 30.0f;
+
+    result.power_P_h_W = 400.0f;
+    result.power_V_h = 38.0f;
   } else if (fv.family == 1 || fv.family == 2) {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
@@ -341,6 +348,26 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.debug1 = NC;
     result.debug2 = NC;
+
+    if (fv.family == 1) {
+      // moteus-n1
+
+      result.power_P_l_W = 2000.0f;
+      result.power_V_l = 36.0f;
+
+      result.power_P_h_W = 1000.0f;
+      result.power_V_h = 44.0f;
+    } else if (fv.family == 2) {
+      // moteus-c1
+
+      result.power_P_l_W = 250.0f;
+      result.power_V_l = 28.0f;
+
+      result.power_P_h_W = 150.0f;
+      result.power_V_h = 41.0f;
+    } else {
+      MJ_ASSERT(false);
+    }
   } else {
     MJ_ASSERT(false);
   }

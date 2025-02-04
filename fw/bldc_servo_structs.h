@@ -161,6 +161,7 @@ struct BldcServoStatus {
   bool trajectory_done = false;
 
   float motor_max_velocity = 0.0f;
+  float max_power_W = 0.0f;
 
   float torque_error_Nm = 0.0f;
 
@@ -256,6 +257,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(trajectory_done));
 
     a->Visit(MJ_NVP(motor_max_velocity));
+    a->Visit(MJ_NVP(max_power_W));
     a->Visit(MJ_NVP(torque_error_Nm));
 
     a->Visit(MJ_NVP(sin));
@@ -462,11 +464,15 @@ struct BldcServoConfig {
       g_measured_hw_family == 2 ? 54.0f :
       invalid_float()
       ;
-  float max_power_W =
-      (g_measured_hw_family == 0 ||
-       g_measured_hw_family == 1) ? 450.0f :
-      g_measured_hw_family == 2 ? 100.0f :
-      invalid_float();
+
+  // If set, the power limit used will be the lower of this value and
+  // the built-in board limit.
+  float max_power_W = std::numeric_limits<float>::quiet_NaN();
+
+  // If set, then the user power maximum will always take effect,
+  // overriding the factory set limit profile for the board.  Enabling
+  // this can easily cause damage.
+  bool override_board_max_power = false;
 
   float derate_temperature = 50.0f;
   float fault_temperature = 75.0f;
@@ -611,6 +617,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(pwm_scale));
     a->Visit(MJ_NVP(max_voltage));
     a->Visit(MJ_NVP(max_power_W));
+    a->Visit(MJ_NVP(override_board_max_power));
     a->Visit(MJ_NVP(derate_temperature));
     a->Visit(MJ_NVP(fault_temperature));
     a->Visit(MJ_NVP(enable_motor_temperature));

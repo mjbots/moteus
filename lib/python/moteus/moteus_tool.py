@@ -70,11 +70,12 @@ class FirmwareUpgrade:
     change upon firmware changes.
     '''
 
-    def __init__(self, old, new):
+    def __init__(self, old, new, board_family):
         self.old = old
         self.new = new
+        self.board_family = board_family
 
-        SUPPORTED_ABI_VERSION = 0x0109
+        SUPPORTED_ABI_VERSION = 0x010a
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
@@ -85,6 +86,29 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x0109 and self.old >= 0x010a:
+            if b'servo.max_power_W' in items:
+                newer_max_power_W = float(items.get(b'servo.max_power_W'))
+                # If this is NaN, then we'll set it back to the board
+                # default for the older firmware version.
+                if not math.isfinite(newer_max_power_W):
+                    items[b'servo.max_power_W'] = {
+                        0 : b'450.0',
+                        1 : b'450.0',
+                        2 : b'100.0',
+                        }[self.board_family or 0]
+                else:
+                    # If it was finite, then we'll try to set it
+                    # appropriately based on what the PWM rate was.
+                    # Firmware version 0x0109 and earlier used the
+                    # configured power as if the PWM rate were 40kHz.
+                    pwm_rate = float(items.get(b'servo.pwm_rate_hz'))
+
+                    items[b'servo.max_power_W'] = str(newer_max_power_W * (40000.0 / pwm_rate)).encode('utf8')
+
+                print(f"Downgrading servo.max_power_W to {items[b'servo.max_power_W'].decode('utf8')} for firmware <= 0x0109")
+
 
         if self.new <= 0x0108 and self.old >= 0x0109:
             # When downgrading, we should warn if a motor thermistor
@@ -423,6 +447,26 @@ class FirmwareUpgrade:
 
                     items[f'motor_position.sources.{mpsource}.compensation_scale'.encode('utf8')] = str(scale).encode('utf8')
 
+        if self.new >= 0x010a and self.old <= 0x0109:
+            if b'servo.max_power_W' in items:
+                # If we had a power setting that was not the board
+                # family default, then try to keep it going forward.
+                # Otherwise switch it to NaN.
+                board_default = {
+                    0 : 450.0,
+                    1 : 450.0,
+                    2 : 100.0,
+                }[self.board_family or 0]
+
+                old_max_power = float(items[b'servo.max_power_W'])
+                if old_max_power == board_default:
+                    items[b'servo.max_power_W'] = b'nan'
+                else:
+                    pwm_rate = float(items.get(b'servo.pwm_rate_hz', 40000))
+                    # The old value was set for 40kHz rate but the new
+                    # value is absolute.  Scale it appropriately.
+                    items[b'servo.max_power_W'] = str(old_max_power * (pwm_rate / 40000)).encode('utf8')
+                print(f"Upgraded servo.max_power_W to {items[b'servo.max_power_W'].decode('utf8')} for 0x010a")
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
@@ -814,7 +858,9 @@ class Stream:
             elf.firmware_version
             if old_firmware is None else
             old_firmware.version,
-            elf.firmware_version)
+            elf.firmware_version,
+            None if old_firmware is None else old_firmware.family
+        )
 
         if not self.args.bootloader_active and not self.args.no_restore_config:
             # Read our old config.

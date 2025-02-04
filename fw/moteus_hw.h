@@ -77,6 +77,15 @@ struct MoteusHwPins {
   uint32_t model_number = 0;
 
   uint32_t firmware_version = 0x000105;
+
+  // Each board has a power limit curve, below a bus voltage V_l, the
+  // P_l power limit is used.  Above bus voltage V_h, P_h power limit
+  // is used.  Between, the power limit is linearly interpolated.  All
+  // power limits are normalized to 30kHz PWM.
+  float power_P_l_W = 0.0f;
+  float power_V_l = 24.0f;
+  float power_P_h_W = 0.0f;
+  float power_V_h = 34.0f;
 };
 
 
@@ -147,8 +156,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 // * The motor thermistor value is now configurable and defaults to
 //   10k instead of 47k.
 
+// # 0x010a #
+//
+// * servo.max_power_W now defaults to NaN, and if present is used as
+//   an absolute value rather than as a "nominal" value.
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x000109
+#define MOTEUS_FIRMWARE_VERSION 0x00010a
 
 extern MoteusHwPins g_hw_pins;
 
