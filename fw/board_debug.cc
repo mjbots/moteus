@@ -225,6 +225,17 @@ class BoardDebug::Impl {
   }
 
   void DoCalibration() {
+    if (bldc_->status().mode == BldcServo::Mode::kFault ||
+        bldc_->status().mode == BldcServo::Mode::kPositionTimeout) {
+      if (write_outstanding_) { return; }
+
+      WriteMessage(cal_response_, "CAL fault\r\n");
+      cal_response_ = {};
+      motor_cal_mode_ = kNoMotorCal;
+
+      return;
+    }
+
     const auto old_phase = cal_phase_;
 
     // speed of 1 is 1 electrical phase per second
