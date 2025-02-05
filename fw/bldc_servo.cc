@@ -76,17 +76,6 @@ float Interpolate(float x, float xl, float xh, float vl, float vh) {
   return (x - xl) / (xh - xl) * (vh - vl) + vl;
 }
 
-float BilinearRate(float offset, float mag, float val) MOTEUS_CCM_ATTRIBUTE;
-
-float BilinearRate(float offset, float mag, float val) {
-  const float sign = val < 0.0f ? -1.0f : 1.0f;
-  if (std::abs(val) < mag) {
-    return val / mag * offset;
-  } else {
-    return sign * ((0.5f - offset) * (std::abs(val) - mag) / (0.5f - mag) + offset);
-  }
-}
-
 template <typename Array>
 int MapConfig(const Array& array, int value) {
   static_assert(sizeof(array) > 0);
@@ -124,7 +113,7 @@ struct RateConfig {
   float period_s;
   int16_t max_position_delta;
 
-  RateConfig(float pwm_scale = 1.0f, int pwm_rate_hz_in = 30000) {
+  RateConfig(int pwm_rate_hz_in = 30000) {
     const int board_min_pwm_rate_hz =
         (g_measured_hw_family == 0 &&
          g_measured_hw_rev == 2) ? 60000 :
@@ -150,7 +139,7 @@ struct RateConfig {
 
     min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
     max_pwm = 1.0f - min_pwm;
-    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f) / pwm_scale;
+    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f);
 
     rate_hz = int_rate_hz;
     period_s = 1.0f / rate_hz;
@@ -486,7 +475,7 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    rate_config_ = RateConfig(config_.pwm_scale, config_.pwm_rate_hz);
+    rate_config_ = RateConfig(config_.pwm_rate_hz);
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
 
@@ -522,7 +511,6 @@ class BldcServo::Impl {
                          motor_driver_->i_gain());
 
     pwm_derate_ = (static_cast<float>(config_.pwm_rate_hz) / 30000.0f);
-    adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate_;
 
     fet_thermistor_.Reset(47000.0f);
     motor_thermistor_.Reset(config_.motor_thermistor_ohm);
@@ -1659,35 +1647,8 @@ class BldcServo::Impl {
     const float dc = voltage.c - voltage.a;
 
     // Switch into full scale ratios.
-    const float fdb = db / status_.filt_bus_V;
-    const float fdc = dc / status_.filt_bus_V;
-
-    constexpr float blend_min = 0.2f;
-    constexpr float blend_max = 0.6f;
-    constexpr float blend_region = blend_max - blend_min;
-
-    // TODO: explain
-    const auto scale =
-        [&](float fdx, float fd_other) {
-          if (fdx < blend_min * fd_other) {
-            return fdx;
-          }
-          const float scaled = BilinearRate(
-              adjusted_pwm_comp_off_,
-              config_.pwm_comp_mag,
-              fdx);
-          if (fdx < blend_max * fd_other) {
-            const float frac = (fdx - blend_min * fd_other) /
-                (blend_region * fd_other);
-            return fdx + frac * (scaled - fdx);
-          }
-          return scaled;
-        };
-
-    // Apply a correction to get these B and C phases relative to the A
-    // phase.
-    const float dpb = scale(fdb, fdc) * config_.pwm_scale;
-    const float dpc = scale(fdc, fdb) * config_.pwm_scale;
+    const float dpb = db / status_.filt_bus_V;
+    const float dpc = dc / status_.filt_bus_V;
 
     // And then balance them so as to keep the lowest and highest duty
     // cycle phases equidistant from the midpoint.  Note, this results
@@ -1931,7 +1892,7 @@ class BldcServo::Impl {
 
     const float max_voltage =
         (0.5f - rate_config_.min_pwm) * status_.filt_bus_V *
-        kSvpwmRatio / config_.pwm_scale;
+        kSvpwmRatio;
     auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
       return Limit(in, -max_voltage, max_voltage);
     };
@@ -2449,7 +2410,6 @@ class BldcServo::Impl {
 
   float adc_scale_ = 0.0f;
   float pwm_derate_ = 1.0f;
-  float adjusted_pwm_comp_off_ = 0.0f;
 
   float old_d_V = 0.0f;
   float old_q_V = 0.0f;

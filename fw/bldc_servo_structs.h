@@ -430,31 +430,6 @@ struct BldcServoConfig {
       (g_measured_hw_family == 2 ? 0.002f :
        0.0005f);
 
-  // PWM rise time compensation
-  float pwm_comp_off =
-      g_measured_hw_family == 0 ?
-       ((g_measured_hw_rev <= 6) ? 0.015f :
-        (g_measured_hw_rev <= 7) ? 0.055f :
-        0.027f) :
-      g_measured_hw_family == 1 ? 0.027f :
-      g_measured_hw_family == 2 ? 0.015f :
-      invalid_float()
-      ;
-  float pwm_comp_mag =
-      g_measured_hw_family == 0 ?
-       ((g_measured_hw_rev <= 6) ? 0.005f :
-        (g_measured_hw_rev <= 7) ? 0.005f :
-        0.005f) :
-      g_measured_hw_family == 1 ? 0.005f :
-      g_measured_hw_family == 2 ? 0.003f :
-      invalid_float()
-      ;
-  float pwm_scale =
-      g_measured_hw_family == 0 ? 1.0f :
-      g_measured_hw_family == 1 ? 1.0f :
-      g_measured_hw_family == 2 ? 1.38f :
-      invalid_float();
-
   // We pick a default maximum voltage based on the board revision.
   float max_voltage =
       g_measured_hw_family == 0 ?
@@ -610,9 +585,6 @@ struct BldcServoConfig {
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(pwm_rate_hz));
     a->Visit(MJ_NVP(current_sense_ohm));
-    a->Visit(MJ_NVP(pwm_comp_off));
-    a->Visit(MJ_NVP(pwm_comp_mag));
-    a->Visit(MJ_NVP(pwm_scale));
     a->Visit(MJ_NVP(max_voltage));
     a->Visit(MJ_NVP(max_power_W));
     a->Visit(MJ_NVP(override_board_max_power));
