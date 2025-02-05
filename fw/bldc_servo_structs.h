@@ -385,8 +385,7 @@ struct BldcServoMotor {
 
   float resistance_ohm = 0.0f;
 
-  // Hz is electrical
-  float v_per_hz = 0.0f;
+  float Kv = 0.0f;
 
   // Electrical phase offset in radians as a function of encoder
   // position.
@@ -417,7 +416,7 @@ struct BldcServoMotor {
     a->Visit(MJ_NVP(poles));
     a->Visit(MJ_NVP(phase_invert));
     a->Visit(MJ_NVP(resistance_ohm));
-    a->Visit(MJ_NVP(v_per_hz));
+    a->Visit(MJ_NVP(Kv));
     a->Visit(MJ_NVP(offset));
     a->Visit(MJ_NVP(rotation_current_cutoff_A));
     a->Visit(MJ_NVP(rotation_current_scale));

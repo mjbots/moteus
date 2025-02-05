@@ -76,6 +76,10 @@ def stddev(data):
 
 SUPPORTED_ABI_VERSION = 0x010a
 
+# Old firmwares used a slightly incorrect definition of Kv/v_per_hz
+# that didn't match with vendors or oscilloscope tests.
+V_PER_HZ_FUDGE_010a = 1.09
+
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
     how to munge configuration options so as to not cause behavior
@@ -98,6 +102,13 @@ class FirmwareUpgrade:
         items = dict([line.split(b' ') for line in lines if b' ' in line])
 
         if self.new <= 0x0109 and self.old >= 0x010a:
+            kv = float(items.pop(b'motor.Kv'))
+
+            v_per_hz = ((V_PER_HZ_FUDGE_010a * 0.5 * 60) / kv)
+            items[b'motor.v_per_hz'] = str(v_per_hz).encode('utf8')
+
+            print(f"Downgrading motor.Kv to motor.v_per_hz and fixing fudge: old Kv={kv} v_per_hz={v_per_hz}")
+
             if b'servo.max_power_W' in items:
                 newer_max_power_W = float(items.get(b'servo.max_power_W'))
                 # If this is NaN, then we'll set it back to the board
@@ -458,6 +469,13 @@ class FirmwareUpgrade:
                     items[f'motor_position.sources.{mpsource}.compensation_scale'.encode('utf8')] = str(scale).encode('utf8')
 
         if self.new >= 0x010a and self.old <= 0x0109:
+            v_per_hz = float(items.pop(b'motor.v_per_hz'))
+
+            kv = V_PER_HZ_FUDGE_010a * 0.5 * 60 / v_per_hz
+            items[b'motor.Kv'] = str(kv).encode('utf8')
+
+            print(f"Upgraded motor.v_per_hz to new motor.Kv and fixed fudge: old v_per_hz={v_per_hz} new Kv={kv}")
+
             if b'servo.max_power_W' in items:
                 # If we had a power setting that was not the board
                 # family default, then try to keep it going forward.
@@ -1085,7 +1103,7 @@ class Stream:
             input_V, winding_resistance, current_noise)
         await self.check_for_fault()
 
-        v_per_hz = await self.calibrate_kv_rating(
+        motor_kv = await self.calibrate_kv_rating(
             input_V, unwrapped_position_scale, motor_output_sign)
         await self.check_for_fault()
 
@@ -1114,10 +1132,7 @@ class Stream:
             'encoder_filter_bw_hz' : enc_bw_hz,
             'encoder_filter_kp' : enc_kp,
             'encoder_filter_ki' : enc_ki,
-            'v_per_hz' : v_per_hz,
-            # We measure voltage to the center, not peak-to-peak, thus
-            # the extra 0.5.
-            'kv' : (0.5 * 60.0 / v_per_hz),
+            'kv' : motor_kv,
             'unwrapped_position_scale' : unwrapped_position_scale,
             'motor_position_output_sign' : motor_output_sign,
             'abi_version' : self.firmware.version,
@@ -1781,8 +1796,11 @@ class Stream:
         if self.args.cal_ll_kv_voltage:
             return self.args.cal_ll_kv_voltage
 
+        first_nonzero_speed_voltage = None
+
         # Otherwise, we start small, and increase until we hit a
-        # reasonable speed.
+        # reasonable speed, but at least twice what it takes to get a
+        # non-zero speed.
         maybe_result = 0.01
         while True:
             print(f"Testing {maybe_result:.3f}V for Kv",
@@ -1791,9 +1809,17 @@ class Stream:
                 return maybe_result
 
             this_speed = await self.find_speed(maybe_result) / unwrapped_position_scale
+
+            if (abs(this_speed) > (0.1 * self.args.cal_motor_speed) and
+                first_nonzero_speed_voltage is None):
+                first_nonzero_speed_voltage = maybe_result
+
             # Aim for this many Hz
-            if abs(this_speed) > self.args.cal_motor_speed:
+            if (first_nonzero_speed_voltage is not None and
+                maybe_result > (2 * first_nonzero_speed_voltage) and
+                abs(this_speed) > self.args.cal_motor_speed):
                 break
+
             maybe_result *= 1.1
 
         print()
@@ -1813,13 +1839,15 @@ class Stream:
             await self.command("conf set servopos.position_max NaN")
             await self.command("d index 0")
 
-            kv_cal_voltage = await self.find_kv_cal_voltage(input_V, unwrapped_position_scale)
+            kv_cal_voltage = await self.find_kv_cal_voltage(
+                input_V, unwrapped_position_scale)
             await self.stop_and_idle()
 
             voltages = [x * kv_cal_voltage for x in [
                 0.0, 0.25, 0.5, 0.75, 1.0 ]]
-            speed_hzs = [ await self.find_speed_and_print(voltage, sleep_time=2)
-                          for voltage in voltages]
+            voltage_speed_hzs = list(zip(
+                voltages, [ await self.find_speed_and_print(voltage, sleep_time=2)
+                            for voltage in voltages]))
 
             await self.stop_and_idle()
 
@@ -1828,7 +1856,17 @@ class Stream:
             await self.command(f"conf set servopos.position_min {original_position_min}")
             await self.command(f"conf set servopos.position_max {original_position_max}")
 
-            geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
+            # Drop any measurements that are too slow.  This will
+            # include (hopefully) our initial zero voltage
+            # measurement, but that lets us get a more accurate read
+            # on the slope.
+            speed_threshold = abs(0.45 * voltage_speed_hzs[-1][1])
+            voltage_speed_hzs = [(v, s) for v, s in voltage_speed_hzs
+                                 if abs(s) > speed_threshold]
+
+            geared_v_per_hz = 1.0 / _calculate_slope(
+                [x[0] for x in voltage_speed_hzs],
+                [x[1] for x in voltage_speed_hzs])
 
             v_per_hz = (geared_v_per_hz *
                         unwrapped_position_scale)
@@ -1840,17 +1878,34 @@ class Stream:
             if v_per_hz < 0.0:
                 raise RuntimeError(
                     f"v_per_hz measured as negative ({v_per_hz}), something wrong")
+
+            # Experimental verification of Kv using this protocol
+            # typically results in a determination of Kv roughly 14%
+            # below what an open circuit spin measures with an
+            # oscilloscope.  That is probably due to friction in the
+            # system and other non-linearities.
+            FUDGE = 1.14
+            motor_kv = FUDGE * 0.5 * 60 / v_per_hz
         else:
-            v_per_hz = (0.5 * 60 / self.args.cal_force_kv)
-            print(f"Using forced Kv: {self.args.cal_force_kv}  v_per_hz={v_per_hz}")
+            motor_kv = self.args.cal_force_kv
+            print(f"Using forced Kv: {self.args.cal_force_kv}")
 
         if not self.args.cal_no_update:
-            await self.command(f"conf set motor.v_per_hz {v_per_hz}")
+            if self.firmware.version >= 0x010a:
+                await self.command(f"conf set motor.Kv {motor_kv}")
+            else:
+                if self.firmware.family == 2:
+                    # moteus-c1 in older firmwares had additional
+                    # scaling.
+                    motor_kv /= 1.38
 
-        if v_per_hz < 0:
-            raise RuntimeError(f'v_per_hz value ({v_per_hz}) is negative')
+                v_per_hz = (V_PER_HZ_FUDGE_010a * 0.5 * 60 / motor_kv)
+                await self.command(f"conf set motor.v_per_hz {v_per_hz}")
 
-        return v_per_hz
+        if motor_kv < 0:
+            raise RuntimeError(f'Kv value ({motor_kv}) is negative')
+
+        return motor_kv
 
     async def stop_and_idle(self):
         await self.command("d stop")
@@ -1900,7 +1955,10 @@ class Stream:
             await self.command(f"conf set motor.offset.{index} {offset}")
 
         await self.command(f"conf set motor.resistance_ohm {report['winding_resistance']}")
-        await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}")
+        if await self.is_config_supported("motor.v_per_hz"):
+            await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}")
+        elif await self.is_config_supported("motor.Kv"):
+            await self.command(f"conf set motor.Kv {report['kv']}")
 
         pid_dq_kp = report.get('pid_dq_kp', None)
         if pid_dq_kp is not None:
@@ -2135,7 +2193,7 @@ async def async_main():
                         default=7.5,
                         help='motor power in W to use for encoder cal')
     parser.add_argument('--cal-motor-speed', metavar='Hz', type=float,
-                        default=6.0,
+                        default=12.0,
                         help='max motor mechanical speed to use for kv cal')
 
     parser.add_argument('--cal-motor-poles', metavar='N', type=int,

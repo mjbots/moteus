@@ -455,7 +455,7 @@ class BldcServo::Impl {
   }
 
   bool is_torque_constant_configured() const {
-    return motor_.v_per_hz != 0.0f;
+    return motor_.Kv != 0.0f;
   }
 
   float current_to_torque(float current) const MOTEUS_CCM_ATTRIBUTE {
@@ -495,16 +495,15 @@ class BldcServo::Impl {
 
     ConfigurePwmTimer();
 
-    const float kv = 0.5f * 60.0f / motor_.v_per_hz;
-
-    // I have no idea why this fudge is necessary, but it seems to be
-    // consistent across every motor I have tried.
-    constexpr float kFudge = 0.78;
+    // From https://things-in-motion.blogspot.com/2018/12/how-to-estimate-torque-of-bldc-pmsm.html
+    constexpr float kTorqueFactor =
+        (3.0f / 2.0f) * (1.0f / kSqrt3) * (60.0f / k2Pi);
 
     torque_constant_ =
         is_torque_constant_configured() ?
-        kFudge * 60.0f / (2.0f * kPi * kv) :
+        kTorqueFactor / motor_.Kv :
         kDefaultTorqueConstant;
+    v_per_hz_ = motor_.Kv == 0.0f ? 0.0f : 0.5f * 60.0f / motor_.Kv;
 
     adc_scale_ = 3.3f / (4096.0f *
                          config_.current_sense_ohm *
@@ -557,6 +556,12 @@ class BldcServo::Impl {
         }();
     if (desired_debug_uart != debug_uart_) {
       debug_uart_ = desired_debug_uart;
+    }
+
+    if (motor_position_->status().epoch !=
+        main_motor_position_epoch_) {
+      main_motor_position_epoch_ = motor_position_->status().epoch;
+      UpdateConfig();
     }
   }
 
@@ -1150,9 +1155,19 @@ class BldcServo::Impl {
       status_.torque_error_Nm = 0.0f;
     }
 
+    // As of firmware ABI 0x010a moteus records motor Kv values that
+    // correspond roughly with open loop oscilloscope measurements and
+    // motor manufacturer's ratings.  They don't perfectly correspond
+    // to the speed that can actually be achieved under control.  For
+    // stable control loops, we need to limit the maximum controlled
+    // velocity to be a modest amount under what is actually capable,
+    // which tends to be around 90% of the speed expected based on
+    // input voltage, Kv, and modulation depth alone.
+    constexpr float kVelocityMargin = 0.87f;
+
     status_.motor_max_velocity =
         rate_config_.max_voltage_ratio *
-        kSvpwmRatio * 0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
+        kVelocityMargin * 0.5f * status_.filt_1ms_bus_V / v_per_hz_;
 
     status_.max_power_W = [&]() {
       if (config_.override_board_max_power &&
@@ -1345,7 +1360,7 @@ class BldcServo::Impl {
 
   void ISR_StartCalibrating() {
     // Capture the current motor position epoch.
-    motor_position_epoch_ = position_.epoch;
+    isr_motor_position_epoch_ = position_.epoch;
 
     status_.mode = kEnabling;
 
@@ -1857,7 +1872,7 @@ class BldcServo::Impl {
           i_q_A * config_.current_feedforward * motor_.resistance_ohm +
           (feedforward_velocity_rotor *
            config_.bemf_feedforward *
-           motor_.v_per_hz);
+           v_per_hz_);
 
       auto [d_V, q_V] = limit_to_max_voltage(denorm_d_V, denorm_q_V);
 
@@ -1890,7 +1905,7 @@ class BldcServo::Impl {
           i_q_A * motor_.resistance_ohm +
           (feedforward_velocity_rotor *
            config_.bemf_feedforward *
-           motor_.v_per_hz));
+           v_per_hz_));
 
       ISR_DoVoltageDQ(sin_cos, d_V, q_V);
     }
@@ -1903,7 +1918,7 @@ class BldcServo::Impl {
   // factorization by delegating most of the work to this helper
   // function.
   Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    if (position_.epoch != motor_position_epoch_) {
+    if (position_.epoch != isr_motor_position_epoch_) {
       status_.mode = kFault;
       status_.fault = errc::kConfigChanged;
 
@@ -2053,7 +2068,7 @@ class BldcServo::Impl {
             std::isnan(data->fixed_voltage_override) ?
             config_.fixed_voltage_control_V +
             (std::abs(status_.velocity) *
-             motor_.v_per_hz *
+             v_per_hz_ *
              config_.bemf_feedforward) :
             data->fixed_voltage_override;
         ISR_DoVoltageDQ(sin_cos, fixed_voltage, 0.0f);
@@ -2381,7 +2396,12 @@ class BldcServo::Impl {
   const MotorPosition::Status& position_ = motor_position_->status();
   Config config_;
   PositionConfig position_config_;
-  uint8_t motor_position_epoch_ = 0;
+
+  // This copy of the current epoch is intended to be accessed from the ISR.
+  uint8_t isr_motor_position_epoch_ = 0;
+
+  // This copy is only accessed from the main loop.
+  uint8_t main_motor_position_epoch_ = 0;
 
   TIM_TypeDef* timer_ = nullptr;
   volatile uint32_t* timer_sr_ = nullptr;
@@ -2465,6 +2485,7 @@ class BldcServo::Impl {
   uint8_t debug_buf_[7] = {};
 
   float torque_constant_ = 0.01f;
+  float v_per_hz_ = 0.0f;
 
   float adc_scale_ = 0.0f;
   float pwm_derate_ = 1.0f;
