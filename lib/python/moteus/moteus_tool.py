@@ -1111,7 +1111,7 @@ class Stream:
 
         device_info = await self.get_device_info()
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         report = {
             'timestamp' : now.strftime('%Y-%m-%d %H:%M:%S.%f'),
