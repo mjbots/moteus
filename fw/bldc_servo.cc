@@ -2298,6 +2298,14 @@ class BldcServo::Impl {
       write_scalar(static_cast<uint16_t>(status_.final_timer));
     }
 
+    if (config_.emit_debug & (1 << 15)) {
+      write_scalar(static_cast<int16_t>(32767.0f * control_.d_V / 64.0f));
+    }
+
+    if (config_.emit_debug & (1 << 16)) {
+      write_scalar(static_cast<int16_t>(32767.0f * control_.q_V / 64.0f));
+    }
+
     // We rely on the FIFO to queue these things up.
     for (int i = 0; i < pos; i++) {
       debug_uart_->TDR = debug_buf_[i];
