@@ -628,10 +628,6 @@ def _calculate_slope(x, y):
     return regression.linear_regression(x, y)[1]
 
 
-def _calculate_winding_resistance(voltages, currents):
-    return 1.0 / _calculate_slope(voltages, currents)
-
-
 class FlashDataBlock:
     def __init__(self, address=-1, data=b""):
         self.address = address
@@ -975,26 +971,6 @@ class Stream:
         handle_deprecated('cal-ll-resistance-voltage', 'cal-voltage')
         handle_deprecated('cal-ll-kv-voltage', 'cal-kv-voltage')
 
-    async def find_resistance_cal_voltage(self, input_V):
-        if self.args.cal_ll_resistance_voltage:
-            return self.args.cal_ll_resistance_voltage
-        else:
-            # Progressively increase this value to roughly achieve our
-            # desired power.
-            cal_voltage = 0.01
-            while True:
-                print(f"Testing {cal_voltage:.3f}V for resistance",
-                      end='\r', flush=True)
-                this_current = await self.find_current(cal_voltage)
-                power = this_current * cal_voltage
-                if (power > self.args.cal_motor_power or
-                    cal_voltage > (0.4 * input_V)):
-                    break
-                cal_voltage *= 1.1
-            print()
-
-            return cal_voltage
-
     async def clear_motor_offsets(self):
         i = 0
         while True:
@@ -1065,11 +1041,11 @@ class Stream:
         print("Starting calibration process")
         await self.check_for_fault()
 
-        resistance_cal_voltage = await self.find_resistance_cal_voltage(input_V)
-        print(f"Using {resistance_cal_voltage:.3f} V for resistance and inductance calibration")
-
-        winding_resistance = await self.calibrate_winding_resistance(resistance_cal_voltage)
+        winding_resistance, highest_voltage = (
+            await self.calibrate_winding_resistance2(input_V))
         await self.check_for_fault()
+
+        resistance_cal_voltage = highest_voltage
 
         cal_result = await self.calibrate_encoder_mapping(
             input_V, winding_resistance)
@@ -1154,7 +1130,8 @@ class Stream:
         # We're going to try and select a voltage to roughly achieve
         # "--cal-motor-power".
         return min(0.4 * input_V,
-                   math.sqrt(self.args.cal_motor_power * winding_resistance))
+                   math.sqrt((self.args.cal_motor_power / 1.5) *
+                             winding_resistance))
 
     async def calibrate_encoder_mapping(self, input_V, winding_resistance):
         # Figure out what voltage to use for encoder calibration.
@@ -1381,25 +1358,79 @@ class Stream:
         print(f"{voltage:.3f}V - {result:.3f}A")
         return result
 
-    async def calibrate_winding_resistance(self, cal_voltage):
+    async def calibrate_winding_resistance2(self, input_V):
         print("Calculating winding resistance")
 
-        ratios = [ 0.5, 0.6, 0.7, 0.85, 1.0 ]
-        voltages = [x * cal_voltage for x in ratios]
-        currents = [await self.find_current_and_print(voltage)
-                    for voltage in voltages]
+        # Depending upon the switching rate, there will be a region
+        # around 0 current where the measured resistance is much
+        # higher than actual and highly non-linear.  We also want to
+        # limit the maximum amount of power put into the motor per the
+        # user's request.  So, to balance those requirements, we start
+        # at very low voltages and geometrically increase until we
+        # reach the desired user power.  After that point, we attempt
+        # to select a region from the largest currents that is roughly
+        # linear.
 
-        winding_resistance = _calculate_winding_resistance(voltages, currents)
+        cal_voltage = 0.01
 
-        if winding_resistance < 0.001:
-            raise RuntimeError(
-                f'Winding resistance too small ({winding_resistance} < 0.001)' +
-                f', try adjusting --cal-voltage')
+        # This will be a list of:
+        #  ( voltage,
+        #    current,
+        #    step_resistance,
+        #  )
+        results = []
+
+        while True:
+            this_current = await self.find_current(cal_voltage)
+
+            this_resistance = None
+            if len(results):
+                this_resistance = ((cal_voltage - results[-1][0]) /
+                                   (this_current - results[-1][1]))
+
+            if not self.args.verbose:
+                print(f"Tested {cal_voltage:6.3f}V resistance {this_resistance or 0:6.3f}ohms ",
+                      end='\r', flush=True)
+            else:
+                print(f" V={cal_voltage} I={this_current} R={this_resistance}")
+
+            results.append((cal_voltage, this_current, this_resistance))
+
+            power = this_current * cal_voltage * 1.5
+            if (power > self.args.cal_motor_power or
+                cal_voltage > (0.4 * input_V)):
+                break
+
+            cal_voltage *= 1.1
+
+        print()
+
+        # If we had infinite precision, the "most correct" answer
+        # would be the very last step_resistance we measured.
+        # However, current noise will mean it is useful to incorporate
+        # a reading from a more distant point.  This is hard because
+        # as we get closer to 0, the results will become highly
+        # non-linear, corrupting the result.
+
+        # What we'll do is take the very last result, and the last
+        # result that is less than 70% of the current of the last
+        # result.
+
+        last_result = results[-1]
+
+        less_than = [x for x in results if x[1] < 0.60 * last_result[1]][-1]
+
+
+        resistance = ((last_result[0] - less_than[0]) /
+                      (last_result[1] - less_than[1]))
+
+        print(f"Resistance {resistance:.3f} ohms")
 
         if not self.args.cal_no_update:
-            await self.command(f"conf set motor.resistance_ohm {winding_resistance}")
+            await self.command(f"conf set motor.resistance_ohm {resistance}")
 
-        return winding_resistance
+        return resistance, last_result[0]
+
 
     async def _test_inductance_period(self, cal_voltage, input_V, ind_period):
         ind_voltage = cal_voltage
@@ -1627,7 +1658,7 @@ class Stream:
             data = await self.read_servo_stats()
 
             total_current_A = math.hypot(data.d_A, data.q_A)
-            total_power_W = voltage * total_current_A
+            total_power_W = voltage * total_current_A * 1.5
 
             power_samples.append(total_power_W)
 
@@ -2017,9 +2048,6 @@ async def async_main():
     parser.add_argument('--cal-ll-encoder-speed',
                         metavar='HZ', type=float, default=1.0,
                         help='speed in electrical rps')
-    parser.add_argument('--cal-ll-resistance-voltage',
-                        metavar='V', type=float,
-                        help='maximum voltage when measuring resistance')
     parser.add_argument('--cal-ll-kv-voltage',
                         metavar='V', type=float,
                         help='maximum voltage when measuring Kv')
@@ -2042,7 +2070,7 @@ async def async_main():
     # Internally, the above values are derived from these, combined
     # with the approximate input voltage to the controller.
     parser.add_argument('--cal-motor-power', metavar='W', type=float,
-                        default=5.0,
+                        default=7.5,
                         help='motor power in W to use for encoder cal')
     parser.add_argument('--cal-motor-speed', metavar='Hz', type=float,
                         default=6.0,
