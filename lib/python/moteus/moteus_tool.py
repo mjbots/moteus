@@ -1401,25 +1401,63 @@ class Stream:
 
         return winding_resistance
 
+    async def _test_inductance_period(self, cal_voltage, ind_period):
+        await asyncio.wait_for(
+            self.command(f"d ind {cal_voltage} {ind_period}"), 0.25)
+
+        start = time.time()
+        await asyncio.sleep(1.0)
+        await self.command(f"d stop")
+        end = time.time()
+        data = await self.read_servo_stats()
+
+        delta_time = end - start
+        di_dt = data.meas_ind_integrator / delta_time
+
+        if self.args.verbose:
+            print(f" inductance period={ind_period} v={cal_voltage} di_dt={di_dt}")
+
+        return di_dt
+
+
     async def calibrate_inductance(self, cal_voltage, winding_resistance):
         print("Calculating motor inductance")
 
+        # Sweep through a range of inductance measurement frequencies
+        # until we have a peak or near peak.  Rationale:
+        #
+        # For low inductance/low resistance motors, we can't actually
+        # test very low frequencies without generating overly large
+        # currents.  Thus we start out at a high frequency and stop
+        # when it looks like we have gotten near enough to the peak.
+        # Similarly, for high resistance/low inductance motors, we can
+        # only effectively measure the inductance at high frequencies,
+        # otherwise the current will saturate at Vbus/resistance.  For
+        # high resistance / high inductance motors, we need to get all
+        # the way to low frequencies before the measured current is
+        # actually large enough to detect.
+
+        periods_to_test = [2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32]
+
+        highest_di_dt = None
+        since_highest = None
+
         try:
-            # High winding resistance motors typically have a much
-            # larger inductance, and therefore need a longer
-            # inductance period.  We still need to keep this low for
-            # low resistance/inductance motors, otherwise we can have
-            # excessive peak currents during the measurement process.
+            for period in periods_to_test:
+                this_di_dt = await self._test_inductance_period(
+                    cal_voltage, period)
 
-            # For phase resistances of 0.2 ohm or less, stick with 8
-            # cycles, which for a 15kHz pwm rate would equal ~0.6ms of
-            # on time.  Increase that as phase resistance increases,
-            # until it maxes at 32/2ms around 0.8 ohms of phase
-            # resistance.
-            ind_period = max(8, min(32, int(winding_resistance / 0.2)))
+                if highest_di_dt is None or this_di_dt > highest_di_dt:
+                    highest_di_dt = this_di_dt
+                    since_highest = 0
+                else:
+                    if since_highest is not None:
+                        since_highest += 1
 
-            await asyncio.wait_for(
-                self.command(f"d ind {cal_voltage} {ind_period}"), 0.25)
+                if this_di_dt < 0.5 * highest_di_dt or since_highest > 2:
+                    # We stop early to avoid causing excessive ripple
+                    # current on low resistance / low inductance motors.
+                    break
         except moteus.CommandError as e:
             # It is possible this is an old firmware that does not
             # support inductance measurement.
@@ -1431,15 +1469,7 @@ class Stream:
             print("Firmware does not support inductance measurement")
             return None
 
-        start = time.time()
-        await asyncio.sleep(1.0)
-        await self.command(f"d stop")
-        end = time.time()
-        data = await self.read_servo_stats()
-
-        delta_time = end - start
-        inductance = (cal_voltage /
-                      (data.meas_ind_integrator / delta_time))
+        inductance = (cal_voltage / highest_di_dt)
 
         if inductance < 1e-6:
             raise RuntimeError(f'Inductance too small ({inductance} < 1e-6)')
