@@ -1131,6 +1131,7 @@ class Stream:
             'kv' : (0.5 * 60.0 / v_per_hz),
             'unwrapped_position_scale' : unwrapped_position_scale,
             'motor_position_output_sign' : motor_output_sign,
+            'abi_version' : self.firmware.version,
         }
 
         log_filename = f"moteus-cal-{device_info['serial_number']}-{now.strftime('%Y%m%dT%H%M%S.%f')}.log"
