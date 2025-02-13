@@ -266,6 +266,8 @@ enum class Register {
   kCommandAccelLimit = 0x029,
   kCommandFixedVoltageOverride = 0x02a,
   kCommandIlimitScale = 0x02b,
+  kCommandFixedCurrentOverride = 0x02c,
+  kCommandIgnorePositionBounds = 0x02d,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -288,6 +290,7 @@ enum class Register {
   kStayWithinMaxTorque = 0x045,
   kStayWithinTimeout = 0x046,
   kStayWithinIlimitScale = 0x047,
+  kStayWithinIgnorePositionBounds = 0x048,
 
   kEncoder0Position = 0x050,
   kEncoder0Velocity = 0x051,
@@ -672,6 +675,15 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.ilimit_scale = ReadPwm(value);
         return 0;
       }
+      case Register::kCommandFixedCurrentOverride: {
+        command_.fixed_current_override = ReadCurrent(value);
+        return 0;
+      }
+      case Register::kCommandIgnorePositionBounds:
+      case Register::kStayWithinIgnorePositionBounds: {
+        command_.ignore_position_bounds = ReadIntMapping(value);
+        return 0;
+      }
       case Register::kStayWithinLower: {
         command_.bounds_min = ReadPosition(value);
         return 0;
@@ -948,6 +960,13 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kCommandFixedVoltageOverride: {
         return ScaleVoltage(command_.fixed_voltage_override, type);
+      }
+      case Register::kCommandFixedCurrentOverride: {
+        return ScaleCurrent(command_.fixed_current_override, type);
+      }
+      case Register::kCommandIgnorePositionBounds:
+      case Register::kStayWithinIgnorePositionBounds: {
+        return IntMapping(command_.ignore_position_bounds ? 1 : 0, type);
       }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {

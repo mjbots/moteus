@@ -924,6 +924,21 @@ When in Position mode, shrink the integral term's windup limit by the
 given factor.  Integral types are applied as for PWM.  If unspecified,
 1.0 is used.
 
+#### 0x02c - Fixed current override ####
+
+Mode: Read/write
+
+If specified, then the control mode will temporarily be in the "fixed
+current" mode.  This is parallel to "fixed voltage" mode, but instead
+of a fixed voltage, a fixed D axis current is controlled.
+
+#### 0x02d - Ignore position bounds ####
+
+Mode: Read/write
+
+If specified and non-zero, `servopos.position_min` and
+`servopos.position_max` will be ignore.
+
 #### 0x030 - Proportional torque ####
 
 Mode: Read
@@ -1048,6 +1063,10 @@ A shadow of the 0x027 register.
 #### 0x047 - Ki ilimit scale ####
 
 A shadow of the 0x02b register.
+
+#### 0x048 - Ignore position bounds ####
+
+A shadow of the 0x02d register.
 
 #### 0x050 - Encoder 0 Position ####
 
@@ -1421,6 +1440,9 @@ Each optional element consists of a prefix character followed by a value.  Permi
   acceleration limit for the duration of this command.
 - `o` - fixed voltage override: while in affect, treat the control as
   if `fixed_voltage_mode` were enabled with the given voltage
+- `c` - fixed current override: while in affect, treat the control
+  like `fixed_voltage_mode`, but instead commanding a fixed current.
+- `b` - if non-zero, then ignore all `servopos` position bounds
 
 The position, velocity, maximum torque, and all optional fields have
 the same semantics as for the register protocol documented above.
@@ -1459,8 +1481,12 @@ d within <lowbound> <highbound> <max_torque> [options...]
 ```
 
 The fields have the same semantics as for the register protocol
-documented above.  The options are the same as for `d pos`, with the
-exception of stop position which is not supported.
+documented above.  The options are largely the same as for `d pos`.
+Unsupported options include:
+
+ * `s` - stop position
+ * `o` - fixed voltage override
+ * `c` - fixed current override
 
 ### `d brake` ###
 

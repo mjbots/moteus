@@ -43,6 +43,9 @@ MAX_FLASH_BLOCK_SIZE = 32
 # short intervals.
 FIND_TARGET_TIMEOUT = 0.01 if sys.platform != 'win32' else 0.05
 
+# By default, we will only use current mode calibration if our
+# expected maximum current is X times the sense noise in current.
+CURRENT_QUALITY_MIN = 20
 
 def _wrap_neg_pi_to_pi(value):
     while value > math.pi:
@@ -63,6 +66,13 @@ def lerp(array, ratio):
 
     return (left_comp * (1.0 - fraction)) + (right_comp * fraction)
 
+
+def stddev(data):
+    if len(data) == 0:
+        return 0
+
+    mean = sum(data) / len(data)
+    return math.sqrt(sum((x - mean) ** 2 for x in data) / len(data))
 
 SUPPORTED_ABI_VERSION = 0x010a
 
@@ -1044,15 +1054,11 @@ class Stream:
         print("Starting calibration process")
         await self.check_for_fault()
 
-        winding_resistance, highest_voltage = (
+        winding_resistance, highest_voltage, current_noise = (
             await self.calibrate_winding_resistance2(input_V))
         await self.check_for_fault()
 
         resistance_cal_voltage = highest_voltage
-
-        cal_result = await self.calibrate_encoder_mapping(
-            input_V, winding_resistance)
-        await self.check_for_fault()
 
         # Determine our inductance.
         inductance = await self.calibrate_inductance(
@@ -1073,6 +1079,10 @@ class Stream:
         enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(
             torque_bw_hz, inductance,
             control_rate_hz=control_rate_hz)
+        await self.check_for_fault()
+
+        cal_result = await self.calibrate_encoder_mapping(
+            input_V, winding_resistance, current_noise)
         await self.check_for_fault()
 
         v_per_hz = await self.calibrate_kv_rating(
@@ -1128,7 +1138,7 @@ class Stream:
 
     async def find_encoder_cal_voltage(self, input_V, winding_resistance):
         if self.args.cal_ll_encoder_voltage:
-            return self.args.cal_ll_encoder_voltage
+            return self.args.cal_ll_encoder_voltage,
 
         # We're going to try and select a voltage to roughly achieve
         # "--cal-motor-power".
@@ -1136,10 +1146,11 @@ class Stream:
                    math.sqrt((self.args.cal_motor_power / 1.5) *
                              winding_resistance))
 
-    async def calibrate_encoder_mapping(self, input_V, winding_resistance):
+    async def calibrate_encoder_mapping(self, input_V, winding_resistance, current_noise):
         # Figure out what voltage to use for encoder calibration.
-        encoder_cal_voltage = await self.find_encoder_cal_voltage(
-            input_V, winding_resistance)
+        encoder_cal_voltage = \
+            await self.find_encoder_cal_voltage(input_V, winding_resistance)
+        encoder_cal_current = encoder_cal_voltage / winding_resistance
         self.encoder_cal_voltage = encoder_cal_voltage
 
         hall_configured = False
@@ -1160,12 +1171,27 @@ class Stream:
                                    "not configured on device")
             return await self.calibrate_encoder_mapping_hall(encoder_cal_voltage)
         else:
+            old_output_sign = None
             try:
-                return await self.calibrate_encoder_mapping_absolute(encoder_cal_voltage)
-            except:
+                if self.is_config_supported("motor_position.output.sign"):
+                    # Some later parts of our calibration procedure can
+                    # handle a negative sign, but not the absolute encoder
+                    # mapping when using the current mode.  Thus for now
+                    # we just force it to 1 and set it back when complete.
+                    old_output_sign = await self.read_config_int(
+                        "motor_position.output.sign")
+                    await self.command("conf set motor_position.output.sign 1")
+
+                return await self.calibrate_encoder_mapping_absolute(
+                    encoder_cal_voltage, encoder_cal_current, current_noise)
+            finally:
                 # At least try to stop.
                 await self.command("d stop")
-                raise
+
+                if old_output_sign is not None:
+                    await self.command(
+                        f"conf set motor_position.output.sign {old_output_sign}")
+
 
     async def calibrate_encoder_mapping_hall(self, encoder_cal_voltage):
         if self.args.cal_motor_poles is None:
@@ -1257,14 +1283,39 @@ class Stream:
             # We need to find an index.
             await self.find_index(encoder_cal_voltage)
 
-    async def calibrate_encoder_mapping_absolute(self, encoder_cal_voltage):
+    async def calibrate_encoder_mapping_absolute(
+            self, encoder_cal_voltage, encoder_cal_current, current_noise):
         await self.ensure_valid_theta(encoder_cal_voltage)
 
-        await self.command(f"d pwm 0 {encoder_cal_voltage}")
-        await asyncio.sleep(3.0)
+        current_quality_factor = encoder_cal_current / current_noise
+        use_current_for_quality = (
+            current_quality_factor > CURRENT_QUALITY_MIN or
+            self.args.cal_force_encoder_current_mode)
+        use_current_for_firmware_version = self.firmware.version >= 0x010a
 
-        await self.write_message(
-            (f"d cal {encoder_cal_voltage} s{self.args.cal_ll_encoder_speed}"))
+        use_current_calibration = (
+            use_current_for_quality and use_current_for_firmware_version)
+
+        if use_current_for_firmware_version and not use_current_for_quality:
+            print(f"Using voltage mode calibration, current quality factor {current_quality_factor:.1f} < {CURRENT_QUALITY_MIN:.1f}")
+
+
+        old_motor_poles = None
+
+        if use_current_calibration:
+            old_motor_poles = await self.read_config_int("motor.poles")
+            await self.command("conf set motor.poles 2")
+            await self.command(f"d pos nan 0 nan c{encoder_cal_current} b1")
+            await asyncio.sleep(3.0)
+
+            await self.write_message(
+                (f"d cali i{encoder_cal_current} s{self.args.cal_ll_encoder_speed}"))
+        else:
+            await self.command(f"d pwm 0 {encoder_cal_voltage}")
+            await asyncio.sleep(3.0)
+
+            await self.write_message(
+                (f"d cal {encoder_cal_voltage} s{self.args.cal_ll_encoder_speed}"))
 
         cal_data = b''
         index = 0
@@ -1274,9 +1325,9 @@ class Stream:
                 print("Calibrating {} ".format("/-\\|"[index]), end='\r', flush=True)
                 index = (index + 1) % 4
             cal_data += (line + b'\n')
-            if line.startswith(b'CAL done'):
+            if line.startswith(b'CAL done') or line.startswith(b'CALI done'):
                 break
-            if line.startswith(b'CAL start'):
+            if line.startswith(b'CAL start') or line.startswith(b'CALI start'):
                 continue
             if line.startswith(b'ERR'):
                 raise RuntimeError(f'Error calibrating: {line}')
@@ -1327,6 +1378,12 @@ class Stream:
                     1 if cal_result.phase_invert else 0))
             for i, offset in enumerate(cal_result.offset):
                 await self.command(f"conf set motor.offset.{i} {offset}")
+        else:
+            # Undo anything that needs undoing.
+            if old_motor_poles is not None:
+                await self.command(f"conf set motor.poles {old_motor_poles}")
+
+        cal_result.current_quality_factor = current_quality_factor
 
         return cal_result
 
@@ -1344,7 +1401,7 @@ class Stream:
 
         # Now get the servo_stats telemetry channel to read the D and Q
         # currents.
-        data = [extract(await self.read_servo_stats()) for _ in range(10)]
+        data = [extract(await self.read_servo_stats()) for _ in range(20)]
 
         # Stop the current.
         await self.command("d stop");
@@ -1353,11 +1410,12 @@ class Stream:
         await asyncio.sleep(0.05);
 
         current_A = sum(data) / len(data)
+        noise_A = stddev(data)
 
-        return current_A
+        return current_A, noise_A
 
     async def find_current_and_print(self, voltage):
-        result = await self.find_current(voltage)
+        result, noise = await self.find_current(voltage)
         print(f"{voltage:.3f}V - {result:.3f}A")
         return result
 
@@ -1380,11 +1438,12 @@ class Stream:
         #  ( voltage,
         #    current,
         #    step_resistance,
+        #    noise,
         #  )
         results = []
 
         while True:
-            this_current = await self.find_current(cal_voltage)
+            this_current, this_noise = await self.find_current(cal_voltage)
 
             this_resistance = None
             if len(results):
@@ -1392,12 +1451,12 @@ class Stream:
                                    (this_current - results[-1][1]))
 
             if not self.args.verbose:
-                print(f"Tested {cal_voltage:6.3f}V resistance {this_resistance or 0:6.3f}ohms ",
+                print(f"Tested {cal_voltage:6.3f}V resistance {this_resistance or 0:6.3f}ohms  noise={this_noise:5.3f}A  ",
                       end='\r', flush=True)
             else:
                 print(f" V={cal_voltage} I={this_current} R={this_resistance}")
 
-            results.append((cal_voltage, this_current, this_resistance))
+            results.append((cal_voltage, this_current, this_resistance, this_noise))
 
             power = this_current * cal_voltage * 1.5
             if (power > self.args.cal_motor_power or
@@ -1432,7 +1491,7 @@ class Stream:
         if not self.args.cal_no_update:
             await self.command(f"conf set motor.resistance_ohm {resistance}")
 
-        return resistance, last_result[0]
+        return resistance, last_result[0], last_result[3]
 
 
     async def _test_inductance_period(self, cal_voltage, input_V, ind_period):
@@ -1766,6 +1825,9 @@ class Stream:
 
             await asyncio.sleep(0.5)
 
+            await self.command(f"conf set servopos.position_min {original_position_min}")
+            await self.command(f"conf set servopos.position_max {original_position_max}")
+
             geared_v_per_hz = 1.0 / _calculate_slope(voltages, speed_hzs)
 
             v_per_hz = (geared_v_per_hz *
@@ -1774,9 +1836,6 @@ class Stream:
                 v_per_hz *= motor_output_sign
 
             print(f"v_per_hz (pre-gearbox)={v_per_hz}")
-
-            await self.command(f"conf set servopos.position_min {original_position_min}")
-            await self.command(f"conf set servopos.position_max {original_position_max}")
 
             if v_per_hz < 0.0:
                 raise RuntimeError(
@@ -2098,6 +2157,8 @@ async def async_main():
                         default=1.25)
     parser.add_argument('--cal-write-raw', metavar='FILE', type=str,
                         help='write raw calibration data')
+    parser.add_argument('--cal-force-encoder-current-mode', action='store_true',
+                        help='always use encoder current mode calibration if supported')
 
     args = parser.parse_args()
 

@@ -53,11 +53,15 @@ def _parse_entry(line):
     return result
 
 
+def check_line(cmd):
+    return ' '.join(cmd.strip().split(' ')[0:2])
+
+
 def parse_file(fp):
     lines = [x.decode('latin1') for x in fp.readlines()]
-    if not lines[0].startswith("CAL start"):
+    if not check_line(lines[0]) in ["CAL start", "CALI start"]:
         raise RuntimeError("calibration does not start with magic line")
-    if not lines[-1].startswith("CAL done"):
+    if not check_line(lines[-1]) in ["CAL done", "CALI done"]:
         raise RuntimeError("calibration does not end with magic line")
 
     lines = lines[1:-1]
@@ -65,8 +69,8 @@ def parse_file(fp):
     entries = [_parse_entry(line) for line in lines]
 
     result = File()
-    result.phase_up = [x for x in entries if x.direction == 1]
-    result.phase_down = [x for x in entries if x.direction == 2]
+    result.phase_up = [x for x in entries if x.direction == 1 or x.direction == 3]
+    result.phase_down = [x for x in entries if x.direction == 2 or x.direction == 4]
 
     return result
 
@@ -181,6 +185,8 @@ class CalibrationResult:
 
         self.fit_metric = None
 
+        self.current_quality_factor = None
+
         self.errors = []
 
     def __repr__(self):
@@ -190,6 +196,7 @@ class CalibrationResult:
             "poles": self.poles,
             "offset": self.offset,
             "fit_metric": self.fit_metric,
+            "current_quality_factor": self.current_quality_factor,
             "errors": self.errors,
             })
 
@@ -200,6 +207,7 @@ class CalibrationResult:
             'poles': self.poles,
             'offset': self.offset,
             'fit_metric': self.fit_metric,
+            'current_quality_factor': self.current_quality_factor,
         }
 
 

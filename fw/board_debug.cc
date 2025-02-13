@@ -99,6 +99,14 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
         command->fixed_voltage_override = value;
         break;
       }
+      case 'c': {
+        command->fixed_current_override = value;
+        break;
+      }
+      case 'b': {
+        command->ignore_position_bounds = value != 0.0f;
+        break;
+      }
       default: {
         return false;
       }
@@ -236,11 +244,6 @@ class BoardDebug::Impl {
       return;
     }
 
-    const auto old_phase = cal_phase_;
-
-    // speed of 1 is 1 electrical phase per second
-    const int kStep = static_cast<int>(cal_speed_ * 65536.0f / 1000.0f);
-
     const auto& motor_position = bldc_->motor_position();
     const auto& motor_config = *bldc_->motor_position_config();
     const int commutation_source = motor_config.commutation_source;
@@ -261,7 +264,6 @@ class BoardDebug::Impl {
     const bool phase_complete = std::abs(cal_position_delta_) > 65536;
     cal_old_position_raw_ = position_raw;
 
-    cal_phase_ += ((motor_cal_mode_ == kPhaseUp) ? 1 : -1) * kStep;
     cal_count_++;
 
     const float kMaxTimeMs =
@@ -289,21 +291,28 @@ class BoardDebug::Impl {
       return;
     }
 
-    switch (motor_cal_mode_) {
-      case kPhaseUp: {
-        if (phase_complete) {
+    if (phase_complete) {
+      switch (motor_cal_mode_) {
+        case kPhaseUp: {
           motor_cal_mode_ = kPhaseDown;
           cal_position_delta_ = 0;
+          break;
         }
-        break;
-      }
-      case kPhaseDown: {
-        if (phase_complete) {
+        case kCurrentPhaseUp: {
+          motor_cal_mode_ = kCurrentPhaseDown;
+          cal_position_delta_ = 0;
+          break;
+        }
+        case kPhaseDown: // fall through
+        case kCurrentPhaseDown: {
           // Try to write out our final message.
           if (write_outstanding_) { return; }
 
-
-          WriteMessage(cal_response_, "CAL done\r\n");
+          if (motor_cal_mode_ == kPhaseDown) {
+            WriteMessage(cal_response_, "CAL done\r\n");
+          } else {
+            WriteMessage(cal_response_, "CALI done\r\n");
+          }
           cal_response_ = {};
           motor_cal_mode_ = kNoMotorCal;
 
@@ -314,21 +323,27 @@ class BoardDebug::Impl {
 
           return;
         }
-        break;
-      }
-      case kNoMotorCal: {
-        MJ_ASSERT(false);
-        break;
+        case kNoMotorCal: {
+          MJ_ASSERT(false);
+          break;
+        }
       }
     }
 
     if ((cal_count_ % 10) == 0 && !write_outstanding_) {
       const auto& status = bldc_->status();
 
+      const uint16_t theta =
+          (motor_cal_mode_ == kPhaseUp ||
+           motor_cal_mode_ == kPhaseDown) ?
+          cal_phase_ :
+          static_cast<int>(
+              bldc_->status().electrical_theta / (2.0f * kPi) * 65536.0f);
+
       ::snprintf(out_message_, sizeof(out_message_),
                  "%d %d %u i1=%d i2=%d i3=%d d=%ld\r\n",
                  motor_cal_mode_,
-                 old_phase,
+                 theta,
                  position_raw,
                  static_cast<int>(status.cur1_A * 1000),
                  static_cast<int>(status.cur2_A * 1000),
@@ -340,12 +355,44 @@ class BoardDebug::Impl {
         });
     }
 
-    BldcServo::CommandData command;
-    command.mode = BldcServo::Mode::kVoltageFoc;
+    switch (motor_cal_mode_) {
+      case kPhaseUp: // fall through
+      case kPhaseDown: {
+        // speed of 1 is 1 electrical phase per second
+        const int kStep = static_cast<int>(cal_speed_ * 65536.0f / 1000.0f);
 
-    command.theta = (cal_phase_ / 65536.0f) * 2.0f * kPi;
-    command.voltage = cal_magnitude_;
-    bldc_->Command(command);
+        cal_phase_ += ((motor_cal_mode_ == kPhaseUp) ? 1 : -1) * kStep;
+
+        BldcServo::CommandData command;
+        command.mode = BldcServo::Mode::kVoltageFoc;
+
+        command.theta = (cal_phase_ / 65536.0f) * 2.0f * kPi;
+        command.voltage = cal_magnitude_;
+        bldc_->Command(command);
+        break;
+      }
+      case kCurrentPhaseUp: // fall through
+      case kCurrentPhaseDown: {
+        BldcServo::CommandData command;
+        command.mode = BldcServo::Mode::kPosition;
+        command.position = std::numeric_limits<float>::quiet_NaN();
+        command.velocity =
+            cal_speed_ * ((motor_cal_mode_ == kCurrentPhaseUp) ? 1.0f : -1.0f);
+        command.fixed_current_override = cal_magnitude_;
+        command.ignore_position_bounds = true;
+
+        bldc_->Command(command);
+        break;
+      }
+      case kNoMotorCal: {
+        MJ_ASSERT(false);
+        break;
+      }
+    }
+  }
+
+  void DoCurrentCalibration() {
+
   }
 
   void HandleCommand(const std::string_view& message,
@@ -502,6 +549,64 @@ class BoardDebug::Impl {
       return;
     }
 
+    if (cmd_text == "cali") {
+      cal_speed_ = 1.0f;
+      cal_magnitude_ = 0.0f;
+
+      while (tokenizer.remaining().size()) {
+        const auto token = tokenizer.next();
+
+        if (token.size() < 1) { continue; }
+        const char option = token[0];
+
+        const auto maybe_value = Strtof(&token[1]);
+        if (!maybe_value) {
+          WriteMessage(response, "ERR unknown cali option\r\n");
+          return;
+        }
+
+        switch (option) {
+          case 's': {
+            cal_speed_ = *maybe_value;
+            break;
+          }
+          case 'i': {
+            cal_magnitude_ = *maybe_value;
+            break;
+          }
+          default: {
+            WriteMessage(response, "ERR unknown cali option\r\n");
+            return;
+          }
+        }
+      }
+
+      // Do we at least have a rotor level home on our commutation
+      // source?
+      const auto& motor_position = bldc_->motor_position();
+      if (motor_position.error != MotorPosition::Status::kNone) {
+        WriteMessage(response, "ERR encoder configuration error\r\n");
+        return;
+      }
+      if (!motor_position.theta_valid) {
+        WriteMessage(response, "ERR no theta available\r\n");
+        return;
+      }
+
+      cal_response_ = response;
+      motor_cal_mode_ = kCurrentPhaseUp;
+      cal_count_ = 0;
+      cal_old_position_raw_.reset();
+      cal_position_delta_ = 0;
+
+      write_outstanding_ = true;
+      AsyncWrite(*cal_response_.stream, "CALI start 1\r\n", [this](auto) {
+        write_outstanding_ = false;
+      });
+
+      return;
+    }
+
     if (cmd_text == "v") {
       const auto maybe_a = Strtof(tokenizer.next());
       const auto maybe_b = Strtof(tokenizer.next());
@@ -589,7 +694,7 @@ class BoardDebug::Impl {
       // We default to no timeout for debug commands.
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pdisftavo")) {
+      if (!ParseOptions(&command, &tokenizer, "pdisftavocb")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }
@@ -628,7 +733,7 @@ class BoardDebug::Impl {
       BldcServo::CommandData command;
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pditf")) {
+      if (!ParseOptions(&command, &tokenizer, "pditfb")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }
@@ -1029,6 +1134,8 @@ class BoardDebug::Impl {
     kNoMotorCal,
     kPhaseUp,
     kPhaseDown,
+    kCurrentPhaseUp,
+    kCurrentPhaseDown,
   };
   MotorCalMode motor_cal_mode_ = kNoMotorCal;
   uint16_t cal_phase_ = 0;

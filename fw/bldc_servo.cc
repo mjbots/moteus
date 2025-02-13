@@ -897,7 +897,28 @@ class BldcServo::Impl {
     status_.dwt.sense = DWT->CYCCNT;
 #endif
 
-    SinCos sin_cos = cordic_(RadiansToQ31(position_.electrical_theta));
+    // current_data_ is volatile, so read it out now, and operate on
+    // the pointer for the rest of the routine.
+    CommandData* data = current_data_;
+
+    const bool synthetic_theta =
+        config_.fixed_voltage_mode ||
+        !std::isnan(data->fixed_voltage_override) ||
+        !std::isnan(data->fixed_current_override);
+
+    const float electrical_theta = !synthetic_theta ?
+        position_.electrical_theta :
+        WrapZeroToTwoPi(
+            motor_position_config()->output.sign *
+            MotorPosition::IntToFloat(*status_.control_position_raw)
+            / motor_position_->config()->rotor_to_output_ratio
+            * motor_.poles
+            * 0.5f
+            * k2Pi);
+
+    status_.electrical_theta = electrical_theta;
+
+    SinCos sin_cos = cordic_(RadiansToQ31(electrical_theta));
     status_.sin = sin_cos.s;
     status_.cos = sin_cos.c;
 
@@ -915,7 +936,7 @@ class BldcServo::Impl {
     status_.dwt.curstate = DWT->CYCCNT;
 #endif
 
-    ISR_DoControl(sin_cos);
+    ISR_DoControl(sin_cos, data);
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control = DWT->CYCCNT;
@@ -1285,6 +1306,7 @@ class BldcServo::Impl {
           case kMeasureInductance:
           case kBrake: {
             if ((data->mode == kPosition || data->mode == kStayWithinBounds) &&
+                !data->ignore_position_bounds &&
                 ISR_IsOutsideLimits()) {
               status_.mode = kFault;
               status_.fault = errc::kStartOutsideLimit;
@@ -1420,11 +1442,8 @@ class BldcServo::Impl {
     }
   }
 
-  void ISR_DoControl(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
-    // current_data_ is volatile, so read it out now, and operate on
-    // the pointer for the rest of the routine.
-    CommandData* data = current_data_;
-
+  void ISR_DoControl(const SinCos& sin_cos,
+                     CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     old_d_V = control_.d_V;
     old_q_V = control_.q_V;
 
@@ -1528,7 +1547,8 @@ class BldcServo::Impl {
         break;
       }
       case kCurrent: {
-        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f);
+        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f,
+                      data->ignore_position_bounds);
         break;
       }
       case kPosition: {
@@ -1561,7 +1581,7 @@ class BldcServo::Impl {
   void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     if (status_.cooldown_count) {
       status_.cooldown_count--;
-      ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f);
+      ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f, false);
       return;
     }
 
@@ -1691,7 +1711,8 @@ class BldcServo::Impl {
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in,
-                     float feedforward_velocity_rotor) MOTEUS_CCM_ATTRIBUTE {
+                     float feedforward_velocity_rotor,
+                     bool ignore_position_bounds) MOTEUS_CCM_ATTRIBUTE {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
@@ -1705,6 +1726,8 @@ class BldcServo::Impl {
     }
 
     auto limit_q_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
+      if (ignore_position_bounds) { return in; }
+
       if (!std::isnan(position_config_.position_max) &&
           position_.position > position_config_.position_max &&
           in > 0.0f) {
@@ -2005,7 +2028,8 @@ class BldcServo::Impl {
     // At this point, our control position and velocity are known.
 
     if (config_.fixed_voltage_mode ||
-        !std::isnan(data->fixed_voltage_override)) {
+        !std::isnan(data->fixed_voltage_override) ||
+        !std::isnan(data->fixed_current_override)) {
       status_.position =
           static_cast<float>(
               static_cast<int32_t>(
@@ -2013,28 +2037,27 @@ class BldcServo::Impl {
           65536.0f;
       status_.velocity = velocity_command;
 
-      // For "fixed voltage" mode, we skip all position and current
-      // PID loops and all their associated calculations, including
-      // everything that uses the encoder.  Instead we just burn power
-      // with a fixed voltage drive based on the desired position.
-      const float synthetic_electrical_theta =
-          WrapZeroToTwoPi(
-              motor_position_config()->output.sign *
-              MotorPosition::IntToFloat(*status_.control_position_raw)
-              / motor_position_->config()->rotor_to_output_ratio
-              * motor_.poles
-              * 0.5f
-              * k2Pi);
-      const SinCos synthetic_sin_cos =
-          cordic_(RadiansToQ31(synthetic_electrical_theta));
-      const float fixed_voltage =
-          std::isnan(data->fixed_voltage_override) ?
-          config_.fixed_voltage_control_V +
-          (std::abs(status_.velocity) *
-           motor_.v_per_hz *
-           config_.bemf_feedforward) :
-          data->fixed_voltage_override;
-      ISR_DoVoltageDQ(synthetic_sin_cos, fixed_voltage, 0.0f);
+      // For "fixed voltage" and "fixed current" mode, we skip all
+      // position PID loops and all their associated calculations,
+      // including everything that uses the encoder, further for
+      // "fixed voltage" mode we also skip the current control loop.
+      //
+      // In either case, we just burn power with a fixed voltage or
+      // current drive based on the desired position.
+      if (!std::isnan(data->fixed_current_override)) {
+        ISR_DoCurrent(sin_cos,
+                      data->fixed_current_override,
+                      0.0f, 0.0f, data->ignore_position_bounds);
+      } else {
+        const float fixed_voltage =
+            std::isnan(data->fixed_voltage_override) ?
+            config_.fixed_voltage_control_V +
+            (std::abs(status_.velocity) *
+             motor_.v_per_hz *
+             config_.bemf_feedforward) :
+            data->fixed_voltage_override;
+        ISR_DoVoltageDQ(sin_cos, fixed_voltage, 0.0f);
+      }
       return;
     }
 
@@ -2137,7 +2160,8 @@ class BldcServo::Impl {
 
     ISR_DoCurrent(
         sin_cos, d_A, q_A,
-        velocity_command / motor_position_->config()->rotor_to_output_ratio);
+        velocity_command / motor_position_->config()->rotor_to_output_ratio,
+        data->ignore_position_bounds);
   }
 
   void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {

@@ -129,6 +129,8 @@ struct BldcServoStatus {
   float cur2_A = 0.0f;
   float cur3_A = 0.0f;
 
+  float electrical_theta = 0.0f;
+
   float bus_V = 0.0f;
   float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
   float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
@@ -227,6 +229,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(cur1_A));
     a->Visit(MJ_NVP(cur2_A));
     a->Visit(MJ_NVP(cur3_A));
+    a->Visit(MJ_NVP(electrical_theta));
 
     a->Visit(MJ_NVP(bus_V));
     a->Visit(MJ_NVP(filt_bus_V));
@@ -322,6 +325,8 @@ struct BldcServoCommandData {
 
   // If not NaN, temporarily operate in fixed voltage mode.
   float fixed_voltage_override = std::numeric_limits<float>::quiet_NaN();
+  float fixed_current_override = std::numeric_limits<float>::quiet_NaN();
+  bool ignore_position_bounds = false;
 
   float timeout_s = 0.0f;
 
@@ -363,6 +368,8 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(velocity_limit));
     a->Visit(MJ_NVP(accel_limit));
     a->Visit(MJ_NVP(fixed_voltage_override));
+    a->Visit(MJ_NVP(fixed_current_override));
+    a->Visit(MJ_NVP(ignore_position_bounds));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(bounds_min));
     a->Visit(MJ_NVP(bounds_max));
