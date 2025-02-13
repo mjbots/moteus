@@ -64,6 +64,8 @@ def lerp(array, ratio):
     return (left_comp * (1.0 - fraction)) + (right_comp * fraction)
 
 
+SUPPORTED_ABI_VERSION = 0x010a
+
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
     how to munge configuration options so as to not cause behavior
@@ -74,8 +76,6 @@ class FirmwareUpgrade:
         self.old = old
         self.new = new
         self.board_family = board_family
-
-        SUPPORTED_ABI_VERSION = 0x010a
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
@@ -986,6 +986,9 @@ class Stream:
 
     async def do_calibrate(self):
         self.firmware = await self.read_data("firmware")
+
+        if self.firmware.version > SUPPORTED_ABI_VERSION:
+            raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely python -m pip install --upgrade moteus')\n\nThe existing board has firmware 0x{self.firmware.version:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
 
         # Determine what our calibration parameters are.
         self.calculate_calibration_parameters()
