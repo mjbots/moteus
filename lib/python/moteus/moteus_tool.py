@@ -47,6 +47,10 @@ FIND_TARGET_TIMEOUT = 0.01 if sys.platform != 'win32' else 0.05
 # expected maximum current is X times the sense noise in current.
 CURRENT_QUALITY_MIN = 20
 
+# We switch to voltage mode control if the ratio of maximum possible
+# current to current noise is less than this amount.
+VOLTAGE_MODE_QUALITY_MIN = 40
+
 def _wrap_neg_pi_to_pi(value):
     while value > math.pi:
         value -= 2.0 * math.pi
@@ -1110,6 +1114,26 @@ class Stream:
         # Rezero the servo since we just spun it a lot.
         await self.command("d rezero")
 
+        if await self.is_config_supported("servo.voltage_mode_control"):
+            # See if we should be in voltage control mode or not.  The
+            # heuristic is based the ratio of maximum possible phase
+            # current given input voltage and phase resistance compared to
+            # the phase noise.  Note that this is slightly different from
+            # the heuristic used to switch to voltage mode calibration.
+            # There we only look at the current that would be used for
+            # calibration, not the maximum possible current.  Thus our
+            # threshold is a bit different.
+            max_possible_current = (0.5 * input_V / winding_resistance)
+            max_current_quality = max_possible_current / current_noise
+
+            voltage_mode_control = max_current_quality < VOLTAGE_MODE_QUALITY_MIN
+            if voltage_mode_control:
+                print(f"Using voltage mode control: \n  max possible current ({max_possible_current:.1f}) / current noise ({current_noise:.3f}) = {max_current_quality:.1f} < {VOLTAGE_MODE_QUALITY_MIN}")
+
+            if not self.args.cal_no_update:
+                await self.command(f"conf set servo.voltage_mode_control {1 if voltage_mode_control else 0}")
+
+
         if not self.args.cal_no_update:
             print("Saving to persistent storage")
             await self.command("conf write")
@@ -1187,8 +1211,9 @@ class Stream:
             return await self.calibrate_encoder_mapping_hall(encoder_cal_voltage)
         else:
             old_output_sign = None
+            old_voltage_mode_control = None
             try:
-                if self.is_config_supported("motor_position.output.sign"):
+                if await self.is_config_supported("motor_position.output.sign"):
                     # Some later parts of our calibration procedure can
                     # handle a negative sign, but not the absolute encoder
                     # mapping when using the current mode.  Thus for now
@@ -1196,6 +1221,9 @@ class Stream:
                     old_output_sign = await self.read_config_int(
                         "motor_position.output.sign")
                     await self.command("conf set motor_position.output.sign 1")
+
+                    old_voltage_mode_control = await self.read_config_int(
+                        "servo.voltage_mode_control")
 
                 return await self.calibrate_encoder_mapping_absolute(
                     encoder_cal_voltage, encoder_cal_current, current_noise)
@@ -1206,6 +1234,9 @@ class Stream:
                 if old_output_sign is not None:
                     await self.command(
                         f"conf set motor_position.output.sign {old_output_sign}")
+
+                    await self.command(
+                        f"conf set servo.voltage_mode_control {old_voltage_mode_control}")
 
 
     async def calibrate_encoder_mapping_hall(self, encoder_cal_voltage):
