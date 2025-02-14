@@ -1114,6 +1114,8 @@ class Stream:
         # Rezero the servo since we just spun it a lot.
         await self.command("d rezero")
 
+        voltage_mode_control = False
+
         if await self.is_config_supported("servo.voltage_mode_control"):
             # See if we should be in voltage control mode or not.  The
             # heuristic is based the ratio of maximum possible phase
@@ -1160,6 +1162,7 @@ class Stream:
             'unwrapped_position_scale' : unwrapped_position_scale,
             'motor_position_output_sign' : motor_output_sign,
             'abi_version' : self.firmware.version,
+            'voltage_mode_control' : voltage_mode_control,
         }
 
         log_filename = f"moteus-cal-{device_info['serial_number']}-{now.strftime('%Y%m%dT%H%M%S.%f')}.log"
