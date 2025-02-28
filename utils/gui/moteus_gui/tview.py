@@ -449,7 +449,6 @@ class EditDelegate(QtWidgets.QStyledItemDelegate):
                 options = list(maybe_schema.enum_class)
                 options_text = [repr(x) for x in options]
                 editor.setEditable(True)
-                editor.lineEdit().editingFinished.connect(self.commitAndCloseEditor)
             elif isinstance(maybe_schema, reader.BooleanType):
                 options_text = ['False', 'True']
                 editor.activated.connect(self.commitAndCloseEditor)
