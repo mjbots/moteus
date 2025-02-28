@@ -1056,12 +1056,20 @@ class Stream:
             control_rate_hz = 40000
 
         # The rest of the calibration procedure assumes that
-        # phase_invert is 0.
+        # phase_invert is 0 and that the commutation encoder has a
+        # positive sign.
         try:
             await self.command("conf set motor.phase_invert 0")
         except moteus.CommandError as e:
             # It is possible this firmware is too old to support
             # selecting the phase inversion.
+            if not 'error setting' in e.message:
+                raise
+            pass
+
+        try:
+            await self.command("conf set motor_position.sources.0.sign 1")
+        except moteus.CommandError as e:
             if not 'error setting' in e.message:
                 raise
             pass
