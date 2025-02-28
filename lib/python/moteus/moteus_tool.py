@@ -1027,6 +1027,16 @@ class Stream:
         if self.firmware.version > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely python -m pip install --upgrade moteus')\n\nThe existing board has firmware 0x{self.firmware.version:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
 
+        # Verify that commutation is from source 0.  It wouldn't be
+        # too hard to support other sources, but for now this is
+        # easier than doing so, and there is no real reason any end
+        # user can't swap things around to get the commutation source
+        # on slot 0.
+        if await self.is_config_supported("motor_position.commutation_source"):
+            commutation_source = await self.read_config_int("motor_position.commutation_source")
+            if commutation_source != 0:
+                raise RuntimeError("Automatic calibration only supported with commutation source of 0")
+
         # Determine what our calibration parameters are.
         self.calculate_calibration_parameters()
 
