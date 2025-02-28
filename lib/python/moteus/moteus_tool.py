@@ -1019,6 +1019,11 @@ class Stream:
     async def do_calibrate(self):
         self.firmware = await self.read_data("firmware")
 
+        old_config = None
+        if self.args.cal_no_update:
+            print("Capturing old config for --cal-no-update")
+            old_config = await self.command("conf enumerate")
+
         if self.firmware.version > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely python -m pip install --upgrade moteus')\n\nThe existing board has firmware 0x{self.firmware.version:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
 
@@ -1140,17 +1145,21 @@ class Stream:
             if voltage_mode_control:
                 print(f"Using voltage mode control: \n  max possible current ({max_possible_current:.1f}) / current noise ({current_noise:.3f}) = {max_current_quality:.1f} < {VOLTAGE_MODE_QUALITY_MIN}")
 
-            if not self.args.cal_no_update:
-                await self.command(f"conf set servo.voltage_mode_control {1 if voltage_mode_control else 0}")
+            await self.command(f"conf set servo.voltage_mode_control {1 if voltage_mode_control else 0}")
 
+
+        device_info = await self.get_device_info()
 
         if not self.args.cal_no_update:
             print("Saving to persistent storage")
             await self.command("conf write")
+        else:
+            # Restore our baseline configuration.
+            print("Restoring baseline configuration for --cal-no-update")
+
+            await self.restore_config(old_config)
 
         print("Calibration complete")
-
-        device_info = await self.get_device_info()
 
         now = datetime.datetime.now(datetime.UTC)
 
@@ -1289,17 +1298,16 @@ class Stream:
             desired_direction=1 if not self.args.cal_invert else -1,
             allow_phase_invert=allow_phase_invert)
 
-        if not self.args.cal_no_update:
-            await self.command(f"conf set motor.poles {self.args.cal_motor_poles}")
-            await self.command(f"conf set motor_position.sources.{commutation_source}.sign {cal_result.sign}")
-            await self.command(f"conf set motor_position.sources.{commutation_source}.offset {cal_result.offset}")
-            await self.command(f"conf set aux{aux_number}.hall.polarity {cal_result.polarity}")
-            if allow_phase_invert:
-                await self.command(
-                    f"conf set motor.phase_invert {1 if cal_result.phase_invert else 0}")
+        await self.command(f"conf set motor.poles {self.args.cal_motor_poles}")
+        await self.command(f"conf set motor_position.sources.{commutation_source}.sign {cal_result.sign}")
+        await self.command(f"conf set motor_position.sources.{commutation_source}.offset {cal_result.offset}")
+        await self.command(f"conf set aux{aux_number}.hall.polarity {cal_result.polarity}")
+        if allow_phase_invert:
+            await self.command(
+                f"conf set motor.phase_invert {1 if cal_result.phase_invert else 0}")
 
-            for i in range(64):
-                await self.command(f"conf set motor.offset.{i} 0")
+        for i in range(64):
+            await self.command(f"conf set motor.offset.{i} 0")
 
         return cal_result
 
@@ -1420,25 +1428,20 @@ class Stream:
                     f"Auto-detected pole count ({cal_result.poles}) != " +
                     f"cmdline specified ({self.args.cal_motor_poles})")
 
-        if not self.args.cal_no_update:
-            print("\nStoring encoder config")
-            await self.command(f"conf set motor.poles {cal_result.poles}")
+        print("\nStoring encoder config")
+        await self.command(f"conf set motor.poles {cal_result.poles}")
 
-            if await self.is_config_supported("motor_position.sources.0.sign"):
-                await self.command("conf set motor_position.sources.0.sign {}".format(
-                    -1 if cal_result.invert else 1))
-            else:
-                await self.command("conf set motor.invert {}".format(
-                    1 if cal_result.invert else 0))
-            if allow_phase_invert:
-                await self.command("conf set motor.phase_invert {}".format(
-                    1 if cal_result.phase_invert else 0))
-            for i, offset in enumerate(cal_result.offset):
-                await self.command(f"conf set motor.offset.{i} {offset}")
+        if await self.is_config_supported("motor_position.sources.0.sign"):
+            await self.command("conf set motor_position.sources.0.sign {}".format(
+                -1 if cal_result.invert else 1))
         else:
-            # Undo anything that needs undoing.
-            if old_motor_poles is not None:
-                await self.command(f"conf set motor.poles {old_motor_poles}")
+            await self.command("conf set motor.invert {}".format(
+                1 if cal_result.invert else 0))
+        if allow_phase_invert:
+            await self.command("conf set motor.phase_invert {}".format(
+                1 if cal_result.phase_invert else 0))
+        for i, offset in enumerate(cal_result.offset):
+            await self.command(f"conf set motor.offset.{i} {offset}")
 
         cal_result.current_quality_factor = current_quality_factor
 
@@ -1545,8 +1548,7 @@ class Stream:
 
         print(f"Resistance {resistance:.3f} ohms")
 
-        if not self.args.cal_no_update:
-            await self.command(f"conf set motor.resistance_ohm {resistance}")
+        await self.command(f"conf set motor.resistance_ohm {resistance}")
 
         return resistance, last_result[0], last_result[3]
 
@@ -1932,17 +1934,16 @@ class Stream:
             motor_kv = self.args.cal_force_kv
             print(f"Using forced Kv: {self.args.cal_force_kv}")
 
-        if not self.args.cal_no_update:
-            if self.firmware.version >= 0x010a:
-                await self.command(f"conf set motor.Kv {motor_kv}")
-            else:
-                if self.firmware.family == 2:
-                    # moteus-c1 in older firmwares had additional
-                    # scaling.
-                    motor_kv /= 1.38
+        if self.firmware.version >= 0x010a:
+            await self.command(f"conf set motor.Kv {motor_kv}")
+        else:
+            if self.firmware.family == 2:
+                # moteus-c1 in older firmwares had additional
+                # scaling.
+                motor_kv /= 1.38
 
-                v_per_hz = (V_PER_HZ_FUDGE_010a * 0.5 * 60 / motor_kv)
-                await self.command(f"conf set motor.v_per_hz {v_per_hz}")
+            v_per_hz = (V_PER_HZ_FUDGE_010a * 0.5 * 60 / motor_kv)
+            await self.command(f"conf set motor.v_per_hz {v_per_hz}")
 
         if motor_kv < 0:
             raise RuntimeError(f'Kv value ({motor_kv}) is negative')
