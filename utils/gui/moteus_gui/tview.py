@@ -1135,7 +1135,7 @@ class TviewMainWindow():
 
     async def _run_user_command(self, command):
         delay_re = re.search(r"^:(\d+)$", command)
-        device_re = re.search(r"^(A|\d+)>(.*)$", command)
+        device_re = re.search(r"^(A|\d+)>\s*(.*)$", command)
         traj_re = re.search(r"^(\?(\d+)?)$", command)
 
         device_nums = [self.devices[0].number]
