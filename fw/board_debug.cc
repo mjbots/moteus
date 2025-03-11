@@ -664,6 +664,11 @@ class BoardDebug::Impl {
 
       BldcServo::CommandData command;
 
+      if (!ParseOptions(&command, &tokenizer, "ob")) {
+        WriteMessage(response, "ERR unknown option\r\n");
+        return;
+      }
+
       command.mode = BldcServo::Mode::kMeasureInductance;
 
       command.d_V = volt;

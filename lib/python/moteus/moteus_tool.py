@@ -1077,7 +1077,7 @@ class Stream:
 
         # Determine our inductance.
         inductance = await self.calibrate_inductance(
-            resistance_cal_voltage, winding_resistance)
+            resistance_cal_voltage, input_V)
         await self.check_for_fault()
 
         kp, ki, torque_bw_hz = None, None, None
@@ -1401,13 +1401,30 @@ class Stream:
 
         return winding_resistance
 
-    async def _test_inductance_period(self, cal_voltage, ind_period):
-        await asyncio.wait_for(
-            self.command(f"d ind {cal_voltage} {ind_period}"), 0.25)
+    async def _test_inductance_period(self, cal_voltage, input_V, ind_period):
+        ind_voltage = cal_voltage
+
+        if self.firmware.version < 0x010a:
+            await asyncio.wait_for(
+                self.command(f"d ind {cal_voltage} {ind_period}"), 0.25)
+        else:
+            # Our device supports inductance measurement from a
+            # voltage offset.
+            offset = min(0.2 * input_V, cal_voltage)
+            ind_voltage = min(0.15 * input_V, 0.80 * cal_voltage)
+            await asyncio.wait_for(
+                self.command(f"d ind {ind_voltage} {ind_period} o{offset}"), 0.25)
+
 
         start = time.time()
         await asyncio.sleep(1.0)
-        await self.command(f"d stop")
+
+        if self.firmware.version < 0x010a:
+            await self.command(f"d stop")
+        else:
+            # Hold the same position and fixed voltage.
+            await self.command(f"d pos nan 0 nan o{offset} b1")
+
         end = time.time()
         data = await self.read_servo_stats()
 
@@ -1417,11 +1434,15 @@ class Stream:
         if self.args.verbose:
             print(f" inductance period={ind_period} v={cal_voltage} di_dt={di_dt}")
 
-        return di_dt
+        return di_dt, ind_voltage
 
 
-    async def calibrate_inductance(self, cal_voltage, winding_resistance):
+    async def calibrate_inductance(self, cal_voltage, input_V):
         print("Calculating motor inductance")
+
+        old_motor_poles = await self.read_config_int("motor.poles")
+        if old_motor_poles == 0:
+            await self.command("conf set motor.poles 2")
 
         # Sweep through a range of inductance measurement frequencies
         # until we have a peak or near peak.  Rationale:
@@ -1440,24 +1461,32 @@ class Stream:
         periods_to_test = [2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32]
 
         highest_di_dt = None
+        highest_cal_voltage = None
         since_highest = None
 
         try:
             for period in periods_to_test:
-                this_di_dt = await self._test_inductance_period(
-                    cal_voltage, period)
+                this_di_dt, this_ind_voltage = (
+                    await self._test_inductance_period(
+                        cal_voltage, input_V, period))
 
                 if highest_di_dt is None or this_di_dt > highest_di_dt:
                     highest_di_dt = this_di_dt
+                    highest_cal_voltage = this_ind_voltage
                     since_highest = 0
                 else:
                     if since_highest is not None:
                         since_highest += 1
 
-                if this_di_dt < 0.5 * highest_di_dt or since_highest > 2:
+                if self.args.verbose:
+                    print(f"inductance period {period} di_dt={this_di_dt}")
+
+                if (highest_di_dt > 0 and
+                    (this_di_dt < 0.5 * highest_di_dt or since_highest > 2)):
                     # We stop early to avoid causing excessive ripple
                     # current on low resistance / low inductance motors.
                     break
+            await self.command("d stop")
         except moteus.CommandError as e:
             # It is possible this is an old firmware that does not
             # support inductance measurement.
@@ -1469,7 +1498,7 @@ class Stream:
             print("Firmware does not support inductance measurement")
             return None
 
-        inductance = (cal_voltage / highest_di_dt)
+        inductance = (highest_cal_voltage / highest_di_dt)
 
         if inductance < 1e-6:
             raise RuntimeError(f'Inductance too small ({inductance} < 1e-6)')

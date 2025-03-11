@@ -2195,6 +2195,15 @@ class BldcServo::Impl {
   }
 
   void ISR_DoMeasureInductance(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    // While we do use the sin_cos here, it doesn't really matter as
+    // this should only be done with the motor stationary.  Thus we
+    // won't bother checking if the motor is configured or the encoder
+    // is valid.
+    //
+    // Newer moteus_tool will probably use the fixed_voltage_override
+    // method anyways, which will force the sin_cos to be valid
+    // regardless of encoder status.
+
     const int8_t old_sign = status_.meas_ind_phase > 0 ? 1 : -1;
     const float old_sign_float = old_sign > 0 ? 1.0f : -1.0f;
 
@@ -2206,7 +2215,12 @@ class BldcServo::Impl {
       status_.meas_ind_phase = -old_sign * data->meas_ind_period;
     }
 
+    const float offset = std::isfinite(data->fixed_voltage_override) ?
+        data->fixed_voltage_override :
+        0.0f;
+
     const float d_V =
+        offset +
         data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f);
 
     // We also integrate the difference in current.
