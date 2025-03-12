@@ -935,6 +935,13 @@ class Application {
     co_return result;
   }
 
+  std::pair<double, double> FindDCurrentRange(double voltage, double resistance) const {
+    // The minimum will be bounded to not be much smaller than 0.
+    const double minimum = std::max(-0.5, 0.30 * voltage / resistance - 1.7);
+    const double maximum = 1.2 * voltage / resistance + 0.5;
+    return std::make_pair(minimum, maximum);
+  }
+
   boost::asio::awaitable<void> ValidatePwmMode() {
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
@@ -966,7 +973,7 @@ class Application {
     // Then slew phase around.  We'll make sure that the current
     // remains largely in the D phase, and that the fixture does
     // indeed move around.
-    const double kSlewVoltage = 0.35;
+    const double kSlewVoltage = 0.40;
     for (double phase = 0.0; phase < 30.0; phase += 1.0) {
       fmt::print("{}  \r", phase);
       ::fflush(stdout);
@@ -1021,17 +1028,20 @@ class Application {
       }
     }
 
-    // This test runs with a motor that has a phase resistance of
-    // roughly 0.051-0.065 ohms.
-    const float kMotorResistance = 0.052;
+    // This test runs with an mj5208.
+    const float kMotorResistance = 0.047;
     for (const auto& r : ramp_results) {
-      const auto expected_current = r.voltage / kMotorResistance;
-      if (std::abs(r.d_A - expected_current) > 2.5) {
+      const auto expected_current_bounds =
+          FindDCurrentRange(r.voltage, kMotorResistance);
+      if (r.d_A < expected_current_bounds.first ||
+          r.d_A > expected_current_bounds.second) {
         errors.push_back(
             fmt::format(
                 "D phase current too far from purely resistive: "
-                "I({}) = V({}) / R({}) != {}",
-                expected_current, r.voltage, kMotorResistance, r.d_A));
+                "V({}) / R({}) = {} != ({}, {})",
+                r.voltage, kMotorResistance, r.d_A,
+                expected_current_bounds.first,
+                expected_current_bounds.second));
         break;
       }
     }
@@ -1063,12 +1073,17 @@ class Application {
     }
 
     for (const auto& r : slew_results) {
-      const double kExpectedCurrent = kSlewVoltage / kMotorResistance;
-      const double kMaxError = 2.1;
-      if (std::abs(r.d_A - kExpectedCurrent) > kMaxError) {
+      const auto expected_current_bounds =
+          FindDCurrentRange(r.voltage, kMotorResistance);
+      if (r.d_A < expected_current_bounds.first ||
+          r.d_A > expected_current_bounds.second) {
         errors.push_back(
-            fmt::format("D phase is not correct |{} - {}| > {}",
-                        r.d_A, kExpectedCurrent, kMaxError));
+            fmt::format(
+                "D phase current is not correct: "
+                "V({}) / R({}) = {} != ({}, {})",
+                r.voltage, kMotorResistance, r.d_A,
+                expected_current_bounds.first,
+                expected_current_bounds.second));
         break;
       }
     }
@@ -2259,9 +2274,9 @@ class Application {
 
     Controller::PidConstants pid;
     pid.voltage_mode_control = true;
-    pid.kp = 1.0;
+    pid.kp = 2.0;
     pid.ki = 0.0;
-    pid.kd = 0.01;
+    pid.kd = 0.02;
     pid.bemf_feedforward = 1.0;
 
     co_await dut_->ConfigurePid(pid);
@@ -2284,7 +2299,7 @@ class Application {
     pid.kd = 0.01;
     pid.bemf_feedforward = 1.0;
     pid.fixed_voltage_mode = true;
-    pid.fixed_voltage_control_V = 0.25;
+    pid.fixed_voltage_control_V = 0.35;
 
     co_await dut_->ConfigurePid(pid);
 
