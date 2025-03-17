@@ -435,6 +435,12 @@ class BldcServo::Impl {
       *mode_volatile = kFault;
     }
 
+    // We pre-compute this here to save time in the ISR.
+    next->synthetic_theta =
+        config_.fixed_voltage_mode ||
+        !std::isnan(next->fixed_voltage_override) ||
+        !std::isnan(next->fixed_current_override);
+
     std::swap(current_data_, next_data_);
   }
 
@@ -906,12 +912,7 @@ class BldcServo::Impl {
     // the pointer for the rest of the routine.
     CommandData* data = current_data_;
 
-    const bool synthetic_theta =
-        config_.fixed_voltage_mode ||
-        !std::isnan(data->fixed_voltage_override) ||
-        !std::isnan(data->fixed_current_override);
-
-    const float electrical_theta = !synthetic_theta ?
+    const float electrical_theta = !data->synthetic_theta ?
         position_.electrical_theta :
         WrapZeroToTwoPi(
             motor_position_config()->output.sign *

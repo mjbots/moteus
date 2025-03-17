@@ -337,6 +337,10 @@ struct BldcServoCommandData {
   // For kMeasureInductance
   int8_t meas_ind_period = 4;
 
+
+  /////// NOT SERIALIZED
+  bool synthetic_theta = false;
+
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(mode));
