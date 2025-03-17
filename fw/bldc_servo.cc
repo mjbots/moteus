@@ -1677,45 +1677,26 @@ class BldcServo::Impl {
     motor_driver_->PowerOn();
   }
 
-  void ISR_DoBalancedVoltageControlRotated(const Vec3& voltage, int shift) MOTEUS_CCM_ATTRIBUTE {
-    // We can assume that voltage.a is the smallest of the three.
-    const float db = voltage.b - voltage.a;
-    const float dc = voltage.c - voltage.a;
-
-    // Switch into full scale ratios.
-    const float dpb = db / status_.filt_bus_V;
-    const float dpc = dc / status_.filt_bus_V;
-
-    // And then balance them so as to keep the lowest and highest duty
-    // cycle phases equidistant from the midpoint.  Note, this results
-    // in a waveform that is identical to SVPWM, or min/max injection.
-    const float extent = 0.5f * std::max(dpb, dpc);
-    const float pwm1 = 0.5f - extent;
-    const float pwm2 = pwm1 + dpb;
-    const float pwm3 = pwm1 + dpc;
-
-    // Finally, unshift things.
-    if (shift == 0) {
-      ISR_DoPwmControl(Vec3{pwm1, pwm2, pwm3});
-    } else if (shift == 1) {
-      ISR_DoPwmControl(Vec3{pwm3, pwm1, pwm2});
-    } else {
-      ISR_DoPwmControl(Vec3{pwm2, pwm3, pwm1});
-    }
-  }
-
   /// Assume that the voltages are intended to be balanced around the
   /// midpoint and can be shifted accordingly.
   void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     control_.voltage = voltage;
 
-    if (voltage.a <= voltage.b && voltage.a <= voltage.c) {
-      ISR_DoBalancedVoltageControlRotated(voltage, 0);
-    } else if (voltage.b <= voltage.a && voltage.b <= voltage.c) {
-      ISR_DoBalancedVoltageControlRotated(Vec3{voltage.b, voltage.c, voltage.a}, 1);
-    } else {
-      ISR_DoBalancedVoltageControlRotated(Vec3{voltage.c, voltage.a, voltage.b}, 2);
-    }
+    const float bus_V = status_.filt_bus_V;
+    const Vec3 pwm_in = {voltage.a / bus_V, voltage.b / bus_V, voltage.c / bus_V};
+
+    const float pwmmin = std::min(pwm_in.a, std::min(pwm_in.b, pwm_in.c));
+    const float pwmmax = std::max(pwm_in.a, std::max(pwm_in.b, pwm_in.c));
+
+    // Balance the three phases so that the highest and lowest are
+    // equidistant from the midpoint.  Note, this results in a
+    // waveform that is identical to SVPWM, or min/max injection.
+    const float offset = 0.5f * (pwmmin + pwmmax) - 0.5f;
+
+    ISR_DoPwmControl(Vec3{
+        pwm_in.a - offset,
+        pwm_in.b - offset,
+        pwm_in.c - offset});
   }
 
   void ISR_DoVoltageFOC(CommandData* data) MOTEUS_CCM_ATTRIBUTE {
