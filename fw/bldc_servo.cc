@@ -1911,15 +1911,9 @@ class BldcServo::Impl {
     control_.d_V = d_V;
     control_.q_V = q_V;
 
-    const float max_voltage =
-        (0.5f - rate_config_.min_pwm) * status_.filt_bus_V *
-        kSvpwmRatio;
-    auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
-      return Limit(in, -max_voltage, max_voltage);
-    };
     InverseDqTransform idt(
-        sin_cos, limit_v(control_.d_V),
-        limit_v(motor_position_config()->output.sign * control_.q_V));
+        sin_cos, control_.d_V,
+        motor_position_config()->output.sign * control_.q_V);
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control_done_cur = DWT->CYCCNT;
@@ -1945,7 +1939,20 @@ class BldcServo::Impl {
       return;
     }
 
-    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+    // We could limit maximum voltage further down the call stack in a
+    // common place, however current mode control limits it
+    // inherently, and is the most expensive of the control modes.
+    // Thus all other users of CalculatePhaseVoltage are required to
+    // limit voltage beforehand.
+    const float max_V =
+        rate_config_.max_voltage_ratio * kSvpwmRatio *
+        0.5f * status_.filt_bus_V;
+
+    ISR_DoBalancedVoltageControl(
+        ISR_CalculatePhaseVoltage(
+            sin_cos,
+            Limit(d_V, -max_V, max_V),
+            Limit(q_V, -max_V, max_V)));
   }
 
   void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
@@ -2241,9 +2248,20 @@ class BldcServo::Impl {
         data->fixed_voltage_override :
         0.0f;
 
+    // We could limit maximum voltage further down the call stack in a
+    // common place, however current mode control limits it
+    // inherently, and is the most expensive of the control modes.
+    // Thus all other users of CalculatePhaseVoltage are required to
+    // limit voltage beforehand.
+    const float max_V = (0.5f - rate_config_.min_pwm) *
+        status_.filt_bus_V * kSvpwmRatio;
+
     const float d_V =
-        offset +
-        data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f);
+        Limit(
+            offset +
+            data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f),
+            -max_V,
+            max_V);
 
     // We also integrate the difference in current.
     status_.meas_ind_integrator +=
