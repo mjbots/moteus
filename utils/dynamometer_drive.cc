@@ -937,7 +937,7 @@ class Application {
 
   std::pair<double, double> FindDCurrentRange(double voltage, double resistance) const {
     // The minimum will be bounded to not be much smaller than 0.
-    const double minimum = std::max(-0.5, 0.30 * voltage / resistance - 1.7);
+    const double minimum = std::max(-0.5, 0.25 * voltage / resistance - 1.7);
     const double maximum = 1.2 * voltage / resistance + 0.5;
     return std::make_pair(minimum, maximum);
   }
@@ -973,7 +973,7 @@ class Application {
     // Then slew phase around.  We'll make sure that the current
     // remains largely in the D phase, and that the fixture does
     // indeed move around.
-    const double kSlewVoltage = 0.40;
+    const double kSlewVoltage = 0.45;
     for (double phase = 0.0; phase < 30.0; phase += 1.0) {
       fmt::print("{}  \r", phase);
       ::fflush(stdout);
@@ -2274,9 +2274,9 @@ class Application {
 
     Controller::PidConstants pid;
     pid.voltage_mode_control = true;
-    pid.kp = 2.0;
+    pid.kp = 4.0;
     pid.ki = 0.0;
-    pid.kd = 0.02;
+    pid.kd = 0.03;
     pid.bemf_feedforward = 1.0;
 
     co_await dut_->ConfigurePid(pid);
