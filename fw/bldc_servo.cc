@@ -1702,7 +1702,8 @@ class BldcServo::Impl {
   void ISR_DoVoltageFOC(CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     data->theta += data->theta_rate * rate_config_.period_s;
     SinCos sc = cordic_(RadiansToQ31(data->theta));
-    const float max_voltage = (0.5f - rate_config_.min_pwm) * status_.filt_bus_V;
+    const float max_voltage = (0.5f - rate_config_.min_pwm) *
+        status_.filt_bus_V * kSvpwmRatio;
     InverseDqTransform idt(sc, Limit(data->voltage, -max_voltage, max_voltage), 0);
     ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
