@@ -136,6 +136,6 @@ class TestDynoSlow(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    print("Set PS to 24V/5A!")
+    print("Set PSU to 24V/10A!")
 
     unittest.main()
