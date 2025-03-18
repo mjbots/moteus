@@ -70,7 +70,7 @@ struct Options {
   std::string log;
   double max_test_time_s = 1200.0;
 
-  double max_torque_Nm = 0.5;
+  double max_torque_Nm = 0.65;
 
 
   // The different cycles we can do and their options.
