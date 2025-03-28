@@ -1171,7 +1171,10 @@ class Stream:
 
         print("Calibration complete")
 
-        now = datetime.datetime.now(datetime.UTC)
+        try:
+            now = datetime.datetime.now(datetime.timezone.utc)
+        except:
+            now = datetime.datetime.utcnow()
 
         report = {
             'timestamp' : now.strftime('%Y-%m-%d %H:%M:%S.%f'),
