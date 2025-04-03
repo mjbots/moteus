@@ -108,7 +108,7 @@ class FirmwareUpgrade:
         if self.new <= 0x0109 and self.old >= 0x010a:
             kv = float(items.pop(b'motor.Kv'))
 
-            v_per_hz = ((V_PER_HZ_FUDGE_010a * 0.5 * 60) / kv)
+            v_per_hz = 0 if kv == 0 else ((V_PER_HZ_FUDGE_010a * 0.5 * 60) / kv)
             items[b'motor.v_per_hz'] = str(v_per_hz).encode('utf8')
 
             print(f"Downgrading motor.Kv to motor.v_per_hz and fixing fudge: old Kv={kv} v_per_hz={v_per_hz}")
@@ -475,7 +475,7 @@ class FirmwareUpgrade:
         if self.new >= 0x010a and self.old <= 0x0109:
             v_per_hz = float(items.pop(b'motor.v_per_hz'))
 
-            kv = V_PER_HZ_FUDGE_010a * 0.5 * 60 / v_per_hz
+            kv = 0 if v_per_hz == 0 else V_PER_HZ_FUDGE_010a * 0.5 * 60 / v_per_hz
             items[b'motor.Kv'] = str(kv).encode('utf8')
 
             print(f"Upgraded motor.v_per_hz to new motor.Kv and fixed fudge: old v_per_hz={v_per_hz} new Kv={kv}")
