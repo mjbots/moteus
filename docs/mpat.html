@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>moteus Perfomance Analysis Tool</title>
+  <style>
+    body {
+      font-size: 14px;
+      font-family: system-ui, sans-serif;
+      color: #333;
+      background: #fcfcfc;
+      margin: 0;
+      padding: 1 rem;
+      padding-bottom: 1.5em;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: auto;
+    }
+    td, th {
+      border: none;
+      padding: 0.3rem;
+      text-align: left;
+    }
+    th {
+      font-weight: 600;
+    }
+    td {
+      border-top: 1px solid #eee;
+    }
+    td:nth-child(odd) {
+      background-color:#f9fafb;
+    }
+
+    td:nth-child(even) {
+      background-color: #ffffff;
+    }
+
+    th:nth-child(odd) {
+      background-color: #f1f5f9;
+    }
+    th:nth-child(even) {
+      background-color: #f5f9fa;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: #f1f1f1;
+      padding: 10px;
+      text-align: center;
+      font-size: 0.9em;
+      border-top: 1px solid #ccc;
+    }
+
+    .pageContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2rem;
+    }
+
+    .panelColumn {
+      flex: 1 1 300px;
+      max-width: 400px;
+      min-width: 200px;
+      padding: 1em;
+    }
+
+    .resultsColumn {
+      flex: 2 1 500px;
+      min-width: 200px;
+      padding: 1em;
+    }
+
+    .panelContainer {
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      margin: 0.4em 0;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+
+    .panelTitle {
+      cursor: pointer;
+      padding: 0.5rem;
+      background:#f7f9fc;
+      font-weight: 600;
+      border-bottom: 1px solid #eee;
+    }
+
+    .resultTable {
+      display: inline-block;
+      max-width: 100%;
+      margin: 1 rem auto;
+      background: white;
+      border-radius: 5px;
+      overflow-x: auto;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .multiHeader {
+      font-weight: 600;
+    }
+
+    .overlayContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.0);
+      z-index: 1000;
+      outline: 1px dashed red;
+      pointer-events: none;
+    }
+
+    .overlayBody {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background: white;
+      borderLeft: 1px solid #ccc;
+      padding: 1rem;
+      box-shadow: -2px 0px 8px rgba(0, 0, 0, 0.2);
+      pointer-events: auto;
+    }
+  </style>
+  <script type="module">
+    // Copyright 2025 mjbots Robotic Systems, LLC.  info@mjbots.com
+    //
+    // Licensed under the Apache License, Version 2.0 (the "License");
+    // you may not use this file except in compliance with the License.
+    // You may obtain a copy of the License at
+    //
+    //     http://www.apache.org/licenses/LICENSE-2.0
+    //
+    // Unless required by applicable law or agreed to in writing, software
+    // distributed under the License is distributed on an "AS IS" BASIS,
+    // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    // See the License for the specific language governing permissions and
+    // limitations under the License.
+
+    ////////////////////////////////////////////////////////////////////////////
+    // # Conventions #
+    //
+    // This application uses moteus conventions for parameters:
+    //
+    // Phase current: The Q (or D) axis current vector.  If a wye motor is used,
+    //   and the phase terminal voltages are 1, -0.5, -0.5, and each phase
+    //   resistance is 1 Ohm, then the D axis phase current is 1A.
+    //
+    // Motor R: The resistance between any phase terminal and the virtual
+    //   center, or 1/2 the line to line resistance as measured with an
+    //   ohmmeter.
+    //
+    // Motor Kv: The observed peak to peak voltage as measured on an
+    //   oscilloscope between any two phase terminals per RPM of rotor
+    //   rotational speed.
+    //
+    // Motor L: moteus only works with non-salient motors currently, so it is
+    //   assumed Ld == Lq.  The inductance, as the resistance, is measured
+    //   between a phase terminal and the virtual center, or 1/2 the line to
+    //   line inductance.
+
+
+    import { h, render } from 'https://esm.sh/preact@10.26.5';
+    import { useState, useEffect } from 'https://esm.sh/preact@10.26.5/hooks';
+    import htm from 'https://esm.sh/htm@3.1.1';
+
+    const html = htm.bind(h);
+
+    // Mostly from 4o:
+    function parseDotNotationQuery(queryString) {
+      const params = new URLSearchParams(queryString);
+      const result = {};
+
+      for (const [key, value] of params.entries()) {
+        const keys = key.split('.');
+        let current = result;
+
+        const parsedValue = (() => {
+          if (value == "true") { return true; }
+          if (value == "false") { return false; }
+          if (!isNaN(value) && value.trim() != "") { return Number(value); }
+          return value;
+        })();
+
+        keys.forEach((k, idx) => {
+          if (idx === keys.length - 1) {
+            current[k] = parsedValue;
+          } else {
+            if (!current[k]) current[k] = {};
+            current = current[k];
+          }
+        });
+      }
+
+      return result;
+    }
+
+    // Also from 4o
+    function objectToDotNotationParams(obj, prefix = '') {
+      const pairs = [];
+
+      if (obj == null) { return pairs; }
+
+      for (const [key, value] of Object.entries(obj)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+          pairs.push(...objectToDotNotationParams(value, fullKey));
+        } else {
+          pairs.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(value)}`);
+        }
+      }
+
+      return pairs;
+    }
+
+    // Yet more 4o constructs
+
+    // Returns the largest x in [0, M] such that metric(x) === true
+    // Assumes:
+    // - metric(x) is monotonic: once true, remains so
+    // If metric(M) === true, returns M.
+    // If metric(0) === false, returns null.
+    function bisectMaxTrue(M, metric, threshold) {
+      let lo = 0;
+      let hi = M;
+
+      if (!metric(0)) {
+        return null;
+      }
+
+      if (metric(M)) {
+        return M;
+      }
+
+      // Invariant: metric(lo) === true, metric(hi) === false, lo < hi
+      while (lo < (hi - threshold)) {
+        const mid = 0.5 * (lo + hi);
+        if (metric(mid)) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+
+      return lo;
+    }
+
+    // more from 4o
+    function shallowEqual(objA, objB) {
+      if (objA === objB) return true;
+
+      if (typeof objA !== 'object' || objA === null ||
+          typeof objB !== 'object' || objB === null) {
+        return false;
+      }
+
+      const keysA = Object.keys(objA);
+      const keysB = Object.keys(objB);
+
+      if (keysA.length !== keysB.length) return false;
+
+      for (const key of keysA) {
+        if (!Object.prototype.hasOwnProperty.call(objB, key) || objA[key] !== objB[key]) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+
+    // A regular 2D array of data with x and y coordinates for each row and
+    // column.  The coordinates must be sorted.
+    class Interpolator2D {
+      constructor(xlabels, ylabels, data) {
+        this.xlabels = xlabels;
+        this.ylabels = ylabels;
+        this.data = data;
+
+        // Validate that our data has the right number of rows and columns.
+        if (data.length != this.ylabels.length) {
+          throw new Error("Data matrix does not match label row count");
+        }
+        data.map((row) => {
+          if (row.length != this.xlabels.length) {
+            throw new Error("Data matrix does not match label column count");
+          }
+        });
+      }
+
+      // Also from 4o:
+      //
+      // Return a linear interpolation between nearest points, or if the
+      // requested point is outside the allowed bounds, just extend the
+      // nearest edge or corner indefinitely.
+      interpolate(x, y) {
+        // Helper function: Given a sorted label array and a value, returns
+        // the lower and upper indices and the interpolation factor.
+        function getInterval(labels, value) {
+          const n = labels.length;
+          if (value <= labels[0]) {
+            return { indexLow: 0, indexHigh: 0, t: 0 };
+          }
+          if (value >= labels[n - 1]) {
+            return { indexLow: n - 1, indexHigh: n - 1, t: 0 };
+          }
+          // Find the interval where labels[i] <= value <= labels[i+1]
+          for (let i = 0; i < n - 1; i++) {
+            if (value >= labels[i] && value <= labels[i + 1]) {
+              let t = (value - labels[i]) / (labels[i + 1] - labels[i]);
+              return { indexLow: i, indexHigh: i + 1, t: t };
+            }
+          }
+          // Fallback (should never be reached)
+          return { indexLow: n - 1, indexHigh: n - 1, t: 0 };
+        }
+
+        // Get the intervals and interpolation factors for x and y.
+        const xInterval = getInterval(this.xlabels, x);
+        const yInterval = getInterval(this.ylabels, y);
+
+        const i0 = xInterval.indexLow;
+        const i1 = xInterval.indexHigh;
+        const t = xInterval.t;
+
+        const j0 = yInterval.indexLow;
+        const j1 = yInterval.indexHigh;
+        const u = yInterval.t;
+
+        // Retrieve the four surrounding grid values.
+        const v00 = this.data[j0][i0];
+        const v01 = this.data[j0][i1];
+        const v10 = this.data[j1][i0];
+        const v11 = this.data[j1][i1];
+
+        // Interpolate along x for the two rows.
+        const interpX0 = (1 - t) * v00 + t * v01;
+        const interpX1 = (1 - t) * v10 + t * v11;
+
+        // Interpolate the two results along y.
+        return (1 - u) * interpX0 + u * interpX1;
+      }
+    }
+
+    ///////////////////////////////////////////////
+    // Now done with the 4o generated helpers.
+
+    class RenderedValue {
+      constructor(value, {footnotes, numberRender, operatingPoint}){
+        this.value = value;
+        this.footnotes = footnotes ?? [];
+        this.numberRender = numberRender ?? ((value) => value.toFixed(2));
+        this.operatingPoint = operatingPoint;
+      }
+
+      render() {
+        return html`${this.numberRender(this.value)}`;
+      }
+    }
+
+    class OperatingPoint {
+      constructor({controllerTempC=null,
+                   motorTempC=null,
+                   supplyPowerW=null,
+                   supplyCurrentA=null,
+                   phaseCurrentA=null,
+                   motorTorqueNm=null,
+                   copperLossW=null,
+                   ironLossW=null,
+                   controllerLossW=null,
+                   mechanicalPowerW=null,
+                   efficiencyPercent=null}) {
+        this.controllerTempC = controllerTempC;
+        this.motorTempC = motorTempC;
+        this.supplyPowerW = supplyPowerW;
+        this.supplyCurrentA = supplyCurrentA;
+        this.phaseCurrentA = phaseCurrentA;
+        this.motorTorqueNm = motorTorqueNm;
+        this.copperLossW = copperLossW;
+        this.ironLossW = ironLossW;
+        this.controllerLossW = controllerLossW;
+        this.mechanicalPowerW = mechanicalPowerW;
+        this.efficiencyPercent = efficiencyPercent;
+      }
+
+      render() {
+        return html`
+        <h3>Operating Point</h3>
+        <table>
+          ${[['controllerTempC', 'Controller temperature (C)'],
+             ['motorTempC', 'Motor temperature (C)'],
+             ['supplyPowerW', 'Supply power (W)'],
+             ['supplyCurrentA', 'Supply current (A)'],
+             ['phaseCurrentA', 'Phase current (A)'],
+             ['motorTorqueNm', 'Motor torque (Nm)'],
+             ['copperLossW', 'Copper loss (W)'],
+             ['ironLossW', 'Iron loss (W)'],
+             ['controllerLossW', 'Controller loss (W)'],
+             ['mechanicalPowerW', 'Mechanical power (W)'],
+             ['efficiencyPercent', 'Efficiency (%)'],
+           ].map(([attrName, displayName]) =>
+           html`${this[attrName] ? html`<tr><td>${displayName}</td><td>${this[attrName].toFixed(2)}</td></tr>` : ''}`)
+           }
+        </table>
+        `
+      }
+    }
+
+    class SelectionBase {
+      name() {
+        return this.displayName();
+      }
+
+      getState() {
+        return {};
+      }
+
+      render({}, state) {
+        return html`${this.displayName(state)}`;
+      }
+
+      productInfo() {
+        return null;
+      }
+    }
+
+    class VoltageSelection extends SelectionBase {
+      constructor(voltage) {
+        super();
+        this.voltage = voltage;
+      }
+
+      getVoltage() {
+        return this.voltage;
+      }
+
+      displayName() {
+        return `${this.voltage}V`;
+      }
+    }
+
+    class PwmSelection extends SelectionBase {
+      constructor(pwm) {
+        super();
+        this.pwm = pwm;
+      }
+
+      getPwm(state, controller, controllerState) {
+        if (this.pwm == 'default') {
+          return controller.getDefaultPwm(controllerState);
+        }
+        return this.pwm;
+      }
+
+      displayName() {
+        return this.pwm == 'default' ? 'default' : `${this.pwm}Hz`;
+      }
+    }
+
+    class CoolingSelection extends SelectionBase {
+      constructor(cooling, userDisplayName) {
+        super();
+        this.cooling = cooling;
+        this.userDisplayName = userDisplayName;
+      }
+
+      getCooling() {
+        return this.cooling;
+      }
+
+      name() {
+        return this.cooling;
+      }
+
+      displayName() {
+        return `${this.userDisplayName}`;
+      }
+
+      productInfo() {
+        return this?.productInfo;
+      }
+    }
+
+    class Controller extends SelectionBase {
+      constructor(props, power, thermal) {
+        super();
+        this.props = props;
+        this.power = power;
+        this.thermal = thermal;
+        this.k0 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k0);
+        this.k1 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k1);
+        this.k2 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k2);
+      }
+
+      getState() {
+        return {};
+      }
+
+      getThermalProperties(state, coolingName) {
+        if (this.thermal?.[coolingName] == null) {
+          return [null, null];
+        }
+        return [this.thermal[coolingName]['R'], this.thermal[coolingName]['C']];
+      }
+
+      getMaxTemp() {
+        return this.props['maxTemp'];
+      }
+
+      getMaxVoltage() {
+        return this.props['maxVoltage'];
+      }
+
+      getMaxSpeed(state, voltage, voltageState, motor, motorState) {
+        return voltage.getVoltage(voltageState) * motor.getKv(motorState) * this.getSpeedFactor() / 60.0;
+      }
+
+      getCurrentFromThermalPower(state, thermalW, {voltage, pwm}) {
+        const [k0,k1,k2] = [
+          this.k0.interpolate(voltage, pwm),
+          this.k1.interpolate(voltage, pwm),
+          this.k2.interpolate(voltage, pwm),
+        ];
+        const c = k0;
+        const b = k1;
+        const a = k2;
+
+        return Math.min(this.getMaxCurrent(state, voltage),
+          (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a));
+      }
+
+      getThermalPower(state, {voltage, pwm, current}) {
+        const [k0, k1, k2] = [
+          this.k0.interpolate(voltage, pwm),
+          this.k1.interpolate(voltage, pwm),
+          this.k2.interpolate(voltage, pwm),
+        ];
+
+        const thermalPower = k0 + k1 * current + k2 * current * current;
+        return thermalPower;
+      }
+
+      getTemperature(state, {thermalPower, coolingName, timePeriodS}) {
+        const [R, C] = this.getThermalProperties(state, coolingName);
+        const ambientTemp = 25;
+        return ambientTemp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
+      }
+
+      name() {
+        return this.props['name'];
+      }
+
+      displayName() {
+        return this.props['name'];
+      }
+
+      productInfo() {
+        return this.props?.productInfo;
+      }
+
+      render() {
+        return html`${this.displayName()}`;
+      }
+    }
+
+    class MoteusController extends Controller {
+      constructor(props, power, thermal) {
+        super(props, power, thermal);
+      }
+
+      getDefaultPwm() {
+        return this.props['defaultPwm'];
+      }
+
+      getMaxPower(state, voltage, pwm) {
+        const [P_l_W, V_l, P_h_W, V_h] = [
+          this.props.P_l_W, this.props.V_l,
+          this.props.P_h_W, this.props.V_h,
+        ];
+        const basePower = (() => {
+          if (voltage <= V_l) return P_l_W;
+          if (voltage >= V_h) return P_h_W;
+          return (voltage - V_l) / (V_h - V_l) * (P_h_W - P_l_W) + P_l_W;
+        })();
+        const pwmDerate = pwm / 30000;
+        return basePower * pwmDerate;
+      }
+
+      getSpeedFactor() {
+        // TODO: Verify this is correct, may need SVPWM scale.
+        return 0.87;
+      }
+
+      getMaxCurrent() {
+        return this.props['maxCurrent'];
+      }
+    }
+
+    class OdriveController extends Controller {
+      constructor(props, power, thermal) {
+        super(props, power, thermal);
+      }
+
+      getDefaultPwm() {
+        return 24000.0;
+      }
+
+      getMaxPower(state) {
+        return this.props['P_W'];
+      }
+
+      getMaxCurrent(state, voltage) {
+        if (voltage < this.props['maxCurrentDerateVoltage']) {
+          return this.props['maxCurrent'];
+        } else {
+          return this.props['maxCurrent'] + (this.props['derateCurrent'] - this.props['maxCurrent']) *
+              (voltage - this.props['maxCurrentDerateVoltage']) /
+              (this.props['maxVoltage'] - this.props['maxCurrentDerateVoltage']);
+        }
+      }
+    }
+
+    class MoteusC1 extends MoteusController {
+      constructor() {
+        super({
+          name: 'moteus-c1',
+          maxTemp: 60.0,
+          maxCurrent: 20.0,
+          maxVoltage: 51.0,
+          P_l_W: 250.0,
+          V_l: 28.0,
+          P_h_W: 150.0,
+          V_h: 41.0,
+          defaultPwm: 30000,
+          productInfo: html`<a href="https://mjbots.com/products/moteus-c1" target="_blank">[product page]</a>`,
+        },
+        {
+          'voltages' : [12, 24, 36, 48],
+          'pwms' : [15000, 30000, 40000, 60000],
+          'k0' : [[.612, .906, 1.161, 1.378],
+                  [.727, .986, 1.161, 1.515],
+                  [.677, .988, 1.256, 1.576],
+                  [.718, 1.034, 1.367, 1.710]],
+          'k1' : [[0.000, 0.017, 0.043, 0.112],
+                  [0.009, 0.107, 0.224, 0.248],
+                  [0.073, 0.176, 0.281, 0.360],
+                  [0.155, 0.330, 0.468, 0.544]],
+          'k2' : [[0.046, 0.049, 0.051, 0.046],
+                  [0.051, 0.051, 0.048, 0.050],
+                  [0.051, 0.053, 0.055, 0.049],
+                  [0.052, 0.054, 0.053, 0.056]],
+        },
+        {
+          'none' :         {R: 11.3, C:10.7},
+          'heatspreader' : {R: 11.2, C:10.7},
+          '5vfan' :        {R: 2.55, C:10.7},
+          'max' :          {R: 2.55, C:10.7},
+        });
+      }
+    }
+
+    class MoteusR4 extends MoteusController {
+      constructor() {
+        super({
+          name: 'moteus-r4',
+          maxTemp: 60.0,
+          maxCurrent: 100.0,
+          maxVoltage: 42.0,
+          P_l_W: 900.0,
+          V_l: 30.0,
+          P_h_W: 400.0,
+          V_h: 38.0,
+          defaultPwm: 30000,
+          productInfo: html`<a href="https://mjbots.com/products/moteus-r4-11" target="_blank">[product page]</a>`,
+        },
+        {
+          'voltages' : [12, 24, 36, 42],
+          'pwms' : [15000, 30000, 40000, 60000],
+          'k0' : [[0.514, 0.938, 1.266, 1.427],
+                  [0.792, 1.167, 1.593, 1.834],
+                  [0.851, 1.392, 1.765, 2.064],
+                  [0.974, 1.504, 2.098, 2.524]],
+          'k1' : [[0.022, 0.007, 0.015, 0.018],
+                  [0.021, 0.035, 0.045, 0.050],
+                  [0.030, 0.020, 0.092, 0.091],
+                  [0.046, 0.110, 0.139, 0.142]],
+          'k2' : [[0.010, 0.011, 0.011, 0.011],
+                  [0.011, 0.012, 0.013, 0.013],
+                  [0.011, 0.014, 0.012, 0.013],
+                  [0.013, 0.013, 0.015, 0.018]],
+        },
+        {
+          'none' :         {R: 10.0, C:12.7},
+          '5vfan' :        {R: 3.7,  C:12.7},
+          'heatspreader':  {R: 8.6,  C:13.9},
+          'heatspreader_4030sink': {R:6.2, C:19.4},
+          'max':           {R: 2.4,  C:12.7},
+        });
+      }
+    }
+
+    class MoteusN1 extends MoteusController {
+      constructor() {
+        super({
+          name: 'moteus-n1',
+          maxTemp: 60.0,
+          maxCurrent: 100.0,
+          maxVoltage: 54.0,
+          P_l_W: 2000.0,
+          V_l: 36.0,
+          P_h_W: 1000.0,
+          V_h: 44.0,
+          defaultPwm: 30000,
+          productInfo: html`<a href="https://mjbots.com/products/moteus-n1" target="_blank">[product page]</a>`,
+        },
+        {
+          'voltages' : [],
+          'pwms' : [],
+          'k0' : [],
+          'k1' : [],
+          'k2' : [],
+        },
+        {
+          'none' :         {R: 10.0, C:12.7},
+          '5vfan' :        {R: 4.1,  C:10.3},
+          'heatspreader':  {R: 9.8,  C:12.2},
+          'heatspreader_4030sink': {R:7.2, C:16.8},
+          'max':           {R: 3.0,  C:10.3},
+        });
+      }
+    }
+
+    class MoteusX1 extends MoteusController {
+      constructor() {
+        super({
+          name: 'moteus-x1',
+          maxTemp: 100.0,
+          maxCurrent: 120.0,
+          maxVoltage: 54.0,
+          P_l_W: 2000.0,
+          V_l: 36.0,
+          P_h_W: 1000.0,
+          V_h: 44.0,
+          defaultPwm: 20000,
+          productInfo: html`<a href="https://mjbots.com/products/moteus-x1" target="_blank">[product page]</a>`,
+        },
+        {
+          'voltages' : [12, 24, 36, 48, 54],
+          'pwms' : [15000, 20000, 24000, 30000, 40000, 60000],
+          'k0' : [[0.615, 0.983, 1.266, 1.501, 1.652],
+                  [0.744, 1.025, 1.468, 1.825, 2.051],
+                  [0.822, 1.325, 1.618, 2.025, 2.321],
+                  [1.119, 1.403, 1.824, 2.326, 2.622],
+                  [1.135, 1.662, 2.251, 2.811, 3.253],
+                  [1.465, 2.222, 3.094, 4.130, 4.501]],
+          'k1' : [[0.075, 0.090, 0.105, 0.133, 0.133],
+                  [0.094, 0.128, 0.136, 0.137, 0.137],
+                  [0.094, 0.124, 0.160, 0.180, 0.172],
+                  [0.090, 0.163, 0.208, 0.213, 0.223],
+                  [0.148, 0.227, 0.253, 0.278, 0.247],
+                  [0.213, 0.317, 0.354, 0.192, 0.286]],
+          'k2' : [[0.007, 0.008, 0.010, 0.010, 0.011],
+                  [0.007, 0.008, 0.011, 0.014, 0.015],
+                  [0.009, 0.010, 0.013, 0.015, 0.017],
+                  [0.010, 0.011, 0.014, 0.019, 0.021],
+                  [0.010, 0.012, 0.021, 0.026, 0.037],
+                  [0.014, 0.023, 0.043, 0.090, 0.083]],
+        },
+        {
+          'none' :         {R: 8.1, C:14.8},
+          '5vfan' :        {R: 2.8, C:14.8},
+          '12vfan' :       {R: 2.1, C:14.8},
+          'heatspreader_4010sink': { R:7.2, C:16.8},
+          'heatspreader_4030sink': { R:6.0, C:20.0},
+          'heatspreader':  {R: 8.6, C:14.8},
+          'max' :          {R: 1.9, C:14.8},
+        });
+      }
+    }
+
+    class OdrivePro extends OdriveController {
+      constructor() {
+        super({
+          name: 'odrive-pro',
+          maxTemp: 100.0,
+          maxCurrent: 120.0,
+          maxCurrentDerateVoltage: 100.0,
+          derateCurrent: 120.0,
+          maxVoltage: 58.0,
+          P_W: 5000.0,
+          productInfo: html`<a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">[product page]</a>`,
+
+        },
+        {
+          voltages: [12, 24, 36, 48, 54],
+          pwms: [24000],
+          'k0': [[1.410, 1.996, 2.362, 2.823, 3.030]],
+          'k1': [[0.091, 0.115, 0.145, 0.161, 0.156]],
+          'k2': [[0.008, 0.009, 0.010, 0.010, 0.012]],
+        },
+        {
+          'none':  {R: 6.7, C: 30.4},
+          'heatspreader': {R: 5.4, C: 71.7},
+          'max': {R: 1.5, C: 71.7},
+        }
+        );
+      }
+
+      getSpeedFactor() {
+        return 1.0;
+      }
+    }
+
+    class OdriveS1 extends OdriveController {
+      constructor() {
+        super({
+          name: 'odrive-s1',
+          maxTemp: 100.0,
+          maxCurrent: 80.0,
+          maxCurrentDerateVoltage: 36.0,
+          derateCurrent: 40.0,
+          maxVoltage: 50.5,
+          P_W: 2000.0,
+          productInfo: html`<a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">[product page]</a>`,
+        },
+        {
+          voltages: [12, 24, 36, 48],
+          pwms: [24000],
+          'k0': [[0.839, 1.037, 1.213, 1.328 ]],
+          'k1': [[0.066, 0.117, 0.153, 0.179 ]],
+          'k2': [[0.008, 0.008, 0.007, 0.008 ]],
+        },
+        {
+          'none':  {R: 6.6, C: 35.8},
+          'heatspreader': {R: 4.7, C: 85.8},
+          'max': {R: 1.4, C: 85.8},
+        }
+        );
+      }
+
+      getSpeedFactor() {
+        return 0.78;
+      }
+    }
+
+    class Motor extends SelectionBase {
+      constructor({name, displayName, maxTemp, Kv, R, L, thermal,
+                   rotationCurrentCutoff=1000,
+                   rotationCurrentScale=1,
+                   rotationTorqueScale=1,
+                   d0, d1,
+                   productInfo=null}) {
+        super();
+        this.nameValue = name;
+        this.displayNameValue = displayName;
+        this.productInfoValue = productInfo;
+        this.maxTemp = maxTemp;
+        this.Kv = Kv;
+        this.R = R;
+        this.L = L;
+        this.thermal = thermal;
+        this.rotationCurrentScale = rotationCurrentScale;
+        this.rotationCurrentCutoff = rotationCurrentCutoff;
+        this.rotationTorqueScale = rotationTorqueScale;
+        this.d0 = d0;
+        this.d1 = d1;
+
+        this.kt = 8.3 / this.Kv;
+      }
+
+      getThermalProperties(state, coolingName) {
+        if (this.thermal?.[coolingName] == null) {
+          return [null, null];
+        }
+        return [this.thermal[coolingName]['R'], this.thermal[coolingName]['C']];
+      }
+
+      getMaxTemp() {
+        return this.maxTemp;
+      }
+
+      getKv() {
+        return this.Kv;
+      }
+
+      name() {
+        return this.nameValue;
+      }
+
+      displayName() {
+        return this.displayNameValue;
+      }
+
+      productInfo() {
+        return this.productInfoValue;
+      }
+
+      render() {
+        return html`${this.displayName()}`;
+      }
+
+      getPower(current, velocityHz) {
+        const torque = current < this.rotationCurrentCutoff ?
+          (this.kt * current) :
+          (this.kt * this.rotationCurrentCutoff +
+           this.rotationTorqueScale * Math.log2(
+              1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale));
+        const Pmech = 2 * Math.PI * torque * velocityHz;
+        const Pcopper = 1.5 * current * current * this.R;
+        const ironDrag = this.d0 + this.d1 * velocityHz;
+        const Piron = velocityHz == 0 ? 0 : (2 * Math.PI * velocityHz * ironDrag);
+        return {
+          torque: torque,
+          Pmech: Pmech,
+          Pcopper: Pcopper,
+          Piron: Piron,
+          Ptotal: Pmech + Pcopper + Piron,
+        };
+      }
+
+      getCurrentFromThermalPowerAndVelocity(state, thermalW, velocityHz, maxControllerPower) {
+        // TODO: Should we model the fact that resistance tends to go up with
+        // temperature?
+
+        // Our convention is that resistance is measured to the virtual center,
+        // and that phase current is measured as per moteus convention.  Thus:
+        //
+        // torque = Kt * I + ts * log2(1 + (I - Ic)*is)
+        // Pmech = 2 * pi * torque * velocityHz
+        // Pcopper = 1.5 * I^2 * R
+        // Ptotal = Pcopper + Piron + Pmech
+
+        // and (Pcopper + Piron) < thermalW
+        // and (Ptotal) < maxControllerPower
+
+        const ImaxPossible = Math.sqrt(Math.min(thermalW, maxControllerPower) / 1.5 / this.R);
+        // This equation is not really possible to solve directly, so lets just
+        // find it numerically.  The answer is much easier if the velocity is 0.
+        if (velocityHz == 0.0) {
+          return ImaxPossible;
+        }
+
+        // Bisect between 0 and ImaxPossible to find a current which is as large
+        // as possible while satisfying both of our inequalities.
+        const valid = (I) => {
+          const r = this.getPower(I, velocityHz);
+          return (((r.Pcopper + r.Piron) < thermalW) &&
+                  (r.Ptotal < maxControllerPower));
+        };
+
+        return bisectMaxTrue(ImaxPossible, valid, 0.01);
+      }
+
+      getTorqueFromCurrent(state, currentA) {
+        if (currentA < this.rotationCurrentCutoff) {
+          return currentA * this.kt;
+        }
+        return (this.rotationCurrentCutoff * this.kt +
+                this.rotationTorqueScale *
+                (Math.log2(Math.max(1.0 + (currentA - this.rotationCurrentCutoff) *
+                this.rotationCurrentScale, 0.00001))));
+      }
+
+      getMaxVelocityHz(state, controllerInstance, controllerState, voltage, voltageState) {
+        return controllerInstance.getSpeedFactor(controllerState) * voltage.getVoltage(voltageState) * this.Kv / 60.0;
+      }
+
+      getOperatingPoint(motorState, {current, velocityHz, timePeriodS=Infinity}) {
+        const result = new OperatingPoint({});
+        result.motorTorqueNm = this.getTorqueFromCurrent(motorState, current);
+        result.phaseCurrentA = current;
+
+        const r = this.getPower(current, velocityHz);
+        result.copperLossW = r.Pcopper;
+        result.ironLossW = r.Piron;
+        result.mechanicalPowerW = r.Pmech;
+        const motorLossPower = r.Pcopper + r.Piron;
+
+        const [R, C] = this.getThermalProperties(motorState, "none");
+        const ambientTemp = 25;
+        result.motorTempC = ambientTemp + motorLossPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
+
+        return result;
+      }
+    }
+
+    class OutputContinuousCurrentBase extends SelectionBase {
+      constructor(name) {
+        super();
+        this.nameValue = name;
+      }
+
+      name() {
+        return this.nameValue;
+      }
+
+      evaluateBase({ controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState }, timePeriodS) {
+        const coolingName = cooling.getCooling(coolingState);
+        const [R, C] = controller.getThermalProperties(controllerState, coolingName);
+        if (R == null || C == null) {
+          return null;
+        }
+        const ambientTemp = 25;  // TODO: Don't hard-code
+        const controllerMaxTemp = controller.getMaxTemp(controllerState)
+        const deltaT = controllerMaxTemp - ambientTemp;
+
+        const args = {
+          voltage: voltage.getVoltage(voltageState),
+          pwm: pwm.getPwm(pwmState, controller, controllerState),
+        };
+
+        if (args.voltage > controller.getMaxVoltage()) {
+          return null;
+        }
+
+        const thermalW = (timePeriodS == Infinity) ? (deltaT / R) :
+            (deltaT) / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+        const result = controller.getCurrentFromThermalPower(controllerState, thermalW, args);
+
+        const op = new OperatingPoint({
+          controllerTempC: controllerMaxTemp,
+          controllerLossW: thermalW,
+
+          // TODO: Fill in motor parameters if we have a motor.
+        });
+        return new RenderedValue(
+          result, {numberRender:((value) => `${value.toFixed(2)} A`), operatingPoint: op});
+      }
+    }
+
+    class OutputContinuousCurrent extends OutputContinuousCurrentBase {
+      constructor(name, timePeriodS) {
+        super(name);
+        this.timePeriodS = timePeriodS;
+      }
+
+      displayName(state) {
+        return `Phase current for ${this.timePeriodS}${Number.isFinite(this.timePeriodS) ? 's' : ''}`;
+      }
+
+      evaluate(args) {
+        return this.evaluateBase(args, this.timePeriodS);
+      }
+    }
+
+    class OutputContinuousCurrentConfigurable extends OutputContinuousCurrentBase {
+      constructor(name) {
+        super(name);
+      }
+
+      getState() {
+        return {
+          timePeriodS: 2,
+        };
+      }
+
+      evaluate(args) {
+        return this.evaluateBase(args, args.outputState.timePeriodS)
+      }
+
+      displayName(state) {
+        return `Phase current for ${state.timePeriodS}${Number.isFinite(state.timePeriodS) ? 's' : ''}`;
+      }
+    }
+
+    class OutputMotorTorqueBase extends SelectionBase {
+      constructor(name, timePeriodS) {
+        super();
+        this.nameValue = name;
+        this.controllerOutput = new OutputContinuousCurrentConfigurable(name);
+      }
+
+      name() {
+        return this.nameValue;
+      }
+
+      evaluateBase(args, velocityHz, timePeriodS) {
+        const { controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState, motor, motorState} = args;
+
+        if (motor == null) {
+          return null;
+        }
+
+        if (velocityHz > motor.getMaxVelocityHz(motorState, controller, controllerState, voltage, voltageState)) {
+          return null;
+        }
+
+        // TODO: Hook up motor cooling.
+        const [R, C] = motor.getThermalProperties(motorState, "none");
+        if (R == null || C == null) {
+          return null;
+        }
+
+        const ambientTemp = 25;  // TODO: Don't hard-code
+        const deltaT = motor.getMaxTemp(motorState) - ambientTemp;
+
+        const thermalW = (timePeriodS == Infinity) ?
+          deltaT / R :
+          deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+        const voltageValue = voltage.getVoltage(voltageState);
+        const pwmValue = pwm.getPwm(pwmState, controller, controllerState);
+
+        const motorCurrent =
+            motor.getCurrentFromThermalPowerAndVelocity(
+                    motorState, thermalW, velocityHz,
+                    controller.getMaxPower(controllerState, voltageValue, pwmValue));
+
+        const controllerCurrent = this.controllerOutput.evaluateBase(args, timePeriodS)?.value ?? null;
+        if (controllerCurrent == null) {
+          return null;
+        }
+        const finalCurrent = Math.min(motorCurrent, controllerCurrent);
+
+        const motorTorque = motor.getTorqueFromCurrent(motorState, finalCurrent);
+
+        const op = motor.getOperatingPoint(motorState, {current: finalCurrent, velocityHz: velocityHz, timePeriodS: timePeriodS});
+        const opargs = {
+          voltage: voltageValue,
+          pwm: pwmValue,
+          current: finalCurrent,
+          coolingName: cooling.getCooling(coolingState),
+          timePeriodS: timePeriodS,
+        };
+        const thermalPower = controller.getThermalPower(controllerState, opargs);
+        op['controllerLossW'] = thermalPower;
+        op['controllerTempC'] = controller.getTemperature(controllerState, {...opargs, thermalPower: thermalPower});
+        const totalLossPowerW = op.controllerLossW + op.copperLossW + op.ironLossW;
+        op['supplyCurrentA'] = (totalLossPowerW + op.mechanicalPowerW) / voltageValue;
+        op['supplyPowerW'] = op.mechanicalPowerW + totalLossPowerW;
+        op['efficiencyPercent'] = 100.0 * op.mechanicalPowerW / (op.mechanicalPowerW + totalLossPowerW);
+        return new RenderedValue(motorTorque, {numberRender: ((value) => `${value.toFixed(2)} Nm`), operatingPoint: op});
+      }
+    }
+
+    class OutputMotorTorque extends OutputMotorTorqueBase {
+      constructor(name, timePeriodS, velocityHz) {
+        super(name, timePeriodS);
+        this.velocityHz = velocityHz;
+        this.timePeriodS = timePeriodS;
+      }
+
+      displayName() {
+        const t = this.timePeriodS;
+        return `Torque at ${this.velocityHz}Hz for ${t}${Number.isFinite(t) ? 's' : ''}`;
+      }
+
+      evaluate(args) {
+        return this.evaluateBase(args, this.velocityHz, this.timePeriodS);
+      }
+    }
+
+    class OutputMotorTorqueConfigurable extends OutputMotorTorqueBase {
+      constructor(name) {
+        super(name);
+      }
+
+      getState() {
+        return {
+          velocity: 0,
+          timePeriodS: Infinity,
+        };
+      }
+
+      displayName(state) {
+        const t = state.timePeriodS;
+        const v = state.velocity;
+        return `Torque at ${v}Hz for ${t}${Number.isFinite(t) ? 's' : ''}`;
+      }
+
+      render({}, state, onChange) {
+        const t = state.timePeriodS;
+        const v = state.velocity;
+
+        return html`Torque at
+        <input type="number" value="${v}" style="width: 6ch;"
+               onchange=${(e) => onChange({velocity:Number(e.target.value), timePeriodS: t})}/>Hz
+        for
+        <input type="number" value="${t}" style="width: 6ch;"
+               onchange=${(e) => onChange({velocity:v, timePeriodS:Number(e.target.value) == 0 ? Infinity : Number(e.target.value)})}/>s
+        `;
+      }
+
+      evaluate(args) {
+        return this.evaluateBase(args, args.outputState.velocity, args.outputState.timePeriodS);
+      }
+    }
+
+    class OutputMaxPower extends SelectionBase {
+      constructor() {
+        super();
+      }
+
+      name() {
+        return 'Pmax';
+      }
+
+      displayName() {
+        return html`Max Power`;
+      }
+
+      evaluate({controller, controllerState, voltage, voltageState, pwm, pwmState}) {
+        const voltageValue = voltage.getVoltage(voltageState);
+        const pwmValue = pwm.getPwm(pwmState, controller, controllerState);
+
+        return new RenderedValue(controller.getMaxPower(controllerState, voltageValue, pwmValue),
+            {numberRender: ((value) => `${value.toFixed(1)} W`), operatingPoint: new OperatingPoint({})});
+      }
+    }
+
+    class OutputMotorMaxSpeed extends SelectionBase {
+      constructor() {
+        super();
+      }
+
+      name() {
+        return 'Vmax';
+      }
+
+      displayName() {
+        return html`Max Speed`;
+      }
+
+      evaluate({controller, controllerState, voltage, voltageState, motor, motorState}) {
+        return new RenderedValue(
+          controller.getMaxSpeed(controllerState, voltage, voltageState, motor, motorState),
+          {numberRender: ((value) => `${value.toFixed(1)} Hz`), operatingPoint: new OperatingPoint({})});
+      }
+    }
+
+    function Simulator({ state, setState }) {
+      // We are going to generate one or more tables from our possible
+      // configurations.  To do so, for now we'll have a fixed ordering of
+      // options, so that the final tables will consist of the axes people are
+      // most likely to care about.  You could imagine making this ordering
+      // configurable at some point.
+      const axisOrder = [
+        'motor',
+        'cooling',
+        'pwm',
+        'voltage',
+        'controller',
+        'output',
+      ];
+
+      function handleClick(e, evalArgs, operatingPoint) {
+        setState(prev => ({
+          ...prev,
+          overlay: {
+            content: operatingPoint.render(),
+            args: evalArgs,
+          },
+        }));
+      }
+
+      function handleOverlayDismiss(e) {
+        setState(prev => ({
+          ...prev,
+          overlay: null,
+        }));
+      }
+
+      function renderOverlay() {
+        if (!state.overlay)  return null;
+        const {x, y, content} = state.overlay;
+
+        return html`
+        <div onClick=${handleOverlayDismiss} class="overlayContainer">
+          <div class="overlayBody"
+            onClick=${e => e.stopPropagation()}
+            >
+            ${content}
+          </div>
+        </div>
+        `;
+      }
+
+      useEffect(() => {
+        function handleDocumentClick(e) {
+          const overlayBody = document.querySelector('.overlayBody');
+          if (overlayBody && !overlayBody.contains(e.target)) {
+            setState(prev => ({
+              ...prev,
+              overlay: null,
+
+            }));
+          }
+        }
+
+        if (state.overlay) {
+          document.addEventListener('click', handleDocumentClick);
+        }
+
+        return () => {
+          document.removeEventListener('click', handleDocumentClick);
+        }
+      }, [state.overlay, setState]);
+
+      function evaluateAndRender(fixedPanels, variablePanels) {
+        const getInstanceState = (name) => {
+          const maybeFixed = fixedPanels?.[name] ?? null;
+          if (maybeFixed != null) { return [maybeFixed[1], state.x[name][maybeFixed[0]]]; }
+          // It must be variable.
+
+          const panelName = name;
+          const panelKey = variablePanels[panelName];
+          const thisInstance = state[panelName][panelKey];
+          const thisState = state.x[panelName][panelKey];
+          return [thisInstance, thisState];
+        };
+
+        const [output, outputState] = getInstanceState("output");
+        const [controller, controllerState] = getInstanceState("controller");
+        const [voltage, voltageState] = getInstanceState("voltage");
+        const [pwm, pwmState] = getInstanceState("pwm");
+        const [cooling, coolingState] = getInstanceState("cooling");
+        const [motor, motorState] = getInstanceState("motor");
+        const evalArgs = {
+          outputState: outputState,
+          controller: controller, controllerState: controllerState,
+          voltage: voltage, voltageState: voltageState,
+          pwm: pwm, pwmState: pwmState,
+          cooling: cooling, coolingState: coolingState,
+          motor: motor, motorState: motorState,
+        };
+        const maybeRenderedValue = output.evaluate(evalArgs);
+        const content = maybeRenderedValue?.render() ?? '';
+
+        return html`<td
+          onClick=${(e) => {
+            e.stopPropagation();
+            handleClick(e, evalArgs, maybeRenderedValue?.operatingPoint);
+          }}
+          style=${{
+            cursor: 'pointer',
+            background: shallowEqual(evalArgs, state.overlay?.args) ? '#eef' : 'transparent',
+          }}
+          >
+          ${content}
+        </td>`;
+      }
+
+      function generateTables(fixedPanels, unassignedPanelNames) {
+        // If there are more than 2 unassigned instances that have more than
+        // one selection, then we will need more than one table and will
+        // iterate, concatenating the result.
+        const singleSelections = unassignedPanelNames.filter((panelName) => {
+          const panelState = state?.x?.[panelName] ?? null;
+          return panelState == null ? false : panelState.selected.length == 1;
+        });
+        if (singleSelections.length > 0) {
+          // We have at least one panel with only a single selection.  Assign
+          // it an instance.
+          const panelName = singleSelections[0];
+          const panelKey = state.x[panelName].selected[0];
+          const instance = state[panelName][panelKey];
+          return generateTables({
+            ...fixedPanels,
+            [singleSelections[0]]: [panelKey, instance, false]
+          },
+            unassignedPanelNames.filter((name) => name != singleSelections[0]),
+          );
+        }
+        const multipleSelections = unassignedPanelNames.filter((panelName) => {
+          const panelState = state.x?.[panelName] ?? null;
+          return panelState == null ? false : panelState.selected.length > 1;
+        });
+        if (multipleSelections.length > 2) {
+          // If we have more than two panels that have multiple selections, we
+          // will need to emit multiple tables consecutively.  Pick the
+          // panel with multiple selections with the fewest selected items first.
+          const firstName = multipleSelections.map(
+                (panelName) => [state.x[panelName].selected.length, panelName]).sort()[0][1];
+
+          // Now, iterate over all the selected instances of this name,
+          // concatenating the result of recursing on ourself.
+          const result = state.x[firstName].selected.map((key) => {
+            const instance = state[firstName][key];
+            return generateTables(
+              {
+                ...fixedPanels,
+                // The third list element says this fixed parameter came from a
+                // multiple selection, so we know to highlight it later.
+                [firstName]: [key, instance, true],
+              },
+              unassignedPanelNames.filter((name) => name != firstName)
+            )
+          });
+          const delimeter = result.reduce((acc, cur, index) => {
+            if (index > 0) {
+              acc.push(html`<hr/>`);
+            }
+            acc.push(cur);
+            return acc;
+          }, []);
+          return delimeter;
+        }
+        // We have between 0 and 2 panels remaining with multiple selections.
+        // That means we can generate either
+        //  a) a single value
+        //  b) a table with one row
+        //  c) a table with >1 rows and 1> cols
+
+        const header = html`
+        <ul>${Object.entries(fixedPanels).map(([panelName, [panelKey,,isMultiple]]) =>
+          html`<li class=${isMultiple ? "multiHeader" : null}>${state[panelName + "_displayName"]}: ${state[panelName][panelKey].displayName(state.x[panelName][panelKey])}</li>`
+        )}</ul>`;
+
+        let body = null;
+        const required = ['output', 'controller', 'voltage', 'pwm', 'cooling'];
+        const findPanel = (panel) => {
+          if (fixedPanels?.[panel] != null) { return true; }
+          if (multipleSelections.filter((key2) => key2 == panel).length > 0) { return true; }
+          return false;
+        };
+        const any_missing = required.map((panel) => (findPanel(panel))).filter((value) => !value).length > 0;
+        if (any_missing) {
+          body = html`missing selection`;
+        } else if (multipleSelections.length == 0) {
+          body = html`
+          <table>
+            <tr>
+              <td>
+          ${fixedPanels.output[1].displayName(state.x.output[fixedPanels.output[0]])}
+              </td>
+              ${evaluateAndRender(fixedPanels, {})}
+            </tr>
+          </table>
+          `;
+        } else if (multipleSelections.length == 1) {
+          const panelName = multipleSelections[0];
+          const selectionKeys = state.x[panelName].selected;
+          body = html`
+            <table>
+              <tr>
+                <th scope="col">${state[multipleSelections[0] + "_displayName"]}</th>
+                <th scope="col">
+                  ${fixedPanels.output != null ? fixedPanels.output[1].displayName(state.x.output[fixedPanels.output[0]]) : ''}
+                </th>
+                <td></td>
+              </tr>
+              ${selectionKeys.map((key) => {
+            return html`
+                <tr>
+              <td>${state[panelName][key].displayName(state.x[panelName][key])}</td>
+                  ${evaluateAndRender(fixedPanels, { [panelName]: key })}
+                </tr>
+                `
+          })}
+            </table>
+            `;
+        } else if (multipleSelections.length == 2) {
+          const sortedSelections = multipleSelections.map((name) => [axisOrder.indexOf(name), name]).slice().sort((a, b) => a[0] - b[0]).map(([, b]) => b);
+          const panel1Name = sortedSelections[0];
+          const panel2Name = sortedSelections[1];
+          const selection1Keys = state.x[panel1Name].selected;
+          const selection2Keys = state.x[panel2Name].selected;
+          const panel1Instances = state[panel1Name];
+          const panel2Instances = state[panel2Name];
+
+          body = html`
+            <table>
+              <tr>
+                <th></th>
+                <th colspan="${selection2Keys.length}">${state[panel2Name + "_displayName"]}</th>
+              </tr>
+              <tr>
+                <th scope="col">${state[panel1Name + "_displayName"]}</th>
+                ${selection2Keys.map((key2) => html`<td>${panel2Instances[key2].displayName(state.x[panel2Name][key2])}</td>`)}
+              </tr>
+              ${selection1Keys.map((key1) => {
+            return html`
+                <tr>
+              <td>${panel1Instances[key1].displayName(state.x[panel1Name][key1])}</td>
+                  ${selection2Keys.map((key2) => {
+              return html`
+                      ${evaluateAndRender(fixedPanels, { [panel1Name]: key1, [panel2Name]: key2 })}
+                    `;
+            })}
+                </tr>
+                `;
+          })}
+            </table>
+            `;
+        }
+
+        return html`
+        <div class="resultTable" onClick=${e => e.stopPropagation()}>
+          ${header}${body}
+        </div>
+        `;
+      }
+
+      return html`
+        <div>
+          ${generateTables({}, ['output', 'voltage', 'pwm', 'controller', 'cooling', 'motor'])}
+          ${renderOverlay()}
+        </div>
+        `
+    }
+
+    function SelectorPanel({ panelName, displayName, onChange, instances, defaultChecked }) {
+      const params = new URLSearchParams(window.location.search);
+
+      const instanceKeys = instances.map((instance) => instance.name());
+
+      const inputObject = parseDotNotationQuery(window.location.search);
+
+      const myDefaultChecked =
+        (args => args ? args.split(',')
+          .filter((name) => instanceKeys.includes(name))
+           : defaultChecked)(inputObject?.[panelName]);
+
+      const defaultInstanceState = inputObject?.x?.[panelName] ?? {};
+
+      const [state, setState] = useState(
+        {
+          ...instances.reduce((acc, item) => {
+              acc[item.name()] = item.getState();
+              return acc;
+            }, {}),
+          expanded: false,
+          ...defaultInstanceState,
+          selected: myDefaultChecked,
+        }
+      );
+
+      const getSelectedInstances = (s) => {
+        return instances.filter((item) => (s.selected.includes(item.name())));
+      };
+
+      useEffect(() => {
+        onChange(panelName, displayName, getSelectedInstances(state), state);
+      }, []);
+
+      const toggleExpanded = () => {
+        const newState = {
+          ...state,
+          expanded: !state.expanded,
+        };
+        setState(newState);
+        onChange(panelName, displayName, getSelectedInstances(newState), newState);
+      };
+
+      const makeSummary = () => {
+        const selectedItems = getSelectedInstances(state).map((item) => (item.displayName(state[item.name()])));
+        return (selectedItems.length == 0) ?
+          "- none" : "- [" + selectedItems.join(", ") + "]";
+      };
+
+      const sortByInstanceOrder = (keys) => {
+        const instanceOrder = Object.fromEntries(instances.map((item, index) => [item.name(), index]));
+        return keys.map((key) => [instanceOrder[key], key]).sort().map(([_, key]) => key);
+      };
+
+      const makeCheckToggle = (name) => {
+        return () => {
+          const isPresent = state.selected.includes(name);
+
+          const newState = {
+            ...state,
+            'selected': isPresent ? state.selected.filter((k) => k != name) : sortByInstanceOrder([...state.selected, name]),
+          };
+          setState(newState);
+          onChange(panelName, displayName, getSelectedInstances(newState), newState);
+        }
+      };
+
+      const myOnChange = (panelName, displayName, selectedInstances, newState) => {
+        setState(newState);
+        onChange(panelName, displayName, selectedInstances, newState);
+      };
+
+      return html`
+<div class="panelContainer">
+  <div class="panelTitle" onClick=${() => toggleExpanded()} >
+    ${displayName} ${!state.expanded ? makeSummary() : ""}
+  </div>
+  ${state.expanded && html`
+  <fieldset>
+  ${instances.map((item) => {
+        return html`
+    <label>
+      <input type="checkbox" name="${panelName}" value="${item.name()}"
+        checked="${state.selected.includes(item.name()) ?? false}"
+        onClick="${makeCheckToggle(item.name())}" />
+      ${item.render({}, state[item.name()],
+           (newState) => myOnChange(
+                  panelName,
+                  displayName,
+                  getSelectedInstances(state),
+                  {
+                    ...state,
+                    [item.name()] : newState,
+                  }))
+        } ${item.productInfo()}
+      <br/>
+    </label>
+    `;
+      })}
+  </fieldset>
+`}
+</div>
+`;
+    }
+
+
+    const controllerOptions = [
+      new MoteusC1(),
+      new MoteusR4(),
+      new MoteusN1(),
+      new MoteusX1(),
+      new OdrivePro(),
+      new OdriveS1(),
+    ];
+
+    const voltageOptions = [
+      new VoltageSelection(12),
+      new VoltageSelection(24),
+      new VoltageSelection(36),
+      new VoltageSelection(48),
+      new VoltageSelection(54),
+    ];
+
+    const pwmOptions = [
+      new PwmSelection('default'),
+      new PwmSelection(15000),
+      new PwmSelection(20000),
+      new PwmSelection(24000),
+      new PwmSelection(30000),
+      new PwmSelection(40000),
+      new PwmSelection(60000),
+    ];
+
+    const coolingOptions = [
+      new CoolingSelection('none', 'none'),
+      new CoolingSelection('heatspreader', 'heat spreader'),
+      new CoolingSelection('heatspreader_4030sink', 'heat spreader w/ 40x30mm sink'),
+      new CoolingSelection('5vfan', '5V fan'),
+      new CoolingSelection('12vfan', '12V fan'),
+      new CoolingSelection('max', 'max'),
+    ];
+
+    const motorOptions = [
+      new Motor({
+        name:'mj5208',
+        displayName:'mj5208',
+        maxTemp:80,
+        Kv: 304,
+        R: 0.047,
+        L:28.6e-6,
+        rotationCurrentCutoff: 22.5,
+        rotationCurrentScale: 0.02494,
+        rotationTorqueScale: 0.6638,
+        thermal: {
+          'none': {R: 3.0, C:50},  // TODO: Fill in with actual values.
+        },
+        // The following iron loss model was generated from pypowertrain and is
+        // not from any measured or design values.
+        d0: 0.002784,
+        d1: 5.6668e-5,
+        productInfo: html`<a href="https://mjbots.com/products/mj5208" target="_blank">[product page]</a>`,
+      }),
+      new Motor({
+        name:'mad8318',
+        displayName:'MAD 8318',
+        maxTemp:80,
+        Kv: 120,
+        R: 0.015,
+        L: 9.75e-6,
+        thermal: {
+          'none': {R:1.5, C:200}, // TODO: Fill in with actual values
+        },
+        // The following iron loss model was generated from pypowertrain and is
+        // not from any measured or design values.
+        d0: 0.04132,
+        d1: 0.002403,
+        productInfo: html`<a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">[product page]</a>`,
+      }),
+    ];
+
+    const outputOptions = [
+      new OutputContinuousCurrent('I_Infinity', Infinity),
+      new OutputContinuousCurrent('I_60s', 60.0),
+      new OutputContinuousCurrent('I_2s', 2.0),
+      new OutputMotorTorque('T_Infinity', Infinity, 0),
+      new OutputMotorTorque('T_60s', 60.0, 0),
+      new OutputMotorTorque('T_2s', 2.0, 0),
+      new OutputMotorTorque('T_Infinity_10', Infinity, 40),
+      new OutputMotorTorqueConfigurable('T_X'),
+      new OutputMaxPower(),
+      new OutputMotorMaxSpeed(),
+    ];
+
+    function App() {
+      const [state, setState] = useState({});
+
+      const onChange = (panelName, displayName, selectedInstances, panelState) => {
+        setState(prev => ({
+          ...prev,
+          x:{
+            ...prev.x,
+            [panelName]:panelState,
+          },
+          [panelName + "_displayName"]: displayName,
+          [panelName]: Object.fromEntries(selectedInstances.map((item) => [item.name(), item])),
+        }));
+      };
+
+      const isSavedState = (keyvalue) => {
+        const [key, value] = keyvalue.split('=');
+        if (key.split('.')[1] == "selected") { return false; }
+        if (key.split('.')[1] == "expanded" && value == "false") { return false; }
+        return true;
+      };
+
+      const makeShareLink = () => {
+        return window.location.href.split('?')[0] +
+               "?" +
+               [...Object.entries(state?.x ?? {})
+                  .map(([panel, obj]) => panel + "=" + (obj?.selected ?? []).join(",")),
+                ...objectToDotNotationParams(state?.x ?? null)
+                    .filter((item) => isSavedState(item))
+                    .map((item) => 'x.' + item)]
+                  .join("&");
+      };
+
+      const copyShareLink = (event) => {
+        event.preventDefault();
+        const shareLink = makeShareLink();
+        navigator.clipboard.writeText(shareLink);
+      };
+
+      return html`
+<div class="pageContainer">
+  <div class="panelColumn">
+<${SelectorPanel} panelName="controller" displayName="Controller" onChange=${onChange} instances=${controllerOptions} defaultChecked=${['moteus-c1','moteus-r4','moteus-x1']}/>
+<${SelectorPanel} panelName="voltage" displayName="Supply Voltage" onChange=${onChange} instances=${voltageOptions} defaultChecked=${['12V', '24V', '36V', '48V', '54V']}/>
+<${SelectorPanel} panelName="pwm" displayName="PWM Frequency" onChange=${onChange} instances=${pwmOptions} defaultChecked=${['default']}/>
+<${SelectorPanel} panelName="cooling" displayName="Controller Cooling" onChange=${onChange} instances=${coolingOptions} defaultChecked=${['none']}/>
+<${SelectorPanel} panelName="motor" displayName="Motor" onChange=${onChange} instances=${motorOptions} defaultChecked=${['mad8318']}/>
+<${SelectorPanel} panelName="output" displayName="Output" onChange=${onChange} instances=${outputOptions} defaultChecked=${['T_Infinity']}/>
+<a href="${makeShareLink()}" onclick=${copyShareLink}>Copy link to these results...</a>
+  </div>
+  <div class="resultsColumn">
+<${Simulator} state=${state} setState=${setState}/>
+  </div>
+</div>
+<footer>
+  <div>
+    moteus Performance Analysis Tool
+    | Licensed under Apache 2.0
+    | (c) 2025 mjbots Robotic Systems
+    | <a href="https://mjbots.com">https://mjbots.com</a>
+  </div>
+</footer>
+                `;
+    }
+
+    render(html`<${App}/>`, document.body);
+  </script>
+</head>
+
+</html>
