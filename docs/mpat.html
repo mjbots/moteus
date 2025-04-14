@@ -3,6 +3,7 @@
 
 <head>
   <title>moteus Perfomance Analysis Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
       font-size: 14px;
@@ -11,7 +12,7 @@
       background: #fcfcfc;
       margin: 0;
       padding: 1 rem;
-      padding-bottom: 1.5em;
+      padding-bottom: 2.5em;
     }
     table {
       border-collapse: collapse;
@@ -98,6 +99,7 @@
       background: white;
       border-radius: 5px;
       overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     }
 
@@ -128,6 +130,17 @@
       padding: 1rem;
       box-shadow: -2px 0px 8px rgba(0, 0, 0, 0.2);
       pointer-events: auto;
+    }
+
+    @media (max-width: 600px) {
+      .overlayBody {
+        left: 5px;
+        right: 5px;
+        top: 5px;
+        bottom: 5px;
+        border-left: none;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+      }
     }
   </style>
   <script type="module">
@@ -1272,7 +1285,7 @@
 
       function renderOverlay() {
         if (!state.overlay)  return null;
-        const {x, y, content} = state.overlay;
+        const {content} = state.overlay;
 
         return html`
         <div onClick=${handleOverlayDismiss} class="overlayContainer">
@@ -1280,6 +1293,10 @@
             onClick=${e => e.stopPropagation()}
             >
             ${content}
+            <button onClick=${handleOverlayDismiss}
+                    style="margin-top: 1rem;">
+              Close
+            </button>
           </div>
         </div>
         `;
