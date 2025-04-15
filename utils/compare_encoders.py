@@ -110,7 +110,7 @@ async def main():
     reference_values = [get_encoder(x, args.reference_encoder) for x in results]
     measure_values = [get_encoder(x, args.measure_encoder) for x in results]
 
-    offset = numpy.mean([wrap_zero_one(r - m) for r, m in zip(reference_values, measure_values)])
+    offset = numpy.mean([wrap_half(r - m) for r, m in zip(reference_values, measure_values)])
 
     error_values = [-wrap_half(r - offset - m) for r, m in zip(reference_values, measure_values)]
 

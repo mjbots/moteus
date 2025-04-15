@@ -28,6 +28,11 @@ class PythonCan:
         global can
         if not can:
             import can
+            try:
+                can.rc = can.util.load_config()
+            except can.CanInterfaceNotImplementedError as e:
+                if 'Unknown interface type "None"' not in str(e):
+                    raise
 
         # We provide some defaults if they are not already
         # provided... this makes it more likely to just work out of

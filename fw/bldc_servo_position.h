@@ -327,10 +327,12 @@ class BldcServoPosition {
         hit_limit = true;
       }
     };
-    saturate(position_config->position_min,
-             [](auto l, auto r) { return l < r; });
-    saturate(position_config->position_max,
-             [](auto l, auto r) { return l > r; });
+    if (!data->ignore_position_bounds) {
+      saturate(position_config->position_min,
+               [](auto l, auto r) { return l < r; });
+      saturate(position_config->position_max,
+               [](auto l, auto r) { return l > r; });
+    }
 
     if (!!data->stop_position_relative_raw) {
       const int64_t stop_position_raw = *data->stop_position_relative_raw;

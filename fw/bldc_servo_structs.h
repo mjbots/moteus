@@ -129,6 +129,8 @@ struct BldcServoStatus {
   float cur2_A = 0.0f;
   float cur3_A = 0.0f;
 
+  float electrical_theta = 0.0f;
+
   float bus_V = 0.0f;
   float filt_bus_V = std::numeric_limits<float>::quiet_NaN();
   float filt_1ms_bus_V = std::numeric_limits<float>::quiet_NaN();
@@ -161,6 +163,7 @@ struct BldcServoStatus {
   bool trajectory_done = false;
 
   float motor_max_velocity = 0.0f;
+  float max_power_W = 0.0f;
 
   float torque_error_Nm = 0.0f;
 
@@ -226,6 +229,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(cur1_A));
     a->Visit(MJ_NVP(cur2_A));
     a->Visit(MJ_NVP(cur3_A));
+    a->Visit(MJ_NVP(electrical_theta));
 
     a->Visit(MJ_NVP(bus_V));
     a->Visit(MJ_NVP(filt_bus_V));
@@ -256,6 +260,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(trajectory_done));
 
     a->Visit(MJ_NVP(motor_max_velocity));
+    a->Visit(MJ_NVP(max_power_W));
     a->Visit(MJ_NVP(torque_error_Nm));
 
     a->Visit(MJ_NVP(sin));
@@ -320,6 +325,8 @@ struct BldcServoCommandData {
 
   // If not NaN, temporarily operate in fixed voltage mode.
   float fixed_voltage_override = std::numeric_limits<float>::quiet_NaN();
+  float fixed_current_override = std::numeric_limits<float>::quiet_NaN();
+  bool ignore_position_bounds = false;
 
   float timeout_s = 0.0f;
 
@@ -329,6 +336,10 @@ struct BldcServoCommandData {
 
   // For kMeasureInductance
   int8_t meas_ind_period = 4;
+
+
+  /////// NOT SERIALIZED
+  bool synthetic_theta = false;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -361,6 +372,8 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(velocity_limit));
     a->Visit(MJ_NVP(accel_limit));
     a->Visit(MJ_NVP(fixed_voltage_override));
+    a->Visit(MJ_NVP(fixed_current_override));
+    a->Visit(MJ_NVP(ignore_position_bounds));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(bounds_min));
     a->Visit(MJ_NVP(bounds_max));
@@ -376,8 +389,7 @@ struct BldcServoMotor {
 
   float resistance_ohm = 0.0f;
 
-  // Hz is electrical
-  float v_per_hz = 0.0f;
+  float Kv = 0.0f;
 
   // Electrical phase offset in radians as a function of encoder
   // position.
@@ -408,7 +420,7 @@ struct BldcServoMotor {
     a->Visit(MJ_NVP(poles));
     a->Visit(MJ_NVP(phase_invert));
     a->Visit(MJ_NVP(resistance_ohm));
-    a->Visit(MJ_NVP(v_per_hz));
+    a->Visit(MJ_NVP(Kv));
     a->Visit(MJ_NVP(offset));
     a->Visit(MJ_NVP(rotation_current_cutoff_A));
     a->Visit(MJ_NVP(rotation_current_scale));
@@ -424,35 +436,9 @@ struct BldcServoConfig {
        g_measured_hw_rev <= 2) ? 60000 :
       30000;
 
-  float i_gain = 20.0f;  // should match csa_gain from drv8323
   float current_sense_ohm =
       (g_measured_hw_family == 2 ? 0.002f :
        0.0005f);
-
-  // PWM rise time compensation
-  float pwm_comp_off =
-      g_measured_hw_family == 0 ?
-       ((g_measured_hw_rev <= 6) ? 0.015f :
-        (g_measured_hw_rev <= 7) ? 0.055f :
-        0.027f) :
-      g_measured_hw_family == 1 ? 0.027f :
-      g_measured_hw_family == 2 ? 0.015f :
-      invalid_float()
-      ;
-  float pwm_comp_mag =
-      g_measured_hw_family == 0 ?
-       ((g_measured_hw_rev <= 6) ? 0.005f :
-        (g_measured_hw_rev <= 7) ? 0.005f :
-        0.005f) :
-      g_measured_hw_family == 1 ? 0.005f :
-      g_measured_hw_family == 2 ? 0.003f :
-      invalid_float()
-      ;
-  float pwm_scale =
-      g_measured_hw_family == 0 ? 1.0f :
-      g_measured_hw_family == 1 ? 1.0f :
-      g_measured_hw_family == 2 ? 1.38f :
-      invalid_float();
 
   // We pick a default maximum voltage based on the board revision.
   float max_voltage =
@@ -462,11 +448,15 @@ struct BldcServoConfig {
       g_measured_hw_family == 2 ? 54.0f :
       invalid_float()
       ;
-  float max_power_W =
-      (g_measured_hw_family == 0 ||
-       g_measured_hw_family == 1) ? 450.0f :
-      g_measured_hw_family == 2 ? 100.0f :
-      invalid_float();
+
+  // If set, the power limit used will be the lower of this value and
+  // the built-in board limit.
+  float max_power_W = std::numeric_limits<float>::quiet_NaN();
+
+  // If set, then the user power maximum will always take effect,
+  // overriding the factory set limit profile for the board.  Enabling
+  // this can easily cause damage.
+  bool override_board_max_power = false;
 
   float derate_temperature = 50.0f;
   float fault_temperature = 75.0f;
@@ -590,6 +580,10 @@ struct BldcServoConfig {
     pid_dq.kp = 0.005f;
     pid_dq.ki = 30.0f;
 
+    // 100A in 10ms seems like a reasonably unrestricted default yet
+    // still provides a fair amount of control smoothing.
+    pid_dq.max_desired_rate = 10000.0f;
+
     pid_position.kp = 4.0f;
     pid_position.ki = 1.0f;
     pid_position.ilimit = 0.0f;
@@ -600,13 +594,10 @@ struct BldcServoConfig {
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(pwm_rate_hz));
-    a->Visit(MJ_NVP(i_gain));
     a->Visit(MJ_NVP(current_sense_ohm));
-    a->Visit(MJ_NVP(pwm_comp_off));
-    a->Visit(MJ_NVP(pwm_comp_mag));
-    a->Visit(MJ_NVP(pwm_scale));
     a->Visit(MJ_NVP(max_voltage));
     a->Visit(MJ_NVP(max_power_W));
+    a->Visit(MJ_NVP(override_board_max_power));
     a->Visit(MJ_NVP(derate_temperature));
     a->Visit(MJ_NVP(fault_temperature));
     a->Visit(MJ_NVP(enable_motor_temperature));

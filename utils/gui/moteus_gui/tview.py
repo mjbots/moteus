@@ -449,7 +449,6 @@ class EditDelegate(QtWidgets.QStyledItemDelegate):
                 options = list(maybe_schema.enum_class)
                 options_text = [repr(x) for x in options]
                 editor.setEditable(True)
-                editor.lineEdit().editingFinished.connect(self.commitAndCloseEditor)
             elif isinstance(maybe_schema, reader.BooleanType):
                 options_text = ['False', 'True']
                 editor.activated.connect(self.commitAndCloseEditor)
@@ -1136,7 +1135,7 @@ class TviewMainWindow():
 
     async def _run_user_command(self, command):
         delay_re = re.search(r"^:(\d+)$", command)
-        device_re = re.search(r"^(A|\d+)>(.*)$", command)
+        device_re = re.search(r"^(A|\d+)>\s*(.*)$", command)
         traj_re = re.search(r"^(\?(\d+)?)$", command)
 
         device_nums = [self.devices[0].number]

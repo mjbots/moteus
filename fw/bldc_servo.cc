@@ -70,15 +70,10 @@ float Threshold(float value, float lower, float upper) {
   return value;
 }
 
-float BilinearRate(float offset, float mag, float val) MOTEUS_CCM_ATTRIBUTE;
+float Interpolate(float, float, float, float, float) MOTEUS_CCM_ATTRIBUTE;
 
-float BilinearRate(float offset, float mag, float val) {
-  const float sign = val < 0.0f ? -1.0f : 1.0f;
-  if (std::abs(val) < mag) {
-    return val / mag * offset;
-  } else {
-    return sign * ((0.5f - offset) * (std::abs(val) - mag) / (0.5f - mag) + offset);
-  }
+float Interpolate(float x, float xl, float xh, float vl, float vh) {
+  return (x - xl) / (xh - xl) * (vh - vl) + vl;
 }
 
 template <typename Array>
@@ -118,7 +113,7 @@ struct RateConfig {
   float period_s;
   int16_t max_position_delta;
 
-  RateConfig(float pwm_scale = 1.0f, int pwm_rate_hz_in = 30000) {
+  RateConfig(int pwm_rate_hz_in = 30000) {
     const int board_min_pwm_rate_hz =
         (g_measured_hw_family == 0 &&
          g_measured_hw_rev == 2) ? 60000 :
@@ -144,7 +139,7 @@ struct RateConfig {
 
     min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
     max_pwm = 1.0f - min_pwm;
-    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f) / pwm_scale;
+    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f);
 
     rate_hz = int_rate_hz;
     period_s = 1.0f / rate_hz;
@@ -440,6 +435,12 @@ class BldcServo::Impl {
       *mode_volatile = kFault;
     }
 
+    // We pre-compute this here to save time in the ISR.
+    next->synthetic_theta =
+        config_.fixed_voltage_mode ||
+        !std::isnan(next->fixed_voltage_override) ||
+        !std::isnan(next->fixed_current_override);
+
     std::swap(current_data_, next_data_);
   }
 
@@ -460,7 +461,7 @@ class BldcServo::Impl {
   }
 
   bool is_torque_constant_configured() const {
-    return motor_.v_per_hz != 0.0f;
+    return motor_.Kv != 0.0f;
   }
 
   float current_to_torque(float current) const MOTEUS_CCM_ATTRIBUTE {
@@ -480,7 +481,7 @@ class BldcServo::Impl {
   }
 
   void UpdateConfig() {
-    rate_config_ = RateConfig(config_.pwm_scale, config_.pwm_rate_hz);
+    rate_config_ = RateConfig(config_.pwm_rate_hz);
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
 
@@ -489,25 +490,32 @@ class BldcServo::Impl {
     slow_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.5f);
     fast_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.001f);
 
+    // Ensure that our maximum current stays within the range that can
+    // be sensed.
+    constexpr float kSensableCurrentMargin = 0.95f;
+    const float max_sensable_current_A =
+        kSensableCurrentMargin *
+        motor_driver_->max_sense_V() / config_.current_sense_ohm;
+    config_.max_current_A = std::min(config_.max_current_A,
+                                     max_sensable_current_A);
+
     ConfigurePwmTimer();
 
-    const float kv = 0.5f * 60.0f / motor_.v_per_hz;
-
-    // I have no idea why this fudge is necessary, but it seems to be
-    // consistent across every motor I have tried.
-    constexpr float kFudge = 0.78;
+    // From https://things-in-motion.blogspot.com/2018/12/how-to-estimate-torque-of-bldc-pmsm.html
+    constexpr float kTorqueFactor =
+        (3.0f / 2.0f) * (1.0f / kSqrt3) * (60.0f / k2Pi);
 
     torque_constant_ =
         is_torque_constant_configured() ?
-        kFudge * 60.0f / (2.0f * kPi * kv) :
+        kTorqueFactor / motor_.Kv :
         kDefaultTorqueConstant;
+    v_per_hz_ = motor_.Kv == 0.0f ? 0.0f : 0.5f * 60.0f / motor_.Kv;
 
-    adc_scale_ = 3.3f / (4096.0f * config_.current_sense_ohm * config_.i_gain);
+    adc_scale_ = 3.3f / (4096.0f *
+                         config_.current_sense_ohm *
+                         motor_driver_->i_gain());
 
-    const float pwm_derate =
-        (static_cast<float>(config_.pwm_rate_hz) / 40000.0f);
-    adjusted_pwm_comp_off_ = config_.pwm_comp_off * pwm_derate;
-    adjusted_max_power_W_ = config_.max_power_W * pwm_derate;
+    pwm_derate_ = (static_cast<float>(config_.pwm_rate_hz) / 30000.0f);
 
     fet_thermistor_.Reset(47000.0f);
     motor_thermistor_.Reset(config_.motor_thermistor_ohm);
@@ -554,6 +562,12 @@ class BldcServo::Impl {
         }();
     if (desired_debug_uart != debug_uart_) {
       debug_uart_ = desired_debug_uart;
+    }
+
+    if (motor_position_->status().epoch !=
+        main_motor_position_epoch_) {
+      main_motor_position_epoch_ = motor_position_->status().epoch;
+      UpdateConfig();
     }
   }
 
@@ -894,7 +908,23 @@ class BldcServo::Impl {
     status_.dwt.sense = DWT->CYCCNT;
 #endif
 
-    SinCos sin_cos = cordic_(RadiansToQ31(position_.electrical_theta));
+    // current_data_ is volatile, so read it out now, and operate on
+    // the pointer for the rest of the routine.
+    CommandData* data = current_data_;
+
+    const float electrical_theta = !data->synthetic_theta ?
+        position_.electrical_theta :
+        WrapZeroToTwoPi(
+            motor_position_config()->output.sign *
+            MotorPosition::IntToFloat(*status_.control_position_raw)
+            / motor_position_->config()->rotor_to_output_ratio
+            * motor_.poles
+            * 0.5f
+            * k2Pi);
+
+    status_.electrical_theta = electrical_theta;
+
+    SinCos sin_cos = cordic_(RadiansToQ31(electrical_theta));
     status_.sin = sin_cos.s;
     status_.cos = sin_cos.c;
 
@@ -912,7 +942,7 @@ class BldcServo::Impl {
     status_.dwt.curstate = DWT->CYCCNT;
 #endif
 
-    ISR_DoControl(sin_cos);
+    ISR_DoControl(sin_cos, data);
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control = DWT->CYCCNT;
@@ -1126,9 +1156,37 @@ class BldcServo::Impl {
       status_.torque_error_Nm = 0.0f;
     }
 
+    // As of firmware ABI 0x010a moteus records motor Kv values that
+    // correspond roughly with open loop oscilloscope measurements and
+    // motor manufacturer's ratings.  They don't perfectly correspond
+    // to the speed that can actually be achieved under control.  For
+    // stable control loops, we need to limit the maximum controlled
+    // velocity to be a modest amount under what is actually capable,
+    // which tends to be around 90% of the speed expected based on
+    // input voltage, Kv, and modulation depth alone.
+    constexpr float kVelocityMargin = 0.87f;
+
     status_.motor_max_velocity =
         rate_config_.max_voltage_ratio *
-        kSvpwmRatio * 0.5f * status_.filt_1ms_bus_V / motor_.v_per_hz;
+        kVelocityMargin * 0.5f * status_.filt_1ms_bus_V / v_per_hz_;
+
+    status_.max_power_W = [&]() {
+      if (config_.override_board_max_power &&
+          std::isfinite(config_.max_power_W)) {
+        return config_.max_power_W;
+      }
+      const float board_power_limit =
+          Limit(
+              Interpolate(status_.filt_bus_V,
+                          g_hw_pins.power_V_l, g_hw_pins.power_V_h,
+                          g_hw_pins.power_P_l_W, g_hw_pins.power_P_h_W),
+              g_hw_pins.power_P_h_W,
+              g_hw_pins.power_P_l_W) * pwm_derate_;
+      if (!std::isfinite(config_.max_power_W)) {
+        return board_power_limit;
+      }
+      return std::min(config_.max_power_W, board_power_limit);
+    }();
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
     DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
 #endif
@@ -1264,6 +1322,7 @@ class BldcServo::Impl {
           case kMeasureInductance:
           case kBrake: {
             if ((data->mode == kPosition || data->mode == kStayWithinBounds) &&
+                !data->ignore_position_bounds &&
                 ISR_IsOutsideLimits()) {
               status_.mode = kFault;
               status_.fault = errc::kStartOutsideLimit;
@@ -1302,7 +1361,7 @@ class BldcServo::Impl {
 
   void ISR_StartCalibrating() {
     // Capture the current motor position epoch.
-    motor_position_epoch_ = position_.epoch;
+    isr_motor_position_epoch_ = position_.epoch;
 
     status_.mode = kEnabling;
 
@@ -1399,10 +1458,10 @@ class BldcServo::Impl {
     }
   }
 
-  void ISR_DoControl(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
-    // current_data_ is volatile, so read it out now, and operate on
-    // the pointer for the rest of the routine.
-    CommandData* data = current_data_;
+  void ISR_DoControl(const SinCos& sin_cos,
+                     CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    old_d_V = control_.d_V;
+    old_q_V = control_.q_V;
 
     control_.Clear();
 
@@ -1504,7 +1563,8 @@ class BldcServo::Impl {
         break;
       }
       case kCurrent: {
-        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f);
+        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f,
+                      data->ignore_position_bounds);
         break;
       }
       case kPosition: {
@@ -1537,7 +1597,7 @@ class BldcServo::Impl {
   void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
     if (status_.cooldown_count) {
       status_.cooldown_count--;
-      ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f);
+      ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f, false);
       return;
     }
 
@@ -1617,84 +1677,40 @@ class BldcServo::Impl {
     motor_driver_->PowerOn();
   }
 
-  void ISR_DoBalancedVoltageControlRotated(const Vec3& voltage, int shift) MOTEUS_CCM_ATTRIBUTE {
-    // We can assume that voltage.a is the smallest of the three.
-    const float db = voltage.b - voltage.a;
-    const float dc = voltage.c - voltage.a;
-
-    // Switch into full scale ratios.
-    const float fdb = db / status_.filt_bus_V;
-    const float fdc = dc / status_.filt_bus_V;
-
-    constexpr float blend_min = 0.2f;
-    constexpr float blend_max = 0.6f;
-    constexpr float blend_region = blend_max - blend_min;
-
-    // TODO: explain
-    const auto scale =
-        [&](float fdx, float fd_other) {
-          if (fdx < blend_min * fd_other) {
-            return fdx;
-          }
-          const float scaled = BilinearRate(
-              adjusted_pwm_comp_off_,
-              config_.pwm_comp_mag,
-              fdx);
-          if (fdx < blend_max * fd_other) {
-            const float frac = (fdx - blend_min * fd_other) /
-                (blend_region * fd_other);
-            return fdx + frac * (scaled - fdx);
-          }
-          return scaled;
-        };
-
-    // Apply a correction to get these B and C phases relative to the A
-    // phase.
-    const float dpb = scale(fdb, fdc) * config_.pwm_scale;
-    const float dpc = scale(fdc, fdb) * config_.pwm_scale;
-
-    // And then balance them so as to keep the lowest and highest duty
-    // cycle phases equidistant from the midpoint.  Note, this results
-    // in a waveform that is identical to SVPWM, or min/max injection.
-    const float extent = 0.5f * std::max(dpb, dpc);
-    const float pwm1 = 0.5f - extent;
-    const float pwm2 = pwm1 + dpb;
-    const float pwm3 = pwm1 + dpc;
-
-    // Finally, unshift things.
-    if (shift == 0) {
-      ISR_DoPwmControl(Vec3{pwm1, pwm2, pwm3});
-    } else if (shift == 1) {
-      ISR_DoPwmControl(Vec3{pwm3, pwm1, pwm2});
-    } else {
-      ISR_DoPwmControl(Vec3{pwm2, pwm3, pwm1});
-    }
-  }
-
   /// Assume that the voltages are intended to be balanced around the
   /// midpoint and can be shifted accordingly.
   void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     control_.voltage = voltage;
 
-    if (voltage.a <= voltage.b && voltage.a <= voltage.c) {
-      ISR_DoBalancedVoltageControlRotated(voltage, 0);
-    } else if (voltage.b <= voltage.a && voltage.b <= voltage.c) {
-      ISR_DoBalancedVoltageControlRotated(Vec3{voltage.b, voltage.c, voltage.a}, 1);
-    } else {
-      ISR_DoBalancedVoltageControlRotated(Vec3{voltage.c, voltage.a, voltage.b}, 2);
-    }
+    const float bus_V = status_.filt_bus_V;
+    const Vec3 pwm_in = {voltage.a / bus_V, voltage.b / bus_V, voltage.c / bus_V};
+
+    const float pwmmin = std::min(pwm_in.a, std::min(pwm_in.b, pwm_in.c));
+    const float pwmmax = std::max(pwm_in.a, std::max(pwm_in.b, pwm_in.c));
+
+    // Balance the three phases so that the highest and lowest are
+    // equidistant from the midpoint.  Note, this results in a
+    // waveform that is identical to SVPWM, or min/max injection.
+    const float offset = 0.5f * (pwmmin + pwmmax) - 0.5f;
+
+    ISR_DoPwmControl(Vec3{
+        pwm_in.a - offset,
+        pwm_in.b - offset,
+        pwm_in.c - offset});
   }
 
   void ISR_DoVoltageFOC(CommandData* data) MOTEUS_CCM_ATTRIBUTE {
     data->theta += data->theta_rate * rate_config_.period_s;
     SinCos sc = cordic_(RadiansToQ31(data->theta));
-    const float max_voltage = (0.5f - rate_config_.min_pwm) * status_.filt_bus_V;
+    const float max_voltage = (0.5f - rate_config_.min_pwm) *
+        status_.filt_bus_V * kSvpwmRatio;
     InverseDqTransform idt(sc, Limit(data->voltage, -max_voltage, max_voltage), 0);
     ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in,
-                     float feedforward_velocity_rotor) MOTEUS_CCM_ATTRIBUTE {
+                     float feedforward_velocity_rotor,
+                     bool ignore_position_bounds) MOTEUS_CCM_ATTRIBUTE {
     if (motor_.poles == 0) {
       // We aren't configured yet.
       status_.mode = kFault;
@@ -1708,6 +1724,8 @@ class BldcServo::Impl {
     }
 
     auto limit_q_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
+      if (ignore_position_bounds) { return in; }
+
       if (!std::isnan(position_config_.position_max) &&
           position_.position > position_config_.position_max &&
           in > 0.0f) {
@@ -1774,48 +1792,84 @@ class BldcServo::Impl {
       return Limit(in, -temp_limit_A, temp_limit_A);
     };
 
-    const float i_q_A =
+
+    const float almost_i_q_A =
         limit_either_current(
             limit_q_velocity(
                 limit_q_current(i_q_A_in)));
-    const float i_d_A = limit_either_current(i_d_A_in);
+    const float almost_i_d_A = limit_either_current(i_d_A_in);
+
+    // Apply our power limits by limiting the maximum current command.
+    // This has a feedback loop from the previous cycle's voltage
+    // output, which is not ideal, but is what we've got.
+
+    // Applying the limit here, rather than at the voltage stage has
+    // proven to be more stable when activated under load.
+    const float used_d_power_W = 1.5f * old_d_V * almost_i_d_A;
+    const float used_q_power_W = 1.5f * old_q_V * almost_i_q_A;
+    const float used_power = used_q_power_W + used_d_power_W;
+
+    const auto [i_d_A, i_q_A] = [&]() {
+      // If we have slack, then no limiting needs to occur.
+      if (std::abs(used_power) < status_.max_power_W) {
+        return std::make_pair(almost_i_d_A, almost_i_q_A);
+      }
+
+      // Scale both currents equally in power terms.
+      const float scale = status_.max_power_W / std::abs(used_power);
+
+      const float scaled_d_power = used_d_power_W * scale;
+      const float scaled_q_power = used_q_power_W * scale;
+
+      return std::make_pair(
+          scaled_d_power / (1.5f * old_d_V),
+          scaled_q_power / (1.5f * old_q_V));
+    }();
 
     control_.i_d_A = i_d_A;
     control_.i_q_A = i_q_A;
 
-    // This is conservative... we could use std::hypot(d, q), however
-    // that would take more CPU cycles, and most of the time we'll
-    // only be seeing q != 0.
-    //
-    // The 1.5f is the inverse of the calculation for power_W below.
-    const float max_V = adjusted_max_power_W_ /
-        (1.5f * (std::abs(status_.d_A) + std::abs(status_.q_A)));
+    const float max_V =
+        rate_config_.max_voltage_ratio * kSvpwmRatio *
+        0.5f * status_.filt_bus_V;
+
+    const auto limit_to_max_voltage = [max_V](float denorm_d_V, float denorm_q_V) {
+      const float max_V_sq = max_V * max_V;
+      const float denorm_len =
+          denorm_d_V * denorm_d_V + denorm_q_V * denorm_q_V;
+      if (denorm_len < max_V_sq) {
+        return std::make_pair(denorm_d_V, denorm_q_V);
+      }
+
+      const float scale = sqrtf(max_V_sq / denorm_len);
+      return std::make_pair(denorm_d_V * scale, denorm_q_V * scale);
+    };
 
     if (!config_.voltage_mode_control) {
-      const float d_V =
-          Limit(
-              pid_d_.Apply(status_.d_A, i_d_A, rate_config_.rate_hz) +
-              i_d_A * config_.current_feedforward * motor_.resistance_ohm,
-              -max_V, max_V);
+      const float denorm_d_V =
+          pid_d_.Apply(status_.d_A, i_d_A, rate_config_.rate_hz) +
+          i_d_A * config_.current_feedforward * motor_.resistance_ohm;
 
-      const float max_current_integral =
-          rate_config_.max_voltage_ratio * kSvpwmRatio *
-          0.5f * status_.filt_bus_V;
+      const float denorm_q_V =
+          pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
+          i_q_A * config_.current_feedforward * motor_.resistance_ohm +
+          (feedforward_velocity_rotor *
+           config_.bemf_feedforward *
+           v_per_hz_);
+
+      auto [d_V, q_V] = limit_to_max_voltage(denorm_d_V, denorm_q_V);
+
+      // We also limit the integral to be no more than the maximal
+      // applied voltage for each phase independently.  This helps to
+      // more quickly recover if things saturate in the case of no or
+      // incomplete feedforward terms.
       status_.pid_d.integral = Limit(
           status_.pid_d.integral,
-          -max_current_integral, max_current_integral);
+          -max_V, max_V);
 
-      const float q_V =
-          Limit(
-              pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
-              i_q_A * config_.current_feedforward * motor_.resistance_ohm +
-              (feedforward_velocity_rotor *
-               config_.bemf_feedforward *
-               motor_.v_per_hz),
-              -max_V, max_V);
       status_.pid_q.integral = Limit(
           status_.pid_q.integral,
-          -max_current_integral, max_current_integral);
+          -max_V, max_V);
 
       // eq 2.28 from "DYNAMIC MODEL OF PM SYNCHRONOUS MOTORS" D. Ohm,
       // 2000
@@ -1829,12 +1883,14 @@ class BldcServo::Impl {
           1.5f * (i_d_A * i_d_A * motor_.resistance_ohm +
                   i_q_A * i_q_A * motor_.resistance_ohm);
 
-      ISR_DoVoltageDQ(sin_cos,
-                      i_d_A * motor_.resistance_ohm,
-                      i_q_A * motor_.resistance_ohm +
-                      (feedforward_velocity_rotor *
-                       config_.bemf_feedforward *
-                       motor_.v_per_hz));
+      auto [d_V, q_V] = limit_to_max_voltage(
+          i_d_A * motor_.resistance_ohm,
+          i_q_A * motor_.resistance_ohm +
+          (feedforward_velocity_rotor *
+           config_.bemf_feedforward *
+           v_per_hz_));
+
+      ISR_DoVoltageDQ(sin_cos, d_V, q_V);
     }
   }
 
@@ -1845,7 +1901,7 @@ class BldcServo::Impl {
   // factorization by delegating most of the work to this helper
   // function.
   Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    if (position_.epoch != motor_position_epoch_) {
+    if (position_.epoch != isr_motor_position_epoch_) {
       status_.mode = kFault;
       status_.fault = errc::kConfigChanged;
 
@@ -1855,15 +1911,9 @@ class BldcServo::Impl {
     control_.d_V = d_V;
     control_.q_V = q_V;
 
-    const float max_voltage =
-        (0.5f - rate_config_.min_pwm) * status_.filt_bus_V *
-        kSvpwmRatio / config_.pwm_scale;
-    auto limit_v = [&](float in) MOTEUS_CCM_ATTRIBUTE {
-      return Limit(in, -max_voltage, max_voltage);
-    };
     InverseDqTransform idt(
-        sin_cos, limit_v(control_.d_V),
-        limit_v(motor_position_config()->output.sign * control_.q_V));
+        sin_cos, control_.d_V,
+        motor_position_config()->output.sign * control_.q_V);
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control_done_cur = DWT->CYCCNT;
@@ -1889,7 +1939,20 @@ class BldcServo::Impl {
       return;
     }
 
-    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+    // We could limit maximum voltage further down the call stack in a
+    // common place, however current mode control limits it
+    // inherently, and is the most expensive of the control modes.
+    // Thus all other users of CalculatePhaseVoltage are required to
+    // limit voltage beforehand.
+    const float max_V =
+        rate_config_.max_voltage_ratio * kSvpwmRatio *
+        0.5f * status_.filt_bus_V;
+
+    ISR_DoBalancedVoltageControl(
+        ISR_CalculatePhaseVoltage(
+            sin_cos,
+            Limit(d_V, -max_V, max_V),
+            Limit(q_V, -max_V, max_V)));
   }
 
   void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
@@ -1970,7 +2033,8 @@ class BldcServo::Impl {
     // At this point, our control position and velocity are known.
 
     if (config_.fixed_voltage_mode ||
-        !std::isnan(data->fixed_voltage_override)) {
+        !std::isnan(data->fixed_voltage_override) ||
+        !std::isnan(data->fixed_current_override)) {
       status_.position =
           static_cast<float>(
               static_cast<int32_t>(
@@ -1978,28 +2042,27 @@ class BldcServo::Impl {
           65536.0f;
       status_.velocity = velocity_command;
 
-      // For "fixed voltage" mode, we skip all position and current
-      // PID loops and all their associated calculations, including
-      // everything that uses the encoder.  Instead we just burn power
-      // with a fixed voltage drive based on the desired position.
-      const float synthetic_electrical_theta =
-          WrapZeroToTwoPi(
-              motor_position_config()->output.sign *
-              MotorPosition::IntToFloat(*status_.control_position_raw)
-              / motor_position_->config()->rotor_to_output_ratio
-              * motor_.poles
-              * 0.5f
-              * k2Pi);
-      const SinCos synthetic_sin_cos =
-          cordic_(RadiansToQ31(synthetic_electrical_theta));
-      const float fixed_voltage =
-          std::isnan(data->fixed_voltage_override) ?
-          config_.fixed_voltage_control_V +
-          (std::abs(status_.velocity) *
-           motor_.v_per_hz *
-           config_.bemf_feedforward) :
-          data->fixed_voltage_override;
-      ISR_DoVoltageDQ(synthetic_sin_cos, fixed_voltage, 0.0f);
+      // For "fixed voltage" and "fixed current" mode, we skip all
+      // position PID loops and all their associated calculations,
+      // including everything that uses the encoder, further for
+      // "fixed voltage" mode we also skip the current control loop.
+      //
+      // In either case, we just burn power with a fixed voltage or
+      // current drive based on the desired position.
+      if (!std::isnan(data->fixed_current_override)) {
+        ISR_DoCurrent(sin_cos,
+                      data->fixed_current_override,
+                      0.0f, 0.0f, data->ignore_position_bounds);
+      } else {
+        const float fixed_voltage =
+            std::isnan(data->fixed_voltage_override) ?
+            config_.fixed_voltage_control_V +
+            (std::abs(status_.velocity) *
+             v_per_hz_ *
+             config_.bemf_feedforward) :
+            data->fixed_voltage_override;
+        ISR_DoVoltageDQ(sin_cos, fixed_voltage, 0.0f);
+      }
       return;
     }
 
@@ -2102,7 +2165,8 @@ class BldcServo::Impl {
 
     ISR_DoCurrent(
         sin_cos, d_A, q_A,
-        velocity_command / motor_position_->config()->rotor_to_output_ratio);
+        velocity_command / motor_position_->config()->rotor_to_output_ratio,
+        data->ignore_position_bounds);
   }
 
   void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
@@ -2160,6 +2224,15 @@ class BldcServo::Impl {
   }
 
   void ISR_DoMeasureInductance(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    // While we do use the sin_cos here, it doesn't really matter as
+    // this should only be done with the motor stationary.  Thus we
+    // won't bother checking if the motor is configured or the encoder
+    // is valid.
+    //
+    // Newer moteus_tool will probably use the fixed_voltage_override
+    // method anyways, which will force the sin_cos to be valid
+    // regardless of encoder status.
+
     const int8_t old_sign = status_.meas_ind_phase > 0 ? 1 : -1;
     const float old_sign_float = old_sign > 0 ? 1.0f : -1.0f;
 
@@ -2171,8 +2244,24 @@ class BldcServo::Impl {
       status_.meas_ind_phase = -old_sign * data->meas_ind_period;
     }
 
+    const float offset = std::isfinite(data->fixed_voltage_override) ?
+        data->fixed_voltage_override :
+        0.0f;
+
+    // We could limit maximum voltage further down the call stack in a
+    // common place, however current mode control limits it
+    // inherently, and is the most expensive of the control modes.
+    // Thus all other users of CalculatePhaseVoltage are required to
+    // limit voltage beforehand.
+    const float max_V = (0.5f - rate_config_.min_pwm) *
+        status_.filt_bus_V * kSvpwmRatio;
+
     const float d_V =
-        data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f);
+        Limit(
+            offset +
+            data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f),
+            -max_V,
+            max_V);
 
     // We also integrate the difference in current.
     status_.meas_ind_integrator +=
@@ -2263,6 +2352,26 @@ class BldcServo::Impl {
       write_scalar(static_cast<uint16_t>(status_.final_timer));
     }
 
+    if (config_.emit_debug & (1 << 15)) {
+      write_scalar(static_cast<int16_t>(32767.0f * control_.d_V / 64.0f));
+    }
+
+    if (config_.emit_debug & (1 << 16)) {
+      write_scalar(static_cast<int16_t>(32767.0f * control_.q_V / 64.0f));
+    }
+
+    if (config_.emit_debug & (1 << 17)) {
+      write_scalar(static_cast<int16_t>(control_.pwm.a * 32767.0f));
+    }
+
+    if (config_.emit_debug & (1 << 18)) {
+      write_scalar(static_cast<int16_t>(control_.pwm.b * 32767.0f));
+    }
+
+    if (config_.emit_debug & (1 << 19)) {
+      write_scalar(static_cast<int16_t>(control_.pwm.c * 32767.0f));
+    }
+
     // We rely on the FIFO to queue these things up.
     for (int i = 0; i < pos; i++) {
       debug_uart_->TDR = debug_buf_[i];
@@ -2288,7 +2397,12 @@ class BldcServo::Impl {
   const MotorPosition::Status& position_ = motor_position_->status();
   Config config_;
   PositionConfig position_config_;
-  uint8_t motor_position_epoch_ = 0;
+
+  // This copy of the current epoch is intended to be accessed from the ISR.
+  uint8_t isr_motor_position_epoch_ = 0;
+
+  // This copy is only accessed from the main loop.
+  uint8_t main_motor_position_epoch_ = 0;
 
   TIM_TypeDef* timer_ = nullptr;
   volatile uint32_t* timer_sr_ = nullptr;
@@ -2372,10 +2486,13 @@ class BldcServo::Impl {
   uint8_t debug_buf_[7] = {};
 
   float torque_constant_ = 0.01f;
+  float v_per_hz_ = 0.0f;
 
   float adc_scale_ = 0.0f;
-  float adjusted_pwm_comp_off_ = 0.0f;
-  float adjusted_max_power_W_ = 0.0f;
+  float pwm_derate_ = 1.0f;
+
+  float old_d_V = 0.0f;
+  float old_q_V = 0.0f;
 
   float vsense_adc_scale_ = 0.0f;
 
