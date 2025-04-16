@@ -736,14 +736,23 @@
           productInfo: html`<a href="https://mjbots.com/products/moteus-n1" target="_blank">[product page]</a>`,
         },
         {
-          'voltages' : [],
-          'pwms' : [],
-          'k0' : [],
-          'k1' : [],
-          'k2' : [],
+          'voltages' : [12, 24, 36, 48, 54],
+          'pwms' : [15000, 30000, 40000, 60000],
+          'k0' : [[0.681, 1.102, 1.467, 1.799, 2.063],
+                  [0.884, 1.470, 1.983, 2.612, 2.862],
+                  [1.025, 1.671, 2.302, 3.068, 3.559],
+                  [1.203, 2.146, 3.036, 3.400, 4.000]],
+          'k1' : [[0.016, 0.013, 0.020, 0.032, 0.000],
+                  [0.033, 0.027, 0.049, 0.073, 0.079],
+                  [0.023, 0.055, 0.093, 0.112, 0.120],
+                  [0.055, 0.076, 0.131, 0.140, 0.150]],
+          'k2' : [[0.011, 0.012, 0.012, 0.013, 0.016],
+                  [0.012, 0.014, 0.015, 0.015, 0.018],
+                  [0.013, 0.014, 0.015, 0.014, 0.030],
+                  [0.014, 0.018, 0.019, 0.022, 0.035]],
         },
         {
-          'none' :         {R: 10.0, C:12.7},
+          'none' :         {R: 11.7, C:10.3},
           '5vfan' :        {R: 4.1,  C:10.3},
           'heatspreader':  {R: 9.8,  C:12.2},
           'heatspreader_4030sink': {R:7.2, C:16.8},
@@ -1761,7 +1770,7 @@
       return html`
 <div class="pageContainer">
   <div class="panelColumn">
-<${SelectorPanel} panelName="controller" displayName="Controller" onChange=${onChange} instances=${controllerOptions} defaultChecked=${['moteus-c1','moteus-r4','moteus-x1']}/>
+<${SelectorPanel} panelName="controller" displayName="Controller" onChange=${onChange} instances=${controllerOptions} defaultChecked=${['moteus-c1','moteus-r4','moteus-n1','moteus-x1']}/>
 <${SelectorPanel} panelName="voltage" displayName="Supply Voltage" onChange=${onChange} instances=${voltageOptions} defaultChecked=${['12V', '24V', '36V', '48V', '54V']}/>
 <${SelectorPanel} panelName="pwm" displayName="PWM Frequency" onChange=${onChange} instances=${pwmOptions} defaultChecked=${['default']}/>
 <${SelectorPanel} panelName="cooling" displayName="Controller Cooling" onChange=${onChange} instances=${coolingOptions} defaultChecked=${['none']}/>
