@@ -609,8 +609,9 @@
       }
 
       getSpeedFactor() {
-        // TODO: Verify this is correct, may need SVPWM scale.
-        return 0.87;
+        // Measured with moteus-c1, moteus-n1 and moteus-x1 on a MAD 8318 at 12V
+        // and 18V on 2025-04-17.
+        return 0.75;
       }
 
       getMaxCurrent() {
