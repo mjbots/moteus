@@ -832,15 +832,28 @@
           'k2': [[0.008, 0.009, 0.010, 0.010, 0.012]],
         },
         {
-          'none':  {R: 6.7, C: 30.4},
+          'none':         {R: 6.7, C: 30.4},
           'heatspreader': {R: 5.4, C: 71.7},
-          'max': {R: 1.5, C: 71.7},
+          // The fan options were taken with the heatspreader attached, since
+          // the FETs are otherwise on the wrong side of the board when used
+          // with the onboard encoder.
+          '5vfan':        {R: 1.5, C: 71.7 },
+          '12vfan':       {R: 1.0, C: 71.7 },
+          'max':          {R: 1.0, C: 71.7},
         }
         );
       }
 
       getSpeedFactor() {
-        return 1.0;
+        // Measured with a MAD 8318 at 12V and 18V and harmonic compensation.
+        // In velocity ramp control mode, this was the highest stable velocity,
+        // if a velocity even slightly higher than this was commanded, the
+        // control seemed to have some problems and slowed down to a steady
+        // state which was more like 0.8 or 0.85, but clearly had some wind up
+        // issues of some sort.
+        //
+        // Measured with fw 0.6.11 on 2025-04-17.
+        return 0.93;
       }
     }
 
@@ -868,13 +881,21 @@
         {
           'none':  {R: 6.6, C: 35.8},
           'heatspreader': {R: 4.7, C: 85.8},
-          'max': {R: 1.4, C: 85.8},
+          // The fan options were taken with the heatspreader attached, since
+          // the FETs are otherwise on the wrong side of the board when used
+          // with the onboard encoder.
+          '5vfan': {R: 1.2, C: 85.8},
+          'max':   {R: 1.2, C: 85.8},
         }
         );
       }
 
       getSpeedFactor() {
-        return 0.78;
+        // Measured empirically on a MAD 8318 using fw 0.6.11 w/ harmonic
+        // compensation on 2025-04-17.
+        //  12V - 17.7Hz
+        //  18V - 25.7Hz
+        return 0.75;
       }
     }
 
@@ -910,7 +931,11 @@
       }
 
       getSpeedFactor() {
-        return 0.78;
+        // Measured empirically on a MAD 8318 using fw 0.6.11 on 2025-04-17 w/
+        // harmonic compensation.
+        // 12V - 17.27Hz
+        // 18V - 25.75Hz
+        return 0.75;
       }
     }
 
