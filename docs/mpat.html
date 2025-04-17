@@ -1637,7 +1637,7 @@
         `
     }
 
-    function SelectorPanel({ panelName, displayName, onChange, instances, defaultChecked }) {
+    function SelectorPanel({ panelName, displayName, onChange, instances, defaultChecked, checkable=true }) {
       const params = new URLSearchParams(window.location.search);
 
       const instanceKeys = instances.map((instance) => instance.name());
@@ -1719,9 +1719,10 @@
   ${instances.map((item) => {
         return html`
     <label>
+      ${checkable ? html`
       <input type="checkbox" name="${panelName}" value="${item.name()}"
         checked="${state.selected.includes(item.name()) ?? false}"
-        onClick="${makeCheckToggle(item.name())}" />
+        onClick="${makeCheckToggle(item.name())}" />` : html``}
       ${item.render({}, state[item.name()],
            (newState) => myOnChange(
                   panelName,
@@ -1883,7 +1884,7 @@
 <${SelectorPanel} panelName="cooling" displayName="Controller Cooling" onChange=${onChange} instances=${coolingOptions} defaultChecked=${['none']}/>
 <${SelectorPanel} panelName="motor" displayName="Motor" onChange=${onChange} instances=${motorOptions} defaultChecked=${['mad8318']}/>
 <${SelectorPanel} panelName="output" displayName="Output" onChange=${onChange} instances=${outputOptions} defaultChecked=${['T_Infinity']}/>
-<${SelectorPanel} panelName="general" displayName="General" onChange=${onChange} instances=${generalOptions} defaultChecked=${['ambient']}/>
+<${SelectorPanel} panelName="general" displayName="General" onChange=${onChange} instances=${generalOptions} defaultChecked=${['ambient']} checkable=${false}/>
 <a href="${makeShareLink()}" onclick=${copyShareLink}>Copy link to these results...</a>
   </div>
   <div class="resultsColumn">
