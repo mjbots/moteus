@@ -813,7 +813,9 @@
       constructor() {
         super({
           name: 'odrive-pro',
-          maxTemp: 100.0,
+          // The default thermal limiting ranges from 84C - 104C, so will
+          // typically saturate around 95.
+          maxTemp: 95,
           maxCurrent: 120.0,
           maxCurrentDerateVoltage: 100.0,
           derateCurrent: 120.0,
@@ -846,7 +848,9 @@
       constructor() {
         super({
           name: 'odrive-s1',
-          maxTemp: 100.0,
+          // The default thermal limiting ranges from 84C - 104C, so will
+          // typically saturate around 95.
+          maxTemp: 95.0,
           maxCurrent: 80.0,
           maxCurrentDerateVoltage: 36.0,
           derateCurrent: 40.0,
@@ -865,6 +869,42 @@
           'none':  {R: 6.6, C: 35.8},
           'heatspreader': {R: 4.7, C: 85.8},
           'max': {R: 1.4, C: 85.8},
+        }
+        );
+      }
+
+      getSpeedFactor() {
+        return 0.78;
+      }
+    }
+
+    class OdriveMicro extends OdriveController {
+      constructor() {
+        super({
+          name: 'odrive-micro',
+          // The default thermal limiting on the board I have is from 135C -
+          // 145C.  However, that limit is applied to the Tj model of
+          // the driver IC, not the board temperature, like the limits are for
+          // the pro and S1.  At maximum power, the board temperature itself
+          // stabilizes at roughly 80C.
+          maxTemp: 80.0,
+          maxCurrent: 7.0,
+          maxCurrentDerateVoltage: 100.0,
+          derateCurrent: 40.0,
+          maxVoltage: 31.0,
+          P_W: 100.0,
+          productInfo: html`<a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">[product page]</a>`,
+        },
+        {
+          voltages: [12, 24],
+          pwms: [24000],
+          'k0': [[0.607, 0.820]],
+          'k1': [[0.082, 0.301]],
+          'k2': [[0.148, 0.149]],
+        },
+        {
+          'none':  {R: 16.0, C: 7.9},
+          'max':   {R: 6.2, C: 10.0},
         }
         );
       }
@@ -1646,8 +1686,9 @@
       new MoteusR4(),
       new MoteusN1(),
       new MoteusX1(),
-      new OdrivePro(),
+      new OdriveMicro(),
       new OdriveS1(),
+      new OdrivePro(),
     ];
 
     const voltageOptions = [
