@@ -562,9 +562,8 @@
         return thermalPower;
       }
 
-      getTemperature(state, {thermalPower, coolingName, timePeriodS}) {
+      getTemperature(state, {thermalPower, coolingName, timePeriodS, ambientTemp}) {
         const [R, C] = this.getThermalProperties(state, coolingName);
-        const ambientTemp = 25;
         return ambientTemp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
       }
 
@@ -1062,7 +1061,7 @@
         return controllerInstance.getSpeedFactor(controllerState) * voltage.getVoltage(voltageState) * this.Kv / 60.0;
       }
 
-      getOperatingPoint(motorState, {current, velocityHz, timePeriodS=Infinity}) {
+      getOperatingPoint(motorState, {current, velocityHz, timePeriodS=Infinity, ambientTemp}) {
         const result = new OperatingPoint({});
         result.motorTorqueNm = this.getTorqueFromCurrent(motorState, current);
         result.phaseCurrentA = current;
@@ -1074,7 +1073,6 @@
         const motorLossPower = r.Pcopper + r.Piron;
 
         const [R, C] = this.getThermalProperties(motorState, "none");
-        const ambientTemp = 25;
         result.motorTempC = ambientTemp + motorLossPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
 
         return result;
@@ -1091,13 +1089,13 @@
         return this.nameValue;
       }
 
-      evaluateBase({ controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState }, timePeriodS) {
+      evaluateBase({ controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState, general, generalState }, timePeriodS) {
         const coolingName = cooling.getCooling(coolingState);
         const [R, C] = controller.getThermalProperties(controllerState, coolingName);
         if (R == null || C == null) {
           return null;
         }
-        const ambientTemp = 25;  // TODO: Don't hard-code
+        const ambientTemp = general.ambient.getTemperature(generalState.ambient);
         const controllerMaxTemp = controller.getMaxTemp(controllerState)
         const deltaT = controllerMaxTemp - ambientTemp;
 
@@ -1173,7 +1171,7 @@
       }
 
       evaluateBase(args, velocityHz, timePeriodS) {
-        const { controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState, motor, motorState} = args;
+        const { controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState, motor, motorState, general, generalState} = args;
 
         if (motor == null) {
           return null;
@@ -1183,13 +1181,14 @@
           return null;
         }
 
+        const ambientTemp = general.ambient.getTemperature(generalState.ambient);
+
         // TODO: Hook up motor cooling.
         const [R, C] = motor.getThermalProperties(motorState, "none");
         if (R == null || C == null) {
           return null;
         }
 
-        const ambientTemp = 25;  // TODO: Don't hard-code
         const deltaT = motor.getMaxTemp(motorState) - ambientTemp;
 
         const thermalW = (timePeriodS == Infinity) ?
@@ -1212,14 +1211,15 @@
 
         const motorTorque = motor.getTorqueFromCurrent(motorState, finalCurrent);
 
-        const op = motor.getOperatingPoint(motorState, {current: finalCurrent, velocityHz: velocityHz, timePeriodS: timePeriodS});
         const opargs = {
           voltage: voltageValue,
           pwm: pwmValue,
           current: finalCurrent,
           coolingName: cooling.getCooling(coolingState),
           timePeriodS: timePeriodS,
+          ambientTemp: ambientTemp,
         };
+        const op = motor.getOperatingPoint(motorState, {current: finalCurrent, velocityHz: velocityHz, timePeriodS: timePeriodS, ambientTemp: opargs.ambientTemp});
         const thermalPower = controller.getThermalPower(controllerState, opargs);
         op['controllerLossW'] = thermalPower;
         op['controllerTempC'] = controller.getTemperature(controllerState, {...opargs, thermalPower: thermalPower});
@@ -1326,6 +1326,38 @@
       }
     }
 
+    class AmbientTemperature extends SelectionBase {
+      constructor() {
+        super();
+      }
+
+      getState() {
+        return {
+          temperature: 25.0,
+        };
+      }
+
+      name() {
+        return 'ambient';
+      }
+
+      displayName(state) {
+        return `Ambient temperature ${state.temperature}`;
+      }
+
+      render({}, state, onChange) {
+        const t = state.temperature;
+
+        return html`Ambient temperature: <input type="number" value="${t}" style="width: 6ch;"
+          onChange=${(e) => onChange({temperature:Number(e.target.value)})}/>
+        `;
+      }
+
+      getTemperature(state) {
+        return state.temperature;
+      }
+    }
+
     function Simulator({ state, setState }) {
       // We are going to generate one or more tables from our possible
       // configurations.  To do so, for now we'll have a fixed ordering of
@@ -1424,6 +1456,7 @@
           pwm: pwm, pwmState: pwmState,
           cooling: cooling, coolingState: coolingState,
           motor: motor, motorState: motorState,
+          general: state.general, generalState: state.x.general,
         };
         const maybeRenderedValue = output.evaluate(evalArgs);
         const content = maybeRenderedValue?.render() ?? '';
@@ -1795,6 +1828,10 @@
       new OutputMotorMaxSpeed(),
     ];
 
+    const generalOptions = [
+      new AmbientTemperature(),
+    ];
+
     function App() {
       const [state, setState] = useState({});
 
@@ -1843,6 +1880,7 @@
 <${SelectorPanel} panelName="cooling" displayName="Controller Cooling" onChange=${onChange} instances=${coolingOptions} defaultChecked=${['none']}/>
 <${SelectorPanel} panelName="motor" displayName="Motor" onChange=${onChange} instances=${motorOptions} defaultChecked=${['mad8318']}/>
 <${SelectorPanel} panelName="output" displayName="Output" onChange=${onChange} instances=${outputOptions} defaultChecked=${['T_Infinity']}/>
+<${SelectorPanel} panelName="general" displayName="General" onChange=${onChange} instances=${generalOptions} defaultChecked=${['ambient']}/>
 <a href="${makeShareLink()}" onclick=${copyShareLink}>Copy link to these results...</a>
   </div>
   <div class="resultsColumn">
