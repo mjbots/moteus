@@ -1112,6 +1112,9 @@
             (deltaT) / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
 
         const result = controller.getCurrentFromThermalPower(controllerState, thermalW, args);
+        if (result < 0) {
+          return null;
+        }
 
         const op = new OperatingPoint({
           controllerTempC: controllerMaxTemp,
