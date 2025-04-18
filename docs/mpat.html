@@ -1249,7 +1249,10 @@
           timePeriodS: timePeriodS,
           ambientTemp: ambientTemp,
         };
-        const op = motor.getOperatingPoint(motorState, {current: finalCurrent, velocityHz: velocityHz, timePeriodS: timePeriodS, ambientTemp: opargs.ambientTemp, motorCoolingValue: motorCoolingValue});
+        const op = motor.getOperatingPoint(motorState, {
+          current: finalCurrent, velocityHz: velocityHz,
+          timePeriodS: timePeriodS, ambientTemp: opargs.ambientTemp,
+          motorCoolingValue: motorCoolingValue});
         const thermalPower = controller.getThermalPower(controllerState, opargs);
         op['controllerLossW'] = thermalPower;
         op['controllerTempC'] = controller.getTemperature(controllerState, {...opargs, thermalPower: thermalPower});
@@ -1823,7 +1826,8 @@
         rotationCurrentScale: 0.02494,
         rotationTorqueScale: 0.6638,
         thermal: {
-          'none': {R: 3.0, C:50},  // TODO: Fill in with actual values.
+          'none': {R: 4.55, C:164.59},  // measured 2025-04-18
+          'max':  {R: 0.48, C:164.59},  // measured 2025-04-18 w/ large desk fan
         },
         // The following iron loss model was generated from pypowertrain and is
         // not from any measured or design values.
@@ -1838,8 +1842,12 @@
         Kv: 120,
         R: 0.015,
         L: 9.75e-6,
+        rotationCurrentCutoff: 31.07,
+        rotationCurrentScale: 0.004214,
+        rotationTorqueScale: 12.087,
         thermal: {
-          'none': {R:1.516, C:735.5},
+          'none': {R:1.516, C:735.5},  // measured 2025-04-17
+          'max':  {R:0.311, C:735.5},  // measured 2025-04-18 w/ large desk fan
         },
         // The following iron loss model was generated from pypowertrain and is
         // not from any measured or design values.
@@ -1851,6 +1859,7 @@
 
     const motorCoolingOptions = [
       new MotorCoolingSelection('none', 'none'),
+      new MotorCoolingSelection('max', 'max'),
     ];
 
     const outputOptions = [
