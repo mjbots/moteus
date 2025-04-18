@@ -1061,7 +1061,7 @@
         return controllerInstance.getSpeedFactor(controllerState) * voltage.getVoltage(voltageState) * this.Kv / 60.0;
       }
 
-      getOperatingPoint(motorState, {current, velocityHz, timePeriodS=Infinity, ambientTemp}) {
+      getOperatingPoint(motorState, {current, velocityHz, timePeriodS=Infinity, ambientTemp, motorCoolingValue}) {
         const result = new OperatingPoint({});
         result.motorTorqueNm = this.getTorqueFromCurrent(motorState, current);
         result.phaseCurrentA = current;
@@ -1072,10 +1072,34 @@
         result.mechanicalPowerW = r.Pmech;
         const motorLossPower = r.Pcopper + r.Piron;
 
-        const [R, C] = this.getThermalProperties(motorState, "none");
+        const [R, C] = this.getThermalProperties(motorState, motorCoolingValue);
         result.motorTempC = ambientTemp + motorLossPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
 
         return result;
+      }
+    }
+
+    class MotorCoolingSelection extends SelectionBase {
+      constructor(motorCooling, userDisplayName) {
+        super();
+        this.motorCooling = motorCooling;
+        this.userDisplayName = userDisplayName;
+      }
+
+      getMotorCooling() {
+        return this.motorCooling;
+      }
+
+      name() {
+        return this.motorCooling;
+      }
+
+      displayName() {
+        return `${this.userDisplayName}`
+      }
+
+      productInfo() {
+        return this?.productInfo;
       }
     }
 
@@ -1174,7 +1198,10 @@
       }
 
       evaluateBase(args, velocityHz, timePeriodS) {
-        const { controller, controllerState, voltage, voltageState, pwm, pwmState, cooling, coolingState, motor, motorState, general, generalState} = args;
+        const { controller, controllerState,
+                voltage, voltageState, pwm, pwmState, cooling, coolingState,
+                motor, motorState, motorCooling, motorCoolingState,
+                general, generalState} = args;
 
         if (motor == null) {
           return null;
@@ -1185,9 +1212,9 @@
         }
 
         const ambientTemp = general.ambient.getTemperature(generalState.ambient);
+        const motorCoolingValue = motorCooling.getMotorCooling(motorCoolingState);
 
-        // TODO: Hook up motor cooling.
-        const [R, C] = motor.getThermalProperties(motorState, "none");
+        const [R, C] = motor.getThermalProperties(motorState, motorCoolingValue);
         if (R == null || C == null) {
           return null;
         }
@@ -1222,7 +1249,7 @@
           timePeriodS: timePeriodS,
           ambientTemp: ambientTemp,
         };
-        const op = motor.getOperatingPoint(motorState, {current: finalCurrent, velocityHz: velocityHz, timePeriodS: timePeriodS, ambientTemp: opargs.ambientTemp});
+        const op = motor.getOperatingPoint(motorState, {current: finalCurrent, velocityHz: velocityHz, timePeriodS: timePeriodS, ambientTemp: opargs.ambientTemp, motorCoolingValue: motorCoolingValue});
         const thermalPower = controller.getThermalPower(controllerState, opargs);
         op['controllerLossW'] = thermalPower;
         op['controllerTempC'] = controller.getTemperature(controllerState, {...opargs, thermalPower: thermalPower});
@@ -1369,6 +1396,7 @@
       // configurable at some point.
       const axisOrder = [
         'motor',
+        'motorcooling',
         'cooling',
         'pwm',
         'voltage',
@@ -1452,6 +1480,7 @@
         const [pwm, pwmState] = getInstanceState("pwm");
         const [cooling, coolingState] = getInstanceState("cooling");
         const [motor, motorState] = getInstanceState("motor");
+        const [motorCooling, motorCoolingState] = getInstanceState("motorcooling");
         const evalArgs = {
           outputState: outputState,
           controller: controller, controllerState: controllerState,
@@ -1459,6 +1488,7 @@
           pwm: pwm, pwmState: pwmState,
           cooling: cooling, coolingState: coolingState,
           motor: motor, motorState: motorState,
+          motorCooling: motorCooling, motorCoolingState: motorCoolingState,
           general: state.general, generalState: state.x.general,
         };
         const maybeRenderedValue = output.evaluate(evalArgs);
@@ -1545,7 +1575,7 @@
         )}</ul>`;
 
         let body = null;
-        const required = ['output', 'controller', 'voltage', 'pwm', 'cooling'];
+        const required = ['output', 'controller', 'voltage', 'pwm', 'cooling', 'motorcooling'];
         const findPanel = (panel) => {
           if (fixedPanels?.[panel] != null) { return true; }
           if (multipleSelections.filter((key2) => key2 == panel).length > 0) { return true; }
@@ -1631,7 +1661,7 @@
 
       return html`
         <div>
-          ${generateTables({}, ['output', 'voltage', 'pwm', 'controller', 'cooling', 'motor'])}
+          ${generateTables({}, ['output', 'voltage', 'pwm', 'controller', 'cooling', 'motorcooling', 'motor'])}
           ${renderOverlay()}
         </div>
         `
@@ -1819,6 +1849,10 @@
       }),
     ];
 
+    const motorCoolingOptions = [
+      new MotorCoolingSelection('none', 'none'),
+    ];
+
     const outputOptions = [
       new OutputContinuousCurrent('I_Infinity', Infinity),
       new OutputContinuousCurrent('I_60s', 60.0),
@@ -1883,6 +1917,7 @@
 <${SelectorPanel} panelName="pwm" displayName="PWM Frequency" onChange=${onChange} instances=${pwmOptions} defaultChecked=${['default']}/>
 <${SelectorPanel} panelName="cooling" displayName="Controller Cooling" onChange=${onChange} instances=${coolingOptions} defaultChecked=${['none']}/>
 <${SelectorPanel} panelName="motor" displayName="Motor" onChange=${onChange} instances=${motorOptions} defaultChecked=${['mad8318']}/>
+<${SelectorPanel} panelName="motorcooling" displayName="Motor Cooling" onChange=${onChange} instances=${motorCoolingOptions} defaultChecked=${['none']}/>
 <${SelectorPanel} panelName="output" displayName="Output" onChange=${onChange} instances=${outputOptions} defaultChecked=${['T_Infinity']}/>
 <${SelectorPanel} panelName="general" displayName="General" onChange=${onChange} instances=${generalOptions} defaultChecked=${['ambient']} checkable=${false}/>
 <a href="${makeShareLink()}" onclick=${copyShareLink}>Copy link to these results...</a>
