@@ -887,7 +887,7 @@ class Stream:
             if old_firmware is None else
             old_firmware.version,
             elf.firmware_version,
-            None if old_firmware is None else old_firmware.family
+            None if old_firmware is None else getattr(old_firmware, 'family', 0)
         )
 
         if not self.args.bootloader_active and not self.args.no_restore_config:
@@ -1950,7 +1950,7 @@ class Stream:
         if self.firmware.version >= 0x010a:
             await self.command(f"conf set motor.Kv {motor_kv}")
         else:
-            if self.firmware.family == 2:
+            if getattr(self.firmware, 'family', 0) == 2:
                 # moteus-c1 in older firmwares had additional
                 # scaling.
                 motor_kv /= 1.38
