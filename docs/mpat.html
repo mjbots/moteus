@@ -1855,6 +1855,42 @@
         d1: 0.002403,
         productInfo: html`<a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">[product page]</a>`,
       }),
+      new Motor({
+        name:'gbm5208',
+        displayName: 'Rctimer GBM5208',
+        maxTemp: 80,
+        Kv: 25.5,
+        R: 7.545,
+        L:2254.5e-6,
+        // We'll assume saturation isn't relevant for this gimbal wound motor.
+        thermal: {
+          // Assume this is basically the same as the mj5208, since mounting a
+          // thermistor in the coils is basically impossible.
+          'none': {R: 4.55, C:165},
+          'max':  {R: 0.5,  C:165},
+        },
+        // The following iron loss model is roughly similar to the mj5208, as
+        // the stators and magnets are somewhat similar.
+        d0: 0.05,
+        d1: 0.003,
+        productInfo: html`<a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">[product page]</a>`,
+      }),
+      new Motor({
+        name:'hoverboard350',
+        displayName: '8.5" 350W hoverboard',
+        maxTemp: 80,
+        Kv: 18.2,
+        R: 0.216,
+        L: 530e-6,
+        // No clue about saturation here yet, it is hard to mount in the dyno.
+        thermal: {
+          'none': {R: 2.41, C:946.1},
+          'max': {R: 1.80, C:946.1},
+        },
+        d0: 0.05,
+        d1: 0.003,
+        productInfo: html`<a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">[product page]</a>`,
+      }),
     ];
 
     const motorCoolingOptions = [
