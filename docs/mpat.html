@@ -421,7 +421,7 @@
              ['mechanicalPowerW', 'Mechanical power (W)'],
              ['efficiencyPercent', 'Efficiency (%)'],
            ].map(([attrName, displayName]) =>
-           html`${this[attrName] ? html`<tr><td>${displayName}</td><td>${this[attrName].toFixed(2)}</td></tr>` : ''}`)
+           html`${this[attrName] ? html`<tr><td>${displayName}</td><td>${this[attrName].toFixed(3)}</td></tr>` : ''}`)
            }
         </table>
         `
@@ -1260,7 +1260,7 @@
         op['supplyCurrentA'] = (totalLossPowerW + op.mechanicalPowerW) / voltageValue;
         op['supplyPowerW'] = op.mechanicalPowerW + totalLossPowerW;
         op['efficiencyPercent'] = 100.0 * op.mechanicalPowerW / (op.mechanicalPowerW + totalLossPowerW);
-        return new RenderedValue(motorTorque, {numberRender: ((value) => `${value.toFixed(2)} Nm`), operatingPoint: op});
+        return new RenderedValue(motorTorque, {numberRender: ((value) => `${value.toFixed(3)} Nm`), operatingPoint: op});
       }
     }
 
@@ -1822,6 +1822,7 @@
         Kv: 304,
         R: 0.047,
         L:28.6e-6,
+        mass_kg: 0.192,
         rotationCurrentCutoff: 22.5,
         rotationCurrentScale: 0.02494,
         rotationTorqueScale: 0.6638,
@@ -1842,6 +1843,7 @@
         Kv: 120,
         R: 0.015,
         L: 9.75e-6,
+        mass_kg: 0.646,
         rotationCurrentCutoff: 31.07,
         rotationCurrentScale: 0.004214,
         rotationTorqueScale: 12.087,
@@ -1862,6 +1864,7 @@
         Kv: 25.5,
         R: 7.545,
         L:2254.5e-6,
+        mass_kg: 0.193,
         // We'll assume saturation isn't relevant for this gimbal wound motor.
         thermal: {
           // Assume this is basically the same as the mj5208, since mounting a
@@ -1882,14 +1885,51 @@
         Kv: 18.2,
         R: 0.216,
         L: 530e-6,
+        mass_kg: 4.26,
         // No clue about saturation here yet, it is hard to mount in the dyno.
         thermal: {
           'none': {R: 2.41, C:946.1},
           'max': {R: 1.80, C:946.1},
         },
+        // Totally arbitrary
         d0: 0.05,
         d1: 0.003,
         productInfo: html`<a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">[product page]</a>`,
+      }),
+      new Motor({
+        name:'ht1105',
+        displayName: 'HT1105',
+        maxTemp: 80,
+        Kv: 1180,
+        R: 6.435,
+        L: 298.5e-6,
+        mass_kg: 0.008,
+        // i suspect due to its gimbal winding, no real saturation effects were
+        // measured here all the way up to 2A of phase current.
+        thermal: {
+          'none': {R: 20.8, C:14.8},
+          'max':  {R: 3.2,  C:14.8},
+        },
+        // Zero for now, as I have no clue.
+        d0: 0.0,
+        d1: 0.0,
+        productInfo: html`<a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">[product page]</a>`,
+      }),
+      new Motor({
+        name:'be8108',
+        displayName: 'be8108',
+        maxTemp: 80,
+        Kv: 135,
+        R: 0.0910,
+        L: 39.2e-6,
+        thermal: {
+          'none': {R: 2.74, C:210.9},  // measured 2025-04-19
+          'max':  {R: 0.27, C:210.9},  // measured 2025-04-19 w/ big desk fan
+        },
+        // Zero for now, as I have no clue.
+        d0: 0.0,
+        d1: 0.0,
+        productInfo: html`<a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">[product page]</a>`,
       }),
     ];
 
