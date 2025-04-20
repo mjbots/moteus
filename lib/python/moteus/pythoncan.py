@@ -50,6 +50,16 @@ class PythonCan:
             self._disable_brs = kwargs['disable_brs']
             del kwargs['disable_brs']
 
+        if ('timing' not in kwargs and
+            kwargs.get('interface', can.rc['interface']) == 'pcan'):
+            # We default to the timing that works with moteus and assume
+            # an 80MHz base clock, which seems pretty typical for PCAN
+            # interfaces.
+            kwargs['timing'] = can.BitTimingFd.from_sample_point(
+                nom_bitrate=1000000, data_bitrate=5000000,
+                nom_sample_point=66, data_sample_point=66,
+                f_clock=80000000)
+
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
 
