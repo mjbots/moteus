@@ -995,6 +995,10 @@
         return html`${this.displayName()}`;
       }
 
+      getBackEmf(velocityHz) {
+        return velocityHz * 60 / this.getKv();
+      }
+
       getPower(current, velocityHz) {
         const torque = current < this.rotationCurrentCutoff ?
           (this.kt * current) :
@@ -1014,7 +1018,7 @@
         };
       }
 
-      getCurrentFromThermalPowerAndVelocity(state, thermalW, velocityHz, maxControllerPower) {
+      getCurrentFromThermalPowerAndVelocity(state, thermalW, velocityHz, maxControllerPower, supplyVoltageMargin) {
         // TODO: Should we model the fact that resistance tends to go up with
         // temperature?
 
@@ -1029,7 +1033,8 @@
         // and (Pcopper + Piron) < thermalW
         // and (Ptotal) < maxControllerPower
 
-        const ImaxPossible = Math.sqrt(Math.min(thermalW, maxControllerPower) / 1.5 / this.R);
+        const ImaxPossible = Math.min(supplyVoltageMargin / this.R,
+          Math.sqrt(Math.min(thermalW, maxControllerPower) / 1.5 / this.R));
         // This equation is not really possible to solve directly, so lets just
         // find it numerically.  The answer is much easier if the velocity is 0.
         if (velocityHz == 0.0) {
@@ -1227,11 +1232,13 @@
 
         const voltageValue = voltage.getVoltage(voltageState);
         const pwmValue = pwm.getPwm(pwmState, controller, controllerState);
+        const supplyVoltageMargin = Math.max(0, 0.5 * (controller.getSpeedFactor() * voltageValue - motor.getBackEmf(velocityHz)));
 
         const motorCurrent =
             motor.getCurrentFromThermalPowerAndVelocity(
                     motorState, thermalW, velocityHz,
-                    controller.getMaxPower(controllerState, voltageValue, pwmValue));
+                    controller.getMaxPower(controllerState, voltageValue, pwmValue),
+                    supplyVoltageMargin);
 
         const controllerCurrent = this.controllerOutput.evaluateBase(args, timePeriodS)?.value ?? null;
         if (controllerCurrent == null) {
