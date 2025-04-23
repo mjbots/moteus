@@ -156,6 +156,21 @@ class Stm32I2c {
   }
 
   void Poll() {
+    const auto isr = i2c_->ISR;
+
+    // Check for all the non-SMBus errors.
+    if (isr & (I2C_ISR_NACKF |
+               I2C_ISR_ARLO |
+               I2C_ISR_BERR)) {
+      mode_ = Mode::kError;
+      i2c_->ICR |= (I2C_ICR_NACKCF |
+                    I2C_ICR_ARLOCF |
+                    I2C_ICR_BERRCF);
+      return;
+    }
+
+    const auto peripheral_busy = (isr & I2C_ISR_BUSY) != 0;
+
     switch (mode_) {
       case Mode::kIdle:
       case Mode::kComplete:
@@ -163,7 +178,7 @@ class Stm32I2c {
         break;
       }
       case Mode::kSentRegisterRead: {
-        if ((i2c_->ISR & I2C_ISR_TC) == 0) {
+        if ((isr & I2C_ISR_TC) == 0) {
           break;
         }
 
@@ -185,7 +200,10 @@ class Stm32I2c {
         break;
       }
       case Mode::kReadingData: {
-        if ((i2c_->ISR & I2C_ISR_RXNE) == 0) {
+        if ((isr & I2C_ISR_RXNE) == 0) {
+          if (!peripheral_busy) {
+            mode_ = Mode::kError;
+          }
           break;
         }
 
@@ -202,7 +220,10 @@ class Stm32I2c {
         break;
       }
       case Mode::kWritingData: {
-        if ((i2c_->ISR & I2C_ISR_TXE) == 0) {
+        if ((isr & I2C_ISR_TXE) == 0) {
+          if (!peripheral_busy) {
+            mode_ = Mode::kError;
+          }
           break;
         }
 
@@ -220,11 +241,6 @@ class Stm32I2c {
       }
     }
 
-    if (i2c_->ISR & I2C_ISR_NACKF) {
-      mode_ = Mode::kError;
-      i2c_->ICR |= I2C_ICR_NACKCF;
-      return;
-    }
   }
 
   bool busy() const {
