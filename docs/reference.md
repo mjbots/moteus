@@ -1117,6 +1117,15 @@ Mode: Read only
 Returns a bitfield, where bit 0 indicates whether encoder 0 is active,
 bit 1 indicates whether encoder 1 is active, etc.
 
+| Bit | Value             |
+|-----|-------------------|
+| 0   | Source 0 Theta    |
+| 1   | Source 0 Velocity |
+| 2   | Source 1 Theta    |
+| 3   | Source 1 Velocity |
+| 4   | Source 2 Theta    |
+| 5   | Source 2 Velocity |
+
 #### 0x05c - Aux1 GPIO Command ####
 
 Mode: Read/write
