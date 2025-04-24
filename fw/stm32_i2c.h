@@ -214,7 +214,7 @@ class Stm32I2c {
           // Clear any NACKs
           i2c_->ICR |= I2C_ICR_NACKCF;
 
-          mode_ = Mode::kComplete;
+          mode_ = Mode::kWaitingForStop;
         }
 
         break;
@@ -232,15 +232,29 @@ class Stm32I2c {
           // We are done.
           i2c_->ICR |= I2C_ICR_NACKCF;
 
-          mode_ = Mode::kComplete;
+          mode_ = Mode::kWaitingForStop;
         } else {
           i2c_->TXDR = tx_data_[offset_];
           offset_++;
         }
         break;
       }
+      case Mode::kWaitingForStop: {
+        // Do nothing here.
+        break;
+      }
     }
 
+    // So as to reduce the time to complete a transaction by one
+    // polling cycle, we check for a stop condition *after* we have
+    // updated our mode.
+    if (mode_ == Mode::kWaitingForStop &&
+        (isr & I2C_ISR_STOPF) != 0) {
+
+      i2c_->ICR = I2C_ICR_STOPCF;
+
+      mode_ = Mode::kComplete;
+    }
   }
 
   bool busy() const {
@@ -252,7 +266,8 @@ class Stm32I2c {
       }
       case Mode::kSentRegisterRead:
       case Mode::kReadingData:
-      case Mode::kWritingData: {
+      case Mode::kWritingData:
+      case Mode::kWaitingForStop: {
         return true;
       }
     }
@@ -270,6 +285,7 @@ class Stm32I2c {
     kSentRegisterRead,
     kReadingData,
     kWritingData,
+    kWaitingForStop,
     kComplete,
     kError,
   };
