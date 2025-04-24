@@ -1082,12 +1082,8 @@ class Stream:
                 raise
             pass
 
-        try:
+        if await self.is_config_supported("motor_position.sources.0.sign"):
             await self.command("conf set motor_position.sources.0.sign 1")
-        except moteus.CommandError as e:
-            if not 'error setting' in e.message:
-                raise
-            pass
 
         # We have 3 things to calibrate.
         #  1) The encoder to phase mapping
