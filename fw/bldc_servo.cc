@@ -485,6 +485,9 @@ class BldcServo::Impl {
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
 
+    flux_brake_min_voltage_ =
+        config_.max_voltage - config_.flux_brake_margin_voltage;
+
     velocity_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
     temperature_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
     slow_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.5f);
@@ -2145,12 +2148,8 @@ class BldcServo::Impl {
         Limit(compensated_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
 
     const float d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
-      if (config_.flux_brake_min_voltage <= 0.0f) {
-        return 0.0f;
-      }
-
       const auto error = (
-          status_.filt_1ms_bus_V - config_.flux_brake_min_voltage);
+          status_.filt_1ms_bus_V - flux_brake_min_voltage_);
 
       if (error <= 0.0f) {
         return 0.0f;
@@ -2487,6 +2486,7 @@ class BldcServo::Impl {
 
   float torque_constant_ = 0.01f;
   float v_per_hz_ = 0.0f;
+  float flux_brake_min_voltage_ = 0.0f;
 
   float adc_scale_ = 0.0f;
   float pwm_derate_ = 1.0f;

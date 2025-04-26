@@ -534,14 +534,9 @@ struct BldcServoConfig {
   //  15 - "brake" - all motor phases shorted to ground
   uint8_t timeout_mode = 12;
 
-  // Similar to 'max_voltage', the flux braking default voltage is
-  // board rev dependent.
-  float flux_brake_min_voltage =
-      g_measured_hw_family == 0 ?
-      ((g_measured_hw_rev <= 5) ? 34.5f : 43.5f) :
-      g_measured_hw_family == 1 ? 53.0f :
-      g_measured_hw_family == 2 ? 51.0f :
-      invalid_float();
+  // If positive, configure flux braking to occur this many volts
+  // below 'max_voltage'.
+  float flux_brake_margin_voltage = 3.0f;
   float flux_brake_resistance_ohm = 0.025f;
 
   float max_current_A =
@@ -623,7 +618,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(default_timeout_s));
     a->Visit(MJ_NVP(timeout_max_torque_Nm));
     a->Visit(MJ_NVP(timeout_mode));
-    a->Visit(MJ_NVP(flux_brake_min_voltage));
+    a->Visit(MJ_NVP(flux_brake_margin_voltage));
     a->Visit(MJ_NVP(flux_brake_resistance_ohm));
     a->Visit(MJ_NVP(max_current_A));
     a->Visit(MJ_NVP(derate_current_A));

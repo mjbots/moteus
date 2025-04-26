@@ -1955,10 +1955,12 @@ Torque begins to be limited when the motor temperature reaches this value.
 If the motor temperature reaches this value, a fault is triggered and
 all torque is stopped.
 
-## `servo.flux_brake_min_voltage` ##
+## `servo.flux_brake_margin_voltage` ##
 
-When the input voltage is above this value, the controller causes the
-motor to act as a "virtual resistor" with resistance
+Selects the flux braking point relative to the currently configured `servo.max_voltage`.  `flux braking point = max_voltage - flux_brake_margin_voltage`.
+
+When the input voltage is above the braking point, the controller
+causes the motor to act as a "virtual resistor" with resistance
 `servo.flux_brake_resistance_ohm`.  All extra energy is dumped into
 the D phase of the motor.  This can be used to handle excess
 regenerative energy if the input DC link is incapable of accepting
@@ -2752,19 +2754,17 @@ Here's what you should know about the facilities moteus has to deal with this, a
 
 ### Flux braking ###
 
-The feature within moteus itself to deal with this is "flux braking".  The flux braking implementation will dissipate extra power in the windings of the motor when the bus voltage gets above a certain threshold.  This is controlled by the `servo.flux_brake_min_voltage` and `servo.flux_brake_resistance_ohm` parameters documented above.
+The feature within moteus itself to deal with this is "flux braking".  The flux braking implementation will dissipate extra power in the windings of the motor when the bus voltage gets above a certain threshold.  This is controlled by the `servo.flux_brake_margin_voltage` and `servo.flux_brake_resistance_ohm` parameters documented above.
 
 ### Design considerations for regenerative braking ###
 
 The following design considerations can be used to minimize the risk of damage to hardware in the event of overvoltage.  These are not a substitute for validation in progressively more demanding situations, but they can help you start off in a good place.
 
-- *Configure Flux Braking*: To have optimal effect, the flux braking minimum voltage should be approximately only 1.5V above the maximum voltage you expect your supply to provide.  Additionally, the resistance may need to be lowered.  When adjusting the resistance, it is wise to test for stability by gradually increasing the voltage with the drivers engaged using a programmable supply and monitoring for instability in the voltage bus.  This can be identified either with an oscilloscope or audibly.  The default values are set to provide a baseline of protection without compromising the maximum voltage rating of the controller, but more aggressive parameters can be useful when your system voltage is lower and you are able to validate stability.
+- *Tightly scope the over-voltage fault / flux braking*: The configuration parameter `servo.max_voltage` can be lowered for all devices on the bus.  This will both cause a fault if the voltage exceeds this value and in conjuction with `servo.flux_brake_margin_voltage`, select the point at which moteus will attempt to dissipate energy to prevent an overvoltage scenario.  It is recommended to set this to no less than 5V above the maximum expected supply voltage.
 
 - *Power from a battery, not a PSU*: When not charged, batteries are capable of sinking current to minimize over-voltage transients.  However, if the battery is fully charged, most battery management systems drastically reduce the allowable charging current.  Thus, a battery is only useful as a mitigation if it is never charged above say 75 or 80% state of charge.
 
 - *Decrease overall system voltage*: If you run the moteus controller with say a 10S battery, the peak input voltage can be as high as 42V.  That does not leave very much margin for regenerative loads.  For applications that experience sharp regenerative loads and do not have a battery capable of charging always attached, it is recommended not to exceed 8S (33.6V peak).
-
-- *Lower the over-voltage fault*: The configuration parameter `servo.max_voltage` can be lowered for all devices on the bus.  If set above the highest expected transient, this can reduce the likelihood of severe transients causing damage.
 
 - *Use a supply which can sink as well as source*: Powering from an inexpensive lab supply is the most dangerous, as they typically have no ability to sink current, only source it.  A "two quadrant" supply is the necessary device.
 

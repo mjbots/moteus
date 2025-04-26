@@ -78,7 +78,7 @@ def stddev(data):
     mean = sum(data) / len(data)
     return math.sqrt(sum((x - mean) ** 2 for x in data) / len(data))
 
-SUPPORTED_ABI_VERSION = 0x010a
+SUPPORTED_ABI_VERSION = 0x010b
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -104,6 +104,16 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010a and self.old >= 0x010b:
+            flux_brake_margin_voltage = float(items.pop(b'servo.flux_brake_margin_voltage'))
+            max_voltage = float(items[b'servo.max_voltage'])
+
+            flux_brake_min_voltage = max_voltage - flux_brake_margin_voltage
+
+            print(f"Downgrading servo.flux_brake_margin_voltage to servo.flux_brake_min_voltage={flux_brake_min_voltage}")
+
+            items[b'servo.flux_brake_min_voltage'] = str(flux_brake_min_voltage).encode('utf8')
 
         if self.new <= 0x0109 and self.old >= 0x010a:
             kv = float(items.pop(b'motor.Kv'))
@@ -499,6 +509,15 @@ class FirmwareUpgrade:
                     # value is absolute.  Scale it appropriately.
                     items[b'servo.max_power_W'] = str(old_max_power * (pwm_rate / 40000)).encode('utf8')
                 print(f"Upgraded servo.max_power_W to {items[b'servo.max_power_W'].decode('utf8')} for 0x010a")
+
+        if self.new >= 0x010b and self.old <= 0x010a:
+            flux_brake_min_voltage = float(items.pop(b'servo.flux_brake_min_voltage'))
+            max_voltage = float(items[b'servo.max_voltage'])
+
+            flux_brake_margin_voltage = max(0, max_voltage - flux_brake_min_voltage)
+
+            print(f"Upgraded servo.flux_brake_min_voltage to servo.flux_brake_margin_voltage={flux_brake_margin_voltage}")
+            items[b'servo.flux_brake_margin_voltage'] = str(flux_brake_margin_voltage).encode('utf8')
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
