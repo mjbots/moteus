@@ -458,7 +458,9 @@ struct BldcServoConfig {
   // this can easily cause damage.
   bool override_board_max_power = false;
 
-  float derate_temperature = 50.0f;
+  // If we are within this many degrees C of the `fault_temperature`,
+  // begin limiting current.
+  float temperature_margin = 25.0f;
   float fault_temperature = 75.0f;
 
   // If enabled, slightly more instructions are used per cycle, but
@@ -466,7 +468,7 @@ struct BldcServoConfig {
   // addition to the FET temperature.
   bool enable_motor_temperature = false;
   float motor_thermistor_ohm = 10000.0f;
-  float motor_derate_temperature = 50.0f;
+  float motor_temperature_margin = 20.0f;
   float motor_fault_temperature = std::numeric_limits<float>::quiet_NaN();
 
   float velocity_threshold = 0.0f;
@@ -593,11 +595,11 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(max_voltage));
     a->Visit(MJ_NVP(max_power_W));
     a->Visit(MJ_NVP(override_board_max_power));
-    a->Visit(MJ_NVP(derate_temperature));
+    a->Visit(MJ_NVP(temperature_margin));
     a->Visit(MJ_NVP(fault_temperature));
     a->Visit(MJ_NVP(enable_motor_temperature));
     a->Visit(MJ_NVP(motor_thermistor_ohm));
-    a->Visit(MJ_NVP(motor_derate_temperature));
+    a->Visit(MJ_NVP(motor_temperature_margin));
     a->Visit(MJ_NVP(motor_fault_temperature));
     a->Visit(MJ_NVP(velocity_threshold));
     a->Visit(MJ_NVP(position_derate));

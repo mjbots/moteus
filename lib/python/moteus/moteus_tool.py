@@ -115,6 +115,24 @@ class FirmwareUpgrade:
 
             items[b'servo.flux_brake_min_voltage'] = str(flux_brake_min_voltage).encode('utf8')
 
+            temperature_margin = float(items.pop(b'servo.temperature_margin'))
+            fault_temperature = float(items[b'servo.fault_temperature'])
+
+            derate_temperature = fault_temperature - temperature_margin
+
+            print(f"Downgrading servo.temperature_margin to servo.derate_temperature={derate_temperature}")
+            items[b'servo.derate_temperature'] = str(derate_temperature).encode('utf8')
+
+            motor_temperature_margin = float(items.pop(b'servo.motor_temperature_margin'))
+            motor_fault_temperature = float(items[b'servo.motor_fault_temperature'])
+            motor_derate_temperature = (
+                (motor_fault_temperature - motor_temperature_margin)
+                if math.isfinite(motor_fault_temperature) else
+                50)
+
+            print(f"Downgrading servo.motor_temperature_margin to servo.motor_derate_temperature={motor_derate_temperature}")
+            items[b'servo.motor_derate_temperature'] = str(motor_derate_temperature).encode('utf8')
+
         if self.new <= 0x0109 and self.old >= 0x010a:
             kv = float(items.pop(b'motor.Kv'))
 
@@ -518,6 +536,26 @@ class FirmwareUpgrade:
 
             print(f"Upgraded servo.flux_brake_min_voltage to servo.flux_brake_margin_voltage={flux_brake_margin_voltage}")
             items[b'servo.flux_brake_margin_voltage'] = str(flux_brake_margin_voltage).encode('utf8')
+
+
+            derate_temperature = float(items.pop(b'servo.derate_temperature'))
+            fault_temperature = float(items[b'servo.fault_temperature'])
+
+            temperature_margin = fault_temperature - derate_temperature
+
+            print(f"Upgraded servo.derate_temperature to servo.temperature_margin={temperature_margin}")
+            items[b'servo.temperature_margin'] = str(temperature_margin).encode('utf8')
+
+
+            motor_derate_temperature = float(items.pop(b'servo.motor_derate_temperature'))
+            motor_fault_temperature = float(items[b'servo.motor_fault_temperature'])
+
+            motor_temperature_margin = (
+                (motor_fault_temperature - motor_derate_temperature)
+                if math.isfinite(motor_fault_temperature) else
+                20)
+            print(f"Upgraded servo.motor_derate_temperature to servo.motor_temperature_margin={motor_temperature_margin}")
+            items[b'servo.motor_temperature_margin'] = str(motor_temperature_margin).encode('utf8')
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)

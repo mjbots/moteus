@@ -487,6 +487,10 @@ class BldcServo::Impl {
 
     flux_brake_min_voltage_ =
         config_.max_voltage - config_.flux_brake_margin_voltage;
+    derate_temperature_ =
+        config_.fault_temperature - config_.temperature_margin;
+    motor_derate_temperature_ =
+        config_.motor_fault_temperature - config_.motor_temperature_margin;
 
     velocity_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
     temperature_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 0.01f);
@@ -1772,13 +1776,13 @@ class BldcServo::Impl {
     };
 
     float derate_fraction =
-        (status_.filt_fet_temp_C - config_.derate_temperature) /
-        (config_.fault_temperature - config_.derate_temperature);
+        (status_.filt_fet_temp_C - derate_temperature_) /
+        config_.temperature_margin;
     if (std::isfinite(config_.motor_fault_temperature)) {
       derate_fraction = std::min<float>(
           derate_fraction,
-          ((status_.filt_motor_temp_C - config_.motor_derate_temperature) /
-           (config_.motor_fault_temperature - config_.motor_derate_temperature)));
+          ((status_.filt_motor_temp_C - motor_derate_temperature_) /
+           config_.motor_temperature_margin));
     }
 
     const float derate_current_A =
@@ -2487,6 +2491,8 @@ class BldcServo::Impl {
   float torque_constant_ = 0.01f;
   float v_per_hz_ = 0.0f;
   float flux_brake_min_voltage_ = 0.0f;
+  float derate_temperature_ = 0.0f;
+  float motor_derate_temperature_ = 0.0f;
 
   float adc_scale_ = 0.0f;
   float pwm_derate_ = 1.0f;
