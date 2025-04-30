@@ -290,7 +290,7 @@ class BldcServoPosition {
       data->position_relative_raw = *data->position_relative_raw + tint64_step;
     }
 
-    if (std::isfinite(config->max_position_slip)) {
+    if (std::isfinite(config->max_position_slip) && !data->synthetic_theta) {
       const int64_t current_position = position->position_relative_raw;
       const int64_t slip =
           MotorPosition::FloatToInt(config->max_position_slip);
@@ -305,7 +305,7 @@ class BldcServoPosition {
       }
     }
 
-    if (std::isfinite(config->max_velocity_slip)) {
+    if (std::isfinite(config->max_velocity_slip) && !data->synthetic_theta) {
       const float slip = config->max_velocity_slip;
       const float error = status->velocity - *status->control_velocity;
       if (error < -slip) {
