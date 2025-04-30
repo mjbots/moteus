@@ -2381,8 +2381,8 @@ class Application {
     co_await dut_->Command("d index 0");
 
     Controller::PidConstants pid;
-    pid.kp = 2.0;
-    pid.kd = 0.1;
+    pid.kp = 4.00;
+    pid.kd = 0.15;
     co_await dut_->ConfigurePid(pid);
 
     // We use a trajectory with a non-zero final velocity since we
