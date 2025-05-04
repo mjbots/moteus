@@ -1189,7 +1189,8 @@ class Stream:
         await self.check_for_fault()
 
         cal_result = await self.calibrate_encoder_mapping(
-            input_V, winding_resistance, current_noise)
+            input_V, winding_resistance, current_noise,
+            unwrapped_position_scale)
         await self.check_for_fault()
 
         motor_kv = await self.calibrate_kv_rating(
@@ -1280,7 +1281,7 @@ class Stream:
                    math.sqrt((self.args.cal_motor_power / 1.5) *
                              winding_resistance))
 
-    async def calibrate_encoder_mapping(self, input_V, winding_resistance, current_noise):
+    async def calibrate_encoder_mapping(self, input_V, winding_resistance, current_noise, unwrapped_position_scale):
         # Figure out what voltage to use for encoder calibration.
         encoder_cal_voltage = \
             await self.find_encoder_cal_voltage(input_V, winding_resistance)
@@ -1321,7 +1322,8 @@ class Stream:
                         "servo.voltage_mode_control")
 
                 return await self.calibrate_encoder_mapping_absolute(
-                    encoder_cal_voltage, encoder_cal_current, current_noise)
+                    encoder_cal_voltage, encoder_cal_current, current_noise,
+                    unwrapped_position_scale)
             finally:
                 # At least try to stop.
                 await self.command("d stop")
@@ -1424,7 +1426,8 @@ class Stream:
             await self.find_index(encoder_cal_voltage)
 
     async def calibrate_encoder_mapping_absolute(
-            self, encoder_cal_voltage, encoder_cal_current, current_noise):
+            self, encoder_cal_voltage, encoder_cal_current, current_noise,
+            unwrapped_position_scale):
         await self.ensure_valid_theta(encoder_cal_voltage)
 
         current_quality_factor = encoder_cal_current / current_noise
@@ -1449,7 +1452,7 @@ class Stream:
             await asyncio.sleep(3.0)
 
             await self.write_message(
-                (f"d cali i{encoder_cal_current} s{self.args.cal_ll_encoder_speed}"))
+                (f"d cali i{encoder_cal_current} s{self.args.cal_ll_encoder_speed * unwrapped_position_scale}"))
         else:
             await self.command(f"d pwm 0 {encoder_cal_voltage}")
             await asyncio.sleep(3.0)
