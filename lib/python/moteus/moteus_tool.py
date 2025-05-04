@@ -546,16 +546,25 @@ class FirmwareUpgrade:
             print(f"Upgraded servo.derate_temperature to servo.temperature_margin={temperature_margin}")
             items[b'servo.temperature_margin'] = str(temperature_margin).encode('utf8')
 
+            def float_or_none(val):
+                if val is None:
+                    return None
+                return float(val)
 
-            motor_derate_temperature = float(items.pop(b'servo.motor_derate_temperature'))
-            motor_fault_temperature = float(items[b'servo.motor_fault_temperature'])
+            motor_derate_temperature = (
+                float_or_none(items.pop(b'servo.motor_derate_temperature', None)))
+            motor_fault_temperature = (
+                float_or_none(items.get(b'servo.motor_fault_temperature', None)))
 
-            motor_temperature_margin = (
-                (motor_fault_temperature - motor_derate_temperature)
-                if math.isfinite(motor_fault_temperature) else
-                20)
-            print(f"Upgraded servo.motor_derate_temperature to servo.motor_temperature_margin={motor_temperature_margin}")
-            items[b'servo.motor_temperature_margin'] = str(motor_temperature_margin).encode('utf8')
+            if (motor_derate_temperature is not None and
+                motor_fault_temperature is not None):
+
+                motor_temperature_margin = (
+                    (motor_fault_temperature - motor_derate_temperature)
+                    if math.isfinite(motor_fault_temperature) else
+                    20)
+                print(f"Upgraded servo.motor_derate_temperature to servo.motor_temperature_margin={motor_temperature_margin}")
+                items[b'servo.motor_temperature_margin'] = str(motor_temperature_margin).encode('utf8')
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
