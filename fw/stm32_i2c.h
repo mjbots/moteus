@@ -169,8 +169,6 @@ class Stm32I2c {
       return;
     }
 
-    const auto peripheral_busy = (isr & I2C_ISR_BUSY) != 0;
-
     switch (mode_) {
       case Mode::kIdle:
       case Mode::kComplete:
@@ -201,9 +199,6 @@ class Stm32I2c {
       }
       case Mode::kReadingData: {
         if ((isr & I2C_ISR_RXNE) == 0) {
-          if (!peripheral_busy) {
-            mode_ = Mode::kError;
-          }
           break;
         }
 
@@ -221,9 +216,6 @@ class Stm32I2c {
       }
       case Mode::kWritingData: {
         if ((isr & I2C_ISR_TXE) == 0) {
-          if (!peripheral_busy) {
-            mode_ = Mode::kError;
-          }
           break;
         }
 
