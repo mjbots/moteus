@@ -1840,7 +1840,7 @@ class Stream:
 
         return kp, ki, w_3db / twopi
 
-    async def find_speed(self, voltage, sleep_time=0.5):
+    async def find_speed(self, voltage, unwrapped_position_scale, sleep_time=0.5):
         assert voltage < 20.0
         assert voltage >= 0.0
 
@@ -1873,7 +1873,7 @@ class Stream:
             if len(power_samples) > AVERAGE_COUNT:
                 del power_samples[0]
 
-            velocity_samples.append(data.velocity)
+            velocity_samples.append(data.velocity / unwrapped_position_scale)
 
             if len(velocity_samples) > (3 * AVERAGE_COUNT):
                 del velocity_samples[0]
@@ -1918,8 +1918,8 @@ class Stream:
 
         return velocity
 
-    async def find_speed_and_print(self, voltage, **kwargs):
-        result = await self.find_speed(voltage, **kwargs)
+    async def find_speed_and_print(self, voltage, unwrapped_position_scale, **kwargs):
+        result = await self.find_speed(voltage, unwrapped_position_scale, **kwargs)
         print(f"{voltage:.3f}V - {result:.3f}Hz")
         return result
 
@@ -1939,7 +1939,7 @@ class Stream:
             if maybe_result > (0.2 * input_V):
                 return maybe_result
 
-            this_speed = await self.find_speed(maybe_result) / unwrapped_position_scale
+            this_speed = await self.find_speed(maybe_result, unwrapped_position_scale)
 
             if (abs(this_speed) > (0.1 * self.args.cal_motor_speed) and
                 first_nonzero_speed_voltage is None):
@@ -1977,7 +1977,8 @@ class Stream:
             voltages = [x * kv_cal_voltage for x in [
                 0.0, 0.25, 0.5, 0.75, 1.0 ]]
             voltage_speed_hzs = list(zip(
-                voltages, [ await self.find_speed_and_print(voltage, sleep_time=2)
+                voltages, [ await self.find_speed_and_print(
+                    voltage, unwrapped_position_scale, sleep_time=2)
                             for voltage in voltages]))
 
             await self.stop_and_idle()
@@ -1995,12 +1996,10 @@ class Stream:
             voltage_speed_hzs = [(v, s) for v, s in voltage_speed_hzs
                                  if abs(s) > speed_threshold]
 
-            geared_v_per_hz = 1.0 / _calculate_slope(
+            v_per_hz = 1.0 / _calculate_slope(
                 [x[0] for x in voltage_speed_hzs],
                 [x[1] for x in voltage_speed_hzs])
 
-            v_per_hz = (geared_v_per_hz *
-                        unwrapped_position_scale)
             if self.firmware.version <= 0x0106:
                 v_per_hz *= motor_output_sign
 
