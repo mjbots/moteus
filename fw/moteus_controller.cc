@@ -1059,7 +1059,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             ((status.sources[0].active_velocity ? 1 : 0) << 1) |
             ((status.sources[1].active_theta ? 1 : 0) << 2) |
             ((status.sources[1].active_velocity ? 1 : 0) << 3) |
-            ((status.sources[2].active_theta ? 1 : 0) << 4);
+            ((status.sources[2].active_theta ? 1 : 0) << 4) |
             ((status.sources[2].active_velocity ? 1 : 0) << 5);
         return IntMapping(validity, type);
       }
