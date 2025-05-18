@@ -1273,7 +1273,7 @@ class Stream:
 
     async def find_encoder_cal_voltage(self, input_V, winding_resistance):
         if self.args.cal_ll_encoder_voltage:
-            return self.args.cal_ll_encoder_voltage,
+            return self.args.cal_ll_encoder_voltage
 
         # We're going to try and select a voltage to roughly achieve
         # "--cal-motor-power".
