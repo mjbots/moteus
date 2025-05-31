@@ -110,6 +110,7 @@ MOTEUS_SOURCES = [
     "firmware_info.cc",
     "ic_pz.h",
     "ma732.h",
+    "cui_amt22.h",
     "moteus_controller.h",
     "moteus_controller.cc",
     "moteus_hardfault_handler.cc",

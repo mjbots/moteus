@@ -36,6 +36,7 @@
 #include "fw/ic_pz.h"
 #include "fw/math.h"
 #include "fw/ma732.h"
+#include "fw/cui_amt22.h"
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
@@ -112,6 +113,10 @@ class AuxPort {
           as5047_->StartSample();
           break;
         }
+        case SampleType::kCuiAmt22: {
+          cui_amt22_->StartSample();
+          break;
+        }
         case SampleType::kMa732: {
           ma732_->StartSample();
           break;
@@ -145,6 +150,12 @@ class AuxPort {
         case SampleType::kMa732: {
           status_.spi.active = true;
           status_.spi.value = ma732_->FinishSample();
+          status_.spi.nonce += 1;
+          break;
+        }
+        case SampleType::kCuiAmt22: {
+          status_.spi.active = true;
+          status_.spi.value = cui_amt22_->FinishSample();
           status_.spi.nonce += 1;
           break;
         }
@@ -322,6 +333,23 @@ class AuxPort {
       }
     }
 
+    if (!cui_amt22_ && cui_amt22_options_) {
+      // not sure how long the startup delay is for the amt22 but
+      // 10ms should be plenty for now
+      if (timer_->read_ms() > 10) {
+        __disable_irq();
+        status_.error = aux::AuxError::kNone;
+
+        cui_amt22_.emplace(*cui_amt22_options_);
+        AddSampleType(SampleType::kCuiAmt22, true, true);
+
+        // discard first sample
+        cui_amt22_->Sample();
+
+        __enable_irq();
+      }
+    }
+
     if (!ma732_ && ma732_options_) {
       // The worst case startup time for the MA732 is 260ms, however
       // we can't current measure that long from startup.  So we'll
@@ -415,6 +443,7 @@ class AuxPort {
     kAksim2 = 8,
     kCuiAmt21 = 9,
     kI2c = 10,
+    kCuiAmt22 = 11,
 
     kLastEntry,
   };
@@ -792,6 +821,8 @@ class AuxPort {
     ma732_.reset();
     ma732_options_.reset();
     onboard_cs_.reset();
+    cui_amt22_.reset();
+    cui_amt22_options_.reset();
 
     bool updated_any_isr = false;
 
@@ -982,6 +1013,13 @@ class AuxPort {
           AS5047::Options options = spi_options;
           options.timeout = 200;
           as5047_options_ = options;
+
+          break;
+        }
+        case aux::Spi::Config::kCuiAmt22: {
+          CuiAmt22::Options options = spi_options;
+          options.timeout = 200;
+          cui_amt22_options_ = options;
 
           break;
         }
@@ -1322,6 +1360,9 @@ class AuxPort {
 
   std::optional<MA732> ma732_;
   std::optional<MA732::Options> ma732_options_;
+
+  std::optional<CuiAmt22> cui_amt22_;
+  std::optional<CuiAmt22::Options> cui_amt22_options_;
 
   std::optional<IcPz> ic_pz_;
   std::optional<DigitalOut> onboard_cs_;
