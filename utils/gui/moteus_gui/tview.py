@@ -25,6 +25,7 @@ import moteus.moteus_tool
 import numpy
 import os
 import re
+import signal
 import struct
 import sys
 import time
@@ -1269,6 +1270,7 @@ class TviewMainWindow():
 
 
 def main():
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     parser = argparse.ArgumentParser(description=__doc__)
 
     # These two commands are aliases.
