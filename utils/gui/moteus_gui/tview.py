@@ -31,6 +31,7 @@ import time
 import traceback
 import matplotlib
 import matplotlib.figure
+import signal
 
 try:
     import PySide6
@@ -1296,4 +1297,5 @@ def main():
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     main()
