@@ -136,17 +136,34 @@ class Fdcanusb:
             # individually.
             return [await self._do_command(x) for x in commands]
 
+    def _parse_message(self, line):
+        fields = line.split(b" ")
+        message = CanMessage()
+        message.data = _dehexify(fields[2])
+        message.arbitration_id = int(fields[1], 16)
+
+        flags = fields[3] if len(fields) > 3 else ''
+        if b'E' in flags:
+            message.is_extended_id = True
+        if b'B' in flags:
+            message.bitrate_switch = True
+        if b'F' in flags:
+            message.is_fd = True
+
+        return message
+
     async def _do_command(self, command):
         await self.write(command)
         reply_required = command.reply_required
 
         # Get the OK response.
-        ok_response = await self._readline(self._serial)
-        if not ok_response.startswith(b"OK"):
-            raise RuntimeError("fdcanusb lost synchronization, got: " +
-                               ok_response.decode('latin1'))
+        while True:
+            ok_response = await self._readline(self._serial)
+            if ok_response.startswith(b"OK"):
+                break
+            # Ignore spurious responses until we get an OK.
 
-        if reply_required:
+        while reply_required:
             line = await self._readline(self._serial)
 
             if not line.startswith(b"rcv"):
@@ -157,16 +174,15 @@ class Fdcanusb:
                 self._debug_log.write(f'{time.time()} < '.encode('latin1') +
                                       line.rstrip() + b'\n')
 
-            fields = line.split(b" ")
-            message = CanMessage()
-            message.data = _dehexify(fields[2])
-            message.arbitration_id = int(fields[1], 16)
+            message = self._parse_message(line)
 
-            # We are assuming that only one device is responding at a
-            # time, thus we don't even need to look at the
-            # source/destination or CAN prefix.
+            moteus_id = (message.arbitration_id >> 8) & 0x7f
 
-            return command.parse(message)
+            if command.raw or moteus_id == command.destination:
+                return command.parse(message)
+
+            # We are not raw and the message wasn't from the device we
+            # were writing to, so just loop and try some more.
 
     async def write(self, command):
         # This merely sends a command and doesn't even wait for an OK
@@ -201,10 +217,7 @@ class Fdcanusb:
                 self._debug_log.write(f'{time.time()} < '.encode('latin1') +
                                       line.rstrip() + b'\n')
 
-            fields = line.split(b" ")
-            message = CanMessage()
-            message.data = _dehexify(fields[2])
-            message.arbitration_id = int(fields[1], 16)
+            message = self._parse_message(line)
             return message
 
     def _round_up_dlc(self, size):

@@ -578,7 +578,7 @@ class Result:
 def make_parser(id):
     def parse(message):
         result = Result()
-        result.id = id
+        result.id = (message.arbitration_id >> 8) & 0x7f
         result.values = parse_reply(message.data)
 
         # We store these things just for reference, so that our

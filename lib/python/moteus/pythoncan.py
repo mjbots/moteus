@@ -95,16 +95,16 @@ class PythonCan:
     async def _do_command(self, command):
         await self.write(command)
 
-        if not command.reply_required:
-            return None
+        while command.reply_required:
+            reply = await self.read()
 
-        reply = await self._reader.get_message()
+            moteus_id = (reply.arbitration_id >> 8) & 0x7f
 
-        # We're assuming only one device will respond, so the source,
-        # destination, and CAN prefix should all match without
-        # checking.
+            if command.raw or command.destination == moteus_id:
+                return command.parse(reply)
 
-        return command.parse(reply)
+            # We did not get a response from the device we were hoping
+            # for, so just keep waiting.
 
     async def write(self, command):
         reply_required = command.reply_required
@@ -125,7 +125,12 @@ class PythonCan:
 
     async def read(self):
         self._maybe_setup()
-        return await self._reader.get_message()
+        while True:
+            frame = await self._reader.get_message()
+            if not frame.is_error_frame:
+                return frame
+            # Just ignore error frames entirely and keep reading until
+            # we get a good one.
 
     def _round_up_dlc(self, size):
         if size <= 8:
