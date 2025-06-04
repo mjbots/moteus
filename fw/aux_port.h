@@ -121,6 +121,10 @@ class AuxPort {
           ic_pz_->ISR_StartSample();
           break;
         }
+        case SampleType::kCuiAmt22: {
+          cui_amt22_->ISR_StartSample();
+          break;
+        }
         case SampleType::kNone: {
           return;
         }
@@ -150,9 +154,11 @@ class AuxPort {
           break;
         }
         case SampleType::kCuiAmt22: {
-          status_.spi.active = true;
-          status_.spi.value = cui_amt22_->FinishSample();
-          status_.spi.nonce += 1;
+          int updated = cui_amt22_->ISR_Update(&status_.spi.value);
+          if (updated) {
+            status_.spi.active = true;
+            status_.spi.nonce += 1;
+          }
           break;
         }
         case SampleType::kIcPz: {
@@ -336,7 +342,7 @@ class AuxPort {
         __disable_irq();
         status_.error = aux::AuxError::kNone;
 
-        cui_amt22_.emplace(*cui_amt22_options_);
+        cui_amt22_.emplace(*cui_amt22_options_, timer_);
         AddSampleType(SampleType::kCuiAmt22, true, true);
 
         // discard first sample
