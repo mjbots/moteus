@@ -113,10 +113,6 @@ class AuxPort {
           as5047_->StartSample();
           break;
         }
-        case SampleType::kCuiAmt22: {
-          cui_amt22_->StartSample();
-          break;
-        }
         case SampleType::kMa732: {
           ma732_->StartSample();
           break;
@@ -1018,7 +1014,7 @@ class AuxPort {
         }
         case aux::Spi::Config::kCuiAmt22: {
           CuiAmt22::Options options = spi_options;
-          options.timeout = 200;
+          options.timeout = 2000;
           cui_amt22_options_ = options;
 
           break;

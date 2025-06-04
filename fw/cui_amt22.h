@@ -29,24 +29,47 @@ class CuiAmt22 {
   using Options = Stm32Spi::Options;
 
   CuiAmt22(const Options& options)
-      : spi_(options) {
+      : spi_([&]() {
+               auto options_copy = options;
+               options_copy.width = 8;
+               options_copy.mode = 0;
+               return options_copy;
+             }()),
+        cs_(std::in_place_t(), options.cs, 1) {
   }
 
   uint16_t Sample() MOTEUS_CCM_ATTRIBUTE {
-    return (spi_.write(0xffff) & 0x3fff) << 2;
+    return 0;
   }
 
   void StartSample() MOTEUS_CCM_ATTRIBUTE {
-    // TODO add delay between bytes
-    return spi_.start_write(0xffff);
+    return;
   }
 
   uint16_t FinishSample() MOTEUS_CCM_ATTRIBUTE {
-    return (spi_.finish_write() & 0x3fff);
+    cs_->clear();
+    uint8_t a = spi_.write_no_cs(0x00);
+    // ideally this would be async instead of locking up the main thread
+    // but this is much simpler and it's not a very long delay so it works fine for now
+    // wait(50) comes out to 3.7 us on the 'scope
+    wait(50);
+    uint8_t b = spi_.write_no_cs(0x00);
+    cs_->set();
+    return (((uint16_t) a) << 8 | ((uint16_t) b)) & 0x3fff;
   }
 
+
  private:
+  // using an empty loop as a less precise delay because MillisecondTimer adds
+  // a ton of jitter when the signal is viewed on the oscilloscope.
+  //
+  // also, using an optimize attribute ensures the compiler doesn't optimize
+  // away our empty loop
+  void __attribute__((optimize("O0"))) wait(int cycles) MOTEUS_CCM_ATTRIBUTE {
+    for (int i = 0; i < cycles; i++) {}
+  }
   Stm32Spi spi_;
+  std::optional<Stm32DigitalOutput> cs_;
 };
 
 }

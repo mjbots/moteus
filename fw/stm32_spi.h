@@ -135,6 +135,51 @@ class Stm32Spi {
     return result;
   }
 
+  // "no_cs" versions of the SPI write functions
+  // these allow us to control the chip select pin outside of these
+  // functions, for cases where it's used as a framing device between
+  // bytes (like the AMT22)
+  // NOTE that these functions, unlike the regular write functions above,
+  // operate with 8 bit values instead of 16 because they were made for
+  // the AMT22, which needs a >2.5us delay in between byte reads
+  uint8_t write_no_cs(uint8_t value) MOTEUS_CCM_ATTRIBUTE {
+    start_write_no_cs(value);
+    return finish_write_no_cs();
+  }
+
+  void start_write_no_cs(uint8_t value) MOTEUS_CCM_ATTRIBUTE {
+    auto* const spi = spi_.spi.handle.Instance;
+
+    // This doesn't seem to be a whole lot faster than the HAL in
+    // practice, but it doesn't hurt to do it ourselves and not have
+    // to worry about the extra stuff the HAL does.
+    uint16_t timeout = options_.timeout;
+    while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
+
+    // Ensure there is nothing in the FIFO.
+    while (spi->SR & SPI_SR_RXNE) { (void) spi->DR; }
+    // a bit of pointer wizardry to get SPI to only read/write 1 byte
+    // this just gets a reference to the SPI data register which is a uint16_t*,
+    // casts it to a uint8_t* and then dereferences it again so we can write to it
+    *((uint8_t*) (&(spi->DR))) = value;
+    spi->CR1 |= SPI_CR1_SPE;
+  }
+
+  uint8_t finish_write_no_cs() MOTEUS_CCM_ATTRIBUTE {
+    auto* const spi = spi_.spi.handle.Instance;
+
+    uint16_t timeout = options_.timeout;
+
+    while (((spi->SR & SPI_SR_RXNE) == 0) && timeout) { timeout--; }
+    // see comment in start_write_no_cs for explanation of pointer magic
+    const uint8_t result = *((uint8_t*) (&(spi->DR)));
+    while (((spi->SR & SPI_SR_TXE) == 0) && timeout) { timeout--; }
+    while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
+    spi->CR1 &= ~(SPI_CR1_SPE);
+
+    return result;
+  }
+
   void start_dma_transfer(
       std::string_view tx_buffer,
       mjlib::base::string_span rx_buffer) MOTEUS_CCM_ATTRIBUTE {
