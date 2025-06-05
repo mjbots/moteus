@@ -22,6 +22,10 @@
 #include "fw/moteus_hw.h"
 #include "fw/stm32_spi.h"
 
+const uint32_t AMT22_TIME_BETWEEN_READS = 40;
+const uint32_t AMT22_TIME_BETWEEN_BYTES = 3;
+const uint32_t AMT22_TIME_AFTER_CS = 3;
+
 namespace moteus {
 
 class CuiAmt22 {
@@ -60,22 +64,23 @@ class CuiAmt22 {
     uint16_t value = 0;
     switch (state_) {
       case 0:
-        cs_->clear();
-        if (delta_us > 3) {
-          spi_.start_write_no_cs(0x00);
+        if (delta_us >= AMT22_TIME_BETWEEN_READS) {
+          cs_->clear();
           state_ = 1;
         }
         return 0;
       case 1:
-        buffer_[0] = spi_.finish_write_no_cs();
-        last_byte_finished_us_ = now_us;
-        state_ = 2;
+        if (delta_us >= AMT22_TIME_AFTER_CS) {
+          spi_.start_write_no_cs(0x00);
+          state_ = 2;
+        }
         return 0;
       case 2:
-        if (delta_us > 3) {
-          spi_.start_write_no_cs(0x00);
-          state_ = 3;
-        }
+        buffer_[0] = spi_.finish_write_no_cs();
+        last_byte_finished_us_ = now_us;
+        timer_->wait_us(AMT22_TIME_BETWEEN_BYTES);
+        spi_.start_write_no_cs(0x00);
+        state_ = 3;
         return 0;
       case 3:
         buffer_[1] = spi_.finish_write_no_cs();
