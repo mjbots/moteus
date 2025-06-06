@@ -1618,13 +1618,15 @@ class Stream:
         # non-linear, corrupting the result.
 
         # What we'll do is take the very last result, and the last
-        # result that is less than 70% of the current of the last
+        # result that is less than X% of the current of the last
         # result.
 
         last_result = results[-1]
 
-        less_than = [x for x in results if x[1] < 0.60 * last_result[1]][-1]
-
+        less_than_X = [x for x in results if x[1] < 0.60 * last_result[1]]
+        if len(less_than_X) == 0:
+            raise RuntimeError(f"Could not detect resistance, is motor connected?  Peak current only {last_result[1]:.3f}A w/ {last_result[0]:.3f}V applied.")
+        less_than = less_than_X[-1]
 
         resistance = ((last_result[0] - less_than[0]) /
                       (last_result[1] - less_than[1]))
