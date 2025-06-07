@@ -24,6 +24,7 @@ EXAMPLES = [
     "nlateral_teleop",
     "timeout_debug",
     "bandwidth_test",
+    "wait_complete",
 ]
 
 [cc_binary(

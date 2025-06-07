@@ -224,6 +224,8 @@ class Controller {
   /// Repeatedly send a position command until the reported
   /// trajectory_complete flag is true.  This will always enable a
   /// query and will return the result of the final such response.
+  ///
+  /// It will return early if a fault is reported.
   Optional<Result> SetPositionWaitComplete(
       const PositionMode::Command& cmd,
       double period_s,
@@ -240,7 +242,9 @@ class Controller {
 
       if (count == 0 &&
           !!maybe_result &&
-          maybe_result->values.trajectory_complete) {
+          (maybe_result->values.trajectory_complete ||
+           maybe_result->values.mode == Mode::kFault ||
+           maybe_result->values.mode == Mode::kPositionTimeout)) {
         return *maybe_result;
       }
 

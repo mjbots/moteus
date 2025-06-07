@@ -630,6 +630,11 @@ def make_diagnostic_parser(id, channel):
     return parse
 
 
+class FaultError(RuntimeError):
+    def __init__(self, mode, code):
+        super(FaultError, self).__init__(f"Fault mode={mode} code={code}")
+
+
 class Controller:
     """Operates a single moteus controller across some communication
     medium.
@@ -1019,6 +1024,9 @@ class Controller:
         reports that the trajectory has been completed.
 
         If the controller is unresponsive, this method will never return.
+
+        If the controller reports a fault or position mode timeout, a
+        FaultError exception will be raised.
         """
 
         if query_override is None:
@@ -1026,6 +1034,10 @@ class Controller:
         else:
             query_override = copy.deepcopy(query_override)
 
+        if query_override.mode == mp.IGNORE:
+            query_override.mode = mp.INT8
+        if query_override.fault == mp.IGNORE:
+            query_override.fault = mp.INT8
         query_override.trajectory_complete = mp.INT8
 
         count = 2
@@ -1040,6 +1052,12 @@ class Controller:
                 result is not None and
                 result.values[Register.TRAJECTORY_COMPLETE]):
                 return result
+
+            current_mode = result.values.get(Register.MODE, Mode.STOPPED)
+            fault_code = result.values.get(Register.FAULT, 0)
+
+            if current_mode == Mode.FAULT or current_mode == Mode.TIMEOUT:
+                raise FaultError(current_mode, fault_code)
 
             await asyncio.sleep(period_s)
 
