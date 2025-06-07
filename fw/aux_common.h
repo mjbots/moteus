@@ -33,6 +33,7 @@ struct Spi {
       kMa600,
       kOnboardMa600,
       kBoardDefault,
+      kCuiAmt22,
 
       kNumModes,
     };
@@ -459,6 +460,7 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
         { M::kIcPz, "ic_pz" },
         { M::kMa732, "ma732" },
         { M::kMa600, "ma600" },
+        { M::kCuiAmt22, "cui_amt22" },
         { M::kOnboardMa600, "onboard_ma600" },
         { M::kBoardDefault, "board_default" },
       }};
