@@ -1,4 +1,4 @@
-// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
+// Copyright 2025 Eli Rutan.  polymetricofficial@gmail.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,9 +22,6 @@
 #include "fw/moteus_hw.h"
 #include "fw/stm32_spi.h"
 
-const uint32_t AMT22_TIME_BETWEEN_READS = 40;
-const uint32_t AMT22_TIME_BETWEEN_BYTES = 3;
-const uint32_t AMT22_TIME_AFTER_CS = 3;
 
 namespace moteus {
 
@@ -43,47 +40,34 @@ class CuiAmt22 {
         timer_(timer) {
   }
 
-  uint16_t Sample() MOTEUS_CCM_ATTRIBUTE {
-    ISR_StartSample();
-    uint32_t value = 0;
-    uint32_t timeout = 2000;
-    while (!ISR_Update(&value) && timeout--) {}
-    return value;
-  }
-
-  void ISR_StartSample() MOTEUS_CCM_ATTRIBUTE {
-    if (state_ == 4) {
-      state_ = 0;
-    }
-  }
-
-  // return value: boolean whether or not we finished reading the sensor and updated the value
-  int ISR_Update(uint32_t* value_ptr) MOTEUS_CCM_ATTRIBUTE {
+  /// @return true if we finished reading the sensor and updated the value
+  bool ISR_Update(uint32_t* value_ptr) MOTEUS_CCM_ATTRIBUTE {
     const uint32_t now_us = timer_->read_us();                
     const uint32_t delta_us = (now_us - last_byte_finished_us_);
     uint16_t value = 0;
     switch (state_) {
-      case 0:
+      case State::kClearCs: {
         if (delta_us >= AMT22_TIME_BETWEEN_READS) {
           cs_->clear();
-          state_ = 1;
+          state_ = State::kStartFirstByte;
         }
-        return 0;
-      case 1:
+        return false;
+      }
+      case State::kStartFirstByte: {
         if (delta_us >= AMT22_TIME_AFTER_CS) {
-          spi_.start_write_no_cs(0x00);
-          state_ = 2;
+          spi_.start_byte(0x00);
+          state_ = State::kFinishFirstByte;
         }
-        return 0;
-      case 2:
-        buffer_[0] = spi_.finish_write_no_cs();
-        last_byte_finished_us_ = now_us;
-        timer_->wait_us(AMT22_TIME_BETWEEN_BYTES);
-        spi_.start_write_no_cs(0x00);
-        state_ = 3;
-        return 0;
-      case 3:
-        buffer_[1] = spi_.finish_write_no_cs();
+        return false;
+      }
+			case State::kStartSecondByte: {
+        buffer_[0] = spi_.finish_byte();
+      	spi_.start_byte(0x00);
+      	state_ = State::kFinishSecondByte;
+        return false;
+      }
+      case State::kFinishSecondByte: {
+        buffer_[1] = spi_.finish_byte();
         last_byte_finished_us_ = now_us;
         cs_->set();
         value = 
@@ -91,11 +75,13 @@ class CuiAmt22 {
           | static_cast<uint16_t>(buffer_[1]))
           & 0x3fff;
         *value_ptr = value;
-        state_ = 4;
-        return 1;
-      default:
-        state_ = 4;
-        return 0;
+        state_ = State::kClearCs;
+        return true;
+      }
+			default: {
+				MJ_ASSERT(false);
+				return false;
+			}
     }
   }
 
@@ -103,9 +89,22 @@ class CuiAmt22 {
   Stm32Spi spi_;
   std::optional<Stm32DigitalOutput> cs_;
   MillisecondTimer* const timer_;
-  int state_ = 4;
+
+	enum class State {
+	  kClearCs,
+		kStartFirstByte,
+		kFinishFirstByte,
+		kStartSecondByte,
+		kFinishSecondByte,
+	};
+
+  State state_ = State::kClearCs;
   uint32_t last_byte_finished_us_ = 0;
-  uint8_t buffer_[2];
+  uint8_t buffer_[2] = {};
+
+  static constexpr uint32_t AMT22_TIME_BETWEEN_READS = 40;
+  static constexpr uint32_t AMT22_TIME_BETWEEN_BYTES = 3;
+  static constexpr uint32_t AMT22_TIME_AFTER_CS = 3;
 };
 
 }

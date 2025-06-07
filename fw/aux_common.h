@@ -31,9 +31,9 @@ struct Spi {
       kIcPz,
       kMa732,
       kMa600,
-      kCuiAmt22,
       kOnboardMa600,
       kBoardDefault,
+      kCuiAmt22,
 
       kNumModes,
     };

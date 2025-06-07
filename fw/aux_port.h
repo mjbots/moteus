@@ -121,10 +121,6 @@ class AuxPort {
           ic_pz_->ISR_StartSample();
           break;
         }
-        case SampleType::kCuiAmt22: {
-          cui_amt22_->ISR_StartSample();
-          break;
-        }
         case SampleType::kNone: {
           return;
         }
@@ -154,7 +150,7 @@ class AuxPort {
           break;
         }
         case SampleType::kCuiAmt22: {
-          int updated = cui_amt22_->ISR_Update(&status_.spi.value);
+          const auto updated = cui_amt22_->ISR_Update(&status_.spi.value);
           if (updated) {
             status_.spi.active = true;
             status_.spi.nonce += 1;
@@ -336,17 +332,12 @@ class AuxPort {
     }
 
     if (!cui_amt22_ && cui_amt22_options_) {
-      // not sure how long the startup delay is for the amt22 but
-      // 10ms should be plenty for now
-      if (timer_->read_ms() > 10) {
+      if (timer_->read_ms() > 200) {
         __disable_irq();
         status_.error = aux::AuxError::kNone;
 
         cui_amt22_.emplace(*cui_amt22_options_, timer_);
         AddSampleType(SampleType::kCuiAmt22, true, true);
-
-        // discard first sample
-        cui_amt22_->Sample();
 
         __enable_irq();
       }
