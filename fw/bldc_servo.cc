@@ -63,6 +63,18 @@ float Limit(float a, float min, float max) {
   return a;
 }
 
+// This variant, in addition to performing the limiting, will return
+// the `code_limit` if limiting was performed and `code_nolimit` if no
+// limiting was performed.  It can be used to chain operations, to
+// determine which operation caused any limiting to occur.
+std::pair<float, errc> LimitCode(float, float, float, errc, errc) MOTEUS_CCM_ATTRIBUTE;
+
+std::pair<float, errc> LimitCode(float a, float min, float max, errc code_limit, errc code_nolimit) {
+  if (a < min) { return {min, code_limit}; }
+  if (a > max) { return {max, code_limit}; }
+  return {a, code_nolimit};
+}
+
 float Threshold(float, float, float) MOTEUS_CCM_ATTRIBUTE;
 
 float Threshold(float value, float lower, float upper) {
@@ -1730,8 +1742,9 @@ class BldcServo::Impl {
       return;
     }
 
-    auto limit_q_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
-      if (ignore_position_bounds) { return in; }
+    auto limit_q_current = [&](std::pair<float, errc> in_pair) -> std::pair<float, errc> MOTEUS_CCM_ATTRIBUTE {
+      const auto in = in_pair.first;
+      if (ignore_position_bounds) { return {in, in_pair.second}; }
 
       if (!std::isnan(position_config_.position_max) &&
           position_.position > position_config_.position_max &&
@@ -1742,47 +1755,61 @@ class BldcServo::Impl {
         // limits could easily be exceeded.  Without feedforward, we
         // shouldn't really be trying to push outside the limits
         // anyhow.
-        return in *
+        return std::make_pair(
+            in *
             std::max(0.0f,
                      1.0f - (position_.position -
                              position_config_.position_max) /
-                     config_.position_derate);
+                     config_.position_derate),
+            errc::kLimitPositionBounds);
       }
       if (!std::isnan(position_config_.position_min) &&
           position_.position < position_config_.position_min &&
           in < 0.0f) {
-        return in *
+        return std::make_pair(
+            in *
             std::max(0.0f,
                      1.0f - (position_config_.position_min -
                              position_.position) /
-                     config_.position_derate);
+                     config_.position_derate),
+            errc::kLimitPositionBounds);
       }
 
-      return in;
+      return in_pair;
     };
 
-    auto limit_q_velocity = [&](float in) MOTEUS_CCM_ATTRIBUTE {
+    auto limit_q_velocity = [&](std::pair<float, errc> in_pair) -> std::pair<float, errc> MOTEUS_CCM_ATTRIBUTE {
+      const auto in = in_pair.first;
       const float abs_velocity = std::abs(position_.velocity);
       if (abs_velocity < config_.max_velocity ||
           position_.velocity * in < 0.0f) {
-        return in;
+        return in_pair;
       }
       const float derate_fraction =
           1.0f - ((abs_velocity - config_.max_velocity) /
                   config_.max_velocity_derate);
       const float current_limit =
           std::max(0.0f, derate_fraction * config_.max_current_A);
-      return Limit(in, -current_limit, current_limit);
+      const errc maybe_fault = derate_fraction < 1.0f ? errc::kLimitMaxVelocity : errc::kLimitMaxCurrent;
+      return LimitCode(in, -current_limit, current_limit,
+                       maybe_fault, in_pair.second);
     };
 
     float derate_fraction =
         (status_.filt_fet_temp_C - derate_temperature_) /
         config_.temperature_margin;
+    errc derate_fault = errc::kLimitMaxCurrent;
+    if (derate_fraction > 0.0f) {
+      derate_fault = errc::kLimitFetTemperature;
+    }
     if (std::isfinite(config_.motor_fault_temperature)) {
-      derate_fraction = std::min<float>(
-          derate_fraction,
+      const float motor_derate =
           ((status_.filt_motor_temp_C - motor_derate_temperature_) /
-           config_.motor_temperature_margin));
+           config_.motor_temperature_margin);
+      if (motor_derate > derate_fraction) {
+        derate_fraction = motor_derate;
+        derate_fault = errc::kLimitMotorTemperature;
+      }
     }
 
     const float derate_current_A =
@@ -1795,16 +1822,24 @@ class BldcServo::Impl {
     const float temp_limit_A = std::min<float>(
         config_.max_current_A, derate_current_A);
 
-    auto limit_either_current = [&](float in) MOTEUS_CCM_ATTRIBUTE {
-      return Limit(in, -temp_limit_A, temp_limit_A);
+    auto limit_either_current = [&](std::pair<float, errc> in_pair) MOTEUS_CCM_ATTRIBUTE {
+      return LimitCode(in_pair.first, -temp_limit_A, temp_limit_A, derate_fault, in_pair.second);
     };
 
 
-    const float almost_i_q_A =
+    const auto almost_i_q_A_pair =
         limit_either_current(
             limit_q_velocity(
-                limit_q_current(i_q_A_in)));
-    const float almost_i_d_A = limit_either_current(i_d_A_in);
+                limit_q_current(
+                    std::make_pair(i_q_A_in, errc::kSuccess))));
+    const auto almost_i_d_A_pair = limit_either_current(
+        std::make_pair(i_d_A_in, errc::kSuccess));
+
+    const auto almost_i_q_A = almost_i_q_A_pair.first;
+    const auto almost_i_d_A = almost_i_d_A_pair.first;
+    const auto almost_fault =
+        (almost_i_q_A_pair.second == errc::kSuccess) ?
+        almost_i_d_A_pair.second : almost_i_q_A_pair.second;
 
     // Apply our power limits by limiting the maximum current command.
     // This has a feedback loop from the previous cycle's voltage
@@ -1816,10 +1851,10 @@ class BldcServo::Impl {
     const float used_q_power_W = 1.5f * old_q_V * almost_i_q_A;
     const float used_power = used_q_power_W + used_d_power_W;
 
-    const auto [i_d_A, i_q_A] = [&]() {
+    const auto [i_d_A, i_q_A, limit_code] = [&]() {
       // If we have slack, then no limiting needs to occur.
       if (std::abs(used_power) < status_.max_power_W) {
-        return std::make_pair(almost_i_d_A, almost_i_q_A);
+        return std::make_tuple(almost_i_d_A, almost_i_q_A, almost_fault);
       }
 
       // Scale both currents equally in power terms.
@@ -1828,9 +1863,10 @@ class BldcServo::Impl {
       const float scaled_d_power = used_d_power_W * scale;
       const float scaled_q_power = used_q_power_W * scale;
 
-      return std::make_pair(
+      return std::make_tuple(
           scaled_d_power / (1.5f * old_d_V),
-          scaled_q_power / (1.5f * old_q_V));
+          scaled_q_power / (1.5f * old_q_V),
+          errc::kLimitMaxPower);
     }();
 
     control_.i_d_A = i_d_A;
@@ -1840,16 +1876,16 @@ class BldcServo::Impl {
         rate_config_.max_voltage_ratio * kSvpwmRatio *
         0.5f * status_.filt_bus_V;
 
-    const auto limit_to_max_voltage = [max_V](float denorm_d_V, float denorm_q_V) {
+    const auto limit_to_max_voltage = [max_V](float denorm_d_V, float denorm_q_V, errc inlimit) {
       const float max_V_sq = max_V * max_V;
       const float denorm_len =
           denorm_d_V * denorm_d_V + denorm_q_V * denorm_q_V;
       if (denorm_len < max_V_sq) {
-        return std::make_pair(denorm_d_V, denorm_q_V);
+        return std::make_tuple(denorm_d_V, denorm_q_V, inlimit);
       }
 
       const float scale = sqrtf(max_V_sq / denorm_len);
-      return std::make_pair(denorm_d_V * scale, denorm_q_V * scale);
+      return std::make_tuple(denorm_d_V * scale, denorm_q_V * scale, errc::kLimitMaxVoltage);
     };
 
     if (!config_.voltage_mode_control) {
@@ -1864,7 +1900,12 @@ class BldcServo::Impl {
            config_.bemf_feedforward *
            v_per_hz_);
 
-      auto [d_V, q_V] = limit_to_max_voltage(denorm_d_V, denorm_q_V);
+      auto [d_V, q_V, final_limit_code] =
+          limit_to_max_voltage(denorm_d_V, denorm_q_V, limit_code);
+
+      if (final_limit_code != errc::kSuccess) {
+        status_.fault = final_limit_code;
+      }
 
       // We also limit the integral to be no more than the maximal
       // applied voltage for each phase independently.  This helps to
@@ -1890,12 +1931,17 @@ class BldcServo::Impl {
           1.5f * (i_d_A * i_d_A * motor_.resistance_ohm +
                   i_q_A * i_q_A * motor_.resistance_ohm);
 
-      auto [d_V, q_V] = limit_to_max_voltage(
+      auto [d_V, q_V, final_limit_code] = limit_to_max_voltage(
           i_d_A * motor_.resistance_ohm,
           i_q_A * motor_.resistance_ohm +
           (feedforward_velocity_rotor *
            config_.bemf_feedforward *
-           v_per_hz_));
+           v_per_hz_),
+          limit_code);
+
+      if (final_limit_code != errc::kSuccess) {
+        status_.fault = final_limit_code;
+      }
 
       ISR_DoVoltageDQ(sin_cos, d_V, q_V);
     }
@@ -2105,8 +2151,13 @@ class BldcServo::Impl {
             pid_options) +
          feedforward_Nm);
 
-    const float limited_torque_Nm =
-        Limit(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm);
+    const auto limited_torque_Nm_pair =
+        LimitCode(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm,
+                  errc::kLimitMaxTorque, errc::kSuccess);
+    const auto limited_torque_Nm = limited_torque_Nm_pair.first;
+    if (limited_torque_Nm_pair.second != errc::kSuccess) {
+      status_.fault = limited_torque_Nm_pair.second;
+    }
 
     control_.torque_Nm = limited_torque_Nm;
     status_.torque_error_Nm = status_.torque_Nm - control_.torque_Nm;

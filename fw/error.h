@@ -49,6 +49,18 @@ enum class errc {
   kStopPositionDeprecated = 45,
   kTimingViolation = 46,
   kBemfFeedforwardNoAccelLimit = 47,
+
+  // The following are not hard faults, but instead codes that are
+  // presented while in a control mode if some factor is limiting the
+  // total output.
+  kLimitMaxVelocity = 96,       // servo.max_velocity
+  kLimitMaxPower = 97,          // servo.max_power_W
+  kLimitMaxVoltage = 98,
+  kLimitMaxCurrent = 99,        // servo.max_current_A
+  kLimitFetTemperature = 100,   // servo.fault_temperature
+  kLimitMotorTemperature = 101, // servo.motor_fault_temperature
+  kLimitMaxTorque = 102,
+  kLimitPositionBounds = 103,   // servopos.position_min / servopos.position_max
 };
 
 mjlib::micro::error_code make_error_code(errc);

@@ -738,6 +738,19 @@ A fault code which will be set if the primary mode is 1 (Fault).
   *really* know what you are doing, you can disable this with
   `servo.bemf_feedforward_override`.
 
+Some non-zero codes can be presented during valid control modes
+without a fault.  These indicate which, if any, function is limiting
+the output power of the controller.
+
+* 96 - `servo.max_velocity`
+* 97 - `servo.max_power_W`
+* 98 - the maximum system voltage
+* 99 - `servo.max_current_A`
+* 100 - `servo.fault_temperature`
+* 101 - `servo.motor_fault_temperature`
+* 102 - the commanded maximum torque
+* 103 - `servopos.position_min` or `servopos.position_max`
+
 The full list can be found at: [fw/error.h](../fw/error.h#L25)
 
 
