@@ -91,6 +91,7 @@ class Stm32Quadrature {
   Stm32Quadrature(const Quadrature::Config& config,
                   aux::Quadrature::Status* status,
                   const PinArray& array,
+                  size_t array_size,
                   const AuxHardwareConfig& hw_config)
       : config_(config),
         status_(status) {
@@ -99,7 +100,7 @@ class Stm32Quadrature {
     aux::AuxPinConfig pinb = {};
     aux::Pin::Mode pinb_mode = {};
 
-    for (size_t i = 0; i < array.size(); i++) {
+    for (size_t i = 0; i < array_size; i++) {
       const auto& pin = array[i];
 
       if (pin.mode != aux::Pin::Mode::kQuadratureSoftware &&
@@ -296,8 +297,9 @@ class Stm32Index {
   template <typename PinArray>
   Stm32Index(const Index::Config& config,
              const PinArray& array,
+             size_t array_size,
              const AuxHardwareConfig& hw_config) {
-    for (size_t i = 0; i < array.size(); i++) {
+    for (size_t i = 0; i < array_size; i++) {
       const auto& cfg = array[i];
       if (cfg.mode == Pin::Mode::kIndex) {
         if (index_) {
@@ -512,13 +514,14 @@ enum RequireCs {
 
 template <typename PinArray>
 std::optional<SpiPinOption> FindSpiOption(const PinArray& pin_array,
+                                          size_t array_size,
                                           const AuxHardwareConfig& hw_config,
                                           RequireCs require_cs) {
   SpiPinOption result;
 
   // Figure out if appropriate pins are configured.
   int cs_count = 0;
-  for (size_t i = 0; i < pin_array.size(); i++) {
+  for (size_t i = 0; i < array_size; i++) {
     const auto& cfg = pin_array[i];
     if (cfg.mode == Pin::Mode::kSpiCs) {
       cs_count++;
@@ -586,10 +589,11 @@ std::optional<SpiPinOption> FindSpiOption(const PinArray& pin_array,
 
 template <typename PinArray>
 std::optional<UartPinOption> FindUartOption(const PinArray& pin_array,
+                                            size_t array_size,
                                             const AuxHardwareConfig& hw_config) {
   UartPinOption result;
 
-  for (size_t i = 0; i < pin_array.size(); i++) {
+  for (size_t i = 0; i < array_size; i++) {
     const auto& cfg = pin_array[i];
     if (cfg.mode == Pin::Mode::kUart) {
       const auto* pin = [&]() {

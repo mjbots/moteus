@@ -65,7 +65,11 @@ class AuxPort {
           MillisecondTimer* timer,
           SpiDefault spi_default,
           std::array<DMA_Channel_TypeDef*, 4> dma_channels)
-      : tunnel_stream_(tunnel_stream),
+      : pin_count_(std::max_element(
+                       hw_config.pins.begin(), hw_config.pins.end(),
+                       [](const auto& a, const auto& b) {
+                         return a.number < b.number; })->number + 1),
+        tunnel_stream_(tunnel_stream),
         timer_(timer),
         adc_info_(*adc_info),
         hw_config_(hw_config),
@@ -162,7 +166,7 @@ class AuxPort {
           break;
         }
         case SampleType::kGpio: {
-          for (size_t i = 0; i < config_.pins.size(); i++) {
+          for (size_t i = 0; i < pin_count_; i++) {
             if (config_.pins[i].mode == aux::Pin::Mode::kDigitalInput) {
               status_.pins[i] = digital_inputs_[i]->read() ? true : false;
             } else if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
@@ -270,7 +274,7 @@ class AuxPort {
   void ISR_EndAnalogSample() MOTEUS_CCM_ATTRIBUTE {
     if (!any_adc_) { return; }
 
-    for (size_t i = 0; i < config_.pins.size(); i++) {
+    for (size_t i = 0; i < pin_count_; i++) {
       if (analog_input_active_[i]) {
         status_.analog_inputs[i] =
             static_cast<float>(adc_info_.value[i]) / 4096.0f;
@@ -377,7 +381,7 @@ class AuxPort {
 
 
   void WriteDigitalOut(uint32_t value) {
-    for (size_t i = 0; i < config_.pins.size(); i++) {
+    for (size_t i = 0; i < pin_count_; i++) {
       if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
         status_.pins[i] = (value & (1 << i)) ? true : false;
       }
@@ -385,7 +389,7 @@ class AuxPort {
   }
 
   void WritePwmOut(int pin, float value) {
-    pin = std::max<int>(0, std::min<int>(config_.pins.size() - 1, pin));
+    pin = std::max<int>(0, std::min<int>(pin_count_ - 1, pin));
     status_.pwm[pin] = std::max(0.0f, std::min(1.0f, value));
   }
 
@@ -887,7 +891,7 @@ class AuxPort {
     if (any_i2c) {
       PinName sda = NC;
       PinName scl = NC;
-      for (size_t i = 0; i < config_.pins.size(); i++) {
+      for (size_t i = 0; i < pin_count_; i++) {
         if (config_.pins[i].mode != aux::Pin::Mode::kI2C) { continue; }
 
         for (const auto& pin : hw_config_.pins) {
@@ -956,7 +960,7 @@ class AuxPort {
     // Default to the onboard encoder for SPI.
     if (config_.spi.mode != aux::Spi::Config::kDisabled) {
       const auto maybe_spi = aux::FindSpiOption(
-          config_.pins, hw_config_,
+          config_.pins, pin_count_, hw_config_,
           ((config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
             config_.spi.mode == aux::Spi::Config::kOnboardMa600) ?
            aux::kDoNotRequireCs : aux::kRequireCs));
@@ -1036,20 +1040,19 @@ class AuxPort {
     if (config_.hall.enabled) {
       // We need exactly 3 hall sensors.
       int count = 0;
-      for (const auto& pin : config_.pins) {
-        if (pin.mode == aux::Pin::Mode::kHall) { count++; }
+      for (size_t i = 0; i < pin_count_; i++) {
+        if (config_.pins[i].mode == aux::Pin::Mode::kHall) { count++; }
       }
       if (count != 3) {
         status_.error = aux::AuxError::kHallPinError;
       }
-      for (size_t i = 0; i < config_.pins.size(); i++) {
+      for (size_t i = 0; i < pin_count_; i++) {
         const auto cfg = config_.pins[i];
         if (cfg.mode != aux::Pin::Mode::kHall) { continue; }
         const auto mbed = [&]() {
             for (const auto& pin : hw_config_.pins) {
               if (pin.number == static_cast<int>(i)) { return pin.mbed; }
             }
-            mbed_die();
             return NC;
         }();
         if (!halla_) {
@@ -1065,7 +1068,7 @@ class AuxPort {
 
     if (config_.quadrature.enabled) {
       quad_.emplace(config_.quadrature, &status_.quadrature,
-                    config_.pins, hw_config_);
+                    config_.pins, pin_count_, hw_config_);
       if (quad_->error() != aux::AuxError::kNone) {
         status_.error = quad_->error();
         quad_.reset();
@@ -1075,7 +1078,7 @@ class AuxPort {
     }
 
     if (config_.index.enabled) {
-      index_.emplace(config_.index, config_.pins, hw_config_);
+      index_.emplace(config_.index, config_.pins, pin_count_, hw_config_);
       if (index_->error() != aux::AuxError::kNone) {
         status_.error = index_->error();
         index_.reset();
@@ -1086,7 +1089,7 @@ class AuxPort {
 
     if (config_.sine_cosine.enabled) {
       // We need exactly 1 each of a kSine and a kCosine.
-      for (size_t i = 0; i < config_.pins.size(); i++) {
+      for (size_t i = 0; i < pin_count_; i++) {
         const auto cfg = config_.pins[i];
         if (cfg.mode == aux::Pin::Mode::kSine) {
           if (sine_pin_ != -1) {
@@ -1111,7 +1114,8 @@ class AuxPort {
     }
 
     if (config_.uart.mode != aux::UartEncoder::Config::kDisabled) {
-      const auto maybe_uart = aux::FindUartOption(config_.pins, hw_config_);
+      const auto maybe_uart = aux::FindUartOption(
+          config_.pins, pin_count_, hw_config_);
       if (!maybe_uart) {
         status_.error = aux::AuxError::kUartPinError;
         return;
@@ -1168,7 +1172,7 @@ class AuxPort {
       updated_any_isr = true;
     }
 
-    for (size_t i = 0; i < config_.pins.size(); i++) {
+    for (size_t i = 0; i < pin_count_; i++) {
       const auto cfg = config_.pins[i];
       const auto first_mbed = [&]() {
           for (const auto& pin : hw_config_.pins) {
@@ -1312,6 +1316,7 @@ class AuxPort {
   Config config_;
   Status status_;
 
+  const size_t pin_count_;
   mjlib::micro::AsyncStream* const tunnel_stream_;
   MillisecondTimer* const timer_;
 
