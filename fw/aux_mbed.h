@@ -298,7 +298,8 @@ class Stm32Index {
   Stm32Index(const Index::Config& config,
              const PinArray& array,
              size_t array_size,
-             const AuxHardwareConfig& hw_config) {
+             const AuxHardwareConfig& hw_config)
+      : invert_(config.invert) {
     for (size_t i = 0; i < array_size; i++) {
       const auto& cfg = array[i];
       if (cfg.mode == Pin::Mode::kIndex) {
@@ -335,7 +336,7 @@ class Stm32Index {
 
     const bool old_raw = status->raw;
     const bool observed = observed_.exchange(false);
-    status->raw = observed || index_isr_->read();
+    status->raw = observed || (invert_ ^ index_isr_->read());
     status->value = status->raw && !old_raw;
     status->active = true;
   }
@@ -346,7 +347,7 @@ class Stm32Index {
     // The principle here is that we capture any high readings in the
     // ISR so that the minimum pulse width we can read is determined
     // by the ISR latency, not by the control period.
-    if (index_isr_->read()) { observed_.store(true); }
+    if (invert_ ^ index_isr_->read()) { observed_.store(true); }
   }
 
   static void ISR_CallbackDelegate(uint32_t my_this) MOTEUS_CCM_ATTRIBUTE {
@@ -354,6 +355,7 @@ class Stm32Index {
   }
 
  private:
+  bool invert_ = false;
   aux::AuxError error_ = aux::AuxError::kNone;
   std::atomic<bool> observed_{false};
   std::optional<Stm32GpioInterruptIn> index_isr_;
