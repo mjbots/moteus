@@ -196,10 +196,12 @@ struct Hall {
 struct Index {
   struct Config {
     bool enabled = false;
+    bool invert = false;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(enabled));
+      a->Visit(MJ_NVP(invert));
     }
   };
 
