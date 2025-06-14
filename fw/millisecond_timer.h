@@ -96,8 +96,18 @@ class MillisecondTimer {
     }
   }
 
+  void AdvanceMsSinceBoot() {
+    ms_count_++;
+  }
+
+  // This will wrap at around 50 days of uptime.  It should be used
+  // only for operations where is acceptable to have false readings at
+  // that frequency.
+  uint32_t ms_since_boot() const { return ms_count_; }
+
  private:
   TIM_HandleTypeDef handle_ = {};
+  uint32_t ms_count_ = 0;
 };
 
 }
