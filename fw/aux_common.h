@@ -33,6 +33,7 @@ struct Spi {
       kMa600,
       kOnboardMa600,
       kBoardDefault,
+      kCuiAmt22,
 
       kNumModes,
     };
@@ -69,12 +70,15 @@ struct Spi {
 
     uint8_t ic_pz_bits = 0;
 
+    uint16_t checksum_errors = 0;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(active));
       a->Visit(MJ_NVP(value));
       a->Visit(MJ_NVP(nonce));
       a->Visit(MJ_NVP(ic_pz_bits));
+      a->Visit(MJ_NVP(checksum_errors));
     }
   };
 };
@@ -461,6 +465,7 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
         { M::kMa600, "ma600" },
         { M::kOnboardMa600, "onboard_ma600" },
         { M::kBoardDefault, "board_default" },
+        { M::kCuiAmt22, "cui_amt22" },
       }};
   }
 };

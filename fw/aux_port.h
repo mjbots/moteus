@@ -33,6 +33,7 @@
 #include "fw/aux_mbed.h"
 #include "fw/ccm.h"
 #include "fw/cui_amt21.h"
+#include "fw/cui_amt22.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
 #include "fw/ma732.h"
@@ -224,6 +225,10 @@ class AuxPort {
           cui_amt21_->ISR_Update(&status_.uart);
           break;
         }
+        case SampleType::kCuiAmt22: {
+          cui_amt22_->ISR_Update(&status_.spi);
+          break;
+        }
         case SampleType::kI2c: {
           ISR_I2C_Update();
           break;
@@ -326,6 +331,18 @@ class AuxPort {
       }
     }
 
+    if (!cui_amt22_ && cui_amt22_options_) {
+      if (timer_->ms_since_boot() > 200) {
+        __disable_irq();
+        status_.error = aux::AuxError::kNone;
+
+        cui_amt22_.emplace(*cui_amt22_options_);
+        AddSampleType(SampleType::kCuiAmt22, true, true);
+
+        __enable_irq();
+      }
+    }
+
     if (!ma732_ && ma732_options_) {
       // The worst case startup time for the MA732 is 260ms, however
       // we can't current measure that long from startup.  So we'll
@@ -419,6 +436,7 @@ class AuxPort {
     kAksim2 = 8,
     kCuiAmt21 = 9,
     kI2c = 10,
+    kCuiAmt22 = 11,
 
     kLastEntry,
   };
@@ -796,6 +814,8 @@ class AuxPort {
     ma732_.reset();
     ma732_options_.reset();
     onboard_cs_.reset();
+    cui_amt22_.reset();
+    cui_amt22_options_.reset();
 
     bool updated_any_isr = false;
 
@@ -986,6 +1006,22 @@ class AuxPort {
           AS5047::Options options = spi_options;
           options.timeout = 200;
           as5047_options_ = options;
+
+          break;
+        }
+        case aux::Spi::Config::kCuiAmt22: {
+          CuiAmt22::Options options = spi_options;
+          // The max limit is 2Mbps per the datasheet.  The minimum limit is set to ensure
+          // there is sufficient setup time between each of:
+          // Tclk: CS_low -> SPI: 2.5us
+          // Tb: between bytes: 2.5us
+          // Tr: SPI -> CS_high: 3us
+          // Tcs: CS_low -> CS_low: 40us
+          // assuming that each step is taken once per ISR and the maximum ISR rate is 30kHz.
+          if (options.frequency > 2000000) { options.frequency = 2000000; }
+          if (options.frequency < 600000) { options.frequency = 600000; }
+          options.timeout = 2000;
+          cui_amt22_options_ = options;
 
           break;
         }
@@ -1327,6 +1363,9 @@ class AuxPort {
 
   std::optional<MA732> ma732_;
   std::optional<MA732::Options> ma732_options_;
+
+  std::optional<CuiAmt22> cui_amt22_;
+  std::optional<CuiAmt22::Options> cui_amt22_options_;
 
   std::optional<IcPz> ic_pz_;
   std::optional<DigitalOut> onboard_cs_;

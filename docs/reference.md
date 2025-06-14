@@ -150,6 +150,7 @@ functions.  Currently supported options include:
 | AS5600          | I2C              | 12 bits        | on-axis     | $         |
 | AksIM-2         | RS422 w/ 5V      | 20 bits        | off-axis    | $$$       |
 | CUI AMT21x      | RS422 w/ 5V      | 14 bits        | shaft       | $$        |
+| CUI AMT22x      | SPI w/ 5V        | 14 bits        | shaft       | $$        |
 | MA600           | SPI              | 16 bits        | on/off-axis | $         |
 | MA732           | SPI              | 14 bits        | on/off-axis | $         |
 | iC-PZ           | SPI w/ 5V        | 22 bits        | off-axis    | $$$       |
@@ -2131,6 +2132,7 @@ The type of SPI device.
 * 3 - iC-PZ
 * 4 - MA732 (CPR == 65536)
 * 5 - MA600 (CPR == 65536)
+* 8 - AMT22 (CPR == 16384)
 
 NOTE: iC-PZ devices require significant configuration and calibration
 before use.  Diagnostic mode commands are provided for low level
