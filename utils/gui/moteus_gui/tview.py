@@ -185,9 +185,9 @@ class RecordSignal(object):
 
         return Connection(self, result)
 
-    def update(self, value):
+    def update(self, value, now):
         for handler in self._callbacks.values():
-            handler(value)
+            handler(value, now)
         return len(self._callbacks) != 0
 
 
@@ -226,14 +226,13 @@ class PlotItem(object):
             self.axis.legend(loc=self.axis.legend_loc)
         self.plot_widget.canvas.draw()
 
-    def _handle_update(self, value):
+    def _handle_update(self, value, now):
         if self.plot_widget.paused:
             return
 
         if self.line is None:
             self._make_line()
 
-        now = time.time()
         self.xdata.append(now)
         self.ydata.append(value)
 
@@ -404,7 +403,7 @@ class Record:
 
         return self.signals[name]
 
-    def update(self, struct):
+    def update(self, struct, now):
         count = 0
         self.history.append(struct)
         if len(self.history) > MAX_HISTORY_SIZE:
@@ -421,7 +420,7 @@ class Record:
                 value = numpy.mean(values)
             else:
                 value = _get_data(struct, key)
-            if signal.update(value):
+            if signal.update(value, now):
                 count += 1
         return count != 0
 
@@ -755,6 +754,8 @@ class Device:
         return await self.read_sized_block()
 
     async def do_data(self, name):
+        now = time.time()
+
         data = await self.read_sized_block()
         if not data:
             return
@@ -765,7 +766,7 @@ class Device:
         record = self._telemetry_records[name]
         if record:
             struct = record.archive.read(reader.Stream(io.BytesIO(data)))
-            record.update(struct)
+            record.update(struct, now)
             _set_tree_widget_data(record.tree_item, struct, record.archive)
 
             self._data[name] = struct
