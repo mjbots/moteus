@@ -48,7 +48,7 @@ Assembled and tested boards can be purchased at: https://mjbots.com
 
 # Misc #
 
- * travis-ci [![Build Status](https://travis-ci.org/mjbots/moteus.svg?branch=main)](https://travis-ci.org/mjbots/moteus)
+ * [![CI Status](https://github.com/mjbots/moteus/actions/workflows/ci.yml/badge.svg)](https://github.com/mjbots/moteus/actions/workflows/ci.yml)
 
 # How to support moteus development #
 
