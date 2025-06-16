@@ -38,6 +38,7 @@ struct Context {
                     &aux1_config, &aux2_config};
 
   Context() {
+    dut.SetRate(kDt);
     dut.motor()->poles = 4;
 
     // Force everything to load from defaults and all callbacks to be
@@ -46,7 +47,7 @@ struct Context {
   }
 
   void Update() {
-    dut.ISR_Update(kDt);
+    dut.ISR_Update();
 
   }
 };
@@ -61,7 +62,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
   ctx.aux1_status.spi.value = 4096;
   ctx.aux1_status.spi.nonce = 1;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
 
   {
     const auto status = ctx.dut.status();
@@ -73,7 +74,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
   ctx.aux1_status.spi.active = true;
   ctx.aux1_status.spi.nonce++;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
 
   {
     const auto status = ctx.dut.status();
@@ -95,7 +96,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
   ctx.aux1_status.spi.value = 4100;
   ctx.aux1_status.spi.nonce++;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
 
   {
     const auto status = ctx.dut.status();
@@ -121,7 +122,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
 
   ctx.aux1_status.spi.nonce++;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
 
   {
     const auto status = ctx.dut.status();
@@ -133,7 +134,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
   int cycles_to_inactive = 0;
   while (true) {
     cycles_to_inactive++;
-    ctx.dut.ISR_Update(kDt);
+    ctx.dut.ISR_Update();
 
     if (ctx.dut.status().theta_valid == false) { break; }
     if (cycles_to_inactive > 10000) { break; }
@@ -153,7 +154,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
   ctx.aux1_status.spi.active = true;
   ctx.aux1_status.spi.nonce++;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
 
   {
     const auto status = ctx.dut.status();
@@ -191,7 +192,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionStartupCapture,
     ctx.aux1_status.spi.value = test.initial;
     ctx.aux1_status.spi.nonce = 1;
 
-    ctx.dut.ISR_Update(kDt);
+    ctx.dut.ISR_Update();
 
     {
       const auto status = ctx.dut.status();
@@ -221,7 +222,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionSetOutput,
     ctx.aux1_status.spi.value = 0;
     ctx.aux1_status.spi.nonce = 1;
 
-    ctx.dut.ISR_Update(kDt);
+    ctx.dut.ISR_Update();
     {
       const auto status = ctx.dut.status();
       BOOST_TEST(status.position == 0.0f);
@@ -236,7 +237,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionSetOutput,
     }
 
     ctx.aux1_status.spi.nonce = 2;
-    ctx.dut.ISR_Update(kDt);
+    ctx.dut.ISR_Update();
     {
       const auto status = ctx.dut.status();
       BOOST_TEST(status.position == test);
@@ -295,7 +296,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionSetOutputNearest,
       ctx.dut.config()->rotor_to_output_ratio = test.rotor_to_output;
       ctx.pcf.persistent_config.Load();
 
-      ctx.dut.ISR_Update(kDt);
+      ctx.dut.ISR_Update();
       {
         const auto status = ctx.dut.status();
         BOOST_TEST(status.homed == MotorPosition::Status::kRelative);
@@ -305,7 +306,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionSetOutputNearest,
       ctx.aux1_status.spi.value = test.source * 16384.0f;
       ctx.aux1_status.spi.nonce = 1;
 
-      ctx.dut.ISR_Update(kDt);
+      ctx.dut.ISR_Update();
       {
         const auto status = ctx.dut.status();
         BOOST_TEST(status.homed == MotorPosition::Status::kRotor);
@@ -319,7 +320,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionSetOutputNearest,
       }
 
       ctx.aux1_status.spi.nonce = 2;
-      ctx.dut.ISR_Update(kDt);
+      ctx.dut.ISR_Update();
       {
         const auto status = ctx.dut.status();
         BOOST_TEST(status.position == test.expected);
@@ -695,7 +696,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
       ctx.aux1_status.spi.nonce += 1;
 
       for (int i = 0; i < 10000; i++) {
-        ctx.dut.ISR_Update(kDt);
+        ctx.dut.ISR_Update();
       }
 
       const auto status = ctx.dut.status();
@@ -757,14 +758,14 @@ BOOST_AUTO_TEST_CASE(MotorPositionSpiTransform,
 
       ctx.pcf.persistent_config.Load();
 
-      ctx.dut.ISR_Update(kDt);
+      ctx.dut.ISR_Update();
       {
         const auto status = ctx.dut.status();
         BOOST_TEST(status.position_relative_valid == false);
       }
 
       ctx.aux1_status.spi.active = true;
-      ctx.dut.ISR_Update(kDt);
+      ctx.dut.ISR_Update();
 
       {
         const auto status = ctx.dut.status();
@@ -783,15 +784,15 @@ BOOST_AUTO_TEST_CASE(MotorPositionInfrequentUpdates) {
   ctx.aux1_status.spi.value = 4096;
   ctx.aux1_status.spi.nonce = 1;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
   BOOST_TEST(ctx.dut.status().sources[0].time_since_update == 0.0f);
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
   BOOST_TEST(ctx.dut.status().sources[0].time_since_update == (1 * kDt));
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
   BOOST_TEST(ctx.dut.status().sources[0].time_since_update == (2 * kDt));
 
   ctx.aux1_status.spi.nonce = 2;
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
   BOOST_TEST(ctx.dut.status().sources[0].time_since_update == 0.0f);
 }
 
@@ -816,7 +817,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicI2C) {
   ctx.aux2_status.i2c.devices[0].value = 4096;
   ctx.aux2_status.i2c.devices[0].nonce = 1;
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
   {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.sources[1].active_theta == true);
@@ -830,7 +831,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicI2C) {
       ctx.aux2_status.i2c.devices[0].value = 4096 + (i / 10) % 2;
       ctx.aux2_status.i2c.devices[0].nonce += 1;
     }
-    ctx.dut.ISR_Update(kDt);
+    ctx.dut.ISR_Update();
   }
   {
     const auto status = ctx.dut.status();
@@ -845,8 +846,6 @@ BOOST_AUTO_TEST_CASE(MotorPositionHallSource) {
   // source is from 0-5, whereas the final state is transformed to
   // such that the CPR covers one full revolution of the rotor.
 
-  constexpr float dt = kDt;
-
   struct TestValues {
     uint32_t count;
 
@@ -858,8 +857,9 @@ BOOST_AUTO_TEST_CASE(MotorPositionHallSource) {
 
     for (const auto& test : test_values) {
       ctx.aux1_status.hall.count = test.count;
+      ctx.aux1_status.hall.nonce += 1;
 
-      ctx.dut.ISR_Update(dt);
+      ctx.dut.ISR_Update();
 
       {
         const auto status = ctx.dut.status();
@@ -996,7 +996,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {
     }
     ctx.pcf.persistent_config.Load();
 
-    ctx.dut.ISR_Update(kDt);
+    ctx.dut.ISR_Update();
     {
       const auto status = ctx.dut.status();
       BOOST_TEST(status.sources[0].active_velocity == false);
@@ -1208,7 +1208,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionSlew,
           ctx.aux1_status.spi.value = (i + sign) % 16384;
           ctx.aux1_status.spi.nonce++;
 
-          ctx.dut.ISR_Update(kDt);
+          ctx.dut.ISR_Update();
 
           // We should verify that the reported position never changes
           // by more than a certain amount.
@@ -1246,7 +1246,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
           ctx.aux1_status.spi.value = spi_value;
           ctx.aux1_status.spi.nonce = 1;
 
-          ctx.dut.ISR_Update(kDt);
+          ctx.dut.ISR_Update();
 
           const float expected_position =
               ((spi_value >= 8192) ? (spi_value-16384) : spi_value) / 16384.0f;
@@ -1273,7 +1273,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
           ctx.aux1_status.spi.value += 4;
           ctx.aux1_status.spi.nonce++;
 
-          ctx.dut.ISR_Update(kDt);
+          ctx.dut.ISR_Update();
 
           {
             const auto status = ctx.dut.status();
@@ -1300,7 +1300,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
             BOOST_TEST(status.position == (sign * (2.0f + expected_position + 0.000137329f) + sign * offset));
           }
 
-          ctx.dut.ISR_Update(kDt);
+          ctx.dut.ISR_Update();
           {
             const auto status = ctx.dut.status();
             BOOST_TEST(status.position == (sign * (2.0f + expected_position + 0.00015259f) + sign * offset));
@@ -1312,7 +1312,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
             BOOST_TEST(status.position == (-sign * 2.0f + sign * expected_position + sign * offset));
           }
 
-          ctx.dut.ISR_Update(kDt);
+          ctx.dut.ISR_Update();
           {
             const auto status = ctx.dut.status();
             BOOST_TEST(status.position == (-sign * 2.0f + sign * expected_position + sign * offset));
@@ -1340,7 +1340,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionDrift) {
       ctx.aux1_status.spi.value = 4096;
       ctx.aux1_status.spi.nonce = 1;
 
-      ctx.dut.ISR_Update(kDt);
+      ctx.dut.ISR_Update();
 
       boost::random::mt19937 rng;
       boost::random::normal_distribution dist(0.0, 2.0);
@@ -1348,7 +1348,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionDrift) {
         ctx.aux1_status.spi.value = 4096 + static_cast<int>(dist(rng));
         ctx.aux1_status.spi.nonce++;
 
-        ctx.dut.ISR_Update(kDt);
+        ctx.dut.ISR_Update();
       }
 
       {
@@ -1370,7 +1370,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionInvalidOffset) {
 
   ctx.pcf.persistent_config.Load();
 
-  ctx.dut.ISR_Update(kDt);
+  ctx.dut.ISR_Update();
 
   const auto status = ctx.dut.status();
   BOOST_TEST(status.error == MotorPosition::Status::kDiscontinuousOffset);
@@ -1408,7 +1408,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionThetaInterpolate) {
         ctx.aux1_status.spi.value = test.initial;
         ctx.aux1_status.spi.nonce += 1;
 
-        ctx.dut.ISR_Update(kDt);
+        ctx.dut.ISR_Update();
       }
       {
         const auto status = ctx.dut.status();
