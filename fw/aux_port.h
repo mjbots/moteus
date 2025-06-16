@@ -193,6 +193,8 @@ class AuxPort {
 
           if (numbits_changed > 1) {
             status_.hall.error++;
+          } else if (numbits_changed > 0) {
+            status_.hall.nonce += 1;
           }
 
           static constexpr uint8_t kHallMapping[] = {
