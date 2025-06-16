@@ -140,7 +140,10 @@ struct Application {
           fmt::format("Could not open input: {}", options.input));
     }
 
-    std::ofstream out(options.output);
+    std::shared_ptr<std::ofstream> out;
+    if (!options.output.empty()) {
+      out = std::make_shared<std::ofstream>(options.output);
+    }
 
     // Read the entire raw input into memory.
     std::stringstream istr;
@@ -212,8 +215,8 @@ struct Application {
       if (data_[first].compensated_value == data_[last].compensated_value) {
         // We had a back and forth.  Just assume something in the
         // middle with zero velocity.
-        return std::make_pair(wrap_encoder(0.5f * wrap_encoder_delta(current_value - data_[first].compensated_value) + data_[first].compensated_value),
-                              0.0);
+        return std::make_pair(static_cast<double>(current_value),
+                              static_cast<double>(0.0f));
       }
 
       const auto fraction =
@@ -226,7 +229,13 @@ struct Application {
           static_cast<double>(velocity));
     };
 
-    double metric = 0.0;
+    double position_metric = 0.0;
+    double velocity_metric = 0.0;
+
+    double max_position_error = 0.0;
+    double max_position_error_time = 0.0;
+    double max_velocity_error = 0.0;
+    double max_velocity_error_time = 0.0;
 
     for (size_t i = 0; i < data_.size(); i++) {
       const auto [pos, vel] = find_ground_truth(i);
@@ -234,24 +243,51 @@ struct Application {
       data_[i].truth_value = pos;
       data_[i].truth_velocity = vel;
 
-      metric += std::pow(wrap_encoder_delta(data_[i].truth_value - data_[i].filtered_value), 2);
-      metric += std::pow(data_[i].truth_velocity - data_[i].velocity, 2);
+      const double position_error = wrap_encoder_delta(data_[i].truth_value - data_[i].filtered_value);
+      const double velocity_error = data_[i].truth_velocity - data_[i].velocity;
+
+      const double this_position_metric = std::pow(position_error, 2.0);
+      position_metric += this_position_metric;
+
+      const double this_velocity_metric = std::pow(velocity_error, 2.0);
+      velocity_metric += this_velocity_metric;
+
+      const auto abs_position_error = std::abs(position_error);
+      if (abs_position_error > max_position_error) {
+        max_position_error = abs_position_error;
+        max_position_error_time = i / 30000.0;
+      }
+
+      const auto abs_velocity_error = std::abs(velocity_error);
+      if (abs_velocity_error > max_velocity_error) {
+        max_velocity_error = abs_velocity_error;
+        max_velocity_error_time = i / 30000.0;
+      }
     }
 
-    out << fmt::format("time,raw,count,compensated,filtered,velocity,truth_pos,truth_vel\n");
+    if (out) {
+      *out << fmt::format("time,raw,count,compensated,filtered,velocity,truth_pos,truth_vel\n");
 
-    for (const auto& d : data_) {
-      out << fmt::format(
-          "{},{},{},{},{},{},{},{}\n",
-          d.time, d.raw_value, d.hall_count,
-          d.compensated_value,
-          d.filtered_value,
-          d.velocity,
-          d.truth_value,
-          d.truth_velocity);
+      for (const auto& d : data_) {
+        *out << fmt::format(
+            "{},{},{},{},{},{},{},{}\n",
+            d.time, d.raw_value, d.hall_count,
+            d.compensated_value,
+            d.filtered_value,
+            d.velocity,
+            d.truth_value,
+            d.truth_velocity);
+      }
     }
 
-    fmt::print("Metric: {}\n", metric / data_.size());
+    fmt::print("{{\n");
+    fmt::print("  \"position_metric\": {},\n", position_metric / data_.size());
+    fmt::print("  \"velocity_metric\": {},\n", velocity_metric / data_.size());
+    fmt::print("  \"max_position_error\": {},\n", max_position_error);
+    fmt::print("  \"max_position_error_time\": {},\n", max_position_error_time);
+    fmt::print("  \"max_velocity_error\": {},\n", max_velocity_error);
+    fmt::print("  \"max_velocity_error_time\": {}\n", max_velocity_error_time);
+    fmt::print("}}\n");
   }
 };
 };
