@@ -24,35 +24,35 @@ import tempfile
 
 TESTS = [
     # test                         PLL    pmetric  pmax  vmetric  vmax
-    ('20250616-speed-cycle',       50,    0.25,    1.2,  1200.0,  250.0),
-    ('20250616-back-and-forth',    50,    0.25,    1.1,  130.0,   70.0),
-    ('20250616-bnforth-highaccel', 50,    0.25,    1.1,  180.0,   110.0),
-    ('20250616-hboard-cycle',      50,    0.30,    1.1,  900.0,   120.0),
-    ('20250616-hboard-manual',     50,    0.30,    1.1,  120.0,   50.0),
+    ('20250616-speed-cycle',       50,    0.09,    1.1,  1400.0,  280.0),
+    ('20250616-back-and-forth',    50,    0.11,    1.1,  150.0,   70.0),
+    ('20250616-bnforth-highaccel', 50,    0.09,    1.1,  190.0,   80.0),
+    ('20250616-hboard-cycle',      50,    0.06,    1.1,  900.0,   130.0),
+    ('20250616-hboard-manual',     50,    0.04,    1.1,  23.0,    20.0),
 
-    ('20250616-speed-cycle',       124,   0.30,    1.1,  1700.0,  260.0),
-    ('20250616-back-and-forth',    124,   0.25,    1.1,  450.0,   120.0),
-    ('20250616-bnforth-highaccel', 124,   0.26,    1.1,  350.0,   130.0),
-    ('20250616-hboard-cycle',      124,   0.30,    1.1,  1700.0,  140.0),
-    ('20250616-hboard-manual',     124,   0.30,    1.1,  1200.0,  120.0),
+    ('20250616-speed-cycle',       124,   0.09,    1.1,  1400.0,  270.0),
+    ('20250616-back-and-forth',    124,   0.11,    1.1,  190.0,   70.0),
+    ('20250616-bnforth-highaccel', 124,   0.09,    1.1,  250.0,   80.0),
+    ('20250616-hboard-cycle',      124,   0.06,    1.1,  1400.0,  160.0),
+    ('20250616-hboard-manual',     124,   0.04,    1.1,  23.0,    20.0),
 
-    ('20250616-speed-cycle',       248,   0.30,    1.1,  3600.0,  260.0),
-    ('20250616-back-and-forth',    248,   0.30,    1.1,  3000.0,  250.0),
-    ('20250616-bnforth-highaccel', 248,   0.26,    1.1,  2600.0,  250.0),
-    ('20250616-hboard-cycle',      248,   0.30,    1.1,  4100.0,  240.0),
-    ('20250616-hboard-manual',     248,   0.35,    1.1,  4500.0,  240.0),
+    ('20250616-speed-cycle',       248,   0.09,    1.1,  1400.0,  270.0),
+    ('20250616-back-and-forth',    248,   0.11,    1.1,  190.0,   70.0),
+    ('20250616-bnforth-highaccel', 248,   0.09,    1.1,  250.0,   80.0),
+    ('20250616-hboard-cycle',      248,   0.06,    1.1,  2800.0,  180.0),
+    ('20250616-hboard-manual',     248,   0.04,    1.1,  25.0,    20.0),
 
-    ('20250616-speed-cycle',       496,   0.30,    1.1,  9600.0,  470.0),
-    ('20250616-back-and-forth',    496,   0.30,    1.1, 17000.0,  470.0),
-    ('20250616-bnforth-highaccel', 496,   0.30,    1.1, 18000.0,  470.0),
-    ('20250616-hboard-cycle',      496,   0.35,    1.1, 13000.0,  470.0),
-    ('20250616-hboard-manual',     496,   0.35,    1.1, 13000.0,  470.0),
+    ('20250616-speed-cycle',       496,   0.08,    1.1,  2800.0,  350.0),
+    ('20250616-back-and-forth',    496,   0.11,    1.1,  190.0,   70.0),
+    ('20250616-bnforth-highaccel', 496,   0.09,    1.1,  260.0,   80.0),
+    ('20250616-hboard-cycle',      496,   0.06,    1.1,  2800.0,  180.0),
+    ('20250616-hboard-manual',     496,   0.04,    1.1,  25.0,    20.0),
 
-    ('20250616-speed-cycle',       992,   0.30,    1.1, 34000.0, 1000.0),
-    ('20250616-back-and-forth',    992,   0.30,    1.1, 57000.0, 1000.0),
-    ('20250616-bnforth-highaccel', 992,   0.30,    1.1, 70000.0, 1000.0),
-    ('20250616-hboard-cycle',      992,   0.35,    1.1, 50000.0, 1000.0),
-    ('20250616-hboard-manual',     992,   0.35,    1.1, 30000.0, 1000.0),
+    ('20250616-speed-cycle',       992,   0.09,    1.1,  3500.0,  390.0),
+    ('20250616-back-and-forth',    992,   0.11,    1.1,  200.0,   70.0),
+    ('20250616-bnforth-highaccel', 992,   0.09,    1.1,  260.0,   80.0),
+    ('20250616-hboard-cycle',      992,   0.06,    1.1,  2900.0,  180.0),
+    ('20250616-hboard-manual',     992,   0.04,    1.1,  25.0,    20.0),
 ]
 
 def main():
@@ -89,16 +89,20 @@ def main():
             test_pass = False
         if result['max_velocity_error'] >= vmax:
             test_pass = False
+        if result['max_velocity_error'] < 0.5 * vmax:
+            test_pass = False
         if result['position_metric'] >= pmetric:
             test_pass = False
         if result['position_metric'] < 0.5 * pmetric:
             test_pass = False
         if result['max_position_error'] >= pmax:
             test_pass = False
+        if result['max_position_error'] < 0.5 * pmax:
+            test_pass = False
 
         if test_pass:
             tests_passed += 1
-            print(f"PASS: {test_name} {result['position_metric']} {result['velocity_metric']}")
+            print(f"PASS: {test_name} {pll_filter_hz}Hz p={result['position_metric']}/{result['max_position_error']} v={result['velocity_metric']}/{result['max_velocity_error']}")
         else:
             tests_failed += 1
 

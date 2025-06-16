@@ -90,9 +90,12 @@ def main():
             else:
                 for freq, gain in data:
                     expected_gain = rms_gain_robertson(freq, filter_3db_hz, 1.0)
-                    # TODO: Lower this threshold
-                    if abs(expected_gain / gain - 1.0) > 0.10:
-                        print(f'Gain mismatch: {freq}Hz {expected_gain} != {gain}')
+                    TOLERANCE = (
+                        0.05 if not hall else
+                        0.12 if filter_3db_hz <= 248
+                        else 0.13)
+                    if abs(expected_gain / gain - 1.0) > TOLERANCE:
+                        print(f'Gain mismatch: filt={filter_3db_hz}Hz hall={hall} {freq}Hz {expected_gain} != {gain} (TOL={TOLERANCE})')
                         fail = True
 
     if fail:

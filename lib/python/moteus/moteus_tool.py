@@ -1797,18 +1797,22 @@ class Stream:
                 if output_type == 4:  # kHall
                     hall_output = True
 
-            if inductance and hall_output:
-                desired_encoder_bw_hz = min(
-                    desired_encoder_bw_hz, 2e-2 / inductance)
+            # If we are calibrating a device with older firmware, we
+            # artifically limit the bandwidth for hall commutation
+            # sensors.
+            if self.firmware.version <= 0x010b:
+                if inductance and hall_output:
+                    desired_encoder_bw_hz = min(
+                        desired_encoder_bw_hz, 2e-2 / inductance)
 
-            # Also, limit the bandwidth for halls based on the number
-            # of poles and the estimated calibration speed.
-            if hall_output:
-                max_pole_bandwidth_hz = (
-                    0.5 * self.args.cal_motor_poles *
-                    self.args.cal_motor_speed)
-                desired_encoder_bw_hz = min(
-                    desired_encoder_bw_hz, max_pole_bandwidth_hz)
+                # Also, limit the bandwidth for halls based on the number
+                # of poles and the estimated calibration speed.
+                if hall_output:
+                    max_pole_bandwidth_hz = (
+                        0.5 * self.args.cal_motor_poles *
+                        self.args.cal_motor_speed)
+                    desired_encoder_bw_hz = min(
+                        desired_encoder_bw_hz, max_pole_bandwidth_hz)
 
 
         # And our bandwidth with the filter can be no larger than
