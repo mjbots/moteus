@@ -1,0 +1,13 @@
+name: CI
+
+on: [push, pull_request]
+
+
+jobs:
+  build:
+    runs-on: unbuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: test
+      run: ./travis-ci.sh
