@@ -263,11 +263,33 @@ py_test(
     size = "small",
 )
 
+py_test(
+    name = "hall_regression_test",
+    srcs = [
+        "test/hall_regression_test.py",
+    ],
+    deps = [
+        ":hall_filter_test",
+    ],
+    args = [
+        "--binary", "$(location :hall_filter_test)",
+        "--datafile", "$(rootpath :test/data/20250616-back-and-forth.dat.gz)",
+    ],
+    size = 'medium',
+    data = [
+        "test/data/20250616-back-and-forth.dat.gz",
+        "test/data/20250616-hboard-cycle.dat.gz",
+        "test/data/20250616-speed-cycle.dat.gz",
+        "test/data/20250616-bnforth-highaccel.dat.gz",
+        "test/data/20250616-hboard-manual.dat.gz",
+    ],
+)
 
 test_suite(
     name = "host",
     tests = [
         "test",
         "dummy_host_test",
+        "hall_regression_test",
     ],
 )

@@ -37,3 +37,5 @@ build:windows --compiler=clang
 build:windows --copt=-D_CRT_SECURE_NO_WARNINGS
 build:windows --copt -fms-compatibility-version=20
 build:windows --features=vendored_libc++
+
+test --test_size_filters=small
