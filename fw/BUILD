@@ -233,6 +233,23 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "hall_filter_test",
+    srcs = [
+        "test/hall_filter_test.cc",
+    ],
+    deps = [
+        "@boost//:test",
+        "//fw:common",
+        "@com_github_mjbots_mjlib//mjlib/base:clipp",
+        "@com_github_mjbots_mjlib//mjlib/base:clipp_archive",
+        "@com_github_mjbots_mjlib//mjlib/base:fail",
+        "@com_github_mjbots_mjlib//mjlib/base:visitor",
+        "@com_github_mjbots_mjlib//mjlib/micro:persistent_config",
+        "@com_github_mjbots_mjlib//mjlib/micro:test_fixtures",
+    ],
+)
+
 # A dummy target so that running all host tests will result in all our
 # host binaries being built.
 py_test(
@@ -241,6 +258,7 @@ py_test(
         "test/dummy_host_test.py",
     ],
     deps = [
+        ":hall_filter_test",
     ],
     size = "small",
 )
