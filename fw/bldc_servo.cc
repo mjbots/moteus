@@ -538,6 +538,7 @@ class BldcServo::Impl {
 
     fet_thermistor_.Reset(47000.0f);
     motor_thermistor_.Reset(config_.motor_thermistor_ohm);
+    motor_position_->SetRate(rate_config_.period_s);
   }
 
   void PollMillisecond() {
@@ -1094,7 +1095,7 @@ class BldcServo::Impl {
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_pos_sample = DWT->CYCCNT;
 #endif
-    motor_position_->ISR_Update(rate_config_.period_s);
+    motor_position_->ISR_Update();
 
     velocity_filter_(position_.velocity, &status_.velocity_filt);
 

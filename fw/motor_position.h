@@ -325,10 +325,14 @@ class MotorPosition {
     }
   }
 
-  void ISR_Update(float dt) MOTEUS_CCM_ATTRIBUTE {
+  void SetRate(float dt) {
+    dt_ = dt;
+  }
+
+  void ISR_Update() MOTEUS_CCM_ATTRIBUTE {
     // First, fill in each of our sources raw data and do source level
     // filtering.
-    ISR_UpdateSources(dt);
+    ISR_UpdateSources();
 
     // Then update our output structures.
     ISR_UpdateState();
@@ -784,7 +788,7 @@ class MotorPosition {
     }
   }
 
-  void ISR_UpdateSources(float dt) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_UpdateSources() MOTEUS_CCM_ATTRIBUTE {
     for (size_t i = 0; i < status_.sources.size(); i++) {
       const auto& config = config_.sources[i];
 
@@ -967,14 +971,14 @@ class MotorPosition {
         status.compensated_value = status.offset_value;
       }
 
-      status.time_since_update += dt;
+      status.time_since_update += dt_;
 
       if (!status.active_theta &&
           !status.active_velocity) {
         continue;
       }
 
-      status.filtered_value += dt * status.velocity;
+      status.filtered_value += dt_ * status.velocity;
 
       if (updated) {
         if (!old_active_velocity && status.active_velocity) {
@@ -1162,6 +1166,8 @@ class MotorPosition {
 
   // Values cached after config changes to make runtime computation
   // faster.
+  float dt_ = 1.0f / 30000.0f;
+
   const SourceConfig* commutation_config_ = nullptr;
   const SourceStatus* commutation_status_ = nullptr;
   float commutation_pole_scale_ = 1.0f;
