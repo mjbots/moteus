@@ -9,5 +9,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: setup
+      run: |
+        sudo apt update
+        sudo apt install -y python3-pep517 python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel libtinfo5
     - name: test
       run: ./travis-ci.sh
