@@ -64,13 +64,12 @@ def main():
     fail = False
 
     for hall in [False, True]:
-        for natural_filter_hz in [10, 50, 100, 200]:
-            filter_3db_hz = natural_filter_hz * 2.48
+        for filter_3db_hz in [10, 50, 100, 200, 400]:
             result = subprocess.check_output(
-                [args.binary, '--filter_hz', str(natural_filter_hz),
-                 '--frequency_min_hz', '1.0',
-                 '--frequency_max_hz', '400.0',
-                 '--frequency_step', '1.1'] +
+                [args.binary, '--filter_hz', str(filter_3db_hz),
+                 '--frequency_min_hz', '0.2',
+                 '--frequency_max_hz', '1000.0' if not hall else '400.0',
+                 '--frequency_step', '1.05'] +
                 (['--hall', '1'] if hall else [])).decode('latin1')
             lines = result.split('\n')
             data = [tuple(float(x) for x in line.strip().split(' '))
@@ -83,9 +82,9 @@ def main():
                 plt.loglog()
                 plt.grid(which='both')
                 plt.plot([x[0] for x in data], [x[1] for x in data],
-                         label=f'code {natural_filter_hz}Hz')
+                         label=f'code {filter_3db_hz}Hz')
                 plt.plot([x[0] for x in data], [rms_gain_robertson(x[0], filter_3db_hz, 1.0) for x in data],
-                         label=f'ground truth {natural_filter_hz}Hz')
+                         label=f'ground truth {filter_3db_hz}Hz')
                 plt.legend()
                 plt.show()
             else:

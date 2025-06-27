@@ -40,6 +40,7 @@ struct Context {
   Context() {
     dut.SetRate(kDt);
     dut.motor()->poles = 4;
+    dut.config()->sources[0].pll_filter_hz = 400.0 * 2.48;
 
     // Force everything to load from defaults and all callbacks to be
     // invoked.
@@ -58,6 +59,9 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
 
   // Assume the default config of a single absolute SPI encoder
   // attached to the rotor with a scaling factor of 1.0.
+  ctx.dut.config()->sources[0].pll_filter_hz = 400.0 * 2.48;
+  ctx.pcf.persistent_config.Load();
+
   ctx.aux1_status.spi.active = false;
   ctx.aux1_status.spi.value = 4096;
   ctx.aux1_status.spi.nonce = 1;
@@ -608,7 +612,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionIncrementalReferenceSource,
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
     BOOST_TEST(status.position == 0.2578f);
-    BOOST_TEST(status.position_relative == 0.007797f);
+    BOOST_TEST(status.position_relative == 0.00798034668f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -623,7 +627,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionIncrementalReferenceSource,
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
     BOOST_TEST(status.position == 0.2441f);
-    BOOST_TEST(status.position_relative == 0.007797f);
+    BOOST_TEST(status.position_relative == 0.00796508789f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -669,7 +673,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionCompensation,
   ctx.dut.config()->sources[0].compensation_table[2] = -5;  // -0.05
   ctx.dut.config()->sources[0].compensation_table[3] = -2;  // -0.02
   ctx.dut.config()->sources[0].compensation_scale = 1.27;
-  ctx.dut.config()->sources[0].pll_filter_hz = 0.1;
+  ctx.dut.config()->sources[0].pll_filter_hz = 0.1 * 2.48;
   ctx.pcf.persistent_config.Load();
 
   struct TestCase {
@@ -809,7 +813,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicI2C) {
   config.sources[1].aux_number = 2;
   config.sources[1].type = MotorPosition::SourceConfig::kI2C;
 
-  config.sources[1].pll_filter_hz = 20;
+  config.sources[1].pll_filter_hz = 20 * 2.48;
 
   ctx.pcf.persistent_config.Load();
 
@@ -871,7 +875,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionHallSource) {
   {
     Context ctx;
     ctx.dut.config()->sources[0].type = MotorPosition::SourceConfig::kHall;
-    ctx.dut.config()->sources[0].pll_filter_hz = 1.0;
+    ctx.dut.config()->sources[0].pll_filter_hz = 1.0 * 2.48;
     ctx.pcf.persistent_config.Load();
     ctx.aux1_status.hall.active = true;
 
@@ -988,7 +992,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {
     auto& config = *ctx.dut.config();
     config.sources[0].aux_number = 1;
     config.sources[0].type = MotorPosition::SourceConfig::kQuadrature;
-    config.sources[0].pll_filter_hz = 100.0;
+    config.sources[0].pll_filter_hz = 100.0 * 2.48;
 
     if (index) {
       config.sources[0].incremental_index = 1;
@@ -1428,7 +1432,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionVariableTimestep) {
   constexpr double kCpr = 1000000;
   config.sources[0].cpr = kCpr;
   config.sources[0].reference = MotorPosition::SourceConfig::kRotor;
-  config.sources[0].pll_filter_hz = 20.0;
+  config.sources[0].pll_filter_hz = 20.0 * 2.48;
 
   ctx.pcf.persistent_config.Load();
 

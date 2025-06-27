@@ -2274,11 +2274,11 @@ An integer offset and inversion to apply.  The resulting value is:
 
 ## `motor_position.sources.X.pll_filter_hz` ##
 
-Selects the cutoff frequency of a low-pass filter used on this source.
-It should typically be less than 10X the update rate of the input and
-if used as the commutation or output sensor, should be higher than the
-mechanical bandwidth of the plant.  Within that range, it can be tuned
-for audible noise versus performance.
+Selects the 3dB cutoff frequency of a low-pass filter used on this
+source.  It should typically be less than 10X the update rate of the
+input and if used as the commutation or output sensor, should be
+higher than the mechanical bandwidth of the plant.  Within that range,
+it can be tuned for audible noise versus performance.
 
 If set to 0, then no filter is applied.  In that case, sensors which
 do not natively measure velocity will produce no velocity readings

@@ -483,7 +483,7 @@ class MotorPosition {
           const float source_rate_hz =
               1000000.0f /
               aux_config->uart.poll_rate_us;
-          const float max_pll_hz = source_rate_hz / 10.0f;
+          const float max_pll_hz = source_rate_hz / 4.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);
           break;
@@ -512,7 +512,7 @@ class MotorPosition {
           const float source_rate_hz =
               1000000.0f /
               aux_config->i2c.devices[source_config.i2c_device].poll_rate_us;
-          const float max_pll_hz = source_rate_hz / 10.0f;
+          const float max_pll_hz = source_rate_hz / 4.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);
           break;
@@ -656,9 +656,54 @@ class MotorPosition {
       const auto& config = config_.sources[i];
       auto& constants = pll_filter_constants_[i];
 
-      const float w_3db = config.pll_filter_hz * k2Pi;
-      constants.kp = 2.0f * w_3db;
-      constants.ki = w_3db * w_3db;
+      // w_n = natural frequency, not the 3dB cutoff frequency
+      //
+      // They are related by w_3db / w_n = r(zeta)
+      //
+      // Where r(zeta) = sqrt((2 + 4 * zeta**2 + sqrt((2 + 4 * zeta**2)**2 + r)) / 2)
+      //
+      // Derived from: https://www.dsprelated.com/showarticle/973.php
+      // Appendix B.
+      //
+      // In the s domain, the closed loop response is:
+      //
+      // CL(s) = (2 * zeta * w_n * s + w_n ** 2) / (s**2 + 2 * zeta * w_n + w_n ** 2)
+      //
+      // For a test frequency ω, substitute jω in for s and
+      // taking the magnitude squared yields:
+      //
+      //  |CL(jω)|**2 = ((2 * zeta * w_n * ω) ** 2 + ω ** 4) / ((w_n ** 2 - ω ** 2) ** 2 + (2 *  zeta * w_n * ω) ** 2)
+      //
+      // r = ω / w_n
+      //
+      //  |CL(jω)|**2 = ((2 * zeta * r) ** 2 + 1) / ((1 - r ** 2) ** 2 + (2 * zeta * r) ** 2)
+      //
+      // The 3dB point is where |CL(j * w_3db)| ** 2 = 1/2
+      // and set r_c = w_3db / w_n
+      //
+      //  2 * ((2 * zeta * r_c) ** 2 + 1) = (1 - r_c ** 2) ** 2 + (2 * zeta * r_c) ** 2
+      //
+      // Solve for r_c:
+      //
+      //  -r_c ** 4 + (2 + r * zeta ** 2) * r_c ** 2 + 1 = 0
+      //
+      // Let x = r_c ** 2
+      //
+      //  x ** 2 - (2 + 4 * zeta ** 2) * x - 1 = 0
+      //
+      // Solve for x with quadratic formula:
+      //
+      //   x= (2 + 4 * zeta ** 2 + sqrt((2 + 4 * zeta ** 2) ** 2 + 4)) / 2
+      //
+      // and r(zeta) = sqrt(x)
+      //
+      //  r(zeta) = sqrt((2 + 4 * zeta ** 2 + sqrt((2 + 4 * zeta ** 2) ** 2 + 4)) / 2)
+      //
+      // r(1.0) ~= 2.48
+      const float w_n = (config.pll_filter_hz / 2.48f) * k2Pi;
+      const float zeta = 1.0f;
+      constants.kp = 2.0f * zeta * w_n;
+      constants.ki = w_n * w_n;
     }
   }
 
