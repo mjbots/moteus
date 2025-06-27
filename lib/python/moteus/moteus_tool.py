@@ -84,7 +84,7 @@ def stddev(data):
     mean = sum(data) / len(data)
     return math.sqrt(sum((x - mean) ** 2 for x in data) / len(data))
 
-SUPPORTED_ABI_VERSION = 0x010b
+SUPPORTED_ABI_VERSION = 0x010c
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -110,6 +110,15 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010b and self.old >= 0x010c:
+            # Update all pll_filter_hz parameters.
+            for mpsource in range(0, 3):
+                key = f'motor_position.sources.{mpsource}.pll_filter_hz'.encode('utf8')
+                pll_filter_hz = float(items.get(key, 150.0))
+                natural_hz = pll_filter_hz / 2.48
+                items[key] = str(natural_hz).encode('utf8')
+                print(f"Downgraded motor_position.sources.{mpsource}.pll_filter_hz from {pll_filter_hz} to {natural_hz}")
 
         if self.new <= 0x010a and self.old >= 0x010b:
             flux_brake_margin_voltage = float(items.pop(b'servo.flux_brake_margin_voltage'))
@@ -571,6 +580,16 @@ class FirmwareUpgrade:
                     20)
                 print(f"Upgraded servo.motor_derate_temperature to servo.motor_temperature_margin={motor_temperature_margin}")
                 items[b'servo.motor_temperature_margin'] = str(motor_temperature_margin).encode('utf8')
+
+        if self.new >= 0x010c and self.old <= 0x010b:
+            # Update all pll_filter_hz parameters.
+            for mpsource in range(0, 3):
+                key = f'motor_position.sources.{mpsource}.pll_filter_hz'.encode('utf8')
+                natural_hz = float(items.get(key, 400.0))
+                pll_filter_hz = natural_hz * 2.48
+                items[key] = str(pll_filter_hz).encode('utf8')
+                print(f"Upgraded motor_position.sources.{mpsource}.pll_filter_hz from {natural_hz} to {pll_filter_hz}")
+
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
@@ -1793,16 +1812,17 @@ class Stream:
 
 
         # And our bandwidth with the filter can be no larger than
-        # 1/30th the control rate.
-        encoder_bw_hz = min(control_rate_hz / 30, desired_encoder_bw_hz)
+        # a fixed fraction of the control rate.
+        encoder_bw_hz = min(control_rate_hz / 10, desired_encoder_bw_hz)
 
         if encoder_bw_hz != desired_encoder_bw_hz:
             print(f"Warning: using lower encoder bandwidth than "+
                   f"requested: {encoder_bw_hz:.1f}Hz")
 
-        w_3db = encoder_bw_hz * 2 * math.pi
-        kp = 2 * w_3db
-        ki = w_3db * w_3db
+        encoder_natural_frequency_hz = encoder_bw_hz / 2.48
+        w_n = encoder_natural_frequency_hz * 2 * math.pi  # natural frequency for zeta=1.0
+        kp = 2 * w_n
+        ki = w_n * w_n
 
         if servo_style:
             await self.command(f"conf set servo.encoder_filter.enabled 1")
@@ -1810,7 +1830,8 @@ class Stream:
             await self.command(f"conf set servo.encoder_filter.ki {ki}")
         elif motor_position_style:
             commutation_source = await self.read_config_int("motor_position.commutation_source")
-            await self.command(f"conf set motor_position.sources.{commutation_source}.pll_filter_hz {encoder_bw_hz}")
+            output_hz = encoder_bw_hz if self.firmware.version >= 0x010c else encoder_natural_frequency_hz
+            await self.command(f"conf set motor_position.sources.{commutation_source}.pll_filter_hz {output_hz}")
         else:
             assert False
         return kp, ki, encoder_bw_hz
@@ -2228,7 +2249,7 @@ async def async_main():
                         help='calibrate a motor with hall commutation sensors')
 
     parser.add_argument('--cal-bw-hz', metavar='HZ', type=float,
-                        default=100.0,
+                        default=200.0,
                         help='configure current loop bandwidth in Hz')
     parser.add_argument('--encoder-bw-hz', metavar='HZ', type=float,
                         default=None,

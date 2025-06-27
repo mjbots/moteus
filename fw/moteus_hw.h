@@ -169,8 +169,14 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 // * servo.motor_temperature_margin replaces
 //   servo.motor_derate_temperature
 
+// # 0x010c #
+//
+// * motor_position.sources.x.pll_filter_hz was previously specified
+//   in terms of a somewhat arbitrary "natural frequency", but is now
+//   specified in terms of the 3dB cutoff frequency
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x00010b
+#define MOTEUS_FIRMWARE_VERSION 0x00010c
 
 extern MoteusHwPins g_hw_pins;
 
