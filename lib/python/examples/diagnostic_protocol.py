@@ -30,6 +30,19 @@ async def main():
     c = moteus.Controller()
     s = moteus.Stream(c)
 
+    # When using the diagnostic protocol, it is important to know that
+    # applications like tview may leave the controller "spewing" on
+    # the diagnostic channel, i.e. sending unsolicited data.  In order
+    # stop that, a client needs to issue a "tel stop" command, and
+    # then flush all data that is present.  After that point, normal
+    # commands can be issued.
+    await s.write_message(b'tel stop')
+    await s.flush_read()
+
+    # Stream.command will always return the result.  The `conf get`
+    # diagnostic command is unique in that it replies with a single
+    # line and no final "OK", so we use `allow_any_response=True`
+    # option.
     old_kp = float((await s.command(
         b'conf get servo.pid_position.kp',
         allow_any_response=True)).decode('utf8'))

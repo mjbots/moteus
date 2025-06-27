@@ -135,6 +135,37 @@ class Stm32Spi {
     return result;
   }
 
+  // These methods perform single byte transactions without manipulating CS.
+  // They can be used to construct arbitrary length SPI transactions when
+  // DMA can't be used and timing must be controlled.
+  void start_byte(uint8_t value) MOTEUS_CCM_ATTRIBUTE {
+    auto* const spi = spi_.spi.handle.Instance;
+
+    uint16_t timeout = options_.timeout;
+    while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
+
+    while (spi->SR & SPI_SR_RXNE) { (void) spi->DR; }
+
+    // Make sure to only write one byte to the data register
+    *reinterpret_cast<volatile uint8_t*>(&(spi->DR)) = value;
+    spi->CR1 |= SPI_CR1_SPE;
+  }
+
+  uint8_t finish_byte() MOTEUS_CCM_ATTRIBUTE {
+    auto* const spi = spi_.spi.handle.Instance;
+
+    uint16_t timeout = options_.timeout;
+
+    while (((spi->SR & SPI_SR_RXNE) == 0) && timeout) { timeout--; }
+
+    // Make sure to only read one byte from the data register
+    const uint8_t result = *reinterpret_cast<volatile uint8_t*>(&(spi->DR));
+    while (((spi->SR & SPI_SR_TXE) == 0) && timeout) { timeout--; }
+    while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
+
+    return result;
+  }
+
   void start_dma_transfer(
       std::string_view tx_buffer,
       mjlib::base::string_span rx_buffer) MOTEUS_CCM_ATTRIBUTE {

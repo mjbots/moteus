@@ -484,7 +484,9 @@ class MotorPosition {
           const auto mode = aux_config->spi.mode;
           if (mode == M::kAs5047 || mode == M::kOnboardAs5047) {
             source_config.cpr = 16384;
-          } else if (mode == M::kMa732 || mode == M::kMa600) {
+          } else if (mode == M::kMa732 ||
+                     mode == M::kMa600 ||
+                     mode == M::kOnboardMa600) {
             source_config.cpr = 65536;
           } else if (mode == M::kIcPz) {
             source_config.cpr = 16777216;
@@ -817,9 +819,8 @@ class MotorPosition {
 
           updated = ISR_UpdateAbsoluteSource(
               spi_data->nonce, spi_data->value,
-              config.offset, config.sign, config.cpr,
+              config.offset, config.sign, config.cpr, true,
               &status);
-          status.active_absolute = true;
           break;
         }
         case SourceConfig::kUart: {
@@ -829,9 +830,8 @@ class MotorPosition {
 
           updated = ISR_UpdateAbsoluteSource(
               uart_data->nonce, uart_data->value,
-              config.offset, config.sign, config.cpr,
+              config.offset, config.sign, config.cpr, true,
               &status);
-          status.active_absolute = true;
           break;
         }
         case SourceConfig::kSineCosine: {
@@ -841,8 +841,8 @@ class MotorPosition {
           status.raw = sc_data->value;
           updated = ISR_UpdateAbsoluteSource(
               status.nonce + 1, sc_data->value,
-              config.offset, config.sign, config.cpr, &status);
-          status.active_absolute = true;
+              config.offset, config.sign, config.cpr, true,
+              &status);
           break;
         }
         case SourceConfig::kI2C: {
@@ -852,8 +852,7 @@ class MotorPosition {
 
           updated = ISR_UpdateAbsoluteSource(
               i2c_data->nonce, i2c_data->value,
-              config.offset, config.sign, config.cpr, &status);
-          status.active_absolute = true;
+              config.offset, config.sign, config.cpr, true, &status);
           break;
         }
         case SourceConfig::kHall: {
@@ -878,9 +877,8 @@ class MotorPosition {
 
           updated = ISR_UpdateAbsoluteSource(
               status.nonce + 1, new_value,
-              0, 1, config.cpr,
+              0, 1, config.cpr, false,
               &status);
-          status.active_absolute = false;
           break;
         }
         case SourceConfig::kQuadrature: {
@@ -1034,6 +1032,7 @@ class MotorPosition {
       int32_t offset,
       int32_t sign,
       uint32_t cpr,
+      bool active_absolute,
       SourceStatus* status) MOTEUS_CCM_ATTRIBUTE {
     if (nonce == status->nonce) { return false; }
 
@@ -1042,6 +1041,7 @@ class MotorPosition {
     status->nonce = nonce;
     status->active_velocity = true;
     status->active_theta = true;
+    status->active_absolute = active_absolute;
     return true;
   }
 

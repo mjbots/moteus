@@ -10,3 +10,5 @@ fw/.mbedignore
 
 /bazel-*
 hw/c1/#auto_saved_files#
+hw/n2/#auto_saved_files#
+hw/x1/#auto_saved_files#

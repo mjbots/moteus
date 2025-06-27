@@ -161,8 +161,16 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 // * servo.max_power_W now defaults to NaN, and if present is used as
 //   an absolute value rather than as a "nominal" value.
 
+// # 0x010b #
+//
+// * servo.flux_brake_margin_voltage replaces
+//   servo.flux_brake_min_voltage
+// * servo.temperature_margin replaces servo.derate_temperature
+// * servo.motor_temperature_margin replaces
+//   servo.motor_derate_temperature
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x00010a
+#define MOTEUS_FIRMWARE_VERSION 0x00010b
 
 extern MoteusHwPins g_hw_pins;
 

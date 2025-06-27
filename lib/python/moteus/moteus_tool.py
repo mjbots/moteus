@@ -78,7 +78,7 @@ def stddev(data):
     mean = sum(data) / len(data)
     return math.sqrt(sum((x - mean) ** 2 for x in data) / len(data))
 
-SUPPORTED_ABI_VERSION = 0x010a
+SUPPORTED_ABI_VERSION = 0x010b
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -104,6 +104,34 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010a and self.old >= 0x010b:
+            flux_brake_margin_voltage = float(items.pop(b'servo.flux_brake_margin_voltage'))
+            max_voltage = float(items[b'servo.max_voltage'])
+
+            flux_brake_min_voltage = max_voltage - flux_brake_margin_voltage
+
+            print(f"Downgrading servo.flux_brake_margin_voltage to servo.flux_brake_min_voltage={flux_brake_min_voltage}")
+
+            items[b'servo.flux_brake_min_voltage'] = str(flux_brake_min_voltage).encode('utf8')
+
+            temperature_margin = float(items.pop(b'servo.temperature_margin'))
+            fault_temperature = float(items[b'servo.fault_temperature'])
+
+            derate_temperature = fault_temperature - temperature_margin
+
+            print(f"Downgrading servo.temperature_margin to servo.derate_temperature={derate_temperature}")
+            items[b'servo.derate_temperature'] = str(derate_temperature).encode('utf8')
+
+            motor_temperature_margin = float(items.pop(b'servo.motor_temperature_margin'))
+            motor_fault_temperature = float(items[b'servo.motor_fault_temperature'])
+            motor_derate_temperature = (
+                (motor_fault_temperature - motor_temperature_margin)
+                if math.isfinite(motor_fault_temperature) else
+                50)
+
+            print(f"Downgrading servo.motor_temperature_margin to servo.motor_derate_temperature={motor_derate_temperature}")
+            items[b'servo.motor_derate_temperature'] = str(motor_derate_temperature).encode('utf8')
 
         if self.new <= 0x0109 and self.old >= 0x010a:
             kv = float(items.pop(b'motor.Kv'))
@@ -500,6 +528,44 @@ class FirmwareUpgrade:
                     items[b'servo.max_power_W'] = str(old_max_power * (pwm_rate / 40000)).encode('utf8')
                 print(f"Upgraded servo.max_power_W to {items[b'servo.max_power_W'].decode('utf8')} for 0x010a")
 
+        if self.new >= 0x010b and self.old <= 0x010a:
+            flux_brake_min_voltage = float(items.pop(b'servo.flux_brake_min_voltage'))
+            max_voltage = float(items[b'servo.max_voltage'])
+
+            flux_brake_margin_voltage = max(0, max_voltage - flux_brake_min_voltage)
+
+            print(f"Upgraded servo.flux_brake_min_voltage to servo.flux_brake_margin_voltage={flux_brake_margin_voltage}")
+            items[b'servo.flux_brake_margin_voltage'] = str(flux_brake_margin_voltage).encode('utf8')
+
+
+            derate_temperature = float(items.pop(b'servo.derate_temperature'))
+            fault_temperature = float(items[b'servo.fault_temperature'])
+
+            temperature_margin = fault_temperature - derate_temperature
+
+            print(f"Upgraded servo.derate_temperature to servo.temperature_margin={temperature_margin}")
+            items[b'servo.temperature_margin'] = str(temperature_margin).encode('utf8')
+
+            def float_or_none(val):
+                if val is None:
+                    return None
+                return float(val)
+
+            motor_derate_temperature = (
+                float_or_none(items.pop(b'servo.motor_derate_temperature', None)))
+            motor_fault_temperature = (
+                float_or_none(items.get(b'servo.motor_fault_temperature', None)))
+
+            if (motor_derate_temperature is not None and
+                motor_fault_temperature is not None):
+
+                motor_temperature_margin = (
+                    (motor_fault_temperature - motor_derate_temperature)
+                    if math.isfinite(motor_fault_temperature) else
+                    20)
+                print(f"Upgraded servo.motor_derate_temperature to servo.motor_temperature_margin={motor_temperature_margin}")
+                items[b'servo.motor_temperature_margin'] = str(motor_temperature_margin).encode('utf8')
+
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
 
@@ -887,7 +953,7 @@ class Stream:
             if old_firmware is None else
             old_firmware.version,
             elf.firmware_version,
-            None if old_firmware is None else old_firmware.family
+            None if old_firmware is None else getattr(old_firmware, 'family', 0)
         )
 
         if not self.args.bootloader_active and not self.args.no_restore_config:
@@ -1082,12 +1148,8 @@ class Stream:
                 raise
             pass
 
-        try:
+        if await self.is_config_supported("motor_position.sources.0.sign"):
             await self.command("conf set motor_position.sources.0.sign 1")
-        except moteus.CommandError as e:
-            if not 'error setting' in e.message:
-                raise
-            pass
 
         # We have 3 things to calibrate.
         #  1) The encoder to phase mapping
@@ -1127,7 +1189,8 @@ class Stream:
         await self.check_for_fault()
 
         cal_result = await self.calibrate_encoder_mapping(
-            input_V, winding_resistance, current_noise)
+            input_V, winding_resistance, current_noise,
+            unwrapped_position_scale)
         await self.check_for_fault()
 
         motor_kv = await self.calibrate_kv_rating(
@@ -1210,7 +1273,7 @@ class Stream:
 
     async def find_encoder_cal_voltage(self, input_V, winding_resistance):
         if self.args.cal_ll_encoder_voltage:
-            return self.args.cal_ll_encoder_voltage,
+            return self.args.cal_ll_encoder_voltage
 
         # We're going to try and select a voltage to roughly achieve
         # "--cal-motor-power".
@@ -1218,7 +1281,7 @@ class Stream:
                    math.sqrt((self.args.cal_motor_power / 1.5) *
                              winding_resistance))
 
-    async def calibrate_encoder_mapping(self, input_V, winding_resistance, current_noise):
+    async def calibrate_encoder_mapping(self, input_V, winding_resistance, current_noise, unwrapped_position_scale):
         # Figure out what voltage to use for encoder calibration.
         encoder_cal_voltage = \
             await self.find_encoder_cal_voltage(input_V, winding_resistance)
@@ -1259,7 +1322,8 @@ class Stream:
                         "servo.voltage_mode_control")
 
                 return await self.calibrate_encoder_mapping_absolute(
-                    encoder_cal_voltage, encoder_cal_current, current_noise)
+                    encoder_cal_voltage, encoder_cal_current, current_noise,
+                    unwrapped_position_scale)
             finally:
                 # At least try to stop.
                 await self.command("d stop")
@@ -1362,9 +1426,8 @@ class Stream:
             await self.find_index(encoder_cal_voltage)
 
     async def calibrate_encoder_mapping_absolute(
-            self, encoder_cal_voltage, encoder_cal_current, current_noise):
-        await self.ensure_valid_theta(encoder_cal_voltage)
-
+            self, encoder_cal_voltage, encoder_cal_current, current_noise,
+            unwrapped_position_scale):
         current_quality_factor = encoder_cal_current / current_noise
         use_current_for_quality = (
             current_quality_factor > CURRENT_QUALITY_MIN or
@@ -1372,23 +1435,30 @@ class Stream:
         use_current_for_firmware_version = self.firmware.version >= 0x010a
 
         use_current_calibration = (
-            use_current_for_quality and use_current_for_firmware_version)
+            not self.args.cal_never_encoder_current_mode and (
+                use_current_for_quality and use_current_for_firmware_version))
 
         if use_current_for_firmware_version and not use_current_for_quality:
             print(f"Using voltage mode calibration, current quality factor {current_quality_factor:.1f} < {CURRENT_QUALITY_MIN:.1f}")
-
 
         old_motor_poles = None
 
         if use_current_calibration:
             old_motor_poles = await self.read_config_int("motor.poles")
             await self.command("conf set motor.poles 2")
+
+            # We have to check for a valid there here, because setting
+            # the motor pole count will invalidate it.
+            await self.ensure_valid_theta(encoder_cal_voltage)
+
             await self.command(f"d pos nan 0 nan c{encoder_cal_current} b1")
             await asyncio.sleep(3.0)
 
             await self.write_message(
-                (f"d cali i{encoder_cal_current} s{self.args.cal_ll_encoder_speed}"))
+                (f"d cali i{encoder_cal_current} s{self.args.cal_ll_encoder_speed * unwrapped_position_scale}"))
         else:
+            await self.ensure_valid_theta(encoder_cal_voltage)
+
             await self.command(f"d pwm 0 {encoder_cal_voltage}")
             await asyncio.sleep(3.0)
 
@@ -1548,13 +1618,15 @@ class Stream:
         # non-linear, corrupting the result.
 
         # What we'll do is take the very last result, and the last
-        # result that is less than 70% of the current of the last
+        # result that is less than X% of the current of the last
         # result.
 
         last_result = results[-1]
 
-        less_than = [x for x in results if x[1] < 0.60 * last_result[1]][-1]
-
+        less_than_X = [x for x in results if x[1] < 0.60 * last_result[1]]
+        if len(less_than_X) == 0:
+            raise RuntimeError(f"Could not detect resistance, is motor connected?  Peak current only {last_result[1]:.3f}A w/ {last_result[0]:.3f}V applied.")
+        less_than = less_than_X[-1]
 
         resistance = ((last_result[0] - less_than[0]) /
                       (last_result[1] - less_than[1]))
@@ -1652,6 +1724,10 @@ class Stream:
                     # current on low resistance / low inductance motors.
                     break
             await self.command("d stop")
+
+            # Give a little bit of wait in case we had an error that
+            # the above stop should clear.
+            await asyncio.sleep(0.1)
         except moteus.CommandError as e:
             # It is possible this is an old firmware that does not
             # support inductance measurement.
@@ -1766,7 +1842,7 @@ class Stream:
 
         return kp, ki, w_3db / twopi
 
-    async def find_speed(self, voltage, sleep_time=0.5):
+    async def find_speed(self, voltage, unwrapped_position_scale, sleep_time=0.5):
         assert voltage < 20.0
         assert voltage >= 0.0
 
@@ -1799,7 +1875,7 @@ class Stream:
             if len(power_samples) > AVERAGE_COUNT:
                 del power_samples[0]
 
-            velocity_samples.append(data.velocity)
+            velocity_samples.append(data.velocity / unwrapped_position_scale)
 
             if len(velocity_samples) > (3 * AVERAGE_COUNT):
                 del velocity_samples[0]
@@ -1844,8 +1920,8 @@ class Stream:
 
         return velocity
 
-    async def find_speed_and_print(self, voltage, **kwargs):
-        result = await self.find_speed(voltage, **kwargs)
+    async def find_speed_and_print(self, voltage, unwrapped_position_scale, **kwargs):
+        result = await self.find_speed(voltage, unwrapped_position_scale, **kwargs)
         print(f"{voltage:.3f}V - {result:.3f}Hz")
         return result
 
@@ -1865,7 +1941,7 @@ class Stream:
             if maybe_result > (0.2 * input_V):
                 return maybe_result
 
-            this_speed = await self.find_speed(maybe_result) / unwrapped_position_scale
+            this_speed = await self.find_speed(maybe_result, unwrapped_position_scale)
 
             if (abs(this_speed) > (0.1 * self.args.cal_motor_speed) and
                 first_nonzero_speed_voltage is None):
@@ -1903,7 +1979,8 @@ class Stream:
             voltages = [x * kv_cal_voltage for x in [
                 0.0, 0.25, 0.5, 0.75, 1.0 ]]
             voltage_speed_hzs = list(zip(
-                voltages, [ await self.find_speed_and_print(voltage, sleep_time=2)
+                voltages, [ await self.find_speed_and_print(
+                    voltage, unwrapped_position_scale, sleep_time=2)
                             for voltage in voltages]))
 
             await self.stop_and_idle()
@@ -1921,12 +1998,10 @@ class Stream:
             voltage_speed_hzs = [(v, s) for v, s in voltage_speed_hzs
                                  if abs(s) > speed_threshold]
 
-            geared_v_per_hz = 1.0 / _calculate_slope(
+            v_per_hz = 1.0 / _calculate_slope(
                 [x[0] for x in voltage_speed_hzs],
                 [x[1] for x in voltage_speed_hzs])
 
-            v_per_hz = (geared_v_per_hz *
-                        unwrapped_position_scale)
             if self.firmware.version <= 0x0106:
                 v_per_hz *= motor_output_sign
 
@@ -1950,7 +2025,7 @@ class Stream:
         if self.firmware.version >= 0x010a:
             await self.command(f"conf set motor.Kv {motor_kv}")
         else:
-            if self.firmware.family == 2:
+            if getattr(self.firmware, 'family', 0) == 2:
                 # moteus-c1 in older firmwares had additional
                 # scaling.
                 motor_kv /= 1.38
@@ -2273,6 +2348,8 @@ async def async_main():
                         help='write raw calibration data')
     parser.add_argument('--cal-force-encoder-current-mode', action='store_true',
                         help='always use encoder current mode calibration if supported')
+    parser.add_argument('--cal-never-encoder-current-mode', action='store_true',
+                        help='never use current mode calibration')
 
     args = parser.parse_args()
 

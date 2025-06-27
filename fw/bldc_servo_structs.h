@@ -434,6 +434,7 @@ struct BldcServoConfig {
   uint16_t pwm_rate_hz =
       (g_measured_hw_family == 0 &&
        g_measured_hw_rev <= 2) ? 60000 :
+      g_measured_hw_family == 3 ? 15000 :
       30000;
 
   float current_sense_ohm =
@@ -446,6 +447,7 @@ struct BldcServoConfig {
       ((g_measured_hw_rev <= 5) ? 37.0f : 46.0f) :
       g_measured_hw_family == 1 ? 56.0f :
       g_measured_hw_family == 2 ? 54.0f :
+      g_measured_hw_family == 3 ? 56.0f :
       invalid_float()
       ;
 
@@ -458,15 +460,21 @@ struct BldcServoConfig {
   // this can easily cause damage.
   bool override_board_max_power = false;
 
-  float derate_temperature = 50.0f;
-  float fault_temperature = 75.0f;
+  // If we are within this many degrees C of the `fault_temperature`,
+  // begin limiting current.
+  float temperature_margin =
+      (g_measured_hw_family == 3) ? 15.0f :
+      25.0f;
+  float fault_temperature =
+      (g_measured_hw_family == 3) ? 105.0f :
+      75.0f;
 
   // If enabled, slightly more instructions are used per cycle, but
   // the motor temperature will be available for throttling in
   // addition to the FET temperature.
   bool enable_motor_temperature = false;
   float motor_thermistor_ohm = 10000.0f;
-  float motor_derate_temperature = 50.0f;
+  float motor_temperature_margin = 20.0f;
   float motor_fault_temperature = std::numeric_limits<float>::quiet_NaN();
 
   float velocity_threshold = 0.0f;
@@ -534,24 +542,21 @@ struct BldcServoConfig {
   //  15 - "brake" - all motor phases shorted to ground
   uint8_t timeout_mode = 12;
 
-  // Similar to 'max_voltage', the flux braking default voltage is
-  // board rev dependent.
-  float flux_brake_min_voltage =
-      g_measured_hw_family == 0 ?
-      ((g_measured_hw_rev <= 5) ? 34.5f : 43.5f) :
-      g_measured_hw_family == 1 ? 53.0f :
-      g_measured_hw_family == 2 ? 51.0f :
-      invalid_float();
+  // If positive, configure flux braking to occur this many volts
+  // below 'max_voltage'.
+  float flux_brake_margin_voltage = 3.0f;
   float flux_brake_resistance_ohm = 0.025f;
 
   float max_current_A =
       (g_measured_hw_family == 0 ||
        g_measured_hw_family == 1) ? 100.0f :
       g_measured_hw_family == 2 ? 20.0f :
+      g_measured_hw_family == 3 ? 120.0f :
       invalid_float();
   float derate_current_A =
       (g_measured_hw_family == 0 ||
-       g_measured_hw_family == 1) ? -20.0f :
+       g_measured_hw_family == 1 ||
+       g_measured_hw_family == 3) ? -20.0f :
       g_measured_hw_family == 2 ? -3.0f :
       invalid_float();
 
@@ -598,11 +603,11 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(max_voltage));
     a->Visit(MJ_NVP(max_power_W));
     a->Visit(MJ_NVP(override_board_max_power));
-    a->Visit(MJ_NVP(derate_temperature));
+    a->Visit(MJ_NVP(temperature_margin));
     a->Visit(MJ_NVP(fault_temperature));
     a->Visit(MJ_NVP(enable_motor_temperature));
     a->Visit(MJ_NVP(motor_thermistor_ohm));
-    a->Visit(MJ_NVP(motor_derate_temperature));
+    a->Visit(MJ_NVP(motor_temperature_margin));
     a->Visit(MJ_NVP(motor_fault_temperature));
     a->Visit(MJ_NVP(velocity_threshold));
     a->Visit(MJ_NVP(position_derate));
@@ -623,7 +628,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(default_timeout_s));
     a->Visit(MJ_NVP(timeout_max_torque_Nm));
     a->Visit(MJ_NVP(timeout_mode));
-    a->Visit(MJ_NVP(flux_brake_min_voltage));
+    a->Visit(MJ_NVP(flux_brake_margin_voltage));
     a->Visit(MJ_NVP(flux_brake_resistance_ohm));
     a->Visit(MJ_NVP(max_current_A));
     a->Visit(MJ_NVP(derate_current_A));

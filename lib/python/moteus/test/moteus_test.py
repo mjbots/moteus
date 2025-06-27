@@ -22,7 +22,7 @@ import moteus.moteus as mot
 
 
 class CanMessage:
-    def __init__(self, arbitration_id=0, data=b''):
+    def __init__(self, arbitration_id=0x0100, data=b''):
         self.arbitration_id = arbitration_id
         self.data = data
 

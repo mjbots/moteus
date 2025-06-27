@@ -284,6 +284,17 @@ class TimeoutTransport : public Transport {
     }
   }
 
+  static size_t RoundUpDlc(size_t size) {
+    if (size <= 8) { return size; }
+    if (size <= 12) { return 12; }
+    if (size <= 16) { return 16; }
+    if (size <= 20) { return 20; }
+    if (size <= 24) { return 24; }
+    if (size <= 32) { return 32; }
+    if (size <= 48) { return 48; }
+    if (size <= 64) { return 64; }
+    return size;
+  }
 
  protected:
   virtual int CHILD_GetReadFd() const = 0;
@@ -783,18 +794,6 @@ class Fdcanusb : public details::TimeoutTransport {
     tx_buffer_size_ = 0;
   }
 
-  static size_t RoundUpDlc(size_t size) {
-    if (size <= 8) { return size; }
-    if (size <= 12) { return 12; }
-    if (size <= 16) { return 16; }
-    if (size <= 20) { return 20; }
-    if (size <= 24) { return 24; }
-    if (size <= 32) { return 32; }
-    if (size <= 48) { return 48; }
-    if (size <= 64) { return 64; }
-    return size;
-  }
-
   static int ParseHexNybble(char c) {
     if (c >= '0' && c <= '9') { return c - '0'; }
     if (c >= 'a' && c <= 'f') { return c - 'a' + 10; }
@@ -903,8 +902,12 @@ class Socketcan : public details::TimeoutTransport {
       // Set the frame format flag if we need an extended ID.
       send_frame.can_id |= (1 << 31);
     }
-    send_frame.len = frame.size;
+    send_frame.len = RoundUpDlc(frame.size);
     std::memcpy(send_frame.data, frame.data, frame.size);
+    if (send_frame.len != frame.size) {
+      std::memset(&send_frame.data[frame.size], 0x50,
+                  send_frame.len - frame.size);
+    }
 
     using F = CanFdFrame;
 

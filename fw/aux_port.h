@@ -33,6 +33,7 @@
 #include "fw/aux_mbed.h"
 #include "fw/ccm.h"
 #include "fw/cui_amt21.h"
+#include "fw/cui_amt22.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
 #include "fw/ma732.h"
@@ -50,7 +51,8 @@ class AuxPort {
 
   enum SpiDefault {
     kNoDefaultSpi,
-    kDefaultOnboardSpi
+    kDefaultOnboardSpi,
+    kDefaultOnboardMa600,
   };
 
   AuxPort(const char* aux_name,
@@ -64,22 +66,16 @@ class AuxPort {
           MillisecondTimer* timer,
           SpiDefault spi_default,
           std::array<DMA_Channel_TypeDef*, 4> dma_channels)
-      : tunnel_stream_(tunnel_stream),
+      : pin_count_(std::max_element(
+                       hw_config.pins.begin(), hw_config.pins.end(),
+                       [](const auto& a, const auto& b) {
+                         return a.number < b.number; })->number + 1),
+        tunnel_stream_(tunnel_stream),
         timer_(timer),
         adc_info_(*adc_info),
         hw_config_(hw_config),
-        dma_channels_(dma_channels) {
-    switch (spi_default) {
-      case kNoDefaultSpi: {
-        config_.spi.mode = aux::Spi::Config::Mode::kDisabled;
-        break;
-      }
-      case kDefaultOnboardSpi: {
-        onboard_spi_available_ = true;
-        // This is the upstream default.
-        break;
-      }
-    }
+        dma_channels_(dma_channels),
+        spi_default_(spi_default) {
     persistent_config->Register(aux_name, &config_,
                                 std::bind(&AuxPort::HandleConfigUpdate, this));
     telemetry_manager->Register(aux_name, &status_);
@@ -171,7 +167,7 @@ class AuxPort {
           break;
         }
         case SampleType::kGpio: {
-          for (size_t i = 0; i < config_.pins.size(); i++) {
+          for (size_t i = 0; i < pin_count_; i++) {
             if (config_.pins[i].mode == aux::Pin::Mode::kDigitalInput) {
               status_.pins[i] = digital_inputs_[i]->read() ? true : false;
             } else if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
@@ -229,6 +225,10 @@ class AuxPort {
           cui_amt21_->ISR_Update(&status_.uart);
           break;
         }
+        case SampleType::kCuiAmt22: {
+          cui_amt22_->ISR_Update(&status_.spi);
+          break;
+        }
         case SampleType::kI2c: {
           ISR_I2C_Update();
           break;
@@ -279,7 +279,7 @@ class AuxPort {
   void ISR_EndAnalogSample() MOTEUS_CCM_ATTRIBUTE {
     if (!any_adc_) { return; }
 
-    for (size_t i = 0; i < config_.pins.size(); i++) {
+    for (size_t i = 0; i < pin_count_; i++) {
       if (analog_input_active_[i]) {
         status_.analog_inputs[i] =
             static_cast<float>(adc_info_.value[i]) / 4096.0f;
@@ -326,6 +326,18 @@ class AuxPort {
         // results.  So we do one here to ensure that all those that
         // our ISR performs are good.
         as5047_->Sample();
+
+        __enable_irq();
+      }
+    }
+
+    if (!cui_amt22_ && cui_amt22_options_) {
+      if (timer_->ms_since_boot() > 200) {
+        __disable_irq();
+        status_.error = aux::AuxError::kNone;
+
+        cui_amt22_.emplace(*cui_amt22_options_);
+        AddSampleType(SampleType::kCuiAmt22, true, true);
 
         __enable_irq();
       }
@@ -386,7 +398,7 @@ class AuxPort {
 
 
   void WriteDigitalOut(uint32_t value) {
-    for (size_t i = 0; i < config_.pins.size(); i++) {
+    for (size_t i = 0; i < pin_count_; i++) {
       if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
         status_.pins[i] = (value & (1 << i)) ? true : false;
       }
@@ -394,7 +406,7 @@ class AuxPort {
   }
 
   void WritePwmOut(int pin, float value) {
-    pin = std::max<int>(0, std::min<int>(config_.pins.size() - 1, pin));
+    pin = std::max<int>(0, std::min<int>(pin_count_ - 1, pin));
     status_.pwm[pin] = std::max(0.0f, std::min(1.0f, value));
   }
 
@@ -424,6 +436,7 @@ class AuxPort {
     kAksim2 = 8,
     kCuiAmt21 = 9,
     kI2c = 10,
+    kCuiAmt22 = 11,
 
     kLastEntry,
   };
@@ -801,6 +814,8 @@ class AuxPort {
     ma732_.reset();
     ma732_options_.reset();
     onboard_cs_.reset();
+    cui_amt22_.reset();
+    cui_amt22_options_.reset();
 
     bool updated_any_isr = false;
 
@@ -858,6 +873,29 @@ class AuxPort {
     }
 
     ////////////////////////////////////////////
+    // Now that everything is reset, reset any board defaults to the
+    // correct value.
+
+    if (config_.spi.mode == aux::Spi::Config::kBoardDefault) {
+      switch (spi_default_) {
+        case kNoDefaultSpi: {
+          config_.spi.mode = aux::Spi::Config::Mode::kDisabled;
+          break;
+        }
+        case kDefaultOnboardSpi: {
+          onboard_spi_available_ = true;
+          config_.spi.mode = aux::Spi::Config::Mode::kOnboardAs5047;
+          break;
+        }
+        case kDefaultOnboardMa600: {
+          onboard_spi_available_ = true;
+          config_.spi.mode = aux::Spi::Config::Mode::kOnboardMa600;
+          break;
+        }
+      }
+    }
+
+    ////////////////////////////////////////////
     // Validate our config, one option at a time.
 
     const bool any_i2c =
@@ -873,7 +911,7 @@ class AuxPort {
     if (any_i2c) {
       PinName sda = NC;
       PinName scl = NC;
-      for (size_t i = 0; i < config_.pins.size(); i++) {
+      for (size_t i = 0; i < pin_count_; i++) {
         if (config_.pins[i].mode != aux::Pin::Mode::kI2C) { continue; }
 
         for (const auto& pin : hw_config_.pins) {
@@ -924,13 +962,15 @@ class AuxPort {
       updated_any_isr = true;
     }
 
-    if (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 &&
+    if ((config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
+         config_.spi.mode == aux::Spi::Config::kOnboardMa600) &&
         !onboard_spi_available_) {
       status_.error = aux::AuxError::kSpiPinError;
       return;
     }
 
-    if (config_.spi.mode != aux::Spi::Config::kOnboardAs5047 &&
+    if ((config_.spi.mode != aux::Spi::Config::kOnboardAs5047 &&
+         config_.spi.mode != aux::Spi::Config::kOnboardMa600) &&
         onboard_spi_available_) {
       // If we're not using the onboard encoder, ensure that its CS
       // line is not asserted.
@@ -940,15 +980,17 @@ class AuxPort {
     // Default to the onboard encoder for SPI.
     if (config_.spi.mode != aux::Spi::Config::kDisabled) {
       const auto maybe_spi = aux::FindSpiOption(
-          config_.pins, hw_config_,
-          (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ?
+          config_.pins, pin_count_, hw_config_,
+          ((config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
+            config_.spi.mode == aux::Spi::Config::kOnboardMa600) ?
            aux::kDoNotRequireCs : aux::kRequireCs));
       if (!maybe_spi) {
         status_.error = aux::AuxError::kSpiPinError;
         return;
       }
       const PinName spi_cs_pin =
-          config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ?
+          (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
+           config_.spi.mode == aux::Spi::Config::kOnboardMa600) ?
           g_hw_pins.as5047_cs : maybe_spi->cs;
 
       Stm32Spi::Options spi_options;
@@ -964,6 +1006,22 @@ class AuxPort {
           AS5047::Options options = spi_options;
           options.timeout = 200;
           as5047_options_ = options;
+
+          break;
+        }
+        case aux::Spi::Config::kCuiAmt22: {
+          CuiAmt22::Options options = spi_options;
+          // The max limit is 2Mbps per the datasheet.  The minimum limit is set to ensure
+          // there is sufficient setup time between each of:
+          // Tclk: CS_low -> SPI: 2.5us
+          // Tb: between bytes: 2.5us
+          // Tr: SPI -> CS_high: 3us
+          // Tcs: CS_low -> CS_low: 40us
+          // assuming that each step is taken once per ISR and the maximum ISR rate is 30kHz.
+          if (options.frequency > 2000000) { options.frequency = 2000000; }
+          if (options.frequency < 600000) { options.frequency = 600000; }
+          options.timeout = 2000;
+          cui_amt22_options_ = options;
 
           break;
         }
@@ -989,7 +1047,8 @@ class AuxPort {
           ma732_options_ = options;
           break;
         }
-        case aux::Spi::Config::kMa600: {
+        case aux::Spi::Config::kMa600:
+        case aux::Spi::Config::kOnboardMa600: {
           MA732::Options options = spi_options;
           options.filter_us = config_.spi.filter_us;
           options.bct = config_.spi.bct;
@@ -1004,6 +1063,7 @@ class AuxPort {
           break;
         }
         case aux::Spi::Config::kDisabled:
+        case aux::Spi::Config::kBoardDefault:
         case aux::Spi::Config::kNumModes: {
           MJ_ASSERT(false);
           break;
@@ -1016,20 +1076,19 @@ class AuxPort {
     if (config_.hall.enabled) {
       // We need exactly 3 hall sensors.
       int count = 0;
-      for (const auto& pin : config_.pins) {
-        if (pin.mode == aux::Pin::Mode::kHall) { count++; }
+      for (size_t i = 0; i < pin_count_; i++) {
+        if (config_.pins[i].mode == aux::Pin::Mode::kHall) { count++; }
       }
       if (count != 3) {
         status_.error = aux::AuxError::kHallPinError;
       }
-      for (size_t i = 0; i < config_.pins.size(); i++) {
+      for (size_t i = 0; i < pin_count_; i++) {
         const auto cfg = config_.pins[i];
         if (cfg.mode != aux::Pin::Mode::kHall) { continue; }
         const auto mbed = [&]() {
             for (const auto& pin : hw_config_.pins) {
               if (pin.number == static_cast<int>(i)) { return pin.mbed; }
             }
-            mbed_die();
             return NC;
         }();
         if (!halla_) {
@@ -1045,7 +1104,7 @@ class AuxPort {
 
     if (config_.quadrature.enabled) {
       quad_.emplace(config_.quadrature, &status_.quadrature,
-                    config_.pins, hw_config_);
+                    config_.pins, pin_count_, hw_config_);
       if (quad_->error() != aux::AuxError::kNone) {
         status_.error = quad_->error();
         quad_.reset();
@@ -1055,7 +1114,7 @@ class AuxPort {
     }
 
     if (config_.index.enabled) {
-      index_.emplace(config_.index, config_.pins, hw_config_);
+      index_.emplace(config_.index, config_.pins, pin_count_, hw_config_);
       if (index_->error() != aux::AuxError::kNone) {
         status_.error = index_->error();
         index_.reset();
@@ -1066,7 +1125,7 @@ class AuxPort {
 
     if (config_.sine_cosine.enabled) {
       // We need exactly 1 each of a kSine and a kCosine.
-      for (size_t i = 0; i < config_.pins.size(); i++) {
+      for (size_t i = 0; i < pin_count_; i++) {
         const auto cfg = config_.pins[i];
         if (cfg.mode == aux::Pin::Mode::kSine) {
           if (sine_pin_ != -1) {
@@ -1091,7 +1150,8 @@ class AuxPort {
     }
 
     if (config_.uart.mode != aux::UartEncoder::Config::kDisabled) {
-      const auto maybe_uart = aux::FindUartOption(config_.pins, hw_config_);
+      const auto maybe_uart = aux::FindUartOption(
+          config_.pins, pin_count_, hw_config_);
       if (!maybe_uart) {
         status_.error = aux::AuxError::kUartPinError;
         return;
@@ -1148,7 +1208,7 @@ class AuxPort {
       updated_any_isr = true;
     }
 
-    for (size_t i = 0; i < config_.pins.size(); i++) {
+    for (size_t i = 0; i < pin_count_; i++) {
       const auto cfg = config_.pins[i];
       const auto first_mbed = [&]() {
           for (const auto& pin : hw_config_.pins) {
@@ -1292,6 +1352,7 @@ class AuxPort {
   Config config_;
   Status status_;
 
+  const size_t pin_count_;
   mjlib::micro::AsyncStream* const tunnel_stream_;
   MillisecondTimer* const timer_;
 
@@ -1302,6 +1363,9 @@ class AuxPort {
 
   std::optional<MA732> ma732_;
   std::optional<MA732::Options> ma732_options_;
+
+  std::optional<CuiAmt22> cui_amt22_;
+  std::optional<CuiAmt22::Options> cui_amt22_options_;
 
   std::optional<IcPz> ic_pz_;
   std::optional<DigitalOut> onboard_cs_;
@@ -1363,6 +1427,7 @@ class AuxPort {
   std::optional<DigitalOut> i2c_pullup_dout_;
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;
+  const SpiDefault spi_default_;
 
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> start_sample_types_ = {};
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> finish_sample_types_ = {};

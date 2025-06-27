@@ -334,6 +334,7 @@ int main(void) {
       moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
       system_info.SetCanResetCount(fdcan_micro_server.can_reset_count());
+      timer.AdvanceMsSinceBoot();
 
       old_time += 1000;
     }

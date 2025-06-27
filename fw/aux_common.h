@@ -31,10 +31,13 @@ struct Spi {
       kIcPz,
       kMa732,
       kMa600,
+      kOnboardMa600,
+      kBoardDefault,
+      kCuiAmt22,
 
       kNumModes,
     };
-    Mode mode = kOnboardAs5047;
+    Mode mode = kBoardDefault;
     uint32_t rate_hz = 12000000;
 
     // For now, only the MA732/MA600 uses these.
@@ -67,12 +70,15 @@ struct Spi {
 
     uint8_t ic_pz_bits = 0;
 
+    uint16_t checksum_errors = 0;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(active));
       a->Visit(MJ_NVP(value));
       a->Visit(MJ_NVP(nonce));
       a->Visit(MJ_NVP(ic_pz_bits));
+      a->Visit(MJ_NVP(checksum_errors));
     }
   };
 };
@@ -190,10 +196,12 @@ struct Hall {
 struct Index {
   struct Config {
     bool enabled = false;
+    bool invert = false;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(enabled));
+      a->Visit(MJ_NVP(invert));
     }
   };
 
@@ -457,6 +465,9 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
         { M::kIcPz, "ic_pz" },
         { M::kMa732, "ma732" },
         { M::kMa600, "ma600" },
+        { M::kOnboardMa600, "onboard_ma600" },
+        { M::kBoardDefault, "board_default" },
+        { M::kCuiAmt22, "cui_amt22" },
       }};
   }
 };

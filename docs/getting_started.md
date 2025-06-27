@@ -60,6 +60,10 @@ platforms (desktop Linux, Windows, Mac) via python using the
 pip3 install moteus_gui
 ```
 
+(on Linux, either a [virtual
+environment](https://docs.python.org/3/library/venv.html#creating-virtual-environments),
+or the `--break-system-packages` option may be required)
+
 ## Raspberry Pi ##
 
 If you have a Raspberry Pi, see the [instructions here](raspberry_pi.md).

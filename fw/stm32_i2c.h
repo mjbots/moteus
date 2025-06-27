@@ -156,6 +156,19 @@ class Stm32I2c {
   }
 
   void Poll() {
+    const auto isr = i2c_->ISR;
+
+    // Check for all the non-SMBus errors.
+    if (isr & (I2C_ISR_NACKF |
+               I2C_ISR_ARLO |
+               I2C_ISR_BERR)) {
+      mode_ = Mode::kError;
+      i2c_->ICR |= (I2C_ICR_NACKCF |
+                    I2C_ICR_ARLOCF |
+                    I2C_ICR_BERRCF);
+      return;
+    }
+
     switch (mode_) {
       case Mode::kIdle:
       case Mode::kComplete:
@@ -163,7 +176,7 @@ class Stm32I2c {
         break;
       }
       case Mode::kSentRegisterRead: {
-        if ((i2c_->ISR & I2C_ISR_TC) == 0) {
+        if ((isr & I2C_ISR_TC) == 0) {
           break;
         }
 
@@ -185,7 +198,7 @@ class Stm32I2c {
         break;
       }
       case Mode::kReadingData: {
-        if ((i2c_->ISR & I2C_ISR_RXNE) == 0) {
+        if ((isr & I2C_ISR_RXNE) == 0) {
           break;
         }
 
@@ -196,13 +209,13 @@ class Stm32I2c {
           // Clear any NACKs
           i2c_->ICR |= I2C_ICR_NACKCF;
 
-          mode_ = Mode::kComplete;
+          mode_ = Mode::kWaitingForStop;
         }
 
         break;
       }
       case Mode::kWritingData: {
-        if ((i2c_->ISR & I2C_ISR_TXE) == 0) {
+        if ((isr & I2C_ISR_TXE) == 0) {
           break;
         }
 
@@ -211,19 +224,28 @@ class Stm32I2c {
           // We are done.
           i2c_->ICR |= I2C_ICR_NACKCF;
 
-          mode_ = Mode::kComplete;
+          mode_ = Mode::kWaitingForStop;
         } else {
           i2c_->TXDR = tx_data_[offset_];
           offset_++;
         }
         break;
       }
+      case Mode::kWaitingForStop: {
+        // Do nothing here.
+        break;
+      }
     }
 
-    if (i2c_->ISR & I2C_ISR_NACKF) {
-      mode_ = Mode::kError;
-      i2c_->ICR |= I2C_ICR_NACKCF;
-      return;
+    // So as to reduce the time to complete a transaction by one
+    // polling cycle, we check for a stop condition *after* we have
+    // updated our mode.
+    if (mode_ == Mode::kWaitingForStop &&
+        (isr & I2C_ISR_STOPF) != 0) {
+
+      i2c_->ICR = I2C_ICR_STOPCF;
+
+      mode_ = Mode::kComplete;
     }
   }
 
@@ -236,7 +258,8 @@ class Stm32I2c {
       }
       case Mode::kSentRegisterRead:
       case Mode::kReadingData:
-      case Mode::kWritingData: {
+      case Mode::kWritingData:
+      case Mode::kWaitingForStop: {
         return true;
       }
     }
@@ -254,6 +277,7 @@ class Stm32I2c {
     kSentRegisterRead,
     kReadingData,
     kWritingData,
+    kWaitingForStop,
     kComplete,
     kError,
   };

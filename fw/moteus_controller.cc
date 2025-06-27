@@ -374,16 +374,17 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
           aux_options,
           };
   } else if (g_measured_hw_family == 1 ||
-             g_measured_hw_family == 2) {
+             g_measured_hw_family == 2 ||
+             g_measured_hw_family == 3) {
     // Family 2 has no I2C pullup on AUX1.
     aux_options.i2c_pullup =
-        g_measured_hw_family == 1 ? PB_8 : NC;
+        g_measured_hw_family == 2 ? NC : PB_8;
 
     // Family 2 has no RS422.
     aux_options.rs422_re =
-        g_measured_hw_family == 1 ? PB_10 : NC;
+        g_measured_hw_family == 2 ? NC : PB_10;
     aux_options.rs422_de =
-        g_measured_hw_family == 1 ? PB_11 : NC;
+        g_measured_hw_family == 2 ? NC : PB_11;
     return aux::AuxHardwareConfig{
       {{
           //          ADC#  CHN    I2C      SPI      USART    TIMER
@@ -423,7 +424,8 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           aux_options,
           };
   } else if (g_measured_hw_family == 1 ||
-             g_measured_hw_family == 2) {
+             g_measured_hw_family == 2 ||
+             g_measured_hw_family == 3) {
     aux_options.i2c_pullup = PA_12;
     return aux::AuxHardwareConfig{
       {{
@@ -463,7 +465,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(2),
                    timer,
-                   AuxPort::kDefaultOnboardSpi,
+                   g_measured_hw_family != 3 ?
+                   AuxPort::kDefaultOnboardSpi :
+                   AuxPort::kDefaultOnboardMa600,
                    {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6}),
         aux2_port_("aux2", "ic_pz2", GetAux2HardwareConfig(),
                    &aux_adc_.aux_info[1],
@@ -1055,7 +1059,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             ((status.sources[0].active_velocity ? 1 : 0) << 1) |
             ((status.sources[1].active_theta ? 1 : 0) << 2) |
             ((status.sources[1].active_velocity ? 1 : 0) << 3) |
-            ((status.sources[2].active_theta ? 1 : 0) << 4);
+            ((status.sources[2].active_theta ? 1 : 0) << 4) |
             ((status.sources[2].active_velocity ? 1 : 0) << 5);
         return IntMapping(validity, type);
       }

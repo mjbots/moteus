@@ -541,11 +541,13 @@ BOOST_AUTO_TEST_CASE(MotorPositionIncrementalReferenceSource,
   // An incremental output encoder, with an absolute reference source.
   Context ctx;
   auto& config = *ctx.dut.config();
+  config.sources[0].timeout_s = 1000.0f;
   config.sources[1].aux_number = 2;
   config.sources[1].type = MotorPosition::SourceConfig::kQuadrature;
   config.sources[1].offset = 0;
   config.sources[1].cpr = 20000;
   config.sources[1].reference = MotorPosition::SourceConfig::kOutput;
+  config.sources[1].timeout_s = 1000.0f;
   config.output.reference_source = 0;
   config.output.source = 1;
   config.commutation_source = 0;
