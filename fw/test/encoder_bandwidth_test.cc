@@ -146,6 +146,8 @@ struct Application {
           options.magnitude * cpr;
       sqsum_inp += std::pow(raw, 2.0);
 
+      int raw_value = 0;
+
       if (options.hall) {
         const auto old_count = ctx.aux1_status.hall.count;
         const auto new_count = ((static_cast<int>(raw) % 6) + 6) % 6;
@@ -153,8 +155,10 @@ struct Application {
         if (old_count != new_count) {
           ctx.aux1_status.hall.nonce += 1;
         }
+        raw_value = ctx.aux1_status.hall.count;
       } else {
         ctx.aux1_status.spi.value = (static_cast<int>(raw) + cpr) % cpr;
+        raw_value = ctx.aux1_status.spi.value;
       }
 
       ctx.aux1_status.spi.nonce += 1;
@@ -170,7 +174,7 @@ struct Application {
       count++;
 
       if (run_mode == kPrint) {
-        fmt::print("{} {} {}\n", t, raw, wrapped);
+        fmt::print("{} {} {} {} {}\n", t, raw, raw_value, status.sources[0].compensated_value, wrapped);
       }
     }
 
