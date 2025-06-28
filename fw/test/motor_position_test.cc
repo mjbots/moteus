@@ -101,16 +101,16 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
   {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.position_relative_valid == true);
-    BOOST_TEST(std::abs(status.position_relative_raw - 34561064960ll) <= (2ll << 24));
-    BOOST_TEST(status.position_relative == 0.000122070312f);
+    BOOST_TEST(std::abs(status.position_relative_raw - 38872809472ll) <= (2ll << 24));
+    BOOST_TEST(status.position_relative == 0.000137329102f);
 
-    BOOST_TEST(std::abs(status.position_raw - 70403305242624ll) <= (2ll << 24));
-    BOOST_TEST(status.position == 0.25012207f);
+    BOOST_TEST(std::abs(status.position_raw - 70407616987136ll) <= (2ll << 24));
+    BOOST_TEST(status.position == 0.250137329f);
 
     BOOST_TEST(status.velocity == 0.154212564f);
 
     BOOST_TEST(status.theta_valid == true);
-    BOOST_TEST(status.electrical_theta == 3.14313507f);
+    BOOST_TEST(status.electrical_theta == 3.14332867f);
   }
 
   ctx.dut.ISR_SetOutputPosition(1.5f);
@@ -126,7 +126,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicOperation) {
 
   {
     const auto status = ctx.dut.status();
-    BOOST_TEST(status.position_raw == 422231792418816ll);
+    BOOST_TEST(status.position_raw == 422233688244224ll);
   }
 
   ctx.aux1_status.spi.active = false;
@@ -397,7 +397,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionNearestReferenceSource,
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
     BOOST_TEST(status.position == 0.45126f);
-    BOOST_TEST(status.position_relative == 0.001266f);
+    BOOST_TEST(status.position_relative == 0.00126647949f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -412,7 +412,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionNearestReferenceSource,
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
     BOOST_TEST(status.position == 0.25126f);
-    BOOST_TEST(status.position_relative == 0.00125122f);
+    BOOST_TEST(status.position_relative == 0.00126647949f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -836,7 +836,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionBasicI2C) {
   {
     const auto status = ctx.dut.status();
     BOOST_TEST(std::abs(status.sources[1].filtered_value - 4096.0f) < 2.0f);
-    BOOST_TEST(std::abs(status.sources[1].velocity) < 30.0f);
+    BOOST_TEST(std::abs(status.sources[1].velocity) < 150.0f);
   }
 }
 
@@ -1034,9 +1034,9 @@ BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {
       BOOST_TEST(status.sources[0].active_theta == false);
       BOOST_TEST(status.sources[0].nonce == 2);
       BOOST_TEST(status.sources[0].offset_value == 101);
-      BOOST_TEST(status.sources[0].velocity == 39.4784164f);
-      BOOST_TEST(status.position_relative_raw == 2147483648);
-      BOOST_TEST(status.position_raw == 2147483648);
+      BOOST_TEST(status.sources[0].velocity == 1296.11548f);
+      BOOST_TEST(status.position_relative_raw == 2214592512);
+      BOOST_TEST(status.position_raw == 2214592512);
 
       BOOST_TEST(status.position_relative_valid == true);
       BOOST_TEST(status.theta_valid == false);
@@ -1054,11 +1054,11 @@ BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {
         BOOST_TEST(status.sources[0].nonce == 3);
         BOOST_TEST(status.sources[0].offset_value == 0);
 
-        BOOST_TEST(status.sources[0].filtered_value == 0.0f);
-        BOOST_TEST(status.sources[0].velocity == 39.4784164f);
+        BOOST_TEST(status.sources[0].filtered_value == 0.129611552f);
+        BOOST_TEST(status.sources[0].velocity == 1296.11548f);
 
-        BOOST_TEST(std::abs(status.position_relative_raw - 2147483648ll) <= (2ll << 24));
-        BOOST_TEST(status.position_raw == 0);
+        BOOST_TEST(std::abs(status.position_relative_raw - 4429185024ll) <= (2ll << 24));
+        BOOST_TEST(status.position_raw == 2214592512);
 
         BOOST_TEST(status.position_relative_valid == true);
         BOOST_TEST(status.theta_valid == true);
@@ -1074,11 +1074,11 @@ BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {
         BOOST_TEST(status.sources[0].active_theta == true);
         BOOST_TEST(status.sources[0].nonce == 4);
         BOOST_TEST(status.sources[0].offset_value == 1);
-        BOOST_TEST(status.sources[0].filtered_value == 0.129120678f);
-        BOOST_TEST(status.sources[0].velocity == 78.8026199f);
+        BOOST_TEST(status.sources[0].filtered_value == 0.246463194f);
+        BOOST_TEST(status.sources[0].velocity == 1168.51648f);
 
-        BOOST_TEST(std::abs(status.position_relative_raw - 4362076160) <= (2ll << 24));
-        BOOST_TEST(status.position_raw == 2214592512);
+        BOOST_TEST(std::abs(status.position_relative_raw - 6442450944) <= (2ll << 24));
+        BOOST_TEST(status.position_raw == 4227858432);
       }
 
       // And further index pulses don't do anything.
@@ -1091,10 +1091,10 @@ BOOST_AUTO_TEST_CASE(MotorPositionQuadratureTest) {
         BOOST_TEST(status.sources[0].active_theta == true);
         BOOST_TEST(status.sources[0].nonce == 5);
         BOOST_TEST(status.sources[0].offset_value == 2);
-        BOOST_TEST(status.sources[0].filtered_value == 0.371147752f);
-        BOOST_TEST(status.sources[0].velocity == 152.362015f);
-        BOOST_TEST(std::abs(status.position_relative_raw - 8522825728ll) <= (2ll << 24));
-        BOOST_TEST(status.position_raw == 6375342080);
+        BOOST_TEST(status.sources[0].filtered_value == 0.481176466f);
+        BOOST_TEST(status.sources[0].velocity == 2347.13281f);
+        BOOST_TEST(std::abs(status.position_relative_raw - 10468982784ll) <= (2ll << 24));
+        BOOST_TEST(status.position_raw == 8254390272);
       }
     }
   }
@@ -1137,8 +1137,8 @@ BOOST_AUTO_TEST_CASE(MotorPositionExternalIndex) {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kRotor);
-    BOOST_TEST(status.position == 0.00115966797f);
-    BOOST_TEST(status.position_relative == 0.000381469727f);
+    BOOST_TEST(status.position == 0.00122070312f);
+    BOOST_TEST(status.position_relative == 0.000427246094f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -1152,8 +1152,8 @@ BOOST_AUTO_TEST_CASE(MotorPositionExternalIndex) {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
-    BOOST_TEST(status.position == 0.201385498f);
-    BOOST_TEST(status.position_relative == 0.000610351562f);
+    BOOST_TEST(status.position == 0.201461792f);
+    BOOST_TEST(status.position_relative == 0.000671386719f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -1167,8 +1167,8 @@ BOOST_AUTO_TEST_CASE(MotorPositionExternalIndex) {
     const auto status = ctx.dut.status();
     BOOST_TEST(status.error == MotorPosition::Status::kNone);
     BOOST_TEST(status.homed == MotorPosition::Status::kOutput);
-    BOOST_TEST(status.position == 0.201889038f);
-    BOOST_TEST(status.position_relative == 0.0011138916f);
+    BOOST_TEST(status.position == 0.202026367f);
+    BOOST_TEST(status.position_relative == 0.0012512207f);
     BOOST_TEST(status.position_relative_valid == true);
     BOOST_TEST(status.theta_valid == true);
   }
@@ -1278,7 +1278,7 @@ BOOST_AUTO_TEST_CASE(MotorPositionOutputSign,
           {
             const auto status = ctx.dut.status();
             BOOST_TEST(status.position_relative_valid == true);
-            BOOST_TEST(std::abs(status.position_relative_raw - (sign * 34561064960ll)) <= (2ll << 24));
+            BOOST_TEST(std::abs(status.position_relative_raw - (sign * 38872809472ll)) <= (2ll << 24));
             BOOST_TEST((std::abs(status.position_relative -
                                  (sign * 0.000137329102f)) < 1e-4f));
 
@@ -1394,11 +1394,11 @@ BOOST_AUTO_TEST_CASE(MotorPositionThetaInterpolate) {
 
   TestCase test_cases[] = {
     {0, 0.0f},
-    {8, 0.0217610598f},
-    {32, 0.0870438889f},
-    {48, 0.130565688f},
-    {64, 0.174087569f},
-    {128, 0.34817487f},
+    {8, 0.0217610691f},
+    {32, 0.0870438963f},
+    {48, 0.130565718f},
+    {64, 0.174087524f},
+    {128, 0.348175019f},
   };
 
   for (const auto& test : test_cases) {
@@ -1414,6 +1414,57 @@ BOOST_AUTO_TEST_CASE(MotorPositionThetaInterpolate) {
         const auto status = ctx.dut.status();
         BOOST_TEST(status.electrical_theta == test.expected_theta);
       }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(MotorPositionVariableTimestep) {
+  // Encoders should be able to update at arbitrary periods and result
+  // in mostly correct behavior.
+  Context ctx;
+  auto& config = *ctx.dut.config();
+  config.sources[0].type = MotorPosition::SourceConfig::kUart;
+  config.sources[0].offset = 0;
+  constexpr double kCpr = 1000000;
+  config.sources[0].cpr = kCpr;
+  config.sources[0].reference = MotorPosition::SourceConfig::kRotor;
+  config.sources[0].pll_filter_hz = 20.0;
+
+  ctx.pcf.persistent_config.Load();
+
+  double uart_value = 2000;
+
+  ctx.aux1_status.uart.active = true;
+  ctx.aux1_status.uart.value = static_cast<int32_t>(uart_value);
+  ctx.aux1_status.uart.nonce += 1;
+
+  uint32_t update_count = 1;
+  uint32_t update_index = 0;
+  std::array<uint32_t, 7> update_periods = { 1, 1, 1, 1, 1, 10, 20 };
+
+  constexpr double kRate = 2000000.0;
+
+  for (double t = 0.0; t < 2.0; t += kDt) {
+    uart_value = std::fmod(uart_value + kRate * kDt, kCpr);
+    update_count--;
+    if (update_count == 0) {
+      ctx.aux1_status.uart.value = static_cast<uint32_t>(uart_value);
+      ctx.aux1_status.uart.nonce += 1;
+
+      update_index = (update_index + 1) % update_periods.size();
+      update_count = update_periods[update_index];
+    }
+
+    ctx.Update();
+
+    const auto status = ctx.dut.status();
+    BOOST_TEST(status.error == MotorPosition::Status::kNone);
+    BOOST_TEST(status.homed == MotorPosition::Status::kRotor);
+    BOOST_TEST(status.position_relative_valid == true);
+    BOOST_TEST(status.theta_valid == true);
+
+    if (t > 0.1) {
+      BOOST_TEST(std::abs(status.sources[0].velocity - kRate) < 0.0002 * kRate);
     }
   }
 }

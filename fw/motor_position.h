@@ -193,6 +193,11 @@ class MotorPosition {
     // This value is compensated_value + pll_filter
     float filtered_value = 0.0f;
 
+    // The velocity integral.  This is the reported, smoothed value.
+    float integral = 0.0f;
+
+    // The instantaneous velocity.  This is used to propagate
+    // filtered_value in time.
     float velocity = 0.0f;
 
     template <typename Archive>
@@ -206,6 +211,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(offset_value));
       a->Visit(MJ_NVP(compensated_value));
       a->Visit(MJ_NVP(filtered_value));
+      a->Visit(MJ_NVP(integral));
       a->Visit(MJ_NVP(velocity));
     }
   };
@@ -749,7 +755,7 @@ class MotorPosition {
 
       status_.position_relative = IntToFloat(status_.position_relative_raw);
       status_.position = IntToFloat(status_.position_raw);
-      status_.velocity = output_status.velocity * output_cpr_scale_;
+      status_.velocity = output_status.integral * output_cpr_scale_;
     }
 
     if (!output_status.active_velocity &&
@@ -978,13 +984,12 @@ class MotorPosition {
         continue;
       }
 
-      status.filtered_value += dt_ * status.velocity;
-
       if (updated) {
         if (!old_active_velocity && status.active_velocity) {
           // This is our first update.  Just snap to the position.
           status.filtered_value = status.compensated_value;
-          status.velocity = 0;
+          status.integral = 0.0f;
+          status.velocity = 0.0f;
           status.time_since_update = 0.0f;
         } else if (!old_active_theta && status.active_theta) {
           // Our velocity was valid before, so leave it alone.
@@ -998,23 +1003,20 @@ class MotorPosition {
           const float error =
               WrapBalancedCpr(unwrapped_error, cpr);
 
-          status.filtered_value +=
-              status.time_since_update * filter.kp * error;
-
-          status.velocity +=
-              status.time_since_update * filter.ki * error;
+          status.integral += status.time_since_update * filter.ki * error;
+          status.velocity = status.integral + filter.kp * error;
 
           // We don't let our velocity get beyond 1 revolution in 8
           // encoder samples.
           const float max_velocity =
               0.125f * cpr / status.time_since_update;
-          if (status.velocity > max_velocity) {
-            status.velocity = max_velocity;
-          } else if (status.velocity < -max_velocity) {
-            status.velocity = -max_velocity;
-          }
+          status.integral =
+              ISR_Limit(status.integral, -max_velocity, max_velocity);
+          status.velocity =
+              ISR_Limit(status.velocity, -max_velocity, max_velocity);
         } else {
           status.filtered_value = status.compensated_value;
+          status.integral = 0.0f;
           status.velocity = 0.0f;
         }
 
@@ -1027,8 +1029,15 @@ class MotorPosition {
         }
       }
 
+      status.filtered_value += dt_ * status.velocity;
       status.filtered_value = WrapCpr(status.filtered_value, cpr);
     }
+  }
+
+  static float ISR_Limit(float value, float min, float max) MOTEUS_CCM_ATTRIBUTE {
+    if (value < min) { return min; }
+    if (value > max) { return max; }
+    return value;
   }
 
   bool ISR_UpdateAbsoluteSource(

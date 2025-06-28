@@ -194,7 +194,7 @@ struct Application {
       d.hall_count = aux1_status.hall.count;
       d.compensated_value = status.sources[0].compensated_value;
       d.filtered_value = status.sources[0].filtered_value;
-      d.velocity = status.sources[0].velocity;
+      d.velocity = status.sources[0].integral;
 
       data_.push_back(d);
 
