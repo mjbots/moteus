@@ -75,6 +75,14 @@ import asyncqt
 import moteus.reader as reader
 
 
+try:
+    from . import version
+except ImportError:
+    class Version:
+        VERSION = 'dev'
+    version = Version()
+
+
 LEFT_LEGEND_LOC = 3
 RIGHT_LEGEND_LOC = 2
 
@@ -1274,6 +1282,8 @@ def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     parser = argparse.ArgumentParser(description=__doc__)
 
+    parser.add_argument('--version', action='store_true')
+
     # These two commands are aliases.
     parser.add_argument('-d', '--devices', '-t', '--target',
                         action='append', type=str, default=[])
@@ -1284,6 +1294,10 @@ def main():
     moteus.make_transport_args(parser)
 
     args = parser.parse_args()
+
+    if args.version:
+        print(f"tview version '{version.VERSION}'")
+        sys.exit(0)
 
     app = QtWidgets.QApplication(sys.argv)
     loop = asyncqt.QEventLoop(app)

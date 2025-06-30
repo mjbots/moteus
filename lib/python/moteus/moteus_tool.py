@@ -35,6 +35,12 @@ from . import moteus
 from . import aiostream
 from . import regression
 from . import calibrate_encoder as ce
+try:
+    from . import version
+except ImportError:
+    class Version:
+        VERSION = 'dev'
+    version = Version()
 
 MAX_FLASH_BLOCK_SIZE = 32
 
@@ -1256,6 +1262,7 @@ class Stream:
             'motor_position_output_sign' : motor_output_sign,
             'abi_version' : self.firmware.version,
             'voltage_mode_control' : voltage_mode_control,
+            'py_version' : version.VERSION,
         }
 
         log_filename = f"moteus-cal-{device_info['serial_number']}-{now.strftime('%Y%m%dT%H%M%S.%f')}.log"
@@ -2238,6 +2245,7 @@ async def async_main():
 
     group = parser.add_mutually_exclusive_group()
 
+    group.add_argument('--version', action='store_true')
     group.add_argument('-s', '--stop', action='store_true',
                        help='command the servos to stop')
     group.add_argument('-i', '--info', action='store_true',
@@ -2352,6 +2360,10 @@ async def async_main():
                         help='never use current mode calibration')
 
     args = parser.parse_args()
+
+    if args.version:
+        print(f"moteus_tool version '{version.VERSION}'")
+        sys.exit(0)
 
     with Runner(args) as runner:
         await runner.start()
