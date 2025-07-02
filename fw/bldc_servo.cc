@@ -1186,6 +1186,7 @@ class BldcServo::Impl {
     constexpr float kVelocityMargin = 0.87f;
 
     status_.motor_max_velocity =
+        motor_position_->config()->rotor_to_output_ratio *
         rate_config_.max_voltage_ratio *
         kVelocityMargin * 0.5f * status_.filt_1ms_bus_V / v_per_hz_;
 
