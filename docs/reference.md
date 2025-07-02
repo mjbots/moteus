@@ -2682,11 +2682,8 @@ ip link set can0 up type can \
 
 ## Position ##
 
-The commanded position is limited to +-32767.0 revolutions before any
-`rotor_to_output_ratio` has been applied.  Reducers there will
-further limit the range of the commandable revolutions.  For instance,
-a 1/10 reducer configured as `rotor_to_output_ratio=0.1` results in
-a available position command range of +-3276.7 revolutions.
+The reported and commanded position is limited to +-32768.0
+revolutions
 
 If either:
 
@@ -2697,22 +2694,22 @@ Then it is safe for the controller to "wrap around" from the maximal
 possible position to the maximally negative position and vice versa.
 This is useful in velocity control applications.
 
-The commanded position is internally treated as a 32 bit floating
-point value.  Thus the position resolution is reduced when the
-magnitude of the position is large.  Resolution equal to the full
-capabilities of the onboard encoder (~0.09degree) is maintained to
-positions of +-2048.0 revolutions.  At the maximum possible position,
-this resolution is reduced to ~1.44degrees.  Note, that this is only
-for the "commanded position".  Velocity control and PID feedback on
-the position works in an integral space and performs identically
-throughout the available control envelope.
+The reported and commanded position is internally treated as a 32 bit
+floating point value when received as a command or reported to a
+client.  Thus the position resolution is reduced when the magnitude of
+the position is large.  Resolution equal to the full capabilities of
+the onboard encoder (~0.09degree) is maintained to positions of
++-2048.0 revolutions.  At the maximum possible position, this
+resolution is reduced to ~1.44degrees.  Note, that this is only for
+values received from or reported to clients.  Internally, control and
+PID feedback on the position works in an integral space and performs
+identically throughout the available control envelope.
 
 ## Velocity ##
 
 The smallest usable mechanical velocity which can be commanded is
-0.0001 revolutions per second before any `rotor_to_output_ratio`
-has been applied.  This corresponds to 0.036 degrees per second.
-Reducers will decrease the minimum usable velocity.
+0.0001 revolutions per second.  This corresponds to 0.036 degrees per
+second.
 
 The maximum mechanical velocity which can be commanded is 28000 rpm,
 or ~467 revolutions per second before any reducers.  Note, most motors
