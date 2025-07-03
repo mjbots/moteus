@@ -49,6 +49,7 @@ enum class errc {
   kStopPositionDeprecated = 45,
   kTimingViolation = 46,
   kBemfFeedforwardNoAccelLimit = 47,
+  kInvalidLimits = 48,
 
   // The following are not hard faults, but instead codes that are
   // presented while in a control mode if some factor is limiting the

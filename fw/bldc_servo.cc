@@ -1346,6 +1346,12 @@ class BldcServo::Impl {
                 ISR_IsOutsideLimits()) {
               status_.mode = kFault;
               status_.fault = errc::kStartOutsideLimit;
+            } else if ((data->mode == kPosition ||
+                        data->mode == kStayWithinBounds) &&
+                       !data->ignore_position_bounds &&
+                       ISR_InvalidLimits()) {
+              status_.mode = kFault;
+              status_.fault = errc::kInvalidLimits;
             } else {
               // Yep, we can do this.
               status_.mode = data->mode;
@@ -1377,6 +1383,13 @@ class BldcServo::Impl {
              position_.position < position_config_.position_min) ||
             (!std::isnan(position_config_.position_max) &&
              position_.position > position_config_.position_max));
+  }
+
+  bool ISR_InvalidLimits() {
+    return ((!std::isnan(position_config_.position_min) && (
+                 std::abs(position_config_.position_min) > 32768.0f)) ||
+            (!std::isnan(position_config_.position_max) && (
+                std::abs(position_config_.position_max) > 32768.0f)));
   }
 
   void ISR_StartCalibrating() {

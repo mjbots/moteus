@@ -738,6 +738,9 @@ A fault code which will be set if the primary mode is 1 (Fault).
   configured, but no acceleration limit was specified.  If you
   *really* know what you are doing, you can disable this with
   `servo.bemf_feedforward_override`.
+* 48 - *invalid limits* - `servopos.position_min` or
+  `servopos.position_max` are finite and outside the available
+  position range
 
 Some non-zero codes can be presented during valid control modes
 without a fault.  These indicate which, if any, function is limiting
