@@ -1836,6 +1836,10 @@ class Stream:
             commutation_source = await self.read_config_int("motor_position.commutation_source")
             output_hz = encoder_bw_hz if self.firmware.version >= 0x010c else encoder_natural_frequency_hz
             await self.command(f"conf set motor_position.sources.{commutation_source}.pll_filter_hz {output_hz}")
+
+            output_source = await self.read_config_int("motor_position.output.source")
+            if output_source != commutation_source:
+                await self.command(f"conf set motor_position.sources.{output_source}.pll_filter_hz {output_hz}")
         else:
             assert False
         return kp, ki, encoder_bw_hz
