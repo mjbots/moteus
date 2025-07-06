@@ -394,28 +394,20 @@
     }
 
     class OperatingPoint {
-      constructor({controllerTempC=null,
-                   motorTempC=null,
-                   supplyPowerW=null,
-                   supplyCurrentA=null,
-                   phaseCurrentA=null,
-                   motorTorqueNm=null,
-                   copperLossW=null,
-                   ironLossW=null,
-                   controllerLossW=null,
-                   mechanicalPowerW=null,
-                   efficiencyPercent=null}) {
-        this.controllerTempC = controllerTempC;
-        this.motorTempC = motorTempC;
-        this.supplyPowerW = supplyPowerW;
-        this.supplyCurrentA = supplyCurrentA;
-        this.phaseCurrentA = phaseCurrentA;
-        this.motorTorqueNm = motorTorqueNm;
-        this.copperLossW = copperLossW;
-        this.ironLossW = ironLossW;
-        this.controllerLossW = controllerLossW;
-        this.mechanicalPowerW = mechanicalPowerW;
-        this.efficiencyPercent = efficiencyPercent;
+      controllerTempC = null;
+      motorTempC = null;
+      supplyPowerW = null;
+      supplyCurrentA = null;
+      phaseCurrentA = null;
+      motorTorqueNm = null;
+      copperLossW = null;
+      ironLossW = null;
+      controllerLossW = null;
+      mechanicalPowerW = null;
+      efficiencyPercent = null;
+
+      constructor(opts = {}) {
+        Object.assign(this, opts);
       }
 
       render() {
