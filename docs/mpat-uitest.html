@@ -341,12 +341,23 @@ function App() {
   const [axisConfigs, setAxisConfigs] = useState([[[]]]);  // Start with one axis with one empty config
 
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
-    const newAxisConfigs = [...axisConfigs];
+    let newAxisConfigs = [...axisConfigs];
     newAxisConfigs[axisIndex] = newConfigs;
     
     // If this is the last axis and it has any content, add a new empty axis
     if (axisIndex === axisConfigs.length - 1 && hasAnyContent(newConfigs)) {
       newAxisConfigs.push([[]]);  // Add new axis with one empty config
+    }
+    
+    // Remove empty axes that are not the last one
+    newAxisConfigs = newAxisConfigs.filter((configs, i) => {
+      // Keep the last axis (even if empty) and any non-empty axes
+      return i === newAxisConfigs.length - 1 || hasAnyContent(configs);
+    });
+    
+    // Ensure we always have at least one axis (empty if needed)
+    if (newAxisConfigs.length === 0) {
+      newAxisConfigs = [[[]]];  // One axis with one empty config
     }
     
     setAxisConfigs(newAxisConfigs);
