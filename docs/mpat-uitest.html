@@ -238,9 +238,9 @@ const baseFields = [
   ].map((name, index) => ({ field: name, value: name, label: name}));
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
-function ConfigFieldSelector({ 
-  selected, 
-  onSelectedChange, 
+function ConfigFieldSelector({
+  selected,
+  onSelectedChange,
   disabled = false,
   placeholder = "Select or create fields..."
 }) {
@@ -302,23 +302,23 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
   const handleConfigChange = (index, newValue) => {
     let newConfigs = [...configs];
     newConfigs[index] = newValue;
-    
+
     // If this is the last (empty) field and user added something, add a new empty field
     if (index === configs.length - 1 && newValue.length > 0) {
       newConfigs.push([]);
     }
-    
+
     // Remove empty fields that are not the last one
     newConfigs = newConfigs.filter((config, i) => {
       // Keep the last field (even if empty) and any non-empty fields
       return i === newConfigs.length - 1 || config.length > 0;
     });
-    
+
     // Ensure we always have at least one field (empty if needed)
     if (newConfigs.length === 0) {
       newConfigs = [[]];
     }
-    
+
     onConfigsChange(newConfigs);
   };
 
@@ -342,29 +342,50 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
 
 /* ---------- Main App Component ---------- */
 function App() {
-  const [commonConfig, setCommonConfig] = useState([]);
+  // Default values for common config
+  const defaultCommonValues = {
+    'voltage': '24',
+    'velocity': '0',
+    'pwm': 'default',
+    'supply_power': 'unlimited',
+    'supply_current': 'unlimited',
+    'time': 'infinity',
+    'gear_ratio': '1',
+    'ambient_temp': '25',
+    'max_controller_temp': 'default',
+    'max_motor_temp': 'default'
+  };
+
+  const [commonConfig, setCommonConfig] = useState(
+    Object.entries(defaultCommonValues).map(([field, value]) => ({
+      field,
+      value: field,
+      data: value,
+      label: `${field}=${value}`
+    }))
+  );
   const [axisConfigs, setAxisConfigs] = useState([[[]]]);  // Start with one axis with one empty config
 
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
     let newAxisConfigs = [...axisConfigs];
     newAxisConfigs[axisIndex] = newConfigs;
-    
+
     // If this is the last axis and it has any content, add a new empty axis
     if (axisIndex === axisConfigs.length - 1 && hasAnyContent(newConfigs)) {
       newAxisConfigs.push([[]]);  // Add new axis with one empty config
     }
-    
+
     // Remove empty axes that are not the last one
     newAxisConfigs = newAxisConfigs.filter((configs, i) => {
       // Keep the last axis (even if empty) and any non-empty axes
       return i === newAxisConfigs.length - 1 || hasAnyContent(configs);
     });
-    
+
     // Ensure we always have at least one axis (empty if needed)
     if (newAxisConfigs.length === 0) {
       newAxisConfigs = [[[]]];  // One axis with one empty config
     }
-    
+
     setAxisConfigs(newAxisConfigs);
   };
 
