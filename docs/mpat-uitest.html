@@ -223,19 +223,26 @@ const parseKV = (txt) => {
   return { field, value: field, data: val, label: `${field}=${val}` };
 };
 
-/* shared base fields for all selectors */
-const baseFields = [
-   'voltage',
-   'velocity',
-   'pwm',
-   'supply_power',
-   'supply_current',
-   'time',
-   'gear_ratio',
-   'ambient_temp',
-   'max_controller_temp',
-   'max_motor_temp'
-  ].map((name, index) => ({ field: name, value: name, label: name}));
+// Default values for common config - this defines all available fields
+const defaultCommonValues = {
+  'voltage': '24',
+  'velocity': '0',
+  'pwm': 'default',
+  'supply_power': 'unlimited',
+  'supply_current': 'unlimited',
+  'time': 'infinity',
+  'gear_ratio': '1',
+  'ambient_temp': '25',
+  'max_controller_temp': 'default',
+  'max_motor_temp': 'default'
+};
+
+/* shared base fields for all selectors - derived from default values */
+const baseFields = Object.keys(defaultCommonValues).map(name => ({ 
+  field: name, 
+  value: name, 
+  label: name 
+}));
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
 function ConfigFieldSelector({
@@ -342,20 +349,6 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
 
 /* ---------- Main App Component ---------- */
 function App() {
-  // Default values for common config
-  const defaultCommonValues = {
-    'voltage': '24',
-    'velocity': '0',
-    'pwm': 'default',
-    'supply_power': 'unlimited',
-    'supply_current': 'unlimited',
-    'time': 'infinity',
-    'gear_ratio': '1',
-    'ambient_temp': '25',
-    'max_controller_temp': 'default',
-    'max_motor_temp': 'default'
-  };
-
   const [commonConfig, setCommonConfig] = useState(
     Object.entries(defaultCommonValues).map(([field, value]) => ({
       field,
