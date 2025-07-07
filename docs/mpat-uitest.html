@@ -84,6 +84,10 @@
       /*overflow: hidden;*/
     }
 
+    .panelContent {
+      padding: 1rem;
+    }
+
     .panelTitle {
       cursor: pointer;
       padding: 0.5rem;
@@ -206,7 +210,7 @@ const parseKV = (txt) => {
   return { field, value: field, data: val, label: `${field}=${val}` };
 };
 
-/* base list the user can click */
+/* shared base fields for all selectors */
 const baseFields = [
    'voltage',
    'velocity',
@@ -220,9 +224,13 @@ const baseFields = [
    'max_motor_temp'
   ].map((name, index) => ({ field: name, value: name, label: name}));
 
-function App () {
-  const [selected, setSelected] = useState([]);
-
+/* ---------- Reusable ConfigFieldSelector Component ---------- */
+function ConfigFieldSelector({ 
+  selected, 
+  onSelectedChange, 
+  disabled = false,
+  placeholder = "Select or create fields..."
+}) {
   /* utility – already have this field? */
   const fieldTaken = (f) => selected.some((s) => s.field === f);
 
@@ -241,30 +249,80 @@ function App () {
   const onCreateOption = (input) => {
     const kv = parseKV(input);
     if (!kv || fieldTaken(kv.field)) return;    // guard
-    setSelected((prev) => [...prev, kv]);
+    onSelectedChange([...selected, kv]);
   };
 
+  return html`
+    <${Creatable}
+        isMulti
+        isDisabled=${disabled}
+        value=${selected}
+        onChange=${onSelectedChange}
+        placeholder=${placeholder}
+        options=${baseFields}
+        getNewOptionData=${getNewOptionData}
+        isValidNewOption=${isValidNewOption}
+        onCreateOption=${onCreateOption}
+        isOptionDisabled=${isOptionDisabled}
+        formatCreateLabel=${(v) => `add ${v}`}
+      />
+  `;
+}
+
+/* ---------- Panel Components ---------- */
+function CommonConfigPanel({ selected, onSelectedChange }) {
+  return html`
+    <div class="panelContainer">
+      <div class="panelTitle">Common Config</div>
+      <div class="panelContent">
+        <${ConfigFieldSelector}
+          selected=${selected}
+          onSelectedChange=${onSelectedChange}
+          placeholder="Add common configuration..."
+        />
+      </div>
+    </div>
+  `;
+}
+
+function Axis1Panel({ selected, onSelectedChange }) {
+  return html`
+    <div class="panelContainer">
+      <div class="panelTitle">Axis 1</div>
+      <div class="panelContent">
+        <${ConfigFieldSelector}
+          selected=${selected}
+          onSelectedChange=${onSelectedChange}
+          placeholder="Add axis 1 configuration..."
+        />
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Main App Component ---------- */
+function App() {
+  const [commonConfig, setCommonConfig] = useState([]);
+  const [axis1Config, setAxis1Config] = useState([]);
+
   /* optional: watch state while testing */
-  useEffect(() => console.table(selected), [selected]);
+  useEffect(() => {
+    console.log('Common Config:', commonConfig);
+    console.log('Axis 1 Config:', axis1Config);
+  }, [commonConfig, axis1Config]);
 
   return html`
-  <div class="panelContainer">
-      <div class="panelTitle">
-    Common Options
-  </div>
-
-  <${Creatable}
-      isMulti
-      value=${selected}
-      onChange=${setSelected}
-
-      options=${baseFields}
-      getNewOptionData=${getNewOptionData}
-      isValidNewOption=${isValidNewOption}
-      onCreateOption=${onCreateOption}
-      isOptionDisabled=${isOptionDisabled}
-      formatCreateLabel=${(v) => `add ${v}`}
-    />
+    <div class="pageContainer">
+      <div class="panelColumn">
+        <${CommonConfigPanel}
+          selected=${commonConfig}
+          onSelectedChange=${setCommonConfig}
+        />
+        <${Axis1Panel}
+          selected=${axis1Config}
+          onSelectedChange=${setAxis1Config}
+        />
+      </div>
     </div>
   `;
 }
