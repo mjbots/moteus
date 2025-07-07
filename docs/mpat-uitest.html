@@ -88,6 +88,14 @@
       padding: 1rem;
     }
 
+    .configField {
+      margin-bottom: 0.75rem;
+    }
+
+    .configField:last-child {
+      margin-bottom: 0;
+    }
+
     .panelTitle {
       cursor: pointer;
       padding: 0.5rem;
@@ -285,16 +293,32 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
   `;
 }
 
-function Axis1Panel({ selected, onSelectedChange }) {
+function AxisPanel({ axisNumber, configs, onConfigsChange }) {
+  const handleConfigChange = (index, newValue) => {
+    const newConfigs = [...configs];
+    newConfigs[index] = newValue;
+    
+    // If this is the last (empty) field and user added something, add a new empty field
+    if (index === configs.length - 1 && newValue.length > 0) {
+      newConfigs.push([]);
+    }
+    
+    onConfigsChange(newConfigs);
+  };
+
   return html`
     <div class="panelContainer">
-      <div class="panelTitle">Axis 1</div>
+      <div class="panelTitle">Axis ${axisNumber}</div>
       <div class="panelContent">
-        <${ConfigFieldSelector}
-          selected=${selected}
-          onSelectedChange=${onSelectedChange}
-          placeholder="Add axis 1 configuration..."
-        />
+        ${configs.map((config, index) => html`
+          <div key=${index} class="configField">
+            <${ConfigFieldSelector}
+              selected=${config}
+              onSelectedChange=${(newValue) => handleConfigChange(index, newValue)}
+              placeholder=${index === configs.length - 1 ? `Add new axis ${axisNumber} configuration...` : `Axis ${axisNumber} configuration...`}
+            />
+          </div>
+        `)}
       </div>
     </div>
   `;
@@ -303,13 +327,30 @@ function Axis1Panel({ selected, onSelectedChange }) {
 /* ---------- Main App Component ---------- */
 function App() {
   const [commonConfig, setCommonConfig] = useState([]);
-  const [axis1Config, setAxis1Config] = useState([]);
+  const [axisConfigs, setAxisConfigs] = useState([[[]]]);  // Start with one axis with one empty config
+
+  const handleAxisConfigChange = (axisIndex, newConfigs) => {
+    const newAxisConfigs = [...axisConfigs];
+    newAxisConfigs[axisIndex] = newConfigs;
+    
+    // If this is the last axis and it has any content, add a new empty axis
+    if (axisIndex === axisConfigs.length - 1 && hasAnyContent(newConfigs)) {
+      newAxisConfigs.push([[]]);  // Add new axis with one empty config
+    }
+    
+    setAxisConfigs(newAxisConfigs);
+  };
+
+  // Helper function to check if any config in an axis has content
+  const hasAnyContent = (configs) => {
+    return configs.some(config => config.length > 0);
+  };
 
   /* optional: watch state while testing */
   useEffect(() => {
     console.log('Common Config:', commonConfig);
-    console.log('Axis 1 Config:', axis1Config);
-  }, [commonConfig, axis1Config]);
+    console.log('Axis Configs:', axisConfigs);
+  }, [commonConfig, axisConfigs]);
 
   return html`
     <div class="pageContainer">
@@ -318,10 +359,14 @@ function App() {
           selected=${commonConfig}
           onSelectedChange=${setCommonConfig}
         />
-        <${Axis1Panel}
-          selected=${axis1Config}
-          onSelectedChange=${setAxis1Config}
-        />
+        ${axisConfigs.map((configs, axisIndex) => html`
+          <${AxisPanel}
+            key=${axisIndex}
+            axisNumber=${axisIndex + 1}
+            configs=${configs}
+            onConfigsChange=${(newConfigs) => handleAxisConfigChange(axisIndex, newConfigs)}
+          />
+        `)}
       </div>
     </div>
   `;
