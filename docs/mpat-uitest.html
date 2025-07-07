@@ -295,12 +295,23 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
 
 function AxisPanel({ axisNumber, configs, onConfigsChange }) {
   const handleConfigChange = (index, newValue) => {
-    const newConfigs = [...configs];
+    let newConfigs = [...configs];
     newConfigs[index] = newValue;
     
     // If this is the last (empty) field and user added something, add a new empty field
     if (index === configs.length - 1 && newValue.length > 0) {
       newConfigs.push([]);
+    }
+    
+    // Remove empty fields that are not the last one
+    newConfigs = newConfigs.filter((config, i) => {
+      // Keep the last field (even if empty) and any non-empty fields
+      return i === newConfigs.length - 1 || config.length > 0;
+    });
+    
+    // Ensure we always have at least one field (empty if needed)
+    if (newConfigs.length === 0) {
+      newConfigs = [[]];
     }
     
     onConfigsChange(newConfigs);
