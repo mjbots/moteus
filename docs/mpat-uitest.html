@@ -260,7 +260,12 @@ function ConfigFieldSelector({
 
   const isValidNewOption = (input) => {
     const kv = parseKV(input);
-    return kv && !fieldTaken(kv.field);         // allow only if unique
+    if (!kv) return false;
+    
+    // Check if the field is in our allowed list
+    const isValidField = baseFields.some(bf => bf.field === kv.field);
+    
+    return isValidField && !fieldTaken(kv.field);         // allow only if valid field and unique
   };
 
   const isOptionDisabled = (opt) => fieldTaken(opt.field);
