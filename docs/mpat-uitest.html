@@ -353,6 +353,442 @@ const getBaseFields = (selectedValues) => {
   return [...staticFields, ...dynamicFields];
 };
 
+/* ---------- Model Classes ---------- */
+
+function bisectMaxTrue(M, metric, threshold) {
+  let lo = 0;
+  let hi = M;
+
+  if (!metric(0)) {
+    return null;
+  }
+
+  if (metric(M)) {
+    return M;
+  }
+
+  // Invariant: metric(lo) === true, metric(hi) === false, lo < hi
+  while (lo < (hi - threshold)) {
+    const mid = 0.5 * (lo + hi);
+    if (metric(mid)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return lo;
+}
+
+class Interpolator2D {
+  constructor(xlabels, ylabels, data) {
+    this.xlabels = xlabels;
+    this.ylabels = ylabels;
+    this.data = data;
+
+    // Validate that our data has the right number of rows and columns.
+    if (data.length != this.ylabels.length) {
+      throw new Error("Data matrix does not match label row count");
+    }
+    data.map((row) => {
+      if (row.length != this.xlabels.length) {
+        throw new Error("Data matrix does not match label column count");
+      }
+    });
+  }
+
+  // Also from 4o:
+  //
+  // Return a linear interpolation between nearest points, or if the
+  // requested point is outside the allowed bounds, just extend the
+  // nearest edge or corner indefinitely.
+  interpolate(x, y) {
+    // Helper function: Given a sorted label array and a value, returns
+    // the lower and upper indices and the interpolation factor.
+    function getInterval(labels, value) {
+      const n = labels.length;
+      if (value <= labels[0]) {
+        return { indexLow: 0, indexHigh: 0, t: 0 };
+      }
+      if (value >= labels[n - 1]) {
+        return { indexLow: n - 1, indexHigh: n - 1, t: 0 };
+      }
+      // Find the interval where labels[i] <= value <= labels[i+1]
+      for (let i = 0; i < n - 1; i++) {
+        if (value >= labels[i] && value <= labels[i + 1]) {
+          let t = (value - labels[i]) / (labels[i + 1] - labels[i]);
+          return { indexLow: i, indexHigh: i + 1, t: t };
+        }
+      }
+      // Fallback (should never be reached)
+      return { indexLow: n - 1, indexHigh: n - 1, t: 0 };
+    }
+
+    // Get the intervals and interpolation factors for x and y.
+    const xInterval = getInterval(this.xlabels, x);
+    const yInterval = getInterval(this.ylabels, y);
+
+    const i0 = xInterval.indexLow;
+    const i1 = xInterval.indexHigh;
+    const t = xInterval.t;
+
+    const j0 = yInterval.indexLow;
+    const j1 = yInterval.indexHigh;
+    const u = yInterval.t;
+
+    // Retrieve the four surrounding grid values.
+    const v00 = this.data[j0][i0];
+    const v01 = this.data[j0][i1];
+    const v10 = this.data[j1][i0];
+    const v11 = this.data[j1][i1];
+
+    // Interpolate along x for the two rows.
+    const interpX0 = (1 - t) * v00 + t * v01;
+    const interpX1 = (1 - t) * v10 + t * v11;
+
+    // Interpolate the two results along y.
+    return (1 - u) * interpX0 + u * interpX1;
+  }
+}
+
+class Controller {
+  constructor(props, power, thermal) {
+    this.props = props;
+    this.power = power;
+    this.thermal = thermal;
+    this.k0 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k0);
+    this.k1 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k1);
+    this.k2 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k2);
+  }
+
+  getState() {
+    return {};
+  }
+
+  getThermalProperties(state, coolingName) {
+    if (this.thermal?.[coolingName] == null) {
+      return [null, null];
+    }
+    return [this.thermal[coolingName]['R'], this.thermal[coolingName]['C']];
+  }
+
+  getMaxTemp() {
+    return this.props['maxTemp'];
+  }
+
+  getMaxVoltage() {
+    return this.props['maxVoltage'];
+  }
+
+  getMaxSpeed(state, voltage, voltageState, motor, motorState) {
+    return voltage.getVoltage(voltageState) * motor.getKv(motorState) * this.getSpeedFactor() / 60.0;
+  }
+
+  getCurrentFromThermalPower(state, thermalW, {voltage, pwm}) {
+    const [k0,k1,k2] = [
+      this.k0.interpolate(voltage, pwm),
+      this.k1.interpolate(voltage, pwm),
+      this.k2.interpolate(voltage, pwm),
+    ];
+    const c = k0;
+    const b = k1;
+    const a = k2;
+
+    return Math.min(this.getMaxCurrent(state, voltage),
+      (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a));
+  }
+
+  getThermalPower(state, {voltage, pwm, current}) {
+    const [k0, k1, k2] = [
+      this.k0.interpolate(voltage, pwm),
+      this.k1.interpolate(voltage, pwm),
+      this.k2.interpolate(voltage, pwm),
+    ];
+
+    const thermalPower = k0 + k1 * current + k2 * current * current;
+    return thermalPower;
+  }
+
+  getTemperature(state, {thermalPower, coolingName, timePeriodS, ambientTemp}) {
+    const [R, C] = this.getThermalProperties(state, coolingName);
+    return ambientTemp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
+  }
+
+  name() {
+    return this.props['name'];
+  }
+
+  displayName() {
+    return this.props['name'];
+  }
+
+  productInfo() {
+    return this.props?.productInfo;
+  }
+}
+
+class MoteusController extends Controller {
+  constructor(props, power, thermal) {
+    super(props, power, thermal);
+  }
+
+  getDefaultPwm() {
+    return this.props['defaultPwm'];
+  }
+
+  getMaxPower(state, voltage, pwm) {
+    const [P_l_W, V_l, P_h_W, V_h] = [
+      this.props.P_l_W, this.props.V_l,
+      this.props.P_h_W, this.props.V_h,
+    ];
+    const basePower = (() => {
+      if (voltage <= V_l) return P_l_W;
+      if (voltage >= V_h) return P_h_W;
+      return (voltage - V_l) / (V_h - V_l) * (P_h_W - P_l_W) + P_l_W;
+    })();
+    const pwmDerate = pwm / 30000;
+    return basePower * pwmDerate;
+  }
+
+  getSpeedFactor() {
+    // Measured with moteus-c1, moteus-n1 and moteus-x1 on a MAD 8318 at 12V
+    // and 18V on 2025-04-17.
+    return 0.75;
+  }
+
+  getMaxCurrent() {
+    return this.props['maxCurrent'];
+  }
+}
+
+class OdriveController extends Controller {
+  constructor(props, power, thermal) {
+    super(props, power, thermal);
+  }
+
+  getDefaultPwm() {
+    return 24000.0;
+  }
+
+  getMaxPower(state) {
+    return this.props['P_W'];
+  }
+
+  getMaxCurrent(state, voltage) {
+    if (voltage < this.props['maxCurrentDerateVoltage']) {
+      return this.props['maxCurrent'];
+    } else {
+      return this.props['maxCurrent'] + (this.props['derateCurrent'] - this.props['maxCurrent']) *
+          (voltage - this.props['maxCurrentDerateVoltage']) /
+          (this.props['maxVoltage'] - this.props['maxCurrentDerateVoltage']);
+    }
+  }
+}
+
+class Motor {
+  constructor({name, displayName, maxTemp, Kv, R, L, thermal,
+               rotationCurrentCutoff=1000,
+               rotationCurrentScale=1,
+               rotationTorqueScale=1,
+               d0, d1,
+               productInfo=null}) {
+    this.nameValue = name;
+    this.displayNameValue = displayName;
+    this.productInfoValue = productInfo;
+    this.maxTemp = maxTemp;
+    this.Kv = Kv;
+    this.R = R;
+    this.L = L;
+    this.thermal = thermal;
+    this.rotationCurrentScale = rotationCurrentScale;
+    this.rotationCurrentCutoff = rotationCurrentCutoff;
+    this.rotationTorqueScale = rotationTorqueScale;
+    this.d0 = d0;
+    this.d1 = d1;
+
+    this.kt = 8.3 / this.Kv;
+  }
+
+  getThermalProperties(state, coolingName) {
+    if (this.thermal?.[coolingName] == null) {
+      return [null, null];
+    }
+    return [this.thermal[coolingName]['R'], this.thermal[coolingName]['C']];
+  }
+
+  getMaxTemp() {
+    return this.maxTemp;
+  }
+
+  getKv() {
+    return this.Kv;
+  }
+
+  name() {
+    return this.nameValue;
+  }
+
+  displayName() {
+    return this.displayNameValue;
+  }
+
+  productInfo() {
+    return this.productInfoValue;
+  }
+
+  getBackEmf(velocityHz) {
+    return velocityHz * 60 / this.getKv();
+  }
+
+  getPower(current, velocityHz) {
+    const torque = current < this.rotationCurrentCutoff ?
+      (this.kt * current) :
+      (this.kt * this.rotationCurrentCutoff +
+       this.rotationTorqueScale * Math.log2(
+          1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale));
+    const Pmech = 2 * Math.PI * torque * velocityHz;
+    const Pcopper = 1.5 * current * current * this.R;
+    const ironDrag = this.d0 + this.d1 * velocityHz;
+    const Piron = velocityHz == 0 ? 0 : (2 * Math.PI * velocityHz * ironDrag);
+    return {
+      torque: torque,
+      Pmech: Pmech,
+      Pcopper: Pcopper,
+      Piron: Piron,
+      Ptotal: Pmech + Pcopper + Piron,
+    };
+  }
+
+  getCurrentFromThermalPowerAndVelocity(state, thermalW, velocityHz, maxControllerPower, supplyVoltageMargin) {
+    // TODO: Should we model the fact that resistance tends to go up with
+    // temperature?
+
+    // Our convention is that resistance is measured to the virtual center,
+    // and that phase current is measured as per moteus convention.  Thus:
+    //
+    // torque = Kt * I + ts * log2(1 + (I - Ic)*is)
+    // Pmech = 2 * pi * torque * velocityHz
+    // Pcopper = 1.5 * I^2 * R
+    // Ptotal = Pcopper + Piron + Pmech
+
+    // and (Pcopper + Piron) < thermalW
+    // and (Ptotal) < maxControllerPower
+
+    const ImaxPossible = Math.min(supplyVoltageMargin / this.R,
+      Math.sqrt(Math.min(thermalW, maxControllerPower) / 1.5 / this.R));
+    // This equation is not really possible to solve directly, so lets just
+    // find it numerically.  The answer is much easier if the velocity is 0.
+    if (velocityHz == 0.0) {
+      return ImaxPossible;
+    }
+
+    // Bisect between 0 and ImaxPossible to find a current which is as large
+    // as possible while satisfying both of our inequalities.
+    const valid = (I) => {
+      const r = this.getPower(I, velocityHz);
+      return (((r.Pcopper + r.Piron) < thermalW) &&
+              (r.Ptotal < maxControllerPower));
+    };
+
+    return bisectMaxTrue(ImaxPossible, valid, 0.01);
+  }
+
+  getTorqueFromCurrent(state, currentA) {
+    if (currentA < this.rotationCurrentCutoff) {
+      return currentA * this.kt;
+    }
+    return (this.rotationCurrentCutoff * this.kt +
+            this.rotationTorqueScale *
+            (Math.log2(Math.max(1.0 + (currentA - this.rotationCurrentCutoff) *
+            this.rotationCurrentScale, 0.00001))));
+  }
+
+  getMaxVelocityHz(state, controllerInstance, controllerState, voltage, voltageState) {
+    return controllerInstance.getSpeedFactor(controllerState) * voltage.getVoltage(voltageState) * this.Kv / 60.0;
+  }
+
+  // Note: getOperatingPoint method omitted as it depends on OperatingPoint class
+}
+
+class MoteusC1 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-c1',
+      maxTemp: 60.0,
+      maxCurrent: 20.0,
+      maxVoltage: 51.0,
+      P_l_W: 250.0,
+      V_l: 28.0,
+      P_h_W: 150.0,
+      V_h: 41.0,
+      defaultPwm: 30000,
+      productInfo: '[product page]',
+    },
+    {
+      'voltages' : [12, 24, 36, 48],
+      'pwms' : [15000, 30000, 40000, 60000],
+      'k0' : [[.612, .906, 1.161, 1.378],
+              [.727, .986, 1.161, 1.515],
+              [.677, .988, 1.256, 1.576],
+              [.718, 1.034, 1.367, 1.710]],
+      'k1' : [[0.000, 0.017, 0.043, 0.112],
+              [0.009, 0.107, 0.224, 0.248],
+              [0.073, 0.176, 0.281, 0.360],
+              [0.155, 0.330, 0.468, 0.544]],
+      'k2' : [[0.046, 0.049, 0.051, 0.046],
+              [0.051, 0.051, 0.048, 0.050],
+              [0.051, 0.053, 0.055, 0.049],
+              [0.052, 0.054, 0.053, 0.056]],
+    },
+    {
+      'none' :         {R: 11.3, C:10.7},
+      'heatspreader' : {R: 11.2, C:10.7},
+      '5vfan' :        {R: 2.55, C:10.7},
+      'max' :          {R: 2.55, C:10.7},
+    });
+  }
+}
+
+class MoteusR4 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-r4',
+      maxTemp: 60.0,
+      maxCurrent: 100.0,
+      maxVoltage: 42.0,
+      P_l_W: 900.0,
+      V_l: 30.0,
+      P_h_W: 400.0,
+      V_h: 38.0,
+      defaultPwm: 30000,
+      productInfo: '[product page]',
+    },
+    {
+      'voltages' : [12, 24, 36, 42],
+      'pwms' : [15000, 30000, 40000, 60000],
+      'k0' : [[0.514, 0.938, 1.266, 1.427],
+              [0.792, 1.167, 1.593, 1.834],
+              [0.851, 1.392, 1.765, 2.064],
+              [0.974, 1.504, 2.098, 2.524]],
+      'k1' : [[0.022, 0.007, 0.015, 0.018],
+              [0.021, 0.035, 0.045, 0.050],
+              [0.030, 0.020, 0.092, 0.091],
+              [0.046, 0.110, 0.139, 0.142]],
+      'k2' : [[0.010, 0.011, 0.011, 0.011],
+              [0.011, 0.012, 0.013, 0.013],
+              [0.011, 0.014, 0.012, 0.013],
+              [0.013, 0.013, 0.015, 0.018]],
+    },
+    {
+      'none' :         {R: 10.0, C:12.7},
+      '5vfan' :        {R: 3.7,  C:12.7},
+      'heatspreader':  {R: 8.6,  C:13.9},
+      'heatspreader_4030sink': {R:6.2, C:19.4},
+      'max':           {R: 2.4,  C:12.7},
+    });
+  }
+}
+
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
 function ConfigFieldSelector({
   selected,
