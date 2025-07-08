@@ -225,6 +225,10 @@ const parseKV = (txt) => {
 
 // Default values for common config - this defines all available fields
 const defaultCommonValues = {
+  'controller': 'moteus-x1',
+  'motor': 'mad8318',
+  'controller_cooling': 'none',
+  'motor_cooling': 'none',
   'voltage': '24',
   'velocity': '0',
   'pwm': 'default',
@@ -234,14 +238,17 @@ const defaultCommonValues = {
   'gear_ratio': '1',
   'ambient_temp': '25',
   'max_controller_temp': 'default',
-  'max_motor_temp': 'default'
+  'max_motor_temp': 'default',
+  'torque': 0,
+  'output': 'torque',
+  'analysis': "max_torque", // 'max_speed', 'operating_point'
 };
 
 /* shared base fields for all selectors - derived from default values */
-const baseFields = Object.keys(defaultCommonValues).map(name => ({ 
-  field: name, 
-  value: name, 
-  label: name 
+    const baseFields = Object.keys(defaultCommonValues).map(name => ({
+  field: name,
+  value: name,
+  label: name
 }));
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
@@ -261,10 +268,10 @@ function ConfigFieldSelector({
   const isValidNewOption = (input) => {
     const kv = parseKV(input);
     if (!kv) return false;
-    
+
     // Check if the field is in our allowed list
     const isValidField = baseFields.some(bf => bf.field === kv.field);
-    
+
     return isValidField && !fieldTaken(kv.field);         // allow only if valid field and unique
   };
 
