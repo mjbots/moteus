@@ -946,9 +946,47 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
 
 /* ---------- Simulator Component ---------- */
 function Simulator({ commonConfig, axisConfigs }) {
+  // Convert chip array to key-value dictionary
+  const convertChipsToDict = (chips) => {
+    const dict = {};
+    chips.forEach(chip => {
+      if (chip.field) {
+        dict[chip.field] = chip.data !== undefined ? chip.data : null;
+      }
+    });
+    return dict;
+  };
+
+  // Restructure configuration data
+  const restructureConfig = () => {
+    // Convert common config
+    const commonDict = convertChipsToDict(commonConfig);
+    
+    // Convert each axis config
+    const axisData = axisConfigs.map((axisConfigs, axisIndex) => {
+      // Each axis can have multiple configuration lines
+      const axisLines = axisConfigs.map(lineChips => {
+        return convertChipsToDict(lineChips);
+      }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
+      
+      return {
+        axisNumber: axisIndex + 1,
+        configurations: axisLines
+      };
+    }).filter(axis => axis.configurations.length > 0); // Remove empty axes
+
+    return {
+      common: commonDict,
+      axes: axisData
+    };
+  };
+
+  const restructuredConfig = restructureConfig();
+
   return html`
     <div>
-      <p>Simulator component placeholder</p>
+      <p>Simulator component</p>
+      <pre>${JSON.stringify(restructuredConfig, null, 2)}</pre>
     </div>
   `;
 }
