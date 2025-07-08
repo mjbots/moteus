@@ -1012,10 +1012,142 @@ function Simulator({ commonConfig, axisConfigs }) {
 
   const restructuredConfig = restructureConfig();
 
+  // Generate a short hash for a configuration object
+  const hashConfig = (config) => {
+    const str = JSON.stringify(config, null, 0);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16).substr(0, 6);
+  };
+
+  // Generate cartesian product of additional axes (beyond first 2)
+  const cartesianProduct = (arrays) => {
+    if (arrays.length === 0) return [[]];
+    return arrays.reduce((acc, current) => {
+      return acc.flatMap(accItem => 
+        current.map(currentItem => [...accItem, currentItem])
+      );
+    }, [[]]);
+  };
+
+  // Generate tables for simulation
+  const generateTables = () => {
+    const { common, axes } = restructuredConfig;
+    
+    if (axes.length === 0) {
+      return [{
+        title: "No axes configured",
+        rows: [],
+        columns: [],
+        cells: []
+      }];
+    }
+
+    // Get axis configurations
+    const axis1Configs = axes[0]?.configurations || [];
+    const axis2Configs = axes[1]?.configurations || [];
+    const additionalAxes = axes.slice(2);
+
+    // If no additional axes, generate single table
+    if (additionalAxes.length === 0) {
+      return [{
+        title: "Axis 1 vs Axis 2",
+        rows: axis1Configs,
+        columns: axis2Configs,
+        cells: generateCells(common, axis1Configs, axis2Configs, {})
+      }];
+    }
+
+    // Generate cartesian product for additional axes
+    const additionalConfigs = additionalAxes.map(axis => axis.configurations);
+    const combinations = cartesianProduct(additionalConfigs);
+
+    // Generate one table per combination
+    return combinations.map((combination, index) => {
+      // Build additional config from combination
+      const additionalConfig = {};
+      combination.forEach((config, axisIndex) => {
+        Object.assign(additionalConfig, config);
+      });
+
+      // Generate title showing additional axes
+      const additionalTitle = combination.length > 0 ? 
+        ` (${combination.map((config, i) => `Axis ${i + 3}: ${hashConfig(config)}`).join(', ')})` : 
+        '';
+
+      return {
+        title: `Axis 1 vs Axis 2${additionalTitle}`,
+        rows: axis1Configs,
+        columns: axis2Configs,
+        cells: generateCells(common, axis1Configs, axis2Configs, additionalConfig)
+      };
+    });
+  };
+
+  // Generate cells for a table
+  const generateCells = (common, rows, columns, additionalConfig) => {
+    return rows.map(rowConfig => {
+      return columns.map(colConfig => {
+        // Union of configs: common < additional < axis1 < axis2
+        const cellConfig = {
+          ...common,
+          ...additionalConfig,
+          ...rowConfig,
+          ...colConfig
+        };
+        return {
+          config: cellConfig,
+          hash: hashConfig(cellConfig)
+        };
+      });
+    });
+  };
+
+  const tables = generateTables();
+
   return html`
     <div>
-      <p>Simulator component</p>
-      <pre>${JSON.stringify(restructuredConfig, null, 2)}</pre>
+      <h3>Simulator Results</h3>
+      ${tables.map(table => html`
+        <div key=${table.title} style="margin-bottom: 2rem;">
+          <h4>${table.title}</h4>
+          ${table.rows.length === 0 || table.columns.length === 0 ? 
+            html`<p>No configurations to display</p>` :
+            html`
+              <table style="border-collapse: collapse; border: 1px solid #ccc;">
+                <thead>
+                  <tr>
+                    <th style="border: 1px solid #ccc; padding: 8px;">Axis 1 \\ Axis 2</th>
+                    ${table.columns.map(colConfig => html`
+                      <th key=${hashConfig(colConfig)} style="border: 1px solid #ccc; padding: 8px;">
+                        ${hashConfig(colConfig)}
+                      </th>
+                    `)}
+                  </tr>
+                </thead>
+                <tbody>
+                  ${table.rows.map((rowConfig, rowIndex) => html`
+                    <tr key=${hashConfig(rowConfig)}>
+                      <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
+                        ${hashConfig(rowConfig)}
+                      </td>
+                      ${table.cells[rowIndex].map((cell, colIndex) => html`
+                        <td key=${colIndex} style="border: 1px solid #ccc; padding: 8px;">
+                          ${cell.hash}
+                        </td>
+                      `)}
+                    </tr>
+                  `)}
+                </tbody>
+              </table>
+            `
+          }
+        </div>
+      `)}
     </div>
   `;
 }
