@@ -226,8 +226,8 @@ const parseKV = (txt) => {
 // Default values for common config - this defines all available fields
 const defaultCommonValues = {
   'controller': 'moteus-x1',
-  'motor': 'mad8318',
   'controller_cooling': 'none',
+  'motor': 'mad8318',
   'motor_cooling': 'none',
   'voltage': '24',
   'velocity': '0',
@@ -246,8 +246,53 @@ const defaultCommonValues = {
 
 /* Field-specific value suggestions - only for constrained fields */
 const fieldValueOptions = {
-  'controller': ['moteus-c1', 'moteus-n1', 'moteus-x1'],
-  'output': ['torque', 'speed', 'power']
+  'controller': [
+    'moteus-c1',
+    'moteus-r4',
+    'moteus-n1',
+    'moteus-x1',
+    'odrive-micro',
+    'odrive-s1',
+    'odrive-pro',
+  ],
+  'controller_cooling': [
+    'none',
+    'heatspreader',
+    '4030sink',
+    'fan_5v',
+    'fan_12v',
+    'max',
+  ],
+  'motor': [
+    'mad8318',
+    'mj5208',
+    'gbm5208',
+    'be8108',
+  ],
+  'motor_cooling': [
+    'none',
+    'max',
+  ],
+  'analysis': [
+    'max_torque',
+    'max_speed',
+    'operating_point',
+  ],
+  'output': [
+    'torque',
+    'speed',
+    'power',
+    'controller_temperature',
+    'motor_temperature',
+    'supply_power',
+    'supply_current',
+    'phase_current',
+    'copper_loss',
+    'iron_loss',
+    'controller_loss',
+    'mechanical_power',
+    'efficiency',
+  ]
 };
 
 /* shared base fields for all selectors - derived from default values */
@@ -265,26 +310,26 @@ function ConfigFieldSelector({
   placeholder = "Select or create fields..."
 }) {
   const [inputValue, setInputValue] = useState('');
-  
+
   /* utility – already have this field? */
   const fieldTaken = (f) => selected.some((s) => s.field === f);
 
   /* Generate dynamic options based on current input */
   const getCurrentOptions = () => {
     const kv = parseKV(inputValue);
-    
+
     // If no '=' found, show base fields
     if (!kv || kv.data === undefined) {
       return baseFields;
     }
-    
+
     // If field has constrained values, show all or filtered options
     const fieldOptions = fieldValueOptions[kv.field];
     if (fieldOptions) {
       // Show all options if data is empty (just typed '='), otherwise filter
-      const filteredOptions = kv.data === '' ? fieldOptions : 
+      const filteredOptions = kv.data === '' ? fieldOptions :
         fieldOptions.filter(value => value.toLowerCase().includes(kv.data.toLowerCase()));
-      
+
       return filteredOptions.map(value => ({
         field: kv.field,
         value: kv.field,
@@ -292,7 +337,7 @@ function ConfigFieldSelector({
         label: `${kv.field}=${value}`
       }));
     }
-    
+
     // For unconstrained fields, return base fields
     return baseFields;
   };
