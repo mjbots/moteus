@@ -944,6 +944,18 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
   `;
 }
 
+/* ---------- Model Registry ---------- */
+const modelRegistry = {
+  controller: {
+    'moteus-c1': new MoteusC1(),
+    'moteus-r4': new MoteusR4(),
+    // Add more controllers as they're migrated
+  },
+  motor: {
+    // Add motor instances when needed
+  }
+};
+
 /* ---------- Simulator Component ---------- */
 function Simulator({ commonConfig, axisConfigs }) {
   // Convert chip array to key-value dictionary
@@ -957,16 +969,33 @@ function Simulator({ commonConfig, axisConfigs }) {
     return dict;
   };
 
+  // Convert string values to model instances where applicable
+  const reifyObjects = (dict) => {
+    const reified = {};
+    Object.entries(dict).forEach(([key, value]) => {
+      if (value === null) {
+        reified[key] = null;
+      } else if (modelRegistry[key] && modelRegistry[key][value]) {
+        reified[key] = modelRegistry[key][value];
+      } else {
+        reified[key] = value; // Keep as string if no model found
+      }
+    });
+    return reified;
+  };
+
   // Restructure configuration data
   const restructureConfig = () => {
     // Convert common config
     const commonDict = convertChipsToDict(commonConfig);
+    const commonReified = reifyObjects(commonDict);
     
     // Convert each axis config
     const axisData = axisConfigs.map((axisConfigs, axisIndex) => {
       // Each axis can have multiple configuration lines
       const axisLines = axisConfigs.map(lineChips => {
-        return convertChipsToDict(lineChips);
+        const dict = convertChipsToDict(lineChips);
+        return reifyObjects(dict);
       }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
       
       return {
@@ -976,7 +1005,7 @@ function Simulator({ commonConfig, axisConfigs }) {
     }).filter(axis => axis.configurations.length > 0); // Remove empty axes
 
     return {
-      common: commonDict,
+      common: commonReified,
       axes: axisData
     };
   };
