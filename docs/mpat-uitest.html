@@ -508,6 +508,15 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
   `;
 }
 
+/* ---------- Simulator Component ---------- */
+function Simulator({ commonConfig, axisConfigs }) {
+  return html`
+    <div>
+      <p>Simulator component placeholder</p>
+    </div>
+  `;
+}
+
 /* ---------- Main App Component ---------- */
 function App() {
   const [commonConfig, setCommonConfig] = useState(
@@ -569,6 +578,12 @@ function App() {
             onConfigsChange=${(newConfigs) => handleAxisConfigChange(axisIndex, newConfigs)}
           />
         `)}
+      </div>
+      <div class="resultsColumn">
+        <${Simulator} 
+          commonConfig=${commonConfig} 
+          axisConfigs=${axisConfigs}
+        />
       </div>
     </div>
   `;
