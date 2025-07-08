@@ -1018,18 +1018,19 @@ class Stream:
             cmd = f"w {final_address:x} {'ff' * remaining_to_flush}"
             result = await self.command(cmd)
 
-        verify_ctx = FlashContext(elfs)
-        while True:
-            expected_block = verify_ctx.get_next_block()
-            cmd = f"r {expected_block.address:x} {len(expected_block.data):x}"
-            result = await self.command(cmd, allow_any_response=True)
-            # Emit progress first, to make it easier to see where
-            # things go wrong.
-            self._emit_flash_progress(verify_ctx, "verifying")
-            _verify_blocks(expected_block, result)
-            done = verify_ctx.advance_block()
-            if done:
-                break
+        if not self.args.no_verify:
+            verify_ctx = FlashContext(elfs)
+            while True:
+                expected_block = verify_ctx.get_next_block()
+                cmd = f"r {expected_block.address:x} {len(expected_block.data):x}"
+                result = await self.command(cmd, allow_any_response=True)
+                # Emit progress first, to make it easier to see where
+                # things go wrong.
+                self._emit_flash_progress(verify_ctx, "verifying")
+                _verify_blocks(expected_block, result)
+                done = verify_ctx.advance_block()
+                if done:
+                    break
 
     async def read_servo_stats(self):
         servo_stats = await self.read_data("servo_stats")
@@ -2260,6 +2261,8 @@ async def async_main():
                        help='write the given configuration')
     group.add_argument('--flash', metavar='FILE',
                        help='write the given elf file to flash')
+    parser.add_argument('--no-verify', action='store_true',
+                        help='do not verify after flashing')
 
     parser.add_argument('--no-restore-config', action='store_true',
                         help='do not restore config after flash')
