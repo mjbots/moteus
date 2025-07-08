@@ -244,6 +244,16 @@ const defaultCommonValues = {
   'analysis': "max_torque", // 'max_speed', 'operating_point'
 };
 
+// Default values for motor sub-fields
+const motorSubFieldDefaults = {
+  'motor.kv': '100',
+  'motor.r': '0.1',
+  'motor.l': '1e-6',
+  'motor.mass': '0.1',
+  'motor.diameter': '30',
+  'motor.type': 'outrunner'
+};
+
 /* Field-specific value suggestions - only for constrained fields */
 const fieldValueOptions = {
   'controller': [
@@ -268,6 +278,8 @@ const fieldValueOptions = {
     'mj5208',
     'gbm5208',
     'be8108',
+    'model',
+    'extrapolated',
   ],
   'motor_cooling': [
     'none',
@@ -292,15 +304,54 @@ const fieldValueOptions = {
     'controller_loss',
     'mechanical_power',
     'efficiency',
+  ],
+  'motor.type': [
+    'outrunner',
+    'inrunner'
   ]
 };
 
+/* Motor model sub-field configurations */
+const motorModelFields = {
+  'model': ['kv', 'r', 'l', 'mass'],
+  'extrapolated': ['kv', 'mass', 'diameter', 'type']
+};
+
+/* Generate dynamic sub-fields based on selected values */
+const generateDynamicFields = (selectedValues) => {
+  const dynamicFields = [];
+  
+  selectedValues.forEach(selected => {
+    if (selected.field === 'motor' && selected.data) {
+      const subFields = motorModelFields[selected.data];
+      if (subFields) {
+        subFields.forEach(subField => {
+          const fullFieldName = `motor.${subField}`;
+          dynamicFields.push({
+            field: fullFieldName,
+            value: fullFieldName,
+            label: fullFieldName
+          });
+        });
+      }
+    }
+  });
+  
+  return dynamicFields;
+};
+
 /* shared base fields for all selectors - derived from default values */
-    const baseFields = Object.keys(defaultCommonValues).map(name => ({
-  field: name,
-  value: name,
-  label: name
-}));
+const getBaseFields = (selectedValues) => {
+  const staticFields = Object.keys(defaultCommonValues).map(name => ({
+    field: name,
+    value: name,
+    label: name
+  }));
+  
+  const dynamicFields = generateDynamicFields(selectedValues);
+  
+  return [...staticFields, ...dynamicFields];
+};
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
 function ConfigFieldSelector({
@@ -317,6 +368,7 @@ function ConfigFieldSelector({
   /* Generate dynamic options based on current input */
   const getCurrentOptions = () => {
     const kv = parseKV(inputValue);
+    const baseFields = getBaseFields(selected);
 
     // If no '=' found, show base fields
     if (!kv || kv.data === undefined) {
@@ -351,6 +403,7 @@ function ConfigFieldSelector({
     if (!kv) return false;
 
     // Check if the field is in our allowed list
+    const baseFields = getBaseFields(selected);
     const isValidField = baseFields.some(bf => bf.field === kv.field);
 
     return isValidField && !fieldTaken(kv.field);         // allow only if valid field and unique
