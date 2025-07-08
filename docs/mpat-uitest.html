@@ -244,6 +244,12 @@ const defaultCommonValues = {
   'analysis': "max_torque", // 'max_speed', 'operating_point'
 };
 
+/* Field-specific value suggestions - only for constrained fields */
+const fieldValueOptions = {
+  'controller': ['moteus-c1', 'moteus-n1', 'moteus-x1'],
+  'output': ['torque', 'speed', 'power']
+};
+
 /* shared base fields for all selectors - derived from default values */
     const baseFields = Object.keys(defaultCommonValues).map(name => ({
   field: name,
@@ -258,8 +264,38 @@ function ConfigFieldSelector({
   disabled = false,
   placeholder = "Select or create fields..."
 }) {
+  const [inputValue, setInputValue] = useState('');
+  
   /* utility – already have this field? */
   const fieldTaken = (f) => selected.some((s) => s.field === f);
+
+  /* Generate dynamic options based on current input */
+  const getCurrentOptions = () => {
+    const kv = parseKV(inputValue);
+    
+    // If no '=' found, show base fields
+    if (!kv || kv.data === undefined) {
+      return baseFields;
+    }
+    
+    // If field has constrained values, show all or filtered options
+    const fieldOptions = fieldValueOptions[kv.field];
+    if (fieldOptions) {
+      // Show all options if data is empty (just typed '='), otherwise filter
+      const filteredOptions = kv.data === '' ? fieldOptions : 
+        fieldOptions.filter(value => value.toLowerCase().includes(kv.data.toLowerCase()));
+      
+      return filteredOptions.map(value => ({
+        field: kv.field,
+        value: kv.field,
+        data: value,
+        label: `${kv.field}=${value}`
+      }));
+    }
+    
+    // For unconstrained fields, return base fields
+    return baseFields;
+  };
 
   /* --- callbacks passed to <Creatable> --- */
   const getNewOptionData = (input) =>
@@ -282,6 +318,19 @@ function ConfigFieldSelector({
     const kv = parseKV(input);
     if (!kv || fieldTaken(kv.field)) return;    // guard
     onSelectedChange([...selected, kv]);
+    setInputValue('');
+  };
+
+  const handleInputChange = (input, { action }) => {
+    if (action === 'input-change') {
+      setInputValue(input);
+    }
+    return input;
+  };
+
+  const handleChange = (newValue) => {
+    onSelectedChange(newValue);
+    setInputValue(''); // Clear input after selection
   };
 
   return html`
@@ -289,14 +338,16 @@ function ConfigFieldSelector({
         isMulti
         isDisabled=${disabled}
         value=${selected}
-        onChange=${onSelectedChange}
+        onChange=${handleChange}
         placeholder=${placeholder}
-        options=${baseFields}
+        options=${getCurrentOptions()}
         getNewOptionData=${getNewOptionData}
         isValidNewOption=${isValidNewOption}
         onCreateOption=${onCreateOption}
         isOptionDisabled=${isOptionDisabled}
         formatCreateLabel=${(v) => `add ${v}`}
+        onInputChange=${handleInputChange}
+        inputValue=${inputValue}
       />
   `;
 }
