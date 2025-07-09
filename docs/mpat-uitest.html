@@ -1312,6 +1312,7 @@ class AnalysisMaxTorque {
     return evaluateOperatingPoint({
       ...config,
       'phase_current': finalCurrent,
+      'torque': motorTorque,
     });
   }
 }
@@ -1477,7 +1478,7 @@ function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
   return html`
     <div class="overlayContainer">
       <div class="overlayBody">
-        <button 
+        <button
           onClick=${onClose}
           style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer;"
         >
@@ -1870,7 +1871,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
-                          <td 
+                          <td
                             style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === 0 ? '#e6f3ff' : 'inherit'};"
                             onClick=${() => onCellClick && onCellClick(table.cells[rowIndex][0].config, table.cells[rowIndex][0].result, rowIndex, 0)}
                           >
@@ -1884,8 +1885,8 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                               hashConfig(rowConfig)}
                           </td>
                           ${table.cells[rowIndex].map((cell, colIndex) => html`
-                            <td 
-                              key=${colIndex} 
+                            <td
+                              key=${colIndex}
                               style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === colIndex ? '#e6f3ff' : 'inherit'};"
                               onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex)}
                             >
@@ -1968,8 +1969,8 @@ function App() {
   // Handler for cell clicks
   const handleCellClick = (cellConfig, cellResult, rowIndex, colIndex) => {
     // If clicking the same cell, close the overlay
-    if (selectedCell && 
-        selectedCell.rowIndex === rowIndex && 
+    if (selectedCell &&
+        selectedCell.rowIndex === rowIndex &&
         selectedCell.colIndex === colIndex) {
       setSelectedCell(null);
       setOverlayVisible(false);
