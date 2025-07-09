@@ -241,8 +241,8 @@ const defaultCommonValues = {
   'max_controller_temp': 'default',
   'max_motor_temp': 'default',
   'torque': '0',
-  'output': 'phase_current',
-  'analysis': "max_current",
+  'output': 'torque',
+  'analysis': "max_torque",
 };
 
 // Default values for motor sub-fields
@@ -456,7 +456,7 @@ class Interpolator2D {
 
     class OperatingPoint {
       torque = null;
-      speed = null;
+      velocity = null;
       controller_temp = null;
       motor_temp = null;
       supply_power = null;
@@ -475,7 +475,7 @@ class Interpolator2D {
       static getFieldInfo() {
         return {
           torque: { unit: 'Nm', precision: 2, displayName: 'Motor Torque' },
-          speed: { unit: 'Hz', precision: 2, displayName: 'Speed' },
+          velocity: { unit: 'Hz', precision: 2, displayName: 'Velocity' },
           controller_temp: { unit: 'C', precision: 2, displayName: 'Controller Temperature' },
           motor_temp: { unit: 'C', precision: 2, displayName: 'Motor Temperature' },
           supply_power: { unit: 'W', precision: 2, displayName: 'Supply Power' },
@@ -726,7 +726,7 @@ class Motor {
     };
   }
 
-  getCurrentFromThermalPowerAndVelocity(thermalW, velocityHz, maxControllerPower, supplyVoltageMargin) {
+  getCurrentFromThermalPowerAndVelocity(thermalW, velocityHz, maxControllerPower, supplyVoltageMargin, config) {
     // TODO: Should we model the fact that resistance tends to go up with
     // temperature?
 
@@ -789,6 +789,7 @@ class Motor {
 
   getOperatingPoint(config) {
     const result = new OperatingPoint({});
+    result.velocity = config.velocity;
     result.torque = this.getTorqueFromCurrent(config.phase_current, config);
     result.phase_current = config.phase_current;
 
@@ -1213,6 +1214,17 @@ class OdriveMicro extends OdriveController {
 }
 
 function evaluateMaxCurrent(config) {
+    const required = [
+      'controller', 'controller_cooling', 'voltage', 'pwm', 'time', 'ambient_temp',
+    ];
+
+    // Check if any required field is null
+    for (const field of required) {
+      if (config[field] == null) {
+        return null;
+      }
+    }
+
     const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
     const timePeriodS = config.time;
     const deltaT = config.max_controller_temp - config.ambient_temp;
@@ -1244,8 +1256,15 @@ class AnalysisMaxCurrent {
 }
 
 function evaluateOperatingPoint(config) {
-  if (config.motor == null || config.controller == null) {
-    return null;
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'supply_power', 'supply_current', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+  ];
+
+  // Check if any required field is null
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
   }
 
   if (config.voltage > config.controller.getMaxVoltage()) {
@@ -1296,8 +1315,15 @@ class AnalysisOperatingPoint {
 
 class AnalysisMaxTorque {
   evaluate(config) {
-    if (config.motor == null) {
-      return null;
+    const required = [
+      'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'supply_power', 'supply_current', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+    ];
+
+    // Check if any required field is null
+    for (const field of required) {
+      if (config[field] == null) {
+        return null;
+      }
     }
 
     if (config.velocity > config.motor.getMaxVelocity(config.controller, config.voltage)) {
@@ -1327,7 +1353,8 @@ class AnalysisMaxTorque {
             thermalW,
             config.velocity,
             config.controller.getMaxPower(config.voltage, config.pwm),
-            supplyVoltageMargin);
+            supplyVoltageMargin,
+            config);
 
     const controllerCurrent = evaluateMaxCurrent(config);
     if (controllerCurrent == null) {
