@@ -902,7 +902,13 @@ class Motor {
     const r = this.getPower(resultCurrent, velocityHz, config);
     const motorThermal = Math.abs((r.Pcopper + r.Piron) - thermalW);
     const controllerPower = Math.abs(r.Ptotal - maxControllerPower);
-    return new LimitedValue(resultCurrent, motorThermal < controllerPower ? 'max_motor_temperature' : 'max_controller_power');
+    const maxDelta = Math.abs(resultCurrent - ImaxPossible.value);
+    const resultReason = LimitedValue.min(
+      new LimitedValue(motorThermal, 'max_motor_temperature'),
+      LimitedValue.min(
+        new LimitedValue(controllerPower, 'max_controller_power'),
+        new LimitedValue(maxDelta, ImaxPossible.limitingFactor)));
+    return new LimitedValue(resultCurrent, resultReason.limitingFactor);
   }
 
   getCurrentFromTorque(outputTorque, config) {
@@ -1444,7 +1450,7 @@ function evaluateOperatingPoint(config) {
   const electricalPowerW = Math.abs(op.copper_loss + op.iron_loss + op.mechanical_power);
   const controllerMaxPower = config.controller.getMaxPower(config.voltage, config.pwm);
   if ((electricalPowerW - controllerMaxPower) > 0.001) {
-    op_.infeasible_reason = `Controller power ${electricalPowerW} exceeds maximum ${controllerMaxPower}`;
+    op._infeasible_reason = `Controller power ${electricalPowerW} exceeds maximum ${controllerMaxPower}`;
   }
 
   const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
