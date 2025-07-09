@@ -214,16 +214,19 @@
 
 /* ---------- helpers ---------- */
 const parseKV = (txt) => {
+  console.log('parseKV called with:', txt);
   const [field, val] = txt.split('=');
   if (!field) return null;  // must have at least a field name
   if (val === undefined) {
     // No '=' found, treat as simple field
-    return { field, value: field, label: field };
+    const result = { field, value: field, label: field };
+    console.log('parseKV result (no =):', result);
+    return result;
   }
   // '=' found (val could be empty string)
   // Check if the value contains commas (multiple values)
   const hasMultipleValues = val.includes(',');
-  return { 
+  const result = { 
     field, 
     value: field, 
     data: val, 
@@ -231,6 +234,8 @@ const parseKV = (txt) => {
     isMultiValue: hasMultipleValues,
     values: hasMultipleValues ? val.split(',').map(v => v.trim()) : [val]
   };
+  console.log('parseKV result:', result);
+  return result;
 };
 
 // Default values for common config - this defines all available fields
@@ -342,7 +347,9 @@ const generateDynamicFields = (selectedValues) => {
           dynamicFields.push({
             field: fullFieldName,
             value: fullFieldName,
-            label: fullFieldName
+            label: fullFieldName,
+            isMultiValue: false,
+            values: [fullFieldName]
           });
         });
       }
@@ -357,7 +364,9 @@ const getBaseFields = (selectedValues) => {
   const staticFields = Object.keys(defaultCommonValues).map(name => ({
     field: name,
     value: name,
-    label: name
+    label: name,
+    isMultiValue: false,
+    values: [name]
   }));
 
   const dynamicFields = generateDynamicFields(selectedValues);
@@ -368,34 +377,55 @@ const getBaseFields = (selectedValues) => {
 /* ---------- Multi-value expansion helpers ---------- */
 // Expand a line of chips that may contain comma-separated values into multiple lines
 const expandChipLine = (chipLine) => {
+  console.log('expandChipLine called with:', chipLine);
+  
   if (!chipLine || chipLine.length === 0) {
+    console.log('expandChipLine: empty line, returning [[]]');
     return [[]];
   }
 
   // Check if any chips have multiple values
-  const hasMultiValues = chipLine.some(chip => chip.isMultiValue);
+  const hasMultiValues = chipLine.some(chip => {
+    // Check both the isMultiValue flag and if data contains commas (fallback)
+    return chip.isMultiValue || (chip.data && typeof chip.data === 'string' && chip.data.includes(','));
+  });
+  console.log('expandChipLine: hasMultiValues =', hasMultiValues);
   
   if (!hasMultiValues) {
     // No multi-values, return the original line
+    console.log('expandChipLine: no multi-values, returning original line');
     return [chipLine];
   }
 
   // Build arrays of possible values for each chip position
   const chipValueArrays = chipLine.map(chip => {
-    if (chip.isMultiValue) {
+    console.log('Processing chip:', chip);
+    const isMulti = chip.isMultiValue || (chip.data && typeof chip.data === 'string' && chip.data.includes(','));
+    
+    if (isMulti) {
+      // Get values array, either from chip.values or by splitting chip.data
+      const values = chip.values || (chip.data ? chip.data.split(',').map(v => v.trim()) : []);
+      console.log('  Multi-value chip, values:', values);
+      
       // Create a chip for each value
-      return chip.values.map(value => ({
-        ...chip,
+      const expandedChips = values.map(value => ({
+        field: chip.field,
+        value: chip.value,
         data: value,
         label: `${chip.field}=${value}`,
         isMultiValue: false,
         values: [value]
       }));
+      console.log('  Expanded to:', expandedChips);
+      return expandedChips;
     } else {
+      console.log('  Single value chip, keeping as-is');
       // Single value chip
       return [chip];
     }
   });
+
+  console.log('chipValueArrays:', chipValueArrays);
 
   // Generate cartesian product
   const cartesianProduct = (arrays) => {
@@ -407,7 +437,9 @@ const expandChipLine = (chipLine) => {
     );
   };
 
-  return cartesianProduct(chipValueArrays);
+  const result = cartesianProduct(chipValueArrays);
+  console.log('expandChipLine result:', result);
+  return result;
 };
 
 /* ---------- Model Classes ---------- */
@@ -1454,16 +1486,38 @@ function ConfigFieldSelector({
     // If field has constrained values, show all or filtered options
     const fieldOptions = fieldValueOptions[kv.field];
     if (fieldOptions) {
-      // Show all options if data is empty (just typed '='), otherwise filter
-      const filteredOptions = kv.data === '' ? fieldOptions :
-        fieldOptions.filter(value => value.toLowerCase().includes(kv.data.toLowerCase()));
+      let filterText = kv.data;
+      
+      // Handle multi-value input: get the text after the last comma
+      if (allowMultiValue && kv.isMultiValue) {
+        const values = kv.data.split(',');
+        filterText = values[values.length - 1].trim();
+      }
+      
+      // Show all options if filterText is empty (just typed '=' or ','), otherwise filter
+      const filteredOptions = filterText === '' ? fieldOptions :
+        fieldOptions.filter(value => value.toLowerCase().includes(filterText.toLowerCase()));
 
-      return filteredOptions.map(value => ({
-        field: kv.field,
-        value: kv.field,
-        data: value,
-        label: `${kv.field}=${value}`
-      }));
+      return filteredOptions.map(value => {
+        // For multi-value, construct the full value with previous values
+        let fullData = value;
+        if (allowMultiValue && kv.isMultiValue) {
+          const existingValues = kv.data.split(',').slice(0, -1).map(v => v.trim());
+          fullData = [...existingValues, value].join(',');
+        }
+        
+        // Determine if this is a multi-value chip
+        const hasCommas = fullData.includes(',');
+        
+        return {
+          field: kv.field,
+          value: kv.field,
+          data: fullData,
+          label: `${kv.field}=${fullData}`,
+          isMultiValue: hasCommas,
+          values: hasCommas ? fullData.split(',').map(v => v.trim()) : [fullData]
+        };
+      });
     }
 
     // For unconstrained fields, return base fields
@@ -1471,8 +1525,14 @@ function ConfigFieldSelector({
   };
 
   /* --- callbacks passed to <Creatable> --- */
-  const getNewOptionData = (input) =>
-    parseKV(input) ?? { field: input, value: input, label: input };
+  const getNewOptionData = (input) => {
+    const parsed = parseKV(input);
+    if (parsed) {
+      return parsed;
+    }
+    // Fallback for simple field names
+    return { field: input, value: input, label: input, isMultiValue: false, values: [input] };
+  };
 
   const isValidNewOption = (input) => {
     const kv = parseKV(input);
@@ -1491,10 +1551,17 @@ function ConfigFieldSelector({
       return false;
     }
 
-    // For constrained fields, check if the value is allowed
+    // For constrained fields, check if the value(s) are allowed
     if (kv.data !== undefined && fieldValueOptions[kv.field]) {
       const allowedValues = fieldValueOptions[kv.field];
-      return allowedValues.includes(kv.data);
+      
+      if (kv.isMultiValue) {
+        // For multi-value, check that all values are valid
+        return kv.values.every(value => allowedValues.includes(value));
+      } else {
+        // For single value, check if it's in the allowed list
+        return allowedValues.includes(kv.data);
+      }
     }
 
     // For unconstrained fields or fields without values, allow
@@ -1776,16 +1843,24 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
 
     // Convert each axis config
     const axisData = axisConfigs.map((axisConfigs, axisIndex) => {
+      console.log(`Processing axis ${axisIndex + 1}:`, axisConfigs);
       // Each axis can have multiple configuration lines
       const axisLines = axisConfigs.flatMap(lineChips => {
+        console.log('  Processing line chips:', lineChips);
         // Expand lines that contain comma-separated values
         const expandedLines = expandChipLine(lineChips);
+        console.log('  Expanded lines:', expandedLines);
         return expandedLines.map(expandedLine => {
+          console.log('  Converting expanded line to dict:', expandedLine);
           const dict = convertChipsToDict(expandedLine);
-          return reifyObjects(dict);
+          console.log('  Dict result:', dict);
+          const reified = reifyObjects(dict);
+          console.log('  Reified result:', reified);
+          return reified;
         });
       }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
 
+      console.log(`Axis ${axisIndex + 1} final configurations:`, axisLines);
       return {
         axisNumber: axisIndex + 1,
         configurations: axisLines
@@ -2051,11 +2126,20 @@ function App() {
       field,
       value: field,
       data: value,
-      label: `${field}=${value}`
+      label: `${field}=${value}`,
+      isMultiValue: false,
+      values: [value]
     }))
   );
   const [axisConfigs, setAxisConfigs] = useState(() => {
-    const createChip = (field, data) => ({ field, value: field, data, label: `${field}=${data}` });
+    const createChip = (field, data) => ({ 
+      field, 
+      value: field, 
+      data, 
+      label: `${field}=${data}`,
+      isMultiValue: false,
+      values: [data]
+    });
     return [
       // Axis 1: Controllers
       [
