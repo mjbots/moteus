@@ -1378,7 +1378,8 @@ function ConfigFieldSelector({
   selected,
   onSelectedChange,
   disabled = false,
-  placeholder = "Select or create fields..."
+  placeholder = "Select or create fields...",
+  isClearable = true
 }) {
   const [inputValue, setInputValue] = useState('');
 
@@ -1494,6 +1495,7 @@ function ConfigFieldSelector({
     <${Creatable}
         isMulti
         isDisabled=${disabled}
+        isClearable=${isClearable}
         value=${selected}
         onChange=${handleChange}
         placeholder=${placeholder}
@@ -1555,6 +1557,7 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
           selected=${selected}
           onSelectedChange=${onSelectedChange}
           placeholder="Add common configuration..."
+          isClearable=${false}
         />
       </div>
     </div>
