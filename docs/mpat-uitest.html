@@ -1461,16 +1461,13 @@ function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
 
   // Create an OperatingPoint instance from the selected cell's config
   const createOperatingPoint = (config) => {
-    // Populate some defaults like the evaluate function does
-    config.pwm = (config.pwm == 'default') ? config.controller?.getDefaultPwm() : config.pwm;
-    config.max_controller_temp = (config.max_controller_temp == 'default') ? config.controller?.getMaxTemp() : config.max_controller_temp;
-    config.max_motor_temp = (config.max_motor_temp == 'default') ? config.motor?.getMaxTemp() : config.max_motor_temp;
+    const normalizedConfig = normalizeConfig(config);
 
-    if (config.analysis == null) {
+    if (normalizedConfig.analysis == null) {
       return null;
     }
 
-    return config.analysis.evaluate(config);
+    return normalizedConfig.analysis.evaluate(normalizedConfig);
   };
 
   const operatingPoint = createOperatingPoint(selectedCell.config);
@@ -1577,26 +1574,36 @@ const modelRegistry = {
   },
 };
 
+/* ---------- Config Normalization Function ---------- */
+function normalizeConfig(config) {
+  // Create a copy to avoid modifying the original
+  const normalizedConfig = { ...config };
+  
+  // Populate some defaults.
+  normalizedConfig.pwm = (normalizedConfig.pwm == 'default') ? normalizedConfig.controller?.getDefaultPwm() : normalizedConfig.pwm;
+  normalizedConfig.max_controller_temp = (normalizedConfig.max_controller_temp == 'default') ? normalizedConfig.controller?.getMaxTemp() : normalizedConfig.max_controller_temp;
+  normalizedConfig.max_motor_temp = (normalizedConfig.max_motor_temp == 'default') ? normalizedConfig.motor?.getMaxTemp() : normalizedConfig.max_motor_temp;
+
+  return normalizedConfig;
+}
+
 /* ---------- Evaluation Function ---------- */
 function evaluate(config) {
-  // Populate some defaults.
-  config.pwm = (config.pwm == 'default') ? config.controller.getDefaultPwm() : config.pwm;
-  config.max_controller_temp = (config.max_controller_temp == 'default') ? config.controller?.getMaxTemp() : config.max_controller_temp;
-  config.max_motor_temp = (config.max_motor_temp == 'default') ? config.motor?.getMaxTemp() : config.max_motor_temp;
+  const normalizedConfig = normalizeConfig(config);
 
-  if (config.analysis == null) {
+  if (normalizedConfig.analysis == null) {
     return '';
   }
 
-  const op = config.analysis.evaluate(config);
+  const op = normalizedConfig.analysis.evaluate(normalizedConfig);
   if (op == null) {
     return '';
   }
-  const result = op[config.output];
+  const result = op[normalizedConfig.output];
   if (result == null) {
     return '';
   }
-  return OperatingPoint.formatValue(config.output, result);
+  return OperatingPoint.formatValue(normalizedConfig.output, result);
 }
 
 /* ---------- Simulator Component ---------- */
