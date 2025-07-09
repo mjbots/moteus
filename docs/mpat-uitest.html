@@ -221,7 +221,16 @@ const parseKV = (txt) => {
     return { field, value: field, label: field };
   }
   // '=' found (val could be empty string)
-  return { field, value: field, data: val, label: `${field}=${val}` };
+  // Check if the value contains commas (multiple values)
+  const hasMultipleValues = val.includes(',');
+  return { 
+    field, 
+    value: field, 
+    data: val, 
+    label: `${field}=${val}`,
+    isMultiValue: hasMultipleValues,
+    values: hasMultipleValues ? val.split(',').map(v => v.trim()) : [val]
+  };
 };
 
 // Default values for common config - this defines all available fields
@@ -354,6 +363,51 @@ const getBaseFields = (selectedValues) => {
   const dynamicFields = generateDynamicFields(selectedValues);
 
   return [...staticFields, ...dynamicFields];
+};
+
+/* ---------- Multi-value expansion helpers ---------- */
+// Expand a line of chips that may contain comma-separated values into multiple lines
+const expandChipLine = (chipLine) => {
+  if (!chipLine || chipLine.length === 0) {
+    return [[]];
+  }
+
+  // Check if any chips have multiple values
+  const hasMultiValues = chipLine.some(chip => chip.isMultiValue);
+  
+  if (!hasMultiValues) {
+    // No multi-values, return the original line
+    return [chipLine];
+  }
+
+  // Build arrays of possible values for each chip position
+  const chipValueArrays = chipLine.map(chip => {
+    if (chip.isMultiValue) {
+      // Create a chip for each value
+      return chip.values.map(value => ({
+        ...chip,
+        data: value,
+        label: `${chip.field}=${value}`,
+        isMultiValue: false,
+        values: [value]
+      }));
+    } else {
+      // Single value chip
+      return [chip];
+    }
+  });
+
+  // Generate cartesian product
+  const cartesianProduct = (arrays) => {
+    if (arrays.length === 0) return [[]];
+    const [first, ...rest] = arrays;
+    const restProduct = cartesianProduct(rest);
+    return first.flatMap(item => 
+      restProduct.map(restItem => [item, ...restItem])
+    );
+  };
+
+  return cartesianProduct(chipValueArrays);
 };
 
 /* ---------- Model Classes ---------- */
@@ -1716,9 +1770,13 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     // Convert each axis config
     const axisData = axisConfigs.map((axisConfigs, axisIndex) => {
       // Each axis can have multiple configuration lines
-      const axisLines = axisConfigs.map(lineChips => {
-        const dict = convertChipsToDict(lineChips);
-        return reifyObjects(dict);
+      const axisLines = axisConfigs.flatMap(lineChips => {
+        // Expand lines that contain comma-separated values
+        const expandedLines = expandChipLine(lineChips);
+        return expandedLines.map(expandedLine => {
+          const dict = convertChipsToDict(expandedLine);
+          return reifyObjects(dict);
+        });
       }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
 
       return {
@@ -1809,9 +1867,15 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     const axis2Configs = axes[1]?.configurations || [];
     const additionalAxes = axes.slice(2);
 
-    // Get pre-reified configurations for labeling
-    const axis1PreReified = axisConfigs[0]?.map(lineChips => convertChipsToDict(lineChips)).filter(dict => Object.keys(dict).length > 0) || [];
-    const axis2PreReified = axisConfigs[1]?.map(lineChips => convertChipsToDict(lineChips)).filter(dict => Object.keys(dict).length > 0) || [];
+    // Get pre-reified configurations for labeling (also expand multi-values)
+    const axis1PreReified = axisConfigs[0]?.flatMap(lineChips => {
+      const expandedLines = expandChipLine(lineChips);
+      return expandedLines.map(expandedLine => convertChipsToDict(expandedLine));
+    }).filter(dict => Object.keys(dict).length > 0) || [];
+    const axis2PreReified = axisConfigs[1]?.flatMap(lineChips => {
+      const expandedLines = expandChipLine(lineChips);
+      return expandedLines.map(expandedLine => convertChipsToDict(expandedLine));
+    }).filter(dict => Object.keys(dict).length > 0) || [];
 
     // Single axis case - single column table
     if (axes.length === 1) {
