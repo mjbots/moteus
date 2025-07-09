@@ -1433,7 +1433,8 @@ function ConfigFieldSelector({
   onSelectedChange,
   disabled = false,
   placeholder = "Select or create fields...",
-  isClearable = true
+  isClearable = true,
+  allowMultiValue = true
 }) {
   const [inputValue, setInputValue] = useState('');
 
@@ -1476,6 +1477,11 @@ function ConfigFieldSelector({
   const isValidNewOption = (input) => {
     const kv = parseKV(input);
     if (!kv) return false;
+
+    // Check if multi-value is allowed and if this input contains commas
+    if (!allowMultiValue && kv.isMultiValue) {
+      return false;
+    }
 
     // Check if the field is in our allowed list
     const baseFields = getBaseFields(selected);
@@ -1612,6 +1618,7 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
           onSelectedChange=${onSelectedChange}
           placeholder="Add common configuration..."
           isClearable=${false}
+          allowMultiValue=${false}
         />
       </div>
     </div>
