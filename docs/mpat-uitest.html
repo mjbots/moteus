@@ -971,6 +971,185 @@ class HT1105 extends Motor {
   }
 }
 
+class MoteusN1 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-n1',
+      maxTemp: 60.0,
+      maxCurrent: 100.0,
+      maxVoltage: 54.0,
+      P_l_W: 2000.0,
+      V_l: 36.0,
+      P_h_W: 1000.0,
+      V_h: 44.0,
+      defaultPwm: 30000,
+      productInfo: '[product page]',
+    },
+    {
+      'voltages' : [12, 24, 36, 48, 54],
+      'pwms' : [15000, 30000, 40000, 60000],
+      'k0' : [[0.681, 1.102, 1.467, 1.799, 2.063],
+              [0.884, 1.470, 1.983, 2.612, 2.862],
+              [1.025, 1.671, 2.302, 3.068, 3.559],
+              [1.203, 2.146, 3.036, 3.400, 4.000]],
+      'k1' : [[0.016, 0.013, 0.020, 0.032, 0.000],
+              [0.033, 0.027, 0.049, 0.073, 0.079],
+              [0.023, 0.055, 0.093, 0.112, 0.120],
+              [0.055, 0.076, 0.131, 0.140, 0.150]],
+      'k2' : [[0.011, 0.012, 0.012, 0.013, 0.016],
+              [0.012, 0.014, 0.015, 0.015, 0.018],
+              [0.013, 0.014, 0.015, 0.014, 0.030],
+              [0.014, 0.018, 0.019, 0.022, 0.035]],
+    },
+    {
+      'none' :         {R: 11.7, C:10.3},
+      '5vfan' :        {R: 4.1,  C:10.3},
+      'heatspreader':  {R: 9.8,  C:12.2},
+      'heatspreader_4030sink': {R:7.2, C:16.8},
+      'max':           {R: 3.0,  C:10.3},
+    });
+  }
+}
+
+class MoteusX1 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-x1',
+      maxTemp: 100.0,
+      maxCurrent: 120.0,
+      maxVoltage: 54.0,
+      P_l_W: 2000.0,
+      V_l: 36.0,
+      P_h_W: 1000.0,
+      V_h: 44.0,
+      defaultPwm: 20000,
+      productInfo: '[product page]',
+    },
+    {
+      'voltages' : [12, 24, 36, 48, 54],
+      'pwms' : [15000, 20000, 24000, 30000, 40000, 60000],
+      'k0' : [[0.615, 0.983, 1.266, 1.501, 1.652],
+              [0.744, 1.025, 1.468, 1.825, 2.051],
+              [0.822, 1.325, 1.618, 2.025, 2.321],
+              [1.119, 1.403, 1.824, 2.326, 2.622],
+              [1.135, 1.662, 2.251, 2.811, 3.253],
+              [1.465, 2.222, 3.094, 4.130, 4.501]],
+      'k1' : [[0.075, 0.090, 0.105, 0.133, 0.133],
+              [0.094, 0.128, 0.136, 0.137, 0.137],
+              [0.094, 0.124, 0.160, 0.180, 0.172],
+              [0.090, 0.163, 0.208, 0.213, 0.223],
+              [0.148, 0.227, 0.253, 0.278, 0.247],
+              [0.213, 0.317, 0.354, 0.192, 0.286]],
+      'k2' : [[0.007, 0.008, 0.010, 0.010, 0.011],
+              [0.007, 0.008, 0.011, 0.014, 0.015],
+              [0.009, 0.010, 0.013, 0.015, 0.017],
+              [0.010, 0.011, 0.014, 0.019, 0.021],
+              [0.010, 0.012, 0.021, 0.026, 0.037],
+              [0.014, 0.023, 0.043, 0.090, 0.083]],
+    },
+    {
+      'none' :         {R: 8.1, C:14.8},
+      '5vfan' :        {R: 2.8, C:14.8},
+      '12vfan' :       {R: 2.1, C:14.8},
+      'heatspreader_4010sink': { R:7.2, C:16.8},
+      'heatspreader_4030sink': { R:6.0, C:20.0},
+      'heatspreader':  {R: 8.6, C:14.8},
+      'max' :          {R: 1.9, C:14.8},
+    });
+  }
+}
+
+class OdrivePro extends OdriveController {
+  constructor() {
+    super({
+      name: 'odrive-pro',
+      maxTemp: 95,
+      maxCurrent: 120.0,
+      maxCurrentDerateVoltage: 100.0,
+      derateCurrent: 120.0,
+      maxVoltage: 58.0,
+      P_W: 5000.0,
+      productInfo: '[product page]',
+    },
+    {
+      voltages: [12, 24, 36, 48, 54],
+      pwms: [24000],
+      'k0': [[1.410, 1.996, 2.362, 2.823, 3.030]],
+      'k1': [[0.091, 0.115, 0.145, 0.161, 0.156]],
+      'k2': [[0.008, 0.009, 0.010, 0.010, 0.012]],
+    },
+    {
+      'none':         {R: 6.7, C: 30.4},
+      'heatspreader': {R: 5.4, C: 71.7},
+      '5vfan':        {R: 1.5, C: 71.7 },
+      '12vfan':       {R: 1.0, C: 71.7 },
+      'max':          {R: 1.0, C: 71.7},
+    });
+  }
+}
+
+class OdriveS1 extends OdriveController {
+  constructor() {
+    super({
+      name: 'odrive-s1',
+      maxTemp: 95.0,
+      maxCurrent: 80.0,
+      maxCurrentDerateVoltage: 36.0,
+      derateCurrent: 40.0,
+      maxVoltage: 50.5,
+      P_W: 2000.0,
+      productInfo: '[product page]',
+    },
+    {
+      voltages: [12, 24, 36, 48],
+      pwms: [24000],
+      'k0': [[0.839, 1.037, 1.213, 1.328 ]],
+      'k1': [[0.066, 0.117, 0.153, 0.179 ]],
+      'k2': [[0.008, 0.008, 0.008, 0.008 ]],
+    },
+    {
+      'none':  {R: 6.6, C: 35.8},
+      'heatspreader': {R: 4.7, C: 85.8},
+      '5vfan': {R: 1.2, C: 85.8},
+      'max':   {R: 1.2, C: 85.8},
+    });
+  }
+
+  getSpeedFactor() {
+    return 0.75;
+  }
+}
+
+class OdriveMicro extends OdriveController {
+  constructor() {
+    super({
+      name: 'odrive-micro',
+      maxTemp: 80.0,
+      maxCurrent: 7.0,
+      maxCurrentDerateVoltage: 100.0,
+      derateCurrent: 40.0,
+      maxVoltage: 31.0,
+      P_W: 100.0,
+      productInfo: '[product page]',
+    },
+    {
+      voltages: [12, 24],
+      pwms: [24000],
+      'k0': [[0.607, 0.820]],
+      'k1': [[0.082, 0.301]],
+      'k2': [[0.148, 0.149]],
+    },
+    {
+      'none':  {R: 16.0, C: 7.9},
+      'max':   {R: 6.2, C: 10.0},
+    });
+  }
+
+  getSpeedFactor() {
+    return 0.75;
+  }
+}
+
 class AnalysisMaxCurrent {
   evaluate(config) {
     const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
@@ -1199,7 +1378,11 @@ const modelRegistry = {
   controller: {
     'moteus-c1': new MoteusC1(),
     'moteus-r4': new MoteusR4(),
-    // Add more controllers as they're migrated
+    'moteus-n1': new MoteusN1(),
+    'moteus-x1': new MoteusX1(),
+    'odrive-pro': new OdrivePro(),
+    'odrive-s1': new OdriveS1(),
+    'odrive-micro': new OdriveMicro(),
   },
   motor: {
     'mj5208': new MJ5208(),
@@ -1216,6 +1399,7 @@ const modelRegistry = {
 
 /* ---------- Evaluation Function ---------- */
 function evaluate(config) {
+  config.pwm = config.pwm == 'default' ? config.controller.getDefaultPwm() : config.pwm;
   const op = config.analysis.evaluate(config);
   if (op == null) {
     return '';
@@ -1543,7 +1727,7 @@ function App() {
     return [
       // Axis 1: Controllers
       [
-        ...['moteus-c1', 'moteus-r4'].map(controller => [createChip('controller', controller)]),
+        ...['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'].map(controller => [createChip('controller', controller)]),
         [] // Empty line for adding more
       ],
       // Axis 2: Voltages
