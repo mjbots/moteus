@@ -1353,15 +1353,16 @@ function evaluateOperatingPoint(config) {
     ...config,
     'phase_current': motorCurrent});
 
-  if (config.voltage > config.controller.getMaxVoltage()) {
+  if ((config.voltage - config.controller.getMaxVoltage()) > 0.001) {
     op._infeasible_reason = `Voltage ${voltage} exceeds maximum ${config.controller.getMaxVoltage()}`;
   }
 
-  if (Math.abs(op.phase_current) > config.controller.getMaxCurrent(config.voltage)) {
+  if ((Math.abs(op.phase_current) -
+       config.controller.getMaxCurrent(config.voltage)) > 0.001) {
     op._infeasible_reason = `Phase current ${op.phase_current} exceeds controller maximum ${config.controller.getMaxCurrent(config.voltage)}`;
   }
 
-  if (op.motor_temp > config.motor.getMaxTemp()) {
+  if ((op.motor_temp - config.motor.getMaxTemp()) > 0.001) {
     op._infeasible_reason = `Motor temperature ${op.motor_temp} exceeds maximum ${config.motor.getMaxTemp()}`;
   }
 
@@ -1371,13 +1372,13 @@ function evaluateOperatingPoint(config) {
   op['controller_loss'] = thermalPower;
   op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
 
-  if (op.controller_temp > config.controller.getMaxTemp()) {
+  if ((op.controller_temp - config.controller.getMaxTemp()) > 0.001) {
     op._infeasible_reason = `Controller temperature ${op.controller_temp} exceeds maximum ${config.controller.getMaxTemp()}`;
   }
 
   const electricalPowerW = Math.abs(op.copper_loss + op.iron_loss + op.mechanical_power);
   const controllerMaxPower = config.controller.getMaxPower(config.voltage, config.pwm);
-  if (electricalPowerW > controllerMaxPower) {
+  if ((electricalPowerW - controllerMaxPower) > 0.001) {
     op_.infeasible_reason = `Controller power ${electricalPowerW} exceeds maximum ${controllerMaxPower}`;
   }
 
