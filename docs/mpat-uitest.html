@@ -240,7 +240,7 @@ const defaultCommonValues = {
   'max_controller_temp': 'default',
   'max_motor_temp': 'default',
   'torque': '0',
-  'output': 'torque',
+  'output': 'phase_current',
   'analysis': "max_current", // 'max_speed', 'operating_point'
 };
 
@@ -1543,7 +1543,7 @@ function App() {
     return [
       // Axis 1: Controllers
       [
-        ...['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'].map(controller => [createChip('controller', controller)]),
+        ...['moteus-c1', 'moteus-r4'].map(controller => [createChip('controller', controller)]),
         [] // Empty line for adding more
       ],
       // Axis 2: Voltages
