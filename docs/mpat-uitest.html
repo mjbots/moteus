@@ -1425,7 +1425,7 @@ function evaluateOperatingPoint(config) {
     'phase_current': motorCurrent});
 
   if ((config.voltage - config.controller.getMaxVoltage()) > 0.001) {
-    op._infeasible_reason = `Voltage ${voltage} exceeds maximum ${config.controller.getMaxVoltage()}`;
+    op._infeasible_reason = `Voltage ${config.voltage} exceeds maximum ${config.controller.getMaxVoltage()}`;
   }
 
   if ((Math.abs(op.phase_current) -
