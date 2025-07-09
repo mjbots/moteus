@@ -641,7 +641,7 @@ class Interpolator2D {
         const fieldInfo = OperatingPoint.getFieldInfo();
         return html`
         <h3>Operating Point</h3>
-        ${this._infeasible_reason ? html`
+        ${this._infeasible_reason && !this._limiting_factor ? html`
           <div style="color: #d32f2f; font-weight: bold; margin-bottom: 10px;">
             ⚠️ ${this._infeasible_reason}
           </div>
