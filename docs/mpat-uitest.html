@@ -1246,16 +1246,37 @@ function evaluateOperatingPoint(config) {
     return null;
   }
 
+  if (config.voltage > config.controller.getMaxVoltage()) {
+    return null;
+  }
+
   const motorCurrent = config.motor.getCurrentFromTorque(config.torque);
   const op = config.motor.getOperatingPoint({
     ...config,
     'phase_current': motorCurrent});
+
+  if (Math.abs(op.phase_current) > config.controller.getMaxCurrent(config.voltage)) {
+    return null;
+  }
+
+  if (op.motor_temp > config.motor.getMaxTemp()) {
+    return null;
+  }
 
   const thermalPower = config.controller.getThermalPower({
     ...config,
     'phase_current': motorCurrent});
   op['controller_loss'] = thermalPower;
   op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
+
+  if (op.controller_temp > config.controller.getMaxTemp()) {
+    return null;
+  }
+
+  const electricalPowerW = op.copper_loss + op.iron_loss + op.mechanical_power;
+  if (electricalPowerW > config.controller.getMaxPower(config.voltage, config.pwm)) {
+    return null;
+  }
 
   const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
   op['supply_power'] = totalLossPowerW + op.mechanical_power;
@@ -1579,7 +1600,7 @@ const modelRegistry = {
 function normalizeConfig(config) {
   // Create a copy to avoid modifying the original
   const normalizedConfig = { ...config };
-  
+
   // Populate some defaults.
   normalizedConfig.pwm = (normalizedConfig.pwm == 'default') ? normalizedConfig.controller?.getDefaultPwm() : normalizedConfig.pwm;
   normalizedConfig.max_controller_temp = (normalizedConfig.max_controller_temp == 'default') ? normalizedConfig.controller?.getMaxTemp() : normalizedConfig.max_controller_temp;
@@ -1843,8 +1864,8 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
   const renderTableCell = (cell, rowIndex, colIndex) => {
     const isSelected = selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === colIndex;
     return html`
-      <td 
-        key=${colIndex} 
+      <td
+        key=${colIndex}
         style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${isSelected ? '#e6f3ff' : 'inherit'};"
         onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex)}
       >
