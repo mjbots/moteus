@@ -471,25 +471,57 @@ class Interpolator2D {
         Object.assign(this, opts);
       }
 
+      static getFieldInfo() {
+        return {
+          torque: { unit: 'Nm', precision: 2, displayName: 'Motor Torque' },
+          speed: { unit: 'Hz', precision: 2, displayName: 'Speed' },
+          controller_temp: { unit: '°C', precision: 2, displayName: 'Controller Temperature' },
+          motor_temp: { unit: '°C', precision: 2, displayName: 'Motor Temperature' },
+          supply_power: { unit: 'W', precision: 2, displayName: 'Supply Power' },
+          supply_current: { unit: 'A', precision: 2, displayName: 'Supply Current' },
+          phase_current: { unit: 'A', precision: 2, displayName: 'Phase Current' },
+          copper_loss: { unit: 'W', precision: 2, displayName: 'Copper Loss' },
+          iron_loss: { unit: 'W', precision: 2, displayName: 'Iron Loss' },
+          controller_loss: { unit: 'W', precision: 2, displayName: 'Controller Loss' },
+          mechanical_power: { unit: 'W', precision: 2, displayName: 'Mechanical Power' },
+          efficiency: { unit: '%', precision: 2, displayName: 'Efficiency' }
+        };
+      }
+
+      static getUnitAbbreviation(field) {
+        const info = this.getFieldInfo();
+        return info[field]?.unit || '';
+      }
+
+      static getPrecision(field) {
+        const info = this.getFieldInfo();
+        return info[field]?.precision || 2;
+      }
+
+      static getDisplayName(field) {
+        const info = this.getFieldInfo();
+        return info[field]?.displayName || field;
+      }
+
+      static formatValue(field, value) {
+        if (value === null || value === undefined) return '';
+        const precision = this.getPrecision(field);
+        const unit = this.getUnitAbbreviation(field);
+        return `${value.toFixed(precision)} ${unit}`;
+      }
+
       render() {
+        const fieldInfo = OperatingPoint.getFieldInfo();
         return html`
         <h3>Operating Point</h3>
         <table>
-          ${[['torque', 'Motor Torque (Nm)'],
-             ['speed', 'Speed (Hz)'],
-             ['controller_temp', 'Controller Temperature (°C)'],
-             ['motor_temp', 'Motor Temperature (°C)'],
-             ['supply_power', 'Supply Power (W)'],
-             ['supply_current', 'Supply Current (A)'],
-             ['phase_current', 'Phase Current (A)'],
-             ['copper_loss', 'Copper Loss (W)'],
-             ['iron_loss', 'Iron Loss (W)'],
-             ['controller_loss', 'Controller Loss (W)'],
-             ['mechanical_power', 'Mechanical Power (W)'],
-             ['efficiency', 'Efficiency (%)'],
-           ].map(([attrName, displayName]) =>
-           html`${this[attrName] !== null && this[attrName] !== undefined ? html`<tr><td>${displayName}</td><td>${this[attrName].toFixed(3)}</td></tr>` : ''}`)
-           }
+          ${Object.keys(fieldInfo).map(attrName => {
+            const info = fieldInfo[attrName];
+            const value = this[attrName];
+            return value !== null && value !== undefined ?
+              html`<tr><td>${info.displayName} (${info.unit})</td><td>${value.toFixed(info.precision)}</td></tr>` :
+              '';
+          })}
         </table>
         `
       }
@@ -1408,7 +1440,7 @@ function evaluate(config) {
   if (result == null) {
     return '';
   }
-  return result.toFixed(2);
+  return OperatingPoint.formatValue(config.output, result);
 }
 
 /* ---------- Simulator Component ---------- */
