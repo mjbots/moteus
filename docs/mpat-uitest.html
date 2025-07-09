@@ -1052,7 +1052,17 @@ function Simulator({ commonConfig, axisConfigs }) {
     const axis2Configs = axes[1]?.configurations || [];
     const additionalAxes = axes.slice(2);
 
-    // If no additional axes, generate single table
+    // Single axis case - single column table
+    if (axes.length === 1) {
+      return [{
+        title: "Axis 1",
+        rows: axis1Configs,
+        columns: [{}], // Single empty column
+        cells: generateCells(common, axis1Configs, [{}], {})
+      }];
+    }
+
+    // Two axes case or more
     if (additionalAxes.length === 0) {
       return [{
         title: "Axis 1 vs Axis 2",
@@ -1121,25 +1131,39 @@ function Simulator({ commonConfig, axisConfigs }) {
               <table style="border-collapse: collapse; border: 1px solid #ccc;">
                 <thead>
                   <tr>
-                    <th style="border: 1px solid #ccc; padding: 8px;">Axis 1 \\ Axis 2</th>
-                    ${table.columns.map(colConfig => html`
-                      <th key=${hashConfig(colConfig)} style="border: 1px solid #ccc; padding: 8px;">
-                        ${hashConfig(colConfig)}
-                      </th>
-                    `)}
+                    ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
+                      html`<th style="border: 1px solid #ccc; padding: 8px;">Configuration</th>` :
+                      html`
+                        <th style="border: 1px solid #ccc; padding: 8px;">Axis 1 \\ Axis 2</th>
+                        ${table.columns.map(colConfig => html`
+                          <th key=${hashConfig(colConfig)} style="border: 1px solid #ccc; padding: 8px;">
+                            ${hashConfig(colConfig)}
+                          </th>
+                        `)}
+                      `
+                    }
                   </tr>
                 </thead>
                 <tbody>
                   ${table.rows.map((rowConfig, rowIndex) => html`
                     <tr key=${hashConfig(rowConfig)}>
-                      <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
-                        ${hashConfig(rowConfig)}
-                      </td>
-                      ${table.cells[rowIndex].map((cell, colIndex) => html`
-                        <td key=${colIndex} style="border: 1px solid #ccc; padding: 8px;">
-                          ${cell.hash}
-                        </td>
-                      `)}
+                      ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
+                        html`
+                          <td style="border: 1px solid #ccc; padding: 8px;">
+                            ${table.cells[rowIndex][0].hash}
+                          </td>
+                        ` :
+                        html`
+                          <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
+                            ${hashConfig(rowConfig)}
+                          </td>
+                          ${table.cells[rowIndex].map((cell, colIndex) => html`
+                            <td key=${colIndex} style="border: 1px solid #ccc; padding: 8px;">
+                              ${cell.hash}
+                            </td>
+                          `)}
+                        `
+                      }
                     </tr>
                   `)}
                 </tbody>
