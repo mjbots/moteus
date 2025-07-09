@@ -1123,6 +1123,20 @@ const modelRegistry = {
   }
 };
 
+/* ---------- Evaluation Function ---------- */
+function evaluate(config) {
+  // For now, just return a hash of the configuration
+  // Later this will contain the actual simulation logic
+  const str = JSON.stringify(config, null, 0);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(16).substr(0, 6);
+}
+
 /* ---------- Simulator Component ---------- */
 function Simulator({ commonConfig, axisConfigs }) {
   // Convert chip array to key-value dictionary
@@ -1278,7 +1292,7 @@ function Simulator({ commonConfig, axisConfigs }) {
         };
         return {
           config: cellConfig,
-          hash: hashConfig(cellConfig)
+          result: evaluate(cellConfig)
         };
       });
     });
@@ -1323,7 +1337,7 @@ function Simulator({ commonConfig, axisConfigs }) {
                             ${hashConfig(rowConfig)}
                           </td>
                           <td style="border: 1px solid #ccc; padding: 8px;">
-                            ${table.cells[rowIndex][0].hash}
+                            ${table.cells[rowIndex][0].result}
                           </td>
                         ` :
                         html`
@@ -1332,7 +1346,7 @@ function Simulator({ commonConfig, axisConfigs }) {
                           </td>
                           ${table.cells[rowIndex].map((cell, colIndex) => html`
                             <td key=${colIndex} style="border: 1px solid #ccc; padding: 8px;">
-                              ${cell.hash}
+                              ${cell.result}
                             </td>
                           `)}
                         `
