@@ -1234,6 +1234,40 @@ function Simulator({ commonConfig, axisConfigs }) {
     return Math.abs(hash).toString(16).substr(0, 6);
   };
 
+  // Generate axis name and label formatter based on configuration patterns
+  const getAxisInfo = (configs) => {
+    if (configs.length === 0) {
+      return { name: 'Empty', formatLabel: () => 'empty' };
+    }
+
+    // Get all unique field names across all configs
+    const allFields = new Set();
+    configs.forEach(config => {
+      Object.keys(config).forEach(field => allFields.add(field));
+    });
+
+    const fieldArray = Array.from(allFields).sort();
+
+    // Check if all configs have exactly one field and it's the same field
+    const singleField = fieldArray.length === 1 && 
+      configs.every(config => Object.keys(config).length === 1 && config[fieldArray[0]] !== undefined);
+
+    if (singleField) {
+      return {
+        name: fieldArray[0],
+        formatLabel: (config) => config[fieldArray[0]] || 'null'
+      };
+    } else {
+      return {
+        name: fieldArray.join(', '),
+        formatLabel: (config) => {
+          const values = fieldArray.map(field => config[field] || 'null');
+          return values.join(', ');
+        }
+      };
+    }
+  };
+
   // Generate cartesian product of additional axes (beyond first 2)
   const cartesianProduct = (arrays) => {
     if (arrays.length === 0) return [[]];
@@ -1257,28 +1291,41 @@ function Simulator({ commonConfig, axisConfigs }) {
       }];
     }
 
-    // Get axis configurations
+    // Get axis configurations (reified objects)
     const axis1Configs = axes[0]?.configurations || [];
     const axis2Configs = axes[1]?.configurations || [];
     const additionalAxes = axes.slice(2);
 
+    // Get pre-reified configurations for labeling
+    const axis1PreReified = axisConfigs[0]?.map(lineChips => convertChipsToDict(lineChips)).filter(dict => Object.keys(dict).length > 0) || [];
+    const axis2PreReified = axisConfigs[1]?.map(lineChips => convertChipsToDict(lineChips)).filter(dict => Object.keys(dict).length > 0) || [];
+
     // Single axis case - single column table
     if (axes.length === 1) {
+      const axis1Info = getAxisInfo(axis1PreReified);
       return [{
-        title: "Axis 1",
+        title: axis1Info.name,
         rows: axis1Configs,
         columns: [{}], // Single empty column
-        cells: generateCells(common, axis1Configs, [{}], {})
+        cells: generateCells(common, axis1Configs, [{}], {}),
+        axis1Info,
+        axis1PreReified
       }];
     }
 
     // Two axes case or more
     if (additionalAxes.length === 0) {
+      const axis1Info = getAxisInfo(axis1PreReified);
+      const axis2Info = getAxisInfo(axis2PreReified);
       return [{
-        title: "Axis 1 vs Axis 2",
+        title: `${axis1Info.name} vs ${axis2Info.name}`,
         rows: axis1Configs,
         columns: axis2Configs,
-        cells: generateCells(common, axis1Configs, axis2Configs, {})
+        cells: generateCells(common, axis1Configs, axis2Configs, {}),
+        axis1Info,
+        axis2Info,
+        axis1PreReified,
+        axis2PreReified
       }];
     }
 
@@ -1287,6 +1334,9 @@ function Simulator({ commonConfig, axisConfigs }) {
     const combinations = cartesianProduct(additionalConfigs);
 
     // Generate one table per combination
+    const axis1Info = getAxisInfo(axis1PreReified);
+    const axis2Info = getAxisInfo(axis2PreReified);
+    
     return combinations.map((combination, index) => {
       // Build additional config from combination
       const additionalConfig = {};
@@ -1300,10 +1350,14 @@ function Simulator({ commonConfig, axisConfigs }) {
         '';
 
       return {
-        title: `Axis 1 vs Axis 2${additionalTitle}`,
+        title: `${axis1Info.name} vs ${axis2Info.name}${additionalTitle}`,
         rows: axis1Configs,
         columns: axis2Configs,
-        cells: generateCells(common, axis1Configs, axis2Configs, additionalConfig)
+        cells: generateCells(common, axis1Configs, axis2Configs, additionalConfig),
+        axis1Info,
+        axis2Info,
+        axis1PreReified,
+        axis2PreReified
       };
     });
   };
@@ -1343,14 +1397,16 @@ function Simulator({ commonConfig, axisConfigs }) {
                   <tr>
                     ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
                       html`
-                        <th style="border: 1px solid #ccc; padding: 8px;">Axis 1</th>
+                        <th style="border: 1px solid #ccc; padding: 8px;">${table.axis1Info?.name || 'Axis 1'}</th>
                         <th style="border: 1px solid #ccc; padding: 8px;">Result</th>
                       ` :
                       html`
-                        <th style="border: 1px solid #ccc; padding: 8px;">Axis 1 \\ Axis 2</th>
-                        ${table.columns.map(colConfig => html`
+                        <th style="border: 1px solid #ccc; padding: 8px;">${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
+                        ${table.columns.map((colConfig, colIndex) => html`
                           <th key=${hashConfig(colConfig)} style="border: 1px solid #ccc; padding: 8px;">
-                            ${hashConfig(colConfig)}
+                            ${table.axis2Info?.formatLabel && table.axis2PreReified?.[colIndex] ? 
+                              table.axis2Info.formatLabel(table.axis2PreReified[colIndex]) : 
+                              hashConfig(colConfig)}
                           </th>
                         `)}
                       `
@@ -1363,7 +1419,9 @@ function Simulator({ commonConfig, axisConfigs }) {
                       ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
                         html`
                           <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
-                            ${hashConfig(rowConfig)}
+                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ? 
+                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) : 
+                              hashConfig(rowConfig)}
                           </td>
                           <td style="border: 1px solid #ccc; padding: 8px;">
                             ${table.cells[rowIndex][0].result}
@@ -1371,7 +1429,9 @@ function Simulator({ commonConfig, axisConfigs }) {
                         ` :
                         html`
                           <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
-                            ${hashConfig(rowConfig)}
+                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ? 
+                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) : 
+                              hashConfig(rowConfig)}
                           </td>
                           ${table.cells[rowIndex].map((cell, colIndex) => html`
                             <td key=${colIndex} style="border: 1px solid #ccc; padding: 8px;">
