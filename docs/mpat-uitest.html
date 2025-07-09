@@ -842,7 +842,18 @@ function ConfigFieldSelector({
     const baseFields = getBaseFields(selected);
     const isValidField = baseFields.some(bf => bf.field === kv.field);
 
-    return isValidField && !fieldTaken(kv.field);         // allow only if valid field and unique
+    if (!isValidField || fieldTaken(kv.field)) {
+      return false;
+    }
+
+    // For constrained fields, check if the value is allowed
+    if (kv.data !== undefined && fieldValueOptions[kv.field]) {
+      const allowedValues = fieldValueOptions[kv.field];
+      return allowedValues.includes(kv.data);
+    }
+
+    // For unconstrained fields or fields without values, allow
+    return true;
   };
 
   const isOptionDisabled = (opt) => fieldTaken(opt.field);
