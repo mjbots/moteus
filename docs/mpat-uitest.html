@@ -1029,6 +1029,34 @@ function ConfigFieldSelector({
     setInputValue(''); // Clear input after selection
   };
 
+  // Custom styles for chips based on field type
+  const getChipStyles = () => ({
+    multiValue: (styles, { data }) => {
+      let backgroundColor = styles.backgroundColor;
+      if (data.field === 'analysis') {
+        backgroundColor = '#d4f4dd'; // Tame green
+      } else if (data.field === 'output') {
+        backgroundColor = '#dae8fc'; // Tame blue
+      }
+      return {
+        ...styles,
+        backgroundColor,
+      };
+    },
+    multiValueLabel: (styles, { data }) => {
+      let color = styles.color;
+      if (data.field === 'analysis') {
+        color = '#2d5a3d'; // Darker green text
+      } else if (data.field === 'output') {
+        color = '#1e3a5f'; // Darker blue text
+      }
+      return {
+        ...styles,
+        color,
+      };
+    },
+  });
+
   return html`
     <${Creatable}
         isMulti
@@ -1044,6 +1072,7 @@ function ConfigFieldSelector({
         formatCreateLabel=${(v) => `add ${v}`}
         onInputChange=${handleInputChange}
         inputValue=${inputValue}
+        styles=${getChipStyles()}
       />
   `;
 }
@@ -1373,7 +1402,22 @@ function App() {
       label: `${field}=${value}`
     }))
   );
-  const [axisConfigs, setAxisConfigs] = useState([[[]]]);  // Start with one axis with one empty config
+  const [axisConfigs, setAxisConfigs] = useState(() => {
+    const createChip = (field, data) => ({ field, value: field, data, label: `${field}=${data}` });
+    return [
+      // Axis 1: Controllers
+      [
+        ...['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'].map(controller => [createChip('controller', controller)]),
+        [] // Empty line for adding more
+      ],
+      // Axis 2: Voltages  
+      [
+        ...['12', '24', '36', '48', '54'].map(voltage => [createChip('voltage', voltage)]),
+        [] // Empty line for adding more
+      ],
+      [[]] // Empty axis 3 for adding more axes
+    ];
+  });
 
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
     let newAxisConfigs = [...axisConfigs];
