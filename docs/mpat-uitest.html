@@ -369,6 +369,61 @@ const getBaseFields = (selectedValues) => {
   return [...staticFields, ...dynamicFields];
 };
 
+/* ---------- LimitedValue class for constraint tracking ---------- */
+class LimitedValue {
+  constructor(value, limitingFactor = null) {
+    this.value = value;
+    this.limitingFactor = limitingFactor;
+
+    return new Proxy(this, {
+      // Handle property access
+      get(target, prop) {
+        if (prop in target) return target[prop];
+
+        // Intercept Math operations and other number methods
+        if (typeof target.value[prop] === 'function') {
+          return function(...args) {
+            const result = target.value[prop](...args);
+            return new LimitedValue(result, target.limitingFactor);
+          };
+        }
+
+        return target.value[prop];
+      },
+
+      // Handle arithmetic operations
+      valueOf() { return target.value; },
+      toString() { return target.value.toString(); }
+    });
+  }
+
+  // Custom min that propagates the limiting factor
+  static min(a, b) {
+    const aVal = a instanceof LimitedValue ? a.value : a;
+    const bVal = b instanceof LimitedValue ? b.value : b;
+    const aFactor = a instanceof LimitedValue ? a.limitingFactor : null;
+    const bFactor = b instanceof LimitedValue ? b.limitingFactor : null;
+
+    if (aVal < bVal) {
+      return new LimitedValue(aVal, aFactor);
+    }
+    return new LimitedValue(bVal, bFactor);
+  }
+
+  // Custom max that propagates the limiting factor
+  static max(a, b) {
+    const aVal = a instanceof LimitedValue ? a.value : a;
+    const bVal = b instanceof LimitedValue ? b.value : b;
+    const aFactor = a instanceof LimitedValue ? a.limitingFactor : null;
+    const bFactor = b instanceof LimitedValue ? b.limitingFactor : null;
+
+    if (aVal > bVal) {
+      return new LimitedValue(aVal, aFactor);
+    }
+    return new LimitedValue(bVal, bFactor);
+  }
+}
+
 /* ---------- Multi-value expansion helpers ---------- */
 // Expand a line of chips that may contain comma-separated values into multiple lines
 const expandChipLine = (chipLine) => {
@@ -822,8 +877,13 @@ class Motor {
     // and (Pcopper + Piron) < thermalW
     // and (Ptotal) < maxControllerPower
 
-    const ImaxPossible = Math.min(supplyVoltageMargin / this.R,
-      Math.sqrt(Math.min(thermalW, maxControllerPower) / 1.5 / this.R));
+    const thermalLimit = LimitedValue.min(
+      new LimitedValue(thermalW, 'max_motor_temperature'),
+      new LimitedValue(maxControllerPower, 'max_controller_power'));
+
+    const ImaxPossible = LimitedValue.min(
+      new LimitedValue(supplyVoltageMargin / this.R, 'back_emf'),
+      new LimitedValue(Math.sqrt(thermalLimit.value / 1.5 / this.R), thermalLimit.limitingFactor));
     // This equation is not really possible to solve directly, so lets just
     // find it numerically.  The answer is much easier if the velocity is 0.
     if (velocityHz == 0.0) {
@@ -838,7 +898,11 @@ class Motor {
               (r.Ptotal < maxControllerPower));
     };
 
-    return bisectMaxTrue(ImaxPossible, valid, 0.01);
+    const resultCurrent = bisectMaxTrue(ImaxPossible.value, valid, 0.01);
+    const r = this.getPower(resultCurrent, velocityHz, config);
+    const motorThermal = Math.abs((r.Pcopper + r.Piron) - thermalW);
+    const controllerPower = Math.abs(r.Ptotal - maxControllerPower);
+    return new LimitedValue(resultCurrent, motorThermal < controllerPower ? 'max_motor_temperature' : 'max_controller_power');
   }
 
   getCurrentFromTorque(outputTorque, config) {
@@ -1327,6 +1391,7 @@ function evaluateMaxCurrent(config) {
       phase_current: result,
       controller_temp: config.max_controller_temp,
       controller_loss: thermalW,
+      _limiting_factor: 'controller_temp',
     });
 }
 
@@ -1444,14 +1509,16 @@ class AnalysisMaxTorque {
       return null;
     }
 
-    const finalCurrent = Math.min(motorCurrent, controllerCurrent.phase_current);
-    const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent, config);
+    const finalCurrent = LimitedValue.min(motorCurrent, new LimitedValue(controllerCurrent.phase_current, controllerCurrent._limiting_factor));
+    const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent.value, config);
 
-    return evaluateOperatingPoint({
-      ...config,
-      'phase_current': finalCurrent,
-      'torque': motorTorque,
+    const op = evaluateOperatingPoint({
+        ...config,
+        'phase_current': finalCurrent,
+        'torque': motorTorque,
     });
+    op['_limiting_factor'] = finalCurrent instanceof LimitedValue ? finalCurrent.limitingFactor : null;
+    return op;
   }
 }
 
