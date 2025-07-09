@@ -325,7 +325,7 @@ const fieldValueOptions = {
 
 /* Motor model sub-field configurations */
 const motorModelFields = {
-  'model': ['kv', 'r', 'l', 'mass'],
+  'model': ['kv', 'r', 'l', 'thermal_r', 'thermal_c'],
   'extrapolated': ['kv', 'mass', 'diameter', 'type']
 };
 
@@ -792,7 +792,7 @@ class Motor {
                rotationCurrentCutoff=1000,
                rotationCurrentScale=1,
                rotationTorqueScale=1,
-               d0, d1,
+               d0=0, d1=0,
                productInfo=null}) {
     this.nameValue = name;
     this.displayNameValue = displayName;
@@ -1905,6 +1905,32 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         }
       }
     });
+
+    // Special handling for 'model' motor type
+    if (reified.motor === 'model') {
+      const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
+      const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
+      
+      if (hasAllFields) {
+        reified.motor = new Motor({
+          name: 'model',
+          displayName: 'model',
+          maxTemp: 80, // Fixed value
+          Kv: reified['motor.kv'],
+          R: reified['motor.r'],
+          L: reified['motor.l'],
+          thermal: {
+            'none': {
+              R: reified['motor.thermal_r'],
+              C: reified['motor.thermal_c']
+            }
+          }
+        });
+      } else {
+        reified.motor = null;
+      }
+    }
+
     return reified;
   };
 
