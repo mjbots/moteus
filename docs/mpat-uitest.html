@@ -236,7 +236,7 @@ const defaultCommonValues = {
   'supply_power': 'infinity',
   'supply_current': 'infinity',
   'time': 'infinity',
-  'gear_ratio': '1',
+  'gear_reduction': '1',
   'ambient_temp': '25',
   'max_controller_temp': 'default',
   'max_motor_temp': 'default',
@@ -553,8 +553,8 @@ class Controller {
     return this.props['maxVoltage'];
   }
 
-  getMaxSpeed(voltage, motor) {
-    return voltage * motor.getKv() * this.getSpeedFactor() / 60.0;
+  getMaxSpeed(voltage, motor, config) {
+    return voltage * motor.getKv() * this.getSpeedFactor() / 60.0 / config.gear_reduction;
   }
 
   getCurrentFromThermalPower(thermalW, {voltage, pwm}) {
@@ -702,11 +702,12 @@ class Motor {
     return this.productInfoValue;
   }
 
-  getBackEmf(velocityHz) {
-    return velocityHz * 60 / this.getKv();
+  getBackEmf(velocityHz, config) {
+    return velocityHz * config.gear_reduction * 60 / this.getKv();
   }
 
-  getPower(current, velocityHz) {
+  getPower(current, outputVelocityHz, config) {
+    const velocityHz = outputVelocityHz * config.gear_reduction;
     const torque = current < this.rotationCurrentCutoff ?
       (this.kt * current) :
       (this.kt * this.rotationCurrentCutoff +
@@ -751,7 +752,7 @@ class Motor {
     // Bisect between 0 and ImaxPossible to find a current which is as large
     // as possible while satisfying both of our inequalities.
     const valid = (I) => {
-      const r = this.getPower(I, velocityHz);
+      const r = this.getPower(I, velocityHz, config);
       return (((r.Pcopper + r.Piron) < thermalW) &&
               (r.Ptotal < maxControllerPower));
     };
@@ -759,7 +760,8 @@ class Motor {
     return bisectMaxTrue(ImaxPossible, valid, 0.01);
   }
 
-  getCurrentFromTorque(torque) {
+  getCurrentFromTorque(outputTorque, config) {
+    const torque = outputTorque / config.gear_reduction;
     const a = (Math.abs(torque) - this.rotationCurrentCutoff * this.kt) /
           this.rotationTorqueScale;
     const rotationExtra = (Math.pow(2, a) - 1.0) / this.rotationCurrentScale;
@@ -771,14 +773,14 @@ class Motor {
       (torque / this.kt) : copysign(this.rotationCurrentCutoff + rotationExtra, torque);
   }
 
-  getTorqueFromCurrent(currentA) {
+  getTorqueFromCurrent(currentA, config) {
     if (currentA < this.rotationCurrentCutoff) {
-      return currentA * this.kt;
+      return currentA * this.kt * config.gear_reduction;
     }
     return (this.rotationCurrentCutoff * this.kt +
             this.rotationTorqueScale *
             (Math.log2(Math.max(1.0 + (currentA - this.rotationCurrentCutoff) *
-            this.rotationCurrentScale, 0.00001))));
+            this.rotationCurrentScale, 0.00001)))) * config.gear_reduction;
   }
 
   getMaxVelocity(controller, voltage) {
@@ -787,10 +789,10 @@ class Motor {
 
   getOperatingPoint(config) {
     const result = new OperatingPoint({});
-    result.torque = this.getTorqueFromCurrent(config.phase_current);
+    result.torque = this.getTorqueFromCurrent(config.phase_current, config);
     result.phase_current = config.phase_current;
 
-    const r = this.getPower(config.phase_current, config.velocity);
+    const r = this.getPower(config.phase_current, config.velocity, config);
     result.copper_loss = r.Pcopper;
     result.iron_loss = r.Piron;
     result.mechanical_power = r.Pmech;
@@ -1250,7 +1252,7 @@ function evaluateOperatingPoint(config) {
     return null;
   }
 
-  const motorCurrent = config.motor.getCurrentFromTorque(config.torque);
+  const motorCurrent = config.motor.getCurrentFromTorque(config.torque, config);
   const op = config.motor.getOperatingPoint({
     ...config,
     'phase_current': motorCurrent});
@@ -1314,7 +1316,11 @@ class AnalysisMaxTorque {
           deltaT / R :
           deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
 
-    const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor() * config.voltage - config.motor.getBackEmf(config.velocity)));
+    const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor() * config.voltage - config.motor.getBackEmf(config.velocity, config)));
+
+    if (supplyVoltageMargin < 0.0) {
+      return null;
+    }
 
     const motorCurrent =
           config.motor.getCurrentFromThermalPowerAndVelocity(
@@ -1329,7 +1335,7 @@ class AnalysisMaxTorque {
     }
 
     const finalCurrent = Math.min(motorCurrent, controllerCurrent.phase_current);
-    const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent);
+    const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent, config);
 
     return evaluateOperatingPoint({
       ...config,
