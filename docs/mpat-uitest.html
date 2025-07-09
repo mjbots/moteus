@@ -1861,7 +1861,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
           ${table.rows.length === 0 || table.columns.length === 0 ?
             html`<p>No configurations to display</p>` :
             html`
-              <table style="border-collapse: collapse; border: 1px solid #ccc;">
+              <table style="border-collapse: collapse; border: 1px solid #ccc; width: auto;">
                 <thead>
                   <tr>
                     ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
