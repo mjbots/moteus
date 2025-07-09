@@ -1143,7 +1143,10 @@ function Simulator({ commonConfig, axisConfigs }) {
                 <thead>
                   <tr>
                     ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
-                      html`<th style="border: 1px solid #ccc; padding: 8px;">Configuration</th>` :
+                      html`
+                        <th style="border: 1px solid #ccc; padding: 8px;">Axis 1</th>
+                        <th style="border: 1px solid #ccc; padding: 8px;">Result</th>
+                      ` :
                       html`
                         <th style="border: 1px solid #ccc; padding: 8px;">Axis 1 \\ Axis 2</th>
                         ${table.columns.map(colConfig => html`
@@ -1160,6 +1163,9 @@ function Simulator({ commonConfig, axisConfigs }) {
                     <tr key=${hashConfig(rowConfig)}>
                       ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
                         html`
+                          <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
+                            ${hashConfig(rowConfig)}
+                          </td>
                           <td style="border: 1px solid #ccc; padding: 8px;">
                             ${table.cells[rowIndex][0].hash}
                           </td>
