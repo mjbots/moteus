@@ -957,6 +957,27 @@ class Motor {
   }
 }
 
+class ExtrapolatedMotor extends Motor {
+  constructor({kv, mass, diameter, type}) {
+    // TODO: Implement extrapolation logic to compute base Motor parameters
+    super({
+      name: 'extrapolated',
+      displayName: 'extrapolated',
+      maxTemp: 80,
+      Kv: kv,
+      R: 0.1, // Placeholder
+      L: 1e-6, // Placeholder
+      thermal: {
+        'none': {R: 1.0, C: 100.0} // Placeholder
+      }
+    });
+    
+    this.mass = mass;
+    this.diameter = diameter;
+    this.type = type;
+  }
+}
+
 class MoteusC1 extends MoteusController {
   constructor() {
     super({
@@ -1925,6 +1946,23 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
               C: reified['motor.thermal_c']
             }
           }
+        });
+      } else {
+        reified.motor = null;
+      }
+    }
+
+    // Special handling for 'extrapolated' motor type
+    if (reified.motor === 'extrapolated') {
+      const requiredFields = ['motor.kv', 'motor.mass', 'motor.diameter', 'motor.type'];
+      const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
+      
+      if (hasAllFields) {
+        reified.motor = new ExtrapolatedMotor({
+          kv: reified['motor.kv'],
+          mass: reified['motor.mass'],
+          diameter: reified['motor.diameter'],
+          type: reified['motor.type']
         });
       } else {
         reified.motor = null;
