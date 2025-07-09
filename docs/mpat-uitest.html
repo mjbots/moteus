@@ -1454,6 +1454,44 @@ function ConfigFieldSelector({
   `;
 }
 
+/* ---------- Overlay Component ---------- */
+function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
+  if (!isVisible || !selectedCell) return null;
+
+  // Create an OperatingPoint instance from the selected cell's config
+  const createOperatingPoint = (config) => {
+    // Populate some defaults like the evaluate function does
+    config.pwm = (config.pwm == 'default') ? config.controller?.getDefaultPwm() : config.pwm;
+    config.max_controller_temp = (config.max_controller_temp == 'default') ? config.controller?.getMaxTemp() : config.max_controller_temp;
+    config.max_motor_temp = (config.max_motor_temp == 'default') ? config.motor?.getMaxTemp() : config.max_motor_temp;
+
+    if (config.analysis == null) {
+      return null;
+    }
+
+    return config.analysis.evaluate(config);
+  };
+
+  const operatingPoint = createOperatingPoint(selectedCell.config);
+
+  return html`
+    <div class="overlayContainer">
+      <div class="overlayBody">
+        <button 
+          onClick=${onClose}
+          style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer;"
+        >
+          ×
+        </button>
+        ${operatingPoint ? operatingPoint.render() : html`
+          <h3>Operating Point</h3>
+          <p>No operating point data available for this configuration.</p>
+        `}
+      </div>
+    </div>
+  `;
+}
+
 /* ---------- Panel Components ---------- */
 function CommonConfigPanel({ selected, onSelectedChange }) {
   return html`
@@ -1561,7 +1599,7 @@ function evaluate(config) {
 }
 
 /* ---------- Simulator Component ---------- */
-function Simulator({ commonConfig, axisConfigs }) {
+function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
   // Convert chip array to key-value dictionary
   const convertChipsToDict = (chips) => {
     const dict = {};
@@ -1832,7 +1870,10 @@ function Simulator({ commonConfig, axisConfigs }) {
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
-                          <td style="border: 1px solid #ccc; padding: 8px;">
+                          <td 
+                            style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === 0 ? '#e6f3ff' : 'inherit'};"
+                            onClick=${() => onCellClick && onCellClick(table.cells[rowIndex][0].config, table.cells[rowIndex][0].result, rowIndex, 0)}
+                          >
                             ${table.cells[rowIndex][0].result}
                           </td>
                         ` :
@@ -1843,7 +1884,11 @@ function Simulator({ commonConfig, axisConfigs }) {
                               hashConfig(rowConfig)}
                           </td>
                           ${table.cells[rowIndex].map((cell, colIndex) => html`
-                            <td key=${colIndex} style="border: 1px solid #ccc; padding: 8px;">
+                            <td 
+                              key=${colIndex} 
+                              style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === colIndex ? '#e6f3ff' : 'inherit'};"
+                              onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex)}
+                            >
                               ${cell.result}
                             </td>
                           `)}
@@ -1888,6 +1933,10 @@ function App() {
     ];
   });
 
+  // State for overlay functionality
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [overlayVisible, setOverlayVisible] = useState(false);
+
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
     let newAxisConfigs = [...axisConfigs];
     newAxisConfigs[axisIndex] = newConfigs;
@@ -1916,6 +1965,33 @@ function App() {
     return configs.some(config => config.length > 0);
   };
 
+  // Handler for cell clicks
+  const handleCellClick = (cellConfig, cellResult, rowIndex, colIndex) => {
+    // If clicking the same cell, close the overlay
+    if (selectedCell && 
+        selectedCell.rowIndex === rowIndex && 
+        selectedCell.colIndex === colIndex) {
+      setSelectedCell(null);
+      setOverlayVisible(false);
+      return;
+    }
+
+    // Set the selected cell and show overlay
+    setSelectedCell({
+      config: cellConfig,
+      result: cellResult,
+      rowIndex,
+      colIndex
+    });
+    setOverlayVisible(true);
+  };
+
+  // Handler for closing overlay
+  const handleCloseOverlay = () => {
+    setSelectedCell(null);
+    setOverlayVisible(false);
+  };
+
   /* optional: watch state while testing */
   useEffect(() => {
     console.log('Common Config:', commonConfig);
@@ -1942,9 +2018,16 @@ function App() {
         <${Simulator}
           commonConfig=${commonConfig}
           axisConfigs=${axisConfigs}
+          onCellClick=${handleCellClick}
+          selectedCell=${selectedCell}
         />
       </div>
     </div>
+    <${OperatingPointOverlay}
+      isVisible=${overlayVisible}
+      selectedCell=${selectedCell}
+      onClose=${handleCloseOverlay}
+    />
   `;
 }
 
