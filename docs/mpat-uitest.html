@@ -322,7 +322,7 @@ const motorModelFields = {
 /* Generate dynamic sub-fields based on selected values */
 const generateDynamicFields = (selectedValues) => {
   const dynamicFields = [];
-  
+
   selectedValues.forEach(selected => {
     if (selected.field === 'motor' && selected.data) {
       const subFields = motorModelFields[selected.data];
@@ -338,7 +338,7 @@ const generateDynamicFields = (selectedValues) => {
       }
     }
   });
-  
+
   return dynamicFields;
 };
 
@@ -349,9 +349,9 @@ const getBaseFields = (selectedValues) => {
     value: name,
     label: name
   }));
-  
+
   const dynamicFields = generateDynamicFields(selectedValues);
-  
+
   return [...staticFields, ...dynamicFields];
 };
 
@@ -463,11 +463,7 @@ class Controller {
     this.k2 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k2);
   }
 
-  getState() {
-    return {};
-  }
-
-  getThermalProperties(state, coolingName) {
+  getThermalProperties(coolingName) {
     if (this.thermal?.[coolingName] == null) {
       return [null, null];
     }
@@ -482,11 +478,11 @@ class Controller {
     return this.props['maxVoltage'];
   }
 
-  getMaxSpeed(state, voltage, voltageState, motor, motorState) {
-    return voltage.getVoltage(voltageState) * motor.getKv(motorState) * this.getSpeedFactor() / 60.0;
+  getMaxSpeed(voltage, motor) {
+    return voltage * motor.getKv() * this.getSpeedFactor() / 60.0;
   }
 
-  getCurrentFromThermalPower(state, thermalW, {voltage, pwm}) {
+  getCurrentFromThermalPower(thermalW, {voltage, pwm}) {
     const [k0,k1,k2] = [
       this.k0.interpolate(voltage, pwm),
       this.k1.interpolate(voltage, pwm),
@@ -496,11 +492,11 @@ class Controller {
     const b = k1;
     const a = k2;
 
-    return Math.min(this.getMaxCurrent(state, voltage),
+    return Math.min(this.getMaxCurrent(config.voltage),
       (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a));
   }
 
-  getThermalPower(state, {voltage, pwm, current}) {
+  getThermalPower({voltage, pwm, current}) {
     const [k0, k1, k2] = [
       this.k0.interpolate(voltage, pwm),
       this.k1.interpolate(voltage, pwm),
@@ -511,17 +507,10 @@ class Controller {
     return thermalPower;
   }
 
-  getTemperature(state, {thermalPower, coolingName, timePeriodS, ambientTemp}) {
-    const [R, C] = this.getThermalProperties(state, coolingName);
-    return ambientTemp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
-  }
-
-  name() {
-    return this.props['name'];
-  }
-
-  displayName() {
-    return this.props['name'];
+  getTemperature(thermalPower, {controller_cooling, time, ambient_temp}) {
+    const timePeriodS = mapTime(time);
+    const [R, C] = this.getThermalProperties(controller_cooling);
+    return ambient_temp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
   }
 
   productInfo() {
@@ -538,7 +527,7 @@ class MoteusController extends Controller {
     return this.props['defaultPwm'];
   }
 
-  getMaxPower(state, voltage, pwm) {
+  getMaxPower(voltage, pwm) {
     const [P_l_W, V_l, P_h_W, V_h] = [
       this.props.P_l_W, this.props.V_l,
       this.props.P_h_W, this.props.V_h,
@@ -572,11 +561,11 @@ class OdriveController extends Controller {
     return 24000.0;
   }
 
-  getMaxPower(state) {
+  getMaxPower() {
     return this.props['P_W'];
   }
 
-  getMaxCurrent(state, voltage) {
+  getMaxCurrent(voltage) {
     if (voltage < this.props['maxCurrentDerateVoltage']) {
       return this.props['maxCurrent'];
     } else {
@@ -611,7 +600,7 @@ class Motor {
     this.kt = 8.3 / this.Kv;
   }
 
-  getThermalProperties(state, coolingName) {
+  getThermalProperties(coolingName) {
     if (this.thermal?.[coolingName] == null) {
       return [null, null];
     }
@@ -661,7 +650,7 @@ class Motor {
     };
   }
 
-  getCurrentFromThermalPowerAndVelocity(state, thermalW, velocityHz, maxControllerPower, supplyVoltageMargin) {
+  getCurrentFromThermalPowerAndVelocity(thermalW, velocityHz, maxControllerPower, supplyVoltageMargin) {
     // TODO: Should we model the fact that resistance tends to go up with
     // temperature?
 
@@ -695,7 +684,7 @@ class Motor {
     return bisectMaxTrue(ImaxPossible, valid, 0.01);
   }
 
-  getTorqueFromCurrent(state, currentA) {
+  getTorqueFromCurrent(currentA) {
     if (currentA < this.rotationCurrentCutoff) {
       return currentA * this.kt;
     }
@@ -705,8 +694,8 @@ class Motor {
             this.rotationCurrentScale, 0.00001))));
   }
 
-  getMaxVelocityHz(state, controllerInstance, controllerState, voltage, voltageState) {
-    return controllerInstance.getSpeedFactor(controllerState) * voltage.getVoltage(voltageState) * this.Kv / 60.0;
+  getMaxVelocityHz(controller, voltage) {
+    return controller.getSpeedFactor() * voltage * this.Kv / 60.0;
   }
 
   // Note: getOperatingPoint method omitted as it depends on OperatingPoint class
@@ -937,6 +926,23 @@ class HT1105 extends Motor {
       d1: 0.0,
       productInfo: '[product page]',
     });
+  }
+}
+
+class OutputMaxCurrent {
+  evaluate(config) {
+    const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
+    const timePeriodS = mapTime(config.time);
+
+    if (config.voltage > config.controller.getMaxVoltage()) {
+      return null;
+    }
+
+    const thermalW = (timePeriodS == Infinity) ? (deltaT / R) :
+          (deltaT) / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+    const result = config.controller.getCurrentFromThermalPower(thermalW, config);
+
   }
 }
 
@@ -1199,7 +1205,7 @@ function Simulator({ commonConfig, axisConfigs }) {
     // Convert common config
     const commonDict = convertChipsToDict(commonConfig);
     const commonReified = reifyObjects(commonDict);
-    
+
     // Convert each axis config
     const axisData = axisConfigs.map((axisConfigs, axisIndex) => {
       // Each axis can have multiple configuration lines
@@ -1207,7 +1213,7 @@ function Simulator({ commonConfig, axisConfigs }) {
         const dict = convertChipsToDict(lineChips);
         return reifyObjects(dict);
       }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
-      
+
       return {
         axisNumber: axisIndex + 1,
         configurations: axisLines
@@ -1249,7 +1255,7 @@ function Simulator({ commonConfig, axisConfigs }) {
     const fieldArray = Array.from(allFields).sort();
 
     // Check if all configs have exactly one field and it's the same field
-    const singleField = fieldArray.length === 1 && 
+    const singleField = fieldArray.length === 1 &&
       configs.every(config => Object.keys(config).length === 1 && config[fieldArray[0]] !== undefined);
 
     if (singleField) {
@@ -1272,7 +1278,7 @@ function Simulator({ commonConfig, axisConfigs }) {
   const cartesianProduct = (arrays) => {
     if (arrays.length === 0) return [[]];
     return arrays.reduce((acc, current) => {
-      return acc.flatMap(accItem => 
+      return acc.flatMap(accItem =>
         current.map(currentItem => [...accItem, currentItem])
       );
     }, [[]]);
@@ -1281,7 +1287,7 @@ function Simulator({ commonConfig, axisConfigs }) {
   // Generate tables for simulation
   const generateTables = () => {
     const { common, axes } = restructuredConfig;
-    
+
     if (axes.length === 0) {
       return [{
         title: "No axes configured",
@@ -1336,7 +1342,7 @@ function Simulator({ commonConfig, axisConfigs }) {
     // Generate one table per combination
     const axis1Info = getAxisInfo(axis1PreReified);
     const axis2Info = getAxisInfo(axis2PreReified);
-    
+
     return combinations.map((combination, index) => {
       // Build additional config from combination
       const additionalConfig = {};
@@ -1345,8 +1351,8 @@ function Simulator({ commonConfig, axisConfigs }) {
       });
 
       // Generate title showing additional axes
-      const additionalTitle = combination.length > 0 ? 
-        ` (${combination.map((config, i) => `Axis ${i + 3}: ${hashConfig(config)}`).join(', ')})` : 
+      const additionalTitle = combination.length > 0 ?
+        ` (${combination.map((config, i) => `Axis ${i + 3}: ${hashConfig(config)}`).join(', ')})` :
         '';
 
       return {
@@ -1389,13 +1395,13 @@ function Simulator({ commonConfig, axisConfigs }) {
       ${tables.map(table => html`
         <div key=${table.title} style="margin-bottom: 2rem;">
           <h4>${table.title}</h4>
-          ${table.rows.length === 0 || table.columns.length === 0 ? 
+          ${table.rows.length === 0 || table.columns.length === 0 ?
             html`<p>No configurations to display</p>` :
             html`
               <table style="border-collapse: collapse; border: 1px solid #ccc;">
                 <thead>
                   <tr>
-                    ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
+                    ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
                       html`
                         <th style="border: 1px solid #ccc; padding: 8px;">${table.axis1Info?.name || 'Axis 1'}</th>
                         <th style="border: 1px solid #ccc; padding: 8px;">Result</th>
@@ -1404,8 +1410,8 @@ function Simulator({ commonConfig, axisConfigs }) {
                         <th style="border: 1px solid #ccc; padding: 8px;">${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
                         ${table.columns.map((colConfig, colIndex) => html`
                           <th key=${hashConfig(colConfig)} style="border: 1px solid #ccc; padding: 8px;">
-                            ${table.axis2Info?.formatLabel && table.axis2PreReified?.[colIndex] ? 
-                              table.axis2Info.formatLabel(table.axis2PreReified[colIndex]) : 
+                            ${table.axis2Info?.formatLabel && table.axis2PreReified?.[colIndex] ?
+                              table.axis2Info.formatLabel(table.axis2PreReified[colIndex]) :
                               hashConfig(colConfig)}
                           </th>
                         `)}
@@ -1416,11 +1422,11 @@ function Simulator({ commonConfig, axisConfigs }) {
                 <tbody>
                   ${table.rows.map((rowConfig, rowIndex) => html`
                     <tr key=${hashConfig(rowConfig)}>
-                      ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ? 
+                      ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
                         html`
                           <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
-                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ? 
-                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) : 
+                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ?
+                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
                           <td style="border: 1px solid #ccc; padding: 8px;">
@@ -1429,8 +1435,8 @@ function Simulator({ commonConfig, axisConfigs }) {
                         ` :
                         html`
                           <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
-                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ? 
-                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) : 
+                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ?
+                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
                           ${table.cells[rowIndex].map((cell, colIndex) => html`
@@ -1470,7 +1476,7 @@ function App() {
         ...['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'].map(controller => [createChip('controller', controller)]),
         [] // Empty line for adding more
       ],
-      // Axis 2: Voltages  
+      // Axis 2: Voltages
       [
         ...['12', '24', '36', '48', '54'].map(voltage => [createChip('voltage', voltage)]),
         [] // Empty line for adding more
@@ -1530,8 +1536,8 @@ function App() {
         `)}
       </div>
       <div class="resultsColumn">
-        <${Simulator} 
-          commonConfig=${commonConfig} 
+        <${Simulator}
+          commonConfig=${commonConfig}
           axisConfigs=${axisConfigs}
         />
       </div>
