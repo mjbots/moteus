@@ -2105,23 +2105,23 @@ function App() {
     }))
   );
   const [axisConfigs, setAxisConfigs] = useState(() => {
-    const createChip = (field, data) => ({
+    const createMultiChip = (field, values) => ({
       field,
       value: field,
-      data,
-      label: `${field}=${data}`,
-      isMultiValue: false,
-      values: [data]
+      data: values.join(','),
+      label: `${field}=${values.join(',')}`,
+      isMultiValue: true,
+      values: values
     });
     return [
-      // Axis 1: Controllers
+      // Axis 1: Controllers (multi-value)
       [
-        ...['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'].map(controller => [createChip('controller', controller)]),
+        [createMultiChip('controller', ['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'])],
         [] // Empty line for adding more
       ],
-      // Axis 2: Voltages
+      // Axis 2: Voltages (multi-value)
       [
-        ...['12', '24', '36', '48', '54'].map(voltage => [createChip('voltage', voltage)]),
+        [createMultiChip('voltage', ['12', '24', '36', '48', '54'])],
         [] // Empty line for adding more
       ],
       [[]] // Empty axis 3 for adding more axes
