@@ -1838,6 +1838,20 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
 
   const tables = generateTables();
 
+  // Helper function to render a clickable table cell
+  const renderTableCell = (cell, rowIndex, colIndex) => {
+    const isSelected = selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === colIndex;
+    return html`
+      <td 
+        key=${colIndex} 
+        style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${isSelected ? '#e6f3ff' : 'inherit'};"
+        onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex)}
+      >
+        ${cell.result}
+      </td>
+    `;
+  };
+
   return html`
     <div>
       <h3>Simulator Results</h3>
@@ -1878,12 +1892,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
-                          <td
-                            style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === 0 ? '#e6f3ff' : 'inherit'};"
-                            onClick=${() => onCellClick && onCellClick(table.cells[rowIndex][0].config, table.cells[rowIndex][0].result, rowIndex, 0)}
-                          >
-                            ${table.cells[rowIndex][0].result}
-                          </td>
+                          ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0)}
                         ` :
                         html`
                           <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
@@ -1891,15 +1900,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
-                          ${table.cells[rowIndex].map((cell, colIndex) => html`
-                            <td
-                              key=${colIndex}
-                              style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === colIndex ? '#e6f3ff' : 'inherit'};"
-                              onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex)}
-                            >
-                              ${cell.result}
-                            </td>
-                          `)}
+                          ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex))}
                         `
                       }
                     </tr>
