@@ -241,7 +241,7 @@ const defaultCommonValues = {
   'max_motor_temp': 'default',
   'torque': '0',
   'output': 'phase_current',
-  'analysis': "max_current", // 'max_speed', 'operating_point'
+  'analysis': "max_current",
 };
 
 // Default values for motor sub-fields
@@ -570,14 +570,14 @@ class Controller {
       (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a));
   }
 
-  getThermalPower({voltage, pwm, current}) {
+  getThermalPower({voltage, pwm, phase_current}) {
     const [k0, k1, k2] = [
       this.k0.interpolate(voltage, pwm),
       this.k1.interpolate(voltage, pwm),
       this.k2.interpolate(voltage, pwm),
     ];
 
-    const thermalPower = k0 + k1 * current + k2 * current * current;
+    const thermalPower = k0 + k1 * phase_current + k2 * phase_current * phase_current;
     return thermalPower;
   }
 
@@ -756,6 +756,18 @@ class Motor {
     };
 
     return bisectMaxTrue(ImaxPossible, valid, 0.01);
+  }
+
+  getCurrentFromTorque(torque) {
+    const a = (Math.abs(torque) - this.rotationCurrentCutoff * this.kt) /
+          this.rotationTorqueScale;
+    const rotationExtra = (Math.pow(2, a) - 1.0) / this.rotationCurrentScale;
+
+    const cutoffTorque = this.rotationCurrentCutoff * this.kt;
+    const copysign = (x, y) => Math.sign(x) === Math.sign(y) ? x : -x;
+
+    return (Math.abs(torque) < this.rotationCurrentCutoff) ?
+      (torque / this.kt) : copysign(this.rotationCurrentCutoff + rotationExtra, torque);
   }
 
   getTorqueFromCurrent(currentA) {
@@ -1228,6 +1240,36 @@ class AnalysisMaxCurrent {
   }
 }
 
+function evaluateOperatingPoint(config) {
+  if (config.motor == null || config.controller == null) {
+    return null;
+  }
+
+  const motorCurrent = config.motor.getCurrentFromTorque(config.torque);
+  const op = config.motor.getOperatingPoint({
+    ...config,
+    'phase_current': motorCurrent});
+
+  const thermalPower = config.controller.getThermalPower({
+    ...config,
+    'phase_current': motorCurrent});
+  op['controller_loss'] = thermalPower;
+  op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
+
+  const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
+  op['supply_power'] = totalLossPowerW + op.mechanical_power;
+  op['supply_current'] = op.supply_power / config.voltage;
+  op['efficiency'] = 100.0 * op.mechanical_power / op.supply_power;
+
+  return op;
+}
+
+class AnalysisOperatingPoint {
+  evaluate(config) {
+    return evaluateOperatingPoint(config);
+  }
+}
+
 class AnalysisMaxTorque {
   evaluate(config) {
     if (config.motor == null) {
@@ -1267,25 +1309,13 @@ class AnalysisMaxTorque {
     const finalCurrent = Math.min(motorCurrent, controllerCurrent.phase_current);
     const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent);
 
-    const op = config.motor.getOperatingPoint({
+    return evaluateOperatingPoint({
       ...config,
       'phase_current': finalCurrent,
     });
-
-    const thermalPower = config.controller.getThermalPower({
-      ...config,
-      'current': finalCurrent});
-    op['controller_loss'] = thermalPower;
-    op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
-
-    const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
-    op['supply_power'] = totalLossPowerW + op.mechanical_power;
-    op['supply_current'] = op.supply_power / config.voltage;
-    op['efficiency'] = 100.0 * op.mechanical_power / op.supply_power;
-
-    return op;
   }
 }
+
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
 function ConfigFieldSelector({
@@ -1504,6 +1534,7 @@ const modelRegistry = {
   analysis: {
     'max_current': new AnalysisMaxCurrent(),
     'max_torque': new AnalysisMaxTorque(),
+    'operating_point': new AnalysisOperatingPoint(),
   },
 };
 
