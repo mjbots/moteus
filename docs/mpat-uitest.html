@@ -2252,9 +2252,52 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
   `;
 }
 
-/* ---------- Main App Component ---------- */
-function App() {
-  const [commonConfig, setCommonConfig] = useState(
+/* ---------- URL Query Parameter Parsing ---------- */
+function parseUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const commonParams = {};
+  const axisParams = {};
+  
+  for (const [key, value] of params.entries()) {
+    if (key.startsWith('common.')) {
+      const field = key.substring(7); // Remove 'common.'
+      commonParams[field] = value;
+    } else if (key.startsWith('axis.')) {
+      const match = key.match(/^axis\.(\d+)\.(.+)$/);
+      if (match) {
+        const axisNumber = parseInt(match[1]);
+        const field = match[2];
+        if (!axisParams[axisNumber]) {
+          axisParams[axisNumber] = {};
+        }
+        axisParams[axisNumber][field] = value;
+      }
+    }
+  }
+  
+  return { commonParams, axisParams };
+}
+
+function dictToChips(dict) {
+  return Object.entries(dict).map(([field, value]) => {
+    const hasMultipleValues = value.includes(',');
+    return {
+      field,
+      value: field,
+      data: value,
+      label: `${field}=${value}`,
+      isMultiValue: hasMultipleValues,
+      values: hasMultipleValues ? value.split(',').map(v => v.trim()) : [value]
+    };
+  });
+}
+
+function initializeFromUrl() {
+  const { commonParams, axisParams } = parseUrlParams();
+  
+  // Initialize common config
+  const commonConfig = Object.keys(commonParams).length > 0 ? 
+    dictToChips({ ...defaultCommonValues, ...commonParams }) :
     Object.entries(defaultCommonValues).map(([field, value]) => ({
       field,
       value: field,
@@ -2262,9 +2305,22 @@ function App() {
       label: `${field}=${value}`,
       isMultiValue: false,
       values: [value]
-    }))
-  );
-  const [axisConfigs, setAxisConfigs] = useState(() => {
+    }));
+  
+  // Initialize axis configs
+  const axisConfigs = [];
+  if (Object.keys(axisParams).length > 0) {
+    const maxAxis = Math.max(...Object.keys(axisParams).map(k => parseInt(k)));
+    for (let i = 1; i <= maxAxis; i++) {
+      if (axisParams[i]) {
+        axisConfigs.push([dictToChips(axisParams[i]), []]);
+      } else {
+        axisConfigs.push([[]]);
+      }
+    }
+    axisConfigs.push([[]]);  // Add empty axis for adding more
+  } else {
+    // Default axis configuration
     const createMultiChip = (field, values) => ({
       field,
       value: field,
@@ -2273,20 +2329,27 @@ function App() {
       isMultiValue: true,
       values: values
     });
-    return [
-      // Axis 1: Controllers (multi-value)
+    axisConfigs.push(
       [
         [createMultiChip('controller', ['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'])],
-        [] // Empty line for adding more
+        []
       ],
-      // Axis 2: Voltages (multi-value)
       [
         [createMultiChip('voltage', ['12', '24', '36', '48', '54'])],
-        [] // Empty line for adding more
+        []
       ],
-      [[]] // Empty axis 3 for adding more axes
-    ];
-  });
+      [[]]
+    );
+  }
+  
+  return { commonConfig, axisConfigs };
+}
+
+/* ---------- Main App Component ---------- */
+function App() {
+  const { commonConfig: initialCommonConfig, axisConfigs: initialAxisConfigs } = initializeFromUrl();
+  const [commonConfig, setCommonConfig] = useState(initialCommonConfig);
+  const [axisConfigs, setAxisConfigs] = useState(initialAxisConfigs);
 
   // State for overlay functionality
   const [selectedCell, setSelectedCell] = useState(null);
