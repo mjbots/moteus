@@ -232,16 +232,16 @@ const defaultCommonValues = {
   'voltage': '24',
   'velocity': '0',
   'pwm': 'default',
-  'supply_power': 'unlimited',
-  'supply_current': 'unlimited',
+  'supply_power': 'infinity',
+  'supply_current': 'infinity',
   'time': 'infinity',
   'gear_ratio': '1',
   'ambient_temp': '25',
   'max_controller_temp': 'default',
   'max_motor_temp': 'default',
-  'torque': 0,
+  'torque': '0',
   'output': 'torque',
-  'analysis': "max_torque", // 'max_speed', 'operating_point'
+  'analysis': "max_current", // 'max_speed', 'operating_point'
 };
 
 // Default values for motor sub-fields
@@ -288,6 +288,7 @@ const fieldValueOptions = {
     'max',
   ],
   'analysis': [
+    'max_current',
     'max_torque',
     'max_speed',
     'operating_point',
@@ -295,9 +296,8 @@ const fieldValueOptions = {
   'output': [
     'torque',
     'speed',
-    'power',
-    'controller_temperature',
-    'motor_temperature',
+    'controller_temp',
+    'motor_temp',
     'supply_power',
     'supply_current',
     'phase_current',
@@ -453,6 +453,48 @@ class Interpolator2D {
   }
 }
 
+    class OperatingPoint {
+      torque = null;
+      speed = null;
+      controller_temp = null;
+      motor_temp = null;
+      supply_power = null;
+      supply_current = null;
+      phase_current = null;
+      copper_loss = null;
+      iron_loss = null;
+      controller_loss = null;
+      mechanical_power = null;
+      efficiency = null;
+
+      constructor(opts = {}) {
+        Object.assign(this, opts);
+      }
+
+      render() {
+        return html`
+        <h3>Operating Point</h3>
+        <table>
+          ${[['torque', 'Motor Torque (Nm)'],
+             ['speed', 'Speed (Hz)'],
+             ['controller_temp', 'Controller Temperature (°C)'],
+             ['motor_temp', 'Motor Temperature (°C)'],
+             ['supply_power', 'Supply Power (W)'],
+             ['supply_current', 'Supply Current (A)'],
+             ['phase_current', 'Phase Current (A)'],
+             ['copper_loss', 'Copper Loss (W)'],
+             ['iron_loss', 'Iron Loss (W)'],
+             ['controller_loss', 'Controller Loss (W)'],
+             ['mechanical_power', 'Mechanical Power (W)'],
+             ['efficiency', 'Efficiency (%)'],
+           ].map(([attrName, displayName]) =>
+           html`${this[attrName] !== null && this[attrName] !== undefined ? html`<tr><td>${displayName}</td><td>${this[attrName].toFixed(3)}</td></tr>` : ''}`)
+           }
+        </table>
+        `
+      }
+    }
+
 class Controller {
   constructor(props, power, thermal) {
     this.props = props;
@@ -492,7 +534,7 @@ class Controller {
     const b = k1;
     const a = k2;
 
-    return Math.min(this.getMaxCurrent(config.voltage),
+    return Math.min(this.getMaxCurrent(voltage),
       (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a));
   }
 
@@ -508,7 +550,7 @@ class Controller {
   }
 
   getTemperature(thermalPower, {controller_cooling, time, ambient_temp}) {
-    const timePeriodS = mapTime(time);
+    const timePeriodS = time;
     const [R, C] = this.getThermalProperties(controller_cooling);
     return ambient_temp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
   }
@@ -929,10 +971,12 @@ class HT1105 extends Motor {
   }
 }
 
-class OutputMaxCurrent {
+class AnalysisMaxCurrent {
   evaluate(config) {
     const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
-    const timePeriodS = mapTime(config.time);
+    const timePeriodS = config.time;
+    const controllerMaxTemp = config.max_controller_temp == 'default' ? config.controller.getMaxTemp() : config.max_controller_temp;
+    const deltaT = controllerMaxTemp - config.ambient_temp;
 
     if (config.voltage > config.controller.getMaxVoltage()) {
       return null;
@@ -943,6 +987,15 @@ class OutputMaxCurrent {
 
     const result = config.controller.getCurrentFromThermalPower(thermalW, config);
 
+    if (result < 0) {
+      return null;
+    }
+
+    return new OperatingPoint({
+      phase_current: result,
+      controller_temp: controllerMaxTemp,
+      controller_loss: thermalW,
+    });
   }
 }
 
@@ -1155,21 +1208,23 @@ const modelRegistry = {
     'be8108': new BE8108(),
     'hoverboard350': new Hoverboard350(),
     'ht1105': new HT1105(),
-  }
+  },
+  analysis: {
+    'max_current': new AnalysisMaxCurrent(),
+  },
 };
 
 /* ---------- Evaluation Function ---------- */
 function evaluate(config) {
-  // For now, just return a hash of the configuration
-  // Later this will contain the actual simulation logic
-  const str = JSON.stringify(config, null, 0);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
+  const op = config.analysis.evaluate(config);
+  if (op == null) {
+    return '';
   }
-  return Math.abs(hash).toString(16).substr(0, 6);
+  const result = op[config.output];
+  if (result == null) {
+    return '';
+  }
+  return result.toFixed(2);
 }
 
 /* ---------- Simulator Component ---------- */
@@ -1194,7 +1249,22 @@ function Simulator({ commonConfig, axisConfigs }) {
       } else if (modelRegistry[key] && modelRegistry[key][value]) {
         reified[key] = modelRegistry[key][value];
       } else {
-        reified[key] = value; // Keep as string if no model found
+        // Try to convert to number if it's a pure number string or infinity
+        if (typeof value === 'string') {
+          const lowerValue = value.toLowerCase().trim();
+          if (lowerValue === 'infinity') {
+            reified[key] = Infinity;
+          } else {
+            const numValue = Number(value);
+            if (!isNaN(numValue) && isFinite(numValue) && value.trim() === numValue.toString()) {
+              reified[key] = numValue;
+            } else {
+              reified[key] = value; // Keep as string if not a number
+            }
+          }
+        } else {
+          reified[key] = value; // Keep as-is if not a string
+        }
       }
     });
     return reified;
