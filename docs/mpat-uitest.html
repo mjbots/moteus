@@ -768,11 +768,26 @@ class Motor {
             this.rotationCurrentScale, 0.00001))));
   }
 
-  getMaxVelocityHz(controller, voltage) {
+  getMaxVelocity(controller, voltage) {
     return controller.getSpeedFactor() * voltage * this.Kv / 60.0;
   }
 
-  // Note: getOperatingPoint method omitted as it depends on OperatingPoint class
+  getOperatingPoint(config) {
+    const result = new OperatingPoint({});
+    result.torque = this.getTorqueFromCurrent(config.phase_current);
+    result.phase_current = config.phase_current;
+
+    const r = this.getPower(config.phase_current, config.velocity);
+    result.copper_loss = r.Pcopper;
+    result.iron_loss = r.Piron;
+    result.mechanical_power = r.Pmech;
+    const motorLossPower = r.Pcopper + r.Piron;
+
+    const [R, C] = this.getThermalProperties(config.motor_cooling);
+    result.motor_temp = config.ambient_temp + motorLossPower * R * (1.0 - Math.exp(-config.time / (R * C)));
+
+    return result;
+  }
 }
 
 class MoteusC1 extends MoteusController {
@@ -1182,12 +1197,10 @@ class OdriveMicro extends OdriveController {
   }
 }
 
-class AnalysisMaxCurrent {
-  evaluate(config) {
+function evaluateMaxCurrent(config) {
     const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
     const timePeriodS = config.time;
-    const controllerMaxTemp = config.max_controller_temp == 'default' ? config.controller.getMaxTemp() : config.max_controller_temp;
-    const deltaT = controllerMaxTemp - config.ambient_temp;
+    const deltaT = config.max_controller_temp - config.ambient_temp;
 
     if (config.voltage > config.controller.getMaxVoltage()) {
       return null;
@@ -1204,9 +1217,73 @@ class AnalysisMaxCurrent {
 
     return new OperatingPoint({
       phase_current: result,
-      controller_temp: controllerMaxTemp,
+      controller_temp: config.max_controller_temp,
       controller_loss: thermalW,
     });
+}
+
+class AnalysisMaxCurrent {
+  evaluate(config) {
+    return evaluateMaxCurrent(config);
+  }
+}
+
+class AnalysisMaxTorque {
+  evaluate(config) {
+    if (config.motor == null) {
+      return null;
+    }
+
+    if (config.velocity > config.motor.getMaxVelocity(config.controller, config.voltage)) {
+      return null;
+    }
+
+    const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
+    if (R== null || C == null) {
+      return null;
+    }
+
+    const timePeriodS = config.time;
+    const deltaT = config.max_motor_temp - config.ambient_temp;
+
+    const thermalW = (timePeriodS == Infinity) ?
+          deltaT / R :
+          deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+    const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor() * config.voltage - config.motor.getBackEmf(config.velocity)));
+
+    const motorCurrent =
+          config.motor.getCurrentFromThermalPowerAndVelocity(
+            thermalW,
+            config.velocity,
+            config.controller.getMaxPower(config.voltage, config.pwm),
+            supplyVoltageMargin);
+
+    const controllerCurrent = evaluateMaxCurrent(config);
+    if (controllerCurrent == null) {
+      return null;
+    }
+
+    const finalCurrent = Math.min(motorCurrent, controllerCurrent.phase_current);
+    const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent);
+
+    const op = config.motor.getOperatingPoint({
+      ...config,
+      'phase_current': finalCurrent,
+    });
+
+    const thermalPower = config.controller.getThermalPower({
+      ...config,
+      'current': finalCurrent});
+    op['controller_loss'] = thermalPower;
+    op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
+
+    const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
+    op['supply_power'] = totalLossPowerW + op.mechanical_power;
+    op['supply_current'] = op.supply_power / config.voltage;
+    op['efficiency'] = 100.0 * op.mechanical_power / op.supply_power;
+
+    return op;
   }
 }
 
@@ -1426,12 +1503,21 @@ const modelRegistry = {
   },
   analysis: {
     'max_current': new AnalysisMaxCurrent(),
+    'max_torque': new AnalysisMaxTorque(),
   },
 };
 
 /* ---------- Evaluation Function ---------- */
 function evaluate(config) {
-  config.pwm = config.pwm == 'default' ? config.controller.getDefaultPwm() : config.pwm;
+  // Populate some defaults.
+  config.pwm = (config.pwm == 'default') ? config.controller.getDefaultPwm() : config.pwm;
+  config.max_controller_temp = (config.max_controller_temp == 'default') ? config.controller?.getMaxTemp() : config.max_controller_temp;
+  config.max_motor_temp = (config.max_motor_temp == 'default') ? config.motor?.getMaxTemp() : config.max_motor_temp;
+
+  if (config.analysis == null) {
+    return '';
+  }
+
   const op = config.analysis.evaluate(config);
   if (op == null) {
     return '';
