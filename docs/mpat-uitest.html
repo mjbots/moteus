@@ -2211,15 +2211,18 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
   const tables = generateTables();
 
   // Helper function to render a clickable table cell
-  const renderTableCell = (cell, rowIndex, colIndex) => {
-    const isSelected = selectedCell && selectedCell.rowIndex === rowIndex && selectedCell.colIndex === colIndex;
+  const renderTableCell = (cell, rowIndex, colIndex, tableIndex) => {
+    const isSelected = selectedCell && 
+      selectedCell.rowIndex === rowIndex && 
+      selectedCell.colIndex === colIndex && 
+      selectedCell.tableIndex === tableIndex;
     const isInfeasible = cell.operatingPoint && cell.operatingPoint._infeasible_reason && !cell.operatingPoint._limiting_factor;
 
     return html`
       <td
         key=${colIndex}
         style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${isSelected ? '#e6f3ff' : 'inherit'}; color: ${isInfeasible ? '#999' : 'inherit'};"
-        onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex)}
+        onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex, tableIndex)}
       >
         ${isInfeasible ? html`<span style="color: #888;">⚠️ </span>` : ''}${cell.result}
       </td>
@@ -2229,7 +2232,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
   return html`
     <div>
       <h3>Simulator Results</h3>
-      ${tables.map(table => html`
+      ${tables.map((table, tableIndex) => html`
         <div key=${table.title} style="margin-bottom: 2rem;">
           <h4>${table.title}</h4>
           ${table.rows.length === 0 || table.columns.length === 0 ?
@@ -2266,7 +2269,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
-                          ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0)}
+                          ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0, tableIndex)}
                         ` :
                         html`
                           <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
@@ -2274,7 +2277,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
                           </td>
-                          ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex))}
+                          ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex, tableIndex))}
                         `
                       }
                     </tr>
@@ -2539,11 +2542,12 @@ function App() {
   };
 
   // Handler for cell clicks
-  const handleCellClick = (cellConfig, cellResult, rowIndex, colIndex) => {
+  const handleCellClick = (cellConfig, cellResult, rowIndex, colIndex, tableIndex) => {
     // If clicking the same cell, close the overlay
     if (selectedCell &&
         selectedCell.rowIndex === rowIndex &&
-        selectedCell.colIndex === colIndex) {
+        selectedCell.colIndex === colIndex &&
+        selectedCell.tableIndex === tableIndex) {
       setSelectedCell(null);
       setOverlayVisible(false);
       return;
@@ -2554,7 +2558,8 @@ function App() {
       config: cellConfig,
       result: cellResult,
       rowIndex,
-      colIndex
+      colIndex,
+      tableIndex
     });
     setOverlayVisible(true);
   };
