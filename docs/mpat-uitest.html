@@ -264,6 +264,14 @@ const motorSubFieldDefaults = {
   'motor.type': 'outrunner'
 };
 
+// Default axis configurations
+const defaultAxisConfigs = [
+  // Default axis 1: Controllers
+  [{ field: 'controller', data: 'moteus-c1,moteus-r4,moteus-n1,moteus-x1' }],
+  // Default axis 2: Voltages  
+  [{ field: 'voltage', data: '12,24,36,48,54' }]
+];
+
 /* Field-specific value suggestions - only for constrained fields */
 const fieldValueOptions = {
   'controller': [
@@ -2320,29 +2328,129 @@ function initializeFromUrl() {
     }
     axisConfigs.push([[]]);  // Add empty axis for adding more
   } else {
-    // Default axis configuration
-    const createMultiChip = (field, values) => ({
-      field,
-      value: field,
-      data: values.join(','),
-      label: `${field}=${values.join(',')}`,
-      isMultiValue: true,
-      values: values
+    // Use default axis configuration
+    defaultAxisConfigs.forEach(axisConfig => {
+      const chips = axisConfig.map(({ field, data }) => {
+        const hasMultipleValues = data.includes(',');
+        return {
+          field,
+          value: field,
+          data,
+          label: `${field}=${data}`,
+          isMultiValue: hasMultipleValues,
+          values: hasMultipleValues ? data.split(',').map(v => v.trim()) : [data]
+        };
+      });
+      axisConfigs.push([chips, []]);
     });
-    axisConfigs.push(
-      [
-        [createMultiChip('controller', ['moteus-c1', 'moteus-r4', 'moteus-n1', 'moteus-x1'])],
-        []
-      ],
-      [
-        [createMultiChip('voltage', ['12', '24', '36', '48', '54'])],
-        []
-      ],
-      [[]]
-    );
+    axisConfigs.push([[]]);  // Add empty axis for adding more
   }
   
   return { commonConfig, axisConfigs };
+}
+
+/* ---------- URL Generation ---------- */
+function generateUrlFromConfig(commonConfig, axisConfigs) {
+  const params = new URLSearchParams();
+  
+  // Process common config - only include differences from defaults
+  const commonDict = {};
+  commonConfig.forEach(chip => {
+    if (chip.field && chip.data !== undefined) {
+      commonDict[chip.field] = chip.data;
+    }
+  });
+  
+  Object.entries(commonDict).forEach(([field, value]) => {
+    if (defaultCommonValues[field] !== value) {
+      params.set(`common.${field}`, value);
+    }
+  });
+  
+  // Helper functions for axis processing
+  const hasNonEmptyAxis = (configs) => {
+    return configs.some(config => config.length > 0);
+  };
+  
+  const axisToDict = (axisConfigs) => {
+    const dict = {};
+    axisConfigs.forEach(lineConfigs => {
+      lineConfigs.forEach(chip => {
+        if (chip.field && chip.data !== undefined) {
+          dict[chip.field] = chip.data;
+        }
+      });
+    });
+    return dict;
+  };
+  
+  const axisMatches = (axisConfigs, defaultAxis) => {
+    const axisDict = axisToDict(axisConfigs);
+    const defaultDict = Object.fromEntries(defaultAxis.map(({ field, data }) => [field, data]));
+    
+    // Check if they have the same keys and values
+    const axisKeys = Object.keys(axisDict).sort();
+    const defaultKeys = Object.keys(defaultDict).sort();
+    
+    if (axisKeys.length !== defaultKeys.length) return false;
+    if (axisKeys.some((key, i) => key !== defaultKeys[i])) return false;
+    
+    return axisKeys.every(key => axisDict[key] === defaultDict[key]);
+  };
+  
+  // Check each axis against defaults and include if different
+  axisConfigs.forEach((axisConfig, index) => {
+    if (!hasNonEmptyAxis(axisConfig)) return; // Skip empty axes
+    
+    const axisNumber = index + 1;
+    const isDefault = index < defaultAxisConfigs.length && 
+                     axisMatches(axisConfig, defaultAxisConfigs[index]);
+    
+    if (!isDefault) {
+      const axisDict = axisToDict(axisConfig);
+      Object.entries(axisDict).forEach(([field, value]) => {
+        params.set(`axis.${axisNumber}.${field}`, value);
+      });
+    }
+  });
+  
+  return params.toString();
+}
+
+async function copyUrlToClipboard(commonConfig, axisConfigs) {
+  const queryString = generateUrlFromConfig(commonConfig, axisConfigs);
+  const baseUrl = window.location.origin + window.location.pathname;
+  const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  
+  // Try modern clipboard API first
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      return true;
+    } catch (err) {
+      console.error('Clipboard API failed:', err);
+    }
+  }
+  
+  // Fallback to older method
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = fullUrl;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    
+    return successful;
+  } catch (err) {
+    console.error('Fallback copy method failed:', err);
+    return false;
+  }
 }
 
 /* ---------- Main App Component ---------- */
@@ -2354,6 +2462,7 @@ function App() {
   // State for overlay functionality
   const [selectedCell, setSelectedCell] = useState(null);
   const [overlayVisible, setOverlayVisible] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
 
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
     let newAxisConfigs = [...axisConfigs];
@@ -2410,6 +2519,18 @@ function App() {
     setOverlayVisible(false);
   };
 
+  // Handler for copying URL
+  const handleCopyUrl = async () => {
+    const success = await copyUrlToClipboard(commonConfig, axisConfigs);
+    if (success) {
+      setCopyStatus('URL copied to clipboard!');
+      setTimeout(() => setCopyStatus(''), 3000);
+    } else {
+      setCopyStatus('Failed to copy URL');
+      setTimeout(() => setCopyStatus(''), 3000);
+    }
+  };
+
   /* optional: watch state while testing */
   useEffect(() => {
     console.log('Common Config:', commonConfig);
@@ -2431,6 +2552,21 @@ function App() {
             onConfigsChange=${(newConfigs) => handleAxisConfigChange(axisIndex, newConfigs)}
           />
         `)}
+        <div class="panelContainer">
+          <div class="panelContent">
+            <button 
+              onClick=${handleCopyUrl}
+              style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+            >
+              Copy URL
+            </button>
+            ${copyStatus && html`
+              <div style="margin-top: 8px; font-size: 12px; color: ${copyStatus.includes('Failed') ? '#d32f2f' : '#2e7d32'};">
+                ${copyStatus}
+              </div>
+            `}
+          </div>
+        </div>
       </div>
       <div class="resultsColumn">
         <${Simulator}
