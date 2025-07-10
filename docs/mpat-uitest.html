@@ -268,7 +268,7 @@ const motorSubFieldDefaults = {
 const defaultAxisConfigs = [
   // Default axis 1: Controllers
   [{ field: 'controller', data: 'moteus-c1,moteus-r4,moteus-n1,moteus-x1' }],
-  // Default axis 2: Voltages  
+  // Default axis 2: Voltages
   [{ field: 'voltage', data: '12,24,36,48,54' }]
 ];
 
@@ -979,7 +979,7 @@ class ExtrapolatedMotor extends Motor {
         'none': {R: 1.0, C: 100.0} // Placeholder
       }
     });
-    
+
     this.mass = mass;
     this.diameter = diameter;
     this.type = type;
@@ -1328,6 +1328,10 @@ class OdrivePro extends OdriveController {
       '12vfan':       {R: 1.0, C: 71.7 },
       'max':          {R: 1.0, C: 71.7},
     });
+  }
+
+  getSpeedFactor() {
+    return 0.90;
   }
 }
 
@@ -1939,7 +1943,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     if (reified.motor === 'model') {
       const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
       const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
-      
+
       if (hasAllFields) {
         reified.motor = new Motor({
           name: 'model',
@@ -1964,7 +1968,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     if (reified.motor === 'extrapolated') {
       const requiredFields = ['motor.kv', 'motor.mass', 'motor.diameter', 'motor.type'];
       const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
-      
+
       if (hasAllFields) {
         reified.motor = new ExtrapolatedMotor({
           kv: reified['motor.kv'],
@@ -2265,7 +2269,7 @@ function parseUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const commonParams = {};
   const axisParams = {};
-  
+
   for (const [key, value] of params.entries()) {
     if (key.startsWith('common.')) {
       const field = key.substring(7); // Remove 'common.'
@@ -2282,7 +2286,7 @@ function parseUrlParams() {
       }
     }
   }
-  
+
   return { commonParams, axisParams };
 }
 
@@ -2302,9 +2306,9 @@ function dictToChips(dict) {
 
 function initializeFromUrl() {
   const { commonParams, axisParams } = parseUrlParams();
-  
+
   // Initialize common config
-  const commonConfig = Object.keys(commonParams).length > 0 ? 
+  const commonConfig = Object.keys(commonParams).length > 0 ?
     dictToChips({ ...defaultCommonValues, ...commonParams }) :
     Object.entries(defaultCommonValues).map(([field, value]) => ({
       field,
@@ -2314,7 +2318,7 @@ function initializeFromUrl() {
       isMultiValue: false,
       values: [value]
     }));
-  
+
   // Initialize axis configs
   const axisConfigs = [];
   if (Object.keys(axisParams).length > 0) {
@@ -2345,14 +2349,14 @@ function initializeFromUrl() {
     });
     axisConfigs.push([[]]);  // Add empty axis for adding more
   }
-  
+
   return { commonConfig, axisConfigs };
 }
 
 /* ---------- URL Generation ---------- */
 function generateUrlFromConfig(commonConfig, axisConfigs) {
   const params = new URLSearchParams();
-  
+
   // Process common config - only include differences from defaults
   const commonDict = {};
   commonConfig.forEach(chip => {
@@ -2360,18 +2364,18 @@ function generateUrlFromConfig(commonConfig, axisConfigs) {
       commonDict[chip.field] = chip.data;
     }
   });
-  
+
   Object.entries(commonDict).forEach(([field, value]) => {
     if (defaultCommonValues[field] !== value) {
       params.set(`common.${field}`, value);
     }
   });
-  
+
   // Helper functions for axis processing
   const hasNonEmptyAxis = (configs) => {
     return configs.some(config => config.length > 0);
   };
-  
+
   const axisToDict = (axisConfigs) => {
     const dict = {};
     axisConfigs.forEach(lineConfigs => {
@@ -2383,29 +2387,29 @@ function generateUrlFromConfig(commonConfig, axisConfigs) {
     });
     return dict;
   };
-  
+
   const axisMatches = (axisConfigs, defaultAxis) => {
     const axisDict = axisToDict(axisConfigs);
     const defaultDict = Object.fromEntries(defaultAxis.map(({ field, data }) => [field, data]));
-    
+
     // Check if they have the same keys and values
     const axisKeys = Object.keys(axisDict).sort();
     const defaultKeys = Object.keys(defaultDict).sort();
-    
+
     if (axisKeys.length !== defaultKeys.length) return false;
     if (axisKeys.some((key, i) => key !== defaultKeys[i])) return false;
-    
+
     return axisKeys.every(key => axisDict[key] === defaultDict[key]);
   };
-  
+
   // Check each axis against defaults and include if different
   axisConfigs.forEach((axisConfig, index) => {
     if (!hasNonEmptyAxis(axisConfig)) return; // Skip empty axes
-    
+
     const axisNumber = index + 1;
-    const isDefault = index < defaultAxisConfigs.length && 
+    const isDefault = index < defaultAxisConfigs.length &&
                      axisMatches(axisConfig, defaultAxisConfigs[index]);
-    
+
     if (!isDefault) {
       const axisDict = axisToDict(axisConfig);
       Object.entries(axisDict).forEach(([field, value]) => {
@@ -2413,7 +2417,7 @@ function generateUrlFromConfig(commonConfig, axisConfigs) {
       });
     }
   });
-  
+
   return params.toString();
 }
 
@@ -2421,7 +2425,7 @@ async function copyUrlToClipboard(commonConfig, axisConfigs) {
   const queryString = generateUrlFromConfig(commonConfig, axisConfigs);
   const baseUrl = window.location.origin + window.location.pathname;
   const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
-  
+
   // Try modern clipboard API first
   if (navigator.clipboard && window.isSecureContext) {
     try {
@@ -2431,7 +2435,7 @@ async function copyUrlToClipboard(commonConfig, axisConfigs) {
       console.error('Clipboard API failed:', err);
     }
   }
-  
+
   // Fallback to older method
   try {
     const textArea = document.createElement('textarea');
@@ -2442,10 +2446,10 @@ async function copyUrlToClipboard(commonConfig, axisConfigs) {
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
-    
+
     const successful = document.execCommand('copy');
     document.body.removeChild(textArea);
-    
+
     return successful;
   } catch (err) {
     console.error('Fallback copy method failed:', err);
@@ -2562,7 +2566,7 @@ function App() {
         `)}
         <div class="panelContainer">
           <div class="panelContent">
-            <button 
+            <button
               onClick=${handleCopyUrl}
               style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"
             >
