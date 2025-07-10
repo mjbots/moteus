@@ -2352,7 +2352,24 @@ function initializeFromUrl() {
       if (axisParams[i]) {
         axisConfigs.push([dictToChips(axisParams[i]), []]);
       } else {
-        axisConfigs.push([[]]);
+        // Use default for this axis if it exists, otherwise empty
+        const defaultIndex = i - 1; // Convert to 0-based index
+        if (defaultIndex < defaultAxisConfigs.length) {
+          const chips = defaultAxisConfigs[defaultIndex].map(({ field, data }) => {
+            const hasMultipleValues = data.includes(',');
+            return {
+              field,
+              value: field,
+              data,
+              label: `${field}=${data}`,
+              isMultiValue: hasMultipleValues,
+              values: hasMultipleValues ? data.split(',').map(v => v.trim()) : [data]
+            };
+          });
+          axisConfigs.push([chips, []]);
+        } else {
+          axisConfigs.push([[]]);
+        }
       }
     }
     axisConfigs.push([[]]);  // Add empty axis for adding more
