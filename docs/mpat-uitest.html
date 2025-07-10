@@ -922,15 +922,20 @@ class Motor {
 
   getCurrentFromTorque(outputTorque, config) {
     const torque = outputTorque / config.gear_reduction;
-    const a = (Math.abs(torque) - this.rotationCurrentCutoff * this.kt) /
-          this.rotationTorqueScale;
-    const rotationExtra = (Math.pow(2, a) - 1.0) / this.rotationCurrentScale;
-
     const cutoffTorque = this.rotationCurrentCutoff * this.kt;
     const copysign = (x, y) => Math.sign(x) === Math.sign(y) ? x : -x;
 
-    return (Math.abs(torque) < this.rotationCurrentCutoff) ?
-      (torque / this.kt) : copysign(this.rotationCurrentCutoff + rotationExtra, torque);
+    if (Math.abs(torque) < cutoffTorque) {
+      const result = torque / this.kt;
+      return result;
+    } else {
+      const a = (Math.abs(torque) - cutoffTorque) / this.rotationTorqueScale;
+      const pow2a = Math.pow(2, a);
+      const rotationExtra = (pow2a - 1.0) / this.rotationCurrentScale;
+      const unsignedResult = this.rotationCurrentCutoff + rotationExtra;
+      const result = copysign(unsignedResult, torque);
+      return result;
+    }
   }
 
   getTorqueFromCurrent(currentA, config) {
