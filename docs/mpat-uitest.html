@@ -2159,9 +2159,17 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
           const axisPreReified = additionalAxesPreReified[i];
           const axisInfo = getAxisInfo(axisPreReified);
           const configIndex = additionalAxes[i].configurations.indexOf(config);
-          const label = axisInfo.formatLabel && axisPreReified[configIndex] ? 
-            axisInfo.formatLabel(axisPreReified[configIndex]) : 
-            hashConfig(config);
+          
+          // For additional axes, always include field names in the label
+          let label;
+          if (axisPreReified[configIndex]) {
+            const preReifiedConfig = axisPreReified[configIndex];
+            const fieldEntries = Object.entries(preReifiedConfig);
+            label = fieldEntries.map(([field, value]) => `${field}=${value}`).join(', ');
+          } else {
+            label = hashConfig(config);
+          }
+          
           return `Axis ${i + 3}: ${label}`;
         }).join(', ')})` :
         '';
