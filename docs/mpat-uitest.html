@@ -242,8 +242,6 @@ const defaultCommonValues = {
   'voltage': '24',
   'velocity': '0',
   'pwm': 'default',
-  'supply_power': 'infinity',
-  'supply_current': 'infinity',
   'time': 'infinity',
   'gear_reduction': '1',
   'ambient_temp': '25',
@@ -1448,7 +1446,7 @@ class AnalysisMaxCurrent {
 
 function evaluateOperatingPoint(config) {
   const required = [
-    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'supply_power', 'supply_current', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
   ];
 
   // Check if any required field is null
@@ -1509,7 +1507,7 @@ class AnalysisOperatingPoint {
 class AnalysisMaxTorque {
   evaluate(config) {
     const required = [
-      'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'supply_power', 'supply_current', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+      'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
     ];
 
     // Check if any required field is null
@@ -2165,7 +2163,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
           const axisPreReified = additionalAxesPreReified[i];
           const axisInfo = getAxisInfo(axisPreReified);
           const configIndex = additionalAxes[i].configurations.indexOf(config);
-          
+
           // For additional axes, always include field names in the label
           let label;
           if (axisPreReified[configIndex]) {
@@ -2175,7 +2173,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
           } else {
             label = hashConfig(config);
           }
-          
+
           return `Axis ${i + 3}: ${label}`;
         }).join(', ')})` :
         '';
@@ -2218,9 +2216,9 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
 
   // Helper function to render a clickable table cell
   const renderTableCell = (cell, rowIndex, colIndex, tableIndex) => {
-    const isSelected = selectedCell && 
-      selectedCell.rowIndex === rowIndex && 
-      selectedCell.colIndex === colIndex && 
+    const isSelected = selectedCell &&
+      selectedCell.rowIndex === rowIndex &&
+      selectedCell.colIndex === colIndex &&
       selectedCell.tableIndex === tableIndex;
     const isInfeasible = cell.operatingPoint && cell.operatingPoint._infeasible_reason && !cell.operatingPoint._limiting_factor;
 
