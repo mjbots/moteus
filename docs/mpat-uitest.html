@@ -2392,6 +2392,13 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
 
   const tables = generateTables();
 
+  // Helper function to format axis labels with fallback to config hash
+  const formatAxisLabel = (axisInfo, preReifiedArray, index, config) => {
+    return axisInfo?.formatLabel && preReifiedArray?.[index] ?
+      axisInfo.formatLabel(preReifiedArray[index]) :
+      hashConfig(config);
+  };
+
   // Helper function to render a clickable table cell
   const renderTableCell = (cell, rowIndex, colIndex, tableIndex) => {
     const isSelected = selectedCell &&
@@ -2433,9 +2440,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                         <th>${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
                         ${table.columns.map((colConfig, colIndex) => html`
                           <th key=${hashConfig(colConfig)}>
-                            ${table.axis2Info?.formatLabel && table.axis2PreReified?.[colIndex] ?
-                              table.axis2Info.formatLabel(table.axis2PreReified[colIndex]) :
-                              hashConfig(colConfig)}
+                            ${formatAxisLabel(table.axis2Info, table.axis2PreReified, colIndex, colConfig)}
                           </th>
                         `)}
                       `
@@ -2448,17 +2453,13 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                       ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
                         html`
                           <td class="row-header">
-                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ?
-                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
-                              hashConfig(rowConfig)}
+                            ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
                           </td>
                           ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0, tableIndex)}
                         ` :
                         html`
                           <td class="row-header">
-                            ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ?
-                              table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
-                              hashConfig(rowConfig)}
+                            ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
                           </td>
                           ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex, tableIndex))}
                         `
