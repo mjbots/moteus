@@ -2137,6 +2137,15 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     const axis1Info = getAxisInfo(axis1PreReified);
     const axis2Info = getAxisInfo(axis2PreReified);
 
+    // Get pre-reified configurations for additional axes for proper labeling
+    const additionalAxesPreReified = additionalAxes.map((axis, axisIndex) => {
+      const realAxisIndex = axisIndex + 2; // axes 3, 4, 5, etc.
+      return axisConfigs[realAxisIndex]?.flatMap(lineChips => {
+        const expandedLines = expandChipLine(lineChips);
+        return expandedLines.map(expandedLine => convertChipsToDict(expandedLine));
+      }).filter(dict => Object.keys(dict).length > 0) || [];
+    });
+
     return combinations.map((combination, index) => {
       // Build additional config from combination
       const additionalConfig = {};
@@ -2144,9 +2153,17 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         Object.assign(additionalConfig, config);
       });
 
-      // Generate title showing additional axes
+      // Generate title showing additional axes with proper labeling
       const additionalTitle = combination.length > 0 ?
-        ` (${combination.map((config, i) => `Axis ${i + 3}: ${hashConfig(config)}`).join(', ')})` :
+        ` (${combination.map((config, i) => {
+          const axisPreReified = additionalAxesPreReified[i];
+          const axisInfo = getAxisInfo(axisPreReified);
+          const configIndex = additionalAxes[i].configurations.indexOf(config);
+          const label = axisInfo.formatLabel && axisPreReified[configIndex] ? 
+            axisInfo.formatLabel(axisPreReified[configIndex]) : 
+            hashConfig(config);
+          return `Axis ${i + 3}: ${label}`;
+        }).join(', ')})` :
         '';
 
       return {
