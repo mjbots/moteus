@@ -711,8 +711,9 @@ class Controller {
     const b = k1;
     const a = k2;
 
-    return Math.min(this.getMaxCurrent(voltage),
-      (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a));
+    const current = new LimitedValue((-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a), 'controller_temp');
+    const result = LimitedValue.min(new LimitedValue(this.getMaxCurrent(voltage), 'controller_max_current'), current);
+    return result;
   }
 
   getThermalPower({voltage, pwm, phase_current}) {
@@ -1422,15 +1423,15 @@ function evaluateMaxCurrent(config) {
 
     const result = config.controller.getCurrentFromThermalPower(thermalW, config);
 
-    if (result < 0) {
+    if (result.value < 0) {
       return null;
     }
 
     return new OperatingPoint({
-      phase_current: result,
+      phase_current: result.value,
       controller_temp: config.max_controller_temp,
       controller_loss: thermalW,
-      _limiting_factor: 'controller_temp',
+      _limiting_factor: result.limitingFactor,
     });
 }
 
@@ -1553,7 +1554,7 @@ class AnalysisMaxTorque {
 
     const op = evaluateOperatingPoint({
         ...config,
-        'phase_current': finalCurrent,
+        'phase_current': finalCurrent.value,
         'torque': motorTorque,
     });
     op['_limiting_factor'] = finalCurrent instanceof LimitedValue ? finalCurrent.limitingFactor : null;
