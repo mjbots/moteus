@@ -945,19 +945,21 @@ class Motor {
     const d1 = this.d1;
     const pi = Math.PI;
 
-    // First find the velocity as limited by motor temperature.
+    // First find the rotor velocity as limited by motor temperature.
     const vMotorTemp =
           new LimitedValue(
             (-2 * pi * d0 + Math.sqrt(Math.pow(2 * pi * d0, 2) + 4 * 2 * pi * d1 * Piron_motor)) / (2 * 2 * pi * d1),
             'max_motor_temp');
 
-    // Then the velocity limited by controller maximum power.
+    // Then the rotor velocity limited by controller maximum power.
     const vControllerPower =
           new LimitedValue(
             (-pi * torque - d0 * pi + Math.sqrt(Math.pow(pi * torque, 2) + 2 * d0 * pi * pi * torque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper) * d1 * pi)) / (2 * d1 * pi),
             'max_controller_power');
 
-    return LimitedValue.min(vMotorTemp, vControllerPower);
+    const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
+    return new LimitedValue(rotorResult.value / config.gear_reduction,
+                            rotorResult.limitingFactor);
   }
 
   getCurrentFromTorque(outputTorque, config) {
@@ -988,8 +990,8 @@ class Motor {
             this.rotationCurrentScale, 0.00001)))) * config.gear_reduction;
   }
 
-  getMaxVelocity(controller, voltage) {
-    return controller.getSpeedFactor() * voltage * this.Kv / 60.0;
+  getMaxVelocity(config) {
+    return config.controller.getSpeedFactor() * config.voltage * this.Kv / 60.0 / config.gear_reduction;
   }
 
   getOperatingPoint(config) {
@@ -1559,7 +1561,7 @@ class AnalysisMaxTorque {
       }
     }
 
-    if (config.velocity > config.motor.getMaxVelocity(config.controller, config.voltage)) {
+    if (config.velocity > config.motor.getMaxVelocity(config)) {
       return null;
     }
 
@@ -1629,7 +1631,7 @@ function evaluateMaxVelocity(config) {
   }
 
   // Check each of our possible limits in turn.
-  let resultVelocity = new LimitedValue(config.motor.getMaxVelocity(config.controller, config.voltage), 'back_emf');
+  let resultVelocity = new LimitedValue(config.motor.getMaxVelocity(config), 'back_emf');
 
   const timePeriodS = config.time;
   const deltaT = config.max_motor_temp - config.ambient_temp;
