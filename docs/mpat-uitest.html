@@ -1130,10 +1130,9 @@ class MJ5208 extends Motor {
         'none': {R: 4.55, C: 164.59},  // measured 2025-04-18
         'max':  {R: 0.48, C: 164.59},  // measured 2025-04-18 w/ large desk fan
       },
-      // The following iron loss model was generated from pypowertrain and is
-      // not from any measured or design values.
-      d0: 0.002784,
-      d1: 5.6668e-5,
+      // Measured on 2025-07-10 w/ `motor_iron_loss_test.py`
+      d0: 0.01289,
+      d1: 0.0001469,
       productInfo: '[product page]',
     });
   }
@@ -1156,10 +1155,9 @@ class MAD8318 extends Motor {
         'none': {R: 1.516, C: 735.5},  // measured 2025-04-17
         'max':  {R: 0.311, C: 735.5},  // measured 2025-04-18 w/ large desk fan
       },
-      // The following iron loss model was generated from pypowertrain and is
-      // not from any measured or design values.
-      d0: 0.04132,
-      d1: 0.002403,
+      // Measured on 2025-07-10 w/ `motor_iron_loss_test.py`
+      d0: 0.1272,
+      d1: 0.001829,
       productInfo: '[product page]',
     });
   }
@@ -1805,12 +1803,12 @@ function ConfigFieldSelector({
   const handleKeyDown = (event) => {
     if (event.key === 'Tab') {
       event.preventDefault();
-      
+
       const kv = parseKV(inputValue);
-      
+
       // Try to get the focused option from the select component
       const focusedOption = selectRef.current?.state?.focusedOption;
-      
+
       // If no '=' found, first try to complete the field name
       if (kv && kv.data === undefined && kv.field) {
         // Use the currently focused option if available
@@ -1819,10 +1817,10 @@ function ConfigFieldSelector({
         } else {
           // Fallback to first matching field
           const baseFields = getBaseFields(selected);
-          const matchingFields = baseFields.filter(field => 
+          const matchingFields = baseFields.filter(field =>
             field.field.toLowerCase().startsWith(kv.field.toLowerCase())
           );
-          
+
           if (matchingFields.length > 0) {
             const completedField = matchingFields[0].field;
             setInputValue(completedField + '=');
@@ -1832,7 +1830,7 @@ function ConfigFieldSelector({
         }
         return;
       }
-      
+
       // If we already have '=' and this is a constrained field, cycle through options
       if (kv && kv.data !== undefined && fieldValueOptions[kv.field]) {
         // Use the currently focused option if available
@@ -1842,20 +1840,20 @@ function ConfigFieldSelector({
           // Fallback to first matching option
           const fieldOptions = fieldValueOptions[kv.field];
           let filterText = kv.data;
-          
+
           // Handle multi-value input: get the text after the last comma
           if (allowMultiValue && kv.isMultiValue) {
             const values = kv.data.split(',');
             filterText = values[values.length - 1].trim();
           }
-          
+
           // Find matching options
           const filteredOptions = filterText === '' ? fieldOptions :
             fieldOptions.filter(value => value.toLowerCase().includes(filterText.toLowerCase()));
-          
+
           if (filteredOptions.length > 0) {
             const selectedOption = filteredOptions[0];
-            
+
             if (allowMultiValue && kv.isMultiValue) {
               const existingValues = kv.data.split(',').slice(0, -1).map(v => v.trim());
               const newData = [...existingValues, selectedOption].join(',');
