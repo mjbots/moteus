@@ -21,29 +21,33 @@
       table-layout: auto;
     }
     td, th {
-      border: none;
-      padding: 0.3rem;
+      border: 1px solid #ccc;
+      padding: 8px;
       text-align: left;
     }
     th {
       font-weight: 600;
     }
-    td {
-      border-top: 1px solid #eee;
-    }
     td:nth-child(odd) {
       background-color:#f9fafb;
     }
-
     td:nth-child(even) {
       background-color: #ffffff;
     }
-
     th:nth-child(odd) {
       background-color: #f1f5f9;
     }
     th:nth-child(even) {
       background-color: #f5f9fa;
+    }
+    td.clickable {
+      cursor: pointer;
+    }
+    td.selected {
+      background-color: #e3f2fd;
+    }
+    td.row-header {
+      font-weight: bold;
     }
 
     footer {
@@ -2399,7 +2403,8 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     return html`
       <td
         key=${colIndex}
-        style="border: 1px solid #ccc; padding: 8px; cursor: pointer; background-color: ${isSelected ? '#e6f3ff' : 'inherit'}; color: ${isInfeasible ? '#999' : 'inherit'};"
+        class="${isSelected ? 'clickable selected' : 'clickable'}"
+        style="${isInfeasible ? 'color: #999;' : ''}"
         onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex, tableIndex)}
       >
         ${isInfeasible ? html`<span style="color: #888;">⚠️ </span>` : ''}${cell.result}
@@ -2416,18 +2421,18 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
           ${table.rows.length === 0 || table.columns.length === 0 ?
             html`<p>No configurations to display</p>` :
             html`
-              <table style="border-collapse: collapse; border: 1px solid #ccc; width: auto;">
+              <table style="width: auto;">
                 <thead>
                   <tr>
                     ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
                       html`
-                        <th style="border: 1px solid #ccc; padding: 8px;">${table.axis1Info?.name || 'Axis 1'}</th>
-                        <th style="border: 1px solid #ccc; padding: 8px;">Result</th>
+                        <th>${table.axis1Info?.name || 'Axis 1'}</th>
+                        <th>Result</th>
                       ` :
                       html`
-                        <th style="border: 1px solid #ccc; padding: 8px;">${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
+                        <th>${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
                         ${table.columns.map((colConfig, colIndex) => html`
-                          <th key=${hashConfig(colConfig)} style="border: 1px solid #ccc; padding: 8px;">
+                          <th key=${hashConfig(colConfig)}>
                             ${table.axis2Info?.formatLabel && table.axis2PreReified?.[colIndex] ?
                               table.axis2Info.formatLabel(table.axis2PreReified[colIndex]) :
                               hashConfig(colConfig)}
@@ -2442,7 +2447,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                     <tr key=${hashConfig(rowConfig)}>
                       ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
                         html`
-                          <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
+                          <td class="row-header">
                             ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ?
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
@@ -2450,7 +2455,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
                           ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0, tableIndex)}
                         ` :
                         html`
-                          <td style="border: 1px solid #ccc; padding: 8px; font-weight: bold;">
+                          <td class="row-header">
                             ${table.axis1Info?.formatLabel && table.axis1PreReified?.[rowIndex] ?
                               table.axis1Info.formatLabel(table.axis1PreReified[rowIndex]) :
                               hashConfig(rowConfig)}
