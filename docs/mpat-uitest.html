@@ -206,7 +206,7 @@
     // limitations under the License.
 
     import {h, render } from "preact";
-    import { useState, useEffect } from "preact/hooks";
+    import { useState, useEffect, useRef } from "preact/hooks";
     import htm from "htm";
     import Creatable from "react-select/creatable";
 
@@ -1679,6 +1679,7 @@ function ConfigFieldSelector({
   allowMultiValue = true
 }) {
   const [inputValue, setInputValue] = useState('');
+  const selectRef = useRef(null);
 
   /* utility – already have this field? */
   const fieldTaken = (f) => selected.some((s) => s.field === f);
@@ -1795,9 +1796,78 @@ function ConfigFieldSelector({
     return input;
   };
 
+
   const handleChange = (newValue) => {
     onSelectedChange(newValue);
     setInputValue(''); // Clear input after selection
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      
+      const kv = parseKV(inputValue);
+      
+      // Try to get the focused option from the select component
+      const focusedOption = selectRef.current?.state?.focusedOption;
+      
+      // If no '=' found, first try to complete the field name
+      if (kv && kv.data === undefined && kv.field) {
+        // Use the currently focused option if available
+        if (focusedOption && focusedOption.field) {
+          setInputValue(focusedOption.field + '=');
+        } else {
+          // Fallback to first matching field
+          const baseFields = getBaseFields(selected);
+          const matchingFields = baseFields.filter(field => 
+            field.field.toLowerCase().startsWith(kv.field.toLowerCase())
+          );
+          
+          if (matchingFields.length > 0) {
+            const completedField = matchingFields[0].field;
+            setInputValue(completedField + '=');
+          } else {
+            setInputValue(kv.field + '=');
+          }
+        }
+        return;
+      }
+      
+      // If we already have '=' and this is a constrained field, cycle through options
+      if (kv && kv.data !== undefined && fieldValueOptions[kv.field]) {
+        // Use the currently focused option if available
+        if (focusedOption && focusedOption.data !== undefined) {
+          setInputValue(kv.field + '=' + focusedOption.data);
+        } else {
+          // Fallback to first matching option
+          const fieldOptions = fieldValueOptions[kv.field];
+          let filterText = kv.data;
+          
+          // Handle multi-value input: get the text after the last comma
+          if (allowMultiValue && kv.isMultiValue) {
+            const values = kv.data.split(',');
+            filterText = values[values.length - 1].trim();
+          }
+          
+          // Find matching options
+          const filteredOptions = filterText === '' ? fieldOptions :
+            fieldOptions.filter(value => value.toLowerCase().includes(filterText.toLowerCase()));
+          
+          if (filteredOptions.length > 0) {
+            const selectedOption = filteredOptions[0];
+            
+            if (allowMultiValue && kv.isMultiValue) {
+              const existingValues = kv.data.split(',').slice(0, -1).map(v => v.trim());
+              const newData = [...existingValues, selectedOption].join(',');
+              setInputValue(kv.field + '=' + newData);
+            } else {
+              setInputValue(kv.field + '=' + selectedOption);
+            }
+          }
+        }
+        return;
+      }
+    }
   };
 
   // Custom styles for chips based on field type
@@ -1830,6 +1900,7 @@ function ConfigFieldSelector({
 
   return html`
     <${Creatable}
+        ref=${selectRef}
         isMulti
         isDisabled=${disabled}
         isClearable=${isClearable}
@@ -1844,6 +1915,7 @@ function ConfigFieldSelector({
         formatCreateLabel=${(v) => `add ${v}`}
         onInputChange=${handleInputChange}
         inputValue=${inputValue}
+        onKeyDown=${handleKeyDown}
         styles=${getChipStyles()}
       />
   `;
