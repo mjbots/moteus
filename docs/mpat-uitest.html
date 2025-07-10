@@ -2399,6 +2399,58 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
       hashConfig(config);
   };
 
+  // Helper function to render single-column table structure
+  const renderSingleColumnTable = (table, tableIndex) => {
+    return html`
+      <table style="width: auto;">
+        <thead>
+          <tr>
+            <th>${table.axis1Info?.name || 'Axis 1'}</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${table.rows.map((rowConfig, rowIndex) => html`
+            <tr key=${hashConfig(rowConfig)}>
+              <td class="row-header">
+                ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
+              </td>
+              ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0, tableIndex)}
+            </tr>
+          `)}
+        </tbody>
+      </table>
+    `;
+  };
+
+  // Helper function to render multi-column table structure
+  const renderMultiColumnTable = (table, tableIndex) => {
+    return html`
+      <table style="width: auto;">
+        <thead>
+          <tr>
+            <th>${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
+            ${table.columns.map((colConfig, colIndex) => html`
+              <th key=${hashConfig(colConfig)}>
+                ${formatAxisLabel(table.axis2Info, table.axis2PreReified, colIndex, colConfig)}
+              </th>
+            `)}
+          </tr>
+        </thead>
+        <tbody>
+          ${table.rows.map((rowConfig, rowIndex) => html`
+            <tr key=${hashConfig(rowConfig)}>
+              <td class="row-header">
+                ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
+              </td>
+              ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex, tableIndex))}
+            </tr>
+          `)}
+        </tbody>
+      </table>
+    `;
+  };
+
   // Helper function to render a clickable table cell
   const renderTableCell = (cell, rowIndex, colIndex, tableIndex) => {
     const isSelected = selectedCell &&
@@ -2427,48 +2479,9 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
           <h4>${table.title}</h4>
           ${table.rows.length === 0 || table.columns.length === 0 ?
             html`<p>No configurations to display</p>` :
-            html`
-              <table style="width: auto;">
-                <thead>
-                  <tr>
-                    ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
-                      html`
-                        <th>${table.axis1Info?.name || 'Axis 1'}</th>
-                        <th>Result</th>
-                      ` :
-                      html`
-                        <th>${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
-                        ${table.columns.map((colConfig, colIndex) => html`
-                          <th key=${hashConfig(colConfig)}>
-                            ${formatAxisLabel(table.axis2Info, table.axis2PreReified, colIndex, colConfig)}
-                          </th>
-                        `)}
-                      `
-                    }
-                  </tr>
-                </thead>
-                <tbody>
-                  ${table.rows.map((rowConfig, rowIndex) => html`
-                    <tr key=${hashConfig(rowConfig)}>
-                      ${table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
-                        html`
-                          <td class="row-header">
-                            ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
-                          </td>
-                          ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0, tableIndex)}
-                        ` :
-                        html`
-                          <td class="row-header">
-                            ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
-                          </td>
-                          ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex, tableIndex))}
-                        `
-                      }
-                    </tr>
-                  `)}
-                </tbody>
-              </table>
-            `
+            table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
+              renderSingleColumnTable(table, tableIndex) :
+              renderMultiColumnTable(table, tableIndex)
           }
         </div>
       `)}
