@@ -1555,6 +1555,10 @@ function evaluateOperatingPoint(config) {
     ...config,
     'phase_current': motorCurrent});
 
+  if (Math.abs(config.velocity) > config.motor.getMaxVelocity(config)) {
+    op._infeasible_reason = `back_emf`;
+  }
+
   if ((config.voltage - config.controller.getMaxVoltage()) > 0.001) {
     op._infeasible_reason = `Voltage ${config.voltage} exceeds maximum ${config.controller.getMaxVoltage()}`;
   }
@@ -1598,64 +1602,68 @@ class AnalysisOperatingPoint {
   }
 }
 
+function evaluateMaxTorque(config) {
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+  ];
+
+  // Check if any required field is null
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
+  }
+
+  if (config.velocity > config.motor.getMaxVelocity(config)) {
+    return null;
+  }
+
+  const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
+  if (R== null || C == null) {
+    return null;
+  }
+
+  const timePeriodS = config.time;
+  const deltaT = config.max_motor_temp - config.ambient_temp;
+
+  const thermalW = (timePeriodS == Infinity) ?
+        deltaT / R :
+        deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+  const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor() * config.voltage - config.motor.getBackEmf(config.velocity, config)));
+
+  if (supplyVoltageMargin < 0.0) {
+    return null;
+  }
+
+  const motorCurrent =
+        config.motor.getCurrentFromThermalPowerAndVelocity(
+          thermalW,
+          config.velocity,
+          config.controller.getMaxPower(config.voltage, config.pwm),
+          supplyVoltageMargin,
+          config);
+
+  const controllerCurrent = evaluateMaxCurrent(config);
+  if (controllerCurrent == null) {
+    return null;
+  }
+
+  const finalCurrent = LimitedValue.min(motorCurrent, new LimitedValue(controllerCurrent.phase_current, controllerCurrent._limiting_factor));
+  const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent.value, config);
+
+  const op = evaluateOperatingPoint({
+      ...config,
+      'phase_current': finalCurrent.value,
+      'torque': motorTorque,
+  });
+  op['_limiting_factor'] = finalCurrent instanceof LimitedValue ? finalCurrent.limitingFactor : null;
+  return op;
+}
+
 class AnalysisMaxTorque {
   evaluate(config) {
-    const required = [
-      'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
-    ];
-
-    // Check if any required field is null
-    for (const field of required) {
-      if (config[field] == null) {
-        return null;
-      }
-    }
-
-    if (config.velocity > config.motor.getMaxVelocity(config)) {
-      return null;
-    }
-
-    const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
-    if (R== null || C == null) {
-      return null;
-    }
-
-    const timePeriodS = config.time;
-    const deltaT = config.max_motor_temp - config.ambient_temp;
-
-    const thermalW = (timePeriodS == Infinity) ?
-          deltaT / R :
-          deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
-
-    const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor() * config.voltage - config.motor.getBackEmf(config.velocity, config)));
-
-    if (supplyVoltageMargin < 0.0) {
-      return null;
-    }
-
-    const motorCurrent =
-          config.motor.getCurrentFromThermalPowerAndVelocity(
-            thermalW,
-            config.velocity,
-            config.controller.getMaxPower(config.voltage, config.pwm),
-            supplyVoltageMargin,
-            config);
-
-    const controllerCurrent = evaluateMaxCurrent(config);
-    if (controllerCurrent == null) {
-      return null;
-    }
-
-    const finalCurrent = LimitedValue.min(motorCurrent, new LimitedValue(controllerCurrent.phase_current, controllerCurrent._limiting_factor));
-    const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent.value, config);
-
-    const op = evaluateOperatingPoint({
-        ...config,
-        'phase_current': finalCurrent.value,
-        'torque': motorTorque,
-    });
-    op['_limiting_factor'] = finalCurrent instanceof LimitedValue ? finalCurrent.limitingFactor : null;
-    return op;
+    return evaluateMaxTorque(config);
   }
 }
 
@@ -1974,25 +1982,51 @@ function ConfigFieldSelector({
 /* ---------- Plot View Component ---------- */
 function PlotView({ baseConfig, commonConfig }) {
   const [colorField, setColorField] = useState('bus_power');
-  const [speedMin, setSpeedMin] = useState(0);
-  const [speedMax, setSpeedMax] = useState(100);
-  const [torqueMin, setTorqueMin] = useState(0);
-  const [torqueMax, setTorqueMax] = useState(40);
+
+  // Calculate reasonable defaults based on motor capabilities
+  const getDefaultRanges = () => {
+    if (!baseConfig) {
+      return { speedMin: 0, speedMax: 100, torqueMin: 0, torqueMax: 40 };
+    }
+
+    try {
+      // Get max velocity at 0 torque
+      const maxVelConfig = normalizeConfig({ ...baseConfig, torque: 0 });
+      const maxVelResult = evaluateMaxVelocity(maxVelConfig);
+      const maxVel = maxVelResult?.velocity || 100;
+      const defaultSpeedMax = Math.ceil(maxVel * 1.1 * 100) / 100; // Ensure 2 decimal places
+
+      // Get max torque at 0 speed
+      const maxTorqueConfig = normalizeConfig({ ...baseConfig, velocity: 0 });
+      const maxTorqueResult = evaluateMaxTorque(maxTorqueConfig);
+      const maxTorque = maxTorqueResult?.torque || 40;
+      const defaultTorqueMax = Math.ceil(maxTorque * 1.1 * 100) / 100; // Ensure 2 decimal places
+
+      return {
+        speedMin: 0,
+        speedMax: defaultSpeedMax,
+        torqueMin: -defaultTorqueMax,
+        torqueMax: defaultTorqueMax
+      };
+    } catch (error) {
+      console.error('PlotView: Error calculating default ranges:', error);
+      return { speedMin: 0, speedMax: 100, torqueMin: 0, torqueMax: 40 };
+    }
+  };
+
+  const defaultRanges = getDefaultRanges();
+  const [speedMin, setSpeedMin] = useState(defaultRanges.speedMin);
+  const [speedMax, setSpeedMax] = useState(defaultRanges.speedMax);
+  const [torqueMin, setTorqueMin] = useState(defaultRanges.torqueMin);
+  const [torqueMax, setTorqueMax] = useState(defaultRanges.torqueMax);
   const [gridResolution, setGridResolution] = useState(50);
   const plotRef = useRef(null);
 
   const generatePlot = () => {
-    if (!baseConfig) {
-      console.log('PlotView: No baseConfig provided');
-      return;
-    }
+    if (!baseConfig) return;
 
-    console.log('PlotView: Generating plot with config:', baseConfig);
-    console.log('PlotView: Plot parameters:', { speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField });
-    
     try {
       const plotData = generateGridData(speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField, baseConfig);
-      console.log('PlotView: Generated plot data:', plotData);
       createHeatmap(plotData, colorField);
     } catch (error) {
       console.error('PlotView: Error generating plot:', error);
@@ -2000,51 +2034,40 @@ function PlotView({ baseConfig, commonConfig }) {
   };
 
   const generateGridData = (speedMin, speedMax, torqueMin, torqueMax, resolution, colorField, baseConfig) => {
-    console.log('PlotView: Starting grid generation with resolution:', resolution);
-    
     const speedStep = (speedMax - speedMin) / (resolution - 1);
     const torqueStep = (torqueMax - torqueMin) / (resolution - 1);
-    
+
     const speeds = [];
     const torques = [];
     const zValues = [];
-    
+
     let validPoints = 0;
     let totalPoints = 0;
-    
+
     // Generate speed and torque arrays
     for (let i = 0; i < resolution; i++) {
       speeds.push(speedMin + i * speedStep);
       torques.push(torqueMin + i * torqueStep);
     }
-    
+
     // Organize data as z[torque_index][speed_index] for correct Plotly orientation
     for (let torqueIndex = 0; torqueIndex < resolution; torqueIndex++) {
       const zRow = [];
       const torque = torques[torqueIndex];
-      
+
       for (let speedIndex = 0; speedIndex < resolution; speedIndex++) {
         totalPoints++;
         const speed = speeds[speedIndex];
-        
+
         // Create config for this operating point
         const config = { ...baseConfig };
         config.velocity = speed; // Speed in Hz
         config.torque = torque;
-        
-        // Log a few sample configs for debugging
-        if (torqueIndex < 3 && speedIndex < 3) {
-          console.log(`PlotView: Sample config [torque=${torqueIndex},speed=${speedIndex}]:`, { speed, torque, config });
-        }
-        
+
         // Evaluate the operating point
         const result = evaluateOperatingPoint(config);
         let value = null;
-        
-        if (torqueIndex < 3 && speedIndex < 3) {
-          console.log(`PlotView: Sample result [torque=${torqueIndex},speed=${speedIndex}]:`, result);
-        }
-        
+
         if (result && !result._infeasible_reason) {
           // The result is feasible
           switch (colorField) {
@@ -2070,37 +2093,17 @@ function PlotView({ baseConfig, commonConfig }) {
           // Infeasible operating point - use null so it appears white/empty
           value = null;
         }
-        
+
         zRow.push(value);
       }
       zValues.push(zRow);
     }
-    
-    console.log(`PlotView: Grid generation complete. Valid points: ${validPoints}/${totalPoints}`);
-    console.log('PlotView: Speed range:', speeds[0], 'to', speeds[speeds.length-1]);
-    console.log('PlotView: Torque range:', torques[0], 'to', torques[torques.length-1]);
-    console.log('PlotView: Sample z-values (first torque row):', zValues[0]?.slice(0, 3));
-    
+
     return { speeds, torques, zValues };
   };
 
   const createHeatmap = (data, colorField) => {
-    console.log('PlotView: Creating heatmap with data shapes:', {
-      torques: data.torques?.length,
-      speeds: data.speeds?.length, 
-      zValues: data.zValues?.length,
-      zValuesFirstRow: data.zValues?.[0]?.length
-    });
-    
-    if (!plotRef.current) {
-      console.error('PlotView: plotRef.current is null');
-      return;
-    }
-
-    if (!window.Plotly) {
-      console.error('PlotView: Plotly not loaded');
-      return;
-    }
+    if (!plotRef.current || !window.Plotly) return;
 
     const trace = {
       x: data.speeds,
@@ -2113,9 +2116,7 @@ function PlotView({ baseConfig, commonConfig }) {
         title: getColorBarTitle(colorField)
       }
     };
-    
-    console.log('PlotView: Plotly trace:', trace);
-    
+
     const layout = {
       title: 'Motor Performance Map',
       xaxis: {
@@ -2127,19 +2128,8 @@ function PlotView({ baseConfig, commonConfig }) {
       autosize: true,
       margin: { t: 50, l: 60, r: 60, b: 60 }
     };
-    
-    try {
-      console.log('PlotView: Calling Plotly.newPlot');
-      Plotly.newPlot(plotRef.current, [trace], layout, {responsive: true})
-        .then(() => {
-          console.log('PlotView: Plotly.newPlot completed successfully');
-        })
-        .catch((error) => {
-          console.error('PlotView: Plotly.newPlot failed:', error);
-        });
-    } catch (error) {
-      console.error('PlotView: Error calling Plotly.newPlot:', error);
-    }
+
+    Plotly.newPlot(plotRef.current, [trace], layout, {responsive: true});
   };
 
   const getColorBarTitle = (colorField) => {
@@ -2173,8 +2163,8 @@ function PlotView({ baseConfig, commonConfig }) {
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
           <div style="display: flex; align-items: center;">
             <label style="font-weight: 600; margin-right: 8px;">Color Field:</label>
-            <select 
-              value=${colorField} 
+            <select
+              value=${colorField}
               onChange=${(e) => setColorField(e.target.value)}
               style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;"
             >
@@ -2184,52 +2174,52 @@ function PlotView({ baseConfig, commonConfig }) {
               <option value="motor_temp">Motor Temp (°C)</option>
             </select>
           </div>
-          
+
           <div style="display: flex; align-items: center;">
             <label style="font-weight: 600; margin-right: 8px;">Speed:</label>
-            <input 
-              type="number" 
-              value=${speedMin} 
+            <input
+              type="number"
+              value=${speedMin}
               onChange=${(e) => setSpeedMin(Number(e.target.value))}
               style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
             />
             <span style="margin: 0 4px;">to</span>
-            <input 
-              type="number" 
-              value=${speedMax} 
+            <input
+              type="number"
+              value=${speedMax}
               onChange=${(e) => setSpeedMax(Number(e.target.value))}
               style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
             />
             <span style="margin-left: 4px;">Hz</span>
           </div>
-          
+
           <div style="display: flex; align-items: center;">
             <label style="font-weight: 600; margin-right: 8px;">Torque:</label>
-            <input 
-              type="number" 
-              value=${torqueMin} 
+            <input
+              type="number"
+              value=${torqueMin}
               onChange=${(e) => setTorqueMin(Number(e.target.value))}
               step="0.1"
               style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
             />
             <span style="margin: 0 4px;">to</span>
-            <input 
-              type="number" 
-              value=${torqueMax} 
+            <input
+              type="number"
+              value=${torqueMax}
               onChange=${(e) => setTorqueMax(Number(e.target.value))}
               step="0.1"
               style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
             />
             <span style="margin-left: 4px;">Nm</span>
           </div>
-          
+
           <div style="display: flex; align-items: center;">
             <label style="font-weight: 600; margin-right: 8px;">Resolution:</label>
-            <input 
-              type="number" 
-              value=${gridResolution} 
+            <input
+              type="number"
+              value=${gridResolution}
               onChange=${(e) => setGridResolution(Number(e.target.value))}
-              min="10" 
+              min="10"
               max="200"
               style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
             />
@@ -2237,7 +2227,7 @@ function PlotView({ baseConfig, commonConfig }) {
           </div>
         </div>
       </div>
-      
+
       <div ref=${plotRef} style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 4px; background: white;"></div>
     </div>
   `;
@@ -3167,20 +3157,20 @@ function App() {
       </div>
       <div class="resultsColumn">
         <div class="tabContainer">
-          <div 
+          <div
             class="tab ${activeTab === 'table' ? 'active' : ''}"
             onClick=${() => setActiveTab('table')}
           >
             Table View
           </div>
-          <div 
+          <div
             class="tab ${activeTab === 'plot' ? 'active' : ''}"
             onClick=${() => setActiveTab('plot')}
           >
             Plot View
           </div>
         </div>
-        
+
         <div class="tabContent">
           ${activeTab === 'table' ? html`
             <${Simulator}
