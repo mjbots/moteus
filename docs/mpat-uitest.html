@@ -3474,14 +3474,34 @@ function parseUrlParams() {
       const field = key.substring(7); // Remove 'common.'
       commonParams[field] = value;
     } else if (key.startsWith('axis.')) {
-      const match = key.match(/^axis\.(\d+)\.(.+)$/);
-      if (match) {
-        const axisNumber = parseInt(match[1]);
-        const field = match[2];
+      const lineMatch = key.match(/^axis\.(\d+)\.line\.(\d+)\.(.+)$/);
+      const directMatch = key.match(/^axis\.(\d+)\.(.+)$/);
+      
+      if (lineMatch) {
+        // New multi-line format: axis.N.line.M.field
+        const axisNumber = parseInt(lineMatch[1]);
+        const lineIndex = parseInt(lineMatch[2]);
+        const field = lineMatch[3];
+        
         if (!axisParams[axisNumber]) {
-          axisParams[axisNumber] = {};
+          axisParams[axisNumber] = { lines: {} };
         }
-        axisParams[axisNumber][field] = value;
+        if (!axisParams[axisNumber].lines[lineIndex]) {
+          axisParams[axisNumber].lines[lineIndex] = {};
+        }
+        axisParams[axisNumber].lines[lineIndex][field] = value;
+      } else if (directMatch) {
+        // Original format: axis.N.field (backwards compatibility)
+        const axisNumber = parseInt(directMatch[1]);
+        const field = directMatch[2];
+        
+        if (!axisParams[axisNumber]) {
+          axisParams[axisNumber] = { lines: {} };
+        }
+        if (!axisParams[axisNumber].lines[0]) {
+          axisParams[axisNumber].lines[0] = {};
+        }
+        axisParams[axisNumber].lines[0][field] = value;
       }
     } else if (key.startsWith('plot.')) {
       const field = key.substring(5); // Remove 'plot.'
@@ -3546,8 +3566,22 @@ function initializeFromUrl() {
   if (Object.keys(axisParams).length > 0) {
     const maxAxis = Math.max(...Object.keys(axisParams).map(k => parseInt(k)));
     for (let i = 1; i <= maxAxis; i++) {
-      if (axisParams[i]) {
-        axisConfigs.push([dictToChips(axisParams[i]), []]);
+      if (axisParams[i] && axisParams[i].lines) {
+        // Convert line-based structure to lineConfigs array
+        const lineConfigs = [];
+        const lineIndices = Object.keys(axisParams[i].lines).map(k => parseInt(k)).sort((a, b) => a - b);
+        
+        lineIndices.forEach(lineIndex => {
+          const lineDict = axisParams[i].lines[lineIndex];
+          if (Object.keys(lineDict).length > 0) {
+            lineConfigs.push(dictToChips(lineDict));
+          }
+        });
+        
+        // Always add an empty line at the end for adding more chips
+        lineConfigs.push([]);
+        
+        axisConfigs.push(lineConfigs);
       } else {
         // Use default for this axis if it exists, otherwise empty
         const defaultIndex = i - 1; // Convert to 0-based index
@@ -3627,6 +3661,18 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
     return dict;
   };
 
+  const axisToLineArray = (axisConfigs) => {
+    return axisConfigs.map(lineConfigs => {
+      const lineDict = {};
+      lineConfigs.forEach(chip => {
+        if (chip.field && chip.data !== undefined) {
+          lineDict[chip.field] = chip.data;
+        }
+      });
+      return lineDict;
+    }).filter(lineDict => Object.keys(lineDict).length > 0);
+  };
+
   const axisMatches = (axisConfigs, defaultAxis) => {
     const axisDict = axisToDict(axisConfigs);
     const defaultDict = Object.fromEntries(defaultAxis.map(({ field, data }) => [field, data]));
@@ -3650,9 +3696,17 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
                      axisMatches(axisConfig, defaultAxisConfigs[index]);
 
     if (!isDefault) {
-      const axisDict = axisToDict(axisConfig);
-      Object.entries(axisDict).forEach(([field, value]) => {
-        params.set(`axis.${axisNumber}.${field}`, value);
+      const lineArray = axisToLineArray(axisConfig);
+      lineArray.forEach((lineDict, lineIndex) => {
+        Object.entries(lineDict).forEach(([field, value]) => {
+          if (lineArray.length === 1) {
+            // Single line - use original format for backwards compatibility
+            params.set(`axis.${axisNumber}.${field}`, value);
+          } else {
+            // Multiple lines - use indexed format
+            params.set(`axis.${axisNumber}.line.${lineIndex}.${field}`, value);
+          }
+        });
       });
     }
   });
