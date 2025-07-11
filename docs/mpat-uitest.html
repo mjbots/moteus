@@ -2480,6 +2480,80 @@ const modelRegistry = {
   },
 };
 
+/* ---------- Reification Helper ---------- */
+// Convert string values to model instances where applicable
+function reifyObjects(dict) {
+  const reified = {};
+  Object.entries(dict).forEach(([key, value]) => {
+    if (value === null) {
+      reified[key] = null;
+    } else if (modelRegistry[key] && modelRegistry[key][value]) {
+      reified[key] = modelRegistry[key][value];
+    } else {
+      // Try to convert to number if it's a pure number string or infinity
+      if (typeof value === 'string') {
+        const lowerValue = value.toLowerCase().trim();
+        if (lowerValue === 'infinity') {
+          reified[key] = Infinity;
+        } else {
+          const numValue = Number(value);
+          if (!isNaN(numValue) && isFinite(numValue) && value.trim() === numValue.toString()) {
+            reified[key] = numValue;
+          } else {
+            reified[key] = value; // Keep as string if not a number
+          }
+        }
+      } else {
+        reified[key] = value; // Keep as-is if not a string
+      }
+    }
+  });
+
+  // Special handling for 'model' motor type
+  if (reified.motor === 'model') {
+    const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
+    const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
+
+    if (hasAllFields) {
+      reified.motor = new Motor({
+        name: 'model',
+        displayName: 'model',
+        maxTemp: 80, // Fixed value
+        Kv: reified['motor.kv'],
+        R: reified['motor.r'],
+        L: reified['motor.l'],
+        thermal: {
+          'none': {
+            R: reified['motor.thermal_r'],
+            C: reified['motor.thermal_c']
+          }
+        }
+      });
+    } else {
+      reified.motor = null;
+    }
+  }
+
+  // Special handling for 'extrapolated' motor type
+  if (reified.motor === 'extrapolated') {
+    const requiredFields = ['motor.kv', 'motor.mass', 'motor.diameter', 'motor.type'];
+    const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
+
+    if (hasAllFields) {
+      reified.motor = new ExtrapolatedMotor({
+        kv: reified['motor.kv'],
+        mass: reified['motor.mass'],
+        diameter: reified['motor.diameter'],
+        type: reified['motor.type']
+      });
+    } else {
+      reified.motor = null;
+    }
+  }
+
+  return reified;
+}
+
 /* ---------- Config Normalization Function ---------- */
 function normalizeConfig(config) {
   // Create a copy to avoid modifying the original
@@ -2528,78 +2602,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     return dict;
   };
 
-  // Convert string values to model instances where applicable
-  const reifyObjects = (dict) => {
-    const reified = {};
-    Object.entries(dict).forEach(([key, value]) => {
-      if (value === null) {
-        reified[key] = null;
-      } else if (modelRegistry[key] && modelRegistry[key][value]) {
-        reified[key] = modelRegistry[key][value];
-      } else {
-        // Try to convert to number if it's a pure number string or infinity
-        if (typeof value === 'string') {
-          const lowerValue = value.toLowerCase().trim();
-          if (lowerValue === 'infinity') {
-            reified[key] = Infinity;
-          } else {
-            const numValue = Number(value);
-            if (!isNaN(numValue) && isFinite(numValue) && value.trim() === numValue.toString()) {
-              reified[key] = numValue;
-            } else {
-              reified[key] = value; // Keep as string if not a number
-            }
-          }
-        } else {
-          reified[key] = value; // Keep as-is if not a string
-        }
-      }
-    });
-
-    // Special handling for 'model' motor type
-    if (reified.motor === 'model') {
-      const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
-      const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
-
-      if (hasAllFields) {
-        reified.motor = new Motor({
-          name: 'model',
-          displayName: 'model',
-          maxTemp: 80, // Fixed value
-          Kv: reified['motor.kv'],
-          R: reified['motor.r'],
-          L: reified['motor.l'],
-          thermal: {
-            'none': {
-              R: reified['motor.thermal_r'],
-              C: reified['motor.thermal_c']
-            }
-          }
-        });
-      } else {
-        reified.motor = null;
-      }
-    }
-
-    // Special handling for 'extrapolated' motor type
-    if (reified.motor === 'extrapolated') {
-      const requiredFields = ['motor.kv', 'motor.mass', 'motor.diameter', 'motor.type'];
-      const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
-
-      if (hasAllFields) {
-        reified.motor = new ExtrapolatedMotor({
-          kv: reified['motor.kv'],
-          mass: reified['motor.mass'],
-          diameter: reified['motor.diameter'],
-          type: reified['motor.type']
-        });
-      } else {
-        reified.motor = null;
-      }
-    }
-
-    return reified;
-  };
+  // Use the module-level reifyObjects function
 
   // Restructure configuration data
   const restructureConfig = () => {
@@ -2929,6 +2932,7 @@ function parseUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const commonParams = {};
   const axisParams = {};
+  const plotParams = {};
 
   for (const [key, value] of params.entries()) {
     if (key.startsWith('common.')) {
@@ -2944,10 +2948,21 @@ function parseUrlParams() {
         }
         axisParams[axisNumber][field] = value;
       }
+    } else if (key.startsWith('plot.')) {
+      const field = key.substring(5); // Remove 'plot.'
+      if (field.startsWith('config.')) {
+        const configField = field.substring(7); // Remove 'config.'
+        if (!plotParams.config) {
+          plotParams.config = {};
+        }
+        plotParams.config[configField] = value;
+      } else {
+        plotParams[field] = value;
+      }
     }
   }
 
-  return { commonParams, axisParams };
+  return { commonParams, axisParams, plotParams };
 }
 
 function dictToChips(dict) {
@@ -2965,7 +2980,12 @@ function dictToChips(dict) {
 }
 
 function initializeFromUrl() {
-  const { commonParams, axisParams } = parseUrlParams();
+  const { commonParams, axisParams, plotParams } = parseUrlParams();
+  
+  console.log('initializeFromUrl: Parsed URL params:');
+  console.log('  commonParams:', commonParams);
+  console.log('  axisParams:', axisParams);
+  console.log('  plotParams:', plotParams);
 
   // Initialize common config
   const commonConfig = Object.keys(commonParams).length > 0 ?
@@ -3027,11 +3047,11 @@ function initializeFromUrl() {
     axisConfigs.push([[]]);  // Add empty axis for adding more
   }
 
-  return { commonConfig, axisConfigs };
+  return { commonConfig, axisConfigs, plotParams };
 }
 
 /* ---------- URL Generation ---------- */
-function generateUrlFromConfig(commonConfig, axisConfigs) {
+function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
   const params = new URLSearchParams();
 
   // Process common config - only include differences from defaults
@@ -3095,11 +3115,36 @@ function generateUrlFromConfig(commonConfig, axisConfigs) {
     }
   });
 
+  // Add plot state if provided
+  if (plotState) {
+    params.set('plot.tab', plotState.activeTab);
+    if (plotState.activeTab === 'plot' && plotState.plotConfig) {
+      // Store plot config fields individually, similar to common config
+      Object.entries(plotState.plotConfig).forEach(([field, value]) => {
+        if (value !== null && value !== undefined) {
+          // Handle object values by extracting their identifier
+          if (typeof value === 'object') {
+            if (value.nameValue) {
+              // Motor objects
+              params.set(`plot.config.${field}`, value.nameValue);
+            } else if (value.props?.name) {
+              // Controller objects  
+              params.set(`plot.config.${field}`, value.props.name);
+            }
+            // Skip other objects for now
+          } else {
+            params.set(`plot.config.${field}`, value);
+          }
+        }
+      });
+    }
+  }
+
   return params.toString();
 }
 
-async function copyUrlToClipboard(commonConfig, axisConfigs) {
-  const queryString = generateUrlFromConfig(commonConfig, axisConfigs);
+async function copyUrlToClipboard(commonConfig, axisConfigs, plotState = null) {
+  const queryString = generateUrlFromConfig(commonConfig, axisConfigs, plotState);
   const baseUrl = window.location.origin + window.location.pathname;
   const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
 
@@ -3136,7 +3181,7 @@ async function copyUrlToClipboard(commonConfig, axisConfigs) {
 
 /* ---------- Main App Component ---------- */
 function App() {
-  const { commonConfig: initialCommonConfig, axisConfigs: initialAxisConfigs } = initializeFromUrl();
+  const { commonConfig: initialCommonConfig, axisConfigs: initialAxisConfigs, plotParams } = initializeFromUrl();
   const [commonConfig, setCommonConfig] = useState(initialCommonConfig);
   const [axisConfigs, setAxisConfigs] = useState(initialAxisConfigs);
 
@@ -3145,9 +3190,49 @@ function App() {
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
 
-  // State for plot functionality
-  const [activeTab, setActiveTab] = useState('table');
-  const [plotConfig, setPlotConfig] = useState(null);
+  // State for plot functionality - initialize from URL if present
+  const [activeTab, setActiveTab] = useState(plotParams?.tab || 'table');
+  
+  // Helper to create a complete config from URL plot params
+  const createConfigFromUrlParams = (plotConfigParams) => {
+    if (!plotConfigParams) {
+      console.log('App: No plot config params, returning null');
+      return null;
+    }
+    
+    console.log('App: Creating config from URL plot params:', plotConfigParams);
+    console.log('App: Default common values:', defaultCommonValues);
+    
+    // Start with default common values to ensure we have all required fields
+    const completeConfig = { ...defaultCommonValues };
+    
+    // Override with the plot-specific values from URL
+    Object.entries(plotConfigParams).forEach(([key, value]) => {
+      console.log(`App: Setting ${key} = ${value} (${typeof value})`);
+      completeConfig[key] = value;
+    });
+    
+    console.log('App: Complete config before reification:', completeConfig);
+    
+    try {
+      // First reify the objects (convert strings to actual objects)
+      const reified = reifyObjects(completeConfig);
+      console.log('App: Reified config:', reified);
+      
+      // Then normalize the reified config
+      const normalized = normalizeConfig(reified);
+      console.log('App: Successfully normalized config:', normalized);
+      return normalized;
+    } catch (error) {
+      console.error('App: Error during reification/normalization:', error);
+      console.error('App: Config that failed:', completeConfig);
+      return null;
+    }
+  };
+  
+  const [plotConfig, setPlotConfig] = useState(
+    createConfigFromUrlParams(plotParams?.config)
+  );
 
   // Global function for overlay to switch to plot view
   window.switchToPlotView = (baseConfig) => {
@@ -3214,7 +3299,11 @@ function App() {
 
   // Handler for copying URL
   const handleCopyUrl = async () => {
-    const success = await copyUrlToClipboard(commonConfig, axisConfigs);
+    const plotState = {
+      activeTab,
+      plotConfig: activeTab === 'plot' ? plotConfig : null
+    };
+    const success = await copyUrlToClipboard(commonConfig, axisConfigs, plotState);
     if (success) {
       setCopyStatus('URL copied to clipboard!');
       setTimeout(() => setCopyStatus(''), 3000);
