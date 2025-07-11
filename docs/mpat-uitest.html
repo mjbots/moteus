@@ -2745,35 +2745,54 @@ function HelpOverlay({ isVisible, onClose }) {
           Configure the motor, controller, and operating parameters using the chip selectors.
         </div>
 
-        ${Object.entries(defaultCommonValues).map(([fieldName, config]) => html`
-          <div class="helpSection">
-            <div class="helpFieldName">${fieldName}</div>
-            <div class="helpFieldDescription">${config.description}</div>
-            
-            ${fieldValueOptions[fieldName] ? html`
-              <div style="margin-left: 15px; margin-top: 8px;">
-                <div style="font-weight: bold; color: #666; margin-bottom: 8px;">Available Options:</div>
-                ${fieldValueOptions[fieldName].map(optionValue => {
-                  const helpContent = getConstrainedValueHelp(fieldName, optionValue);
-                  return html`
-                    <div style="margin-bottom: 6px; display: flex; align-items: flex-start;">
-                      <span style="font-family: monospace; color: #0066cc; font-weight: bold; min-width: 120px; margin-right: 10px;">${optionValue}</span>
-                      ${helpContent ? html`
-                        <div style="font-size: 0.9em; color: #555; flex: 1;">
-                          ${helpContent}
-                        </div>
-                      ` : ''}
-                    </div>
-                  `;
-                })}
+        ${Object.entries(defaultCommonValues).map(([fieldName, config]) => {
+          // Determine field constraints
+          let constraints = '';
+          if (fieldValueOptions[fieldName]) {
+            // Constrained values - handled by existing options display
+            constraints = '';
+          } else {
+            // Fields that accept keywords and/or numeric values
+            if (fieldName === 'pwm') {
+              constraints = 'numeric (Hz) or "default"';
+            } else if (fieldName === 'time') {
+              constraints = 'numeric (seconds) or "infinity"';
+            } else if (fieldName === 'max_controller_temp' || fieldName === 'max_motor_temp') {
+              constraints = 'numeric (°C) or "default"';
+            } else {
+              // Pure numeric fields like voltage, velocity, gear_reduction, ambient_temp, torque
+              constraints = 'numeric values only';
+            }
+          }
+          
+          return html`
+            <div class="helpSection">
+              <div class="helpFieldName">${fieldName}</div>
+              <div class="helpFieldDescription">
+                ${config.description}${constraints ? html` — <span class="helpFieldConstraints">${constraints}</span>` : ''}
               </div>
-            ` : html`
-              <div class="helpFieldConstraints">
-                Accepts numeric values or specific keywords
-              </div>
-            `}
-          </div>
-        `)}
+              
+              ${fieldValueOptions[fieldName] ? html`
+                <div style="margin-left: 15px; margin-top: 8px;">
+                  <div style="font-weight: bold; color: #666; margin-bottom: 8px;">Available Options:</div>
+                  ${fieldValueOptions[fieldName].map(optionValue => {
+                    const helpContent = getConstrainedValueHelp(fieldName, optionValue);
+                    return html`
+                      <div style="margin-bottom: 6px; display: flex; align-items: flex-start;">
+                        <span style="font-family: monospace; color: #0066cc; font-weight: bold; min-width: 120px; margin-right: 10px;">${optionValue}</span>
+                        ${helpContent ? html`
+                          <div style="font-size: 0.9em; color: #555; flex: 1;">
+                            ${helpContent}
+                          </div>
+                        ` : ''}
+                      </div>
+                    `;
+                  })}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        })}
       </div>
     </div>
   `;
