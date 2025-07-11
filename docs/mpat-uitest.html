@@ -2042,6 +2042,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     const speeds = [];
     const torques = [];
     const zValues = [];
+    const hoverText = [];
 
     let validPoints = 0;
     let totalPoints = 0;
@@ -2055,6 +2056,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     // Organize data as z[torque_index][speed_index] for correct Plotly orientation
     for (let torqueIndex = 0; torqueIndex < resolution; torqueIndex++) {
       const zRow = [];
+      const hoverRow = [];
       const torque = torques[torqueIndex];
 
       for (let speedIndex = 0; speedIndex < resolution; speedIndex++) {
@@ -2069,6 +2071,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         // Evaluate the operating point
         const result = evaluateOperatingPoint(config);
         let value = null;
+        let hoverInfo = '';
 
         if (result && !result._infeasible_reason) {
           // The result is feasible
@@ -2090,18 +2093,25 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
           }
           if (value !== null && value !== undefined && !isNaN(value)) {
             validPoints++;
+            hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>${getColorBarTitle(colorField)}: ${value.toFixed(2)}`;
+          } else {
+            hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>Invalid result`;
           }
         } else {
           // Infeasible operating point - use null so it appears white/empty
           value = null;
+          const reason = result?._infeasible_reason || 'Unknown infeasibility';
+          hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>Infeasible: ${reason}`;
         }
 
         zRow.push(value);
+        hoverRow.push(hoverInfo);
       }
       zValues.push(zRow);
+      hoverText.push(hoverRow);
     }
 
-    return { speeds, torques, zValues };
+    return { speeds, torques, zValues, hoverText };
   };
 
   const createHeatmap = (data, colorField) => {
@@ -2111,9 +2121,11 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
       x: data.speeds,
       y: data.torques,
       z: data.zValues,
+      text: data.hoverText,
       type: 'heatmap',
       colorscale: 'Viridis',
       showscale: true,
+      hovertemplate: '%{text}<extra></extra>',
       colorbar: {
         title: {
           text: getColorBarTitle(colorField),
