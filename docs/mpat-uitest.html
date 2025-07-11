@@ -2113,17 +2113,26 @@ function PlotView({ baseConfig, commonConfig }) {
       colorscale: 'Viridis',
       showscale: true,
       colorbar: {
-        title: getColorBarTitle(colorField)
+        title: {
+          text: getColorBarTitle(colorField),
+          font: { size: 14 }
+        }
       }
     };
 
     const layout = {
       title: 'Motor Performance Map',
       xaxis: {
-        title: 'Speed (Hz)'
+        title: {
+          text: 'Speed (Hz)',
+          font: { size: 14 }
+        }
       },
       yaxis: {
-        title: 'Torque (Nm)'
+        title: {
+          text: 'Torque (Nm)',
+          font: { size: 14 }
+        }
       },
       autosize: true,
       margin: { t: 50, l: 60, r: 60, b: 60 }
