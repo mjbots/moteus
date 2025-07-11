@@ -2045,8 +2045,8 @@ function PlotView({ baseConfig, commonConfig }) {
           console.log(`PlotView: Sample result [torque=${torqueIndex},speed=${speedIndex}]:`, result);
         }
         
-        if (result) {
-          // The result is the operating point data directly
+        if (result && !result._infeasible_reason) {
+          // The result is feasible
           switch (colorField) {
             case 'bus_power':
               value = result.supply_power;
@@ -2066,6 +2066,9 @@ function PlotView({ baseConfig, commonConfig }) {
           if (value !== null && value !== undefined && !isNaN(value)) {
             validPoints++;
           }
+        } else {
+          // Infeasible operating point - use null so it appears white/empty
+          value = null;
         }
         
         zRow.push(value);
