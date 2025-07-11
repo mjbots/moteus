@@ -276,11 +276,43 @@
     }
 
     .panelTitle {
-      cursor: pointer;
+      cursor: move;
       padding: 0.5rem;
       background:#f7f9fc;
       font-weight: 600;
       border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .drag-handle {
+      color: #666;
+      font-size: 14px;
+      cursor: move;
+    }
+
+    .panelContainer.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .panelContainer.drag-over {
+      border: 2px dashed #007bff;
+      background: #f8f9ff;
+    }
+
+    .panelContainer:hover .drag-handle {
+      color: #333;
+    }
+
+    .panelContainer.not-draggable .panelTitle {
+      cursor: default;
+    }
+
+    .panelContainer.not-draggable:hover {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
     }
 
     .resultTable {
@@ -2943,7 +2975,20 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
   `;
 }
 
-function AxisPanel({ axisNumber, configs, onConfigsChange }) {
+function AxisPanel({ 
+  axisNumber, 
+  axisIndex, 
+  configs, 
+  onConfigsChange, 
+  onDragStart, 
+  onDragOver, 
+  onDragLeave, 
+  onDrop, 
+  onDragEnd,
+  isDragging,
+  isDragOver,
+  isDraggable 
+}) {
   const handleConfigChange = (index, newValue) => {
     let newConfigs = [...configs];
     newConfigs[index] = newValue;
@@ -2968,8 +3013,19 @@ function AxisPanel({ axisNumber, configs, onConfigsChange }) {
   };
 
   return html`
-    <div class="panelContainer">
-      <div class="panelTitle">Axis ${axisNumber}</div>
+    <div 
+      class="panelContainer ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${!isDraggable ? 'not-draggable' : ''}"
+      draggable=${isDraggable}
+      onDragStart=${isDraggable ? (e) => onDragStart(e, axisIndex) : undefined}
+      onDragOver=${isDraggable ? (e) => onDragOver(e, axisIndex) : undefined}
+      onDragLeave=${isDraggable ? onDragLeave : undefined}
+      onDrop=${isDraggable ? (e) => onDrop(e, axisIndex) : undefined}
+      onDragEnd=${isDraggable ? onDragEnd : undefined}
+    >
+      <div class="panelTitle">
+        ${isDraggable ? html`<span class="drag-handle">☰</span>` : ''}
+        Axis ${axisNumber}
+      </div>
       <div class="panelContent">
         ${configs.map((config, index) => html`
           <div key=${index} class="configField">
@@ -3854,6 +3910,10 @@ function App() {
   const [activeTab, setActiveTab] = useState(plotParams?.tab || 'table');
   const [plotMetadata, setPlotMetadata] = useState(plotParams?.meta || null);
 
+  // State for drag and drop functionality
+  const [draggedAxisIndex, setDraggedAxisIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+
   // Helper to create a complete config from URL plot params
   const createConfigFromUrlParams = (plotConfigParams) => {
     if (!plotConfigParams) {
@@ -3924,6 +3984,78 @@ function App() {
     setAxisConfigs(newAxisConfigs);
   };
 
+  // Drag and drop event handlers
+  const handleDragStart = (e, axisIndex) => {
+    // Prevent dragging the final empty axis
+    const isLastAxis = axisIndex === axisConfigs.length - 1;
+    const isEmpty = !hasAnyContent(axisConfigs[axisIndex]);
+    
+    if (isLastAxis && isEmpty) {
+      e.preventDefault();
+      return;
+    }
+    
+    setDraggedAxisIndex(axisIndex);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', ''); // Required for Firefox
+  };
+
+  const handleDragOver = (e, axisIndex) => {
+    // Prevent dropping on or below the final empty axis
+    const isLastAxis = axisIndex === axisConfigs.length - 1;
+    const isEmpty = !hasAnyContent(axisConfigs[axisIndex]);
+    
+    if (isLastAxis && isEmpty) {
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
+    
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(axisIndex);
+  };
+
+  const handleDragLeave = (e) => {
+    // Only clear dragOverIndex if we're leaving the container entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    
+    // Prevent dropping on the final empty axis
+    const isLastAxis = dropIndex === axisConfigs.length - 1;
+    const isEmpty = !hasAnyContent(axisConfigs[dropIndex]);
+    
+    if (isLastAxis && isEmpty) {
+      setDraggedAxisIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    
+    if (draggedAxisIndex === null || draggedAxisIndex === dropIndex) {
+      setDraggedAxisIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Reorder the axis configurations
+    const newAxisConfigs = [...axisConfigs];
+    const [draggedConfig] = newAxisConfigs.splice(draggedAxisIndex, 1);
+    newAxisConfigs.splice(dropIndex, 0, draggedConfig);
+    
+    setAxisConfigs(newAxisConfigs);
+    setDraggedAxisIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedAxisIndex(null);
+    setDragOverIndex(null);
+  };
+
   // Helper function to check if any config in an axis has content
   const hasAnyContent = (configs) => {
     return configs.some(config => config.length > 0);
@@ -3990,14 +4122,29 @@ function App() {
           selected=${commonConfig}
           onSelectedChange=${setCommonConfig}
         />
-        ${axisConfigs.map((configs, axisIndex) => html`
-          <${AxisPanel}
-            key=${axisIndex}
-            axisNumber=${axisIndex + 1}
-            configs=${configs}
-            onConfigsChange=${(newConfigs) => handleAxisConfigChange(axisIndex, newConfigs)}
-          />
-        `)}
+        ${axisConfigs.map((configs, axisIndex) => {
+          const isLastAxis = axisIndex === axisConfigs.length - 1;
+          const isEmpty = !hasAnyContent(configs);
+          const isDraggable = !(isLastAxis && isEmpty);
+          
+          return html`
+            <${AxisPanel}
+              key=${axisIndex}
+              axisNumber=${axisIndex + 1}
+              axisIndex=${axisIndex}
+              configs=${configs}
+              onConfigsChange=${(newConfigs) => handleAxisConfigChange(axisIndex, newConfigs)}
+              onDragStart=${handleDragStart}
+              onDragOver=${handleDragOver}
+              onDragLeave=${handleDragLeave}
+              onDrop=${handleDrop}
+              onDragEnd=${handleDragEnd}
+              isDragging=${draggedAxisIndex === axisIndex}
+              isDragOver=${dragOverIndex === axisIndex}
+              isDraggable=${isDraggable}
+            />
+          `;
+        })}
         <div class="panelContainer">
           <div class="panelContent">
             <button
