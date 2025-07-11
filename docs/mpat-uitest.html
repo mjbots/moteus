@@ -2126,13 +2126,32 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
   const createHeatmap = (data, colorField) => {
     if (!plotRef.current || !window.Plotly) return;
 
+    // Determine if we have signed data (both positive and negative values)
+    const flatValues = data.zValues.flat().filter(v => v !== null && !isNaN(v));
+    const hasPositive = flatValues.some(v => v > 0);
+    const hasNegative = flatValues.some(v => v < 0);
+    const usesDivergingScale = hasPositive && hasNegative;
+
+    // Choose color scale and range
+    let colorscale, zmid;
+    if (usesDivergingScale) {
+      // Red-white-blue diverging scale: red for positive, blue for negative, white for zero
+      colorscale = 'RdBu';
+      zmid = 0; // Center the scale at zero
+    } else {
+      // Use standard viridis for non-signed data
+      colorscale = 'Viridis';
+      zmid = undefined;
+    }
+
     const trace = {
       x: data.speeds,
       y: data.torques,
       z: data.zValues,
       text: data.hoverText,
       type: 'heatmap',
-      colorscale: 'Viridis',
+      colorscale: colorscale,
+      zmid: zmid,
       showscale: true,
       hovertemplate: '%{text}<extra></extra>',
       colorbar: {
