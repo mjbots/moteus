@@ -84,16 +84,25 @@ def estimate(
 def main() -> None:
     # --- sample calibration set (replace with your real data) ---
     sample_motors = [
-        dict(name="6374-170Kv", Kv=170, m=0.92, D=0.063, chi=1,
-             R=0.026, L=36e-6, d0=0.020, d1=1.5e-4, Rth=1.8, Cth=420),
-        dict(name="6355-230Kv", Kv=230, m=0.69, D=0.063, chi=1,
-             R=0.031, L=28e-6, d0=0.018, d1=1.4e-4, Rth=2.0, Cth=330),
-        dict(name="5065-270Kv", Kv=270, m=0.43, D=0.050, chi=1,
-             R=0.041, L=22e-6, d0=0.012, d1=7.0e-5, Rth=2.6, Cth=210),
-        dict(name="80100-120Kv", Kv=120, m=1.50, D=0.080, chi=1,
-             R=0.019, L=78e-6, d0=0.045, d1=3.7e-4, Rth=1.5, Cth=650),
-        dict(name="inrunner-45Kv", Kv=45,  m=4.10, D=0.092, chi=0,
-             R=0.015, L=230e-6, d0=0.080, d1=9.0e-4, Rth=0.9, Cth=1850),
+        dict(name="mj5208", Kv=304, m=0.192, D=0.063, chi=1,
+             R=0.047, L=28.6e-6, d0=0.01289, d1=0.0001469,
+             Rth=4.55, Cth=164.59),
+        dict(name="mad8318", Kv=120, m=0.646, D=0.091, chi=1,
+             R=0.015, L=9.75e-6, d0=0.1272, d1=0.001829,
+             Rth=1.516, Cth=735.5),
+        dict(name="gbm5208", Kv=25.5, m=0.193, D=0.063, chi=1,
+             R=7.545, L=2254.5e-6, d0=0.00822, d1=0.000183,
+             Rth=4.55, Cth=165),
+        dict(name="be8108", Kv=135, m=0.230, D=0.087, chi=1,
+             R=0.0910, L=39.2e-6, d0=0.0300, d1=0.000691,
+             Rth=2.74, Cth=210.9),
+#        dict(name="hoverboard350", Kv=18.2, m=4.26, D=0.156, chi=1,
+#             R=0.216, L=530e-6, d0=0.0892, d1=0.0131,
+#             Rth=2.41, Cth=946.1),
+#        dict(name="ht1105", Kv=1180, m=0.008, D=0.016, chi=1,
+#             R=6.435, L=298.5e-6, d0=6.29e-5, d1=3.80e-6,
+#             Rth=20.8, Cth=14.8),
+
     ]
     df = pd.DataFrame(sample_motors)
 
@@ -114,6 +123,42 @@ def main() -> None:
              "Rth": "K/W", "Cth": "J/K"}
     for p in ["R", "L", "d0", "d1", "Rth", "Cth"]:
         print(f"  {p:<4}= {est[p]:.4g} {units[p]}")
+
+    # --- step 3: test fits for all sample database motors -------
+    print(f"\n{'='*60}")
+    print("Test fits for all sample database motors:")
+    print(f"{'='*60}")
+    print(f"{'Motor':<15} {'Param':<4} {'Measured':<12} {'Estimated':<12} {'Error %':<8}")
+    print(f"{'-'*60}")
+
+    for _, motor in df.iterrows():
+        motor_dict = motor.to_dict()
+        est = estimate(motor_dict, kappa)
+
+        print(f"\n{motor['name']:<15}")
+        for p in ["R", "L", "d0", "d1", "Rth", "Cth"]:
+            measured = motor[p]
+            estimated = est[p]
+            error_pct = abs(estimated - measured) / measured * 100 if measured != 0 else 0
+
+            print(f"{'':15} {p:<4} {measured:<12.4g} {estimated:<12.4g} {error_pct:<8.1f}")
+
+    print(f"\n{'-'*60}")
+    print("Summary statistics:")
+    all_errors = []
+    for _, motor in df.iterrows():
+        motor_dict = motor.to_dict()
+        est = estimate(motor_dict, kappa)
+        for p in ["R", "L", "d0", "d1", "Rth", "Cth"]:
+            measured = motor[p]
+            estimated = est[p]
+            if measured != 0:
+                error_pct = abs(estimated - measured) / measured * 100
+                all_errors.append(error_pct)
+
+    print(f"Mean absolute error: {np.mean(all_errors):.1f}%")
+    print(f"Median absolute error: {np.median(all_errors):.1f}%")
+    print(f"Max absolute error: {np.max(all_errors):.1f}%")
 
 
 if __name__ == "__main__":
