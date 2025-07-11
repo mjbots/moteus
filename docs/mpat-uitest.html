@@ -2027,7 +2027,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
   const [speedMax, setSpeedMax] = useState(plotMetadata?.speedMax ? Number(plotMetadata.speedMax) : defaultRanges.speedMax);
   const [torqueMin, setTorqueMin] = useState(plotMetadata?.torqueMin ? Number(plotMetadata.torqueMin) : defaultRanges.torqueMin);
   const [torqueMax, setTorqueMax] = useState(plotMetadata?.torqueMax ? Number(plotMetadata.torqueMax) : defaultRanges.torqueMax);
-  const [gridResolution, setGridResolution] = useState(plotMetadata?.gridResolution ? Number(plotMetadata.gridResolution) : 50);
+  const [gridResolution, setGridResolution] = useState(plotMetadata?.gridResolution ? Number(plotMetadata.gridResolution) : 100);
   const plotRef = useRef(null);
 
   const generatePlot = () => {
