@@ -1980,8 +1980,8 @@ function ConfigFieldSelector({
 }
 
 /* ---------- Plot View Component ---------- */
-function PlotView({ baseConfig, commonConfig }) {
-  const [colorField, setColorField] = useState('bus_power');
+function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
+  const [colorField, setColorField] = useState(plotMetadata?.colorField || 'bus_power');
 
   // Calculate reasonable defaults based on motor capabilities
   const getDefaultRanges = () => {
@@ -2015,11 +2015,11 @@ function PlotView({ baseConfig, commonConfig }) {
   };
 
   const defaultRanges = getDefaultRanges();
-  const [speedMin, setSpeedMin] = useState(defaultRanges.speedMin);
-  const [speedMax, setSpeedMax] = useState(defaultRanges.speedMax);
-  const [torqueMin, setTorqueMin] = useState(defaultRanges.torqueMin);
-  const [torqueMax, setTorqueMax] = useState(defaultRanges.torqueMax);
-  const [gridResolution, setGridResolution] = useState(50);
+  const [speedMin, setSpeedMin] = useState(plotMetadata?.speedMin ? Number(plotMetadata.speedMin) : defaultRanges.speedMin);
+  const [speedMax, setSpeedMax] = useState(plotMetadata?.speedMax ? Number(plotMetadata.speedMax) : defaultRanges.speedMax);
+  const [torqueMin, setTorqueMin] = useState(plotMetadata?.torqueMin ? Number(plotMetadata.torqueMin) : defaultRanges.torqueMin);
+  const [torqueMax, setTorqueMax] = useState(plotMetadata?.torqueMax ? Number(plotMetadata.torqueMax) : defaultRanges.torqueMax);
+  const [gridResolution, setGridResolution] = useState(plotMetadata?.gridResolution ? Number(plotMetadata.gridResolution) : 50);
   const plotRef = useRef(null);
 
   const generatePlot = () => {
@@ -2156,6 +2156,22 @@ function PlotView({ baseConfig, commonConfig }) {
       generatePlot();
     }
   }, [baseConfig, colorField, speedMin, speedMax, torqueMin, torqueMax, gridResolution]);
+
+  // Expose plot metadata globally for URL generation
+  useEffect(() => {
+    window.getPlotMetadata = () => ({
+      colorField,
+      speedMin,
+      speedMax,
+      torqueMin,
+      torqueMax,
+      gridResolution
+    });
+    
+    return () => {
+      window.getPlotMetadata = null;
+    };
+  }, [colorField, speedMin, speedMax, torqueMin, torqueMax, gridResolution]);
 
   if (!baseConfig) {
     return html`
@@ -2956,6 +2972,12 @@ function parseUrlParams() {
           plotParams.config = {};
         }
         plotParams.config[configField] = value;
+      } else if (field.startsWith('meta.')) {
+        const metaField = field.substring(5); // Remove 'meta.'
+        if (!plotParams.meta) {
+          plotParams.meta = {};
+        }
+        plotParams.meta[metaField] = value;
       } else {
         plotParams[field] = value;
       }
@@ -3138,6 +3160,15 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
         }
       });
     }
+    
+    // Store plot metadata (axis ranges, color field, etc.)
+    if (plotState.plotMetadata) {
+      Object.entries(plotState.plotMetadata).forEach(([field, value]) => {
+        if (value !== null && value !== undefined) {
+          params.set(`plot.meta.${field}`, value);
+        }
+      });
+    }
   }
 
   return params.toString();
@@ -3192,6 +3223,7 @@ function App() {
 
   // State for plot functionality - initialize from URL if present
   const [activeTab, setActiveTab] = useState(plotParams?.tab || 'table');
+  const [plotMetadata, setPlotMetadata] = useState(plotParams?.meta || null);
   
   // Helper to create a complete config from URL plot params
   const createConfigFromUrlParams = (plotConfigParams) => {
@@ -3301,7 +3333,8 @@ function App() {
   const handleCopyUrl = async () => {
     const plotState = {
       activeTab,
-      plotConfig: activeTab === 'plot' ? plotConfig : null
+      plotConfig: activeTab === 'plot' ? plotConfig : null,
+      plotMetadata: activeTab === 'plot' ? window.getPlotMetadata?.() : null
     };
     const success = await copyUrlToClipboard(commonConfig, axisConfigs, plotState);
     if (success) {
@@ -3380,6 +3413,7 @@ function App() {
             <${PlotView}
               baseConfig=${plotConfig}
               commonConfig=${commonConfig}
+              plotMetadata=${plotMetadata}
             />
           `}
         </div>
