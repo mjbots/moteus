@@ -1121,7 +1121,7 @@ class MoteusC1 extends MoteusController {
     {
       'none' :         {R: 11.3, C:10.7},
       'heatspreader' : {R: 11.2, C:10.7},
-      '5vfan' :        {R: 2.55, C:10.7},
+      'fan_5v' :       {R: 2.55, C:10.7},
       'max' :          {R: 2.55, C:10.7},
     });
   }
@@ -1159,9 +1159,9 @@ class MoteusR4 extends MoteusController {
     },
     {
       'none' :         {R: 10.0, C:12.7},
-      '5vfan' :        {R: 3.7,  C:12.7},
+      'fan_5v' :       {R: 3.7,  C:12.7},
       'heatspreader':  {R: 8.6,  C:13.9},
-      'heatspreader_4030sink': {R:6.2, C:19.4},
+      '4030sink':      {R: 6.2,  C:19.4},
       'max':           {R: 2.4,  C:12.7},
     });
   }
@@ -1345,9 +1345,9 @@ class MoteusN1 extends MoteusController {
     },
     {
       'none' :         {R: 11.7, C:10.3},
-      '5vfan' :        {R: 4.1,  C:10.3},
+      'fan_5v' :       {R: 4.1,  C:10.3},
       'heatspreader':  {R: 9.8,  C:12.2},
-      'heatspreader_4030sink': {R:7.2, C:16.8},
+      '4030sink':      {R: 7.2,  C:16.8},
       'max':           {R: 3.0,  C:10.3},
     });
   }
@@ -1391,10 +1391,9 @@ class MoteusX1 extends MoteusController {
     },
     {
       'none' :         {R: 8.1, C:14.8},
-      '5vfan' :        {R: 2.8, C:14.8},
-      '12vfan' :       {R: 2.1, C:14.8},
-      'heatspreader_4010sink': { R:7.2, C:16.8},
-      'heatspreader_4030sink': { R:6.0, C:20.0},
+      'fan_5v' :       {R: 2.8, C:14.8},
+      'fan_12v' :      {R: 2.1, C:14.8},
+      '4030sink':      {R: 6.0, C:20.0},
       'heatspreader':  {R: 8.6, C:14.8},
       'max' :          {R: 1.9, C:14.8},
     });
@@ -1423,8 +1422,8 @@ class OdrivePro extends OdriveController {
     {
       'none':         {R: 6.7, C: 30.4},
       'heatspreader': {R: 5.4, C: 71.7},
-      '5vfan':        {R: 1.5, C: 71.7 },
-      '12vfan':       {R: 1.0, C: 71.7 },
+      'fan_5v':       {R: 1.5, C: 71.7 },
+      'fan_12v':      {R: 1.0, C: 71.7 },
       'max':          {R: 1.0, C: 71.7},
     });
   }
@@ -1456,7 +1455,7 @@ class OdriveS1 extends OdriveController {
     {
       'none':  {R: 6.6, C: 35.8},
       'heatspreader': {R: 4.7, C: 85.8},
-      '5vfan': {R: 1.2, C: 85.8},
+      'fan_5v': {R: 1.2, C: 85.8},
       'max':   {R: 1.2, C: 85.8},
     });
   }
