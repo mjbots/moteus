@@ -1975,7 +1975,7 @@ function ConfigFieldSelector({
 function PlotView({ baseConfig, commonConfig }) {
   const [colorField, setColorField] = useState('bus_power');
   const [speedMin, setSpeedMin] = useState(0);
-  const [speedMax, setSpeedMax] = useState(6000);
+  const [speedMax, setSpeedMax] = useState(100);
   const [torqueMin, setTorqueMin] = useState(0);
   const [torqueMax, setTorqueMax] = useState(40);
   const [gridResolution, setGridResolution] = useState(50);
@@ -2029,7 +2029,7 @@ function PlotView({ baseConfig, commonConfig }) {
         
         // Create config for this operating point
         const config = { ...baseConfig };
-        config.velocity = speed * (2 * Math.PI / 60); // Convert RPM to rad/s
+        config.velocity = speed; // Speed in Hz
         config.torque = torque;
         
         // Log a few sample configs for debugging
@@ -2119,7 +2119,7 @@ function PlotView({ baseConfig, commonConfig }) {
     const layout = {
       title: 'Motor Performance Map',
       xaxis: {
-        title: 'Speed (RPM)'
+        title: 'Speed (Hz)'
       },
       yaxis: {
         title: 'Torque (Nm)'
@@ -2200,7 +2200,7 @@ function PlotView({ baseConfig, commonConfig }) {
               onChange=${(e) => setSpeedMax(Number(e.target.value))}
               style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
             />
-            <span style="margin-left: 4px;">RPM</span>
+            <span style="margin-left: 4px;">Hz</span>
           </div>
           
           <div style="display: flex; align-items: center;">
