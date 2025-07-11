@@ -453,13 +453,13 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
   // For controllers and motors, create help text with actual links
   if (fieldName === 'controller') {
     const helpText = {
-      'moteus-c1': html`Compact controller (250W peak, 10-51V) - <a href="https://mjbots.com/products/moteus-c1" target="_blank">product page</a>`,
-      'moteus-r4': html`Legacy controller (900W peak, 10-42V) - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`, 
-      'moteus-n1': html`High-current controller (2kW peak, 10-54V) - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
-      'moteus-x1': html`Latest high-power controller (1.3kW peak, 10-54V) - <a href="https://mjbots.com/products/moteus-x1" target="_blank">product page</a>`,
-      'odrive-micro': html`Micro controller (100W, 10-31V) - <a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">product page</a>`,
-      'odrive-s1': html`Standard ODrive (2kW, 10-50.5V) - <a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">product page</a>`,
-      'odrive-pro': html`Professional ODrive (5kW, 10-58V) - <a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">product page</a>`
+      'moteus-c1': html`38×38×9mm, 8.9g, 250W peak, 10-51V - <a href="https://mjbots.com/products/moteus-c1" target="_blank">product page</a>`,
+      'moteus-r4': html`46×53mm, 14.2g, 900W peak, 10-42V - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`,
+      'moteus-n1': html`46×46×8mm, 14.6g, 2kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
+      'moteus-x1': html`56×56×10mm, 23.7g, 1.3kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-x1" target="_blank">product page</a>`,
+      'odrive-micro': html`32×32×7.5mm, 6.8g, 100W, 10-31V - <a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">product page</a>`,
+      'odrive-s1': html`51×64mm, 35g, 2kW, 10-50.5V - <a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">product page</a>`,
+      'odrive-pro': html`51×64mm, 35g, 5kW, 10-58V - <a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">product page</a>`
     };
     return helpText[valueName] || null;
   }
@@ -476,12 +476,12 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
     };
     return helpText[valueName] || null;
   }
-  
+
   // Fallback descriptions for other constrained values
   const helpText = {
     'controller_cooling': {
       'none': 'No additional cooling - air convection only',
-      'heatspreader': 'Heat spreader plate - improves heat distribution', 
+      'heatspreader': 'Heat spreader plate - improves heat distribution',
       '4030sink': 'Heat sink with 40x30mm fan - active cooling',
       'fan_5v': '5V fan cooling - moderate active cooling',
       'fan_12v': '12V fan cooling - high-performance active cooling',
@@ -494,7 +494,7 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
     'output': {
       'torque': 'Motor torque output in Nm',
       'velocity': 'Motor velocity in Hz',
-      'supply_power': 'Total electrical power consumption in W', 
+      'supply_power': 'Total electrical power consumption in W',
       'efficiency': 'Motor efficiency as percentage',
       'controller_temp': 'Controller temperature in °C',
       'motor_temp': 'Motor temperature in °C'
@@ -505,7 +505,7 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
       'operating_point': 'Evaluate specific operating point'
     }
   };
-  
+
   return helpText[fieldName]?.[valueName] || null;
 };
 
@@ -2312,10 +2312,10 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
             default:
               value = result.supply_power;
           }
-          
+
           if (value !== null && value !== undefined && !isNaN(value)) {
             validPoints++;
-            
+
             // Create comprehensive hover info using OperatingPoint field info
             const fieldInfo = OperatingPoint.getFieldInfo();
             const hoverLines = [
@@ -2324,7 +2324,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
               `${getColorBarTitle(colorField)}: ${value.toFixed(2)}`,
               `---`
             ];
-            
+
             // Add all operating point fields dynamically
             Object.entries(fieldInfo).forEach(([fieldName, info]) => {
               const fieldValue = result[fieldName];
@@ -2334,7 +2334,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
                 hoverLines.push(`${info.displayName}: ${formattedValue}${unitText}`);
               }
             });
-            
+
             hoverInfo = hoverLines.join('<br>');
           } else {
             hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>Invalid result`;
@@ -2355,56 +2355,56 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
 
     // Generate feasibility data for all time periods for boundary contours
     const feasibilityData = generateFeasibilityBoundaries(speeds, torques, baseConfig);
-    
+
     return { speeds, torques, zValues, hoverText, feasibilityData };
   };
 
   const generateFeasibilityBoundaries = (speeds, torques, baseConfig) => {
     const timePeriods = [2, 60, Infinity];
     const boundaries = {};
-    
+
     // Generate feasibility grid for each time period
     for (const time of timePeriods) {
       const timeKey = time === Infinity ? 'inf' : time;
       const feasibilityGrid = [];
-      
+
       // Create a higher resolution grid for smoother boundaries
       const boundaryResolution = Math.max(50, speeds.length);
       const speedStep = (speeds[speeds.length - 1] - speeds[0]) / (boundaryResolution - 1);
       const torqueStep = (torques[torques.length - 1] - torques[0]) / (boundaryResolution - 1);
-      
+
       const boundarySpeeds = [];
       const boundaryTorques = [];
-      
+
       for (let i = 0; i < boundaryResolution; i++) {
         boundarySpeeds.push(speeds[0] + i * speedStep);
         boundaryTorques.push(torques[0] + i * torqueStep);
       }
-      
+
       // Generate feasibility grid
       for (let torqueIndex = 0; torqueIndex < boundaryResolution; torqueIndex++) {
         const feasibilityRow = [];
         const torque = boundaryTorques[torqueIndex];
-        
+
         for (let speedIndex = 0; speedIndex < boundaryResolution; speedIndex++) {
           const speed = boundarySpeeds[speedIndex];
-          
+
           const config = { ...baseConfig, velocity: speed, torque: torque, time: time };
           const result = evaluateOperatingPoint(config);
-          
+
           // 1 = feasible, 0 = infeasible
           feasibilityRow.push(result && !result._infeasible_reason ? 1 : 0);
         }
         feasibilityGrid.push(feasibilityRow);
       }
-      
+
       boundaries[timeKey] = {
         speeds: boundarySpeeds,
         torques: boundaryTorques,
         feasibilityGrid: feasibilityGrid
       };
     }
-    
+
     return boundaries;
   };
 
@@ -2456,7 +2456,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     if (data.feasibilityData) {
       const timeLabels = { '2': '2s', '60': '60s', 'inf': '∞' };
       const colors = { '2': '#ff4444', '60': '#ff8800', 'inf': '#4444ff' };
-      
+
       Object.entries(data.feasibilityData).forEach(([timeKey, boundaryData]) => {
         const contourTrace = {
           x: boundaryData.speeds,
@@ -2786,13 +2786,35 @@ function HelpOverlay({ isVisible, onClose }) {
     <div class="helpOverlay" onClick=${onClose}>
       <div class="helpContent" onClick=${(e) => e.stopPropagation()}>
         <div class="helpHeader">
-          <h2 class="helpHeaderTitle">Help: Configuration Fields</h2>
+          <h2 class="helpHeaderTitle">moteus Performance Analysis Tool</h2>
           <button class="primaryButton" onClick=${onClose}>Close</button>
         </div>
-        
+
         <div class="helpIntro">
-          This tool analyzes motor performance across different operating conditions. 
-          Configure the motor, controller, and operating parameters using the chip selectors.
+          <p>
+
+          Compare performance properties of different brushless motor
+          controller systems.  Options can be set globally, or added
+          to axes in order to produce comparison results.  In axis
+          definitions, multiple values to compare can either be added
+          to multiple lines, or separated with commas.
+
+          </p>
+
+          <p>
+
+          Click on table elements to see the full operating point for
+          that result.
+
+          </p>
+
+          <p>
+
+          A velocity vs torque plot with thermal and efficiency
+          operating curves can be generated for either the common
+          configuration, or any specific operating point.
+
+          </p>
         </div>
 
         ${Object.entries(defaultCommonValues).map(([fieldName, config]) => {
@@ -2814,14 +2836,14 @@ function HelpOverlay({ isVisible, onClose }) {
               constraints = 'numeric values only';
             }
           }
-          
+
           return html`
             <div class="helpSection">
               <div class="helpFieldName">${fieldName}</div>
               <div class="helpFieldDescription">
                 ${config.description}${constraints ? html` — <span class="helpFieldConstraints">${constraints}</span>` : ''}
               </div>
-              
+
               ${fieldValueOptions[fieldName] ? html`
                 <div class="helpOptionsContainer">
                   <div class="helpOptionsTitle">Available Options:</div>
@@ -2853,10 +2875,10 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
   const handlePlotCommonConfig = () => {
     // Convert selected chips to base config
     const commonConfig = convertChipsToDict(selected);
-    
+
     // Reify the config to convert strings to actual objects
     const reifiedConfig = reifyObjects(commonConfig);
-    
+
     // Switch to plot view and set the reified configuration
     window.switchToPlotView(reifiedConfig);
   };
@@ -2865,8 +2887,8 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
     <div class="panelContainer">
       <div class="panelTitle" style="display: flex; justify-content: space-between; align-items: center;">
         <span>Common Config</span>
-        <button 
-          class="primaryButton" 
+        <button
+          class="primaryButton"
           onClick=${handlePlotCommonConfig}
           style="font-size: 12px; padding: 4px 8px;"
         >
@@ -3470,7 +3492,7 @@ function initializeFromUrl() {
   const defaultValues = Object.fromEntries(
     Object.entries(defaultCommonValues).map(([field, config]) => [field, config.value])
   );
-  
+
   const commonConfig = Object.keys(commonParams).length > 0 ?
     dictToChips({ ...defaultValues, ...commonParams }) :
     Object.entries(defaultCommonValues).map(([field, config]) => ({
@@ -3728,7 +3750,7 @@ function App() {
     setPlotMetadata(null); // Clear metadata so ranges get recalculated
     setActiveTab('plot');
   };
-  
+
   // Global function to show help overlay
   window.showHelp = () => {
     setIsHelpVisible(true);
