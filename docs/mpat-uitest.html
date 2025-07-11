@@ -773,7 +773,9 @@ class Controller {
       this.k2.interpolate(voltage, pwm),
     ];
 
-    const thermalPower = k0 + k1 * phase_current + k2 * phase_current * phase_current;
+    // Use absolute value since thermal power should be symmetric for +/- current
+    const absCurrent = Math.abs(phase_current);
+    const thermalPower = k0 + k1 * absCurrent + k2 * absCurrent * absCurrent;
     return thermalPower;
   }
 
