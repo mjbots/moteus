@@ -2020,13 +2020,39 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     }
   };
 
-  const defaultRanges = getDefaultRanges();
-  const [speedMin, setSpeedMin] = useState(plotMetadata?.speedMin ? Number(plotMetadata.speedMin) : defaultRanges.speedMin);
-  const [speedMax, setSpeedMax] = useState(plotMetadata?.speedMax ? Number(plotMetadata.speedMax) : defaultRanges.speedMax);
-  const [torqueMin, setTorqueMin] = useState(plotMetadata?.torqueMin ? Number(plotMetadata.torqueMin) : defaultRanges.torqueMin);
-  const [torqueMax, setTorqueMax] = useState(plotMetadata?.torqueMax ? Number(plotMetadata.torqueMax) : defaultRanges.torqueMax);
+  const [speedMin, setSpeedMin] = useState(() => {
+    if (plotMetadata?.speedMin) return Number(plotMetadata.speedMin);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.speedMin;
+  });
+  const [speedMax, setSpeedMax] = useState(() => {
+    if (plotMetadata?.speedMax) return Number(plotMetadata.speedMax);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.speedMax;
+  });
+  const [torqueMin, setTorqueMin] = useState(() => {
+    if (plotMetadata?.torqueMin) return Number(plotMetadata.torqueMin);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.torqueMin;
+  });
+  const [torqueMax, setTorqueMax] = useState(() => {
+    if (plotMetadata?.torqueMax) return Number(plotMetadata.torqueMax);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.torqueMax;
+  });
   const [gridResolution, setGridResolution] = useState(plotMetadata?.gridResolution ? Number(plotMetadata.gridResolution) : 100);
   const plotRef = useRef(null);
+
+  // Update ranges when baseConfig changes (but only if not restored from URL)
+  useEffect(() => {
+    if (baseConfig && !plotMetadata) {
+      const defaultRanges = getDefaultRanges();
+      setSpeedMin(defaultRanges.speedMin);
+      setSpeedMax(defaultRanges.speedMax);
+      setTorqueMin(defaultRanges.torqueMin);
+      setTorqueMax(defaultRanges.torqueMax);
+    }
+  }, [baseConfig, plotMetadata]);
 
   const generatePlot = () => {
     if (!baseConfig) return;
@@ -3424,6 +3450,7 @@ function App() {
   // Global function for overlay to switch to plot view
   window.switchToPlotView = (baseConfig) => {
     setPlotConfig(baseConfig);
+    setPlotMetadata(null); // Clear metadata so ranges get recalculated
     setActiveTab('plot');
   };
 
