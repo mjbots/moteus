@@ -432,12 +432,14 @@ const defaultCommonValues = {
 
 // Default values for motor sub-fields
 const motorSubFieldDefaults = {
-  'motor.kv': '100',
-  'motor.r': '0.1',
-  'motor.l': '1e-6',
-  'motor.mass': '0.1',
-  'motor.diameter': '30',
-  'motor.type': 'outrunner'
+  'motor.kv': { value: '100', description: 'Motor velocity constant in RPM/V' },
+  'motor.r': { value: '0.1', description: 'Phase resistance in ohms' },
+  'motor.l': { value: '1e-6', description: 'Phase inductance in henries' },
+  'motor.thermal_r': { value: '0.5', description: 'Thermal resistance in °C/W' },
+  'motor.thermal_c': { value: '50', description: 'Thermal capacitance in J/°C' },
+  'motor.mass': { value: '0.1', description: 'Motor mass in kg' },
+  'motor.diameter': { value: '30', description: 'Motor diameter in mm' },
+  'motor.type': { value: 'outrunner', description: 'Motor type: "outrunner" or "inrunner"' }
 };
 
 // Default axis configurations
@@ -2866,6 +2868,35 @@ function HelpOverlay({ isVisible, onClose }) {
             </div>
           `;
         })}
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+          <h3 style="margin: 0 0 15px 0; color: #0066cc;">Parameterizable Motor Models</h3>
+          <div style="margin-bottom: 15px; color: #666;">
+            The "model" and "extrapolated" motor options allow custom motor definitions with the following parameters:
+          </div>
+
+          ${Object.entries(motorModelFields).map(([motorType, paramFields]) => html`
+            <div class="helpSection">
+              <div class="helpFieldName">${motorType}</div>
+              <div class="helpFieldDescription">
+                ${motorType === 'model' ? 'Generic motor model for full custom motor definitions' : 'Extrapolated motor with estimated parameters from basic specifications'} — numeric values only
+              </div>
+              <div class="helpOptionsContainer">
+                <div class="helpOptionsTitle">Required Parameters:</div>
+                ${paramFields.map(paramField => {
+                  const fullFieldName = `motor.${paramField}`;
+                  const paramConfig = motorSubFieldDefaults[fullFieldName];
+                  return html`
+                    <div class="helpOptionRow">
+                      <span class="helpOptionValue">${fullFieldName}</span>
+                      <div class="helpOptionDescription">${paramConfig ? paramConfig.description : 'Parameter description not available'}</div>
+                    </div>
+                  `;
+                })}
+              </div>
+            </div>
+          `)}
+        </div>
       </div>
     </div>
   `;
