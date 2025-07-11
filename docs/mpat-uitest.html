@@ -398,6 +398,67 @@ const defaultAxisConfigs = [
   [{ field: 'voltage', data: '12,24,36,48,54' }]
 ];
 
+/* Help text for constrained field values - includes productInfo links where available */
+const getConstrainedValueHelp = (fieldName, valueName) => {
+  // For controllers and motors, create help text with actual links
+  if (fieldName === 'controller') {
+    const helpText = {
+      'moteus-c1': html`Compact controller (250W peak, 10-51V) - <a href="https://mjbots.com/products/moteus-c1" target="_blank">product page</a>`,
+      'moteus-r4': html`Legacy controller (900W peak, 10-42V) - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`, 
+      'moteus-n1': html`High-current controller (2kW peak, 10-54V) - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
+      'moteus-x1': html`Latest high-power controller (1.3kW peak, 10-54V) - <a href="https://mjbots.com/products/moteus-x1" target="_blank">product page</a>`,
+      'odrive-micro': html`Micro controller (100W, 10-31V) - <a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">product page</a>`,
+      'odrive-s1': html`Standard ODrive (2kW, 10-50.5V) - <a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">product page</a>`,
+      'odrive-pro': html`Professional ODrive (5kW, 10-58V) - <a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">product page</a>`
+    };
+    return helpText[valueName] || null;
+  }
+  if (fieldName === 'motor') {
+    const helpText = {
+      'mad8318': html`MAD 8318 motor - high-performance 83mm agricultural drone motor - <a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">product page</a>`,
+      'mj5208': html`MJ 5208 motor - 52mm gimbal motor, low inertia - <a href="https://mjbots.com/products/mj5208" target="_blank">product page</a>`,
+      'gbm5208': html`GBM 5208 motor - 52mm gimbal motor variant - <a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">product page</a>`,
+      'be8108': html`BE 8108 motor - 81mm high-torque multirotor motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
+      'hoverboard350': html`Hoverboard 350W motor - large wheel motor for mobility - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
+      'ht1105': html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
+      'model': 'Generic motor model - for custom motor definitions',
+      'extrapolated': 'Extrapolated motor - estimated parameters from basic specs'
+    };
+    return helpText[valueName] || null;
+  }
+  
+  // Fallback descriptions for other constrained values
+  const helpText = {
+    'controller_cooling': {
+      'none': 'No additional cooling - air convection only',
+      'heatspreader': 'Heat spreader plate - improves heat distribution', 
+      '4030sink': 'Heat sink with 40x30mm fan - active cooling',
+      'fan_5v': '5V fan cooling - moderate active cooling',
+      'fan_12v': '12V fan cooling - high-performance active cooling',
+      'max': 'Maximum cooling configuration - best thermal performance'
+    },
+    'motor_cooling': {
+      'none': 'Natural air cooling only',
+      'max': 'Maximum forced air cooling'
+    },
+    'output': {
+      'torque': 'Motor torque output in Nm',
+      'velocity': 'Motor velocity in Hz',
+      'supply_power': 'Total electrical power consumption in W', 
+      'efficiency': 'Motor efficiency as percentage',
+      'controller_temp': 'Controller temperature in °C',
+      'motor_temp': 'Motor temperature in °C'
+    },
+    'analysis': {
+      'max_torque': 'Find maximum sustainable torque',
+      'max_velocity': 'Find maximum achievable velocity',
+      'operating_point': 'Evaluate specific operating point'
+    }
+  };
+  
+  return helpText[fieldName]?.[valueName] || null;
+};
+
 /* Field-specific value suggestions - only for constrained fields */
 const fieldValueOptions = {
   'controller': [
@@ -1176,7 +1237,6 @@ class MoteusC1 extends MoteusController {
       P_h_W: 150.0,
       V_h: 41.0,
       defaultPwm: 30000,
-      productInfo: html`<a href="https://mjbots.com/products/moteus-c1" target="_blank">[product page]</a>`,
     },
     {
       'voltages' : [12, 24, 36, 48],
@@ -1215,7 +1275,6 @@ class MoteusR4 extends MoteusController {
       P_h_W: 400.0,
       V_h: 38.0,
       defaultPwm: 30000,
-      productInfo: html`<a href="https://mjbots.com/products/moteus-r4-11" target="_blank">[product page]</a>`,
     },
     {
       'voltages' : [12, 24, 36, 42],
@@ -1263,7 +1322,6 @@ class MJ5208 extends Motor {
       // Measured on 2025-07-10 w/ `motor_iron_loss_test.py`
       d0: 0.01289,
       d1: 0.0001469,
-      productInfo: html`<a href="https://mjbots.com/products/mj5208" target="_blank">[product page]</a>`,
     });
   }
 }
@@ -1288,7 +1346,6 @@ class MAD8318 extends Motor {
       // Measured on 2025-07-10 w/ `motor_iron_loss_test.py`
       d0: 0.1272,
       d1: 0.001829,
-      productInfo: html`<a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">[product page]</a>`,
     });
   }
 }
@@ -1313,7 +1370,6 @@ class GBM5208 extends Motor {
       // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
       d0: 0.00822,
       d1: 0.000183,
-      productInfo: html`<a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">[product page]</a>`,
     });
   }
 }
@@ -1337,7 +1393,6 @@ class BE8108 extends Motor {
       // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
       d0: 0.0300,
       d1: 0.000691,
-      productInfo: html`<a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">[product page]</a>`,
     });
   }
 }
@@ -1401,7 +1456,6 @@ class MoteusN1 extends MoteusController {
       P_h_W: 1000.0,
       V_h: 44.0,
       defaultPwm: 30000,
-      productInfo: html`<a href="https://mjbots.com/products/moteus-n1" target="_blank">[product page]</a>`,
     },
     {
       'voltages' : [12, 24, 36, 48, 54],
@@ -1441,7 +1495,6 @@ class MoteusX1 extends MoteusController {
       P_h_W: 1000.0,
       V_h: 44.0,
       defaultPwm: 20000,
-      productInfo: html`<a href="https://mjbots.com/products/moteus-x1" target="_blank">[product page]</a>`,
     },
     {
       'voltages' : [12, 24, 36, 48, 54],
@@ -1486,7 +1539,6 @@ class OdrivePro extends OdriveController {
       derateCurrent: 120.0,
       maxVoltage: 58.0,
       P_W: 5000.0,
-      productInfo: html`<a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">[product page]</a>`,
     },
     {
       voltages: [12, 24, 36, 48, 54],
@@ -1519,7 +1571,6 @@ class OdriveS1 extends OdriveController {
       derateCurrent: 40.0,
       maxVoltage: 50.5,
       P_W: 2000.0,
-      productInfo: html`<a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">[product page]</a>`,
     },
     {
       voltages: [12, 24, 36, 48],
@@ -1551,7 +1602,6 @@ class OdriveMicro extends OdriveController {
       derateCurrent: 40.0,
       maxVoltage: 31.0,
       P_W: 100.0,
-      productInfo: html`<a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">[product page]</a>`,
     },
     {
       voltages: [12, 24],
@@ -2699,12 +2749,29 @@ function HelpOverlay({ isVisible, onClose }) {
           <div class="helpSection">
             <div class="helpFieldName">${fieldName}</div>
             <div class="helpFieldDescription">${config.description}</div>
-            <div class="helpFieldConstraints">
-              ${fieldValueOptions[fieldName] ? 
-                `Options: ${fieldValueOptions[fieldName].join(', ')}` : 
-                'Accepts numeric values or specific keywords'
-              }
-            </div>
+            
+            ${fieldValueOptions[fieldName] ? html`
+              <div style="margin-left: 15px; margin-top: 8px;">
+                <div style="font-weight: bold; color: #666; margin-bottom: 8px;">Available Options:</div>
+                ${fieldValueOptions[fieldName].map(optionValue => {
+                  const helpContent = getConstrainedValueHelp(fieldName, optionValue);
+                  return html`
+                    <div style="margin-bottom: 6px; display: flex; align-items: flex-start;">
+                      <span style="font-family: monospace; color: #0066cc; font-weight: bold; min-width: 120px; margin-right: 10px;">${optionValue}</span>
+                      ${helpContent ? html`
+                        <div style="font-size: 0.9em; color: #555; flex: 1;">
+                          ${helpContent}
+                        </div>
+                      ` : ''}
+                    </div>
+                  `;
+                })}
+              </div>
+            ` : html`
+              <div class="helpFieldConstraints">
+                Accepts numeric values or specific keywords
+              </div>
+            `}
           </div>
         `)}
       </div>
