@@ -3228,6 +3228,45 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     }, [[]]);
   };
 
+  // Helper function to check if analysis and output are consistent across configurations
+  const getConsistentAnalysisAndOutput = (commonConfig, axisConfigs) => {
+    if (axisConfigs.length === 0) {
+      return null;
+    }
+    
+    // Get original string values from common config (before reification)
+    const commonDict = convertChipsToDict(commonConfig);
+    
+    // Collect all axis configurations as dictionaries (before reification)
+    const allAxisDicts = [];
+    axisConfigs.forEach((axisConfig, axisIndex) => {
+      if (axisConfig && axisConfig.length > 0) {
+        axisConfig.forEach(lineChips => {
+          if (lineChips.length > 0) {
+            const expandedLines = expandChipLine(lineChips);
+            expandedLines.forEach(expandedLine => {
+              const dict = convertChipsToDict(expandedLine);
+              allAxisDicts.push(dict);
+            });
+          }
+        });
+      }
+    });
+    
+    // Check if any axis configuration overrides analysis or output
+    const analysisOverridden = allAxisDicts.some(dict => dict.hasOwnProperty('analysis'));
+    const outputOverridden = allAxisDicts.some(dict => dict.hasOwnProperty('output'));
+    
+    // If overridden, we'd need to check consistency across all merged configs
+    // For now, only show in title if not overridden (common values apply to all)
+    const result = {
+      analysis: (!analysisOverridden && commonDict.analysis) ? commonDict.analysis : null,
+      output: (!outputOverridden && commonDict.output) ? commonDict.output : null
+    };
+    
+    return result;
+  };
+
   // Generate tables for simulation
   const generateTables = () => {
     const { common, axes } = restructuredConfig;
@@ -3240,6 +3279,21 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         cells: []
       }];
     }
+    
+    // Check for consistent analysis and output types across axes
+    const consistent = getConsistentAnalysisAndOutput(commonConfig, axisConfigs);
+    
+    // Helper function to generate analysis/output suffix for titles
+    const getAnalysisOutputSuffix = () => {
+      const parts = [];
+      if (consistent?.analysis) {
+        parts.push(`Analysis: ${consistent.analysis}`);
+      }
+      if (consistent?.output) {
+        parts.push(`Output: ${consistent.output}`);
+      }
+      return parts.length > 0 ? ` (${parts.join(', ')})` : '';
+    };
 
     // Get axis configurations (reified objects)
     const axis1Configs = axes[0]?.configurations || [];
@@ -3260,7 +3314,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     if (axes.length === 1) {
       const axis1Info = getAxisInfo(axis1PreReified);
       return [{
-        title: axis1Info.name,
+        title: `${axis1Info.name}${getAnalysisOutputSuffix()}`,
         rows: axis1Configs,
         columns: [{}], // Single empty column
         cells: generateCells(common, axis1Configs, [{}], {}),
@@ -3274,7 +3328,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
       const axis1Info = getAxisInfo(axis1PreReified);
       const axis2Info = getAxisInfo(axis2PreReified);
       return [{
-        title: `${axis1Info.name} vs ${axis2Info.name}`,
+        title: `${axis1Info.name} vs ${axis2Info.name}${getAnalysisOutputSuffix()}`,
         rows: axis1Configs,
         columns: axis2Configs,
         cells: generateCells(common, axis1Configs, axis2Configs, {}),
@@ -3331,7 +3385,7 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         '';
 
       return {
-        title: `${axis1Info.name} vs ${axis2Info.name}${additionalTitle}`,
+        title: `${axis1Info.name} vs ${axis2Info.name}${additionalTitle}${getAnalysisOutputSuffix()}`,
         rows: axis1Configs,
         columns: axis2Configs,
         cells: generateCells(common, axis1Configs, axis2Configs, additionalConfig),
