@@ -3046,10 +3046,6 @@ function dictToChips(dict) {
 function initializeFromUrl() {
   const { commonParams, axisParams, plotParams } = parseUrlParams();
 
-  console.log('initializeFromUrl: Parsed URL params:');
-  console.log('  commonParams:', commonParams);
-  console.log('  axisParams:', axisParams);
-  console.log('  plotParams:', plotParams);
 
   // Initialize common config
   const commonConfig = Object.keys(commonParams).length > 0 ?
