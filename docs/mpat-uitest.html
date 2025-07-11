@@ -101,6 +101,54 @@
       margin-bottom: 0;
     }
 
+    .primaryButton {
+      padding: 8px 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .primaryButton:hover {
+      background: #0056b3;
+    }
+
+    .tabContainer {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      background: #f8f9fa;
+      margin-right: 2px;
+      border-radius: 4px 4px 0 0;
+    }
+
+    .tab.active {
+      background: white;
+      border-bottom: 1px solid white;
+      margin-bottom: -1px;
+    }
+
+    .tab:hover {
+      background: #e9ecef;
+    }
+
+    .tab.active:hover {
+      background: white;
+    }
+
+    .tabContent {
+      min-height: 400px;
+    }
+
     .panelTitle {
       cursor: pointer;
       padding: 0.5rem;
@@ -1923,6 +1971,275 @@ function ConfigFieldSelector({
   `;
 }
 
+/* ---------- Plot View Component ---------- */
+function PlotView({ baseConfig, commonConfig }) {
+  const [colorField, setColorField] = useState('bus_power');
+  const [speedMin, setSpeedMin] = useState(0);
+  const [speedMax, setSpeedMax] = useState(6000);
+  const [torqueMin, setTorqueMin] = useState(0);
+  const [torqueMax, setTorqueMax] = useState(40);
+  const [gridResolution, setGridResolution] = useState(50);
+  const plotRef = useRef(null);
+
+  const generatePlot = () => {
+    if (!baseConfig) {
+      console.log('PlotView: No baseConfig provided');
+      return;
+    }
+
+    console.log('PlotView: Generating plot with config:', baseConfig);
+    console.log('PlotView: Plot parameters:', { speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField });
+    
+    try {
+      const plotData = generateGridData(speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField, baseConfig);
+      console.log('PlotView: Generated plot data:', plotData);
+      createHeatmap(plotData, colorField);
+    } catch (error) {
+      console.error('PlotView: Error generating plot:', error);
+    }
+  };
+
+  const generateGridData = (speedMin, speedMax, torqueMin, torqueMax, resolution, colorField, baseConfig) => {
+    console.log('PlotView: Starting grid generation with resolution:', resolution);
+    
+    const speedStep = (speedMax - speedMin) / (resolution - 1);
+    const torqueStep = (torqueMax - torqueMin) / (resolution - 1);
+    
+    const speeds = [];
+    const torques = [];
+    const zValues = [];
+    
+    let validPoints = 0;
+    let totalPoints = 0;
+    
+    // Generate speed and torque arrays
+    for (let i = 0; i < resolution; i++) {
+      speeds.push(speedMin + i * speedStep);
+      torques.push(torqueMin + i * torqueStep);
+    }
+    
+    // Organize data as z[torque_index][speed_index] for correct Plotly orientation
+    for (let torqueIndex = 0; torqueIndex < resolution; torqueIndex++) {
+      const zRow = [];
+      const torque = torques[torqueIndex];
+      
+      for (let speedIndex = 0; speedIndex < resolution; speedIndex++) {
+        totalPoints++;
+        const speed = speeds[speedIndex];
+        
+        // Create config for this operating point
+        const config = { ...baseConfig };
+        config.velocity = speed * (2 * Math.PI / 60); // Convert RPM to rad/s
+        config.torque = torque;
+        
+        // Log a few sample configs for debugging
+        if (torqueIndex < 3 && speedIndex < 3) {
+          console.log(`PlotView: Sample config [torque=${torqueIndex},speed=${speedIndex}]:`, { speed, torque, config });
+        }
+        
+        // Evaluate the operating point
+        const result = evaluateOperatingPoint(config);
+        let value = null;
+        
+        if (torqueIndex < 3 && speedIndex < 3) {
+          console.log(`PlotView: Sample result [torque=${torqueIndex},speed=${speedIndex}]:`, result);
+        }
+        
+        if (result) {
+          // The result is the operating point data directly
+          switch (colorField) {
+            case 'bus_power':
+              value = result.supply_power;
+              break;
+            case 'efficiency':
+              value = result.efficiency;
+              break;
+            case 'controller_temp':
+              value = result.controller_temp;
+              break;
+            case 'motor_temp':
+              value = result.motor_temp;
+              break;
+            default:
+              value = result.supply_power;
+          }
+          if (value !== null && value !== undefined && !isNaN(value)) {
+            validPoints++;
+          }
+        }
+        
+        zRow.push(value);
+      }
+      zValues.push(zRow);
+    }
+    
+    console.log(`PlotView: Grid generation complete. Valid points: ${validPoints}/${totalPoints}`);
+    console.log('PlotView: Speed range:', speeds[0], 'to', speeds[speeds.length-1]);
+    console.log('PlotView: Torque range:', torques[0], 'to', torques[torques.length-1]);
+    console.log('PlotView: Sample z-values (first torque row):', zValues[0]?.slice(0, 3));
+    
+    return { speeds, torques, zValues };
+  };
+
+  const createHeatmap = (data, colorField) => {
+    console.log('PlotView: Creating heatmap with data shapes:', {
+      torques: data.torques?.length,
+      speeds: data.speeds?.length, 
+      zValues: data.zValues?.length,
+      zValuesFirstRow: data.zValues?.[0]?.length
+    });
+    
+    if (!plotRef.current) {
+      console.error('PlotView: plotRef.current is null');
+      return;
+    }
+
+    if (!window.Plotly) {
+      console.error('PlotView: Plotly not loaded');
+      return;
+    }
+
+    const trace = {
+      x: data.speeds,
+      y: data.torques,
+      z: data.zValues,
+      type: 'heatmap',
+      colorscale: 'Viridis',
+      showscale: true,
+      colorbar: {
+        title: getColorBarTitle(colorField)
+      }
+    };
+    
+    console.log('PlotView: Plotly trace:', trace);
+    
+    const layout = {
+      title: 'Motor Performance Map',
+      xaxis: {
+        title: 'Speed (RPM)'
+      },
+      yaxis: {
+        title: 'Torque (Nm)'
+      },
+      autosize: true,
+      margin: { t: 50, l: 60, r: 60, b: 60 }
+    };
+    
+    try {
+      console.log('PlotView: Calling Plotly.newPlot');
+      Plotly.newPlot(plotRef.current, [trace], layout, {responsive: true})
+        .then(() => {
+          console.log('PlotView: Plotly.newPlot completed successfully');
+        })
+        .catch((error) => {
+          console.error('PlotView: Plotly.newPlot failed:', error);
+        });
+    } catch (error) {
+      console.error('PlotView: Error calling Plotly.newPlot:', error);
+    }
+  };
+
+  const getColorBarTitle = (colorField) => {
+    switch (colorField) {
+      case 'bus_power': return 'Supply Power (W)';
+      case 'efficiency': return 'Efficiency (%)';
+      case 'controller_temp': return 'Controller Temp (°C)';
+      case 'motor_temp': return 'Motor Temp (°C)';
+      default: return 'Value';
+    }
+  };
+
+  useEffect(() => {
+    if (baseConfig) {
+      generatePlot();
+    }
+  }, [baseConfig, colorField, speedMin, speedMax, torqueMin, torqueMax, gridResolution]);
+
+  if (!baseConfig) {
+    return html`
+      <div style="padding: 40px; text-align: center; color: #666;">
+        <h3>No Plot Configuration</h3>
+        <p>Click "Generate Performance Plot" in a table cell's details to create a plot.</p>
+      </div>
+    `;
+  }
+
+  return html`
+    <div>
+      <div style="margin-bottom: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 4px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Color Field:</label>
+            <select 
+              value=${colorField} 
+              onChange=${(e) => setColorField(e.target.value)}
+              style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;"
+            >
+              <option value="bus_power">Supply Power (W)</option>
+              <option value="efficiency">Efficiency (%)</option>
+              <option value="controller_temp">Controller Temp (°C)</option>
+              <option value="motor_temp">Motor Temp (°C)</option>
+            </select>
+          </div>
+          
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Speed:</label>
+            <input 
+              type="number" 
+              value=${speedMin} 
+              onChange=${(e) => setSpeedMin(Number(e.target.value))}
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin: 0 4px;">to</span>
+            <input 
+              type="number" 
+              value=${speedMax} 
+              onChange=${(e) => setSpeedMax(Number(e.target.value))}
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin-left: 4px;">RPM</span>
+          </div>
+          
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Torque:</label>
+            <input 
+              type="number" 
+              value=${torqueMin} 
+              onChange=${(e) => setTorqueMin(Number(e.target.value))}
+              step="0.1"
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin: 0 4px;">to</span>
+            <input 
+              type="number" 
+              value=${torqueMax} 
+              onChange=${(e) => setTorqueMax(Number(e.target.value))}
+              step="0.1"
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin-left: 4px;">Nm</span>
+          </div>
+          
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Resolution:</label>
+            <input 
+              type="number" 
+              value=${gridResolution} 
+              onChange=${(e) => setGridResolution(Number(e.target.value))}
+              min="10" 
+              max="200"
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin-left: 4px;">pts</span>
+          </div>
+        </div>
+      </div>
+      
+      <div ref=${plotRef} style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 4px; background: white;"></div>
+    </div>
+  `;
+}
+
 /* ---------- Overlay Component ---------- */
 function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
   if (!isVisible || !selectedCell) return null;
@@ -1938,6 +2255,12 @@ function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
     return normalizedConfig.analysis.evaluate(normalizedConfig);
   };
 
+  const handleGeneratePlot = () => {
+    // Switch to plot view and set the base configuration
+    window.switchToPlotView(selectedCell.config);
+    onClose(); // Close the overlay
+  };
+
   const operatingPoint = createOperatingPoint(selectedCell.config);
 
   return html`
@@ -1949,7 +2272,18 @@ function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
         >
           X
         </button>
-        ${operatingPoint ? operatingPoint.render() : html`
+        ${operatingPoint ? html`
+          ${operatingPoint.render()}
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd;">
+            <button
+              onClick=${handleGeneratePlot}
+              class="primaryButton"
+              style="width: 100%;"
+            >
+              Generate Performance Plot
+            </button>
+          </div>
+        ` : html`
           <h3>Operating Point</h3>
           <p>No operating point data available for this configuration.</p>
         `}
@@ -2710,6 +3044,16 @@ function App() {
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
 
+  // State for plot functionality
+  const [activeTab, setActiveTab] = useState('table');
+  const [plotConfig, setPlotConfig] = useState(null);
+
+  // Global function for overlay to switch to plot view
+  window.switchToPlotView = (baseConfig) => {
+    setPlotConfig(baseConfig);
+    setActiveTab('plot');
+  };
+
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
     let newAxisConfigs = [...axisConfigs];
     newAxisConfigs[axisIndex] = newConfigs;
@@ -2806,7 +3150,7 @@ function App() {
           <div class="panelContent">
             <button
               onClick=${handleCopyUrl}
-              style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;"
+              class="primaryButton"
             >
               Copy URL
             </button>
@@ -2819,12 +3163,36 @@ function App() {
         </div>
       </div>
       <div class="resultsColumn">
-        <${Simulator}
-          commonConfig=${commonConfig}
-          axisConfigs=${axisConfigs}
-          onCellClick=${handleCellClick}
-          selectedCell=${selectedCell}
-        />
+        <div class="tabContainer">
+          <div 
+            class="tab ${activeTab === 'table' ? 'active' : ''}"
+            onClick=${() => setActiveTab('table')}
+          >
+            Table View
+          </div>
+          <div 
+            class="tab ${activeTab === 'plot' ? 'active' : ''}"
+            onClick=${() => setActiveTab('plot')}
+          >
+            Plot View
+          </div>
+        </div>
+        
+        <div class="tabContent">
+          ${activeTab === 'table' ? html`
+            <${Simulator}
+              commonConfig=${commonConfig}
+              axisConfigs=${axisConfigs}
+              onCellClick=${handleCellClick}
+              selectedCell=${selectedCell}
+            />
+          ` : html`
+            <${PlotView}
+              baseConfig=${plotConfig}
+              commonConfig=${commonConfig}
+            />
+          `}
+        </div>
       </div>
     </div>
     <${OperatingPointOverlay}
@@ -2837,6 +3205,7 @@ function App() {
 
 render(html`<${App} />`, document.body);
   </script>
+  <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
 </head>
 
 <body>
