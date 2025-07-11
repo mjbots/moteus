@@ -1281,9 +1281,9 @@ class Hoverboard350 extends Motor {
         'none': {R: 2.41, C: 946.1},
         'max': {R: 1.80, C: 946.1},
       },
-      // Totally arbitrary
-      d0: 0.05,
-      d1: 0.003,
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 0.0892,
+      d1: 0.0131,
       productInfo: html`<a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">[product page]</a>`,
     });
   }
@@ -1305,9 +1305,9 @@ class HT1105 extends Motor {
         'none': {R: 20.8, C: 14.8},
         'max':  {R: 3.2,  C: 14.8},
       },
-      // Zero for now, as I have no clue.
-      d0: 0.0,
-      d1: 0.0,
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 6.29e-5,
+      d1: 3.80e-6,
       productInfo: html`<a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">[product page]</a>`,
     });
   }
