@@ -435,6 +435,8 @@ const motorSubFieldDefaults = {
   'motor.kv': { value: '100', description: 'Motor velocity constant in RPM/V' },
   'motor.r': { value: '0.1', description: 'Phase resistance in ohms' },
   'motor.l': { value: '1e-6', description: 'Phase inductance in henries' },
+  'motor.d0': { value: '1e-2', description: 'Linear iron loss in Ws' },
+  'motor.d1': { value: '1e-4', description: 'Quadratic iron loss in Ws^2' },
   'motor.thermal_r': { value: '0.5', description: 'Thermal resistance in °C/W' },
   'motor.thermal_c': { value: '50', description: 'Thermal capacitance in J/°C' },
   'motor.mass': { value: '0.1', description: 'Motor mass in kg' },
@@ -573,7 +575,7 @@ const fieldValueOptions = {
 
 /* Motor model sub-field configurations */
 const motorModelFields = {
-  'model': ['kv', 'r', 'l', 'thermal_r', 'thermal_c'],
+  'model': ['kv', 'r', 'l', 'thermal_r', 'thermal_c', 'd0', 'd1'],
   'extrapolated': ['kv', 'mass', 'diameter', 'type']
 };
 
@@ -3053,7 +3055,7 @@ function reifyObjects(dict) {
 
   // Special handling for 'model' motor type
   if (reified.motor === 'model') {
-    const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
+    const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c', 'motor.d0', 'motor.d1'];
     const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
 
     if (hasAllFields) {
@@ -3064,6 +3066,8 @@ function reifyObjects(dict) {
         Kv: reified['motor.kv'],
         R: reified['motor.r'],
         L: reified['motor.l'],
+        d0: reified['motor.d0'],
+        d1: reified['motor.d1'],
         thermal: {
           'none': {
             R: reified['motor.thermal_r'],
