@@ -56,9 +56,85 @@
       width: 100%;
       background: #f1f1f1;
       padding: 10px;
-      text-align: center;
       font-size: 0.9em;
       border-top: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    .footerContent {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      max-width: 100%;
+    }
+
+    .footerText {
+      text-align: center;
+      flex: 1;
+    }
+
+    .footerButton {
+      position: absolute;
+      right: 0;
+    }
+
+    .helpButton {
+      background: none;
+      border: 1px solid #ccc;
+      color: inherit;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .helpButton:hover {
+      background: #e0e0e0;
+    }
+
+    .helpOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .helpContent {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .helpSection {
+      margin-bottom: 20px;
+    }
+
+    .helpFieldName {
+      font-weight: bold;
+      color: #0066cc;
+      margin-bottom: 4px;
+    }
+
+    .helpFieldDescription {
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .helpFieldConstraints {
+      font-size: 0.9em;
+      color: #666;
+      font-style: italic;
     }
 
     .pageContainer {
@@ -287,21 +363,21 @@ const parseKV = (txt) => {
 
 // Default values for common config - this defines all available fields
 const defaultCommonValues = {
-  'controller': 'moteus-x1',
-  'controller_cooling': 'none',
-  'motor': 'mad8318',
-  'motor_cooling': 'none',
-  'voltage': '24',
-  'velocity': '0',
-  'pwm': 'default',
-  'time': 'infinity',
-  'gear_reduction': '1',
-  'ambient_temp': '25',
-  'max_controller_temp': 'default',
-  'max_motor_temp': 'default',
-  'torque': '0',
-  'output': 'torque',
-  'analysis': "max_torque",
+  'controller': { value: 'moteus-x1', description: 'Motor controller type - determines power limits, thermal characteristics, and control capabilities' },
+  'controller_cooling': { value: 'none', description: 'Controller cooling configuration - affects thermal limits and sustained power capability' },
+  'motor': { value: 'mad8318', description: 'Motor model - defines electrical characteristics, thermal properties, and mechanical specifications' },
+  'motor_cooling': { value: 'none', description: 'Motor cooling configuration - affects motor thermal limits and continuous operation capability' },
+  'voltage': { value: '24', description: 'Supply voltage in volts - affects speed capability and power delivery' },
+  'velocity': { value: '0', description: 'Motor velocity in Hz - rotational speed of the motor' },
+  'pwm': { value: 'default', description: 'PWM switching frequency - affects efficiency and EMI characteristics (use "default" for controller-specific optimal value)' },
+  'time': { value: 'infinity', description: 'Time period for thermal analysis in seconds - use "infinity" for steady-state analysis' },
+  'gear_reduction': { value: '1', description: 'Gear reduction ratio - mechanical advantage between motor and load (1 = direct drive)' },
+  'ambient_temp': { value: '25', description: 'Ambient temperature in °C - baseline temperature for thermal calculations' },
+  'max_controller_temp': { value: 'default', description: 'Maximum allowable controller temperature in °C (use "default" for controller-specific limit)' },
+  'max_motor_temp': { value: 'default', description: 'Maximum allowable motor temperature in °C (use "default" for motor-specific limit)' },
+  'torque': { value: '0', description: 'Motor torque in Nm - mechanical output force' },
+  'output': { value: 'torque', description: 'Analysis output type - what metric to calculate and display' },
+  'analysis': { value: "max_torque", description: 'Analysis method - determines what optimization or calculation to perform' },
 };
 
 // Default values for motor sub-fields
@@ -2602,6 +2678,40 @@ function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
   `;
 }
 
+/* ---------- Help Overlay Component ---------- */
+function HelpOverlay({ isVisible, onClose }) {
+  if (!isVisible) return null;
+
+  return html`
+    <div class="helpOverlay" onClick=${onClose}>
+      <div class="helpContent" onClick=${(e) => e.stopPropagation()}>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0;">Help: Configuration Fields</h2>
+          <button class="primaryButton" onClick=${onClose}>Close</button>
+        </div>
+        
+        <div style="margin-bottom: 15px; color: #666;">
+          This tool analyzes motor performance across different operating conditions. 
+          Configure the motor, controller, and operating parameters using the chip selectors.
+        </div>
+
+        ${Object.entries(defaultCommonValues).map(([fieldName, config]) => html`
+          <div class="helpSection">
+            <div class="helpFieldName">${fieldName}</div>
+            <div class="helpFieldDescription">${config.description}</div>
+            <div class="helpFieldConstraints">
+              ${fieldValueOptions[fieldName] ? 
+                `Options: ${fieldValueOptions[fieldName].join(', ')}` : 
+                'Accepts numeric values or specific keywords'
+              }
+            </div>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
 /* ---------- Panel Components ---------- */
 function CommonConfigPanel({ selected, onSelectedChange }) {
   const handlePlotCommonConfig = () => {
@@ -3220,15 +3330,20 @@ function initializeFromUrl() {
 
 
   // Initialize common config
+  // Extract default values from the enhanced structure
+  const defaultValues = Object.fromEntries(
+    Object.entries(defaultCommonValues).map(([field, config]) => [field, config.value])
+  );
+  
   const commonConfig = Object.keys(commonParams).length > 0 ?
-    dictToChips({ ...defaultCommonValues, ...commonParams }) :
-    Object.entries(defaultCommonValues).map(([field, value]) => ({
+    dictToChips({ ...defaultValues, ...commonParams }) :
+    Object.entries(defaultCommonValues).map(([field, config]) => ({
       field,
       value: field,
-      data: value,
-      label: `${field}=${value}`,
+      data: config.value,
+      label: `${field}=${config.value}`,
       isMultiValue: false,
-      values: [value]
+      values: [config.value]
     }));
 
   // Initialize axis configs
@@ -3295,7 +3410,7 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
   });
 
   Object.entries(commonDict).forEach(([field, value]) => {
-    if (defaultCommonValues[field] !== value) {
+    if (defaultCommonValues[field]?.value !== value) {
       params.set(`common.${field}`, value);
     }
   });
@@ -3430,6 +3545,7 @@ function App() {
   const [selectedCell, setSelectedCell] = useState(null);
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [copyStatus, setCopyStatus] = useState('');
+  const [isHelpVisible, setIsHelpVisible] = useState(false);
 
   // State for plot functionality - initialize from URL if present
   const [activeTab, setActiveTab] = useState(plotParams?.tab || 'table');
@@ -3442,7 +3558,10 @@ function App() {
     }
 
     // Start with default common values to ensure we have all required fields
-    const completeConfig = { ...defaultCommonValues };
+    const defaultValues = Object.fromEntries(
+      Object.entries(defaultCommonValues).map(([field, config]) => [field, config.value])
+    );
+    const completeConfig = { ...defaultValues };
 
     // Override with the plot-specific values from URL
     Object.entries(plotConfigParams).forEach(([key, value]) => {
@@ -3472,6 +3591,11 @@ function App() {
     setPlotConfig(baseConfig);
     setPlotMetadata(null); // Clear metadata so ranges get recalculated
     setActiveTab('plot');
+  };
+  
+  // Global function to show help overlay
+  window.showHelp = () => {
+    setIsHelpVisible(true);
   };
 
   const handleAxisConfigChange = (axisIndex, newConfigs) => {
@@ -3626,6 +3750,10 @@ function App() {
       selectedCell=${selectedCell}
       onClose=${handleCloseOverlay}
     />
+    <${HelpOverlay}
+      isVisible=${isHelpVisible}
+      onClose=${() => setIsHelpVisible(false)}
+    />
   `;
 }
 
@@ -3633,17 +3761,25 @@ render(html`<${App} />`, document.body);
 
 // Set the home link to current page without query parameters
 document.getElementById('homeLink').href = window.location.pathname;
+
+// Set up help button functionality
+document.getElementById('helpButton').onclick = () => window.showHelp();
   </script>
   <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
 </head>
 
 <body>
 <footer>
-  <div>
-    <a id="homeLink" href="#" style="color: inherit; text-decoration: none;">moteus Performance Analysis Tool</a>
-    | Licensed under Apache 2.0
-    | (c) 2025 mjbots Robotic Systems
-    | <a href="https://mjbots.com">https://mjbots.com</a>
+  <div class="footerContent">
+    <div class="footerText">
+      <a id="homeLink" href="#" style="color: inherit; text-decoration: none;">moteus Performance Analysis Tool</a>
+      | Licensed under Apache 2.0
+      | (c) 2025 mjbots Robotic Systems
+      | <a href="https://mjbots.com">https://mjbots.com</a>
+    </div>
+    <button id="helpButton" class="helpButton footerButton">
+      Help
+    </button>
   </div>
 </footer>
 </body>
