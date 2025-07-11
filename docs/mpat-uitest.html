@@ -2139,7 +2139,27 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
           
           if (value !== null && value !== undefined && !isNaN(value)) {
             validPoints++;
-            hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>${getColorBarTitle(colorField)}: ${value.toFixed(2)}`;
+            
+            // Create comprehensive hover info using OperatingPoint field info
+            const fieldInfo = OperatingPoint.getFieldInfo();
+            const hoverLines = [
+              `Speed: ${speed.toFixed(2)} Hz`,
+              `Torque: ${torque.toFixed(2)} Nm`,
+              `${getColorBarTitle(colorField)}: ${value.toFixed(2)}`,
+              `---`
+            ];
+            
+            // Add all operating point fields dynamically
+            Object.entries(fieldInfo).forEach(([fieldName, info]) => {
+              const fieldValue = result[fieldName];
+              if (fieldValue !== null && fieldValue !== undefined && !fieldName.startsWith('_')) {
+                const formattedValue = fieldValue.toFixed(info.precision || 1);
+                const unitText = info.unit ? ` ${info.unit}` : '';
+                hoverLines.push(`${info.displayName}: ${formattedValue}${unitText}`);
+              }
+            });
+            
+            hoverInfo = hoverLines.join('<br>');
           } else {
             hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>Invalid result`;
           }
