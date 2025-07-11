@@ -1234,10 +1234,9 @@ class GBM5208 extends Motor {
         'none': {R: 4.55, C: 165},
         'max':  {R: 0.5,  C: 165},
       },
-      // The following iron loss model is roughly similar to the mj5208, as
-      // the stators and magnets are somewhat similar.
-      d0: 0.05,
-      d1: 0.003,
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 0.00822,
+      d1: 0.000183,
       productInfo: html`<a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">[product page]</a>`,
     });
   }
@@ -1259,9 +1258,9 @@ class BE8108 extends Motor {
         'none': {R: 2.74, C: 210.9},  // measured 2025-04-19
         'max':  {R: 0.27, C: 210.9},  // measured 2025-04-19 w/ big desk fan
       },
-      // Zero for now, as I have no clue.
-      d0: 0.0,
-      d1: 0.0,
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 0.0300,
+      d1: 0.000691,
       productInfo: html`<a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">[product page]</a>`,
     });
   }
