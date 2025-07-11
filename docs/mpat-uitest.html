@@ -2350,16 +2350,6 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
 
     const differences = {};
 
-    // Helper to convert chips to dictionary (same as in Simulator component)
-    const convertChipsToDict = (chips) => {
-      const dict = {};
-      chips.forEach(chip => {
-        if (chip.field) {
-          dict[chip.field] = chip.data !== undefined ? chip.data : null;
-        }
-      });
-      return dict;
-    };
 
     const commonDict = convertChipsToDict(commonConfig);
 
@@ -2568,9 +2558,29 @@ function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
 
 /* ---------- Panel Components ---------- */
 function CommonConfigPanel({ selected, onSelectedChange }) {
+  const handlePlotCommonConfig = () => {
+    // Convert selected chips to base config
+    const commonConfig = convertChipsToDict(selected);
+    
+    // Reify the config to convert strings to actual objects
+    const reifiedConfig = reifyObjects(commonConfig);
+    
+    // Switch to plot view and set the reified configuration
+    window.switchToPlotView(reifiedConfig);
+  };
+
   return html`
     <div class="panelContainer">
-      <div class="panelTitle">Common Config</div>
+      <div class="panelTitle" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Common Config</span>
+        <button 
+          class="primaryButton" 
+          onClick=${handlePlotCommonConfig}
+          style="font-size: 12px; padding: 4px 8px;"
+        >
+          Plot
+        </button>
+      </div>
       <div class="panelContent">
         <${ConfigFieldSelector}
           selected=${selected}
@@ -2652,6 +2662,18 @@ const modelRegistry = {
     'operating_point': new AnalysisOperatingPoint(),
   },
 };
+
+/* ---------- Utility Functions ---------- */
+// Convert chip array to key-value dictionary
+function convertChipsToDict(chips) {
+  const dict = {};
+  chips.forEach(chip => {
+    if (chip.field) {
+      dict[chip.field] = chip.data !== undefined ? chip.data : null;
+    }
+  });
+  return dict;
+}
 
 /* ---------- Reification Helper ---------- */
 // Convert string values to model instances where applicable
@@ -2764,16 +2786,6 @@ function evaluate(config) {
 
 /* ---------- Simulator Component ---------- */
 function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
-  // Convert chip array to key-value dictionary
-  const convertChipsToDict = (chips) => {
-    const dict = {};
-    chips.forEach(chip => {
-      if (chip.field) {
-        dict[chip.field] = chip.data !== undefined ? chip.data : null;
-      }
-    });
-    return dict;
-  };
 
   // Use the module-level reifyObjects function
 
