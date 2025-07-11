@@ -3630,6 +3630,9 @@ function App() {
 }
 
 render(html`<${App} />`, document.body);
+
+// Set the home link to current page without query parameters
+document.getElementById('homeLink').href = window.location.pathname;
   </script>
   <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
 </head>
@@ -3637,7 +3640,7 @@ render(html`<${App} />`, document.body);
 <body>
 <footer>
   <div>
-    moteus Performance Analysis Tool
+    <a id="homeLink" href="#" style="color: inherit; text-decoration: none;">moteus Performance Analysis Tool</a>
     | Licensed under Apache 2.0
     | (c) 2025 mjbots Robotic Systems
     | <a href="https://mjbots.com">https://mjbots.com</a>
