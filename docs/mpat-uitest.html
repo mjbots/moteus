@@ -1562,16 +1562,16 @@ function evaluateOperatingPoint(config) {
   }
 
   if ((config.voltage - config.controller.getMaxVoltage()) > 0.001) {
-    op._infeasible_reason = `Voltage ${config.voltage} exceeds maximum ${config.controller.getMaxVoltage()}`;
+    op._infeasible_reason = `Voltage ${config.voltage.toFixed(1)} exceeds maximum ${config.controller.getMaxVoltage().toFixed(1)}`;
   }
 
   if ((Math.abs(op.phase_current) -
        config.controller.getMaxCurrent(config.voltage)) > 0.001) {
-    op._infeasible_reason = `Phase current ${op.phase_current} exceeds controller maximum ${config.controller.getMaxCurrent(config.voltage)}`;
+    op._infeasible_reason = `Phase current ${op.phase_current.toFixed(1)} exceeds controller maximum ${config.controller.getMaxCurrent(config.voltage).toFixed(1)}`;
   }
 
   if ((op.motor_temp - config.motor.getMaxTemp()) > 0.001) {
-    op._infeasible_reason = `Motor temperature ${op.motor_temp} exceeds maximum ${config.motor.getMaxTemp()}`;
+    op._infeasible_reason = `Motor temperature ${op.motor_temp.toFixed(1)} exceeds maximum ${config.motor.getMaxTemp().toFixed(1)}`;
   }
 
   const thermalPower = config.controller.getThermalPower({
@@ -1581,13 +1581,13 @@ function evaluateOperatingPoint(config) {
   op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
 
   if ((op.controller_temp - config.controller.getMaxTemp()) > 0.001) {
-    op._infeasible_reason = `Controller temperature ${op.controller_temp} exceeds maximum ${config.controller.getMaxTemp()}`;
+    op._infeasible_reason = `Controller temperature ${op.controller_temp.toFixed(1)} exceeds maximum ${config.controller.getMaxTemp().toFixed(1)}`;
   }
 
   const electricalPowerW = Math.abs(op.copper_loss + op.iron_loss + op.mechanical_power);
   const controllerMaxPower = config.controller.getMaxPower(config.voltage, config.pwm);
   if ((electricalPowerW - controllerMaxPower) > 0.001) {
-    op._infeasible_reason = `Controller power ${electricalPowerW} exceeds maximum ${controllerMaxPower}`;
+    op._infeasible_reason = `Controller power ${electricalPowerW.toFixed(1)} exceeds maximum ${controllerMaxPower.toFixed(1)}`;
   }
 
   const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
