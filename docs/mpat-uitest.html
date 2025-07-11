@@ -2028,7 +2028,9 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     if (!baseConfig) return;
 
     try {
-      const plotData = generateGridData(speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField, baseConfig);
+      // Normalize the base config to ensure consistent behavior with range calculation
+      const normalizedBaseConfig = normalizeConfig(baseConfig);
+      const plotData = generateGridData(speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField, normalizedBaseConfig);
       createHeatmap(plotData, colorField);
     } catch (error) {
       console.error('PlotView: Error generating plot:', error);
@@ -2072,6 +2074,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         const result = evaluateOperatingPoint(config);
         let value = null;
         let hoverInfo = '';
+
 
         if (result && !result._infeasible_reason) {
           // The result is feasible
@@ -3242,32 +3245,23 @@ function App() {
   // Helper to create a complete config from URL plot params
   const createConfigFromUrlParams = (plotConfigParams) => {
     if (!plotConfigParams) {
-      console.log('App: No plot config params, returning null');
       return null;
     }
-    
-    console.log('App: Creating config from URL plot params:', plotConfigParams);
-    console.log('App: Default common values:', defaultCommonValues);
     
     // Start with default common values to ensure we have all required fields
     const completeConfig = { ...defaultCommonValues };
     
     // Override with the plot-specific values from URL
     Object.entries(plotConfigParams).forEach(([key, value]) => {
-      console.log(`App: Setting ${key} = ${value} (${typeof value})`);
       completeConfig[key] = value;
     });
-    
-    console.log('App: Complete config before reification:', completeConfig);
     
     try {
       // First reify the objects (convert strings to actual objects)
       const reified = reifyObjects(completeConfig);
-      console.log('App: Reified config:', reified);
       
       // Then normalize the reified config
       const normalized = normalizeConfig(reified);
-      console.log('App: Successfully normalized config:', normalized);
       return normalized;
     } catch (error) {
       console.error('App: Error during reification/normalization:', error);
