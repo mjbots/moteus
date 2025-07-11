@@ -137,6 +137,56 @@
       font-style: italic;
     }
 
+    .helpHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .helpHeaderTitle {
+      margin: 0;
+    }
+
+    .helpIntro {
+      margin-bottom: 15px;
+      color: #666;
+    }
+
+    .helpOptionsContainer {
+      margin-left: 15px;
+      margin-top: 8px;
+    }
+
+    .helpOptionsTitle {
+      font-weight: bold;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .helpOptionRow {
+      margin-bottom: 6px;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .helpOptionValue {
+      font-family: monospace;
+      color: #888;
+      font-weight: normal;
+      min-width: 120px;
+      margin-right: 10px;
+      background: #f5f5f5;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+
+    .helpOptionDescription {
+      font-size: 0.9em;
+      color: #555;
+      flex: 1;
+    }
+
     .pageContainer {
       display: flex;
       flex-wrap: wrap;
@@ -2735,12 +2785,12 @@ function HelpOverlay({ isVisible, onClose }) {
   return html`
     <div class="helpOverlay" onClick=${onClose}>
       <div class="helpContent" onClick=${(e) => e.stopPropagation()}>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-          <h2 style="margin: 0;">Help: Configuration Fields</h2>
+        <div class="helpHeader">
+          <h2 class="helpHeaderTitle">Help: Configuration Fields</h2>
           <button class="primaryButton" onClick=${onClose}>Close</button>
         </div>
         
-        <div style="margin-bottom: 15px; color: #666;">
+        <div class="helpIntro">
           This tool analyzes motor performance across different operating conditions. 
           Configure the motor, controller, and operating parameters using the chip selectors.
         </div>
@@ -2773,15 +2823,15 @@ function HelpOverlay({ isVisible, onClose }) {
               </div>
               
               ${fieldValueOptions[fieldName] ? html`
-                <div style="margin-left: 15px; margin-top: 8px;">
-                  <div style="font-weight: bold; color: #666; margin-bottom: 8px;">Available Options:</div>
+                <div class="helpOptionsContainer">
+                  <div class="helpOptionsTitle">Available Options:</div>
                   ${fieldValueOptions[fieldName].map(optionValue => {
                     const helpContent = getConstrainedValueHelp(fieldName, optionValue);
                     return html`
-                      <div style="margin-bottom: 6px; display: flex; align-items: flex-start;">
-                        <span style="font-family: monospace; color: #888; font-weight: normal; min-width: 120px; margin-right: 10px; background: #f5f5f5; padding: 2px 4px; border-radius: 3px;">${optionValue}</span>
+                      <div class="helpOptionRow">
+                        <span class="helpOptionValue">${optionValue}</span>
                         ${helpContent ? html`
-                          <div style="font-size: 0.9em; color: #555; flex: 1;">
+                          <div class="helpOptionDescription">
                             ${helpContent}
                           </div>
                         ` : ''}
