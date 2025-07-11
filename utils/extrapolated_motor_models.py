@@ -10,7 +10,7 @@ BLDC Motor Parameter Extrapolation using Pypowertrain-inspired Scaling Laws
 This module extrapolates motor parameters from easily measurable inputs:
 - Kv (motor velocity constant in RPM/V)
 - Mass (motor mass in kg)
-- Diameter (motor diameter in mm)
+- Diameter (motor diameter in m)
 - Type (outrunner/inrunner)
 
 Output parameters:
@@ -36,7 +36,7 @@ class MotorInputs:
     """Easily measurable motor parameters"""
     kv: float           # Motor velocity constant (RPM/V)
     mass: float         # Motor mass (kg)
-    diameter: float     # Motor outer diameter (mm)
+    diameter: float     # Motor outer diameter (m)
     motor_type: Literal['outrunner', 'inrunner']  # Motor configuration
 
 @dataclass
@@ -66,7 +66,7 @@ class BLDCParameterExtractor:
             'outrunner': {
                 'kv_ref': 1000,      # RPM/V
                 'mass_ref': 0.1,     # kg
-                'diameter_ref': 50,   # mm
+                'diameter_ref': .050,   # m
                 'rs_ref': 0.1,       # Ohms
                 'ls_ref': 50e-6,     # Henry
                 'd0_ref': 1e-3,      # Iron loss coefficient
@@ -77,7 +77,7 @@ class BLDCParameterExtractor:
             'inrunner': {
                 'kv_ref': 3000,      # RPM/V
                 'mass_ref': 0.05,    # kg
-                'diameter_ref': 30,   # mm
+                'diameter_ref': .030,   # m
                 'rs_ref': 0.2,       # Ohms
                 'ls_ref': 30e-6,     # Henry
                 'd0_ref': 0.5e-3,    # Iron loss coefficient
@@ -215,7 +215,7 @@ class EnhancedBLDCExtractor(BLDCParameterExtractor):
         # Separate by motor type
         self.fitted_coefficients = {}
 
-        for motor_type in ['outrunner', 'inrunner']:
+        for motor_type in ['outrunner']:
             type_data = motor_database[motor_database['motor_type'] == motor_type]
 
             if len(type_data) < 5:
@@ -229,11 +229,16 @@ class EnhancedBLDCExtractor(BLDCParameterExtractor):
 
             for target in targets:
                 if target in type_data.columns:
+                    print(f"target={target}")
                     y = np.log(type_data[target].values + 1e-9)
 
                     # Fit linear regression in log space (power law in linear space)
                     reg = LinearRegression()
                     reg.fit(X, y)
+
+                    print(f"X={X}, y={y}")
+                    print(reg.intercept_, reg.coef_)
+                    print(f"fitted={reg.intercept_ + np.dot(reg.coef_, X.transpose())}")
 
                     self.fitted_coefficients[motor_type][target] = {
                         'intercept': reg.intercept_,
@@ -298,78 +303,92 @@ def create_pypowertrain_motor_dict(inputs: MotorInputs, params: MotorParameters)
 if __name__ == "__main__":
     # Example motor specifications
     test_motors = [
-        MotorInputs(kv=1000, mass=0.12, diameter=50, motor_type='outrunner'),
-        MotorInputs(kv=3200, mass=0.045, diameter=28, motor_type='inrunner'),
-        MotorInputs(kv=600, mass=0.25, diameter=70, motor_type='outrunner'),
-        MotorInputs(kv=2000, mass=0.08, diameter=35, motor_type='inrunner'),
+        MotorInputs(kv=304, mass=0.192, diameter=.063, motor_type='outrunner'),
+        MotorInputs(kv=120, mass=0.646, diameter=.091, motor_type='outrunner'),
     ]
 
     # Define sample motors with measured parameters for database fitting
     # In practice, these would come from actual motor testing/measurement data
     sample_motors = [
         {
-            'name': 'Turnigy Aerodrive SK3 - 6364-190kv',
-            'kv': 190, 'mass': 0.540, 'diameter': 63, 'motor_type': 'outrunner',
-            'phase_resistance': 0.027, 'phase_inductance': 42e-6,
-            'iron_loss_d0': 2.1e-3, 'iron_loss_d1': 2.8e-6,
-            'thermal_resistance': 8.5, 'thermal_capacitance': 54
+            'name': 'mj5208',
+            'kv': 304,
+            'mass': 0.192,
+            'diameter': 0.063,
+            'motor_type': 'outrunner',
+            'phase_resistance': 0.047,
+            'phase_inductance': 28.6e-6,
+            'iron_loss_d0': 0.01289,
+            'iron_loss_d1': 0.0001469,
+            'thermal_resistance': 4.55,
+            'thermal_capacitance': 164.59,
         },
         {
-            'name': 'Turnigy Aerodrive SK3 - 5055-320kv',
-            'kv': 320, 'mass': 0.334, 'diameter': 50, 'motor_type': 'outrunner',
-            'phase_resistance': 0.045, 'phase_inductance': 28e-6,
-            'iron_loss_d0': 1.4e-3, 'iron_loss_d1': 1.6e-6,
-            'thermal_resistance': 12.2, 'thermal_capacitance': 33
+            'name': 'MAD 8318',
+            'kv': 120,
+            'mass': 0.646,
+            'diameter': 0.091,
+            'motor_type': 'outrunner',
+            'phase_resistance': 0.015,
+            'phase_inductance': 9.75e-6,
+            'iron_loss_d0': 0.1272,
+            'iron_loss_d1': 0.001829,
+            'thermal_resistance': 1.516,
+            'thermal_capacitance': 735.5,
         },
         {
-            'name': 'Turnigy Aerodrive SK3 - 4250-500kv',
-            'kv': 500, 'mass': 0.215, 'diameter': 42, 'motor_type': 'outrunner',
-            'phase_resistance': 0.072, 'phase_inductance': 22e-6,
-            'iron_loss_d0': 1.0e-3, 'iron_loss_d1': 1.1e-6,
-            'thermal_resistance': 16.8, 'thermal_capacitance': 22
+            'name': 'gbm5208',
+            'kv': 25.5,
+            'mass': 0.193,
+            'diameter': 0.063,
+            'motor_type': 'outrunner',
+            'phase_resistance': 7.545,
+            'phase_inductance': 2254.5e-6,
+            'iron_loss_d0': 0.00822,
+            'iron_loss_d1': 0.000183,
+            'thermal_resistance': 4.55,
+            'thermal_capacitance': 165,
         },
         {
-            'name': 'Turnigy Aerodrive SK3 - 3548-900kv',
-            'kv': 900, 'mass': 0.135, 'diameter': 35, 'motor_type': 'outrunner',
-            'phase_resistance': 0.125, 'phase_inductance': 15e-6,
-            'iron_loss_d0': 0.7e-3, 'iron_loss_d1': 0.8e-6,
-            'thermal_resistance': 22.5, 'thermal_capacitance': 14
+            'name': 'be8108',
+            'kv': 135,
+            'mass': 0.230,
+            'diameter': 0.087,
+            'motor_type' : 'outrunner',
+            'phase_resistance': 0.0910,
+            'phase_inductance': 39.2e-6,
+            'iron_loss_d0': 0.0300,
+            'iron_loss_d1': 0.000691,
+            'thermal_resistance': 2.74,
+            'thermal_capacitance': 210.9,
         },
         {
-            'name': 'Turnigy Aerodrive SK3 - 2836-1120kv',
-            'kv': 1120, 'mass': 0.085, 'diameter': 28, 'motor_type': 'outrunner',
-            'phase_resistance': 0.185, 'phase_inductance': 12e-6,
-            'iron_loss_d0': 0.5e-3, 'iron_loss_d1': 0.6e-6,
-            'thermal_resistance': 28.4, 'thermal_capacitance': 8.5
+            'name': 'hoverboard350',
+            'kv': 18.2,
+            'mass': 3.26,  # 4.26 including tire
+            'diameter': 0.156,
+            'motor_type': 'outrunner',
+            'phase_resistance': 0.216,
+            'phase_inductance': 530e-6,
+            'iron_loss_d0': 0.0892,
+            'iron_loss_d1': 0.0131,
+            'thermal_resistance': 2.41,
+            'thermal_capacitance': 946.1,
         },
         {
-            'name': 'Castle Creations 1410-3800kv',
-            'kv': 3800, 'mass': 0.025, 'diameter': 14, 'motor_type': 'inrunner',
-            'phase_resistance': 0.68, 'phase_inductance': 8e-6,
-            'iron_loss_d0': 0.15e-3, 'iron_loss_d1': 0.12e-6,
-            'thermal_resistance': 65, 'thermal_capacitance': 2.5
+            'name': 'ht1105',
+            'kv': 1180,
+            'mass': 0.008,
+            'diameter': 0.016,
+            'motor_type': 'outrunner',
+            'phase_resistance': 6.435,
+            'phase_inductance': 298.5e-6,
+            'iron_loss_d0': 6.29e-5,
+            'iron_loss_d1': 3.80e-6,
+            'thermal_resistance': 20.8,
+            'thermal_capacitance': 14.8,
         },
-        {
-            'name': 'Castle Creations 1512-2650kv',
-            'kv': 2650, 'mass': 0.042, 'diameter': 15, 'motor_type': 'inrunner',
-            'phase_resistance': 0.42, 'phase_inductance': 12e-6,
-            'iron_loss_d0': 0.22e-3, 'iron_loss_d1': 0.18e-6,
-            'thermal_resistance': 48, 'thermal_capacitance': 4.2
-        },
-        {
-            'name': 'Leopard 4274-2000kv',
-            'kv': 2000, 'mass': 0.158, 'diameter': 42, 'motor_type': 'inrunner',
-            'phase_resistance': 0.088, 'phase_inductance': 18e-6,
-            'iron_loss_d0': 0.58e-3, 'iron_loss_d1': 0.44e-6,
-            'thermal_resistance': 28, 'thermal_capacitance': 16
-        },
-        {
-            'name': 'Leopard 5065-1900kv',
-            'kv': 1900, 'mass': 0.265, 'diameter': 50, 'motor_type': 'inrunner',
-            'phase_resistance': 0.065, 'phase_inductance': 24e-6,
-            'iron_loss_d0': 0.72e-3, 'iron_loss_d1': 0.58e-6,
-            'thermal_resistance': 22, 'thermal_capacitance': 26.5
-        }
+
     ]
 
     # Convert to DataFrame for the enhanced extractor
@@ -398,7 +417,7 @@ if __name__ == "__main__":
     for i, motor in enumerate(test_motors[:2], 1):  # Test first 2 motors
         print(f"\nMotor {i}: {motor.motor_type.title()}")
         print(f"Input: Kv={motor.kv} RPM/V, Mass={motor.mass:.3f} kg, "
-              f"Diameter={motor.diameter} mm")
+              f"Diameter={motor.diameter * 1000} mm")
 
         params = basic_extractor.extract_parameters(motor)
         validations = basic_extractor.validate_parameters(motor, params)
@@ -441,7 +460,7 @@ if __name__ == "__main__":
     for i, motor in enumerate(test_motors, 1):
         print(f"\n--- Motor {i}: {motor.motor_type.title()} ---")
         print(f"Input: Kv={motor.kv} RPM/V, Mass={motor.mass:.3f} kg, "
-              f"Diameter={motor.diameter} mm")
+              f"Diameter={motor.diameter * 1000} mm")
 
         # Extract parameters using enhanced method
         if hasattr(enhanced_extractor, 'extract_parameters_fitted'):
