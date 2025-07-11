@@ -2131,7 +2131,59 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
       hoverText.push(hoverRow);
     }
 
-    return { speeds, torques, zValues, hoverText };
+    // Generate feasibility data for all time periods for boundary contours
+    const feasibilityData = generateFeasibilityBoundaries(speeds, torques, baseConfig);
+    
+    return { speeds, torques, zValues, hoverText, feasibilityData };
+  };
+
+  const generateFeasibilityBoundaries = (speeds, torques, baseConfig) => {
+    const timePeriods = [2, 60, Infinity];
+    const boundaries = {};
+    
+    // Generate feasibility grid for each time period
+    for (const time of timePeriods) {
+      const timeKey = time === Infinity ? 'inf' : time;
+      const feasibilityGrid = [];
+      
+      // Create a higher resolution grid for smoother boundaries
+      const boundaryResolution = Math.max(50, speeds.length);
+      const speedStep = (speeds[speeds.length - 1] - speeds[0]) / (boundaryResolution - 1);
+      const torqueStep = (torques[torques.length - 1] - torques[0]) / (boundaryResolution - 1);
+      
+      const boundarySpeeds = [];
+      const boundaryTorques = [];
+      
+      for (let i = 0; i < boundaryResolution; i++) {
+        boundarySpeeds.push(speeds[0] + i * speedStep);
+        boundaryTorques.push(torques[0] + i * torqueStep);
+      }
+      
+      // Generate feasibility grid
+      for (let torqueIndex = 0; torqueIndex < boundaryResolution; torqueIndex++) {
+        const feasibilityRow = [];
+        const torque = boundaryTorques[torqueIndex];
+        
+        for (let speedIndex = 0; speedIndex < boundaryResolution; speedIndex++) {
+          const speed = boundarySpeeds[speedIndex];
+          
+          const config = { ...baseConfig, velocity: speed, torque: torque, time: time };
+          const result = evaluateOperatingPoint(config);
+          
+          // 1 = feasible, 0 = infeasible
+          feasibilityRow.push(result && !result._infeasible_reason ? 1 : 0);
+        }
+        feasibilityGrid.push(feasibilityRow);
+      }
+      
+      boundaries[timeKey] = {
+        speeds: boundarySpeeds,
+        torques: boundaryTorques,
+        feasibilityGrid: feasibilityGrid
+      };
+    }
+    
+    return boundaries;
   };
 
   const createHeatmap = (data, colorField) => {
@@ -2169,9 +2221,44 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         title: {
           text: getColorBarTitle(colorField),
           font: { size: 14 }
-        }
+        },
+        len: 0.5,
+        y: 0.85,
+        yanchor: 'top',
+        x: 1.02
       }
     };
+
+    // Create contour traces for feasibility boundaries
+    const contourTraces = [];
+    if (data.feasibilityData) {
+      const timeLabels = { '2': '2s', '60': '60s', 'inf': '∞' };
+      const colors = { '2': '#ff4444', '60': '#ff8800', 'inf': '#4444ff' };
+      
+      Object.entries(data.feasibilityData).forEach(([timeKey, boundaryData]) => {
+        const contourTrace = {
+          x: boundaryData.speeds,
+          y: boundaryData.torques,
+          z: boundaryData.feasibilityGrid,
+          type: 'contour',
+          contours: {
+            start: 0.5,
+            end: 0.5,
+            size: 1,
+            coloring: 'none'
+          },
+          line: {
+            color: colors[timeKey],
+            width: 2
+          },
+          showscale: false,
+          hoverinfo: 'skip',
+          name: `Feasible @ ${timeLabels[timeKey]}`,
+          showlegend: true
+        };
+        contourTraces.push(contourTrace);
+      });
+    }
 
     const layout = {
       title: 'Motor Performance Map',
@@ -2188,10 +2275,19 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         }
       },
       autosize: true,
-      margin: { t: 50, l: 60, r: 60, b: 60 }
+      margin: { t: 50, l: 60, r: 140, b: 60 },
+      legend: {
+        x: 1.02,
+        y: 0.25,
+        yanchor: 'top',
+        bgcolor: 'rgba(255,255,255,0.9)',
+        bordercolor: 'rgba(0,0,0,0.2)',
+        borderwidth: 1
+      }
     };
 
-    Plotly.newPlot(plotRef.current, [trace], layout, {responsive: true});
+    const allTraces = [trace, ...contourTraces];
+    Plotly.newPlot(plotRef.current, allTraces, layout, {responsive: true});
   };
 
   const getColorBarTitle = (colorField) => {
