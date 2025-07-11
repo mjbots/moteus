@@ -4,6 +4,8 @@ from __future__ import annotations
 
 """
 From o3
+
+NOTE: This gives TERRIBLE results.  Do not use yet.
 """
 
 """

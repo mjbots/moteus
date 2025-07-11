@@ -2,6 +2,8 @@
 
 """
 From Claude Sonnet 4
+
+NOTE: This gives TERRIBLE results.  Do not use yet.
 """
 
 """
