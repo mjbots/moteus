@@ -1996,14 +1996,14 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     }
 
     try {
-      // Get max velocity at 0 torque
-      const maxVelConfig = normalizeConfig({ ...baseConfig, torque: 0 });
+      // Get max velocity at 0 torque using t=2s
+      const maxVelConfig = normalizeConfig({ ...baseConfig, torque: 0, time: 2 });
       const maxVelResult = evaluateMaxVelocity(maxVelConfig);
       const maxVel = maxVelResult?.velocity || 100;
       const defaultSpeedMax = Math.ceil(maxVel * 1.1 * 100) / 100; // Ensure 2 decimal places
 
-      // Get max torque at 0 speed
-      const maxTorqueConfig = normalizeConfig({ ...baseConfig, velocity: 0 });
+      // Get max torque at 0 speed using t=2s
+      const maxTorqueConfig = normalizeConfig({ ...baseConfig, velocity: 0, time: 2 });
       const maxTorqueResult = evaluateMaxTorque(maxTorqueConfig);
       const maxTorque = maxTorqueResult?.torque || 40;
       const defaultTorqueMax = Math.ceil(maxTorque * 1.1 * 100) / 100; // Ensure 2 decimal places
@@ -2069,16 +2069,24 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         totalPoints++;
         const speed = speeds[speedIndex];
 
-        // Create config for this operating point
-        const config = { ...baseConfig };
-        config.velocity = speed; // Speed in Hz
-        config.torque = torque;
+        // Create base config for this operating point
+        const baseOpConfig = { ...baseConfig };
+        baseOpConfig.velocity = speed; // Speed in Hz
+        baseOpConfig.torque = torque;
 
-        // Evaluate the operating point
+        // Determine which time period to use based on colorField
+        let timeForEvaluation = 2; // Default for time-independent fields
+        if (colorField.includes('_60s')) {
+          timeForEvaluation = 60;
+        } else if (colorField.includes('_inf')) {
+          timeForEvaluation = Infinity;
+        }
+
+        // Evaluate the operating point at the relevant time period
+        const config = { ...baseOpConfig, time: timeForEvaluation };
         const result = evaluateOperatingPoint(config);
         let value = null;
         let hoverInfo = '';
-
 
         if (result && !result._infeasible_reason) {
           // The result is feasible
@@ -2089,15 +2097,20 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
             case 'efficiency':
               value = result.efficiency;
               break;
-            case 'controller_temp':
+            case 'controller_temp_2s':
+            case 'controller_temp_60s':
+            case 'controller_temp_inf':
               value = result.controller_temp;
               break;
-            case 'motor_temp':
+            case 'motor_temp_2s':
+            case 'motor_temp_60s':
+            case 'motor_temp_inf':
               value = result.motor_temp;
               break;
             default:
               value = result.supply_power;
           }
+          
           if (value !== null && value !== undefined && !isNaN(value)) {
             validPoints++;
             hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>${getColorBarTitle(colorField)}: ${value.toFixed(2)}`;
@@ -2185,8 +2198,12 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     switch (colorField) {
       case 'bus_power': return 'Supply Power (W)';
       case 'efficiency': return 'Efficiency (%)';
-      case 'controller_temp': return 'Controller Temp (°C)';
-      case 'motor_temp': return 'Motor Temp (°C)';
+      case 'controller_temp_2s': return 'Controller Temp @ 2s (°C)';
+      case 'controller_temp_60s': return 'Controller Temp @ 60s (°C)';
+      case 'controller_temp_inf': return 'Controller Temp @ ∞ (°C)';
+      case 'motor_temp_2s': return 'Motor Temp @ 2s (°C)';
+      case 'motor_temp_60s': return 'Motor Temp @ 60s (°C)';
+      case 'motor_temp_inf': return 'Motor Temp @ ∞ (°C)';
       default: return 'Value';
     }
   };
@@ -2334,8 +2351,12 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
             >
               <option value="bus_power">Supply Power (W)</option>
               <option value="efficiency">Efficiency (%)</option>
-              <option value="controller_temp">Controller Temp (°C)</option>
-              <option value="motor_temp">Motor Temp (°C)</option>
+              <option value="controller_temp_2s">Controller Temp @ 2s (°C)</option>
+              <option value="controller_temp_60s">Controller Temp @ 60s (°C)</option>
+              <option value="controller_temp_inf">Controller Temp @ ∞ (°C)</option>
+              <option value="motor_temp_2s">Motor Temp @ 2s (°C)</option>
+              <option value="motor_temp_60s">Motor Temp @ 60s (°C)</option>
+              <option value="motor_temp_inf">Motor Temp @ ∞ (°C)</option>
             </select>
           </div>
 
