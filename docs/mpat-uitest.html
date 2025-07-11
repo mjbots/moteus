@@ -2166,8 +2166,107 @@ function PlotView({ baseConfig, commonConfig }) {
     `;
   }
 
+  // Store the original raw config when plot is created
+  const [rawPlotConfig, setRawPlotConfig] = useState(null);
+  
+  // Update raw config when baseConfig changes
+  useEffect(() => {
+    if (baseConfig) {
+      setRawPlotConfig(baseConfig);
+    }
+  }, [baseConfig]);
+
+  const getConfigDifferences = () => {
+    if (!rawPlotConfig || !commonConfig) return {};
+    
+    const differences = {};
+    
+    // Helper to convert chips to dictionary (same as in Simulator component)
+    const convertChipsToDict = (chips) => {
+      const dict = {};
+      chips.forEach(chip => {
+        if (chip.field) {
+          dict[chip.field] = chip.data !== undefined ? chip.data : null;
+        }
+      });
+      return dict;
+    };
+    
+    const commonDict = convertChipsToDict(commonConfig);
+    
+    // Helper to normalize values for comparison
+    const normalizeValue = (value) => {
+      if (value === 'infinity') return Infinity;
+      if (value === 'default') return 'default';
+      if (typeof value === 'string' && !isNaN(value) && value !== '') {
+        return parseFloat(value);
+      }
+      return value;
+    };
+    
+    // Compare raw config with common config to find differences
+    Object.keys(rawPlotConfig).forEach(key => {
+      const plotValue = rawPlotConfig[key];
+      const commonValue = normalizeValue(commonDict[key]);
+      
+      // Special handling for different field types
+      let isDifferent = false;
+      let displayValue = plotValue;
+      
+      if (typeof plotValue === 'object' && plotValue !== null) {
+        // For objects like motor/controller, compare with string identifier
+        if (plotValue.nameValue) {
+          // Motor objects have nameValue
+          isDifferent = plotValue.nameValue !== commonDict[key];
+          displayValue = plotValue.nameValue;
+        } else if (plotValue.props?.name) {
+          // Controller objects have props.name
+          isDifferent = plotValue.props.name !== commonDict[key];
+          displayValue = plotValue.props.name;
+        } else {
+          // Other objects - skip for now
+          return;
+        }
+      } else {
+        // Simple value comparison with type normalization
+        isDifferent = plotValue !== commonValue;
+      }
+      
+      if (isDifferent && plotValue !== null && plotValue !== undefined) {
+        differences[key] = displayValue;
+      }
+    });
+    
+    return differences;
+  };
+
+  const configDifferences = getConfigDifferences();
+
   return html`
     <div>
+      ${Object.keys(configDifferences).length > 0 && html`
+        <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #495057;">
+            Plot Configuration (differences from common config):
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${Object.entries(configDifferences).map(([key, value]) => html`
+              <span style="
+                display: inline-block; 
+                padding: 4px 8px; 
+                background: #e9ecef; 
+                border-radius: 3px; 
+                font-size: 12px; 
+                font-family: monospace;
+                color: #495057;
+              ">
+                ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}
+              </span>
+            `)}
+          </div>
+        </div>
+      `}
+      
       <div style="margin-bottom: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 4px;">
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
           <div style="display: flex; align-items: center;">
