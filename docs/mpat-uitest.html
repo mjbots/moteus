@@ -418,15 +418,15 @@ const defaultCommonValues = {
   'motor': { value: 'mad8318', description: 'Motor model - defines electrical characteristics, thermal properties, and mechanical specifications' },
   'motor_cooling': { value: 'none', description: 'Motor cooling configuration - affects motor thermal limits and continuous operation capability' },
   'voltage': { value: '24', description: 'Supply voltage in volts - affects speed capability and power delivery' },
-  'velocity': { value: '0', description: 'Motor velocity in Hz - rotational speed of the motor' },
-  'pwm': { value: 'default', description: 'PWM switching frequency - affects efficiency and EMI characteristics (use "default" for controller-specific optimal value)' },
+  'velocity': { value: '0', description: 'Gearbox output velocity in Hz' },
+  'pwm': { value: 'default', description: 'PWM switching frequency - affects efficiency and maximum power (use "default" for controller-specific default value)' },
   'time': { value: 'infinity', description: 'Time period for thermal analysis in seconds - use "infinity" for steady-state analysis' },
-  'gear_reduction': { value: '1', description: 'Gear reduction ratio - mechanical advantage between motor and load (1 = direct drive)' },
+  'gear_reduction': { value: '1', description: 'Gear reduction ratio - mechanical advantage between motor and load (1 = direct drive, 2 = half speed output)' },
   'ambient_temp': { value: '25', description: 'Ambient temperature in °C - baseline temperature for thermal calculations' },
   'max_controller_temp': { value: 'default', description: 'Maximum allowable controller temperature in °C (use "default" for controller-specific limit)' },
   'max_motor_temp': { value: 'default', description: 'Maximum allowable motor temperature in °C (use "default" for motor-specific limit)' },
-  'torque': { value: '0', description: 'Motor torque in Nm - mechanical output force' },
-  'output': { value: 'torque', description: 'Analysis output type - what metric to calculate and display' },
+  'torque': { value: '0', description: 'Gearbox output torque in Nm' },
+  'output': { value: 'torque', description: 'Analysis output type - what metric to display' },
   'analysis': { value: "max_torque", description: 'Analysis method - determines what optimization or calculation to perform' },
 };
 
@@ -465,13 +465,13 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
   }
   if (fieldName === 'motor') {
     const helpText = {
-      'mad8318': html`MAD 8318 motor - high-performance 83mm agricultural drone motor - <a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">product page</a>`,
-      'mj5208': html`MJ 5208 motor - 52mm gimbal motor, low inertia - <a href="https://mjbots.com/products/mj5208" target="_blank">product page</a>`,
-      'gbm5208': html`GBM 5208 motor - 52mm gimbal motor variant - <a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">product page</a>`,
-      'be8108': html`BE 8108 motor - 81mm high-torque multirotor motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
-      'hoverboard350': html`Hoverboard 350W motor - large wheel motor for mobility - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
+      'mad8318': html`MAD 8318 motor - 83mm agricultural drone motor - <a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">product page</a>`,
+      'mj5208': html`MJ 5208 motor - 52mm drone motor - <a href="https://mjbots.com/products/mj5208" target="_blank">product page</a>`,
+      'gbm5208': html`GBM 5208 motor - 52mm gimbal motor - <a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">product page</a>`,
+      'be8108': html`BE 8108 motor - 81mm drone motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
+      'hoverboard350': html`350W hoverboard motor - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
       'ht1105': html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
-      'model': 'Generic motor model - for custom motor definitions',
+      'model': 'Generic motor model - for full custom motor definitions',
       'extrapolated': 'Extrapolated motor - estimated parameters from basic specs'
     };
     return helpText[valueName] || null;
@@ -480,26 +480,27 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
   // Fallback descriptions for other constrained values
   const helpText = {
     'controller_cooling': {
-      'none': 'No additional cooling - air convection only',
-      'heatspreader': 'Heat spreader plate - improves heat distribution',
-      '4030sink': 'Heat sink with 40x30mm fan - active cooling',
-      'fan_5v': '5V fan cooling - moderate active cooling',
-      'fan_12v': '12V fan cooling - high-performance active cooling',
-      'max': 'Maximum cooling configuration - best thermal performance'
+      'none': 'Natural convection only',
+      'heatspreader': 'Board specific heat spreader plate',
+      '4030sink': 'Heat spreader with 40x40x30mm heat sink',
+      'fan_5v': '5V fan cooling',
+      'fan_12v': '12V fan cooling',
+      'max': 'Maximum achieved cooling'
     },
     'motor_cooling': {
-      'none': 'Natural air cooling only',
-      'max': 'Maximum forced air cooling'
+      'none': 'Natural convection only',
+      'max': 'Maximum achieved cooling'
     },
     'output': {
-      'torque': 'Motor torque output in Nm',
-      'velocity': 'Motor velocity in Hz',
+      'torque': 'Torque at gearbox output in Nm',
+      'velocity': 'Velocity at gearbox output in Hz',
       'supply_power': 'Total electrical power consumption in W',
       'efficiency': 'Motor efficiency as percentage',
       'controller_temp': 'Controller temperature in °C',
       'motor_temp': 'Motor temperature in °C'
     },
     'analysis': {
+      'max_current': 'Find maximum sustainable phase current',
       'max_torque': 'Find maximum sustainable torque',
       'max_velocity': 'Find maximum achievable velocity',
       'operating_point': 'Evaluate specific operating point'
