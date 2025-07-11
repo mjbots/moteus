@@ -1593,7 +1593,13 @@ function evaluateOperatingPoint(config) {
   const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
   op['supply_power'] = totalLossPowerW + op.mechanical_power;
   op['supply_current'] = op.supply_power / config.voltage;
-  op['efficiency'] = 100.0 * op.mechanical_power / op.supply_power;
+  op['efficiency'] = Math.max(
+    0, Math.min(
+      100,
+      100.0 * ((op.velocity == 0 ? 0 :
+                (op.mechanical_power > 0) ?
+                (op.mechanical_power / op.supply_power) :
+                (op.supply_power / op.mechanical_power)))));
 
   return op;
 }
@@ -2184,7 +2190,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
       torqueMax,
       gridResolution
     });
-    
+
     return () => {
       window.getPlotMetadata = null;
     };
@@ -2201,7 +2207,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
 
   // Store the original raw config when plot is created
   const [rawPlotConfig, setRawPlotConfig] = useState(null);
-  
+
   // Update raw config when baseConfig changes
   useEffect(() => {
     if (baseConfig) {
@@ -2211,9 +2217,9 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
 
   const getConfigDifferences = () => {
     if (!rawPlotConfig || !commonConfig) return {};
-    
+
     const differences = {};
-    
+
     // Helper to convert chips to dictionary (same as in Simulator component)
     const convertChipsToDict = (chips) => {
       const dict = {};
@@ -2224,9 +2230,9 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
       });
       return dict;
     };
-    
+
     const commonDict = convertChipsToDict(commonConfig);
-    
+
     // Helper to normalize values for comparison
     const normalizeValue = (value) => {
       if (value === 'infinity') return Infinity;
@@ -2236,16 +2242,16 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
       }
       return value;
     };
-    
+
     // Compare raw config with common config to find differences
     Object.keys(rawPlotConfig).forEach(key => {
       const plotValue = rawPlotConfig[key];
       const commonValue = normalizeValue(commonDict[key]);
-      
+
       // Special handling for different field types
       let isDifferent = false;
       let displayValue = plotValue;
-      
+
       if (typeof plotValue === 'object' && plotValue !== null) {
         // For objects like motor/controller, compare with string identifier
         if (plotValue.nameValue) {
@@ -2264,12 +2270,12 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         // Simple value comparison with type normalization
         isDifferent = plotValue !== commonValue;
       }
-      
+
       if (isDifferent && plotValue !== null && plotValue !== undefined) {
         differences[key] = displayValue;
       }
     });
-    
+
     return differences;
   };
 
@@ -2285,11 +2291,11 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
           <div style="display: flex; flex-wrap: wrap; gap: 8px;">
             ${Object.entries(configDifferences).map(([key, value]) => html`
               <span style="
-                display: inline-block; 
-                padding: 4px 8px; 
-                background: #e9ecef; 
-                border-radius: 3px; 
-                font-size: 12px; 
+                display: inline-block;
+                padding: 4px 8px;
+                background: #e9ecef;
+                border-radius: 3px;
+                font-size: 12px;
                 font-family: monospace;
                 color: #495057;
               ">
@@ -2299,7 +2305,7 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
           </div>
         </div>
       `}
-      
+
       <div style="margin-bottom: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 4px;">
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
           <div style="display: flex; align-items: center;">
@@ -3020,7 +3026,7 @@ function dictToChips(dict) {
 
 function initializeFromUrl() {
   const { commonParams, axisParams, plotParams } = parseUrlParams();
-  
+
   console.log('initializeFromUrl: Parsed URL params:');
   console.log('  commonParams:', commonParams);
   console.log('  axisParams:', axisParams);
@@ -3167,7 +3173,7 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
               // Motor objects
               params.set(`plot.config.${field}`, value.nameValue);
             } else if (value.props?.name) {
-              // Controller objects  
+              // Controller objects
               params.set(`plot.config.${field}`, value.props.name);
             }
             // Skip other objects for now
@@ -3177,7 +3183,7 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
         }
       });
     }
-    
+
     // Store plot metadata (axis ranges, color field, etc.)
     if (plotState.plotMetadata) {
       Object.entries(plotState.plotMetadata).forEach(([field, value]) => {
@@ -3241,25 +3247,25 @@ function App() {
   // State for plot functionality - initialize from URL if present
   const [activeTab, setActiveTab] = useState(plotParams?.tab || 'table');
   const [plotMetadata, setPlotMetadata] = useState(plotParams?.meta || null);
-  
+
   // Helper to create a complete config from URL plot params
   const createConfigFromUrlParams = (plotConfigParams) => {
     if (!plotConfigParams) {
       return null;
     }
-    
+
     // Start with default common values to ensure we have all required fields
     const completeConfig = { ...defaultCommonValues };
-    
+
     // Override with the plot-specific values from URL
     Object.entries(plotConfigParams).forEach(([key, value]) => {
       completeConfig[key] = value;
     });
-    
+
     try {
       // First reify the objects (convert strings to actual objects)
       const reified = reifyObjects(completeConfig);
-      
+
       // Then normalize the reified config
       const normalized = normalizeConfig(reified);
       return normalized;
@@ -3269,7 +3275,7 @@ function App() {
       return null;
     }
   };
-  
+
   const [plotConfig, setPlotConfig] = useState(
     createConfigFromUrlParams(plotParams?.config)
   );
