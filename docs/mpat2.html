@@ -443,38 +443,236 @@ const parseKV = (txt) => {
   };
 };
 
-// Default values for common config - this defines all available fields
-const defaultCommonValues = {
-  'controller': { value: 'moteus-x1', description: 'Motor controller type - determines power limits, thermal characteristics, and control capabilities' },
-  'controller_cooling': { value: 'none', description: 'Controller cooling configuration - affects thermal limits and sustained power capability' },
-  'motor': { value: 'mad8318', description: 'Motor model - defines electrical characteristics, thermal properties, and mechanical specifications' },
-  'motor_cooling': { value: 'none', description: 'Motor cooling configuration - affects motor thermal limits and continuous operation capability' },
-  'voltage': { value: '24', description: 'Supply voltage in volts - affects speed capability and power delivery' },
-  'velocity': { value: '0', description: 'Gearbox output velocity in Hz' },
-  'pwm': { value: 'default', description: 'PWM switching frequency - affects efficiency and maximum power (use "default" for controller-specific default value)' },
-  'time': { value: 'infinity', description: 'Time period for thermal analysis in seconds - use "infinity" for steady-state analysis' },
-  'gear_reduction': { value: '1', description: 'Gear reduction ratio - mechanical advantage between motor and load (1 = direct drive, 2 = half speed output)' },
-  'ambient_temp': { value: '25', description: 'Ambient temperature in °C - baseline temperature for thermal calculations' },
-  'max_controller_temp': { value: 'default', description: 'Maximum allowable controller temperature in °C (use "default" for controller-specific limit)' },
-  'max_motor_temp': { value: 'default', description: 'Maximum allowable motor temperature in °C (use "default" for motor-specific limit)' },
-  'torque': { value: '0', description: 'Gearbox output torque in Nm' },
-  'output': { value: 'torque', description: 'Analysis output type - what metric to display' },
-  'analysis': { value: "max_torque", description: 'Analysis method - determines what optimization or calculation to perform' },
+// Consolidated field definitions - single source of truth for all field metadata
+const fieldDefinitions = {
+  // Common fields
+  'controller': {
+    defaultValue: 'moteus-x1',
+    description: 'Motor controller type - determines power limits, thermal characteristics, and control capabilities',
+    type: 'constrained',
+    options: {
+      'moteus-c1': {
+        help: html`38×38×9mm, 8.9g, 250W peak, 10-51V - <a href="https://mjbots.com/products/moteus-c1" target="_blank">product page</a>`,
+        model: () => new MoteusC1()
+      },
+      'moteus-r4': {
+        help: html`46×53mm, 14.2g, 900W peak, 10-42V - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`,
+        model: () => new MoteusR4()
+      },
+      'moteus-n1': {
+        help: html`46×46×8mm, 14.6g, 2kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
+        model: () => new MoteusN1()
+      },
+      'moteus-x1': {
+        help: html`56×56×10mm, 23.7g, 1.3kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-x1" target="_blank">product page</a>`,
+        model: () => new MoteusX1()
+      },
+      'odrive-micro': {
+        help: html`32×32×7.5mm, 6.8g, 100W, 10-31V - <a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">product page</a>`,
+        model: () => new OdriveMicro()
+      },
+      'odrive-s1': {
+        help: html`51×64mm, 35g, 2kW, 10-50.5V - <a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">product page</a>`,
+        model: () => new OdriveS1()
+      },
+      'odrive-pro': {
+        help: html`51×64mm, 35g, 5kW, 10-58V - <a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">product page</a>`,
+        model: () => new OdrivePro()
+      }
+    }
+  },
+  'controller_cooling': {
+    defaultValue: 'none',
+    description: 'Controller cooling configuration - affects thermal limits and sustained power capability',
+    type: 'constrained',
+    options: {
+      'none': { help: 'Natural convection only' },
+      'heatspreader': { help: 'Board specific heat spreader plate' },
+      '4030sink': { help: 'Heat spreader with 40x40x30mm heat sink' },
+      'fan_5v': { help: '5V fan cooling' },
+      'fan_12v': { help: '12V fan cooling' },
+      'max': { help: 'Maximum achieved cooling' }
+    }
+  },
+  'motor': {
+    defaultValue: 'mad8318',
+    description: 'Motor model - defines electrical characteristics, thermal properties, and mechanical specifications',
+    type: 'constrained',
+    options: {
+      'mad8318': {
+        help: html`MAD 8318 motor - 83mm agricultural drone motor - <a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">product page</a>`,
+        model: () => new MAD8318()
+      },
+      'mj5208': {
+        help: html`MJ 5208 motor - 52mm drone motor - <a href="https://mjbots.com/products/mj5208" target="_blank">product page</a>`,
+        model: () => new MJ5208()
+      },
+      'gbm5208': {
+        help: html`GBM 5208 motor - 52mm gimbal motor - <a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">product page</a>`,
+        model: () => new GBM5208()
+      },
+      'be8108': {
+        help: html`BE 8108 motor - 81mm drone motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
+        model: () => new BE8108()
+      },
+      'hoverboard350': {
+        help: html`350W hoverboard motor - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
+        model: () => new Hoverboard350()
+      },
+      'ht1105': {
+        help: html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
+        model: () => new HT1105()
+      },
+      'model': {
+        help: 'Generic motor model - for full custom motor definitions',
+        requiresSubFields: ['kv', 'r', 'l', 'd0', 'd1', 'thermal_r', 'thermal_c']
+      }
+    }
+  },
+  'motor_cooling': {
+    defaultValue: 'none',
+    description: 'Motor cooling configuration - affects motor thermal limits and continuous operation capability',
+    type: 'constrained',
+    options: {
+      'none': { help: 'Natural convection only' },
+      'max': { help: 'Maximum achieved cooling' }
+    }
+  },
+  'voltage': {
+    defaultValue: '24',
+    description: 'Supply voltage in volts - affects speed capability and power delivery',
+    type: 'numeric'
+  },
+  'velocity': {
+    defaultValue: '0',
+    description: 'Gearbox output velocity in Hz',
+    type: 'numeric'
+  },
+  'pwm': {
+    defaultValue: 'default',
+    description: 'PWM switching frequency - affects efficiency and maximum power (use "default" for controller-specific default value)',
+    type: 'mixed',
+    constraints: 'numeric (Hz) or "default"'
+  },
+  'time': {
+    defaultValue: 'infinity',
+    description: 'Time period for thermal analysis in seconds - use "infinity" for steady-state analysis',
+    type: 'mixed',
+    constraints: 'numeric (seconds) or "infinity"'
+  },
+  'gear_reduction': {
+    defaultValue: '1',
+    description: 'Gear reduction ratio - mechanical advantage between motor and load (1 = direct drive, 2 = half speed output)',
+    type: 'numeric'
+  },
+  'ambient_temp': {
+    defaultValue: '25',
+    description: 'Ambient temperature in °C - baseline temperature for thermal calculations',
+    type: 'numeric'
+  },
+  'max_controller_temp': {
+    defaultValue: 'default',
+    description: 'Maximum allowable controller temperature in °C (use "default" for controller-specific limit)',
+    type: 'mixed',
+    constraints: 'numeric (°C) or "default"'
+  },
+  'max_motor_temp': {
+    defaultValue: 'default',
+    description: 'Maximum allowable motor temperature in °C (use "default" for motor-specific limit)',
+    type: 'mixed',
+    constraints: 'numeric (°C) or "default"'
+  },
+  'torque': {
+    defaultValue: '0',
+    description: 'Gearbox output torque in Nm',
+    type: 'numeric'
+  },
+  'output': {
+    defaultValue: 'torque',
+    description: 'Analysis output type - what metric to display',
+    type: 'constrained',
+    options: {
+      'torque': { help: 'Torque at gearbox output in Nm' },
+      'velocity': { help: 'Velocity at gearbox output in Hz' },
+      'controller_temp': { help: 'Controller temperature in °C' },
+      'motor_temp': { help: 'Motor temperature in °C' },
+      'supply_power': { help: 'Total electrical power consumption in W' },
+      'supply_current': { help: 'Current sourced from supply in A' },
+      'phase_current': { help: 'Current applied to motor phases in A' },
+      'copper_loss': { help: 'Power dissipated in motor windings in W' },
+      'iron_loss': { help: 'Power dissipated in motor stator in W' },
+      'controller_loss': { help: 'Power dissipated in controller in W' },
+      'mechanical_power': { help: 'Mechanical power at output of gearbox in W' },
+      'efficiency': { help: 'Motor efficiency as percentage' }
+    }
+  },
+  'analysis': {
+    defaultValue: 'max_torque',
+    description: 'Analysis method - determines what optimization or calculation to perform',
+    type: 'constrained',
+    options: {
+      'max_current': { help: 'Find maximum sustainable phase current' },
+      'max_torque': { help: 'Find maximum sustainable torque' },
+      'max_velocity': { help: 'Find maximum achievable velocity' },
+      'operating_point': { help: 'Evaluate specific operating point' }
+    }
+  },
+  // Motor sub-fields
+  'motor.kv': {
+    defaultValue: '100',
+    description: 'Motor velocity constant in RPM/V',
+    type: 'numeric'
+  },
+  'motor.r': {
+    defaultValue: '0.2',
+    description: 'Phase-to-phase resistance in ohms',
+    type: 'numeric'
+  },
+  'motor.l': {
+    defaultValue: '2e-6',
+    description: 'Phase-to-phase inductance in henries',
+    type: 'numeric'
+  },
+  'motor.d0': {
+    defaultValue: '1e-2',
+    description: 'Linear iron loss in W/s',
+    type: 'numeric'
+  },
+  'motor.d1': {
+    defaultValue: '1e-4',
+    description: 'Quadratic iron loss in W/s^2',
+    type: 'numeric'
+  },
+  'motor.thermal_r': {
+    defaultValue: '0.5',
+    description: 'Thermal resistance in °C/W',
+    type: 'numeric'
+  },
+  'motor.thermal_c': {
+    defaultValue: '50',
+    description: 'Thermal capacitance in J/°C',
+    type: 'numeric'
+  }
 };
 
-// Default values for motor sub-fields
-const motorSubFieldDefaults = {
-  'motor.kv': { value: '100', description: 'Motor velocity constant in RPM/V' },
-  'motor.r': { value: '0.2', description: 'Phase-to-phase resistance in ohms' },
-  'motor.l': { value: '2e-6', description: 'Phase-to-phase inductance in henries' },
-  'motor.d0': { value: '1e-2', description: 'Linear iron loss in W/s' },
-  'motor.d1': { value: '1e-4', description: 'Quadratic iron loss in W/s^2' },
-  'motor.thermal_r': { value: '0.5', description: 'Thermal resistance in °C/W' },
-  'motor.thermal_c': { value: '50', description: 'Thermal capacitance in J/°C' },
-  'motor.mass': { value: '0.1', description: 'Motor mass in kg' },
-  'motor.diameter': { value: '30', description: 'Motor diameter in mm' },
-  'motor.type': { value: 'outrunner', description: 'Motor type: "outrunner" or "inrunner"' }
+// Helper function to get field metadata
+const getFieldDefinition = (fieldName) => {
+  return fieldDefinitions[fieldName] || null;
 };
+
+// Helper function to get default values (backwards compatibility)
+const defaultCommonValues = Object.fromEntries(
+  Object.entries(fieldDefinitions)
+    .filter(([key]) => !key.includes('.'))
+    .map(([key, def]) => [key, { value: def.defaultValue, description: def.description }])
+);
+
+// Helper function to get motor sub-field defaults (backwards compatibility)
+const motorSubFieldDefaults = Object.fromEntries(
+  Object.entries(fieldDefinitions)
+    .filter(([key]) => key.startsWith('motor.'))
+    .map(([key, def]) => [key, { value: def.defaultValue, description: def.description }])
+);
 
 // Default axis configurations
 const defaultAxisConfigs = [
@@ -486,132 +684,29 @@ const defaultAxisConfigs = [
 
 /* Help text for constrained field values - includes productInfo links where available */
 const getConstrainedValueHelp = (fieldName, valueName) => {
-  // For controllers and motors, create help text with actual links
-  if (fieldName === 'controller') {
-    const helpText = {
-      'moteus-c1': html`38×38×9mm, 8.9g, 250W peak, 10-51V - <a href="https://mjbots.com/products/moteus-c1" target="_blank">product page</a>`,
-      'moteus-r4': html`46×53mm, 14.2g, 900W peak, 10-42V - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`,
-      'moteus-n1': html`46×46×8mm, 14.6g, 2kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
-      'moteus-x1': html`56×56×10mm, 23.7g, 1.3kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-x1" target="_blank">product page</a>`,
-      'odrive-micro': html`32×32×7.5mm, 6.8g, 100W, 10-31V - <a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">product page</a>`,
-      'odrive-s1': html`51×64mm, 35g, 2kW, 10-50.5V - <a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">product page</a>`,
-      'odrive-pro': html`51×64mm, 35g, 5kW, 10-58V - <a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">product page</a>`
-    };
-    return helpText[valueName] || null;
+  const fieldDef = getFieldDefinition(fieldName);
+  if (!fieldDef || fieldDef.type !== 'constrained' || !fieldDef.options) {
+    return null;
   }
-  if (fieldName === 'motor') {
-    const helpText = {
-      'mad8318': html`MAD 8318 motor - 83mm agricultural drone motor - <a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">product page</a>`,
-      'mj5208': html`MJ 5208 motor - 52mm drone motor - <a href="https://mjbots.com/products/mj5208" target="_blank">product page</a>`,
-      'gbm5208': html`GBM 5208 motor - 52mm gimbal motor - <a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">product page</a>`,
-      'be8108': html`BE 8108 motor - 81mm drone motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
-      'hoverboard350': html`350W hoverboard motor - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
-      'ht1105': html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
-      'model': 'Generic motor model - for full custom motor definitions'
-    };
-    return helpText[valueName] || null;
-  }
-
-  // Fallback descriptions for other constrained values
-  const helpText = {
-    'controller_cooling': {
-      'none': 'Natural convection only',
-      'heatspreader': 'Board specific heat spreader plate',
-      '4030sink': 'Heat spreader with 40x40x30mm heat sink',
-      'fan_5v': '5V fan cooling',
-      'fan_12v': '12V fan cooling',
-      'max': 'Maximum achieved cooling'
-    },
-    'motor_cooling': {
-      'none': 'Natural convection only',
-      'max': 'Maximum achieved cooling'
-    },
-    'output': {
-      'torque': 'Torque at gearbox output in Nm',
-      'velocity': 'Velocity at gearbox output in Hz',
-      'controller_temp': 'Controller temperature in °C',
-      'motor_temp': 'Motor temperature in °C',
-      'supply_power': 'Total electrical power consumption in W',
-      'supply_current': 'Current sourced from supply in A',
-      'phase_current': 'Current applied to motor phases in A',
-      'copper_loss': 'Power dissipated in motor windings in W',
-      'iron_loss': 'Power dissipated in motor stator in W',
-      'controller_loss': 'Power dissipated in controller in W',
-      'mechanical_power': 'Mechanical power at output of gearbox in W',
-      'efficiency': 'Motor efficiency as percentage'
-    },
-    'analysis': {
-      'max_current': 'Find maximum sustainable phase current',
-      'max_torque': 'Find maximum sustainable torque',
-      'max_velocity': 'Find maximum achievable velocity',
-      'operating_point': 'Evaluate specific operating point'
-    }
-  };
-
-  return helpText[fieldName]?.[valueName] || null;
+  
+  const optionDef = fieldDef.options[valueName];
+  return optionDef?.help || null;
 };
 
 /* Field-specific value suggestions - only for constrained fields */
-const fieldValueOptions = {
-  'controller': [
-    'moteus-c1',
-    'moteus-r4',
-    'moteus-n1',
-    'moteus-x1',
-    'odrive-micro',
-    'odrive-s1',
-    'odrive-pro',
-  ],
-  'controller_cooling': [
-    'none',
-    'heatspreader',
-    '4030sink',
-    'fan_5v',
-    'fan_12v',
-    'max',
-  ],
-  'motor': [
-    'mad8318',
-    'mj5208',
-    'gbm5208',
-    'be8108',
-    'hoverboard350',
-    'ht1105',
-    'model',
-  ],
-  'motor_cooling': [
-    'none',
-    'max',
-  ],
-  'analysis': [
-    'max_current',
-    'max_torque',
-    'max_velocity',
-    'operating_point',
-  ],
-  'output': [
-    'torque',
-    'velocity',
-    'controller_temp',
-    'motor_temp',
-    'supply_power',
-    'supply_current',
-    'phase_current',
-    'copper_loss',
-    'iron_loss',
-    'controller_loss',
-    'mechanical_power',
-    'efficiency',
-  ],
-  'motor.type': [
-    'outrunner',
-    'inrunner'
-  ]
-};
+const fieldValueOptions = (() => {
+  const options = {};
+  Object.entries(fieldDefinitions).forEach(([fieldName, fieldDef]) => {
+    if (fieldDef.type === 'constrained' && fieldDef.options) {
+      options[fieldName] = Object.keys(fieldDef.options);
+    }
+  });
+  return options;
+})();
 
 /* Motor model sub-field configurations */
 const motorModelFields = {
-  'model': ['kv', 'r', 'l', 'thermal_r', 'thermal_c', 'd0', 'd1']
+  'model': fieldDefinitions['motor'].options['model'].requiresSubFields
 };
 
 /* Generate dynamic sub-fields based on selected values */
@@ -641,7 +736,9 @@ const generateDynamicFields = (selectedValues) => {
 
 /* shared base fields for all selectors - derived from default values */
 const getBaseFields = (selectedValues) => {
-  const staticFields = Object.keys(defaultCommonValues).map(name => ({
+  const staticFields = Object.entries(fieldDefinitions)
+    .filter(([key]) => !key.includes('.'))
+    .map(([name]) => ({
     field: name,
     value: name,
     label: name + '=',
@@ -1973,7 +2070,8 @@ function ConfigFieldSelector({
     }
 
     // If field has constrained values, show all or filtered options
-    const fieldOptions = fieldValueOptions[kv.field];
+    const fieldDef = getFieldDefinition(kv.field);
+    const fieldOptions = fieldDef?.type === 'constrained' ? Object.keys(fieldDef.options || {}) : null;
     if (fieldOptions) {
       let filterText = kv.data;
 
@@ -2041,8 +2139,9 @@ function ConfigFieldSelector({
     }
 
     // For constrained fields, check if the value(s) are allowed
-    if (kv.data !== undefined && fieldValueOptions[kv.field]) {
-      const allowedValues = fieldValueOptions[kv.field];
+    const fieldDef = getFieldDefinition(kv.field);
+    if (kv.data !== undefined && fieldDef?.type === 'constrained') {
+      const allowedValues = Object.keys(fieldDef.options || {});
 
       if (kv.isMultiValue) {
         // For multi-value, check that all values are valid
@@ -2126,13 +2225,14 @@ function ConfigFieldSelector({
       }
 
       // If we already have '=' and this is a constrained field, cycle through options
-      if (kv && kv.data !== undefined && fieldValueOptions[kv.field]) {
+      const fieldDef = getFieldDefinition(kv.field);
+      if (kv && kv.data !== undefined && fieldDef?.type === 'constrained') {
         // Use the currently focused option if available
         if (focusedOption && focusedOption.data !== undefined) {
           setInputValue(kv.field + '=' + focusedOption.data);
         } else {
           // Fallback to first matching option
-          const fieldOptions = fieldValueOptions[kv.field];
+          const fieldOptions = Object.keys(fieldDef.options || {});
           let filterText = kv.data;
 
           // Handle multi-value input: get the text after the last comma
@@ -2869,44 +2969,32 @@ function HelpOverlay({ isVisible, onClose }) {
           </p>
         </div>
 
-        ${Object.entries(defaultCommonValues).map(([fieldName, config]) => {
+        ${Object.entries(fieldDefinitions).filter(([key]) => !key.includes('.')).map(([fieldName, fieldDef]) => {
           // Determine field constraints
           let constraints = '';
-          if (fieldValueOptions[fieldName]) {
-            // Constrained values - handled by existing options display
-            constraints = '';
-          } else {
-            // Fields that accept keywords and/or numeric values
-            if (fieldName === 'pwm') {
-              constraints = 'numeric (Hz) or "default"';
-            } else if (fieldName === 'time') {
-              constraints = 'numeric (seconds) or "infinity"';
-            } else if (fieldName === 'max_controller_temp' || fieldName === 'max_motor_temp') {
-              constraints = 'numeric (°C) or "default"';
-            } else {
-              // Pure numeric fields like voltage, velocity, gear_reduction, ambient_temp, torque
-              constraints = 'numeric values only';
-            }
+          if (fieldDef.type === 'mixed' && fieldDef.constraints) {
+            constraints = fieldDef.constraints;
+          } else if (fieldDef.type === 'numeric') {
+            constraints = 'numeric values only';
           }
 
           return html`
             <div class="helpSection">
               <div class="helpFieldName">${fieldName}</div>
               <div class="helpFieldDescription">
-                ${config.description}${constraints ? html` — <span class="helpFieldConstraints">${constraints}</span>` : ''}
+                ${fieldDef.description}${constraints ? html` — <span class="helpFieldConstraints">${constraints}</span>` : ''}
               </div>
 
-              ${fieldValueOptions[fieldName] ? html`
+              ${fieldDef.type === 'constrained' && fieldDef.options ? html`
                 <div class="helpOptionsContainer">
                   <div class="helpOptionsTitle">Available Options:</div>
-                  ${fieldValueOptions[fieldName].map(optionValue => {
-                    const helpContent = getConstrainedValueHelp(fieldName, optionValue);
+                  ${Object.entries(fieldDef.options).map(([optionValue, optionDef]) => {
                     return html`
                       <div class="helpOptionRow">
                         <span class="helpOptionValue">${optionValue}</span>
-                        ${helpContent ? html`
+                        ${optionDef.help ? html`
                           <div class="helpOptionDescription">
-                            ${helpContent}
+                            ${optionDef.help}
                           </div>
                         ` : ''}
                       </div>
@@ -2934,11 +3022,11 @@ function HelpOverlay({ isVisible, onClose }) {
                 <div class="helpOptionsTitle">Required Parameters:</div>
                 ${paramFields.map(paramField => {
                   const fullFieldName = `motor.${paramField}`;
-                  const paramConfig = motorSubFieldDefaults[fullFieldName];
+                  const paramConfig = getFieldDefinition(fullFieldName);
                   return html`
                     <div class="helpOptionRow">
                       <span class="helpOptionValue">${fullFieldName}</span>
-                      <div class="helpOptionDescription">${paramConfig ? paramConfig.description : 'Parameter description not available'}</div>
+                      <div class="helpOptionDescription">${paramConfig?.description || 'Parameter description not available'}</div>
                     </div>
                   `;
                 })}
@@ -3056,31 +3144,31 @@ function AxisPanel({
 }
 
 /* ---------- Model Registry ---------- */
-const modelRegistry = {
-  controller: {
-    'moteus-c1': new MoteusC1(),
-    'moteus-r4': new MoteusR4(),
-    'moteus-n1': new MoteusN1(),
-    'moteus-x1': new MoteusX1(),
-    'odrive-pro': new OdrivePro(),
-    'odrive-s1': new OdriveS1(),
-    'odrive-micro': new OdriveMicro(),
-  },
-  motor: {
-    'mj5208': new MJ5208(),
-    'mad8318': new MAD8318(),
-    'gbm5208': new GBM5208(),
-    'be8108': new BE8108(),
-    'hoverboard350': new Hoverboard350(),
-    'ht1105': new HT1105(),
-  },
-  analysis: {
+const modelRegistry = (() => {
+  const registry = {};
+  
+  // Build registry from fieldDefinitions
+  Object.entries(fieldDefinitions).forEach(([fieldName, fieldDef]) => {
+    if (fieldDef.type === 'constrained' && fieldDef.options) {
+      registry[fieldName] = {};
+      Object.entries(fieldDef.options).forEach(([optionName, optionDef]) => {
+        if (optionDef.model) {
+          registry[fieldName][optionName] = optionDef.model();
+        }
+      });
+    }
+  });
+  
+  // Add analysis mappings
+  registry.analysis = {
     'max_current': new AnalysisMaxCurrent(),
     'max_torque': new AnalysisMaxTorque(),
     'max_velocity': new AnalysisMaxVelocity(),
     'operating_point': new AnalysisOperatingPoint(),
-  },
-};
+  };
+  
+  return registry;
+})();
 
 /* ---------- Utility Functions ---------- */
 // Convert chip array to key-value dictionary
@@ -3655,18 +3743,20 @@ function initializeFromUrl() {
   // Initialize common config
   // Extract default values from the enhanced structure
   const defaultValues = Object.fromEntries(
-    Object.entries(defaultCommonValues).map(([field, config]) => [field, config.value])
+    Object.entries(fieldDefinitions)
+      .filter(([key]) => !key.includes('.'))
+      .map(([field, def]) => [field, def.defaultValue])
   );
 
   const commonConfig = Object.keys(commonParams).length > 0 ?
     dictToChips({ ...defaultValues, ...commonParams }) :
-    Object.entries(defaultCommonValues).map(([field, config]) => ({
+    Object.entries(fieldDefinitions).filter(([key]) => !key.includes('.')).map(([field, def]) => ({
       field,
       value: field,
-      data: config.value,
-      label: `${field}=${config.value}`,
+      data: def.defaultValue,
+      label: `${field}=${def.defaultValue}`,
       isMultiValue: false,
-      values: [config.value]
+      values: [def.defaultValue]
     }));
 
   // Initialize axis configs
@@ -3756,7 +3846,8 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
   });
 
   Object.entries(commonDict).forEach(([field, value]) => {
-    if (defaultCommonValues[field]?.value !== value) {
+    const fieldDef = getFieldDefinition(field);
+    if (fieldDef?.defaultValue !== value) {
       params.set(`common.${field}`, value);
     }
   });
@@ -3942,7 +4033,9 @@ function App() {
 
     // Start with default common values to ensure we have all required fields
     const defaultValues = Object.fromEntries(
-      Object.entries(defaultCommonValues).map(([field, config]) => [field, config.value])
+      Object.entries(fieldDefinitions)
+        .filter(([key]) => !key.includes('.'))
+        .map(([field, def]) => [field, def.defaultValue])
     );
     const completeConfig = { ...defaultValues };
 
