@@ -507,8 +507,7 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
       'be8108': html`BE 8108 motor - 81mm drone motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
       'hoverboard350': html`350W hoverboard motor - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
       'ht1105': html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
-      'model': 'Generic motor model - for full custom motor definitions',
-      'extrapolated': 'Extrapolated motor - estimated parameters from basic specs'
+      'model': 'Generic motor model - for full custom motor definitions'
     };
     return helpText[valueName] || null;
   }
@@ -573,7 +572,6 @@ const fieldValueOptions = {
     'hoverboard350',
     'ht1105',
     'model',
-    'extrapolated',
   ],
   'motor_cooling': [
     'none',
@@ -607,8 +605,7 @@ const fieldValueOptions = {
 
 /* Motor model sub-field configurations */
 const motorModelFields = {
-  'model': ['kv', 'r', 'l', 'thermal_r', 'thermal_c', 'd0', 'd1'],
-  'extrapolated': ['kv', 'mass', 'diameter', 'type']
+  'model': ['kv', 'r', 'l', 'thermal_r', 'thermal_c', 'd0', 'd1']
 };
 
 /* Generate dynamic sub-fields based on selected values */
@@ -1291,26 +1288,6 @@ class Motor {
   }
 }
 
-class ExtrapolatedMotor extends Motor {
-  constructor({kv, mass, diameter, type}) {
-    // TODO: Implement extrapolation logic to compute base Motor parameters
-    super({
-      name: 'extrapolated',
-      displayName: 'extrapolated',
-      maxTemp: 80,
-      Kv: kv,
-      R: 0.1, // Placeholder
-      L: 1e-6, // Placeholder
-      thermal: {
-        'none': {R: 1.0, C: 100.0} // Placeholder
-      }
-    });
-
-    this.mass = mass;
-    this.diameter = diameter;
-    this.type = type;
-  }
-}
 
 class MoteusC1 extends MoteusController {
   constructor() {
@@ -2921,14 +2898,14 @@ function HelpOverlay({ isVisible, onClose }) {
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
           <h3 style="margin: 0 0 15px 0; color: #0066cc;">Parameterizable Motor Models</h3>
           <div style="margin-bottom: 15px; color: #666;">
-            The "model" and "extrapolated" motor options allow custom motor definitions with the following parameters:
+            The "model" motor option allows custom motor definitions with the following parameters:
           </div>
 
           ${Object.entries(motorModelFields).map(([motorType, paramFields]) => html`
             <div class="helpSection">
               <div class="helpFieldName">${motorType}</div>
               <div class="helpFieldDescription">
-                ${motorType === 'model' ? 'Generic motor model for full custom motor definitions' : 'Extrapolated motor with estimated parameters from basic specifications'} — numeric values only
+                Generic motor model for full custom motor definitions — numeric values only
               </div>
               <div class="helpOptionsContainer">
                 <div class="helpOptionsTitle">Required Parameters:</div>
@@ -3150,22 +3127,6 @@ function reifyObjects(dict) {
     }
   }
 
-  // Special handling for 'extrapolated' motor type
-  if (reified.motor === 'extrapolated') {
-    const requiredFields = ['motor.kv', 'motor.mass', 'motor.diameter', 'motor.type'];
-    const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
-
-    if (hasAllFields) {
-      reified.motor = new ExtrapolatedMotor({
-        kv: reified['motor.kv'],
-        mass: reified['motor.mass'],
-        diameter: reified['motor.diameter'],
-        type: reified['motor.type']
-      });
-    } else {
-      reified.motor = null;
-    }
-  }
 
   return reified;
 }
