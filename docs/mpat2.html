@@ -2262,32 +2262,218 @@ function ConfigFieldSelector({
     }
   };
 
+  // Custom MultiValue component with dropdown for constrained single values
+  const CustomMultiValue = (props) => {
+    const { data, innerRef, innerProps = {}, removeProps, selectProps } = props;
+    const [showDropdown, setShowDropdown] = useState(false);
+    const chipRef = useRef(null);
+    const dropdownRef = useRef(null);
+    const portalRef = useRef(null);
+    
+    // Check if this chip should have a dropdown
+    const fieldDef = getFieldDefinition(data.field);
+    const isConstrainedSingleValue = fieldDef?.type === 'constrained' && 
+                                    data.data && 
+                                    !data.isMultiValue &&
+                                    Object.keys(fieldDef.options || {}).length > 1;
+    
+    // Create/manage portal for dropdown
+    useEffect(() => {
+      if (showDropdown && !portalRef.current) {
+        portalRef.current = document.createElement('div');
+        portalRef.current.style.position = 'absolute';
+        portalRef.current.style.zIndex = '10000';
+        document.body.appendChild(portalRef.current);
+      }
+      
+      return () => {
+        if (portalRef.current && portalRef.current.parentNode) {
+          portalRef.current.parentNode.removeChild(portalRef.current);
+          portalRef.current = null;
+        }
+      };
+    }, [showDropdown]);
+    
+    // Update dropdown position
+    useEffect(() => {
+      if (showDropdown && chipRef.current && portalRef.current) {
+        const rect = chipRef.current.getBoundingClientRect();
+        render(html`
+          <div 
+            ref=${dropdownRef}
+            style=${{
+              position: 'fixed',
+              top: `${rect.bottom + 2}px`,
+              left: `${rect.left}px`,
+              backgroundColor: 'white',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              minWidth: '150px',
+              maxHeight: '200px',
+              overflowY: 'auto'
+            }}
+            onWheel=${(e) => {
+              const dropdown = e.currentTarget;
+              const { scrollTop, scrollHeight, clientHeight } = dropdown;
+              const isAtTop = scrollTop === 0;
+              const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+              
+              // Prevent scroll propagation if we're at the limits
+              if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+                e.preventDefault();
+              }
+              // Always stop propagation to prevent page scroll while over dropdown
+              e.stopPropagation();
+            }}
+          >
+            ${Object.entries(fieldDef.options).map(([value, optionDef]) => html`
+              <div
+                key=${value}
+                onClick=${() => handleOptionSelect(value)}
+                style=${{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: value === data.data ? '#f0f0f0' : 'white',
+                  borderBottom: '1px solid #eee'
+                }}
+                onMouseEnter=${(e) => e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : '#f5f5f5'}
+                onMouseLeave=${(e) => e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white'}
+              >
+                <div style=${{ fontWeight: value === data.data ? 'bold' : 'normal' }}>
+                  ${value}
+                </div>
+                ${optionDef.help && html`
+                  <div style=${{ fontSize: '80%', color: '#666', marginTop: '2px' }}>
+                    ${optionDef.help}
+                  </div>
+                `}
+              </div>
+            `)}
+          </div>
+        `, portalRef.current);
+      }
+    }, [showDropdown]);
+    
+    // Handle clicks outside to close dropdown
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (portalRef.current && !portalRef.current.contains(event.target) &&
+            chipRef.current && !chipRef.current.contains(event.target)) {
+          setShowDropdown(false);
+        }
+      };
+      
+      if (showDropdown) {
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }
+    }, [showDropdown]);
+    
+    const handleChipClick = (e) => {
+      if (isConstrainedSingleValue) {
+        e.stopPropagation();
+        setShowDropdown(!showDropdown);
+      }
+    };
+    
+    const handleOptionSelect = (newValue) => {
+      const newChip = {
+        ...data,
+        data: newValue,
+        label: `${data.field}=${newValue}`
+      };
+      
+      // Update the selected values through the parent component's handler
+      // We need to go through the component's change handler, not react-select's
+      const currentValues = selected || [];
+      const newValues = currentValues.map(chip => 
+        chip.field === data.field ? newChip : chip
+      );
+      onSelectedChange(newValues);
+      setShowDropdown(false);
+    };
+    
+    // Determine chip styles
+    let backgroundColor = '#e0e0e0';
+    let color = '#000000';
+    let cursor = isConstrainedSingleValue ? 'pointer' : 'default';
+    
+    if (data.field === 'analysis') {
+      backgroundColor = '#d4f4dd';
+      color = '#2d5a3d';
+    } else if (data.field === 'output') {
+      backgroundColor = '#dae8fc';
+      color = '#1e3a5f';
+    }
+    
+    const chipStyle = {
+      ...innerProps.style,
+      backgroundColor,
+      color,
+      cursor,
+      position: 'relative',
+      borderRadius: '3px',
+      display: 'inline-flex',
+      margin: '2px',
+      padding: '3px 6px',
+      fontSize: '85%',
+      boxShadow: isConstrainedSingleValue ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+      transition: 'all 0.2s ease',
+      ...(isConstrainedSingleValue && {
+        ':hover': {
+          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+        }
+      })
+    };
+    
+    return html`
+      <div ref=${(el) => { chipRef.current = el; if (innerRef) innerRef(el); }} 
+           style=${chipStyle} 
+           onClick=${handleChipClick}>
+        <div style=${{ display: 'flex', alignItems: 'center' }}>
+          <span>${data.label}</span>
+          ${isConstrainedSingleValue && html`
+            <span style=${{ marginLeft: '4px', fontSize: '80%' }}>▼</span>
+          `}
+        </div>
+        <button
+          onClick=${(e) => {
+            e.stopPropagation();
+            if (removeProps?.onClick) {
+              removeProps.onClick(e);
+            }
+          }}
+          style=${{
+            border: 'none',
+            backgroundColor: 'transparent',
+            marginLeft: '5px',
+            cursor: 'pointer',
+            padding: '0 2px',
+            fontSize: '100%',
+            color: 'inherit'
+          }}
+        >
+          ×
+        </button>
+      </div>
+    `;
+  };
+
   // Custom styles for chips based on field type
   const getChipStyles = () => ({
     multiValue: (styles, { data }) => {
-      let backgroundColor = styles.backgroundColor;
-      if (data.field === 'analysis') {
-        backgroundColor = '#d4f4dd'; // Tame green
-      } else if (data.field === 'output') {
-        backgroundColor = '#dae8fc'; // Tame blue
-      }
-      return {
-        ...styles,
-        backgroundColor,
-      };
+      // Styles are now handled in the custom component
+      return { ...styles, display: 'none' };
     },
     multiValueLabel: (styles, { data }) => {
-      let color = styles.color;
-      if (data.field === 'analysis') {
-        color = '#2d5a3d'; // Darker green text
-      } else if (data.field === 'output') {
-        color = '#1e3a5f'; // Darker blue text
-      }
-      return {
-        ...styles,
-        color,
-      };
+      // Styles are now handled in the custom component
+      return { ...styles };
     },
+    multiValueRemove: (styles) => {
+      // Remove button is now handled in the custom component
+      return { ...styles, display: 'none' };
+    }
   });
 
   return html`
@@ -2309,6 +2495,7 @@ function ConfigFieldSelector({
         inputValue=${inputValue}
         onKeyDown=${handleKeyDown}
         styles=${getChipStyles()}
+        components=${{ MultiValue: CustomMultiValue }}
       />
   `;
 }
