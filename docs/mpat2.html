@@ -624,7 +624,7 @@ const generateDynamicFields = (selectedValues) => {
           dynamicFields.push({
             field: fullFieldName,
             value: fullFieldName,
-            label: fullFieldName,
+            label: fullFieldName + '=',
             isMultiValue: false,
             values: [fullFieldName]
           });
@@ -641,7 +641,7 @@ const getBaseFields = (selectedValues) => {
   const staticFields = Object.keys(defaultCommonValues).map(name => ({
     field: name,
     value: name,
-    label: name,
+    label: name + '=',
     isMultiValue: false,
     values: [name]
   }));
@@ -2076,6 +2076,20 @@ function ConfigFieldSelector({
 
 
   const handleChange = (newValue) => {
+    // Check if the last added item is a field-only option (no data/value)
+    if (newValue && newValue.length > selected.length) {
+      const lastAdded = newValue[newValue.length - 1];
+      
+      // If this is a field without data (just the field name), set input to field= for editing
+      if (lastAdded && lastAdded.field && 
+          (lastAdded.data === undefined || lastAdded.data === null) &&
+          lastAdded.label && lastAdded.label.endsWith('=')) {
+        setInputValue(lastAdded.field + '=');
+        // Don't add the incomplete chip to selected yet
+        return;
+      }
+    }
+    
     onSelectedChange(newValue);
     setInputValue(''); // Clear input after selection
   };
