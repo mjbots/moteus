@@ -467,8 +467,8 @@ const motorSubFieldDefaults = {
   'motor.kv': { value: '100', description: 'Motor velocity constant in RPM/V' },
   'motor.r': { value: '0.2', description: 'Phase-to-phase resistance in ohms' },
   'motor.l': { value: '2e-6', description: 'Phase-to-phase inductance in henries' },
-  'motor.d0': { value: '1e-2', description: 'Linear iron loss in Ws' },
-  'motor.d1': { value: '1e-4', description: 'Quadratic iron loss in Ws^2' },
+  'motor.d0': { value: '1e-2', description: 'Linear iron loss in W/s' },
+  'motor.d1': { value: '1e-4', description: 'Quadratic iron loss in W/s^2' },
   'motor.thermal_r': { value: '0.5', description: 'Thermal resistance in °C/W' },
   'motor.thermal_c': { value: '50', description: 'Thermal capacitance in J/°C' },
   'motor.mass': { value: '0.1', description: 'Motor mass in kg' },
@@ -2058,9 +2058,9 @@ function ConfigFieldSelector({
     // Check if the last added item is a field-only option (no data/value)
     if (newValue && newValue.length > selected.length) {
       const lastAdded = newValue[newValue.length - 1];
-      
+
       // If this is a field without data (just the field name), set input to field= for editing
-      if (lastAdded && lastAdded.field && 
+      if (lastAdded && lastAdded.field &&
           (lastAdded.data === undefined || lastAdded.data === null) &&
           lastAdded.label && lastAdded.label.endsWith('=')) {
         setInputValue(lastAdded.field + '=');
@@ -2068,7 +2068,7 @@ function ConfigFieldSelector({
         return;
       }
     }
-    
+
     onSelectedChange(newValue);
     setInputValue(''); // Clear input after selection
   };
@@ -2968,19 +2968,19 @@ function CommonConfigPanel({ selected, onSelectedChange }) {
   `;
 }
 
-function AxisPanel({ 
-  axisNumber, 
-  axisIndex, 
-  configs, 
-  onConfigsChange, 
-  onDragStart, 
-  onDragOver, 
-  onDragLeave, 
-  onDrop, 
+function AxisPanel({
+  axisNumber,
+  axisIndex,
+  configs,
+  onConfigsChange,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
   onDragEnd,
   isDragging,
   isDragOver,
-  isDraggable 
+  isDraggable
 }) {
   const handleConfigChange = (index, newValue) => {
     let newConfigs = [...configs];
@@ -3006,7 +3006,7 @@ function AxisPanel({
   };
 
   return html`
-    <div 
+    <div
       class="panelContainer ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${!isDraggable ? 'not-draggable' : ''}"
       draggable=${isDraggable}
       onDragStart=${isDraggable ? (e) => onDragStart(e, axisIndex) : undefined}
@@ -3266,10 +3266,10 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
     if (axisConfigs.length === 0) {
       return null;
     }
-    
+
     // Get original string values from common config (before reification)
     const commonDict = convertChipsToDict(commonConfig);
-    
+
     // Collect all axis configurations as dictionaries (before reification)
     const allAxisDicts = [];
     axisConfigs.forEach((axisConfig, axisIndex) => {
@@ -3285,18 +3285,18 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         });
       }
     });
-    
+
     // Check if any axis configuration overrides analysis or output
     const analysisOverridden = allAxisDicts.some(dict => dict.hasOwnProperty('analysis'));
     const outputOverridden = allAxisDicts.some(dict => dict.hasOwnProperty('output'));
-    
+
     // If overridden, we'd need to check consistency across all merged configs
     // For now, only show in title if not overridden (common values apply to all)
     const result = {
       analysis: (!analysisOverridden && commonDict.analysis) ? commonDict.analysis : null,
       output: (!outputOverridden && commonDict.output) ? commonDict.output : null
     };
-    
+
     return result;
   };
 
@@ -3312,10 +3312,10 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         cells: []
       }];
     }
-    
+
     // Check for consistent analysis and output types across axes
     const consistent = getConsistentAnalysisAndOutput(commonConfig, axisConfigs);
-    
+
     // Helper function to generate analysis/output suffix for titles
     const getAnalysisOutputSuffix = () => {
       const parts = [];
@@ -3563,13 +3563,13 @@ function parseUrlParams() {
     } else if (key.startsWith('axis.')) {
       const lineMatch = key.match(/^axis\.(\d+)\.line\.(\d+)\.(.+)$/);
       const directMatch = key.match(/^axis\.(\d+)\.(.+)$/);
-      
+
       if (lineMatch) {
         // New multi-line format: axis.N.line.M.field
         const axisNumber = parseInt(lineMatch[1]);
         const lineIndex = parseInt(lineMatch[2]);
         const field = lineMatch[3];
-        
+
         if (!axisParams[axisNumber]) {
           axisParams[axisNumber] = { lines: {} };
         }
@@ -3581,7 +3581,7 @@ function parseUrlParams() {
         // Original format: axis.N.field (backwards compatibility)
         const axisNumber = parseInt(directMatch[1]);
         const field = directMatch[2];
-        
+
         if (!axisParams[axisNumber]) {
           axisParams[axisNumber] = { lines: {} };
         }
@@ -3657,17 +3657,17 @@ function initializeFromUrl() {
         // Convert line-based structure to lineConfigs array
         const lineConfigs = [];
         const lineIndices = Object.keys(axisParams[i].lines).map(k => parseInt(k)).sort((a, b) => a - b);
-        
+
         lineIndices.forEach(lineIndex => {
           const lineDict = axisParams[i].lines[lineIndex];
           if (Object.keys(lineDict).length > 0) {
             lineConfigs.push(dictToChips(lineDict));
           }
         });
-        
+
         // Always add an empty line at the end for adding more chips
         lineConfigs.push([]);
-        
+
         axisConfigs.push(lineConfigs);
       } else {
         // Use default for this axis if it exists, otherwise empty
@@ -3966,12 +3966,12 @@ function App() {
     // Prevent dragging the final empty axis
     const isLastAxis = axisIndex === axisConfigs.length - 1;
     const isEmpty = !hasAnyContent(axisConfigs[axisIndex]);
-    
+
     if (isLastAxis && isEmpty) {
       e.preventDefault();
       return;
     }
-    
+
     setDraggedAxisIndex(axisIndex);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/html', ''); // Required for Firefox
@@ -3981,12 +3981,12 @@ function App() {
     // Prevent dropping on or below the final empty axis
     const isLastAxis = axisIndex === axisConfigs.length - 1;
     const isEmpty = !hasAnyContent(axisConfigs[axisIndex]);
-    
+
     if (isLastAxis && isEmpty) {
       e.dataTransfer.dropEffect = 'none';
       return;
     }
-    
+
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOverIndex(axisIndex);
@@ -4001,17 +4001,17 @@ function App() {
 
   const handleDrop = (e, dropIndex) => {
     e.preventDefault();
-    
+
     // Prevent dropping on the final empty axis
     const isLastAxis = dropIndex === axisConfigs.length - 1;
     const isEmpty = !hasAnyContent(axisConfigs[dropIndex]);
-    
+
     if (isLastAxis && isEmpty) {
       setDraggedAxisIndex(null);
       setDragOverIndex(null);
       return;
     }
-    
+
     if (draggedAxisIndex === null || draggedAxisIndex === dropIndex) {
       setDraggedAxisIndex(null);
       setDragOverIndex(null);
@@ -4022,7 +4022,7 @@ function App() {
     const newAxisConfigs = [...axisConfigs];
     const [draggedConfig] = newAxisConfigs.splice(draggedAxisIndex, 1);
     newAxisConfigs.splice(dropIndex, 0, draggedConfig);
-    
+
     setAxisConfigs(newAxisConfigs);
     setDraggedAxisIndex(null);
     setDragOverIndex(null);
@@ -4103,7 +4103,7 @@ function App() {
           const isLastAxis = axisIndex === axisConfigs.length - 1;
           const isEmpty = !hasAnyContent(configs);
           const isDraggable = !(isLastAxis && isEmpty);
-          
+
           return html`
             <${AxisPanel}
               key=${axisIndex}
