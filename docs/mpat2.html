@@ -2473,9 +2473,16 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
             const hoverLines = [
               `Speed: ${speed.toFixed(2)} Hz`,
               `Torque: ${torque.toFixed(2)} Nm`,
-              `${getColorBarTitle(colorField)}: ${value.toFixed(2)}`,
-              `---`
+              `${getColorBarTitle(colorField)}: ${value.toFixed(2)}`
             ];
+            
+            // Add time period information for bus_power and efficiency
+            if (colorField === 'bus_power' || colorField === 'efficiency') {
+              const timeStr = timeForEvaluation === Infinity ? 'steady-state' : `${timeForEvaluation}s`;
+              hoverLines.push(`Evaluated at: ${timeStr}`);
+            }
+            
+            hoverLines.push(`---`);
 
             // Add all operating point fields dynamically
             Object.entries(fieldInfo).forEach(([fieldName, info]) => {
