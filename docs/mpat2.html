@@ -2266,16 +2266,22 @@ function ConfigFieldSelector({
   const CustomMultiValue = (props) => {
     const { data, innerRef, innerProps = {}, removeProps, selectProps } = props;
     const [showDropdown, setShowDropdown] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValue, setEditValue] = useState(data.data || '');
     const chipRef = useRef(null);
     const dropdownRef = useRef(null);
     const portalRef = useRef(null);
+    const inputRef = useRef(null);
     
-    // Check if this chip should have a dropdown
+    // Check if this chip should have a dropdown or be editable
     const fieldDef = getFieldDefinition(data.field);
     const isConstrainedSingleValue = fieldDef?.type === 'constrained' && 
                                     data.data && 
                                     !data.isMultiValue &&
                                     Object.keys(fieldDef.options || {}).length > 1;
+    const isEditableNumeric = (fieldDef?.type === 'numeric' || fieldDef?.type === 'mixed') && 
+                             data.data && 
+                             !data.isMultiValue;
     
     // Create/manage portal for dropdown
     useEffect(() => {
@@ -2374,8 +2380,54 @@ function ConfigFieldSelector({
       if (isConstrainedSingleValue) {
         e.stopPropagation();
         setShowDropdown(!showDropdown);
+      } else if (isEditableNumeric) {
+        e.stopPropagation();
+        setIsEditing(true);
+        setEditValue(data.data);
       }
     };
+    
+    // Handle numeric value editing
+    const handleEditSubmit = () => {
+      const trimmedValue = editValue.trim();
+      if (trimmedValue && trimmedValue !== data.data) {
+        const newChip = {
+          ...data,
+          data: trimmedValue,
+          label: `${data.field}=${trimmedValue}`
+        };
+        
+        const currentValues = selected || [];
+        const newValues = currentValues.map(chip => 
+          chip.field === data.field ? newChip : chip
+        );
+        onSelectedChange(newValues);
+      }
+      setIsEditing(false);
+    };
+    
+    const handleEditCancel = () => {
+      setEditValue(data.data);
+      setIsEditing(false);
+    };
+    
+    const handleEditKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEditSubmit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleEditCancel();
+      }
+    };
+    
+    // Focus input when entering edit mode
+    useEffect(() => {
+      if (isEditing && inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
+    }, [isEditing]);
     
     const handleOptionSelect = (newValue) => {
       const newChip = {
@@ -2397,7 +2449,7 @@ function ConfigFieldSelector({
     // Determine chip styles
     let backgroundColor = '#e0e0e0';
     let color = '#000000';
-    let cursor = isConstrainedSingleValue ? 'pointer' : 'default';
+    let cursor = (isConstrainedSingleValue || isEditableNumeric) ? 'pointer' : 'default';
     
     if (data.field === 'analysis') {
       backgroundColor = '#d4f4dd';
@@ -2411,16 +2463,16 @@ function ConfigFieldSelector({
       ...innerProps.style,
       backgroundColor,
       color,
-      cursor,
+      cursor: isEditableNumeric ? 'text' : cursor,
       position: 'relative',
       borderRadius: '3px',
       display: 'inline-flex',
       margin: '2px',
       padding: '3px 6px',
       fontSize: '85%',
-      boxShadow: isConstrainedSingleValue ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+      boxShadow: (isConstrainedSingleValue || isEditableNumeric) ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
       transition: 'all 0.2s ease',
-      ...(isConstrainedSingleValue && {
+      ...((isConstrainedSingleValue || isEditableNumeric) && {
         ':hover': {
           boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
         }
@@ -2431,31 +2483,60 @@ function ConfigFieldSelector({
       <div ref=${(el) => { chipRef.current = el; if (innerRef) innerRef(el); }} 
            style=${chipStyle} 
            onClick=${handleChipClick}>
-        <div style=${{ display: 'flex', alignItems: 'center' }}>
-          <span>${data.label}</span>
-          ${isConstrainedSingleValue && html`
-            <span style=${{ marginLeft: '4px', fontSize: '80%' }}>▼</span>
+        <div style=${{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          ${isEditing ? html`
+            <span>${data.field}=</span>
+            <input
+              ref=${inputRef}
+              type="text"
+              value=${editValue}
+              onInput=${(e) => setEditValue(e.target.value)}
+              onKeyDown=${handleEditKeyDown}
+              onBlur=${handleEditSubmit}
+              onClick=${(e) => e.stopPropagation()}
+              style=${{
+                border: 'none',
+                outline: 'none',
+                backgroundColor: 'transparent',
+                color: 'inherit',
+                font: 'inherit',
+                padding: '0',
+                margin: '0 2px',
+                width: `${Math.max(3, editValue.length)}ch`,
+                minWidth: '3ch'
+              }}
+            />
+          ` : html`
+            <span>${data.label}</span>
+            ${isConstrainedSingleValue && html`
+              <span style=${{ marginLeft: '4px', fontSize: '80%' }}>▼</span>
+            `}
+            ${isEditableNumeric && html`
+              <span style=${{ marginLeft: '4px', fontSize: '80%', fontFamily: 'monospace' }}>✎</span>
+            `}
           `}
         </div>
-        <button
-          onClick=${(e) => {
-            e.stopPropagation();
-            if (removeProps?.onClick) {
-              removeProps.onClick(e);
-            }
-          }}
-          style=${{
-            border: 'none',
-            backgroundColor: 'transparent',
-            marginLeft: '5px',
-            cursor: 'pointer',
-            padding: '0 2px',
-            fontSize: '100%',
-            color: 'inherit'
-          }}
-        >
-          ×
-        </button>
+        ${!isEditing && html`
+          <button
+            onClick=${(e) => {
+              e.stopPropagation();
+              if (removeProps?.onClick) {
+                removeProps.onClick(e);
+              }
+            }}
+            style=${{
+              border: 'none',
+              backgroundColor: 'transparent',
+              marginLeft: '5px',
+              cursor: 'pointer',
+              padding: '0 2px',
+              fontSize: '100%',
+              color: 'inherit'
+            }}
+          >
+            ×
+          </button>
+        `}
       </div>
     `;
   };
