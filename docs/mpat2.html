@@ -1009,6 +1009,9 @@ class Controller {
   getTemperature(thermalPower, {controller_cooling, time, ambient_temp}) {
     const timePeriodS = time;
     const [R, C] = this.getThermalProperties(controller_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
     return ambient_temp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
   }
 
@@ -1219,7 +1222,7 @@ class Motor {
       phase_current: current
     });
     const controllerTemp = config.controller.getTemperature(controllerLossW, config);
-    if (controllerTemp > config.controller.getMaxTemp()) {
+    if (controllerTemp == null || controllerTemp > config.controller.getMaxTemp()) {
       return null;
     }
     const Piron_motor = thermalW - Pcopper;
@@ -1290,6 +1293,9 @@ class Motor {
     const motorLossPower = r.Pcopper + r.Piron;
 
     const [R, C] = this.getThermalProperties(config.motor_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
     result.motor_temp = config.ambient_temp + motorLossPower * R * (1.0 - Math.exp(-config.time / (R * C)));
 
     return result;
@@ -1707,6 +1713,9 @@ function evaluateMaxCurrent(config) {
     }
 
     const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
     const timePeriodS = config.time;
     const deltaT = config.max_controller_temp - config.ambient_temp;
 
@@ -1754,6 +1763,9 @@ function evaluateOperatingPoint(config) {
     ...config,
     'phase_current': motorCurrent});
 
+  if (op == null) {
+    return null;
+  }
   if (Math.abs(config.velocity) > config.motor.getMaxVelocity(config)) {
     op._infeasible_reason = `back_emf`;
   }
@@ -1776,6 +1788,9 @@ function evaluateOperatingPoint(config) {
     'phase_current': motorCurrent});
   op['controller_loss'] = thermalPower;
   op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
+  if (op['controller_temp'] == null) {
+    return null;
+  }
 
   if ((op.controller_temp - config.controller.getMaxTemp()) > 0.001) {
     op._infeasible_reason = `Controller temperature ${op.controller_temp.toFixed(1)} exceeds maximum ${config.controller.getMaxTemp().toFixed(1)}`;
