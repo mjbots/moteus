@@ -3673,28 +3673,37 @@ function initializeFromUrl() {
   const axisConfigs = [];
   if (Object.keys(axisParams).length > 0) {
     const maxAxis = Math.max(...Object.keys(axisParams).map(k => parseInt(k)));
-    for (let i = 1; i <= maxAxis; i++) {
-      if (axisParams[i] && axisParams[i].lines) {
+    
+    // Initialize array with the right size to ensure proper indexing
+    for (let i = 0; i < maxAxis; i++) {
+      axisConfigs.push([[]]);
+    }
+    
+    // Now populate the configurations at the correct indices
+    for (let axisNumber = 1; axisNumber <= maxAxis; axisNumber++) {
+      const axisIndex = axisNumber - 1; // Convert to 0-based index
+      
+      if (axisParams[axisNumber] && axisParams[axisNumber].lines) {
         // Convert line-based structure to lineConfigs array
         const lineConfigs = [];
-        const lineIndices = Object.keys(axisParams[i].lines).map(k => parseInt(k)).sort((a, b) => a - b);
+        const lineIndices = Object.keys(axisParams[axisNumber].lines).map(k => parseInt(k)).sort((a, b) => a - b);
 
         lineIndices.forEach(lineIndex => {
-          const lineDict = axisParams[i].lines[lineIndex];
+          const lineDict = axisParams[axisNumber].lines[lineIndex];
           if (Object.keys(lineDict).length > 0) {
-            lineConfigs.push(dictToChips(lineDict));
+            const chips = dictToChips(lineDict);
+            lineConfigs.push(chips);
           }
         });
 
         // Always add an empty line at the end for adding more chips
         lineConfigs.push([]);
 
-        axisConfigs.push(lineConfigs);
+        axisConfigs[axisIndex] = lineConfigs;
       } else {
         // Use default for this axis if it exists, otherwise empty
-        const defaultIndex = i - 1; // Convert to 0-based index
-        if (defaultIndex < defaultAxisConfigs.length) {
-          const chips = defaultAxisConfigs[defaultIndex].map(({ field, data }) => {
+        if (axisIndex < defaultAxisConfigs.length) {
+          const chips = defaultAxisConfigs[axisIndex].map(({ field, data }) => {
             const hasMultipleValues = data.includes(',');
             return {
               field,
@@ -3705,9 +3714,9 @@ function initializeFromUrl() {
               values: hasMultipleValues ? data.split(',').map(v => v.trim()) : [data]
             };
           });
-          axisConfigs.push([chips, []]);
+          axisConfigs[axisIndex] = [chips, []];
         } else {
-          axisConfigs.push([[]]);
+          axisConfigs[axisIndex] = [[]];
         }
       }
     }
@@ -3795,15 +3804,28 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
     return axisKeys.every(key => axisDict[key] === defaultDict[key]);
   };
 
-  // Check each axis against defaults and include if different
+  // Find the first non-default axis to determine where to start including axes
+  let firstNonDefaultAxis = -1;
+  for (let index = 0; index < axisConfigs.length; index++) {
+    if (!hasNonEmptyAxis(axisConfigs[index])) continue; // Skip empty axes
+    
+    const isDefault = index < defaultAxisConfigs.length &&
+                     axisMatches(axisConfigs[index], defaultAxisConfigs[index]);
+    
+    if (!isDefault) {
+      firstNonDefaultAxis = index;
+      break;
+    }
+  }
+
+  // Include all axes starting from the first non-default one
   axisConfigs.forEach((axisConfig, index) => {
     if (!hasNonEmptyAxis(axisConfig)) return; // Skip empty axes
-
+    
     const axisNumber = index + 1;
-    const isDefault = index < defaultAxisConfigs.length &&
-                     axisMatches(axisConfig, defaultAxisConfigs[index]);
+    const shouldInclude = firstNonDefaultAxis >= 0 && index >= firstNonDefaultAxis;
 
-    if (!isDefault) {
+    if (shouldInclude) {
       const lineArray = axisToLineArray(axisConfig);
       lineArray.forEach((lineDict, lineIndex) => {
         Object.entries(lineDict).forEach(([field, value]) => {
