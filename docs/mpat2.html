@@ -529,10 +529,16 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
     'output': {
       'torque': 'Torque at gearbox output in Nm',
       'velocity': 'Velocity at gearbox output in Hz',
-      'supply_power': 'Total electrical power consumption in W',
-      'efficiency': 'Motor efficiency as percentage',
       'controller_temp': 'Controller temperature in °C',
-      'motor_temp': 'Motor temperature in °C'
+      'motor_temp': 'Motor temperature in °C',
+      'supply_power': 'Total electrical power consumption in W',
+      'supply_current': 'Current sourced from supply in A',
+      'phase_current': 'Current applied to motor phases in A',
+      'copper_loss': 'Power dissipated in motor windings in W',
+      'iron_loss': 'Power dissipated in motor stator in W',
+      'controller_loss': 'Power dissipated in controller in W',
+      'mechanical_power': 'Mechanical power at output of gearbox in W',
+      'efficiency': 'Motor efficiency as percentage'
     },
     'analysis': {
       'max_current': 'Find maximum sustainable phase current',
