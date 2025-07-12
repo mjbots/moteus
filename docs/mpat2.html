@@ -465,8 +465,8 @@ const defaultCommonValues = {
 // Default values for motor sub-fields
 const motorSubFieldDefaults = {
   'motor.kv': { value: '100', description: 'Motor velocity constant in RPM/V' },
-  'motor.r': { value: '0.1', description: 'Phase resistance in ohms' },
-  'motor.l': { value: '1e-6', description: 'Phase inductance in henries' },
+  'motor.r': { value: '0.2', description: 'Phase-to-phase resistance in ohms' },
+  'motor.l': { value: '2e-6', description: 'Phase-to-phase inductance in henries' },
   'motor.d0': { value: '1e-2', description: 'Linear iron loss in Ws' },
   'motor.d1': { value: '1e-4', description: 'Quadratic iron loss in Ws^2' },
   'motor.thermal_r': { value: '0.5', description: 'Thermal resistance in °C/W' },
@@ -1070,7 +1070,7 @@ class OdriveController extends Controller {
 }
 
 class Motor {
-  constructor({name, displayName, maxTemp, Kv, R, L, thermal,
+  constructor({name, displayName, maxTemp, Kv, R, L, R_pp, L_pp, thermal,
                rotationCurrentCutoff=1000,
                rotationCurrentScale=1,
                rotationTorqueScale=1,
@@ -1081,8 +1081,10 @@ class Motor {
     this.productInfoValue = productInfo;
     this.maxTemp = maxTemp;
     this.Kv = Kv;
-    this.R = R;
-    this.L = L;
+    // Handle both phase-to-phase and phase-to-center inputs
+    // If R_pp/L_pp provided, convert to phase-to-center; otherwise use R/L directly
+    this.R = R_pp !== undefined ? R_pp / 2 : R;
+    this.L = L_pp !== undefined ? L_pp / 2 : L;
     this.thermal = thermal;
     this.rotationCurrentScale = rotationCurrentScale;
     this.rotationCurrentCutoff = rotationCurrentCutoff;
@@ -3111,8 +3113,8 @@ function reifyObjects(dict) {
         displayName: 'model',
         maxTemp: 80, // Fixed value
         Kv: reified['motor.kv'],
-        R: reified['motor.r'],
-        L: reified['motor.l'],
+        R_pp: reified['motor.r'], // User input is phase-to-phase
+        L_pp: reified['motor.l'], // User input is phase-to-phase
         d0: reified['motor.d0'],
         d1: reified['motor.d1'],
         thermal: {
