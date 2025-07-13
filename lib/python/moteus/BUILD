@@ -77,36 +77,42 @@ py_test(
     deps = ["moteus"],
     # Just so it is built.
     data = [":manual_calibrate_encoder"],
+    size = "small",
 )
 
 py_test(
     name = "multiplex_test",
     srcs = ["test/multiplex_test.py"],
     deps = [":moteus"],
+    size = "small",
 )
 
 py_test(
     name = "moteus_test",
     srcs = ["test/moteus_test.py"],
     deps = [":moteus"],
+    size = "small",
 )
 
 py_test(
     name = "reader_test",
     srcs = ["test/reader_test.py"],
     deps = [":moteus"],
+    size = "small",
 )
 
 py_test(
     name = "regression_test",
     srcs = ["test/regression_test.py"],
     deps = [":moteus"],
+    size = "small",
 )
 
 py_test(
     name = "router_test",
     srcs = ["test/router_test.py"],
     deps = [":moteus"],
+    size = "small",
 )
 
 test_suite(
