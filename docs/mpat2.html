@@ -688,7 +688,7 @@ const getConstrainedValueHelp = (fieldName, valueName) => {
   if (!fieldDef || fieldDef.type !== 'constrained' || !fieldDef.options) {
     return null;
   }
-  
+
   const optionDef = fieldDef.options[valueName];
   return optionDef?.help || null;
 };
@@ -2272,17 +2272,17 @@ function ConfigFieldSelector({
     const dropdownRef = useRef(null);
     const portalRef = useRef(null);
     const inputRef = useRef(null);
-    
+
     // Check if this chip should have a dropdown or be editable
     const fieldDef = getFieldDefinition(data.field);
-    const isConstrainedSingleValue = fieldDef?.type === 'constrained' && 
-                                    data.data && 
+    const isConstrainedSingleValue = fieldDef?.type === 'constrained' &&
+                                    data.data &&
                                     !data.isMultiValue &&
                                     Object.keys(fieldDef.options || {}).length > 1;
-    const isEditableNumeric = (fieldDef?.type === 'numeric' || fieldDef?.type === 'mixed') && 
-                             data.data && 
+    const isEditableNumeric = (fieldDef?.type === 'numeric' || fieldDef?.type === 'mixed') &&
+                             data.data &&
                              !data.isMultiValue;
-    
+
     // Create/manage portal for dropdown
     useEffect(() => {
       if (showDropdown && !portalRef.current) {
@@ -2291,7 +2291,7 @@ function ConfigFieldSelector({
         portalRef.current.style.zIndex = '10000';
         document.body.appendChild(portalRef.current);
       }
-      
+
       return () => {
         if (portalRef.current && portalRef.current.parentNode) {
           portalRef.current.parentNode.removeChild(portalRef.current);
@@ -2299,13 +2299,13 @@ function ConfigFieldSelector({
         }
       };
     }, [showDropdown]);
-    
+
     // Update dropdown position
     useEffect(() => {
       if (showDropdown && chipRef.current && portalRef.current) {
         const rect = chipRef.current.getBoundingClientRect();
         render(html`
-          <div 
+          <div
             ref=${dropdownRef}
             style=${{
               position: 'fixed',
@@ -2324,7 +2324,7 @@ function ConfigFieldSelector({
               const { scrollTop, scrollHeight, clientHeight } = dropdown;
               const isAtTop = scrollTop === 0;
               const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
-              
+
               // Prevent scroll propagation if we're at the limits
               if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
                 e.preventDefault();
@@ -2360,7 +2360,7 @@ function ConfigFieldSelector({
         `, portalRef.current);
       }
     }, [showDropdown]);
-    
+
     // Handle clicks outside to close dropdown
     useEffect(() => {
       const handleClickOutside = (event) => {
@@ -2369,13 +2369,13 @@ function ConfigFieldSelector({
           setShowDropdown(false);
         }
       };
-      
+
       if (showDropdown) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
       }
     }, [showDropdown]);
-    
+
     const handleChipClick = (e) => {
       if (isConstrainedSingleValue) {
         e.stopPropagation();
@@ -2386,7 +2386,7 @@ function ConfigFieldSelector({
         setEditValue(data.data);
       }
     };
-    
+
     // Handle numeric value editing
     const handleEditSubmit = () => {
       const trimmedValue = editValue.trim();
@@ -2396,21 +2396,21 @@ function ConfigFieldSelector({
           data: trimmedValue,
           label: `${data.field}=${trimmedValue}`
         };
-        
+
         const currentValues = selected || [];
-        const newValues = currentValues.map(chip => 
+        const newValues = currentValues.map(chip =>
           chip.field === data.field ? newChip : chip
         );
         onSelectedChange(newValues);
       }
       setIsEditing(false);
     };
-    
+
     const handleEditCancel = () => {
       setEditValue(data.data);
       setIsEditing(false);
     };
-    
+
     const handleEditKeyDown = (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -2420,7 +2420,7 @@ function ConfigFieldSelector({
         handleEditCancel();
       }
     };
-    
+
     // Focus input when entering edit mode
     useEffect(() => {
       if (isEditing && inputRef.current) {
@@ -2428,29 +2428,29 @@ function ConfigFieldSelector({
         inputRef.current.select();
       }
     }, [isEditing]);
-    
+
     const handleOptionSelect = (newValue) => {
       const newChip = {
         ...data,
         data: newValue,
         label: `${data.field}=${newValue}`
       };
-      
+
       // Update the selected values through the parent component's handler
       // We need to go through the component's change handler, not react-select's
       const currentValues = selected || [];
-      const newValues = currentValues.map(chip => 
+      const newValues = currentValues.map(chip =>
         chip.field === data.field ? newChip : chip
       );
       onSelectedChange(newValues);
       setShowDropdown(false);
     };
-    
+
     // Determine chip styles
     let backgroundColor = '#e0e0e0';
     let color = '#000000';
     let cursor = (isConstrainedSingleValue || isEditableNumeric) ? 'pointer' : 'default';
-    
+
     if (data.field === 'analysis') {
       backgroundColor = '#d4f4dd';
       color = '#2d5a3d';
@@ -2458,7 +2458,7 @@ function ConfigFieldSelector({
       backgroundColor = '#dae8fc';
       color = '#1e3a5f';
     }
-    
+
     const chipStyle = {
       ...innerProps.style,
       backgroundColor,
@@ -2478,10 +2478,10 @@ function ConfigFieldSelector({
         }
       })
     };
-    
+
     return html`
-      <div ref=${(el) => { chipRef.current = el; if (innerRef) innerRef(el); }} 
-           style=${chipStyle} 
+      <div ref=${(el) => { chipRef.current = el; if (innerRef) innerRef(el); }}
+           style=${chipStyle}
            onClick=${handleChipClick}>
         <div style=${{ display: 'flex', alignItems: 'center', width: '100%' }}>
           ${isEditing ? html`
@@ -2743,13 +2743,13 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
               `Torque: ${torque.toFixed(2)} Nm`,
               `${getColorBarTitle(colorField)}: ${value.toFixed(2)}`
             ];
-            
+
             // Add time period information for bus_power and efficiency
             if (colorField === 'bus_power' || colorField === 'efficiency') {
               const timeStr = timeForEvaluation === Infinity ? 'steady-state' : `${timeForEvaluation}s`;
               hoverLines.push(`Evaluated at: ${timeStr}`);
             }
-            
+
             hoverLines.push(`---`);
 
             // Add all operating point fields dynamically
@@ -3421,7 +3421,7 @@ function AxisPanel({
 /* ---------- Model Registry ---------- */
 const modelRegistry = (() => {
   const registry = {};
-  
+
   // Build registry from fieldDefinitions
   Object.entries(fieldDefinitions).forEach(([fieldName, fieldDef]) => {
     if (fieldDef.type === 'constrained' && fieldDef.options) {
@@ -3433,7 +3433,7 @@ const modelRegistry = (() => {
       });
     }
   });
-  
+
   // Add analysis mappings
   registry.analysis = {
     'max_current': new AnalysisMaxCurrent(),
@@ -3441,7 +3441,7 @@ const modelRegistry = (() => {
     'max_velocity': new AnalysisMaxVelocity(),
     'operating_point': new AnalysisOperatingPoint(),
   };
-  
+
   return registry;
 })();
 
@@ -4038,16 +4038,16 @@ function initializeFromUrl() {
   const axisConfigs = [];
   if (Object.keys(axisParams).length > 0) {
     const maxAxis = Math.max(...Object.keys(axisParams).map(k => parseInt(k)));
-    
+
     // Initialize array with the right size to ensure proper indexing
     for (let i = 0; i < maxAxis; i++) {
       axisConfigs.push([[]]);
     }
-    
+
     // Now populate the configurations at the correct indices
     for (let axisNumber = 1; axisNumber <= maxAxis; axisNumber++) {
       const axisIndex = axisNumber - 1; // Convert to 0-based index
-      
+
       if (axisParams[axisNumber] && axisParams[axisNumber].lines) {
         // Convert line-based structure to lineConfigs array
         const lineConfigs = [];
@@ -4174,10 +4174,10 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
   let firstNonDefaultAxis = -1;
   for (let index = 0; index < axisConfigs.length; index++) {
     if (!hasNonEmptyAxis(axisConfigs[index])) continue; // Skip empty axes
-    
+
     const isDefault = index < defaultAxisConfigs.length &&
                      axisMatches(axisConfigs[index], defaultAxisConfigs[index]);
-    
+
     if (!isDefault) {
       firstNonDefaultAxis = index;
       break;
@@ -4187,7 +4187,7 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
   // Include all axes starting from the first non-default one
   axisConfigs.forEach((axisConfig, index) => {
     if (!hasNonEmptyAxis(axisConfig)) return; // Skip empty axes
-    
+
     const axisNumber = index + 1;
     const shouldInclude = firstNonDefaultAxis >= 0 && index >= firstNonDefaultAxis;
 
