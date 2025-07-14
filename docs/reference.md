@@ -661,7 +661,7 @@ Mode: Read only
 
 The current motor temperature, measured in degrees celsius.  This will
 only be valid if an NTC thermistor is connected to the TEMP pads,
-`motor.thermistor_ohm` is set to the correct resistance, and
+`servo.motor_thermistor_ohm` is set to the correct resistance, and
 `servo.enable_motor_temperature` is set to 1.
 
 #### 0x00b - Trajectory complete ####
@@ -2058,7 +2058,7 @@ For mode 10, `servo.default_velocity_limit` and
 profile to zero speed.  The default PID gains are used.  The only
 limit on torque when in this timeout mode is `servo.max_current_A`.
 
-## `motor.thermistor_ohm` ##
+## `servo.motor_thermistor_ohm` ##
 
 The resistance of any attached motor NTC thermistor as measured at 25C
 in ohms.
