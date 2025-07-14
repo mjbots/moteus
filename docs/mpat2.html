@@ -523,6 +523,10 @@ const fieldDefinitions = {
         help: html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
         model: () => new HT1105()
       },
+      'dcws500': {
+        help: html`Generic 1.3kg 500W Spindle Motor, 48V/12000RPM`,
+        model: () => new DCWS500Spindle()
+      },
       'model': {
         help: 'Generic motor model - for full custom motor definitions',
         requiresSubFields: ['kv', 'r', 'l', 'd0', 'd1', 'thermal_r', 'thermal_c']
@@ -1616,6 +1620,29 @@ class HT1105 extends Motor {
       d0: 6.29e-5,
       d1: 3.80e-6,
       productInfo: html`<a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">[product page]</a>`,
+    });
+  }
+}
+
+class DCWS500Spindle extends Motor {
+  constructor() {
+    super({
+      name: 'dcws500',
+      displayName: 'DCWS500 Spindle',
+      maxTemp: 80,
+      Kv: 320,
+      R: 0.123,
+      L: 175e-6,
+      mass_kg: 1.302,
+      // I do not have a saturation model for this.
+      thermal: {
+        'none': {R: 0.808, C: 2680},
+        'max':  {R: 0.808, C: 2680},  // BOGUS PLACEHOLDER
+      },
+      // Measured on 2025-07-14 w/ `motor_iron_loss_test.py`
+      d0: 0.018884,
+      d1: 0.00020887,
+      productInfo: html`Generic 1.3kg 500W Spindle Motor, 48V/12000RPM`,
     });
   }
 }
