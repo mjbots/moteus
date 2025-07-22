@@ -300,6 +300,7 @@ py_test(
         "test/data/20250616-speed-cycle.dat.gz",
         "test/data/20250616-bnforth-highaccel.dat.gz",
         "test/data/20250616-hboard-manual.dat.gz",
+        "test/data/20250615-new-slow.dat.gz",
     ],
 )
 
