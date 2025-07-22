@@ -58,6 +58,7 @@ def main():
 
     parser.add_argument('--binary', '-b')
     parser.add_argument('--plot', '-p', action='store_true')
+    parser.add_argument('--save', type=str, default=None)
 
     args = parser.parse_args()
 
@@ -76,6 +77,14 @@ def main():
                     for line in lines
                     if line.strip() != '']
 
+            if args.save:
+                fname = f'{args.save}/encoder_bw_{"hall" if hall else "abs"}_{filter_3db_hz}Hz.csv'
+                with open(fname, 'w') as outf:
+                    outf.write('FrequencyHz,code,truth\n')
+                    for f, c in data:
+                        t = rms_gain_robertson(f, filter_3db_hz, 1.0)
+                        outf.write(f'{f},{c},{t}\n')
+
             if args.plot:
                 import matplotlib.pyplot as plt
 
@@ -85,9 +94,12 @@ def main():
                          label=f'code {filter_3db_hz}Hz')
                 plt.plot([x[0] for x in data], [rms_gain_robertson(x[0], filter_3db_hz, 1.0) for x in data],
                          label=f'ground truth {filter_3db_hz}Hz')
+                plt.xlabel('Frequency (Hz)')
+                plt.ylabel('Gain')
                 plt.legend()
                 plt.show()
-            else:
+
+            if not args.plot and not args.save:
                 for freq, gain in data:
                     expected_gain = rms_gain_robertson(freq, filter_3db_hz, 1.0)
                     TOLERANCE = (
