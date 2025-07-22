@@ -14,31 +14,71 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import matplotlib.pyplot as plt
 import sys
 
-lines = open(sys.argv[1]).readlines()
-header = lines[0].strip().split(',')
+def plot(ax, ax2, fname, plot_all, suffix):
+    lines = open(fname).readlines()
+    header = lines[0].strip().split(',')
 
-data = [tuple(float(y) for y in x.strip().split(','))
-        for x in lines[1:]]
+    data = [tuple(float(y) for y in x.strip().split(','))
+            for x in lines[1:]]
 
-def get(name, line):
-    return line[header.index(name)]
+    def get(name, line):
+        return line[header.index(name)]
 
-fig1, ax = plt.subplots()
+    x_time = [get('time', x) for x in data]
 
-ax2 = ax.twinx()
+    if plot_all:
+        ax.plot(x_time, [get('truth_vel', x) for x in data], '--', color='aquamarine', label='truth_vel')
 
-x_time = [get('time', x) for x in data]
+    ax.plot(x_time, [get('velocity', x) for x in data], label=f'velocity{suffix or ''}')
 
-ax2.plot(x_time, [get('velocity', x) for x in data], color='red', label='velocity')
-ax2.plot(x_time, [get('truth_vel', x) for x in data], '--', color='salmon', label='truth_vel')
-ax2.legend(loc='upper right')
+    if ax2:
+        if plot_all:
+            ax2.plot(x_time, [get('compensated', x) for x in data], '.', label='compensated')
+            ax2.plot(x_time, [get('truth_pos', x) for x in data], '--', label='truth_pos')
 
-ax.plot(x_time, [get('compensated', x) for x in data], '.', label='compensated')
-ax.plot(x_time, [get('filtered', x) for x in data], label='filtered')
-ax.plot(x_time, [get('truth_pos', x) for x in data], '--', label='truth_pos')
+        ax2.plot(x_time, [get('filtered', x) for x in data], label=f'filtered{suffix or ''}')
 
-ax.legend(loc='upper left')
-plt.show()
+
+def main():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('file', nargs='+')
+    parser.add_argument('--skip-position', action='store_true')
+    parser.add_argument('--title')
+
+    args = parser.parse_args()
+
+    fig1, ax = plt.subplots()
+    if args.skip_position:
+        ax2 = None
+    else:
+        ax2 = ax.twinx()
+
+    first = True
+    for fname in args.file:
+        suffix = None
+        if ':' in fname:
+            fname, suffix = fname.split(':')
+        plot(ax, ax2, fname, first, suffix)
+        first = False
+
+    ax.legend(loc='upper right')
+
+    ax.set_ylabel('velocity (counts/s)')
+    ax.set_xlabel('time (s)')
+
+    if ax2:
+        ax2.legend(loc='upper left')
+        ax2.set_ylabel('position (counts)')
+
+    if args.title:
+        plt.title(args.title)
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
