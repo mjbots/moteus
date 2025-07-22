@@ -18,7 +18,7 @@ import argparse
 import matplotlib.pyplot as plt
 import sys
 
-def plot(ax, ax2, fname, plot_all, suffix):
+def plot(ax, ax2, fname, plot_all, suffix, lw):
     lines = open(fname).readlines()
     header = lines[0].strip().split(',')
 
@@ -33,14 +33,14 @@ def plot(ax, ax2, fname, plot_all, suffix):
     if plot_all:
         ax.plot(x_time, [get('truth_vel', x) for x in data], '--', color='aquamarine', label='truth_vel')
 
-    ax.plot(x_time, [get('velocity', x) for x in data], label=f'velocity{suffix or ''}')
+    ax.plot(x_time, [get('velocity', x) for x in data], label=f'velocity{suffix or ''}', lw=lw)
 
     if ax2:
         if plot_all:
             ax2.plot(x_time, [get('compensated', x) for x in data], '.', label='compensated')
             ax2.plot(x_time, [get('truth_pos', x) for x in data], '--', label='truth_pos')
 
-        ax2.plot(x_time, [get('filtered', x) for x in data], label=f'filtered{suffix or ''}')
+        ax2.plot(x_time, [get('filtered', x) for x in data], label=f'filtered{suffix or ''}', lw=lw)
 
 
 def main():
@@ -59,12 +59,14 @@ def main():
         ax2 = ax.twinx()
 
     first = True
+    lw = len(args.file)
     for fname in args.file:
         suffix = None
         if ':' in fname:
             fname, suffix = fname.split(':')
-        plot(ax, ax2, fname, first, suffix)
+        plot(ax, ax2, fname, first, suffix, lw=lw)
         first = False
+        lw -= 1
 
     ax.legend(loc='upper right')
 
