@@ -22,5 +22,5 @@ import time
 fd = open(sys.argv[1])
 out = open(sys.argv[2], "w")
 while True:
-    line = fd.readline()
+    line = fd.readline().strip()
     print(f'{time.time()} {line}', file=out)
