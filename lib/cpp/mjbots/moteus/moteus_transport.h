@@ -226,14 +226,14 @@ class TimeoutTransport : public Transport {
     bool disable_brs = false;
 
     // Wait at least this long for the initial OK.
-    uint32_t min_ok_wait_ns = 1000000;
+    uint32_t min_ok_wait_ns = 2000000;
 
     // And wait at least this long for any expected reply packet.
     uint32_t min_rcv_wait_ns = 50000000;
 
     // After we have received a reply packet, and are still expecting
     // more, wait at least this long for every new receipt.
-    uint32_t rx_extra_wait_ns = 10000000;
+    uint32_t rx_extra_wait_ns = 50000000;
 
     // And after we have received all "expected" things, wait this
     // much longer for anything "more" that might come around.
