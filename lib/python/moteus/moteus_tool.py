@@ -1052,7 +1052,14 @@ class Stream:
                     break
 
     async def read_servo_stats(self):
+        if self.args.verbose:
+            print("read_servo_stats()")
+
         servo_stats = await self.read_data("servo_stats")
+
+        if self.args.verbose:
+            print("read_servo_stats: done reading")
+
         if servo_stats.mode == 1:
             raise RuntimeError(f"Controller reported fault: {int(servo_stats.fault)}")
         return servo_stats
@@ -1558,13 +1565,21 @@ class Stream:
         return cal_result
 
     async def find_current(self, voltage):
+        if self.args.verbose:
+            print(f"find_current: voltage={voltage}")
         assert voltage < 20.0
         assert voltage >= 0.0
 
         await self.command(f"d pwm 0 {voltage:.3f}")
 
+        if self.args.verbose:
+            print(f"find_current: waiting for stabilization")
+
         # Wait a bit for it to stabilize.
         await asyncio.sleep(0.15)
+
+        if self.args.verbose:
+            print(f"find_current: stabilized")
 
         def extract(f):
             return math.hypot(f.d_A, f.q_A)
@@ -1573,11 +1588,20 @@ class Stream:
         # currents.
         data = [extract(await self.read_servo_stats()) for _ in range(20)]
 
+        if self.args.verbose:
+            print(f"find_current: finished sampling")
+
         # Stop the current.
         await self.command("d stop");
 
+        if self.args.verbose:
+            print(f"find_current: stop sent")
+
         # Sleep a tiny bit before returning.
         await asyncio.sleep(0.05);
+
+        if self.args.verbose:
+            print(f"find_current: done waiting")
 
         current_A = sum(data) / len(data)
         noise_A = stddev(data)
@@ -1613,6 +1637,9 @@ class Stream:
         results = []
 
         while True:
+            if self.args.verbose:
+                print(f"cwr2: cal_voltage={cal_voltage}")
+
             this_current, this_noise = await self.find_current(cal_voltage)
 
             this_resistance = None

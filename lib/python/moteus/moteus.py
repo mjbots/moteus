@@ -1578,7 +1578,12 @@ class Stream:
         return await self.read(size, block=True)
 
     async def read_data(self, name):
+        if self.verbose:
+            print(f"Stream.read_data(name={name})")
+
         if name not in self._readers:
+            if self.verbose:
+                print(f"Stream.read_data: getting schema")
             await self.write_message(f"tel schema {name}".encode('latin1'))
 
             maybe_schema_announce = await self.readline()
@@ -1593,9 +1598,17 @@ class Stream:
             # Set this to be emitted as binary
             await self.command(f"tel fmt {name} 0".encode('latin1'))
 
+        if self.verbose:
+            print("Stream.read_data: getting data")
+
         reader = self._readers[name]
         await self.write_message(f"tel get {name}".encode('latin1'))
+
+        if self.verbose:
+            print("Stream.read_data: waiting for emit")
+
         maybe_data_announce = await self.readline()
+
 
         if maybe_data_announce != f"emit {name}".encode('latin1'):
             raise RuntimeError(
@@ -1603,4 +1616,7 @@ class Stream:
                 f"'{maybe_data_announce}'")
 
         data = await self.read_binary_blob()
+        if self.verbose:
+            print("Stream.read_data: read binary")
+
         return reader.read(moteus.reader.Stream(io.BytesIO(data)))
