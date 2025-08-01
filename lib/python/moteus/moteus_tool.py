@@ -35,6 +35,12 @@ from . import moteus
 from . import aiostream
 from . import regression
 from . import calibrate_encoder as ce
+try:
+    from . import version
+except ImportError:
+    class Version:
+        VERSION = 'dev'
+    version = Version()
 
 MAX_FLASH_BLOCK_SIZE = 32
 
@@ -78,7 +84,7 @@ def stddev(data):
     mean = sum(data) / len(data)
     return math.sqrt(sum((x - mean) ** 2 for x in data) / len(data))
 
-SUPPORTED_ABI_VERSION = 0x010b
+SUPPORTED_ABI_VERSION = 0x010c
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -104,6 +110,15 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010b and self.old >= 0x010c:
+            # Update all pll_filter_hz parameters.
+            for mpsource in range(0, 3):
+                key = f'motor_position.sources.{mpsource}.pll_filter_hz'.encode('utf8')
+                pll_filter_hz = float(items.get(key, 150.0))
+                natural_hz = pll_filter_hz / 2.48
+                items[key] = str(natural_hz).encode('utf8')
+                print(f"Downgraded motor_position.sources.{mpsource}.pll_filter_hz from {pll_filter_hz} to {natural_hz}")
 
         if self.new <= 0x010a and self.old >= 0x010b:
             flux_brake_margin_voltage = float(items.pop(b'servo.flux_brake_margin_voltage'))
@@ -566,6 +581,16 @@ class FirmwareUpgrade:
                 print(f"Upgraded servo.motor_derate_temperature to servo.motor_temperature_margin={motor_temperature_margin}")
                 items[b'servo.motor_temperature_margin'] = str(motor_temperature_margin).encode('utf8')
 
+        if self.new >= 0x010c and self.old <= 0x010b:
+            # Update all pll_filter_hz parameters.
+            for mpsource in range(0, 3):
+                key = f'motor_position.sources.{mpsource}.pll_filter_hz'.encode('utf8')
+                natural_hz = float(items.get(key, 400.0))
+                pll_filter_hz = natural_hz * 2.48
+                items[key] = str(pll_filter_hz).encode('utf8')
+                print(f"Upgraded motor_position.sources.{mpsource}.pll_filter_hz from {natural_hz} to {pll_filter_hz}")
+
+
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
 
@@ -1012,18 +1037,19 @@ class Stream:
             cmd = f"w {final_address:x} {'ff' * remaining_to_flush}"
             result = await self.command(cmd)
 
-        verify_ctx = FlashContext(elfs)
-        while True:
-            expected_block = verify_ctx.get_next_block()
-            cmd = f"r {expected_block.address:x} {len(expected_block.data):x}"
-            result = await self.command(cmd, allow_any_response=True)
-            # Emit progress first, to make it easier to see where
-            # things go wrong.
-            self._emit_flash_progress(verify_ctx, "verifying")
-            _verify_blocks(expected_block, result)
-            done = verify_ctx.advance_block()
-            if done:
-                break
+        if not self.args.no_verify:
+            verify_ctx = FlashContext(elfs)
+            while True:
+                expected_block = verify_ctx.get_next_block()
+                cmd = f"r {expected_block.address:x} {len(expected_block.data):x}"
+                result = await self.command(cmd, allow_any_response=True)
+                # Emit progress first, to make it easier to see where
+                # things go wrong.
+                self._emit_flash_progress(verify_ctx, "verifying")
+                _verify_blocks(expected_block, result)
+                done = verify_ctx.advance_block()
+                if done:
+                    break
 
     async def read_servo_stats(self):
         servo_stats = await self.read_data("servo_stats")
@@ -1256,6 +1282,7 @@ class Stream:
             'motor_position_output_sign' : motor_output_sign,
             'abi_version' : self.firmware.version,
             'voltage_mode_control' : voltage_mode_control,
+            'py_version' : version.VERSION,
         }
 
         log_filename = f"moteus-cal-{device_info['serial_number']}-{now.strftime('%Y%m%dT%H%M%S.%f')}.log"
@@ -1770,31 +1797,36 @@ class Stream:
                 if output_type == 4:  # kHall
                     hall_output = True
 
-            if inductance and hall_output:
-                desired_encoder_bw_hz = min(
-                    desired_encoder_bw_hz, 2e-2 / inductance)
+            # If we are calibrating a device with older firmware, we
+            # artifically limit the bandwidth for hall commutation
+            # sensors.
+            if self.firmware.version <= 0x010b:
+                if inductance and hall_output:
+                    desired_encoder_bw_hz = min(
+                        desired_encoder_bw_hz, 2e-2 / inductance)
 
-            # Also, limit the bandwidth for halls based on the number
-            # of poles and the estimated calibration speed.
-            if hall_output:
-                max_pole_bandwidth_hz = (
-                    0.5 * self.args.cal_motor_poles *
-                    self.args.cal_motor_speed)
-                desired_encoder_bw_hz = min(
-                    desired_encoder_bw_hz, max_pole_bandwidth_hz)
+                # Also, limit the bandwidth for halls based on the number
+                # of poles and the estimated calibration speed.
+                if hall_output:
+                    max_pole_bandwidth_hz = (
+                        0.5 * self.args.cal_motor_poles *
+                        self.args.cal_motor_speed)
+                    desired_encoder_bw_hz = min(
+                        desired_encoder_bw_hz, max_pole_bandwidth_hz)
 
 
         # And our bandwidth with the filter can be no larger than
-        # 1/30th the control rate.
-        encoder_bw_hz = min(control_rate_hz / 30, desired_encoder_bw_hz)
+        # a fixed fraction of the control rate.
+        encoder_bw_hz = min(control_rate_hz / 10, desired_encoder_bw_hz)
 
         if encoder_bw_hz != desired_encoder_bw_hz:
             print(f"Warning: using lower encoder bandwidth than "+
                   f"requested: {encoder_bw_hz:.1f}Hz")
 
-        w_3db = encoder_bw_hz * 2 * math.pi
-        kp = 2 * w_3db
-        ki = w_3db * w_3db
+        encoder_natural_frequency_hz = encoder_bw_hz / 2.48
+        w_n = encoder_natural_frequency_hz * 2 * math.pi  # natural frequency for zeta=1.0
+        kp = 2 * w_n
+        ki = w_n * w_n
 
         if servo_style:
             await self.command(f"conf set servo.encoder_filter.enabled 1")
@@ -1802,7 +1834,12 @@ class Stream:
             await self.command(f"conf set servo.encoder_filter.ki {ki}")
         elif motor_position_style:
             commutation_source = await self.read_config_int("motor_position.commutation_source")
-            await self.command(f"conf set motor_position.sources.{commutation_source}.pll_filter_hz {encoder_bw_hz}")
+            output_hz = encoder_bw_hz if self.firmware.version >= 0x010c else encoder_natural_frequency_hz
+            await self.command(f"conf set motor_position.sources.{commutation_source}.pll_filter_hz {output_hz}")
+
+            output_source = await self.read_config_int("motor_position.output.source")
+            if output_source != commutation_source:
+                await self.command(f"conf set motor_position.sources.{output_source}.pll_filter_hz {output_hz}")
         else:
             assert False
         return kp, ki, encoder_bw_hz
@@ -2059,65 +2096,6 @@ class Stream:
             await asyncio.sleep(0.2)
 
 
-    async def do_restore_calibration(self, filename):
-        report = json.load(open(filename, "r"))
-
-        # Verify that the serial number matches.
-        device_info = await self.get_device_info()
-        if device_info['serial_number'] != report['device_info']['serial_number']:
-            raise RuntimeError(
-                f"Serial number in calibration ({report['serial_number']}) " +
-                f"does not match device ({device_info['serial_number']})")
-
-        cal_result = report['calibration']
-
-        await self.command(
-            f"conf set motor.poles {cal_result['poles']}")
-        if await self.is_config_supported("motor_position.sources.0.sign"):
-            await self.command(f"conf set motor_position.sources.0.sign {-1 if cal_result['invert'] else 1}")
-        else:
-            await self.command(
-                f"conf set motor.invert {1 if cal_result['invert'] else 0}")
-        if await self.is_config_supported("motor.phase_invert"):
-            phase_invert = cal_result.get('phase_invert', False)
-            await self.command(
-                f"conf set motor.phase_invert {1 if phase_invert else 0}")
-        for index, offset in enumerate(cal_result['offset']):
-            await self.command(f"conf set motor.offset.{index} {offset}")
-
-        await self.command(f"conf set motor.resistance_ohm {report['winding_resistance']}")
-        if await self.is_config_supported("motor.v_per_hz"):
-            await self.command(f"conf set motor.v_per_hz {report['v_per_hz']}")
-        elif await self.is_config_supported("motor.Kv"):
-            await self.command(f"conf set motor.Kv {report['kv']}")
-
-        pid_dq_kp = report.get('pid_dq_kp', None)
-        if pid_dq_kp is not None:
-            await self.command(f"conf set servo.pid_dq.kp {pid_dq_kp}")
-
-        pid_dq_ki = report.get('pid_dq_ki', None)
-        if pid_dq_ki is not None:
-            await self.command(f"conf set servo.pid_dq.ki {pid_dq_ki}")
-
-        enc_kp = report.get('encoder_filter_kp', None)
-        enc_ki = report.get('encoder_filter_ki', None)
-        enc_hz = report.get('encoder_filter_bw_hz', None)
-        if (enc_hz and
-            await self.is_config_supported(
-                "motor_position.sources.0.pll_filter_hz")):
-            await self.command(
-                f"conf set motor_position.sources.0.pll_filter_hz {enc_hz}")
-        elif await self.is_config_supported("servo.encoder_filter.kp"):
-            if enc_kp:
-                await self.command(f"conf set servo.encoder_filter.kp {enc_kp}")
-            if enc_ki:
-                await self.command(f"conf set servo.encoder_filter.ki {enc_ki}")
-
-        await self.command("conf write")
-
-        print("Calibration restored")
-
-
 class Runner:
     def __init__(self, args):
         self.args = args
@@ -2215,8 +2193,6 @@ class Runner:
             await stream.do_flash(self.args.flash)
         elif self.args.calibrate:
             await stream.do_calibrate()
-        elif self.args.restore_cal:
-            await stream.do_restore_calibration(self.args.restore_cal)
         else:
             raise RuntimeError("No action specified")
 
@@ -2238,6 +2214,7 @@ async def async_main():
 
     group = parser.add_mutually_exclusive_group()
 
+    group.add_argument('--version', action='store_true')
     group.add_argument('-s', '--stop', action='store_true',
                        help='command the servos to stop')
     group.add_argument('-i', '--info', action='store_true',
@@ -2252,6 +2229,8 @@ async def async_main():
                        help='write the given configuration')
     group.add_argument('--flash', metavar='FILE',
                        help='write the given elf file to flash')
+    parser.add_argument('--no-verify', action='store_true',
+                        help='do not verify after flashing')
 
     parser.add_argument('--no-restore-config', action='store_true',
                         help='do not restore config after flash')
@@ -2261,8 +2240,6 @@ async def async_main():
     group.add_argument('--calibrate', action='store_true',
                         help='calibrate the motor, requires full freedom of motion')
 
-    group.add_argument('--restore-cal', metavar='FILE', type=str,
-                        help='restore calibration from logged data')
     group.add_argument('--zero-offset', action='store_true',
                         help='set the motor\'s position offset')
     group.add_argument('--set-offset', metavar='O',
@@ -2280,7 +2257,7 @@ async def async_main():
                         help='calibrate a motor with hall commutation sensors')
 
     parser.add_argument('--cal-bw-hz', metavar='HZ', type=float,
-                        default=100.0,
+                        default=200.0,
                         help='configure current loop bandwidth in Hz')
     parser.add_argument('--encoder-bw-hz', metavar='HZ', type=float,
                         default=None,
@@ -2352,6 +2329,10 @@ async def async_main():
                         help='never use current mode calibration')
 
     args = parser.parse_args()
+
+    if args.version:
+        print(f"moteus_tool version '{version.VERSION}'")
+        sys.exit(0)
 
     with Runner(args) as runner:
         await runner.start()

@@ -180,6 +180,8 @@ class MotorPosition {
     bool active_absolute = false;
     uint32_t raw = 0;
     float time_since_update = 0.0f;
+    float old_delta = 0.0f;
+    uint8_t slow_count = std::numeric_limits<uint8_t>::max();
 
     // This will increment every time a new value is provided.
     uint8_t nonce = 0;
@@ -193,6 +195,11 @@ class MotorPosition {
     // This value is compensated_value + pll_filter
     float filtered_value = 0.0f;
 
+    // The velocity integral.  This is the reported, smoothed value.
+    float integral = 0.0f;
+
+    // The instantaneous velocity.  This is used to propagate
+    // filtered_value in time.
     float velocity = 0.0f;
 
     template <typename Archive>
@@ -202,10 +209,13 @@ class MotorPosition {
       a->Visit(MJ_NVP(active_absolute));
       a->Visit(MJ_NVP(raw));
       a->Visit(MJ_NVP(time_since_update));
+      a->Visit(MJ_NVP(old_delta));
+      a->Visit(MJ_NVP(slow_count));
       a->Visit(MJ_NVP(nonce));
       a->Visit(MJ_NVP(offset_value));
       a->Visit(MJ_NVP(compensated_value));
       a->Visit(MJ_NVP(filtered_value));
+      a->Visit(MJ_NVP(integral));
       a->Visit(MJ_NVP(velocity));
     }
   };
@@ -325,10 +335,22 @@ class MotorPosition {
     }
   }
 
-  void ISR_Update(float dt) MOTEUS_CCM_ATTRIBUTE {
+  void SetRate(float dt) {
+    dt_ = dt;
+    const float rate_hz = 1.0f / dt;
+
+    // During the initial phase, drop velocity with a slower time
+    // constant.
+    hall_step1_filter_ = 1.0f - (1.0f / (rate_hz * 0.120f));
+
+    // Once we have exceeded a whole count, drop it with a faster one.
+    hall_step2_filter_ = 1.0f - (1.0f / (rate_hz * 0.020f));
+  }
+
+  void ISR_Update() MOTEUS_CCM_ATTRIBUTE {
     // First, fill in each of our sources raw data and do source level
     // filtering.
-    ISR_UpdateSources(dt);
+    ISR_UpdateSources();
 
     // Then update our output structures.
     ISR_UpdateState();
@@ -473,7 +495,7 @@ class MotorPosition {
           const float source_rate_hz =
               1000000.0f /
               aux_config->uart.poll_rate_us;
-          const float max_pll_hz = source_rate_hz / 10.0f;
+          const float max_pll_hz = source_rate_hz / 4.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);
           break;
@@ -502,7 +524,7 @@ class MotorPosition {
           const float source_rate_hz =
               1000000.0f /
               aux_config->i2c.devices[source_config.i2c_device].poll_rate_us;
-          const float max_pll_hz = source_rate_hz / 10.0f;
+          const float max_pll_hz = source_rate_hz / 4.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);
           break;
@@ -646,9 +668,54 @@ class MotorPosition {
       const auto& config = config_.sources[i];
       auto& constants = pll_filter_constants_[i];
 
-      const float w_3db = config.pll_filter_hz * k2Pi;
-      constants.kp = 2.0f * w_3db;
-      constants.ki = w_3db * w_3db;
+      // w_n = natural frequency, not the 3dB cutoff frequency
+      //
+      // They are related by w_3db / w_n = r(zeta)
+      //
+      // Where r(zeta) = sqrt((2 + 4 * zeta**2 + sqrt((2 + 4 * zeta**2)**2 + r)) / 2)
+      //
+      // Derived from: https://www.dsprelated.com/showarticle/973.php
+      // Appendix B.
+      //
+      // In the s domain, the closed loop response is:
+      //
+      // CL(s) = (2 * zeta * w_n * s + w_n ** 2) / (s**2 + 2 * zeta * w_n + w_n ** 2)
+      //
+      // For a test frequency ω, substitute jω in for s and
+      // taking the magnitude squared yields:
+      //
+      //  |CL(jω)|**2 = ((2 * zeta * w_n * ω) ** 2 + ω ** 4) / ((w_n ** 2 - ω ** 2) ** 2 + (2 *  zeta * w_n * ω) ** 2)
+      //
+      // r = ω / w_n
+      //
+      //  |CL(jω)|**2 = ((2 * zeta * r) ** 2 + 1) / ((1 - r ** 2) ** 2 + (2 * zeta * r) ** 2)
+      //
+      // The 3dB point is where |CL(j * w_3db)| ** 2 = 1/2
+      // and set r_c = w_3db / w_n
+      //
+      //  2 * ((2 * zeta * r_c) ** 2 + 1) = (1 - r_c ** 2) ** 2 + (2 * zeta * r_c) ** 2
+      //
+      // Solve for r_c:
+      //
+      //  -r_c ** 4 + (2 + r * zeta ** 2) * r_c ** 2 + 1 = 0
+      //
+      // Let x = r_c ** 2
+      //
+      //  x ** 2 - (2 + 4 * zeta ** 2) * x - 1 = 0
+      //
+      // Solve for x with quadratic formula:
+      //
+      //   x= (2 + 4 * zeta ** 2 + sqrt((2 + 4 * zeta ** 2) ** 2 + 4)) / 2
+      //
+      // and r(zeta) = sqrt(x)
+      //
+      //  r(zeta) = sqrt((2 + 4 * zeta ** 2 + sqrt((2 + 4 * zeta ** 2) ** 2 + 4)) / 2)
+      //
+      // r(1.0) ~= 2.48
+      const float w_n = (config.pll_filter_hz / 2.48f) * k2Pi;
+      const float zeta = 1.0f;
+      constants.kp = 2.0f * zeta * w_n;
+      constants.ki = w_n * w_n;
     }
   }
 
@@ -745,7 +812,7 @@ class MotorPosition {
 
       status_.position_relative = IntToFloat(status_.position_relative_raw);
       status_.position = IntToFloat(status_.position_raw);
-      status_.velocity = output_status.velocity * output_cpr_scale_;
+      status_.velocity = output_status.integral * output_cpr_scale_;
     }
 
     if (!output_status.active_velocity &&
@@ -784,9 +851,10 @@ class MotorPosition {
     }
   }
 
-  void ISR_UpdateSources(float dt) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_UpdateSources() MOTEUS_CCM_ATTRIBUTE {
     for (size_t i = 0; i < status_.sources.size(); i++) {
       const auto& config = config_.sources[i];
+      bool reset_to_compensated = false;
 
       if (config.type == SourceConfig::kNone) {
         continue;
@@ -875,10 +943,62 @@ class MotorPosition {
 
           const uint32_t new_value = (status.offset_value + cpr + delta) % cpr;
 
+          const auto old_delta = status.old_delta;
+          if (delta != 0) {
+            status.old_delta = delta;
+          }
+
           updated = ISR_UpdateAbsoluteSource(
-              status.nonce + 1, new_value,
+              hall_data->nonce, new_value,
               0, 1, config.cpr, false,
               &status);
+
+          if (updated) {
+            const auto ratio = status.time_since_update * config.pll_filter_hz;
+
+            if (delta * old_delta < 0.0f) {
+              if (&config == commutation_config_) {
+                // The direction changed from the most recent update to
+                // this one.  Thus we will reset the velocity to exactly
+                // zero, and similarly force our position to exactly
+                // match the compensated value.
+                status.integral = 0.0f;
+                status.velocity = 0.0f;
+                reset_to_compensated = true;
+              }
+              // Also in this case, we don't want to update our filter
+              // if we are using one, because the possible very short
+              // time from the previous event could result in
+              // instability.
+              status.time_since_update = 0.0f;
+              status.slow_count = std::numeric_limits<uint8_t>::max();
+              updated = false;
+            } else if (ratio > 0.25f) {
+              // The time between this update and the last is long
+              // enough relative to our filter bandwidth.  That means
+              // we may switch to "slow" mode operation, where the
+              // velocity is directly measured from inter-sample
+              // spacing rather than through the PLL filter.
+              if (status.slow_count < 3) {
+                status.slow_count++;
+              } else {
+                status.integral
+                    = status.velocity
+                    = delta / status.time_since_update;
+                // When in "slow" mode, we also always force the
+                // filtered position to exactly match the compensated
+                // value at transition points.
+                reset_to_compensated = true;
+                status.time_since_update = 0.0f;
+                updated = false;
+              }
+            } else if (status.time_since_update > 0.0f) {
+              // The inter-sample spacing was close enough to warrant
+              // using the PLL filter.
+              status.slow_count = 0;
+            }
+          }
+
           break;
         }
         case SourceConfig::kQuadrature: {
@@ -967,20 +1087,19 @@ class MotorPosition {
         status.compensated_value = status.offset_value;
       }
 
-      status.time_since_update += dt;
+      status.time_since_update += dt_;
 
       if (!status.active_theta &&
           !status.active_velocity) {
         continue;
       }
 
-      status.filtered_value += dt * status.velocity;
-
       if (updated) {
         if (!old_active_velocity && status.active_velocity) {
           // This is our first update.  Just snap to the position.
           status.filtered_value = status.compensated_value;
-          status.velocity = 0;
+          status.integral = 0.0f;
+          status.velocity = 0.0f;
           status.time_since_update = 0.0f;
         } else if (!old_active_theta && status.active_theta) {
           // Our velocity was valid before, so leave it alone.
@@ -994,37 +1113,81 @@ class MotorPosition {
           const float error =
               WrapBalancedCpr(unwrapped_error, cpr);
 
-          status.filtered_value +=
-              status.time_since_update * filter.kp * error;
-
-          status.velocity +=
-              status.time_since_update * filter.ki * error;
+          status.integral += status.time_since_update * filter.ki * error;
+          status.velocity = status.integral + filter.kp * error;
 
           // We don't let our velocity get beyond 1 revolution in 8
           // encoder samples.
           const float max_velocity =
               0.125f * cpr / status.time_since_update;
-          if (status.velocity > max_velocity) {
-            status.velocity = max_velocity;
-          } else if (status.velocity < -max_velocity) {
-            status.velocity = -max_velocity;
-          }
+          status.integral =
+              ISR_Limit(status.integral, -max_velocity, max_velocity);
+          status.velocity =
+              ISR_Limit(status.velocity, -max_velocity, max_velocity);
         } else {
           status.filtered_value = status.compensated_value;
+          status.integral = 0.0f;
           status.velocity = 0.0f;
         }
 
         status.time_since_update = 0.0f;
       } else {
-        if (status.time_since_update > config.timeout_s) {
+        if (status.time_since_update > config.timeout_s &&
+            config.type != SourceConfig::kHall) {
           status.active_velocity = false;
           status.active_theta = false;
           status.active_absolute = false;
         }
       }
 
+      status.filtered_value += dt_ * status.velocity;
+
+      // For some types of encoders, we force the position to exactly
+      // match the compensated value.
+      if (reset_to_compensated) {
+        status.filtered_value = status.compensated_value;
+      }
+
+      if (config.type == SourceConfig::kHall) {
+        const auto err =
+            WrapBalancedCpr(
+                status.filtered_value - status.compensated_value,
+                config.cpr);
+        const float velocity_sign = status.velocity > 0.0f ? 1.0f : -1.0f;
+        const float signed_err = err * velocity_sign;
+        const float max_err = std::min(1.0f, 0.5f + std::abs(status.velocity) / 10.0f);
+        if (signed_err > max_err) {
+          status.integral *= hall_step2_filter_;
+          status.velocity *= hall_step2_filter_;
+          if (&config == commutation_config_) {
+            status.filtered_value =
+                status.compensated_value + ISR_Limit(err, -max_err, max_err);
+          }
+        } else if (signed_err > (0.75f * max_err)) {
+          status.integral *= hall_step1_filter_;
+          status.velocity *= hall_step1_filter_;
+        }
+
+        if (updated && &config == commutation_config_) {
+          // If we actually were updated and are being used for
+          // commutation, further ensure that we are no more than 0.5
+          // away at the transition point.
+          const float err2 = WrapBalancedCpr(
+              status.filtered_value - status.compensated_value,
+              config.cpr);
+          status.filtered_value =
+              status.compensated_value + ISR_Limit(err2, -0.5f, 0.5f);
+        }
+      }
+
       status.filtered_value = WrapCpr(status.filtered_value, cpr);
     }
+  }
+
+  static float ISR_Limit(float value, float min, float max) MOTEUS_CCM_ATTRIBUTE {
+    if (value < min) { return min; }
+    if (value > max) { return max; }
+    return value;
   }
 
   bool ISR_UpdateAbsoluteSource(
@@ -1162,6 +1325,10 @@ class MotorPosition {
 
   // Values cached after config changes to make runtime computation
   // faster.
+  float dt_ = 1.0f / 30000.0f;
+  float hall_step1_filter_ = 1.0f;
+  float hall_step2_filter_ = 1.0f;
+
   const SourceConfig* commutation_config_ = nullptr;
   const SourceStatus* commutation_status_ = nullptr;
   float commutation_pole_scale_ = 1.0f;

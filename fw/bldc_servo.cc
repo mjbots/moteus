@@ -538,6 +538,7 @@ class BldcServo::Impl {
 
     fet_thermistor_.Reset(47000.0f);
     motor_thermistor_.Reset(config_.motor_thermistor_ohm);
+    motor_position_->SetRate(rate_config_.period_s);
   }
 
   void PollMillisecond() {
@@ -1094,7 +1095,7 @@ class BldcServo::Impl {
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_pos_sample = DWT->CYCCNT;
 #endif
-    motor_position_->ISR_Update(rate_config_.period_s);
+    motor_position_->ISR_Update();
 
     velocity_filter_(position_.velocity, &status_.velocity_filt);
 
@@ -1186,6 +1187,7 @@ class BldcServo::Impl {
     constexpr float kVelocityMargin = 0.87f;
 
     status_.motor_max_velocity =
+        motor_position_->config()->rotor_to_output_ratio *
         rate_config_.max_voltage_ratio *
         kVelocityMargin * 0.5f * status_.filt_1ms_bus_V / v_per_hz_;
 
@@ -1345,6 +1347,12 @@ class BldcServo::Impl {
                 ISR_IsOutsideLimits()) {
               status_.mode = kFault;
               status_.fault = errc::kStartOutsideLimit;
+            } else if ((data->mode == kPosition ||
+                        data->mode == kStayWithinBounds) &&
+                       !data->ignore_position_bounds &&
+                       ISR_InvalidLimits()) {
+              status_.mode = kFault;
+              status_.fault = errc::kInvalidLimits;
             } else {
               // Yep, we can do this.
               status_.mode = data->mode;
@@ -1376,6 +1384,13 @@ class BldcServo::Impl {
              position_.position < position_config_.position_min) ||
             (!std::isnan(position_config_.position_max) &&
              position_.position > position_config_.position_max));
+  }
+
+  bool ISR_InvalidLimits() {
+    return ((!std::isnan(position_config_.position_min) && (
+                 std::abs(position_config_.position_min) > 32768.0f)) ||
+            (!std::isnan(position_config_.position_max) && (
+                std::abs(position_config_.position_max) > 32768.0f)));
   }
 
   void ISR_StartCalibrating() {

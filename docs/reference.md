@@ -661,7 +661,7 @@ Mode: Read only
 
 The current motor temperature, measured in degrees celsius.  This will
 only be valid if an NTC thermistor is connected to the TEMP pads,
-`motor.thermistor_ohm` is set to the correct resistance, and
+`servo.motor_thermistor_ohm` is set to the correct resistance, and
 `servo.enable_motor_temperature` is set to 1.
 
 #### 0x00b - Trajectory complete ####
@@ -738,6 +738,9 @@ A fault code which will be set if the primary mode is 1 (Fault).
   configured, but no acceleration limit was specified.  If you
   *really* know what you are doing, you can disable this with
   `servo.bemf_feedforward_override`.
+* 48 - *invalid limits* - `servopos.position_min` or
+  `servopos.position_max` are finite and outside the available
+  position range
 
 Some non-zero codes can be presented during valid control modes
 without a fault.  These indicate which, if any, function is limiting
@@ -2055,7 +2058,7 @@ For mode 10, `servo.default_velocity_limit` and
 profile to zero speed.  The default PID gains are used.  The only
 limit on torque when in this timeout mode is `servo.max_current_A`.
 
-## `motor.thermistor_ohm` ##
+## `servo.motor_thermistor_ohm` ##
 
 The resistance of any attached motor NTC thermistor as measured at 25C
 in ohms.
@@ -2271,11 +2274,11 @@ An integer offset and inversion to apply.  The resulting value is:
 
 ## `motor_position.sources.X.pll_filter_hz` ##
 
-Selects the cutoff frequency of a low-pass filter used on this source.
-It should typically be less than 10X the update rate of the input and
-if used as the commutation or output sensor, should be higher than the
-mechanical bandwidth of the plant.  Within that range, it can be tuned
-for audible noise versus performance.
+Selects the 3dB cutoff frequency of a low-pass filter used on this
+source.  It should typically be less than 10X the update rate of the
+input and if used as the commutation or output sensor, should be
+higher than the mechanical bandwidth of the plant.  Within that range,
+it can be tuned for audible noise versus performance.
 
 If set to 0, then no filter is applied.  In that case, sensors which
 do not natively measure velocity will produce no velocity readings
@@ -2682,11 +2685,8 @@ ip link set can0 up type can \
 
 ## Position ##
 
-The commanded position is limited to +-32767.0 revolutions before any
-`rotor_to_output_ratio` has been applied.  Reducers there will
-further limit the range of the commandable revolutions.  For instance,
-a 1/10 reducer configured as `rotor_to_output_ratio=0.1` results in
-a available position command range of +-3276.7 revolutions.
+The reported and commanded position is limited to +-32768.0
+revolutions
 
 If either:
 
@@ -2697,22 +2697,22 @@ Then it is safe for the controller to "wrap around" from the maximal
 possible position to the maximally negative position and vice versa.
 This is useful in velocity control applications.
 
-The commanded position is internally treated as a 32 bit floating
-point value.  Thus the position resolution is reduced when the
-magnitude of the position is large.  Resolution equal to the full
-capabilities of the onboard encoder (~0.09degree) is maintained to
-positions of +-2048.0 revolutions.  At the maximum possible position,
-this resolution is reduced to ~1.44degrees.  Note, that this is only
-for the "commanded position".  Velocity control and PID feedback on
-the position works in an integral space and performs identically
-throughout the available control envelope.
+The reported and commanded position is internally treated as a 32 bit
+floating point value when received as a command or reported to a
+client.  Thus the position resolution is reduced when the magnitude of
+the position is large.  Resolution equal to the full capabilities of
+the onboard encoder (~0.09degree) is maintained to positions of
++-2048.0 revolutions.  At the maximum possible position, this
+resolution is reduced to ~1.44degrees.  Note, that this is only for
+values received from or reported to clients.  Internally, control and
+PID feedback on the position works in an integral space and performs
+identically throughout the available control envelope.
 
 ## Velocity ##
 
 The smallest usable mechanical velocity which can be commanded is
-0.0001 revolutions per second before any `rotor_to_output_ratio`
-has been applied.  This corresponds to 0.036 degrees per second.
-Reducers will decrease the minimum usable velocity.
+0.0001 revolutions per second.  This corresponds to 0.036 degrees per
+second.
 
 The maximum mechanical velocity which can be commanded is 28000 rpm,
 or ~467 revolutions per second before any reducers.  Note, most motors
