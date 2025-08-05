@@ -263,10 +263,12 @@ class BldcServoPosition {
       UpdateTrajectory(status, config, rate_hz, data, velocity);
     }
 
-    if (*status->control_velocity > status->motor_max_velocity) {
-      status->control_velocity = status->motor_max_velocity;
-    } else if (*status->control_velocity < -status->motor_max_velocity) {
-      status->control_velocity = -status->motor_max_velocity;
+    if (!config->ignore_motor_max_velocity) {
+      if (*status->control_velocity > status->motor_max_velocity) {
+        status->control_velocity = status->motor_max_velocity;
+      } else if (*status->control_velocity < -status->motor_max_velocity) {
+        status->control_velocity = -status->motor_max_velocity;
+      }
     }
 
     auto velocity_command = *status->control_velocity;

@@ -566,6 +566,10 @@ struct BldcServoConfig {
   float max_velocity = 500.0;
   float max_velocity_derate = 2.0;
 
+  // When true, do not limit velocity to the calculated voltage * Kv
+  // value.
+  bool ignore_motor_max_velocity = false;
+
   uint16_t cooldown_cycles = 256;
 
   // When starting position control from the "stopped" state, the
@@ -634,6 +638,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(derate_current_A));
     a->Visit(MJ_NVP(max_velocity));
     a->Visit(MJ_NVP(max_velocity_derate));
+    a->Visit(MJ_NVP(ignore_motor_max_velocity));
     a->Visit(MJ_NVP(cooldown_cycles));
     a->Visit(MJ_NVP(velocity_zero_capture_threshold));
     a->Visit(MJ_NVP(timing_fault));
