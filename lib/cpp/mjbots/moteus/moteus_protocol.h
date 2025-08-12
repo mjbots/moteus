@@ -1145,6 +1145,42 @@ struct StopMode {
   }
 };
 
+struct ZeroVelocityMode {
+  struct Command {
+    // The damping scale factor for the derivative term.
+    // Smaller values result in less damping.
+    double kd_scale = 1.0;
+  };
+
+  struct Format {
+    Resolution kd_scale = kIgnore;
+  };
+
+  static uint8_t Make(WriteCanData* frame,
+                      const Command& command,
+                      const Format& format) {
+    frame->Write<int8_t>(Multiplex::kWriteInt8 | 0x01);
+    frame->Write<int8_t>(Register::kMode);
+    frame->Write<int8_t>(Mode::kZeroVelocity);
+
+    // Only write kd_scale if format is not ignored
+    if (format.kd_scale != kIgnore) {
+      const Resolution kResolutions[] = { format.kd_scale };
+      WriteCombiner combiner(
+          frame, 0x00,
+          Register::kCommandKdScale,
+          kResolutions,
+          sizeof(kResolutions) / sizeof(*kResolutions));
+      
+      if (combiner.MaybeWrite()) {
+        frame->WritePwm(command.kd_scale, format.kd_scale);
+      }
+    }
+
+    return 0;
+  }
+};
+
 struct GpioWrite {
   struct Command {
     int8_t aux1 = 0;

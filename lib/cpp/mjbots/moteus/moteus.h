@@ -73,6 +73,7 @@ class Controller {
     VFOCMode::Format vfoc_format;
     CurrentMode::Format current_format;
     StayWithinMode::Format stay_within_format;
+    ZeroVelocityMode::Format zero_velocity_format;
 
     // Use the given prefix for all CAN IDs.
     uint32_t can_prefix = 0x0000;
@@ -189,6 +190,35 @@ class Controller {
   void AsyncBrake(Result* result, CompletionCallback callback,
                   const Query::Format* query_override = nullptr) {
     AsyncStartSingleCommand(MakeBrake(query_override), result, callback);
+  }
+
+
+  /////////////////////////////////////////
+  // ZeroVelocityMode
+
+  CanFdFrame MakeZeroVelocity(const ZeroVelocityMode::Command& cmd = {},
+                               const ZeroVelocityMode::Format* command_override = nullptr,
+                               const Query::Format* query_override = nullptr) {
+    return MakeFrame(
+        ZeroVelocityMode(), cmd,
+        (command_override == nullptr ?
+         options_.zero_velocity_format : *command_override),
+        query_override);
+  }
+
+  Optional<Result> SetZeroVelocity(const ZeroVelocityMode::Command& cmd = {},
+                                    const ZeroVelocityMode::Format* command_override = nullptr,
+                                    const Query::Format* query_override = nullptr) {
+    return ExecuteSingleCommand(
+        MakeZeroVelocity(cmd, command_override, query_override));
+  }
+
+  void AsyncZeroVelocity(const ZeroVelocityMode::Command& cmd,
+                         Result* result, CompletionCallback callback,
+                         const ZeroVelocityMode::Format* command_override = nullptr,
+                         const Query::Format* query_override = nullptr) {
+    AsyncStartSingleCommand(MakeZeroVelocity(cmd, command_override, query_override),
+                            result, callback);
   }
 
 
