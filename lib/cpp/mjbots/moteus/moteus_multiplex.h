@@ -349,7 +349,7 @@ class MultiplexParser {
         break;
       }
 
-      if (cmd >= 0x20 && cmd < 0x30) {
+      if (cmd >= 0x00 && cmd < 0x30) {
         // This is a regular reply of some sort.
         const auto id = (cmd >> 2) & 0x03;
         current_resolution_ = [id]() {
