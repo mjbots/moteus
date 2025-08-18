@@ -385,6 +385,10 @@ class PwmResolution:
     aux2_pwm5 = mp.INT16
 
 
+class ZeroVelocityResolution:
+    kd_scale = mp.F32
+
+
 class Parser(mp.RegisterParser):
     def read_position(self, resolution):
         return self.read_mapped(resolution, 0.01, 0.0001, 0.00001)
@@ -656,6 +660,7 @@ class Controller:
                  vfoc_resolution=VFOCResolution(),
                  current_resolution=CurrentResolution(),
                  pwm_resolution=PwmResolution(),
+                 zero_velocity_resolution=ZeroVelocityResolution(),
                  transport=None,
                  can_prefix=0x0000):
         self.id = id
@@ -664,6 +669,7 @@ class Controller:
         self.vfoc_resolution = vfoc_resolution
         self.current_resolution = current_resolution
         self.pwm_resolution = pwm_resolution
+        self.zero_velocity_resolution = zero_velocity_resolution
         self.transport = transport
         self._parser = make_parser(id)
         self._can_prefix = can_prefix
@@ -828,6 +834,46 @@ class Controller:
 
     async def set_stop(self, *args, **kwargs):
         return await self.execute(self.make_stop(**kwargs))
+
+    def make_zero_velocity(self,
+                           *,
+                           kd_scale=None,
+                           query=False,
+                           query_override=None):
+        """Return a moteus.Command structure with data necessary to send a
+        zero velocity mode command."""
+
+        result = self._make_command(
+            query=query, query_override=query_override)
+
+        zr = self.zero_velocity_resolution
+        resolutions = [
+            zr.kd_scale if kd_scale is not None else mp.IGNORE,
+        ]
+
+        data_buf = io.BytesIO()
+
+        writer = Writer(data_buf)
+        writer.write_int8(mp.WRITE_INT8 | 0x01)
+        writer.write_int8(int(Register.MODE))
+        writer.write_int8(int(Mode.ZERO_VELOCITY))
+
+        # Only write kd_scale if it's not None
+        if kd_scale is not None:
+            combiner = mp.WriteCombiner(
+                writer, 0x00, int(Register.COMMAND_KD_SCALE), resolutions)
+
+            if combiner.maybe_write():
+                writer.write_pwm(kd_scale, zr.kd_scale)
+
+        self._format_query(query, query_override, data_buf, result)
+
+        result.data = data_buf.getvalue()
+
+        return result
+
+    async def set_zero_velocity(self, *args, **kwargs):
+        return await self.execute(self.make_zero_velocity(**kwargs))
 
     def make_set_output(self, *args,
                         position=0.0,
