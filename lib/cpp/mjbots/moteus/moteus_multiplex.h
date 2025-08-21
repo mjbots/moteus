@@ -14,9 +14,6 @@
 
 #pragma once
 
-#include <iomanip>
-#include <iostream>
-
 #include <math.h>
 #include <stdint.h>
 #include <string.h>
@@ -303,11 +300,12 @@ public:
     uint16_t value = 0;
     Resolution resolution = kIgnore;
     int8_t command = 0;
+    int8_t count = 0;
 
     Result(bool done_in, uint16_t value_in, Resolution resolution_in,
-           int8_t command_in)
+           int8_t command_in, int8_t count_in)
         : done(done_in), value(value_in), resolution(resolution_in),
-          command(command_in) {}
+          command(command_in), count(count_in) {}
 
     Result() {}
   };
@@ -315,7 +313,7 @@ public:
   Result next() {
     if (offset_ >= size_) {
       // We are done.
-      return Result(true, 0, Resolution::kInt8, Multiplex::kNop);
+      return Result(true, 0, Resolution::kInt8, Multiplex::kNop, 0);
     }
 
     if (remaining_) {
@@ -324,11 +322,11 @@ public:
 
       // Do we actually have enough data?
       if (offset_ + ResolutionSize(current_resolution_) > size_) {
-        return Result(true, 0, Resolution::kInt8, Multiplex::kNop);
+        return Result(true, 0, Resolution::kInt8, Multiplex::kNop, 0);
       }
 
-      return Result(false, this_register, current_resolution_,
-                    current_command_);
+      return Result(false, this_register, current_resolution_, current_command_,
+                    remaining_);
     }
 
     // We need to look for another command.
@@ -375,24 +373,23 @@ public:
           // Empty, guess we can ignore.
           continue;
         }
-
         current_register_ = ReadVaruint();
 
         // If it's a read registry we do not need to look further.
         if (current_command_ >= 0x10 && current_command_ < 0x20) {
           remaining_ = 0;
           return Result(false, current_register_++, current_resolution_,
-                        current_command_);
+                        current_command_, count);
         }
 
         remaining_ = count - 1;
 
         if (offset_ + ResolutionSize(current_resolution_) > size_) {
-          return Result(true, 0, Resolution::kInt8, Multiplex::kNop);
+          return Result(true, 0, Resolution::kInt8, Multiplex::kNop, 0);
         }
 
         return Result(false, current_register_++, current_resolution_,
-                      current_command_);
+                      current_command_, count);
       }
 
       // For anything else, we'll just assume it is an error of some
@@ -400,7 +397,7 @@ public:
       offset_ = size_;
       break;
     }
-    return Result(true, 0, Resolution::kInt8, Multiplex::kNop);
+    return Result(true, 0, Resolution::kInt8, Multiplex::kNop, 0);
   }
 
   template <typename T> T Read() {

@@ -48,8 +48,8 @@ int main(int argc, char** argv) {
 
     // Here we will just command a position of NaN and a velocity of
     // 0.0.  This means "hold position wherever you are".
-    cmd.position = std::numeric_limits<double>::quiet_NaN();
-    cmd.velocity = 0.0;
+    cmd.position = 100; //std::numeric_limits<double>::quiet_NaN();
+    cmd.velocity = 1.0;
 
     const auto maybe_result = controller.SetPosition(cmd);
     if (maybe_result) {
