@@ -16,7 +16,8 @@
 
 namespace moteus {
 
-void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler, int offset) {
+void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler, int offset,
+               AdcTriggerMode trigger_mode) {
   // 20.4.6: ADC Deep power-down mode startup procedure
   adc->CR &= ~ADC_CR_DEEPPWD;
   adc->CR |= ADC_CR_ADVREGEN;
@@ -132,7 +133,24 @@ void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler, int off
   while (! (adc->ISR & ADC_ISR_ADRDY));
   adc->ISR |= ADC_ISR_ADRDY;
 
-  adc->CFGR &= ~(ADC_CFGR_CONT);
+  // Configure ADC trigger mode
+  if (trigger_mode == AdcTriggerMode::kLptim1) {
+    // Configure ADC for external trigger from LPTIM1
+    // Configure ADC for LPTIM1 external trigger
+    // LL_ADC_REG_TRIG_EXT_LPTIM_OUT = ADC_CFGR_EXTSEL_4|3|2|0 = 0x1D (29)
+    // EXTEN = 0x1: Hardware trigger on rising edge (ADC_EXTERNALTRIGCONVEDGE_RISING)
+    // Clear continuous mode
+    adc->CFGR = (adc->CFGR & ~(ADC_CFGR_CONT | ADC_CFGR_EXTSEL | ADC_CFGR_EXTEN)) |
+                (0x1D << ADC_CFGR_EXTSEL_Pos) |  // LPTIM_OUT (corrected value)
+                (0x01 << ADC_CFGR_EXTEN_Pos);    // Rising edge trigger
+    
+    // For external trigger mode, ADC needs to be started to respond to triggers
+    // This enables the ADC to respond to external trigger events
+    adc->CR |= ADC_CR_ADSTART;
+  } else {
+    // Software trigger mode - clear external trigger and continuous mode
+    adc->CFGR &= ~(ADC_CFGR_CONT | ADC_CFGR_EXTEN);
+  }
 }
 
 #if 0
