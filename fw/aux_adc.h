@@ -53,6 +53,8 @@ class AuxADC {
   void ISR_StartSample() MOTEUS_CCM_ATTRIBUTE {
     if (!any_adc_.load()) { return; }
 
+    // Trigger injected channels using software mode
+    // These are auxiliary measurements that don't require synchronized timing
     if (adc_configs_[0].num_channels) { ADC1->CR |= ADC_CR_JADSTART; }
     if (adc_configs_[1].num_channels) { ADC2->CR |= ADC_CR_JADSTART; }
     if (adc_configs_[2].num_channels) { ADC3->CR |= ADC_CR_JADSTART; }
