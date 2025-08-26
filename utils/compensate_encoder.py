@@ -137,7 +137,9 @@ def wrap_zero_one(value):
 
 
 def get_encoder(item, number):
-    if number == 0:
+    if number == -1:
+        return item.values[moteus.Register.POSITION]
+    elif number == 0:
         return item.values[moteus.Register.ENCODER_0_POSITION]
     elif number == 1:
         return item.values[moteus.Register.ENCODER_1_POSITION]
