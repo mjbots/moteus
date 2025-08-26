@@ -757,11 +757,12 @@ class BldcServo::Impl {
 
     constexpr int kAdcPrescale = 2;  // from the CKMODE above
 
-    EnableAdc(ms_timer_, ADC1, kAdcPrescale, 0);
-    EnableAdc(ms_timer_, ADC2, kAdcPrescale, 0);
-    EnableAdc(ms_timer_, ADC3, kAdcPrescale, 0);
-    EnableAdc(ms_timer_, ADC4, kAdcPrescale, 0);
-    EnableAdc(ms_timer_, ADC5, kAdcPrescale, 0);
+    // Enable all ADCs with LPTIM1 external trigger for synchronized sampling
+    EnableAdc(ms_timer_, ADC1, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
+    EnableAdc(ms_timer_, ADC2, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
+    EnableAdc(ms_timer_, ADC3, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
+    EnableAdc(ms_timer_, ADC4, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
+    EnableAdc(ms_timer_, ADC5, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
 
     if (family0_) {
       adc1_sqr_ = ADC1->SQR1 =
@@ -822,6 +823,50 @@ class BldcServo::Impl {
     ADC4->SMPR2 = all_aux_cycles;
     ADC5->SMPR1 = all_aux_cycles;
     ADC5->SMPR2 = all_aux_cycles;
+
+    // Configure LPTIM1 for ADC triggering
+    ConfigureLPTIM1();
+  }
+
+  void ConfigureLPTIM1() {
+    // Configure LPTIM1 clock source using proper HAL method
+    RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LPTIM1;
+    PeriphClkInit.Lptim1ClockSelection = RCC_LPTIM1CLKSOURCE_PCLK1;
+    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
+      return;
+    }
+    
+    // Reset and enable LPTIM1 peripheral
+    __HAL_RCC_LPTIM1_FORCE_RESET();
+    __HAL_RCC_LPTIM1_RELEASE_RESET();
+    __HAL_RCC_LPTIM1_CLK_ENABLE();
+
+    // Initialize LPTIM1 for ADC triggering
+    static LPTIM_HandleTypeDef lptim_adc;
+    lptim_adc.Instance = LPTIM1;
+    lptim_adc.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
+    lptim_adc.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV4;
+    lptim_adc.Init.Trigger.Source = LPTIM_TRIGSOURCE_SOFTWARE;
+    lptim_adc.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
+    lptim_adc.Init.UpdateMode = LPTIM_UPDATE_IMMEDIATE;
+    lptim_adc.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
+    lptim_adc.Init.Input1Source = LPTIM_INPUT1SOURCE_GPIO;
+    lptim_adc.Init.Input2Source = LPTIM_INPUT2SOURCE_GPIO;
+    
+    if (HAL_LPTIM_Init(&lptim_adc) != HAL_OK) {
+      while(true);
+    }
+
+    // Configure ARR/CMP values once during initialization and leave enabled
+    LPTIM1->CR |= LPTIM_CR_ENABLE;
+    LPTIM1->ICR = LPTIM_ICR_ARROKCF;
+    LPTIM1->ARR = 4;
+    while (!(LPTIM1->ISR & LPTIM_ISR_ARROK));
+    LPTIM1->ICR = LPTIM_ICR_CMPOKCF;
+    LPTIM1->CMP = 1;
+    while (!(LPTIM1->ISR & LPTIM_ISR_CMPOK));
+    
   }
 
   static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
@@ -857,46 +902,10 @@ class BldcServo::Impl {
     // timer says it isn't our turn yet, but that is a relatively
     // minor waste.
 
-
-    {
-      // To start the ADCs, for now we resort to some inline assembly.
-      // The below is roughly equivalent to:
-      //
-      //  auto tmp = ADC1->CR;
-      //  tmp |= ADC_CR_ADSTART;
-      //  ADC1->CR = tmp;
-      //  ADC3->CR = tmp;
-      //  ADC5->CR = tmp;
-      //
-      // Note: Since ADC1/2 and ADC3/4 are in dual mode, we don't have
-      // to explitly start ADC2 or ADC4.
-      //
-      // We perform this using inline assembly so as to attempt to
-      // start the trigger process of all 5 ADCs as closely as
-      // possible.  Per STM32G474 errata "ES0430 Rev 8 - 2.7.9", the
-      // ADCs only have good performance if they are started at
-      // exactly the same time.  Ideally we'd do that through a
-      // hardware, i.e. timer trigger.  However, getting that
-      // integrated here is a bigger project.  For now, this seems to
-      // give pretty good results.
-      uint32_t temp_reg1;
-      uint32_t temp_reg2;
-      asm volatile (
-          "mov %[temp_reg1], %[adstart];"
-          "ldr %[temp_reg2], [%[adc1_cr], #0];"
-          "orr %[temp_reg1], %[temp_reg2];"
-          "str %[temp_reg1], [%[adc1_cr], #0];"
-          "str %[temp_reg1], [%[adc3_cr], #0];"
-          "str %[temp_reg1], [%[adc5_cr], #0];"
-          : [temp_reg1]"=&r"(temp_reg1),
-            [temp_reg2]"=&r"(temp_reg2)
-          : [adstart]"r"(ADC_CR_ADSTART),
-            [adc1_cr]"r"(&ADC1->CR),
-            [adc3_cr]"r"(&ADC3->CR),
-            [adc5_cr]"r"(&ADC5->CR)
-          :
-      );
-    }
+    // Trigger all ADCs simultaneously using LPTIM1 OnePulse mode
+    // Equivalent to HAL_LPTIM_OnePulse_Start(&hlptim, 10, 5)
+    // This provides perfect hardware synchronization to meet STM32G474 errata
+    TriggerAllAdcs();
 
     phase_ = (phase_ + 1) & rate_config_.interrupt_mask;
     if (phase_) { return; }
@@ -1082,7 +1091,9 @@ class BldcServo::Impl {
           msense_sqr_ << ADC_SQR1_SQ1_Pos;
     }
 
-    ADC5->CR |= ADC_CR_ADSTART;
+    // Trigger all ADCs again for secondary sampling
+    // Only ADC5 will be used, others will run but we won't wait for them
+    TriggerAllAdcs();
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.start_pos_sample = DWT->CYCCNT;
@@ -1123,6 +1134,7 @@ class BldcServo::Impl {
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
     }
+
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.done_temp_sample = DWT->CYCCNT;
