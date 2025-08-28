@@ -41,22 +41,24 @@ int main(int argc, char** argv) {
   using namespace mjbots;
 
   const std::vector<std::string> args_in(argv, argv + argc);
-  auto args = moteus::Controller::ProcessTransportArgs(args_in);
-  auto transport = moteus::Controller::MakeSingletonTransport({});
+  // auto args = moteus::Controller::ProcessTransportArgs(args_in);
+  // auto transport = moteus::Controller::MakeSingletonTransport({});
+  moteus::PeakCan::Options options;
+  auto transport = std::make_shared<moteus::PeakCan>(options);
 
   // Just for some kind of "--help".
   moteus::Controller::DefaultArgProcess(argc, argv);
 
-  args.erase(args.begin());  // our name
+  // args.erase(args.begin());  // our name
 
   // Should use use int16 position/velocity command and query and
   // disable torque query?
   const bool minimal_format = [&]() {
-    auto it = std::find(args.begin(), args.end(), "--minimal-format");
-    if (it != args.end()) {
-      args.erase(it);
-      return true;
-    }
+    // auto it = std::find(args.begin(), args.end(), "--minimal-format");
+    // if (it != args.end()) {
+    //   args.erase(it);
+    //   return true;
+    // }
     return false;
   }();
 
@@ -66,9 +68,9 @@ int main(int argc, char** argv) {
 
   // Populate our list of controllers with IDs from the command line.
   std::vector<std::shared_ptr<moteus::Controller>> controllers;
-  while (!args.empty()) {
-    auto id = std::stoul(args.front());
-    args.erase(args.begin());
+  // while (!args.empty()) {
+    auto id = 1; // std::stoul(args.front());
+    // args.erase(args.begin());
     controllers.push_back(
         std::make_shared<moteus::Controller>(
             [&]() {
@@ -84,7 +86,7 @@ int main(int argc, char** argv) {
               return options;
             }()));
     responses[id] = false;
-  }
+  // }
 
   std::vector<moteus::CanFdFrame> send_frames;
   std::vector<moteus::CanFdFrame> receive_frames;

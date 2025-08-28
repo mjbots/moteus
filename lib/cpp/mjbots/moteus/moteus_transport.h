@@ -45,6 +45,7 @@
 
 #include "moteus_protocol.h"
 #include "moteus_tokenizer.h"
+#include "PCANBasic.h"
 
 #ifdef CANFD_FDF
 #define MJBOTS_MOTEUS_ENABLE_SOCKETCAN 1
@@ -903,6 +904,170 @@ class Socketcan : public details::TimeoutTransport {
   details::FileDescriptor socket_;
 };
 #endif  // MJBOTS_MOTEUS_ENABLE_SOCKETCAN
+
+class PeakCan : public details::TimeoutTransport
+{
+  public:
+    struct Options : details::TimeoutTransport::Options
+    {
+      TPCANHandle ifname = PCAN_PCIBUS3;
+
+      /// <summary>
+      /// Sets the bitrate for CAN FD devices.
+      /// Example - Bitrate Nom: 1Mbit/s Data: 2Mbit/s:
+      ///   "f_clock_mhz=20, nom_brp=5, nom_tseg1=2, nom_tseg2=1, nom_sjw=1, data_brp=2, data_tseg1=3, data_tseg2=1, data_sjw=1"
+      /// </summary>
+      // TPCANBitrateFD BitrateFD = const_cast<LPSTR>("f_clock_mhz=20, nom_brp=5, nom_tseg1=2, nom_tseg2=1, nom_sjw=1, data_brp=2, data_tseg1=3, data_tseg2=1, data_sjw=1");
+      // TPCANBitrateFD BitrateFD = const_cast<LPSTR>("f_clock_mhz=40, nom_brp=25, nom_tseg1=12, nom_tseg2=1, nom_sjw=1, data_brp=2, data_tseg1=2, data_tseg2=1, data_sjw=1");
+      TPCANBitrateFD BitrateFD = const_cast<LPSTR>("f_clock_mhz=80, nom_brp=10, nom_tseg1=12, nom_tseg2=1, nom_sjw=1, data_brp=4, data_tseg1=2, data_tseg2=1, data_sjw=1");
+      // TPCANBitrateFD BitrateFD = const_cast<LPSTR>("f_clock_mhz=80, nom_brp=10, nom_tseg1=51, nom_tseg2=28, nom_sjw=10, data_brp=1, data_tseg1=9, data_tseg2=6, data_sjw=5");
+
+      Options() {}
+    };
+
+    PeakCan(const Options &options)
+        : details::TimeoutTransport(options),
+          options_(options)
+    {
+      // socket_ = Open(options_.ifname);
+      TPCANStatus stsResult = CAN_InitializeFD(options_.ifname, options_.BitrateFD);
+      if (stsResult != PCAN_ERROR_OK)
+      {
+        char errorMsg[256];
+        CAN_GetErrorText(stsResult, 0, errorMsg);
+        FailIf(true, errorMsg); // Replace with your error handling
+      }
+    }
+
+    virtual ~PeakCan()
+    {
+      std::atomic_store(&UNPROTECTED_event_loop_, {});
+      CAN_Uninitialize(options_.ifname); // Uninitialize PCAN handle
+    }
+
+  private:
+    static void SetNonblock(int fd)
+    {
+      int flags = ::fcntl(fd, F_GETFL, 0);
+      FailIf(flags < 0, "error getting flags");
+      flags |= O_NONBLOCK;
+      FailIf(::fcntl(fd, F_SETFL, flags), "error setting flags");
+    }
+
+    static int Open(const std::string &ifname)
+    {
+      const int fd = ::socket(PF_CAN, SOCK_RAW, CAN_RAW);
+      FailIf(fd < 0, "error opening CAN socket");
+
+      SetNonblock(fd);
+
+      struct ifreq ifr = {};
+      std::strncpy(&ifr.ifr_name[0], ifname.c_str(),
+                    sizeof(ifr.ifr_name) - 1);
+      FailIf(::ioctl(fd, SIOCGIFINDEX, &ifr) < 0,
+              "could not find CAN: " + ifname);
+
+      const int enable_canfd = 1;
+      FailIf(::setsockopt(fd, SOL_CAN_RAW, CAN_RAW_FD_FRAMES,
+                          &enable_canfd, sizeof(enable_canfd)) != 0,
+              "could not set CAN-FD mode");
+
+      struct sockaddr_can addr = {};
+      addr.can_family = AF_CAN;
+      addr.can_ifindex = ifr.ifr_ifindex;
+      FailIf(::bind(fd,
+                    reinterpret_cast<struct sockaddr *>(&addr),
+                    sizeof(addr)) < 0,
+              "could not bind to CAN if");
+
+      return fd;
+    }
+
+    virtual int CHILD_GetReadFd() const override
+    {
+      return -1; // Not applicable for PCAN, return an invalid descriptor
+    }
+
+    virtual void CHILD_SendCanFdFrame(const CanFdFrame &frame) override
+    {
+      TPCANMsgFD msgCanMessageFD = {};
+      msgCanMessageFD.ID = frame.arbitration_id;
+      if (msgCanMessageFD.ID >= 0x7ff)
+      {
+        // Set the frame format flag if we need an extended ID.
+        msgCanMessageFD.ID |= PCAN_MESSAGE_EXTENDED;
+      }
+      msgCanMessageFD.DLC = frame.size; // You might need to adjust DLC calculation
+      std::memcpy(msgCanMessageFD.DATA, frame.data, frame.size);
+
+      using F = CanFdFrame;
+
+      msgCanMessageFD.MSGTYPE =
+          ((frame.fdcan_frame == F::kDefault || frame.fdcan_frame == F::kForceOn)
+                ? PCAN_MESSAGE_FD
+                : 0) |
+          (((frame.brs == F::kDefault && !options_.disable_brs) || frame.brs == F::kForceOn)
+                ? PCAN_MESSAGE_BRS
+                : 0);
+
+      TPCANStatus status = CAN_WriteFD(options_.ifname, &msgCanMessageFD);
+      if (status != PCAN_ERROR_OK)
+      {
+        // Handle the error
+        char errorMsg[256];
+        CAN_GetErrorText(status, 0, errorMsg);
+        FailIf(true, errorMsg); // Replace with your error handling
+      }
+    }
+
+    virtual ConsumeCount CHILD_ConsumeData(
+        std::vector<CanFdFrame> *replies,
+        int /* expected_ok_count */,
+        std::vector<int> *expected_reply_count) override
+    {
+      // Reading data from PCAN
+      TPCANMsgFD recv_frame = {};
+      TPCANTimestampFD CANTimeStamp;
+      TPCANStatus status = CAN_ReadFD(options_.ifname, &recv_frame, &CANTimeStamp);
+      FailIf(status != PCAN_ERROR_OK, "error reading CAN frame");
+
+      CanFdFrame this_frame;
+      this_frame.arbitration_id = recv_frame.ID & 0x1fffffff;
+      this_frame.destination = this_frame.arbitration_id & 0x7f;
+      this_frame.source = (this_frame.arbitration_id >> 8) & 0x7f;
+      this_frame.can_prefix = (this_frame.arbitration_id >> 16);
+
+      this_frame.brs = (recv_frame.MSGTYPE & PCAN_MESSAGE_BRS) ? CanFdFrame::kForceOn : CanFdFrame::kForceOff;
+      this_frame.fdcan_frame = (recv_frame.MSGTYPE & PCAN_MESSAGE_FD) ? CanFdFrame::kForceOn : CanFdFrame::kForceOff;
+
+      std::memcpy(this_frame.data, recv_frame.DATA, recv_frame.DLC);
+      this_frame.size = recv_frame.DLC;
+
+      if (expected_reply_count)
+      {
+        if (this_frame.source <
+            static_cast<int>(expected_reply_count->size()))
+        {
+          (*expected_reply_count)[this_frame.source] = std::max(
+              (*expected_reply_count)[this_frame.source] - 1, 0);
+        }
+      }
+
+      if (replies)
+      {
+        replies->emplace_back(std::move(this_frame));
+      }
+
+      ConsumeCount result;
+      result.ok = 1;
+      result.rcv = 1;
+      return result;
+    }
+
+    virtual void CHILD_FlushTransmit() override {}
+
+    const Options options_;
+};
 
 /// A factory which can create transports given an optional set of
 /// commandline arguments.
