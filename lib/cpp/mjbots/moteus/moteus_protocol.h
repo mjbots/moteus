@@ -143,6 +143,8 @@ enum Register : uint16_t {
   kCommandAccelLimit = 0x029,
   kCommandFixedVoltageOverride = 0x02a,
   kCommandIlimitScale = 0x02b,
+  kCommandFixedCurrentOverride = 0x02c,
+  kCommandIgnorePositionBounds = 0x02d,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -165,6 +167,7 @@ enum Register : uint16_t {
   kCommandStayWithinPositionMaxTorque = 0x045,
   kCommandStayWithinTimeout = 0x046,
   kCommandStayWithinIlimitScale = 0x047,
+  kCommandStayWithinIgnorePositionBounds = 0x048,
 
   kEncoder0Position = 0x050,
   kEncoder0Velocity = 0x051,
@@ -620,6 +623,9 @@ struct Query {
       { R::kCommandVelocityLimit, 1, MP::kVelocity, },
       { R::kCommandAccelLimit, 1, MP::kAcceleration, },
       { R::kCommandFixedVoltageOverride, 1, MP::kVoltage },
+      { R::kCommandIlimitScale, 1, MP::kPwm },
+      { R::kCommandFixedCurrentOverride, 1, MP::kCurrent },
+      { R::kCommandIgnorePositionBounds, 1, MP::kInt },
 
       { R::kPositionKp, 5, MP::kTorque, },
       // { R::kPositionKi, 1, MP::kTorque, },
@@ -642,6 +648,7 @@ struct Query {
       { R::kCommandStayWithinPositionMaxTorque, 1, MP::kTorque, },
       { R::kCommandStayWithinTimeout, 1, MP::kTime, },
       { R::kCommandStayWithinIlimitScale, 1, MP::kPwm },
+      { R::kCommandStayWithinIgnorePositionBounds, 1, MP::kInt },
 
       { R::kEncoder0Position, 1, MP::kPosition, },
       { R::kEncoder0Velocity, 1, MP::kVelocity, },
@@ -851,6 +858,8 @@ struct PositionMode {
     double accel_limit = NaN;
     double fixed_voltage_override = NaN;
     double ilimit_scale = 1.0;
+    double fixed_current_override = NaN;
+    double ignore_position_bounds = 0.0;
   };
 
   struct Format {
@@ -866,6 +875,8 @@ struct PositionMode {
     Resolution accel_limit = kIgnore;
     Resolution fixed_voltage_override = kIgnore;
     Resolution ilimit_scale = kIgnore;
+    Resolution fixed_current_override = kIgnore;
+    Resolution ignore_position_bounds = kIgnore;
   };
 
   static uint8_t Make(WriteCanData* frame,
@@ -890,6 +901,8 @@ struct PositionMode {
       format.accel_limit,
       format.fixed_voltage_override,
       format.ilimit_scale,
+      format.fixed_current_override,
+      format.ignore_position_bounds,
     };
     WriteCombiner combiner(
         frame, 0x00,
@@ -933,6 +946,14 @@ struct PositionMode {
     }
     if (combiner.MaybeWrite()) {
       frame->WritePwm(command.ilimit_scale, format.ilimit_scale);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WriteCurrent(command.fixed_current_override,
+                          format.fixed_current_override);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WriteInt(command.ignore_position_bounds,
+                      format.ignore_position_bounds);
     }
     return 0;
   }
@@ -1051,6 +1072,7 @@ struct StayWithinMode {
     double maximum_torque = 0.0;
     double watchdog_timeout = NaN;
     double ilimit_scale = 1.0;
+    double ignore_position_bounds = 0.0;
   };
 
   struct Format {
@@ -1062,6 +1084,7 @@ struct StayWithinMode {
     Resolution maximum_torque = kIgnore;
     Resolution watchdog_timeout = kIgnore;
     Resolution ilimit_scale = kIgnore;
+    Resolution ignore_position_bounds = kIgnore;
   };
 
   static uint8_t Make(WriteCanData* frame,
@@ -1080,6 +1103,7 @@ struct StayWithinMode {
       format.maximum_torque,
       format.watchdog_timeout,
       format.ilimit_scale,
+      format.ignore_position_bounds,
     };
 
     WriteCombiner combiner(
@@ -1112,6 +1136,10 @@ struct StayWithinMode {
     }
     if (combiner.MaybeWrite()) {
       frame->WritePwm(command.ilimit_scale, format.ilimit_scale);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WriteInt(command.ignore_position_bounds,
+                      format.ignore_position_bounds);
     }
     return 0;
   }
@@ -1171,7 +1199,7 @@ struct ZeroVelocityMode {
           Register::kCommandKdScale,
           kResolutions,
           sizeof(kResolutions) / sizeof(*kResolutions));
-      
+
       if (combiner.MaybeWrite()) {
         frame->WritePwm(command.kd_scale, format.kd_scale);
       }
