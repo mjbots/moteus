@@ -964,9 +964,14 @@ class AuxPort {
       updated_any_isr = true;
     }
 
-    if ((config_.spi.mode == aux::Spi::Config::kOnboardAs5047 ||
-         config_.spi.mode == aux::Spi::Config::kOnboardMa600) &&
-        !onboard_spi_available_) {
+    if (config_.spi.mode == aux::Spi::Config::kOnboardAs5047 &&
+        spi_default_ != kDefaultOnboardSpi) {
+      status_.error = aux::AuxError::kSpiPinError;
+      return;
+    }
+
+    if (config_.spi.mode == aux::Spi::Config::kOnboardMa600 &&
+        spi_default_ != kDefaultOnboardMa600) {
       status_.error = aux::AuxError::kSpiPinError;
       return;
     }
