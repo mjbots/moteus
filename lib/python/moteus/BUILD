@@ -36,15 +36,18 @@ filegroup(
         "command.py",
         "export.py",
         "fdcanusb.py",
+        "fdcanusb_device.py",
         "moteus.py",
         "moteus_tool.py",
         "multiplex.py",
         "posix_aioserial.py",
         "pythoncan.py",
+        "pythoncan_device.py",
         "reader.py",
         "regression.py",
-        "router.py",
         "transport.py",
+        "transport_device.py",
+        "transport_wrapper.py",
         "version.py",
         "win32_aioserial.py",
     ]
@@ -109,8 +112,8 @@ py_test(
 )
 
 py_test(
-    name = "router_test",
-    srcs = ["test/router_test.py"],
+    name = "fdcanusb_test",
+    srcs = ["test/fdcanusb_test.py"],
     deps = [":moteus"],
     size = "small",
 )
@@ -119,10 +122,10 @@ test_suite(
     name = "test",
     tests = [
         ":calibrate_encoder_test",
+        ":fdcanusb_test",
         ":moteus_test",
         ":multiplex_test",
         ":reader_test",
         ":regression_test",
-        ":router_test",
     ],
 )

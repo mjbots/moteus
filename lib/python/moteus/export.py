@@ -18,8 +18,8 @@ controller."""
 ALL = [
     'aiostream',
     'make_transport_args', 'get_singleton_transport',
-    'Fdcanusb', 'Router', 'Controller', 'Register', 'Transport',
-    'PythonCan',
+    'Fdcanusb', 'FdcanusbDevice', 'Controller', 'Register', 'Transport',
+    'PythonCan', 'PythonCanDevice',
     'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'CommandError',
     'Stream',
     'TRANSPORT_FACTORIES',
@@ -29,9 +29,10 @@ ALL = [
 ]
 from moteus.command import Command
 from moteus.fdcanusb import Fdcanusb
-from moteus.router import Router
+from moteus.fdcanusb_device import FdcanusbDevice
 from moteus.transport import Transport
 from moteus.pythoncan import PythonCan
+from moteus.pythoncan_device import PythonCanDevice
 from moteus.moteus import (
     CommandError,
     Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
