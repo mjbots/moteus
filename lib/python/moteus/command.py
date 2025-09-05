@@ -26,7 +26,7 @@ class Command():
     # non-moteus devices).
     raw = False
     arbitration_id = 0  # this is the name python-can gives
-    bus = None  # Only valid for pi3hat
+    channel = None  # Only valid for pi3hat
 
     def parse(self, message):
         # By default, we just return the message as is.

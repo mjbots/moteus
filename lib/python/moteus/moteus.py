@@ -53,7 +53,7 @@ class FdcanusbFactory:
         if args and args.fdcanusb:
             kwargs['path'] = args.fdcanusb
         if args and args.fdcanusb_debug:
-            kwargs['debug_log'] = args.fdcanusb_debug
+            kwargs['debug_log'] = open(args.fdcanusb_debug, 'wb')
         if args and args.can_disable_brs:
             kwargs['disable_brs'] = True
         return fdcanusb.Fdcanusb(**kwargs)
@@ -75,6 +75,8 @@ class PythonCanFactory:
                             help='pythoncan "interface" (default: socketcan)')
         parser.add_argument('--can-chan', type=str, metavar='CHAN',
                             help='pythoncan "channel" (default: can0)')
+        parser.add_argument('--can-debug', type=str, metavar='DEBUG',
+                            help='write debug log')
 
     def is_args_set(self, args):
         return args and (args.can_iface or args.can_chan)
@@ -88,6 +90,8 @@ class PythonCanFactory:
                 kwargs['channel'] = args.can_chan
             if args.can_disable_brs:
                 kwargs['disable_brs'] = True
+            if args.can_debug:
+                kwargs['debug_log'] = open(args.can_debug, 'wb')
         return pythoncan.PythonCan(**kwargs)
 
 
