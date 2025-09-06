@@ -253,7 +253,7 @@ class Transport:
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _collect_from_device(self, start_time, timeout, device):
+    async def _collect_from_device(self, start_time, timeout, source, device):
         local_results =  []
         while (asyncio.get_event_loop().time() - start_time) < timeout:
             try:
@@ -271,7 +271,7 @@ class Transport:
                 source_id = (response_frame.arbitration_id >> 8) & 0x7f
                 dest_id = response_frame.arbitration_id & 0x7f
 
-                if source_id == 0x7f or dest_id != 0:
+                if source_id == 0x7f or dest_id != source:
                     # This wasn't addressed to us.
                     continue
 
@@ -302,7 +302,7 @@ class Transport:
 
         return local_results
 
-    async def discover(self, can_prefix=0, timeout=0.2):
+    async def discover(self, can_prefix=0, source=0, timeout=0.2):
         """Discover all controllers attached to any included
         TransportDevices.
 
@@ -320,7 +320,7 @@ class Transport:
 
         broadcast_cmd = command.Command()
         broadcast_cmd.destination = 0x7f  # broadcast address
-        broadcast_cmd.source = 0
+        broadcast_cmd.source = source
         broadcast_cmd.data = query_data
         broadcast_cmd.reply_required = True
         broadcast_cmd.can_prefix = can_prefix
@@ -339,7 +339,7 @@ class Transport:
         tasks = []
         for device in self._devices:
             tasks.append(self._collect_from_device(
-                start_time, timeout, device))
+                start_time, timeout, source, device))
 
         result_lists = await asyncio.gather(*tasks)
         results = []
