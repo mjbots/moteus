@@ -382,4 +382,4 @@ class Transport:
                 # not addressable.
                 result.address = None
 
-        return results
+        return sorted(results)

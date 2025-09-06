@@ -35,7 +35,7 @@ class DeviceAddress:
         return f'DeviceAddress(uuid={uuid_bytes} td={self.transport_device})'
 
 
-@dataclass
+@dataclass(order=True)
 class DeviceInfo:
     """This describes a device that was discovered on the CAN bus.  It
     includes the full available addressing information, as well as the
