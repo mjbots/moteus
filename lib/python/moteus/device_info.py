@@ -28,6 +28,12 @@ class DeviceAddress:
     uuid: typing.Optional[bytes] = None
     transport_device: typing.Optional[TransportDevice] = None
 
+    def __repr__(self):
+        if self.can_id:
+            return f'DeviceAddress(can_id={self.can_id} td={self.transport_device})'
+        uuid_bytes = self.uuid.hex() if self.uuid else None
+        return f'DeviceAddress(uuid={uuid_bytes} td={self.transport_device})'
+
 
 @dataclass
 class DeviceInfo:

@@ -281,7 +281,7 @@ class Controller:
     medium.
 
     Attributes:
-      id: bus ID of the controller
+      id: bus ID of the controller or DeviceAddress structure
       query_resolution: an instance of moteus.QueryResolution
       position_resolution: an instance of moteus.PositionResolution
       transport: something modeling moteus.Transport to send commands through
@@ -309,6 +309,8 @@ class Controller:
 
         # Pre-compute our query string.
         self._query_data, self._default_query_reply_size = self._make_query_data()
+        self._make_uuid_prefix_data()
+        self.max_diagnostic_write = 64 - len(self._uuid_prefix_data) - 3
 
     def _get_transport(self):
         if self.transport:
@@ -324,6 +326,35 @@ class Controller:
             await asyncio.wait_for(self.transport.read(), 0.02)
         except asyncio.TimeoutError:
             pass
+
+    def _make_uuid_prefix_data(self):
+        if isinstance(self.id, int) or self.id.uuid is None:
+            self._uuid_prefix_data = b''
+            return
+
+        buf = io.BytesIO()
+        writer = Writer(buf)
+
+        reg_count = len(self.id.uuid) // 4
+        assert len(self.id.uuid) % 4 == 0
+        assert len(self.id.uuid) <= 16 and len(self.id.uuid) > 0
+
+        combiner = mp.WriteCombiner(
+            writer, 0x00, Register.UUID_MASK1, [mp.INT32] * reg_count)
+
+        # Convert UUID prefix bytes to list of 32-bit integers
+        # (little-endian)
+        i32_data = []
+        for i in range(0, len(self.id.uuid), 4):
+            chunk = self.id.uuid[i:i+4]
+            i32_val = struct.unpack('<i', chunk)[0]
+            i32_data.append(i32_val)
+
+        for i32_val in i32_data:
+            if combiner.maybe_write():
+                writer.write_int32(i32_val)
+
+        self._uuid_prefix_data = buf.getvalue()
 
     def _make_query_data(self, query_resolution=None):
         if query_resolution is None:
@@ -397,17 +428,39 @@ class Controller:
     def _make_command(self, *, query, query_override=None, source=0):
         result = cmd.Command()
 
-        result.destination = self.id
+        if isinstance(self.id, int):
+            result.destination = self.id
+        else:
+            if self.id.can_id:
+                result.destination = self.id.can_id
+            elif self.id.uuid:
+                # We will use the broadcast address
+                result.destination = 0x7f
+
+                # And then prefix our data with a request to mask
+                # based on this UUID.
+                result.data = self._uuid_prefix_data
+
+            else:
+                # This destination is not addressable.
+                raise RuntimeError("Attempting to send data to a controller with neither a unique CAN ID nor UUID")
+
+            result.channel = self.id.transport_device
+
         result.source = source
         result.reply_required = query or (query_override is not None)
         result.parse = self._parser
         result.can_prefix = self._can_prefix
         result.expected_reply_size = self._default_query_reply_size if query else 0
 
-        return result
+        # Create and properly position BytesIO for data construction
+        data_buf = io.BytesIO(result.data if result.data else b'')
+        data_buf.seek(0, io.SEEK_END)
+
+        return result, data_buf
 
     def make_query(self, query_override=None):
-        result = self._make_command(
+        result, _ = self._make_command(
             query=True, query_override=query_override)
         if query_override:
             result.data, result.expected_reply_size = \
@@ -426,10 +479,9 @@ class Controller:
         registers to resolutions.
         """
 
-        result = self._make_command(query=True)
+        result, data_buf = self._make_command(query=True)
 
-        buf = io.BytesIO()
-        writer = Writer(buf)
+        writer = Writer(data_buf)
 
         min_val = int(min(to_query_fields.keys()))
         max_val = int(max(to_query_fields.keys()))
@@ -439,7 +491,7 @@ class Controller:
         for _ in range(min_val, max_val + 1):
             c.maybe_write()
 
-        result.data = buf.getvalue()
+        result.data = data_buf.getvalue()
         result.expected_reply_size = c.reply_size
         return result
 
@@ -450,10 +502,9 @@ class Controller:
         """Return a moteus.Command structure with data necessary to send a
         stop mode command."""
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
         writer.write_int8(int(Register.MODE))
@@ -476,15 +527,13 @@ class Controller:
         """Return a moteus.Command structure with data necessary to send a
         zero velocity mode command."""
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
         zr = self.zero_velocity_resolution
         resolutions = [
             zr.kd_scale if kd_scale is not None else mp.IGNORE,
         ]
-
-        data_buf = io.BytesIO()
 
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
@@ -520,10 +569,9 @@ class Controller:
         if len(args):
             raise ValueError(f'unexpected positional arguments: {args}')
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_F32 | 0x01)
         writer.write_varuint(cmd)
@@ -579,10 +627,9 @@ class Controller:
     def make_require_reindex(self,
                              query=False,
                              query_override=None):
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
         writer.write_varuint(Register.REQUIRE_REINDEX)
@@ -598,10 +645,9 @@ class Controller:
     def make_recapture_position_velocity(self,
                                          query=False,
                                          query_override=None):
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
         writer.write_varuint(Register.RECAPTURE_POSITION_VELOCITY)
@@ -637,7 +683,7 @@ class Controller:
         """Return a moteus.Command structure with data necessary to send a
         position mode command with the given values."""
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
         pr = self.position_resolution
@@ -657,8 +703,6 @@ class Controller:
             pr.fixed_current_override if fixed_current_override is not None else mp.IGNORE,
             pr.ignore_position_bounds if ignore_position_bounds is not None else mp.IGNORE,
         ]
-
-        data_buf = io.BytesIO()
 
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
@@ -762,7 +806,7 @@ class Controller:
         """Return a moteus.Command structure with data necessary to send a
         voltage mode FOC command."""
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
         cr = self.vfoc_resolution
         resolutions = [
@@ -775,7 +819,6 @@ class Controller:
             cr.theta_rate if (theta_rate != 0.0 and theta_rate is not None) else mp.IGNORE,
         ]
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
         writer.write_int8(int(Register.MODE))
@@ -818,15 +861,13 @@ class Controller:
         current mode command.
         """
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
         cr = self.current_resolution
         resolutions = [
             cr.d_A if d_A is not None else mp.IGNORE,
             cr.q_A if q_A is not None else mp.IGNORE,
         ]
-
-        data_buf = io.BytesIO()
 
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
@@ -871,7 +912,7 @@ class Controller:
         """Return a moteus.Command structure with data necessary to send a
         within mode command with the given values."""
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
         pr = self.position_resolution
@@ -886,8 +927,6 @@ class Controller:
             pr.ilimit_scale if ilimit_scale is not None else mp.IGNORE,
             pr.ignore_position_bounds if ignore_position_bounds is not None else mp.IGNORE,
         ]
-
-        data_buf = io.BytesIO()
 
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
@@ -927,10 +966,9 @@ class Controller:
         return await self.execute(self.make_stay_within(**kwargs))
 
     def make_brake(self, *, query=False, query_override=None):
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT8 | 0x01)
         writer.write_int8(int(Register.MODE))
@@ -954,10 +992,9 @@ class Controller:
         significant bit is pin 0 on the respective port.
         """
 
-        result = self._make_command(
+        result, data_buf = self._make_command(
             query=query, query_override=query_override)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
 
         combiner = mp.WriteCombiner(
@@ -983,8 +1020,7 @@ class Controller:
         """Return a moteus.Command structure with data necessary to read all
         GPIO digital inputs."""
 
-        result = self._make_command(query=True)
-        data_buf = io.BytesIO()
+        result, data_buf = self._make_command(query=True)
         writer = Writer(data_buf)
 
         combiner = mp.WriteCombiner(
@@ -1015,12 +1051,11 @@ class Controller:
                       result.values[Register.AUX2_GPIO_STATUS]])
 
     def make_diagnostic_write(self, data, channel=1):
-        result = self._make_command(query=False)
+        result, data_buf = self._make_command(query=False)
 
         # CAN-FD frames can be at most 64 bytes long
         assert len(data) <= 61
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.STREAM_CLIENT_DATA)
         writer.write_int8(channel)  # channel
@@ -1034,9 +1069,8 @@ class Controller:
         await self._get_transport().cycle([self.make_diagnostic_write(**kwargs)])
 
     def make_diagnostic_read(self, max_length=48, channel=1):
-        result = self._make_command(query=True)
+        result, data_buf = self._make_command(query=True)
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         writer.write_int8(mp.STREAM_CLIENT_POLL)
         writer.write_int8(channel)
@@ -1053,15 +1087,14 @@ class Controller:
             [self.make_diagnostic_read(**kwargs)])
 
     def make_set_trim(self, *, trim=0):
-        result = self._make_command(query=False)
+        result, data_buf = self._make_command(query=False)
 
-        buf = io.BytesIO()
-        writer = Writer(buf)
+        writer = Writer(data_buf)
         writer.write_int8(mp.WRITE_INT32 | 0x01)
         writer.write_varuint(Register.CLOCK_TRIM)
         writer.write_int32(trim)
 
-        result.data = buf.getvalue()
+        result.data = data_buf.getvalue()
         return result
 
     async def set_trim(self, *args, **kwargs):
@@ -1080,7 +1113,7 @@ class Controller:
                      aux2_pwm5=None,
                      query=False,
                      query_override=None):
-        result = self._make_command(query=query, query_override=query_override)
+        result, data_buf = self._make_command(query=query, query_override=query_override)
 
         pr = self.pwm_resolution
         resolutions = [
@@ -1096,7 +1129,6 @@ class Controller:
             pr.aux2_pwm5 if aux2_pwm5 is not None else mp.IGNORE,
         ]
 
-        data_buf = io.BytesIO()
         writer = Writer(data_buf)
         combiner = mp.WriteCombiner(
             writer, 0x00, int(Register.AUX1_PWM1), resolutions)
@@ -1160,13 +1192,14 @@ class Stream:
         self._write_data = b''
 
         self._readers = {}
+        self._maxlen = controller.max_diagnostic_write
 
     def write(self, data):
         self._write_data += data
 
     async def drain(self):
         while len(self._write_data):
-            to_write, self._write_data = self._write_data[0:61], self._write_data[61:]
+            to_write, self._write_data = self._write_data[0:self._maxlen], self._write_data[self._maxlen:]
 
             async with self.lock:
                 await self.controller.send_diagnostic_write(
@@ -1175,7 +1208,7 @@ class Stream:
     async def read(self, size, block=True):
         while ((block == True and len(self._read_data) < size)
                or len(self._read_data) == 0):
-            bytes_to_request = min(61, size - len(self._read_data))
+            bytes_to_request = min(self._maxlen, size - len(self._read_data))
 
             async with self.lock:
                 these_results = await self.controller.diagnostic_read(

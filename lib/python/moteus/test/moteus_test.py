@@ -19,6 +19,7 @@ import math
 import unittest
 
 import moteus.moteus as mot
+from moteus.device_info import DeviceAddress
 
 
 class CanMessage:
@@ -382,6 +383,24 @@ class MoteusTest(unittest.TestCase):
                 0x1e, 0x30,
                 0x1c, 0x04, 0x33, ]))
         self.assertEqual(result.expected_reply_size, 51)
+
+    def test_make_command_with_uuid_prefix(self):
+        # Create a DeviceAddress with only a UUID (4-byte prefix)
+        test_uuid = bytes.fromhex('01020304')
+        device_address = DeviceAddress(uuid=test_uuid)
+
+        dut = mot.Controller(id=device_address)
+        result = dut.make_stop()
+
+        # The result should use broadcast destination (0x7f)
+        self.assertEqual(result.destination, 0x7f)
+
+        # Check for the exact UUID prefix that gets emitted
+        expected_prefix_hex = "09d40201020304"
+        actual_hex = result.data.hex()
+
+        self.assertTrue(actual_hex.startswith(expected_prefix_hex),
+                       f"Expected data to start with {expected_prefix_hex}, but got {actual_hex}")
 
 
 if __name__ == '__main__':

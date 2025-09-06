@@ -2130,21 +2130,16 @@ class Runner:
 
         discovered = await self.transport.discover(self.args.can_prefix)
 
-        # TODO: Switch all this to use DeviceAddress instead.  At
-        # which point warn if there are CAN ID duplicates, or
-        # unaddressable devices.
+        not_addressable = [x for x in discovered
+                           if x.address is None]
 
-        no_can_devices = [x for x in discovered
-                          if x.address is None or x.address.can_id is None]
-        if len(no_can_devices):
-            print("One or more controllers do not have unique CAN IDs")
+        if len(not_addressable) > 0:
+            print("One or more controllers are not addressable")
             print()
-            for x in no_can_devices:
+            for x in not_addressable:
                 print(f' * {x}')
 
-        return [x.address.can_id for x in discovered
-                if x.address is not None and
-                x.address.can_id is not None]
+        return [x.address for x in discovered]
 
     def default_tel_stop(self):
         # The user might want to see what the device is spewing.
