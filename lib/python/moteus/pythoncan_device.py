@@ -88,6 +88,9 @@ class PythonCanDevice(TransportDevice):
 
         self._notifier = None
 
+    def __repr__(self):
+        return f'PythonCan({self._can})'
+
     async def __aenter__(self):
         return self
 

@@ -37,6 +37,35 @@ def _dehexify(data):
         result += bytes([int(data[i:i + 2], 16)])
     return result
 
+def _find_serial_number(path):
+    """Attempt to find the USB serial number for a given device path.
+
+    This function handles both direct device paths and symlinks to the
+    actual device, like custom udev rules that create /dev/fdcanusb -> /dev/serial/by-id/foo.
+    """
+    if not path:
+        return None
+
+    try:
+        # Resolve symlinks to get the actual device path
+        real_path = os.path.realpath(path)
+
+        # Get all ports including symlinks
+        ports = serial.tools.list_ports.comports(include_links=True)
+
+        for port in ports:
+            # Check if either the device path or the resolved path matches
+            if port.device == path or port.device == real_path:
+                # Return serial number if available
+                if hasattr(port, 'serial_number') and port.serial_number:
+                    return port.serial_number
+
+    except Exception:
+        # If anything goes wrong, just return None
+        pass
+
+    return None
+
 
 class FdcanusbSubscription(Subscription):
     def __init__(self, transport, subscription_id):
@@ -65,6 +94,11 @@ class FdcanusbDevice(TransportDevice):
         # A fdcanusb ignores the requested baudrate, so we'll just
         # pick something nice and random.
         self._serial = aioserial.AioSerial(port=path, baudrate=9600)
+
+        # Attempt to discover the USB serial number associated with
+        # this device for pretty-printing.
+        self._serial_number = _find_serial_number(path)
+
         self._stream_data = b''
 
         self._receive_queue = collections.deque()
@@ -84,6 +118,12 @@ class FdcanusbDevice(TransportDevice):
 
         # Start the reader if we can.
         self._start_reader()
+
+    def __repr__(self):
+        if self._serial_number:
+            return f"Fdcanusb(sn='{self._serial_number}')"
+        else:
+            return 'Fdcanusb()'
 
     def close(self):
         if self._reader_task and not self._reader_task.done():
@@ -121,7 +161,6 @@ class FdcanusbDevice(TransportDevice):
                         continue
 
                     if self._debug_log:
-                        # TODO: List device name in log.
                         self._write_log(b'< ' + line.rstrip())
 
                     if line.startswith(b'rcv'):
