@@ -1303,9 +1303,6 @@ def main():
     loop = asyncqt.QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    # To work around https://bugreports.qt.io/browse/PYSIDE-88
-    app.aboutToQuit.connect(lambda: os._exit(0))
-
     tv = TviewMainWindow(args)
     tv.show()
 
