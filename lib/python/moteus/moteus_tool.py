@@ -2128,17 +2128,23 @@ class Runner:
         result = []
         self._discovered = True
 
-        for i in range(1, 127):
-            c = moteus.Controller(id=i, transport=self.transport)
-            try:
-                response = await asyncio.wait_for(
-                    c.query(), FIND_TARGET_TIMEOUT)
-                if response:
-                    result.append(i)
-            except asyncio.TimeoutError:
-                pass
+        discovered = await self.transport.discover(self.args.can_prefix)
 
-        return result
+        # TODO: Switch all this to use DeviceAddress instead.  At
+        # which point warn if there are CAN ID duplicates, or
+        # unaddressable devices.
+
+        no_can_devices = [x for x in discovered
+                          if x.address is None or x.address.can_id is None]
+        if len(no_can_devices):
+            print("One or more controllers do not have unique CAN IDs")
+            print()
+            for x in no_can_devices:
+                print(f' * {x}')
+
+        return [x.address.can_id for x in discovered
+                if x.address is not None and
+                x.address.can_id is not None]
 
     def default_tel_stop(self):
         # The user might want to see what the device is spewing.
