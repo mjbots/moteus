@@ -555,160 +555,160 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
     return kAccept;
   }
 
-  uint32_t Write(multiplex::MicroServer::Register reg,
-                 const multiplex::MicroServer::Value& value) override
+  WriteAction Write(multiplex::MicroServer::Register reg,
+                    const multiplex::MicroServer::Value& value) override
       __attribute__ ((optimize("O3"))){
-    if (discard_all_) { return 0; }
+    if (discard_all_) { return kDiscardRemaining; }
 
     switch (static_cast<Register>(reg)) {
       case Register::kMode: {
         const auto new_mode_int = ReadIntMapping(value);
         if (new_mode_int > static_cast<int8_t>(BldcServo::Mode::kNumModes)) {
-          return 3;
+          return kUnknownRegister;
         }
         command_valid_ = true;
         const auto new_mode = static_cast<BldcServo::Mode>(new_mode_int);
         command_ = {};
         command_.mode = new_mode;
-        return 0;
+        return kSuccess;
       }
 
       case Register::kPwmPhaseA: {
         command_.pwm.a = ReadPwm(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kPwmPhaseB: {
         command_.pwm.b = ReadPwm(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kPwmPhaseC: {
         command_.pwm.c = ReadPwm(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVoltagePhaseA: {
         command_.phase_v.a = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVoltagePhaseB: {
         command_.phase_v.b = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVoltagePhaseC: {
         command_.phase_v.c = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVFocTheta: {
         command_.theta = ReadPwm(value) * kPi;
-        return 0;
+        return kSuccess;
       }
       case Register::kVFocVoltage: {
         command_.voltage = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVoltageDqD: {
         command_.d_V = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVoltageDqQ: {
         command_.q_V = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandQCurrent: {
         command_.i_q_A = ReadCurrent(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandDCurrent: {
         command_.i_d_A = ReadCurrent(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kVFocThetaRate: {
         command_.theta_rate = ReadVelocity(value) * kPi;
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandPosition: {
         command_.position = ReadPosition(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandVelocity: {
         command_.velocity = ReadVelocity(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandPositionMaxTorque:
       case Register::kStayWithinMaxTorque: {
         command_.max_torque_Nm = ReadTorque(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandStopPosition: {
         command_.stop_position = ReadPosition(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandTimeout:
       case Register::kStayWithinTimeout: {
         command_.timeout_s = ReadTime(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandAccelLimit: {
         command_.accel_limit = ReadAcceleration(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandVelocityLimit: {
         command_.velocity_limit = ReadVelocity(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandFixedVoltageOverride: {
         command_.fixed_voltage_override = ReadVoltage(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {
         command_.feedforward_Nm = ReadTorque(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandKpScale:
       case Register::kStayWithinKpScale: {
         command_.kp_scale = ReadPwm(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandKdScale:
       case Register::kStayWithinKdScale: {
         command_.kd_scale = ReadPwm(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandIlimitScale:
       case Register::kStayWithinIlimitScale: {
         command_.ilimit_scale = ReadPwm(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandFixedCurrentOverride: {
         command_.fixed_current_override = ReadCurrent(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kCommandIgnorePositionBounds:
       case Register::kStayWithinIgnorePositionBounds: {
         command_.ignore_position_bounds = ReadIntMapping(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kStayWithinLower: {
         command_.bounds_min = ReadPosition(value);
-        return 0;
+        return kSuccess;
       }
       case Register::kStayWithinUpper: {
         command_.bounds_max = ReadPosition(value);
-        return 0;
+        return kSuccess;
       }
 
       case Register::kAux1GpioCommand: {
         aux1_port_.WriteDigitalOut(ReadIntMapping(value));
-        return 0;
+        return kSuccess;
       }
       case Register::kAux2GpioCommand: {
         aux2_port_.WriteDigitalOut(ReadIntMapping(value));
-        return 0;
+        return kSuccess;
       }
 
       case Register::kClockTrim: {
         clock_manager_->SetTrim(ReadIntMapping(value));
-        return 0;
+        return kSuccess;
       }
 
       case Register::kAux1Pwm1:
@@ -719,7 +719,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         const int pin =
             static_cast<int>(reg) - static_cast<int>(Register::kAux1Pwm1);
         aux1_port_.WritePwmOut(pin, ReadPwm(value));
-        return 0;
+        return kSuccess;
       }
 
       case Register::kAux2Pwm1:
@@ -730,26 +730,26 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         const int pin =
             static_cast<int>(reg) - static_cast<int>(Register::kAux2Pwm1);
         aux2_port_.WritePwmOut(pin, ReadPwm(value));
-        return 0;
+        return kSuccess;
       }
 
       case Register::kSetOutputNearest: {
         const float position = ReadPosition(value);
         bldc_.SetOutputPositionNearest(position);
-        return 0;
+        return kSuccess;
       }
       case Register::kSetOutputExact: {
         const float position = ReadPosition(value);
         bldc_.SetOutputPosition(position);
-        return 0;
+        return kSuccess;
       }
       case Register::kRequireReindex: {
         bldc_.RequireReindex();
-        return 0;
+        return kSuccess;
       }
       case Register::kRecapturePositionVelocity: {
         bldc_.RecapturePositionVelocity();
-        return 0;
+        return kSuccess;
       }
 
       case Register::kUuidMask1:
@@ -765,8 +765,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         const auto written = ReadInt32Mapping(value);
         if (expected != written) {
           discard_all_ = true;
+          return kDiscardRemaining;
         }
-        return 0;
+        return kSuccess;
       }
 
       case Register::kPosition:
@@ -827,12 +828,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kDriverFault1:
       case Register::kDriverFault2: {
         // Not writeable
-        return 2;
+        return kNotWriteable;
       }
     }
 
     // If we got here, then we had an unknown register.
-    return 1;
+    return kUnknownRegister;
   }
 
   const MotorPosition::SourceStatus& encoder_value(int index) const {
