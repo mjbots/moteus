@@ -235,7 +235,7 @@ def make_parser(id):
     return parse_message
 
 
-def parse_diagnostic_data(message, channel):
+def parse_diagnostic_message(message, channel):
     data = message.data
 
     if len(data) < 3:
@@ -263,10 +263,10 @@ class DiagnosticResult:
 
 
 def make_diagnostic_parser(id, channel):
-    def parse(data):
+    def parse(message):
         result = DiagnosticResult()
         result.id = id
-        result.data = parse_diagnostic_data(data, channel)
+        result.data = parse_diagnostic_message(message, channel)
         return result
     return parse
 
