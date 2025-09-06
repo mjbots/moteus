@@ -113,10 +113,27 @@ py_test(
     size = "small",
 )
 
+py_library(
+    name = "test_helpers",
+    srcs = [
+        "test/mock_serial.py",
+        "test/fdcanusb_test_base.py",
+    ],
+    imports = [".."],
+    deps = [":moteus"],
+)
+
 py_test(
     name = "fdcanusb_test",
     srcs = ["test/fdcanusb_test.py"],
-    deps = [":moteus"],
+    deps = [":moteus", ":test_helpers"],
+    size = "small",
+)
+
+py_test(
+    name = "transport_test",
+    srcs = ["test/transport_test.py"],
+    deps = [":moteus", ":test_helpers"],
     size = "small",
 )
 
@@ -129,5 +146,6 @@ test_suite(
         ":multiplex_test",
         ":reader_test",
         ":regression_test",
+        ":transport_test",
     ],
 )

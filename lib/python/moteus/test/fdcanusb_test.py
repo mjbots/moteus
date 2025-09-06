@@ -13,125 +13,15 @@
 # limitations under the License.
 
 import asyncio
-import collections
 import unittest
-import unittest.mock
 
 import moteus
 import moteus.fdcanusb_device as fdcanusb
 
-
-class MockSerial:
-    def __init__(self):
-        self.write_data = b''
-        self.read_buffer = b''
-        self.is_open = True
-
-        self._read_waiters = []
-        self._response_queue = collections.deque()
-
-        # List of (pattern, callback) tuples
-        self._write_hooks = []
-
-    def add_write_hook(self, pattern, callback):
-        """Add a hook that triggers when a write matches the pattern."""
-        self._write_hooks.append((pattern, callback))
-
-    def write(self, data):
-        self.write_data += data
-
-        # Check write hooks first, iterate over a copy in case a
-        # handler modifies it.
-        new_hooks = []
-        for pattern, callback in self._write_hooks[:]:
-            if pattern in data:
-                callback(self, data)
-            else:
-                # By default, only execute hooks once.
-                new_hooks.append((pattern, callback))
-
-        self._write_hooks = new_hooks
-
-        if data.startswith(b'can send'):
-            if self._response_queue:
-                receive_frame = self._response_queue.popleft()
-                self.read_buffer += receive_frame
-                self._notify_waiters()
-
-    async def drain(self):
-        pass
-
-    async def read(self, size, block=True):
-        while True:
-            # If we are blocking, then we need the full data
-            if ((self.read_buffer and not block) or
-                len(self.read_buffer) > size):
-                break
-
-            # Wait for more data
-            waiter = asyncio.Future()
-            self._read_waiters.append(waiter)
-            try:
-                await waiter
-            except asyncio.CancelledError:
-                return b''
-
-        to_return = self.read_buffer[:size]
-        self.read_buffer = self.read_buffer[size:]
-        return to_return
-
-    def close(self):
-        self.is_open = False
-        for waiter in self._read_waiters:
-            if not waiter.done():
-                waiter.cancel()
-
-        self._read_waiters.clear()
-
-    def add_response(self, data):
-        self.read_buffer += data
-        self._notify_waiters()
-
-    def queue_response(self, data):
-        self._response_queue.append(data)
-
-    def _notify_waiters(self):
-        waiters_to_notify = [w for w in self._read_waiters if not w.done()]
-        self._read_waiters.clear()
-        for waiter in waiters_to_notify:
-            waiter.set_result(None)
+from moteus.test.fdcanusb_test_base import FdcanusbTestBase
 
 
-class FdcanusbTest(unittest.TestCase):
-    def setUp(self):
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-
-        self.mock_serial = MockSerial()
-
-        self.aioserial_patcher = unittest.mock.patch('moteus.fdcanusb_device.aioserial.AioSerial')
-        self.mock_aioserial = self.aioserial_patcher.start()
-        self.mock_aioserial.return_value = self.mock_serial
-
-        self.detect_patcher = unittest.mock.patch('moteus.fdcanusb_device.FdcanusbDevice.detect_fdcanusb')
-        self.mock_detect = self.detect_patcher.start()
-        self.mock_detect.return_value = '/dev/mock_fdcanusb'
-
-    def tearDown(self):
-        pending = asyncio.all_tasks(self.loop)
-        for task in pending:
-            if not task.done():
-                task.cancel()
-
-        if pending:
-            self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-
-        self.aioserial_patcher.stop()
-        self.detect_patcher.stop()
-        self.loop.close()
-
-    def run_async(self, coro):
-        return self.loop.run_until_complete(asyncio.wait_for(coro, timeout=5.0))
+class FdcanusbTest(FdcanusbTestBase):
 
     def test_basic_construction(self):
         async def test():
