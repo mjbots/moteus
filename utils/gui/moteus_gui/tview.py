@@ -598,13 +598,17 @@ class Device:
     STATE_SCHEMA = 3
     STATE_DATA = 4
 
-    def __init__(self, number, transport, console, prefix,
+    def __init__(self, address, source_can_id, transport, console, prefix,
                  config_tree_item, data_tree_item, can_prefix=None):
         self.error_count = 0
         self.poll_count = 0
 
-        self.number = number
-        self.controller = moteus.Controller(number, can_prefix=can_prefix)
+        self.address = address
+        self.source_can_id = source_can_id
+        self.controller = moteus.Controller(
+            address,
+            source_can_id=source_can_id,
+            can_prefix=can_prefix)
         self._transport = transport
         self._stream = DeviceStream(transport, self.controller)
 
@@ -1005,25 +1009,54 @@ class TviewMainWindow():
         self.transport = self._make_transport()
         asyncio.create_task(self._run_transport())
 
+        asyncio.create_task(self._populate_devices())
+
+    async def _populate_devices(self):
         self.devices = []
+
+        targets = moteus.moteus_tool.expand_targets(self.options.devices)
+        if not targets:
+            discovered = await self.transport.discover(
+                can_prefix=self.options.can_prefix, source=0x7e)
+            not_addressable = [x for x in discovered if x.address is None]
+
+            if len(not_addressable) > 0:
+                print("No target specified, and one or more devices are not addressable", file=sys.stderr)
+                print(file=sys.stderr)
+                for x in not_addressable:
+                    print(f' * {x}', file=sys.stderr)
+                sys.exit(1)
+
+            targets = [x.address for x in discovered]
+
         self.ui.configTreeWidget.clear()
         self.ui.telemetryTreeWidget.clear()
 
-        for device_id in moteus.moteus_tool.expand_targets(
-                self.options.devices or ['1']):
+        device_count = 0
+        source_can_id = 0x7d
+        for device_address in targets:
+            tree_key = (
+                str(device_address) if isinstance(device_address, int)
+                else str(device_address.can_id) if device_address.can_id
+                else str(device_address.uuid.hex())
+            )
             config_item = QtWidgets.QTreeWidgetItem()
-            config_item.setText(0, str(device_id))
+
+            config_item.setText(0, tree_key)
             self.ui.configTreeWidget.addTopLevelItem(config_item)
 
             data_item = QtWidgets.QTreeWidgetItem()
-            data_item.setText(0, str(device_id))
+            data_item.setText(0, tree_key)
             self.ui.telemetryTreeWidget.addTopLevelItem(data_item)
 
-            device = Device(device_id, self.transport,
-                            self.console, '{}>'.format(device_id),
+            device = Device(device_address, source_can_id,
+                            self.transport,
+                            self.console, '{}>'.format(tree_key),
                             config_item,
                             data_item,
                             self.options.can_prefix)
+
+            source_can_id -= 1
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
             asyncio.create_task(device.start())
@@ -1039,10 +1072,13 @@ class TviewMainWindow():
             message = await self.transport.read()
             if message is None:
                 continue
-            source_id = (message.arbitration_id >> 8) & 0xff
+            source_id = (message.arbitration_id >> 8) & 0x7f
+            dest_id = (message.arbitration_id & 0x7f)
             any_data_read = False
             for device in self.devices:
-                if device.number == source_id:
+                if (device.source_can_id == dest_id and
+                    (device.address.can_id is None or
+                     device.address.can_id == source_id)):
                     any_data_read = await device.process_message(message)
                     break
             if predicate(message):
@@ -1077,7 +1113,10 @@ class TviewMainWindow():
             try:
                 this_data_read = await asyncio.wait_for(
                     self._dispatch_until(
-                        lambda x: (x.arbitration_id >> 8) & 0xff == device.number),
+                        lambda x: (
+                            (x.arbitration_id & 0x7f) == device.source_can_id and
+                            (device.address.can_id is None or
+                             (x.arbitration_id >> 8) & 0x7f == device.address.can_id))),
                     timeout = POLL_TIMEOUT_S)
 
                 device.error_count = 0
@@ -1118,12 +1157,25 @@ class TviewMainWindow():
 
             # Otherwise ignore problems so that tview keeps running.
 
-    async def _wait_user_query(self, maybe_id):
-        device_nums = [self.devices[0].number]
-        if maybe_id:
-            device_nums = [int(maybe_id)]
+    def _match(self, device, s):
+        if device.address.can_id is not None:
+            target_id = -1
+            try:
+                target_id = int(s)
+            except:
+                pass
+            return target_id == device.address.can_id
+        elif device.address.uuid is not None:
+            return s.upper() == device.address.uuid.hex().upper()
+        else:
+            return False
 
-        devices = [x for x in self.devices if x.number in device_nums]
+    async def _wait_user_query(self, maybe_id):
+        devices = [self.devices[0]]
+
+        if maybe_id:
+            devices = [x for x in self.devices if
+                       self._match(x, maybe_id)]
 
         record = 'servo_stats'
 
@@ -1145,10 +1197,10 @@ class TviewMainWindow():
 
     async def _run_user_command(self, command):
         delay_re = re.search(r"^:(\d+)$", command)
-        device_re = re.search(r"^(A|\d+)>\s*(.*)$", command)
-        traj_re = re.search(r"^(\?(\d+)?)$", command)
+        device_re = re.search(r"^(A|\d+|[a-fA-F0-9]{8,32})>\s*(.*)$", command)
+        traj_re = re.search(r"^(\?(\d+|[a-fA-F0-9]{8,32})?)$", command)
 
-        device_nums = [self.devices[0].number]
+        devices = [self.devices[0]]
 
         if traj_re:
             await self._wait_user_query(traj_re.group(2))
@@ -1159,11 +1211,12 @@ class TviewMainWindow():
         elif device_re:
             command = device_re.group(2)
             if device_re.group(1) == 'A':
-                device_nums = [x.number for x in self.devices]
+                devices = self.devices
             else:
-                device_nums = [int(device_re.group(1))]
+                devices = [x for x in self.devices
+                           if self._match(x, device_re.group(1))]
 
-        for device in [x for x in self.devices if x.number in device_nums]:
+        for device in devices:
             device.write((command + '\n').encode('latin1'))
 
     def _handle_tree_expanded(self, item):
