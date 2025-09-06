@@ -1289,8 +1289,6 @@ def main():
                         action='append', type=str, default=[])
     parser.add_argument('--can-prefix', type=int, default=0)
 
-    parser.add_argument('--max-receive-bytes', default=48, type=int)
-
     moteus.make_transport_args(parser)
 
     args = parser.parse_args()
