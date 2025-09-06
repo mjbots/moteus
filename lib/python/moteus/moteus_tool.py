@@ -35,6 +35,9 @@ from . import moteus
 from . import aiostream
 from . import regression
 from . import calibrate_encoder as ce
+
+from .device_info import DeviceAddress
+
 try:
     from . import version
 except ImportError:
@@ -620,19 +623,47 @@ def _average(x):
     return sum(x) / len(x)
 
 
+def _isint(x):
+    try:
+        int(x)
+        return True
+    except:
+        return False
+
+
+def _parse_uuid(x):
+    try:
+        maybe_uuid = bytes.fromhex(x)
+        if len(maybe_uuid) >= 4 and len(maybe_uuid) <= 16:
+            return maybe_uuid
+    except:
+        pass
+    try:
+        maybe_uuid = uuid.UUID(x)
+        return maybe_uuid.bytes
+    except:
+        pass
+    return None
+
+
 def expand_targets(targets):
-    result = set()
+    intset = set()
+    results = []
 
     for item in targets:
         fields = item.split(',')
         for field in fields:
-            if '-' in field:
-                first, last = field.split('-')
-                result |= set(range(int(first), int(last) + 1))
-            else:
-                result |= { int(field) }
+            maybe_uuid = _parse_uuid(field)
 
-    return sorted(list(result))
+            if field.count('-') == 1:
+                first, last = field.split('-')
+                intset |= set(range(int(first), int(last) + 1))
+            elif _isint(field) and int(field) < 0x7f:
+                intset |= { int(field) }
+            elif maybe_uuid is not None:
+                results.append(DeviceAddress(uuid=maybe_uuid))
+
+    return [DeviceAddress(can_id=x) for x in sorted(list(intset))] + results
 
 
 def _base64_serial_number(s1, s2, s3):
