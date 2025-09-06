@@ -295,8 +295,10 @@ class Controller:
                  pwm_resolution=PwmResolution(),
                  zero_velocity_resolution=ZeroVelocityResolution(),
                  transport=None,
+                 source_can_id=0,
                  can_prefix=0x0000):
         self.id = id
+        self.source_can_id = source_can_id
         self.query_resolution = query_resolution
         self.position_resolution = position_resolution
         self.vfoc_resolution = vfoc_resolution
@@ -425,7 +427,7 @@ class Controller:
             data_buf.write(self._query_data)
             result.expected_reply_size = self._default_query_reply_size
 
-    def _make_command(self, *, query, query_override=None, source=0):
+    def _make_command(self, *, query, query_override=None):
         result = cmd.Command()
 
         if isinstance(self.id, int):
@@ -447,7 +449,7 @@ class Controller:
 
             result.channel = self.id.transport_device
 
-        result.source = source
+        result.source = self.source_can_id
         result.reply_required = query or (query_override is not None)
         result.parse = self._parser
         result.can_prefix = self._can_prefix

@@ -402,6 +402,14 @@ class MoteusTest(unittest.TestCase):
         self.assertTrue(actual_hex.startswith(expected_prefix_hex),
                        f"Expected data to start with {expected_prefix_hex}, but got {actual_hex}")
 
+    def test_source_can_id(self):
+        # Test that a non-zero source CAN ID can be set and is used in
+        # commands
+        dut = mot.Controller(source_can_id=0x42)
+        result = dut.make_stop()
+
+        self.assertEqual(result.source, 0x42)
+
 
 if __name__ == '__main__':
     unittest.main()
