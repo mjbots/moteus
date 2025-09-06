@@ -155,8 +155,10 @@ class Transport:
             return lambda f: True
 
         # Filter by both the source and destination device IDs.
-        return lambda f: (((f.arbitration_id >> 8) & 0x7f) == command.destination and
-                          (f.arbitration_id & 0x7f) == command.source)
+        return lambda f: (
+            (((f.arbitration_id >> 8) & 0x7f) == command.destination or
+             command.destination == 0x7f) and
+            (f.arbitration_id & 0x7f) == command.source)
 
     async def _cycle_batch(self, commands, timeout=None):
         # Group commands by device.  This is a map from device to:
