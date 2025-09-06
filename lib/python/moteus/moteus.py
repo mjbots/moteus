@@ -262,10 +262,10 @@ class DiagnosticResult:
         return f'{self.id}/{self.data}'
 
 
-def make_diagnostic_parser(id, channel):
+def make_diagnostic_parser(channel):
     def parse(message):
         result = DiagnosticResult()
-        result.id = id
+        result.id = (message.arbitration_id >> 8) & 0x7f
         result.data = parse_diagnostic_message(message, channel)
         return result
     return parse
@@ -1042,7 +1042,7 @@ class Controller:
         writer.write_int8(channel)
         writer.write_int8(max_length)
 
-        result.parse = make_diagnostic_parser(self.id, channel)
+        result.parse = make_diagnostic_parser(channel)
 
         result.data = data_buf.getvalue()
         result.expected_reply_size = 3 + max_length
