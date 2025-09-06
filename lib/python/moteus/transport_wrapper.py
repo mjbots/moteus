@@ -36,17 +36,17 @@ class TransportWrapper:
     def close(self):
         self._transport.close()
 
-    async def cycle(self, commands, timeout=None):
-        return await self._transport.cycle(commands, timeout=timeout)
+    async def cycle(self, *args, **kwargs):
+        return await self._transport.cycle(*args, **kwargs)
 
-    async def write(self, command):
-        return await self._transport.write(command)
+    async def write(self, *args, **kwargs):
+        return await self._transport.write(*args, **kwargs)
 
-    async def read(self):
-        return await self._transport.read()
+    async def read(self, *args, **kwargs):
+        return await self._transport.read(*args, **kwargs)
 
-    async def discover_devices(self, timeout=0.1):
-        return await self._transport.discover_devices(timeout=timeout)
+    async def flush_read_queue(self, *args, **kwargs):
+        return await self._transport.flush_read_queue(*args, **kwargs)
 
-    async def flush_read_queue(self, timeout=0.1):
-        return await self._transport.flush_read_queue(timeout=timeout)
+    async def discover(self, *args, **kwargs):
+        return await self._transport.discover(*args, **kwargs)
