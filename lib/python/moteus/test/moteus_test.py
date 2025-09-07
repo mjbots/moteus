@@ -392,8 +392,10 @@ class MoteusTest(unittest.TestCase):
         dut = mot.Controller(id=device_address)
         result = dut.make_stop()
 
-        # The result should use broadcast destination (0x7f)
-        self.assertEqual(result.destination, 0x7f)
+        # The result should use a DeviceAddress
+        self.assertTrue(isinstance(result.destination, DeviceAddress))
+        self.assertEqual(result.destination.can_id, None)
+        self.assertEqual(result.destination.uuid, test_uuid)
 
         # Check for the exact UUID prefix that gets emitted
         expected_prefix_hex = "09d40201020304"
