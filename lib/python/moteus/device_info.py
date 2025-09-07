@@ -18,7 +18,7 @@ import uuid
 
 from .transport_device import TransportDevice
 
-@dataclass
+@dataclass(frozen=True)
 class DeviceAddress:
     """The minimal set of information necessary to communicate with a
     device in a system.  It may be just a CAN ID if that is unique, or
@@ -30,9 +30,9 @@ class DeviceAddress:
 
     def __repr__(self):
         if self.can_id:
-            return f'DeviceAddress(can_id={self.can_id} td={self.transport_device})'
+            return f'DeviceAddress(can_id={self.can_id}, td={self.transport_device})'
         uuid_bytes = self.uuid.hex() if self.uuid else None
-        return f'DeviceAddress(uuid={uuid_bytes} td={self.transport_device})'
+        return f'DeviceAddress(uuid={uuid_bytes}, td={self.transport_device})'
 
 
 @dataclass(order=True)
@@ -49,4 +49,4 @@ class DeviceInfo:
 
     def __repr__(self):
         uuid_bytes = uuid.UUID(bytes=self.uuid) if self.uuid else None
-        return f'DeviceInfo(can_id={self.can_id} uuid={uuid_bytes} td={self.transport_device})'
+        return f'DeviceInfo(can_id={self.can_id}, uuid={uuid_bytes}, td={self.transport_device})'

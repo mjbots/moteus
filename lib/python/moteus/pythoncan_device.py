@@ -39,7 +39,7 @@ class PythonCanDevice(TransportDevice):
         '''Nearly all arguments pass through to can.Bus'''
 
         self._debug_log = kwargs.pop('debug_log', None)
-        self._max_buffer_size =  kwargs.pop('max_buffer_size', 1000)
+        self._max_buffer_size =  kwargs.pop('max_buffer_size', 50)
 
         # We delay importing this until we need it, as it can take a
         # while.
@@ -88,8 +88,10 @@ class PythonCanDevice(TransportDevice):
 
         self._notifier = None
 
+        self._log_prefix = self._can.channel
+
     def __repr__(self):
-        return f'PythonCan({self._can})'
+        return f"PythonCan('{self._log_prefix}')"
 
     async def __aenter__(self):
         return self
@@ -172,13 +174,16 @@ class PythonCanDevice(TransportDevice):
             is_extended_id=message.is_extended_id,
             is_fd=message.is_fd,
             bitrate_switch=getattr(message, 'bitrate_switch', False),
+            channel=self,
         )
 
     async def send_frame(self, frame: Frame):
         self._maybe_setup()
 
+        can_message = self._frame_to_can_message(frame)
+
         if self._debug_log:
-            self._write_log(f'> {frame.arbitration_id:04x} {frame.data.hex().upper()}'.encode('latin1'))
+            self._write_log(f'> {frame.arbitration_id:04x} {can_message.data.hex().upper()}'.encode('latin1'))
 
         self._can.send(self._frame_to_can_message(frame))
 
@@ -265,4 +270,4 @@ class PythonCanDevice(TransportDevice):
 
     def _write_log(self, output: bytes):
         assert self._debug_log is not None
-        self._debug_log.write(f'{time.time():.6f} '.encode('latin1') + output + b'\n')
+        self._debug_log.write(f'{time.time():.6f}/{self._log_prefix} '.encode('latin1') + output + b'\n')

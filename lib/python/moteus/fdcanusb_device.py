@@ -80,7 +80,7 @@ class FdcanusbDevice(TransportDevice):
     """Connects to a single mjbots fdcanusb."""
 
     def __init__(self, path=None, debug_log=None, disable_brs=False,
-                 max_buffer_size=1000, padding_hex='50', channel=None):
+                 max_buffer_size=50, padding_hex='50'):
         """Constructor.
 
         Arguments:
@@ -89,7 +89,6 @@ class FdcanusbDevice(TransportDevice):
         self._max_buffer_size = max_buffer_size
         self._padding_hex = padding_hex
         self._disable_brs = disable_brs
-        self._channel = channel
 
         # A fdcanusb ignores the requested baudrate, so we'll just
         # pick something nice and random.
@@ -211,7 +210,7 @@ class FdcanusbDevice(TransportDevice):
 
         self._notify_waiters(self._ok_waiters)
 
-    async def _handle_other_responses(self, line):
+    async def _handle_other_response(self, line):
         # TODO: Actually do something reasonable.
         await self._handle_ok_response(line)
 
@@ -268,7 +267,7 @@ class FdcanusbDevice(TransportDevice):
         frame.data = _dehexify(fields[2])
         frame.dlc = len(frame.data)
         frame.arbitration_id = int(fields[1], 16)
-        frame.channel = self._channel
+        frame.channel = self
 
         flags = fields[3] if len(fields) > 3 else b''
         if b'E' in flags:
@@ -405,36 +404,26 @@ class FdcanusbDevice(TransportDevice):
 
     def _write_log(self, output: bytes):
         assert self._debug_log is not None
-        self._debug_log.write(f'{time.time():.6f} '.encode('latin1') + output + b'\n')
+        self._debug_log.write(f'{time.time():.6f}/{self._serial_number} '.encode('latin1') + output + b'\n')
+
+    @staticmethod
+    def detect_fdcanusbs():
+        if sys.platform == 'win32':
+            return FdcanusbDevice.pyserial_detect_fdcanusbs()
+
+        maybe_list = glob.glob('/dev/serial/by-id/*fdcanusb*')
+        if len(maybe_list):
+            return sorted(maybe_list)
+
+        return FdcanusbDevice.pyserial_detect_fdcanusbs()
 
     @staticmethod
     def detect_fdcanusb():
-        if sys.platform == 'win32':
-            return FdcanusbDevice.win32_detect_fdcanusb()
-
-        if os.path.exists('/dev/fdcanusb'):
-            return '/dev/fdcanusb'
-        maybe_list = glob.glob('/dev/serial/by-id/*fdcanusb*')
-        if len(maybe_list):
-            return sorted(maybe_list)[0]
-
-        return FdcanusbDevice.pyserial_detect_fdcanusb()
-
-    @staticmethod
-    def win32_detect_fdcanusb():
-        import serial.tools.list_ports
-        ports = serial.tools.list_ports.comports()
-        for port in ports:
-            if port.vid == 0x0483 and port.pid == 0x5740:
-                return port.name
-
-        raise RuntimeError('Could not detect fdcanusb')
+        return FdcanusbDevice.detect_fdcanusbs()[0]
 
     @staticmethod
     def pyserial_detect_fdcanusb():
         ports = serial.tools.list_ports.comports()
-        for port in ports:
-            if port.vid == 0x0483 and port.pid == 0x5740:
-                return port.device
 
-        raise RuntimeError('Could not detect fdcanusb')
+        return [x.device for x in ports
+                if x.vid == 0x0403 and x.pid == 0x5740]

@@ -16,7 +16,6 @@ import asyncio
 import argparse
 import copy
 import enum
-import importlib_metadata
 import io
 import math
 import struct
@@ -25,130 +24,10 @@ from . import multiplex as mp
 from . import command as cmd
 from . import fdcanusb
 from . import pythoncan
-from .protocol import Register, Mode, Writer, parse_reply, Result, parse_message
+from .protocol import Register, Mode, Writer, parse_reply, Result, parse_message, make_uuid_prefix
+from .transport_factory import TRANSPORT_FACTORIES, get_singleton_transport, make_transport_args
 
 import moteus.reader
-
-class FdcanusbFactory:
-    PRIORITY = 10
-
-    name = 'fdcanusb'
-
-    def add_args(self, parser):
-        try:
-            parser.add_argument('--can-disable-brs', action='store_true',
-                                help='do not set BRS')
-        except argparse.ArgumentError:
-            # It must already be set.
-            pass
-        parser.add_argument('--fdcanusb', type=str, metavar='FILE',
-                            help='path to fdcanusb device')
-        parser.add_argument('--fdcanusb-debug', type=str, metavar='DEBUG',
-                            help='write debug log')
-
-    def is_args_set(self, args):
-        return args and (args.fdcanusb or args.fdcanusb_debug)
-
-    def __call__(self, args):
-        kwargs = {}
-        if args and args.fdcanusb:
-            kwargs['path'] = args.fdcanusb
-        if args and args.fdcanusb_debug:
-            kwargs['debug_log'] = open(args.fdcanusb_debug, 'wb')
-        if args and args.can_disable_brs:
-            kwargs['disable_brs'] = True
-        return fdcanusb.Fdcanusb(**kwargs)
-
-
-class PythonCanFactory:
-    PRIORITY = 11
-
-    name = 'pythoncan'
-
-    def add_args(self, parser):
-        try:
-            parser.add_argument('--can-disable-brs', action='store_true',
-                                help='do not set BRS')
-        except argparse.ArgumentError:
-            # It must already be set.
-            pass
-        parser.add_argument('--can-iface', type=str, metavar='IFACE',
-                            help='pythoncan "interface" (default: socketcan)')
-        parser.add_argument('--can-chan', type=str, metavar='CHAN',
-                            help='pythoncan "channel" (default: can0)')
-        parser.add_argument('--can-debug', type=str, metavar='DEBUG',
-                            help='write debug log')
-
-    def is_args_set(self, args):
-        return args and (args.can_iface or args.can_chan)
-
-    def __call__(self, args):
-        kwargs = {}
-        if args:
-            if args.can_iface:
-                kwargs['interface'] = args.can_iface
-            if args.can_chan:
-                kwargs['channel'] = args.can_chan
-            if args.can_disable_brs:
-                kwargs['disable_brs'] = True
-            if args.can_debug:
-                kwargs['debug_log'] = open(args.can_debug, 'wb')
-        return pythoncan.PythonCan(**kwargs)
-
-
-'''External callers may insert additional factories into this list.'''
-TRANSPORT_FACTORIES = [
-    FdcanusbFactory(),
-    PythonCanFactory(),
-] + [ep.load()() for ep in
-     importlib_metadata.entry_points().select(group='moteus.transports')]
-
-
-GLOBAL_TRANSPORT = None
-
-
-def make_transport_args(parser):
-    for factory in TRANSPORT_FACTORIES:
-        if hasattr(factory, 'add_args'):
-            factory.add_args(parser)
-
-    parser.add_argument(
-        '--force-transport', type=str,
-        choices=[x.name for x in TRANSPORT_FACTORIES],
-        help='Force the given transport type to be used')
-
-
-def get_singleton_transport(args=None):
-    global GLOBAL_TRANSPORT
-
-    if GLOBAL_TRANSPORT:
-        return GLOBAL_TRANSPORT
-
-    maybe_result = None
-    to_try = sorted(TRANSPORT_FACTORIES, key=lambda x: x.PRIORITY)
-    if args and args.force_transport:
-        to_try = [x for x in to_try if x.name == args.force_transport]
-    elif args:
-        # See if any transports have options set.  If so, then limit
-        # to just those that do.
-        if any([x.is_args_set(args) for x in TRANSPORT_FACTORIES]):
-            to_try = [x for x in to_try if x.is_args_set(args)]
-
-    errors = []
-    for factory in to_try:
-        try:
-            maybe_result = factory(args)
-            break
-        except Exception as e:
-            errors.append((factory, str(e)))
-            pass
-
-    if maybe_result is None:
-        raise RuntimeError("Unable to find a default transport, tried: {}".format(
-            ','.join([str(x) for x in errors])))
-
-    GLOBAL_TRANSPORT = maybe_result
-    return GLOBAL_TRANSPORT
 
 
 def _merge_resolutions(a, b):
@@ -330,33 +209,7 @@ class Controller:
             pass
 
     def _make_uuid_prefix_data(self):
-        if isinstance(self.id, int) or self.id.uuid is None:
-            self._uuid_prefix_data = b''
-            return
-
-        buf = io.BytesIO()
-        writer = Writer(buf)
-
-        reg_count = len(self.id.uuid) // 4
-        assert len(self.id.uuid) % 4 == 0
-        assert len(self.id.uuid) <= 16 and len(self.id.uuid) > 0
-
-        combiner = mp.WriteCombiner(
-            writer, 0x00, Register.UUID_MASK1, [mp.INT32] * reg_count)
-
-        # Convert UUID prefix bytes to list of 32-bit integers
-        # (little-endian)
-        i32_data = []
-        for i in range(0, len(self.id.uuid), 4):
-            chunk = self.id.uuid[i:i+4]
-            i32_val = struct.unpack('<i', chunk)[0]
-            i32_data.append(i32_val)
-
-        for i32_val in i32_data:
-            if combiner.maybe_write():
-                writer.write_int32(i32_val)
-
-        self._uuid_prefix_data = buf.getvalue()
+        self._uuid_prefix_data = make_uuid_prefix(self.id)
 
     def _make_query_data(self, query_resolution=None):
         if query_resolution is None:
@@ -430,24 +283,12 @@ class Controller:
     def _make_command(self, *, query, query_override=None):
         result = cmd.Command()
 
-        if isinstance(self.id, int):
-            result.destination = self.id
-        else:
-            if self.id.can_id:
-                result.destination = self.id.can_id
-            elif self.id.uuid:
-                # We will use the broadcast address
-                result.destination = 0x7f
+        result.destination = self.id
 
-                # And then prefix our data with a request to mask
-                # based on this UUID.
-                result.data = self._uuid_prefix_data
-
-            else:
-                # This destination is not addressable.
-                raise RuntimeError("Attempting to send data to a controller with neither a unique CAN ID nor UUID")
-
+        if not isinstance(self.id, int):
             result.channel = self.id.transport_device
+            if self.id.can_id is None:
+                result.data = self._uuid_prefix_data
 
         result.source = self.source_can_id
         result.reply_required = query or (query_override is not None)

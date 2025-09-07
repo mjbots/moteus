@@ -13,8 +13,11 @@
 # limitations under the License.
 
 
+from .device_info import DeviceAddress
+
+
 class Command():
-    destination = 1
+    destination = DeviceAddress(can_id=1)
     source = 0
     reply_required = False
     data = b''
@@ -26,7 +29,10 @@ class Command():
     # non-moteus devices).
     raw = False
     arbitration_id = 0  # this is the name python-can gives
-    channel = None  # Only valid for pi3hat
+
+    # The channel can be specified to direct this to a particular
+    # transport device.
+    channel = None
 
     def parse(self, message):
         # By default, we just return the message as is.

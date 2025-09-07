@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import enum
+import io
+import struct
+
 from . import multiplex as mp
 
 class Register(enum.IntEnum):
@@ -394,3 +397,31 @@ def parse_message(message):
     result.data = message.data
 
     return result
+
+def make_uuid_prefix(id):
+    if isinstance(id, int) or id.uuid is None:
+        return b''
+
+    buf = io.BytesIO()
+    writer = Writer(buf)
+
+    reg_count = len(id.uuid) // 4
+    assert len(id.uuid) % 4 == 0
+    assert len(id.uuid) <= 16 and len(id.uuid) > 0
+
+    combiner = mp.WriteCombiner(
+        writer, 0x00, Register.UUID_MASK1, [mp.INT32] * reg_count)
+
+    # Convert UUID prefix bytes to list of 32-bit integers
+    # (little-endian)
+    i32_data = []
+    for i in range(0, len(id.uuid), 4):
+        chunk = id.uuid[i:i+4]
+        i32_val = struct.unpack('<i', chunk)[0]
+        i32_data.append(i32_val)
+
+    for i32_val in i32_data:
+        if combiner.maybe_write():
+            writer.write_int32(i32_val)
+
+    return buf.getvalue()
