@@ -1076,7 +1076,9 @@ class TviewMainWindow():
             dest_id = (message.arbitration_id & 0x7f)
             any_data_read = False
             for device in self.devices:
-                if (device.source_can_id == dest_id and
+                if ((device.address.transport_device is None or
+                     device.address.transport_device == message.channel) and
+                    device.source_can_id == dest_id and
                     (device.address.can_id is None or
                      device.address.can_id == source_id)):
                     any_data_read = await device.process_message(message)
