@@ -105,6 +105,9 @@ class Transport:
 
         self._arp_table = {}
 
+    def count(self):
+        return len(self._devices)
+
     def __enter__(self):
         return self
 

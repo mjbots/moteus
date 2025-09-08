@@ -1034,12 +1034,17 @@ class TviewMainWindow():
 
         device_count = 0
         source_can_id = 0x7d
+
         for device_address in targets:
+            needs_suffix = (self.transport.count() > 1 and
+                            not isinstance(device_address, int) and
+                            device_address.transport_device)
+            suffix_str = f'/{device_address.transport_device}' if needs_suffix else ''
+
             tree_key = (
                 str(device_address) if isinstance(device_address, int)
-                else str(device_address.can_id) if device_address.can_id
-                else str(device_address.uuid.hex())
-            )
+                else f'{device_address.can_id}{suffix_str}' if device_address.can_id
+                else f'{device_address.uuid.hex()}{suffix_str}')
             config_item = QtWidgets.QTreeWidgetItem()
 
             config_item.setText(0, tree_key)
