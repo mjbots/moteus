@@ -35,7 +35,7 @@ class DeviceAddress:
         return f'DeviceAddress(uuid={uuid_bytes}, td={self.transport_device})'
 
 
-@dataclass(order=True)
+@dataclass
 class DeviceInfo:
     """This describes a device that was discovered on the CAN bus.  It
     includes the full available addressing information, as well as the
@@ -50,3 +50,12 @@ class DeviceInfo:
     def __repr__(self):
         uuid_bytes = uuid.UUID(bytes=self.uuid) if self.uuid else None
         return f'DeviceInfo(can_id={self.can_id}, uuid={uuid_bytes}, td={self.transport_device})'
+
+    def _cmp_key(self):
+        return (self.can_id, self.uuid or b'', self.transport_device, self.address)
+
+    def __lt__(self, other):
+        if not isinstance(other, DeviceInfo):
+            return NotImplemented
+
+        return self._cmp_key() < other._cmp_key()
