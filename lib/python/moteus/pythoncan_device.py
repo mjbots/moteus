@@ -183,6 +183,9 @@ class PythonCanDevice(TransportDevice):
             future = asyncio.Future()
 
             async def handler(frame, request=request, future=future):
+                if future.done():
+                    return
+
                 request.responses.append(frame)
                 future.set_result(None)
 

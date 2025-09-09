@@ -277,6 +277,9 @@ class FdcanusbDevice(TransportDevice):
             future = asyncio.Future()
 
             async def handler(frame, request=request, future=future):
+                if future.done():
+                    return
+
                 request.responses.append(frame)
                 # While we may receive more than one frame for a given
                 # request, we only wait for one.
