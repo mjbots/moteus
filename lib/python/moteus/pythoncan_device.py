@@ -18,6 +18,7 @@ import sys
 import time
 import typing
 
+from .enumerate_socketcan import enumerate_socketcan_up
 from .transport_device import Frame, FrameFilter, TransportDevice, Subscription
 
 can = None
@@ -38,8 +39,12 @@ class PythonCanDevice(TransportDevice):
     def __init__(self, *args, **kwargs):
         '''Nearly all arguments pass through to can.Bus'''
 
+        super(PythonCanDevice, self).__init__(
+            **{k: kwargs[k] for k in ['max_buffer_size',
+                                      'padding_hex'] if k in kwargs})
+
+        self._padding_byte = bytes.fromhex(self._padding_hex)
         self._debug_log = kwargs.pop('debug_log', None)
-        self._max_buffer_size =  kwargs.pop('max_buffer_size', 50)
 
         # We delay importing this until we need it, as it can take a
         # while.
@@ -52,14 +57,18 @@ class PythonCanDevice(TransportDevice):
                 if 'Unknown interface type "None"' not in str(e):
                     raise
 
+        available_socketcan_interfaces = (
+            enumerate_socketcan_up() if sys.platform == 'linux' else [])
+
         # We provide some defaults if they are not already
         # provided... this makes it more likely to just work out of
         # the box and can still be easily override with either
         # constructor arguments, or a config file.
-        if 'interface' not in can.rc:
-            can.rc['interface'] = 'socketcan'
-        if 'channel' not in can.rc:
-            can.rc['channel'] = 'can0'
+        if available_socketcan_interfaces:
+            if 'interface' not in can.rc:
+                can.rc['interface'] = 'socketcan'
+            if 'channel' not in can.rc:
+                can.rc['channel'] = available_socketcan_interfaces[0]
         if 'fd' not in can.rc:
             can.rc['fd'] = True
 
@@ -80,11 +89,6 @@ class PythonCanDevice(TransportDevice):
 
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
-
-        self._receive_queue = collections.deque()
-        self._receive_waiters = []
-        self._subscriptions = {}
-        self._next_subscription_id = 0
 
         self._notifier = None
 
@@ -116,42 +120,16 @@ class PythonCanDevice(TransportDevice):
             loop=asyncio.get_event_loop())
         self._setup = True
 
-    def _notify_waiters(self, waitlist):
-        waiters_to_notify = []
-        for waiter in waitlist:
-            if not waiter.done():
-                waiters_to_notify.append(waiter)
-
-        for waiter in waiters_to_notify:
-            waiter.set_result(None)
-
-    def _receive_handler(self, message):
+    async def _receive_handler(self, message):
         if message.is_error_frame:
             return
 
         frame = self._can_message_to_frame(message)
 
-        self._receive_queue.append(frame)
-
-        while len(self._receive_queue) > self._max_buffer_size:
-            self._receive_queue.popleft()
-
-        self._notify_waiters(self._receive_waiters)
-
         if self._debug_log:
             self._write_log(f'< {frame.arbitration_id:04X} {frame.data.hex().upper()}'.encode('latin1'))
 
-        for sub_id, (filter_fn, handler) in self._subscriptions.items():
-            if filter_fn(frame):
-                asyncio.create_task(self._run_handler(handler, frame))
-
-    async def _run_handler(self, handler, frame):
-        try:
-            await handler(frame)
-        except Exception:
-            import traceback, sys
-            traceback.print_exc()
-            sys.exit(1)
+        await self._handle_received_frame(frame)
 
     def _frame_to_can_message(self, frame: Frame):
         dlc = self._round_up_dlc(len(frame.data))
@@ -161,7 +139,7 @@ class PythonCanDevice(TransportDevice):
             arbitration_id=frame.arbitration_id,
             is_extended_id=frame.is_extended_id,
             dlc=dlc,
-            data=frame.data + bytes([0x50]) * padding_bytes,
+            data=frame.data + bytes(self._padding_byte) * padding_bytes,
             is_fd=frame.is_fd,
             bitrate_switch=frame.bitrate_switch and not self._disable_brs,
         )
@@ -190,83 +168,37 @@ class PythonCanDevice(TransportDevice):
     async def receive_frame(self):
         self._maybe_setup()
 
-        if self._receive_queue:
-            return self._receive_queue.popleft()
-
-        while True:
-            try:
-                waiter = asyncio.Future()
-                self._receive_waiters.append(waiter)
-
-                await waiter
-
-                if self._receive_queue:
-                    return self._receive_queue.popleft()
-            finally:
-                startlen = len(self._receive_waiters)
-                self._receive_waiters = [w for w in self._receive_waiters
-                                         if w != waiter]
-
-    def subscribe(self,
-                  filter: FrameFilter,
-                  handler: typing.Callable[[Frame], typing.Awaitable[None]]) -> Subscription:
-        sub_id = self._next_subscription_id
-        self._next_subscription_id += 1
-
-        self._subscriptions[sub_id] = (filter, handler)
-
-        return PythonCanSubscription(self, sub_id)
-
-    def _remove_subscription(self, sub_id):
-        self._subscriptions.pop(sub_id, None)
+        return await super(PythonCanDevice, self).receive_frame()
 
     async def transaction(
             self,
-            requests: typing.List[typing.Tuple[Frame, FrameFilter]],
-            timeout: typing.Optional[float] = None) -> typing.List[typing.Optional[Frame]]:
+            requests: typing.List[TransportDevice.Request]):
         self._maybe_setup()
 
-        respones = [None] * len(requests)
-        response_futures = []
-        subscriptions = []
-        waiting_indices = []
+        def make_subscription(request):
+            future = asyncio.Future()
 
-        for i, (_, response_filter) in enumerate(requests):
-            if response_filter is not None:
-                future = asyncio.Future()
-                response_futures.append(future)
-                waiting_indices.append(i)
+            async def handler(frame, request=request, future=future):
+                request.responses.append(frame)
+                future.set_result(None)
 
-                async def handler(frame, future=future):
-                    if not future.done():
-                        future.set_result(frame)
+            return self._subscribe(request.frame_filter, handler), future
 
-                sub = self.subscribe(response_filter, handler)
-                subscriptions.append(sub)
+        subscriptions = [
+            make_subscription(request)
+            for request in requests
+            if request.frame_filter is not None
+        ]
 
         try:
-            for request, _ in requests:
-                await self.send_frame(request)
+            for request in requests:
+                await self.send_frame(request.frame)
 
-            responses = [None] * len(requests)
-            if response_futures:
-                done, pending = await asyncio.wait(
-                    response_futures,
-                    timeout=timeout,
-                    return_when=asyncio.ALL_COMPLETED)
-
-                for future_idx, orig_idx in enumerate(waiting_indices):
-                    this_response = response_futures[future_idx]
-                    if this_response.done():
-                        try:
-                            responses[orig_idx] = this_response.result()
-                        except:
-                            pass
-            return responses
-
+            if subscriptions:
+                await asyncio.gather(*[x[1] for x in subscriptions])
         finally:
-            for sub in subscriptions:
-                sub.cancel()
+            for x in subscriptions:
+                x[0].cancel()
 
     def _write_log(self, output: bytes):
         assert self._debug_log is not None

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import asyncio
-import collections
 import glob
 import os
 import serial
@@ -24,7 +23,7 @@ import time
 import typing
 
 from . import aioserial
-from .transport_device import Frame, FrameFilter, TransportDevice, Subscription
+from .transport_device import Frame, FrameFilter, TransportDevice
 
 
 def _hexify(data):
@@ -36,6 +35,7 @@ def _dehexify(data):
     for i in range(0, len(data), 2):
         result += bytes([int(data[i:i + 2], 16)])
     return result
+
 
 def _find_serial_number(path):
     """Attempt to find the USB serial number for a given device path.
@@ -67,27 +67,17 @@ def _find_serial_number(path):
     return None
 
 
-class FdcanusbSubscription(Subscription):
-    def __init__(self, transport, subscription_id):
-        self._transport = transport
-        self._id = subscription_id
-
-    def cancel(self):
-        self._transport._remove_subscription(self._id)
-
-
 class FdcanusbDevice(TransportDevice):
     """Connects to a single mjbots fdcanusb."""
 
-    def __init__(self, path=None, debug_log=None, disable_brs=False,
-                 max_buffer_size=50, padding_hex='50'):
+    def __init__(self, path=None, debug_log=None, disable_brs=False, **kwargs):
         """Constructor.
 
         Arguments:
           path: serial port where fdcanusb is located
         """
-        self._max_buffer_size = max_buffer_size
-        self._padding_hex = padding_hex
+        super(FdcanusbDevice, self).__init__(**kwargs)
+
         self._disable_brs = disable_brs
 
         # A fdcanusb ignores the requested baudrate, so we'll just
@@ -100,13 +90,7 @@ class FdcanusbDevice(TransportDevice):
 
         self._stream_data = b''
 
-        self._receive_queue = collections.deque()
-        self._receive_waiters = []
-        self._subscriptions = {}
-        self._next_subscription_id = 0
-
         self._ok_waiters = []
-        self._ok_queue = collections.deque()
 
         self._reader_task = None
         self._running = False
@@ -180,61 +164,20 @@ class FdcanusbDevice(TransportDevice):
         finally:
             self._running = False
 
-    def _notify_waiters(self, waitlist):
-        waiters_to_notify = []
-        for waiter in waitlist:
-            if not waiter.done():
-                waiters_to_notify.append(waiter)
-
-        for waiter in waiters_to_notify:
-            waiter.set_result(None)
-
-    async def _handle_received_frame(self, frame):
-        self._receive_queue.append(frame)
-
-        # Limit our maximum queue size.
-        while len(self._receive_queue) > self._max_buffer_size:
-            self._receive_queue.popleft()
-
-        self._notify_waiters(self._receive_waiters)
-
-        # Then dispatch to subscribers.
-        for sub_id, (filter_fn, handler) in self._subscriptions.items():
-            if filter_fn(frame):
-                asyncio.create_task(self._run_handler(handler, frame))
-
     async def _handle_ok_response(self, line):
-        self._ok_queue.append(line)
-
-        self._notify_waiters(self._ok_waiters)
+        # Just notify the first non-done OK waiter.  An OK received
+        # with no waiters is assumed to be stale.
+        #
+        # Callers are *required* to enqueue their self._ok_waiters
+        # *before* sending anything that could result in an OK being
+        # emitted.
+        for waiter in self._ok_waiters:
+            if not waiter.done():
+                waiter.set_result(None)
+                return
 
     async def _handle_other_response(self, line):
-        # TODO: Actually do something reasonable.
-        await self._handle_ok_response(line)
-
-    async def _wait_for_ok(self):
-        if self._ok_queue:
-            return self._ok_queue.popleft()
-
-        while True:
-            try:
-                waiter = asyncio.Future()
-                self._ok_waiters.append(waiter)
-
-                await waiter
-
-                if self._ok_queue:
-                    return self._ok_queue.popleft()
-            finally:
-                self._ok_waiters = [w for w in self._ok_waiters if w != waiter]
-
-    async def _run_handler(self, handler, frame):
-        try:
-            await handler(frame)
-        except Exception as e:
-            import traceback, sys
-            traceback.print_exc()
-            sys.exit(1)
+        raise RuntimeError(f'{self} received error {line}')
 
     async def _readline(self, stream):
         while True:
@@ -305,102 +248,70 @@ class FdcanusbDevice(TransportDevice):
     async def send_frame(self, frame: Frame):
         await self._ensure_reader_started()
 
-        await self._write_send_frame(frame)
-        await self._serial.drain()
-        await self._wait_for_ok()
+        try:
+            ok_waiter = asyncio.Future()
+            self._ok_waiters.append(ok_waiter)
+
+            await self._write_send_frame(frame)
+            await self._serial.drain()
+
+            await ok_waiter
+        finally:
+            self._ok_waiters = [w for w in self._ok_waiters
+                                if w != ok_waiter]
 
     async def receive_frame(self):
         await self._ensure_reader_started()
 
-        if self._receive_queue:
-            return self._receive_queue.popleft()
-
-        while True:
-            try:
-                waiter = asyncio.Future()
-                self._receive_waiters.append(waiter)
-
-                await waiter
-
-                if self._receive_queue:
-                    return self._receive_queue.popleft()
-            finally:
-                self._receive_waiters = [w for w in self._receive_waiters
-                                         if w != waiter]
-
-    def subscribe(self,
-                  filter: FrameFilter,
-                  handler: typing.Callable[[Frame], typing.Awaitable[None]]) -> Subscription:
-        sub_id = self._next_subscription_id
-        self._next_subscription_id += 1
-
-        self._subscriptions[sub_id] = (filter, handler)
-
-        return FdcanusbSubscription(self, sub_id)
-
-    def _remove_subscription(self, sub_id):
-        self._subscriptions.pop(sub_id, None)
-
+        return await super(FdcanusbDevice, self).receive_frame()
 
     async def transaction(
             self,
-            requests: typing.List[typing.Tuple[Frame, FrameFilter]],
-            timeout: typing.Optional[float] = None) -> typing.List[typing.Optional[Frame]]:
-        responses = [None] * len(requests)
-        response_futures = []
-        subscriptions = []
-        waiting_indices = []
+            requests: typing.List[TransportDevice.Request]):
 
-        # Create a subscription for each expected response.
-        for i, (_, response_filter) in enumerate(requests):
-            if response_filter is None:
-                continue
-
+        def make_subscription(request):
             future = asyncio.Future()
-            response_futures.append(future)
-            waiting_indices.append(i)
 
-            # We want to capture this into the closure.
-            idx = i
+            async def handler(frame, request=request, future=future):
+                request.responses.append(frame)
+                # While we may receive more than one frame for a given
+                # request, we only wait for one.
+                future.set_result(None)
 
-            async def handler(frame, idx=idx, future=future):
-                if not future.done():
-                    future.set_result(frame)
+            return self._subscribe(request.frame_filter, handler), future
 
-            sub = self.subscribe(response_filter, handler)
-            subscriptions.append(sub)
+        subscriptions = [
+            make_subscription(request)
+            for request in requests
+            if request.frame_filter is not None
+        ]
 
         try:
             # Now we will send all our requests.
-            for request, _ in requests:
-                await self._write_send_frame(request)
+            ok_waiters = set([asyncio.Future()
+                              for _ in range(len(requests))])
+            try:
+                self._ok_waiters.extend(list(ok_waiters))
 
-            await self._serial.drain()
+                # TODO: Provide control over the amount of pipelining
+                # like the C++ class.
+                for request in requests:
+                    await self._write_send_frame(request.frame)
 
-            for request, _ in requests:
-                await self._wait_for_ok()
+                await self._serial.drain()
+
+                await asyncio.gather(*ok_waiters)
+            finally:
+                self._ok_waiters = [w for w in self._ok_waiters
+                                    if w not in ok_waiters]
 
             # If there any responses to wait for, do so.
-            if response_futures:
-                done, pending = await asyncio.wait(
-                    response_futures,
-                    timeout=timeout,
-                    return_when=asyncio.ALL_COMPLETED)
-
-                # Collect results:
-                for future_idx, orig_idx in enumerate(waiting_indices):
-                    this_future = response_futures[future_idx]
-                    if this_future.done():
-                        try:
-                            responses[orig_idx] = this_future.result()
-                        except:
-                            pass
-
-            return responses
+            if subscriptions:
+                await asyncio.gather(*[x[1] for x in subscriptions])
         finally:
             # Clean up all our subscriptions.
-            for sub in subscriptions:
-                sub.cancel()
+            for x in subscriptions:
+                x[0].cancel()
 
     def _write_log(self, output: bytes):
         assert self._debug_log is not None

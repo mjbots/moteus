@@ -17,6 +17,7 @@ import unittest
 
 import moteus
 import moteus.fdcanusb_device as fdcanusb
+from moteus.transport_device import TransportDevice
 
 from moteus.test.fdcanusb_test_base import FdcanusbTestBase
 
@@ -55,33 +56,6 @@ class FdcanusbTest(FdcanusbTestBase):
                 self.assertEqual(flags, ['B', 'F'])
         self.run_async(test())
 
-    def test_subscription_basic(self):
-        async def test():
-            async with fdcanusb.FdcanusbDevice() as dut:
-
-                received_frames = []
-
-                async def handler(frame):
-                    received_frames.append(frame)
-
-                def filter_func(frame):
-                    return (frame.arbitration_id & 0xFF00) == 0x100
-
-                sub = dut.subscribe(filter_func, handler)
-
-                self.mock_serial.add_response(b"rcv 0105 01 F\n") # matches
-                self.mock_serial.add_response(b"rcv 0205 02 F\n") # no match
-                self.mock_serial.add_response(b"rcv 0110 03 F\n") # matches
-
-                await asyncio.sleep(0.02)
-
-                self.assertEqual(len(received_frames), 2)
-                self.assertEqual(received_frames[0].arbitration_id, 0x105)
-                self.assertEqual(received_frames[1].arbitration_id, 0x110)
-
-                sub.cancel()
-        self.run_async(test())
-
     def test_transaction(self):
         async def test():
             async with fdcanusb.FdcanusbDevice() as dut:
@@ -100,17 +74,20 @@ class FdcanusbTest(FdcanusbTestBase):
                     b'can send 0106', queue_responses)
 
                 requests = [
-                    (fdcanusb.Frame(0x105, b'4567'), lambda f: f.arbitration_id == 0x185),
-                    (fdcanusb.Frame(0x106, b'5678'), lambda f: f.arbitration_id == 0x186),
+                    TransportDevice.Request(
+                        frame=fdcanusb.Frame(0x105, b'4567'),
+                        frame_filter=lambda f: f.arbitration_id == 0x185),
+                    TransportDevice.Request(
+                        frame=fdcanusb.Frame(0x106, b'5678'),
+                        frame_filter=lambda f: f.arbitration_id == 0x186),
                 ]
 
-                results = await dut.transaction(requests, timeout=None)
+                await dut.transaction(requests)
 
-                self.assertEqual(len(results), 2)
-                self.assertIsNotNone(results[0])
-                self.assertIsNotNone(results[1])
-                self.assertEqual(results[0].arbitration_id, 0x185)
-                self.assertEqual(results[1].arbitration_id, 0x186)
+                self.assertIsNotNone(requests[0].responses)
+                self.assertIsNotNone(requests[1].responses)
+                self.assertEqual(requests[0].responses[0].arbitration_id, 0x185)
+                self.assertEqual(requests[1].responses[0].arbitration_id, 0x186)
 
         self.run_async(test())
 

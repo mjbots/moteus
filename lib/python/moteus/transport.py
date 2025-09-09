@@ -14,6 +14,7 @@
 
 import asyncio
 import io
+import itertools
 import struct
 import typing
 
@@ -245,10 +246,10 @@ class Transport:
              self._make_canid(command.destination) == 0x7f) and
             (f.arbitration_id & 0x7f) == command.source)
 
-    async def _cycle_batch(self, commands, timeout=None):
-        # Group commands by device.  This is a map from device to:
-        #  (command_index, command, frame, filter)
-        device_commands = {}
+    async def _cycle_batch(self, commands):
+        # Group requests by device.  This is a map from device to:
+        #  (TransportDevice.Request)
+        device_requests = {}
 
         for i, command in enumerate(commands):
             frame = self._command_to_frame(command)
@@ -258,42 +259,38 @@ class Transport:
 
             devices = await self._get_devices_for_command(command)
             for device in devices:
-                if device not in device_commands:
-                    device_commands[device] = []
+                if device not in device_requests:
+                    device_requests[device] = []
 
-                device_commands[device].append(
-                    (i, command, frame, response_filter))
+                request = TransportDevice.Request(
+                    frame=frame, frame_filter=response_filter)
+                request.command = command
+                device_requests[device].append(request)
 
         # Perform batch transactions in parallel for all devices.
         tasks = []
         device_list = []
-        for device, cmd_list in device_commands.items():
-            requests = [(frame, filter) for _, _, frame, filter in cmd_list]
-            tasks.append(device.transaction(requests, timeout=timeout))
+        for device, request_list in device_requests.items():
+            tasks.append(device.transaction(request_list))
             device_list.append(device)
 
         # Wait for all transports to complete.
-        responses_list = await asyncio.gather(*tasks)
-        device_responses = {}
-        for device, responses in zip(device_list, responses_list):
-            device_responses[device] = responses
+        await asyncio.gather(*tasks)
 
-        # Sort the results into the original command order.
-        results = [None] * len(commands)
-        for device, cmd_list in device_commands.items():
-            device_response = device_responses[device]
-            for device_idx, (orig_idx, command, _, _) in enumerate(cmd_list):
-                this_response = device_response[device_idx]
+        responses = []
+        for request in itertools.chain(
+                *[request_list for _, request_list in device_requests.items()]):
+            for frame in request.responses:
+                responses.append(
+                    request.command.parse(frame)
+                    if hasattr(request.command, 'parse')
+                    else frame)
 
-                if command.reply_required and this_response:
-                    if hasattr(command, 'parse'):
-                        results[orig_idx] = command.parse(this_response)
-                    else:
-                        results[orig_idx] = this_response
+        return responses
+
+    async def cycle(self, commands):
+        results = await self._cycle_batch(commands)
         return results
-
-    async def cycle(self, commands, timeout=None):
-        return await self._cycle_batch(commands, timeout)
 
     async def write(self, command):
         devices = await self._get_devices_for_command(command)

@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from dataclasses import dataclass
+import asyncio
+import collections
+from dataclasses import dataclass, field
 import typing
 
 
@@ -40,30 +42,16 @@ class Subscription:
 
 
 class TransportDevice:
-    '''ABC for hardware-specific CAN devices'''
+    '''Base for hardware-specific CAN devices'''
+    def __init__(self, max_buffer_size=50, padding_hex='50'):
+        self._max_buffer_size = max_buffer_size
+        self._padding_hex = padding_hex
 
-    async def send_frame(self, frame: Frame):
-        raise NotImplementedError()
+        self._receive_queue = collections.deque()
+        self._receive_waiters = []
 
-    async def receive_frame(self) -> Frame:
-        raise NotImplementedError()
-
-    def subscribe(self, filter: FrameFilter,
-                  handler: typing.Callable[[Frame], typing.Awaitable[None]]) -> Subscription:
-        raise NotImplementedError()
-
-    async def transaction(
-            self,
-            requests: typing.List[typing.Tuple[Frame, FrameFilter]],
-            timeout: typing.Optional[float] = None) -> typing.List[typing.Optional[Frame]]:
-        """Send requests and wait for matching responses.
-
-        Args:
-          requests: List of (frame, response_filter) tuples.  If a
-            filter is None, do not wait for a response for that frame.
-          timeout: Optional timeout in seconds for all responses
-        """
-        raise NotImplementedError()
+        self._subscriptions = {}
+        self._next_subscription_id = 0
 
     def close(self):
         pass
@@ -73,6 +61,45 @@ class TransportDevice:
 
     def __exit__(self, type, value, traceback):
         self.close()
+
+    async def send_frame(self, frame: Frame):
+        raise NotImplementedError()
+
+    async def receive_frame(self) -> Frame:
+        if self._receive_queue:
+            return self._receive_queue.popleft()
+
+        while True:
+            try:
+                waiter = asyncio.Future()
+                self._receive_waiters.append(waiter)
+
+                await waiter
+
+                if self._receive_queue:
+                    return self._receive_queue.popleft()
+            finally:
+                self._receive_waiters = [w for w in self._receive_waiters
+                                         if w != waiter]
+
+    @dataclass
+    class Request:
+        frame: Frame
+        frame_filter: typing.Optional[FrameFilter] = None
+        responses: typing.List[Frame] = field(default_factory=list)
+
+    async def transaction(
+            self,
+            requests: typing.List[Request]):
+        """Send requests and wait for matching responses.
+
+        Results are stored in place in each Request structure.
+
+        If cancelled or interrupted with an asyncio timeout, any
+        already received frames will be stored in the Request
+        structures.
+        """
+        raise NotImplementedError()
 
     def _round_up_dlc(self, size):
         if size <= 8:
@@ -92,3 +119,51 @@ class TransportDevice:
         if size <= 64:
             return 64
         return size
+
+    class _Subscription:
+        def __init__(self, parent, subscription_id):
+            self.parent = parent
+            self.id = subscription_id
+
+        def cancel(self):
+            self.parent._subscriptions.pop(self.id, None)
+
+    def _subscribe(self,
+                   filter: FrameFilter,
+                   handler: typing.Callable[[Frame], typing.Awaitable[None]]) -> Subscription:
+        sub_id = self._next_subscription_id
+        self._next_subscription_id += 1
+
+        self._subscriptions[sub_id] = (filter, handler)
+
+        return TransportDevice._Subscription(self, sub_id)
+
+    async def _run_handler(self, handler, frame):
+        try:
+            await handler(frame)
+        except Exception as e:
+            import traceback, sys
+            traceback.print_exc()
+            sys.exit(1)
+
+    def _notify_waiters(self, waitlist):
+        waiters_to_notify = [w for w in waitlist if not w.done()]
+        [w.set_result(None) for w in waiters_to_notify]
+
+    async def _handle_received_frame(self, frame):
+        any_subscription = False
+
+        # Then dispatch to subscribers.
+        for sub_id, (filter_fn, handler) in self._subscriptions.items():
+            if filter_fn(frame):
+                any_subscription = True
+                asyncio.create_task(self._run_handler(handler, frame))
+
+        if not any_subscription:
+            self._receive_queue.append(frame)
+
+            # Limit our maximum queue size.
+            while len(self._receive_queue) > self._max_buffer_size:
+                self._receive_queue.popleft()
+
+            self._notify_waiters(self._receive_waiters)
