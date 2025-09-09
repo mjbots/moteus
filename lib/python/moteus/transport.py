@@ -419,6 +419,7 @@ class Transport:
         broadcast_cmd.can_prefix = can_prefix
         broadcast_cmd.raw = False
         broadcast_cmd.arbitration_id = None
+        broadcast_cmd.expected_reply_size = reply_size
 
         frame = self._command_to_frame(broadcast_cmd)
 
