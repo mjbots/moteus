@@ -376,7 +376,7 @@ class Transport:
         try:
             result = parse_message(frame)
             uuid_bytes = _extract_uuid_from_result(result)
-            if uuid_bytes and uuid_bytes != b'\x00' * 16:
+            if uuid_bytes:
                 return DeviceInfo(
                     can_id=source_id,
                     uuid=uuid_bytes,
