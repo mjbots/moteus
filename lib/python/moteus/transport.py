@@ -259,13 +259,21 @@ class Transport:
 
             devices = await self._get_devices_for_command(command)
             for device in devices:
-                if device not in device_requests:
-                    device_requests[device] = []
+                maybe_parent = device.parent()
+
+                to_send_device = maybe_parent or device
+
+                if to_send_device not in device_requests:
+                    device_requests[to_send_device] = []
 
                 request = TransportDevice.Request(
-                    frame=frame, frame_filter=response_filter)
+                    frame=frame,
+                    child_device=device if maybe_parent else None,
+                    frame_filter=response_filter,
+                    expected_reply_size=command.expected_reply_size)
                 request.command = command
-                device_requests[device].append(request)
+
+                device_requests[to_send_device].append(request)
 
         # Perform batch transactions in parallel for all devices.
         tasks = []

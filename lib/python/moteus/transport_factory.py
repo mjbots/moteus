@@ -38,8 +38,6 @@ class FdcanusbFactory:
         parser.add_argument('--fdcanusb', type=str, action='append',
                             metavar='FILE',
                             help='path to fdcanusb device')
-        parser.add_argument('--fdcanusb-debug', type=str, metavar='DEBUG',
-                            help='write debug log')
 
     def is_args_set(self, args):
         return args and args.fdcanusb
@@ -119,19 +117,32 @@ class PythonCanFactory:
         return [pythoncan_device.PythonCanDevice(**kwargs)]
 
 
-'''External callers may insert additional factories into this list.'''
-TRANSPORT_FACTORIES = [
-    FdcanusbFactory(),
-    PythonCanFactory(),
-] + [ep.load()() for ep in
-     importlib_metadata.entry_points().select(group='moteus.transports2')]
+TRANSPORT_FACTORIES = []
 
+_transports_initialized = False
+
+def get_transport_factories():
+    global _transports_initialized
+
+    if not _transports_initialized:
+        # We initialize these in a deferred manner so that transports
+        # are able to import things from moteus as necessary.
+        _transports_initialized = True
+        TRANSPORT_FACTORIES.extend([
+            FdcanusbFactory(),
+            PythonCanFactory(),
+        ] + [ep.load()() for ep in
+             importlib_metadata.entry_points().select(
+                 group='moteus.transports2')
+             ])
+
+    return TRANSPORT_FACTORIES
 
 GLOBAL_TRANSPORT = None
 
 
 def make_transport_args(parser):
-    for factory in TRANSPORT_FACTORIES:
+    for factory in get_transport_factories():
         if hasattr(factory, 'add_args'):
             factory.add_args(parser)
 
@@ -141,7 +152,7 @@ def make_transport_args(parser):
         help='write raw CAN log')
     parser.add_argument(
         '--force-transport', type=str,
-        choices=[x.name for x in TRANSPORT_FACTORIES],
+        choices=[x.name for x in get_transport_factories()],
         help='Force the given transport type to be used exclusively')
 
 
@@ -155,13 +166,13 @@ def get_singleton_transport(args=None):
         args.can_debug = open(args.can_debug, 'wb')
 
     maybe_result = None
-    to_try = sorted(TRANSPORT_FACTORIES, key=lambda x: x.PRIORITY)
+    to_try = sorted(get_transport_factories(), key=lambda x: x.PRIORITY)
     if args and args.force_transport:
         to_try = [x for x in to_try if x.name == args.force_transport]
     elif args:
         # See if any transports have options set.  If so, then limit
         # to just those that do.
-        if any([x.is_args_set(args) for x in TRANSPORT_FACTORIES]):
+        if any([x.is_args_set(args) for x in get_transport_factories()]):
             to_try = [x for x in to_try if x.is_args_set(args)]
 
     devices = []

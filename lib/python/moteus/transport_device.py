@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import asyncio
-import collections
 from dataclasses import dataclass, field
 import typing
 
@@ -47,11 +46,14 @@ class TransportDevice:
         self._max_buffer_size = max_buffer_size
         self._padding_hex = padding_hex
 
-        self._receive_queue = collections.deque()
+        self._receive_queue = []
         self._receive_waiters = []
 
         self._subscriptions = {}
         self._next_subscription_id = 0
+
+    def parent(self):
+        return None
 
     def close(self):
         pass
@@ -67,7 +69,7 @@ class TransportDevice:
 
     async def receive_frame(self) -> Frame:
         if self._receive_queue:
-            return self._receive_queue.popleft()
+            return self._receive_queue.pop(0)
 
         while True:
             try:
@@ -77,15 +79,26 @@ class TransportDevice:
                 await waiter
 
                 if self._receive_queue:
-                    return self._receive_queue.popleft()
+                    return self._receive_queue.pop(0)
             finally:
                 self._receive_waiters = [w for w in self._receive_waiters
                                          if w != waiter]
 
     @dataclass
     class Request:
+        # The frame to send.
         frame: Frame
+
+        # If this "TransportDevice" is a "parent" device with
+        # sub-devices, which sub-device to use.
+        child_device: typing.Optional[typing.Any] = None
+
+        # Frames that match this filter will be returned.
         frame_filter: typing.Optional[FrameFilter] = None
+
+        expected_reply_size: int = 0
+
+        # Matching frames are returned in this list.
         responses: typing.List[Frame] = field(default_factory=list)
 
     async def transaction(
@@ -164,6 +177,6 @@ class TransportDevice:
 
             # Limit our maximum queue size.
             while len(self._receive_queue) > self._max_buffer_size:
-                self._receive_queue.popleft()
+                self._receive_queue.pop(0)
 
             self._notify_waiters(self._receive_waiters)

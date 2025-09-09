@@ -269,6 +269,10 @@ class FdcanusbDevice(TransportDevice):
             self,
             requests: typing.List[TransportDevice.Request]):
 
+        # We do not support child devices.
+        assert not any([request.child_device is not None
+                        for request in requests])
+
         def make_subscription(request):
             future = asyncio.Future()
 

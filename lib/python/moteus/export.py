@@ -18,6 +18,7 @@ controller."""
 ALL = [
     'aiostream',
     'make_transport_args', 'get_singleton_transport',
+    'Frame', 'FrameFilter', 'TransportDevice',
     'Fdcanusb', 'FdcanusbDevice', 'Controller', 'Register', 'Transport',
     'PythonCan', 'PythonCanDevice',
     'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'CommandError',
@@ -33,15 +34,17 @@ from moteus.fdcanusb_device import FdcanusbDevice
 from moteus.transport import Transport
 from moteus.pythoncan import PythonCan
 from moteus.pythoncan_device import PythonCanDevice
+from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE,
+                              RegisterParser, QueryParser)
+from moteus.transport_device import Frame, FrameFilter, TransportDevice
+import moteus.reader as reader
+import moteus.aiostream as aiostream
+
 from moteus.moteus import (
     CommandError,
     Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
     make_transport_args, get_singleton_transport,
     TRANSPORT_FACTORIES)
-from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE,
-                              RegisterParser, QueryParser)
-import moteus.reader as reader
-import moteus.aiostream as aiostream
 
 try:
     from moteus.version import VERSION
