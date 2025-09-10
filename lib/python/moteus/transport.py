@@ -104,6 +104,8 @@ class Transport:
         else:
             self._devices = [devices]
 
+        self._parent_devices = list(set([d.parent() or d for d in self._devices]))
+
         self._arp_table = {}
 
     def count(self):
@@ -319,9 +321,10 @@ class Transport:
             return await channel.receive_frame()
 
         try:
+            # Only invoke one receive_frame per parent.
             tasks = [
                 asyncio.create_task(device.receive_frame())
-                for device in self._devices
+                for device in self._parent_devices
             ]
             done, pending = await asyncio.wait(
                 tasks,
