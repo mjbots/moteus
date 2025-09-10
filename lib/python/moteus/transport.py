@@ -333,8 +333,17 @@ class Transport:
             # Ensure that all our tasks are fully done when we leave,
             # which can happen early as a result of a timeout.
             cancel_succeeded = [x.cancel() for x in tasks]
-            await asyncio.shield(
-                asyncio.gather(*tasks, return_exceptions=True))
+            try:
+                await asyncio.shield(
+                    asyncio.gather(*tasks, return_exceptions=True))
+            except asyncio.CancelledError:
+                # If we are cancelled, we still need to wait for all
+                # of our child tasks to complete their cancellation.
+                await asyncio.shield(
+                    asyncio.gather(*tasks, return_exceptions=True))
+
+                # Now let our cancellation make it back up.
+                raise
 
         results = [x.result() for x in done]
         assert(len(results) == 1)
