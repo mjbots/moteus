@@ -104,7 +104,8 @@ class Transport:
         else:
             self._devices = [devices]
 
-        self._parent_devices = list(set([d.parent() or d for d in self._devices]))
+        self._parent_devices = list(set(
+            [d.parent() or d for d in self._devices]))
 
         self._arp_table = {}
 
@@ -358,7 +359,7 @@ class Transport:
             channel: None = all channels
         """
 
-        device_list = self._devices
+        device_list = self._parent_devices
 
         if channel is not None:
             assert channel in self._devices
