@@ -1361,6 +1361,10 @@ def main():
     loop = asyncqt.QEventLoop(app)
     asyncio.set_event_loop(loop)
 
+    # Currently there are many things that can barf on exit, let's
+    # just ignore all of them because, hey, we're about to exit!
+    app.aboutToQuit.connect(lambda: os._exit(0))
+
     tv = TviewMainWindow(args)
     tv.show()
 
