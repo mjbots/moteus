@@ -333,7 +333,9 @@ class Transport:
 
             device_requests[self._pi3hat_device].append(attitude_request)
 
-        if force_can_check != 0 and self._pi3hat_device:
+        if (force_can_check is not None
+            and force_can_check != 0
+            and self._pi3hat_device):
             # This is another compatibility hack for the pi3hat.
             for bus in range(1, 6):
                 if ((1 << bus) & force_can_check) == 0:
