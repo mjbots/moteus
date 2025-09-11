@@ -17,7 +17,6 @@ import argparse
 import importlib_metadata
 import sys
 
-from . import enumerate_socketcan
 from . import fdcanusb_device
 from . import pythoncan_device
 from . import transport
@@ -54,8 +53,12 @@ class FdcanusbFactory:
             return [fdcanusb_device.FdcanusbDevice(path, **kwargs)
                     for path in args.fdcanusb]
 
-        return [fdcanusb_device.FdcanusbDevice(x, **kwargs) for x in
-                fdcanusb_device.FdcanusbDevice.detect_fdcanusbs()]
+        results = [fdcanusb_device.FdcanusbDevice(x, **kwargs) for x in
+                   fdcanusb_device.FdcanusbDevice.detect_fdcanusbs()]
+        if not results:
+            raise RuntimeError('No fdcanusb detected')
+
+        return results
 
 
 class PythonCanFactory:
@@ -96,25 +99,7 @@ class PythonCanFactory:
                 for channel in args.can_chan
             ]
 
-        if (sys.platform == 'linux' and
-            (not args or
-             not args.can_iface or
-             args.can_iface == 'socketcan')):
-            # If we didn't specify an interface or specified
-            # socketcan, and are running on linux, then attempt to
-            # enumerate all available socketcan devices.
-
-            socketcan_ifaces = enumerate_socketcan.enumerate_socketcan_up()
-            if socketcan_ifaces:
-                return [
-                    pythoncan_device.PythonCanDevice(
-                        interface='socketcan', channel=iface, **kwargs)
-                    for iface in socketcan_ifaces
-                ]
-
-        # We couldn't automatically enumerate, so just return a single
-        # one with default args and see if it finds something.
-        return [pythoncan_device.PythonCanDevice(**kwargs)]
+        return pythoncan_device.PythonCanDevice.enumerate_devices(**kwargs)
 
 
 TRANSPORT_FACTORIES = []
@@ -183,6 +168,13 @@ def get_singleton_transport(args=None):
         try:
             maybe_results = factory(args)
         except Exception as e:
+            # This can be useful when implementing factories, as the
+            # str(e) representation can be a bit abbreviated to find
+            # an actual problem in code.
+            if False:
+                import traceback
+                traceback.print_exc()
+
             errors.append((factory, str(e)))
             pass
 

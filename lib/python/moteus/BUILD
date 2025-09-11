@@ -35,7 +35,6 @@ filegroup(
         "calibrate_encoder.py",
         "command.py",
         "device_info.py",
-        "enumerate_socketcan.py",
         "export.py",
         "fdcanusb.py",
         "fdcanusb_device.py",

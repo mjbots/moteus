@@ -14,11 +14,11 @@
 
 import asyncio
 import collections
+import os
 import sys
 import time
 import typing
 
-from .enumerate_socketcan import enumerate_socketcan_up
 from .transport_device import Frame, FrameFilter, TransportDevice, Subscription
 
 can = None
@@ -57,18 +57,6 @@ class PythonCanDevice(TransportDevice):
                 if 'Unknown interface type "None"' not in str(e):
                     raise
 
-        available_socketcan_interfaces = (
-            enumerate_socketcan_up() if sys.platform == 'linux' else [])
-
-        # We provide some defaults if they are not already
-        # provided... this makes it more likely to just work out of
-        # the box and can still be easily override with either
-        # constructor arguments, or a config file.
-        if available_socketcan_interfaces:
-            if 'interface' not in can.rc:
-                can.rc['interface'] = 'socketcan'
-            if 'channel' not in can.rc:
-                can.rc['channel'] = available_socketcan_interfaces[0]
         if 'fd' not in can.rc:
             can.rc['fd'] = True
 
@@ -78,7 +66,7 @@ class PythonCanDevice(TransportDevice):
             del kwargs['disable_brs']
 
         if ('timing' not in kwargs and
-            kwargs.get('interface', can.rc['interface']) == 'pcan'):
+            kwargs.get('interface', can.rc.get('interface', None)) == 'pcan'):
             # We default to the timing that works with moteus and assume
             # an 80MHz base clock, which seems pretty typical for PCAN
             # interfaces.
@@ -92,7 +80,10 @@ class PythonCanDevice(TransportDevice):
 
         self._notifier = None
 
-        self._log_prefix = self._can.channel
+        self._log_prefix = (
+            getattr(self._can, 'channel', None) or
+            kwargs.get('channel', None) or
+            str(self._can))
 
     def __repr__(self):
         return f"PythonCan('{self._log_prefix}')"
@@ -210,3 +201,40 @@ class PythonCanDevice(TransportDevice):
     def _write_log(self, output: bytes):
         assert self._debug_log is not None
         self._debug_log.write(f'{time.time():.6f}/{self._log_prefix} '.encode('latin1') + output + b'\n')
+
+    @staticmethod
+    def enumerate_devices(**kwargs):
+        global can
+        if not can:
+            import can
+
+        import logging
+
+        # python-can spews a lot of logging during enumeration.
+        # Squelch as much of that as we can.
+
+        log = logging.getLogger("can")  # covers can.interface and sub-loggers
+        prev_level, prev_prop = log.level, log.propagate
+        log.setLevel(logging.CRITICAL)
+
+        # Don't bubble to root handlers.
+        log.propagate = False
+
+        try:
+            # Try to auto-enumerate.
+            interfaces_to_check = os.getenv(
+                "MJBOTS_PYTHONCAN", "socketcan,pcan,kvaser,vector").split(',')
+            available_configs = can.detect_available_configs(interfaces_to_check)
+
+            if not available_configs:
+                raise RuntimeError("No python-can interfaces detected")
+
+            def _merge_args(a, b):
+                return {**a, **b}
+
+            return [PythonCanDevice(**_merge_args(kwargs, x))
+                    for x in available_configs]
+        finally:
+            # Restore logging to the previous state.
+            log.setLevel(prev_level)
+            log.propagate = prev_prop
