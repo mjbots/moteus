@@ -267,7 +267,8 @@ class FdcanusbDevice(TransportDevice):
 
     async def transaction(
             self,
-            requests: typing.List[TransportDevice.Request]):
+            requests: typing.List[TransportDevice.Request],
+            **kwargs):
 
         # We do not support child devices.
         assert not any([request.child_device is not None

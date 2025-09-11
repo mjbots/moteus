@@ -119,6 +119,12 @@ class Transport:
         # to this many frames.
         self._cancel_queue_max_size = 100
 
+        # This is necessary for some compatibility hacks down below.
+        self._pi3hat_device = next(iter(
+            [x for x in self._devices
+             if type(x).__name__ == 'Pi3HatDevice']),
+            None)
+
     def count(self):
         return len(self._devices)
 
@@ -264,7 +270,7 @@ class Transport:
              self._make_canid(command.destination) == 0x7f) and
             (f.arbitration_id & 0x7f) == command.source)
 
-    async def _cycle_batch(self, commands):
+    async def _cycle_batch(self, commands, request_attitude):
         # Group requests by device.  This is a map from device to:
         #  (TransportDevice.Request)
         device_requests = {}
@@ -293,11 +299,28 @@ class Transport:
 
                 device_requests[to_send_device].append(request)
 
+        if request_attitude and self._pi3hat_device:
+            # This is a compatibility/performance hack that only works
+            # with the pi3hat.  Logically we shouldn't know anything
+            # about the pi3hat here, but hey, it's necessary for
+            # backward compatibility with the old Pi3HatRouter
+            # interface.
+
+            attitude_request = TransportDevice.Request(
+                frame=None,
+                frame_filter=lambda frame: frame.arbitration_id == -1)
+
+            if self._pi3hat_device not in device_requests:
+                device_requests[self._pi3hat_device] = []
+
+            device_requests[self._pi3hat_device].append(attitude_request)
+
         # Perform batch transactions in parallel for all devices.
         tasks = []
         device_list = []
         for device, request_list in device_requests.items():
-            tasks.append(device.transaction(request_list))
+            tasks.append(device.transaction(
+                request_list, request_attitude=True))
             device_list.append(device)
 
         # Wait for all transports to complete.
@@ -313,13 +336,15 @@ class Transport:
             for frame in request.responses:
                 responses.append(
                     request.command.parse(frame)
-                    if hasattr(request.command, 'parse')
+                    if (hasattr(request, 'command') and
+                        hasattr(request.command, 'parse'))
                     else frame)
 
         return responses
 
-    async def cycle(self, commands):
-        results = await self._cycle_batch(commands)
+    async def cycle(self, commands, request_attitude=False):
+        results = await self._cycle_batch(
+            commands, request_attitude=request_attitude)
         return results
 
     async def write(self, command):
