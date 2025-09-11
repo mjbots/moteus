@@ -93,11 +93,18 @@ class Transport:
     controllers across potentially multiple CAN-FD busses.
     """
 
-    def __init__(self, devices):
+    def __init__(self, devices, routing_table={}):
         """Initialize the Transport with one or more devices.
 
         Args:
           devices: Either a single TransportDevice or a list of instances.
+
+          routing_table: A dictionary from DeviceAddress ->
+            TransportDevice.  If an addressed DeviceAddress is not
+            present, and multiple TransportDevices are used, then
+            discovery is performed to find the correct TransportDevice
+            upon first use.
+
         """
         if isinstance(devices, list):
             self._devices = devices
@@ -107,7 +114,7 @@ class Transport:
         self._parent_devices = list(set(
             [d.parent() or d for d in self._devices]))
 
-        self._arp_table = {}
+        self._routing_table = routing_table
 
         # This will hold frames that were received, but we could not
         # yet deliver them to the client because the calls were
@@ -121,7 +128,7 @@ class Transport:
 
         # This is necessary for some compatibility hacks down below.
         self._pi3hat_device = next(iter(
-            [x for x in self._devices
+            [x for x in (self._devices + self._parent_devices)
              if type(x).__name__ == 'Pi3HatDevice']),
             None)
 
@@ -169,31 +176,36 @@ class Transport:
         if channel is not None:
             return [channel]
 
+        # Make a DeviceAddress version to use everywhere here.
+        cmd_destination = (
+            cmd.destination
+            if not isinstance(cmd.destination, int) else
+            DeviceAddress(can_id=cmd.destination))
+
         # If this is a broadcast request, then we are going to send to
         # everything.
-        if ((isinstance(cmd.destination, int) and cmd.destination == 0x7f) or
-            (isinstance(cmd.destination, DeviceAddress) and cmd.destination.can_id == 0x7f)):
+        if (cmd_destination.can_id == 0x7f):
             return self._devices
 
         # We have multiple devices, and we don't know which one has
         # this destination.  First check the cache.
 
-        maybe_device = self._arp_table.get(cmd.destination, None)
+        maybe_device = self._routing_table.get(cmd_destination, None)
         if maybe_device is not None:
             return [maybe_device]
 
         # Emit a simple time-limited request on all interfaces to see
         # where it responds and save that result.
         discover_command = command.Command()
-        discover_command.destination = cmd.destination
+        discover_command.destination = cmd_destination
         discover_command.source = cmd.source
         discover_command.reply_required = True
         discover_command.can_prefix = cmd.can_prefix
         discover_command.arbitration_id = None
 
-        if cmd.destination.can_id is None:
+        if (cmd_destination.can_id is None):
             # We need to request only this UUID to respond.
-            discover_command.data = make_uuid_prefix(cmd.destination)
+            discover_command.data = make_uuid_prefix(cmd_destination)
 
         discover_command.data += bytes([0x50])
 
@@ -220,11 +232,11 @@ class Transport:
 
         # Ideally, we have a single result here.
         if len(results) < 1:
-            raise RuntimeError(f'{cmd.destination} not found on any CAN bus')
+            raise RuntimeError(f'{cmd_destination} not found on any CAN bus')
         if len(results) > 1:
-            raise RuntimeError(f'More than one {cmd.destination} found across connected CAN busses {results}')
+            raise RuntimeError(f'More than one {cmd_destination} found across connected CAN busses {results}')
 
-        self._arp_table[cmd.destination] = results[0].channel
+        self._routing_table[cmd_destination] = results[0].channel
         return [results[0].channel]
 
     def _make_canid(self, device_address):

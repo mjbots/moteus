@@ -18,6 +18,7 @@ controller."""
 ALL = [
     'aiostream',
     'make_transport_args', 'get_singleton_transport',
+    'DeviceAddress', 'DeviceInfo',
     'Frame', 'FrameFilter', 'TransportDevice',
     'Fdcanusb', 'FdcanusbDevice', 'Controller', 'Register', 'Transport', 'TransportWrapper',
     'PythonCan', 'PythonCanDevice',
@@ -29,6 +30,7 @@ ALL = [
     'RegisterParser', 'QueryParser',
 ]
 from moteus.command import Command
+from moteus.device_info import DeviceAddress, DeviceInfo
 from moteus.fdcanusb import Fdcanusb
 from moteus.fdcanusb_device import FdcanusbDevice
 from moteus.transport import Transport

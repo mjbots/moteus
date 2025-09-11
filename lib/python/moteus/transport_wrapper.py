@@ -22,9 +22,8 @@ class TransportWrapper:
     """Compatibility base class to implement old-style transports with
     a new TransportDevice."""
 
-    def __init__(self, device):
-        self._device = device
-        self._transport = Transport(device)
+    def __init__(self, devices, routing_table={}):
+        self._transport = Transport(devices, routing_table=routing_table)
 
     async def __aenter__(self):
         return self
