@@ -278,6 +278,10 @@ class FdcanusbDevice(TransportDevice):
 
             async def handler(frame, request=request, future=future):
                 if future.done():
+                    # Stick it in our receive queue so that it isn't
+                    # lost.
+                    self._receive_queue.append(frame)
+
                     return
 
                 request.responses.append(frame)
