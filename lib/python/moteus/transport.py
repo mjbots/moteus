@@ -176,6 +176,12 @@ class Transport:
         if channel is not None:
             return [channel]
 
+        # For legacy support, we may have a 'bus' attribute on the
+        # command.
+        if getattr(cmd, 'bus', None) is not None:
+            return [d for d in self._devices
+                    if hasattr(d, 'bus') and d.bus() == cmd.bus]
+
         # Make a DeviceAddress version to use everywhere here.
         cmd_destination = (
             cmd.destination
@@ -282,7 +288,7 @@ class Transport:
              self._make_canid(command.destination) == 0x7f) and
             (f.arbitration_id & 0x7f) == command.source)
 
-    async def _cycle_batch(self, commands, request_attitude):
+    async def _cycle_batch(self, commands, request_attitude, force_can_check):
         # Group requests by device.  This is a map from device to:
         #  (TransportDevice.Request)
         device_requests = {}
@@ -332,7 +338,9 @@ class Transport:
         device_list = []
         for device, request_list in device_requests.items():
             tasks.append(device.transaction(
-                request_list, request_attitude=True))
+                request_list,
+                request_attitude=request_attitude,
+                force_can_check=force_can_check))
             device_list.append(device)
 
         # Wait for all transports to complete.
@@ -354,9 +362,22 @@ class Transport:
 
         return responses
 
-    async def cycle(self, commands, request_attitude=False):
+    async def cycle(self, commands,
+                    request_attitude=False,
+                    force_can_check=None):
+        """Args:
+
+          request_attitude: This is present to allow producing IMU
+            data in the same SPI cycle as CAN data with an mjbots
+            pi3hat.
+
+          force_can_check: A bitfield to force the pi3hat to check
+            specific CAN ports.
+        """
         results = await self._cycle_batch(
-            commands, request_attitude=request_attitude)
+            commands,
+            request_attitude=request_attitude,
+            force_can_check=force_can_check)
         return results
 
     async def write(self, command):
