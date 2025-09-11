@@ -109,6 +109,16 @@ class Transport:
 
         self._arp_table = {}
 
+        # This will hold frames that were received, but we could not
+        # yet deliver them to the client because the calls were
+        # cancelled.  They will be delivered during calls to .read(),
+        # if any are made.
+        self._cancelled_queue = []
+
+        # So that the queue does not grow without bound, we limit it
+        # to this many frames.
+        self._cancel_queue_max_size = 100
+
     def count(self):
         return len(self._devices)
 
@@ -117,6 +127,11 @@ class Transport:
 
     def __exit__(self, type, value, traceback):
         self.close()
+
+    def _add_cancelled_frames(self, to_add):
+        self._cancelled_queue.extend(to_add)
+        while len(self._cancelled_queue) > self._cancel_queue_max_size:
+            self._cancel_queue_max_size.pop(0)
 
     def close(self):
         for device in self._devices:
@@ -288,6 +303,10 @@ class Transport:
         # Wait for all transports to complete.
         await asyncio.gather(*tasks)
 
+        # We don't care as much about dropping results in the event of
+        # a cancellation here in .cycle.  '.cycle' will mostly be used
+        # with register mode commands which are stateless anyways.
+
         responses = []
         for request in itertools.chain(
                 *[request_list for _, request_list in device_requests.items()]):
@@ -313,7 +332,20 @@ class Transport:
                      for device in devices]
             await asyncio.gather(*tasks)
 
+    def _add_task_results_to_cancel_queue(self, tasks):
+        to_add = []
+        for task in tasks:
+            try:
+                to_add.append(task.result())
+            except:
+                pass
+
+        self._add_cancelled_frames(to_add)
+
     async def read(self, channel=None):
+        if self._cancelled_queue:
+            return self._cancelled_queue.pop(0)
+
         if len(self._devices) == 1:
             return await self._devices[0].receive_frame()
 
@@ -330,26 +362,60 @@ class Transport:
             done, pending = await asyncio.wait(
                 tasks,
                 return_when=asyncio.FIRST_COMPLETED)
-        finally:
-            # Ensure that all our tasks are fully done when we leave,
-            # which can happen early as a result of a timeout.
-            cancel_succeeded = [x.cancel() for x in tasks]
-            try:
-                await asyncio.shield(
-                    asyncio.gather(*tasks, return_exceptions=True))
-            except asyncio.CancelledError:
-                # If we are cancelled, we still need to wait for all
-                # of our child tasks to complete their cancellation.
-                await asyncio.shield(
-                    asyncio.gather(*tasks, return_exceptions=True))
+        except asyncio.CancelledError:
+            # NOTE: We *really* don't want to let frames get lost here
+            # in .read().  Unfortunately, since cancellation
+            # exceptions can be thrown from nearly everything, it is
+            # really hard to ensure that any received frames are not
+            # accidentally discarded.  So, we jump through many hoops,
+            # including this 'except' block, the 'finally' block and
+            # its sub-try/except.
 
-                # Now let our cancellation make it back up.
+            # Some of our tasks may have still completed.  We should
+            # save those so that we can return them later.
+            done_tasks = [x for x in tasks if x.done()]
+            self._add_task_results_to_cancel_queue(done_tasks)
+
+            raise
+        finally:
+            # Ensure that all our tasks are either done or cancelled.
+            not_done_tasks = [x for x in tasks if not x.done()]
+            _ = [x.cancel() for x in not_done_tasks]
+
+            try:
+                # We have to wait on those tasks for their
+                # cancellation to become final.
+                results = await asyncio.shield(
+                    asyncio.gather(*not_done_tasks, return_exceptions=True))
+
+                # We are not exiting ourselves, so limit our cancel
+                # add to those things that were not done in the main
+                # area.
+                self._add_cancelled_frames([x for x in results
+                                            if isinstance(x, Frame)])
+            except asyncio.CancelledError:
+                # However, while 'shield' will stop further
+                # cancellations from making into our child tasks, we
+                # may still be cancelled during this time.  If that
+                # happens, we need to try again.
+                await asyncio.shield(
+                    asyncio.gather(*not_done_tasks, return_exceptions=True))
+
+                # We are definitely going to die, so we need to get
+                # *everything* from tasks.
+                self._add_task_results_to_cancel_queue(tasks)
+
+                # Now let our own cancellation make it back up.
                 raise
 
         results = [x.result() for x in done]
-        assert(len(results) == 1)
-        return results[0]
+        if len(results) > 1:
+            self._add_cancelled_frames(results[1:])
+            del results[1:]
 
+        assert(len(results) == 1)
+
+        return results[0]
 
     async def flush_read_queue(self, timeout=0.1, channel=None):
         """Flush any pending receive frames.
