@@ -19,7 +19,7 @@ ALL = [
     'aiostream',
     'make_transport_args', 'get_singleton_transport',
     'Frame', 'FrameFilter', 'TransportDevice',
-    'Fdcanusb', 'FdcanusbDevice', 'Controller', 'Register', 'Transport',
+    'Fdcanusb', 'FdcanusbDevice', 'Controller', 'Register', 'Transport', 'TransportWrapper',
     'PythonCan', 'PythonCanDevice',
     'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'CommandError',
     'Stream',
@@ -32,6 +32,7 @@ from moteus.command import Command
 from moteus.fdcanusb import Fdcanusb
 from moteus.fdcanusb_device import FdcanusbDevice
 from moteus.transport import Transport
+from moteus.transport_wrapper import TransportWrapper
 from moteus.pythoncan import PythonCan
 from moteus.pythoncan_device import PythonCanDevice
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE,
