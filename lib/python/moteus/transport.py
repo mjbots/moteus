@@ -333,6 +333,21 @@ class Transport:
 
             device_requests[self._pi3hat_device].append(attitude_request)
 
+        if force_can_check != 0 and self._pi3hat_device:
+            # This is another compatibility hack for the pi3hat.
+            for bus in range(1, 6):
+                if ((1 << bus) & force_can_check) == 0:
+                    continue
+
+                force_request = TransportDevice.Request(
+                    frame=None,
+                    frame_filter=lambda x: True)
+
+                if self._pi3hat_device not in device_requests:
+                    device_requests[self._pi3hat_device] = []
+
+                device_requests[self._pi3hat_device].append(force_request)
+
         # Perform batch transactions in parallel for all devices.
         tasks = []
         device_list = []
