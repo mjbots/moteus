@@ -68,18 +68,15 @@ class TransportDevice:
         raise NotImplementedError()
 
     async def receive_frame(self) -> Frame:
-        if self._receive_queue:
-            return self._receive_queue.pop(0)
-
         while True:
+            if self._receive_queue:
+                return self._receive_queue.pop(0)
+
             try:
                 waiter = asyncio.Future()
                 self._receive_waiters.append(waiter)
 
                 await waiter
-
-                if self._receive_queue:
-                    return self._receive_queue.pop(0)
             finally:
                 self._receive_waiters = [w for w in self._receive_waiters
                                          if w != waiter]
