@@ -23,4 +23,4 @@ fd = open(sys.argv[1])
 out = open(sys.argv[2], "w")
 while True:
     line = fd.readline().strip()
-    print(f'{time.time()} {line}', file=out)
+    print(f'{time.time():.6f} {line}', file=out)
