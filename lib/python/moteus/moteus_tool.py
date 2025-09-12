@@ -773,7 +773,7 @@ async def _copy_stream(inp, out):
         data = await inp.read(4096, block=False)
         if len(data) == 0:
             # EOF
-            exit(0)
+            sys.exit(0)
         out.write(data)
         await out.drain()
 
@@ -2169,6 +2169,7 @@ class Runner:
             print()
             for x in not_addressable:
                 print(f' * {x}')
+            sys.exit(1)
 
         return [x.address for x in discovered]
 
