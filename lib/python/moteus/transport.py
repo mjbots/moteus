@@ -308,6 +308,12 @@ class Transport:
             is_fd=True,
             bitrate_switch=True)
 
+    def _fix_result_frame(self, frame):
+        if getattr(frame, 'channel', None):
+            frame.bus = frame.channel
+
+        return frame
+
     def _make_response_filter(self, command):
         if getattr(command, 'raw', False):
             # For raw commands, accept any response.  In practice,
@@ -413,7 +419,7 @@ class Transport:
                         hasattr(request.command, 'parse'))
                     else frame)
 
-        return responses
+        return [self._fix_result_frame(f) for f in responses]
 
     async def cycle(self, commands,
                     request_attitude=False,
@@ -476,14 +482,14 @@ class Transport:
             TransportDevice.
         """
         if self._cancelled_queue:
-            return self._cancelled_queue.pop(0)
+            return self._fix_result_frame(self._cancelled_queue.pop(0))
 
         if len(self._devices) == 1:
-            return await self._devices[0].receive_frame()
+            return self._fix_result_frame(await self._devices[0].receive_frame())
 
         if channel is not None:
             assert channel in self._devices
-            return await channel.receive_frame()
+            return self._fix_result_frame(await channel.receive_frame())
 
         try:
             # Only invoke one receive_frame per parent.
@@ -547,7 +553,7 @@ class Transport:
 
         assert(len(results) == 1)
 
-        return results[0]
+        return self._fix_result_frame(results[0])
 
     async def flush_read_queue(self, timeout=0.1, channel=None):
         """Flush any pending receive frames.

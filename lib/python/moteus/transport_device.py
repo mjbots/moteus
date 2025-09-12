@@ -30,6 +30,11 @@ class Frame:
     on, or should be transmitted to.'''
     channel: typing.Any = None
 
+    # This is a compatibility alias for channel that will be removed
+    # in a future version.  It will only be set from calls to
+    # 'Transport.cycle' or 'Transport.read'
+    bus: typing.Any = None
+
 
 FrameFilter = typing.Callable[[Frame], bool]
 
