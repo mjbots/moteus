@@ -356,6 +356,8 @@ enum class Register {
   kUuidMask2 = 0x155,
   kUuidMask3 = 0x156,
   kUuidMask4 = 0x157,
+
+  kUuidMaskCapable = 0x158,
 };
 
 aux::AuxHardwareConfig GetAux1HardwareConfig() {
@@ -822,6 +824,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kUuid2:
       case Register::kUuid3:
       case Register::kUuid4:
+      case Register::kUuidMaskCapable:
       case Register::kRegisterMapVersion:
       case Register::kFirmwareVersion:
       case Register::kMultiplexId:
@@ -1165,6 +1168,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             (static_cast<int>(reg) -
              static_cast<int>(Register::kUuid1)) * 4;
         return Value(*(reinterpret_cast<const int32_t*>(&uuid[index])));
+      }
+      case Register::kUuidMaskCapable: {
+        return IntMapping(1, type);
       }
       case Register::kMultiplexId: {
         break;

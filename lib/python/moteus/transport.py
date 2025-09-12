@@ -46,6 +46,11 @@ def _make_uuid_query():
         mp.INT32,  # UUID2
         mp.INT32,  # UUID3
         mp.INT32,  # UUID4
+        mp.IGNORE, # UUID1_MASK
+        mp.IGNORE, # UUID2_MASK
+        mp.IGNORE, # UUID3_MASK
+        mp.IGNORE, # UUID4_MASK
+        mp.INT8,   # UUID_MASK_CAPABLE
     ])
 
     expected_reply_size = 0
@@ -65,6 +70,8 @@ def _extract_uuid_from_result(result):
 
     Returns:
         16-byte UUID as bytes, or None if UUID registers not present
+        or UUID mask not capable
+
     """
     if not hasattr(result, 'values') or not result.values:
         return None
@@ -72,14 +79,17 @@ def _extract_uuid_from_result(result):
     values = result.values
 
     # Check if all UUID registers are present
-    uuid_regs = [Register.UUID1, Register.UUID2, Register.UUID3, Register.UUID4]
+    uuid_regs = [Register.UUID1, Register.UUID2, Register.UUID3, Register.UUID4, Register.UUID_MASK_CAPABLE]
     if not all(reg in values for reg in uuid_regs):
+        return None
+
+    if values[Register.UUID_MASK_CAPABLE] == 0:
         return None
 
     # Combine the 4 32-bit values into a 16-byte UUID
     # Each register is stored as little-endian 32-bit integer
     uuid_bytes = b''
-    for reg in uuid_regs:
+    for reg in uuid_regs[0:4]:
         # Convert signed int to unsigned int for packing
         val = int(values[reg])
         if val < 0:

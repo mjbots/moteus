@@ -1343,6 +1343,13 @@ If one or more of these fields are written, then the entire frame
 after this point will be discarded unless the devices corresponding
 UUID matches what was written.
 
+#### 0x158 ####
+
+Name: UUID Filter capable
+Mode: Read only
+
+Returns non-zero if the UUID mask is usable.
+
 ## A.3 Example ##
 
 A single CAN-FD frame can be used to command the servo, and initiate a

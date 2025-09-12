@@ -167,6 +167,8 @@ class Register(enum.IntEnum):
     UUID_MASK3 = 0x0156
     UUID_MASK4 = 0x0157
 
+    UUID_MASK_CAPABLE = 0x0158
+
 
 class Mode(enum.IntEnum):
     """Valid values for the Register.MODE register"""
