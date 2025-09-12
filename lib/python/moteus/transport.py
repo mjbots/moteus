@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import asyncio
+import collections
 import io
 import itertools
 import struct
@@ -131,6 +132,9 @@ class Transport:
             [x for x in (self._devices + self._parent_devices)
              if type(x).__name__ == 'Pi3HatDevice']),
             None)
+
+    def devices(self):
+        return self._devices
 
     def count(self):
         return len(self._devices)
@@ -288,10 +292,11 @@ class Transport:
              self._make_canid(command.destination) == 0x7f) and
             (f.arbitration_id & 0x7f) == command.source)
 
-    async def _cycle_batch(self, commands, request_attitude, force_can_check):
+    async def _cycle_batch(self, commands, request_attitude,
+                           read_unsolicited, force_can_check):
         # Group requests by device.  This is a map from device to:
         #  (TransportDevice.Request)
-        device_requests = {}
+        device_requests = collections.defaultdict(list)
 
         for i, command in enumerate(commands):
             frame = self._command_to_frame(command)
@@ -305,9 +310,6 @@ class Transport:
 
                 to_send_device = maybe_parent or device
 
-                if to_send_device not in device_requests:
-                    device_requests[to_send_device] = []
-
                 request = TransportDevice.Request(
                     frame=frame,
                     child_device=device if maybe_parent else None,
@@ -316,6 +318,17 @@ class Transport:
                 request.command = command
 
                 device_requests[to_send_device].append(request)
+
+        if read_unsolicited:
+            for device in read_unsolicited:
+                maybe_parent = device.parent()
+                to_send_device = maybe_parent or device
+
+                device_requests[to_send_device].append(
+                    TransportDevice.Request(
+                        frame=None,
+                        child_device=device if maybe_parent else None,
+                        frame_filter=lambda x: True))
 
         if request_attitude and self._pi3hat_device:
             # This is a compatibility/performance hack that only works
@@ -327,9 +340,6 @@ class Transport:
             attitude_request = TransportDevice.Request(
                 frame=None,
                 frame_filter=lambda frame: frame.arbitration_id == -1)
-
-            if self._pi3hat_device not in device_requests:
-                device_requests[self._pi3hat_device] = []
 
             device_requests[self._pi3hat_device].append(attitude_request)
 
@@ -344,9 +354,6 @@ class Transport:
                 force_request = TransportDevice.Request(
                     frame=None,
                     frame_filter=lambda x: True)
-
-                if self._pi3hat_device not in device_requests:
-                    device_requests[self._pi3hat_device] = []
 
                 device_requests[self._pi3hat_device].append(force_request)
 
@@ -381,20 +388,32 @@ class Transport:
 
     async def cycle(self, commands,
                     request_attitude=False,
+                    read_unsolicited=None,
                     force_can_check=None):
-        """Args:
+        """Issue all commands, returning any resulting frames.
+
+        Args:
 
           request_attitude: This is present to allow producing IMU
             data in the same SPI cycle as CAN data with an mjbots
             pi3hat.
 
-          force_can_check: A bitfield to force the pi3hat to check
-            specific CAN ports.
+          read_unsolicited: An optional list of TransportDevices, for
+            which any available unsolicited CAN frames should be
+            returned.  If specified on a TransportDevice where moteus
+            controllers are commanded, this may result in duplicate
+            frame receipts.
+
+          force_can_check: A bitfield to force a connected pi3hat to
+            check specific CAN ports.  Modern code should instead use
+            the read_unsolicited kwargs.
+
         """
         results = await self._cycle_batch(
             commands,
             request_attitude=request_attitude,
-            force_can_check=force_can_check)
+            force_can_check=force_can_check,
+            read_unsolicited=read_unsolicited)
         return results
 
     async def write(self, command):
@@ -418,6 +437,15 @@ class Transport:
         self._add_cancelled_frames(to_add)
 
     async def read(self, channel=None):
+        """Wait for one or more frames to be received.
+
+        This can be used to receive unsolicited data.
+
+        Args:
+
+          channel: If specified, only read from the given
+            TransportDevice.
+        """
         if self._cancelled_queue:
             return self._cancelled_queue.pop(0)
 
