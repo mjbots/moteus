@@ -58,6 +58,16 @@ class TransportDevice:
     def close(self):
         pass
 
+    def empty_bus_tx_safe(self):
+        """Return True if it is safe to send frames to this
+        TransportDevice if no physical hardware is connected.
+
+        It is implied that if False, then attempts should not be made
+        to discover devices attached to it, and broadcast frames
+        should not be sent to it.
+        """
+        raise NotImplementedError()
+
     def __enter__(self):
         return self
 

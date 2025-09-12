@@ -115,6 +115,9 @@ class FdcanusbDevice(TransportDevice):
 
         self._running = False
 
+    def empty_bus_tx_safe(self):
+        return True
+
     async def __aenter__(self):
         return self
 

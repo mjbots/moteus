@@ -125,7 +125,27 @@ class Transport:
         self._parent_devices = list(set(
             [d.parent() or d for d in self._devices]))
 
-        self._routing_table = routing_table
+        # This is necessary for some compatibility hacks down below.
+        self._pi3hat_device = next(iter(
+            [x for x in (self._devices + self._parent_devices)
+             if type(x).__name__ == 'Pi3HatDevice']),
+            None)
+
+        if (self._pi3hat_device and
+            self._pi3hat_device.servo_bus_map and
+            not routing_table):
+            # Attempt to construct an appropriate routing table.
+            children = {
+                d.bus() : d
+                for d in self._devices
+                if type(d).__name__ == 'Pi3HatChildDevice'
+            }
+            self._routing_table = {}
+            for bus, id_list in self._pi3hat_device.servo_bus_map.items():
+                for id in id_list:
+                    self._routing_table[DeviceAddress(can_id=id)] = children[bus]
+        else:
+            self._routing_table = routing_table
 
         # This will hold frames that were received, but we could not
         # yet deliver them to the client because the calls were
@@ -137,11 +157,6 @@ class Transport:
         # to this many frames.
         self._cancel_queue_max_size = 100
 
-        # This is necessary for some compatibility hacks down below.
-        self._pi3hat_device = next(iter(
-            [x for x in (self._devices + self._parent_devices)
-             if type(x).__name__ == 'Pi3HatDevice']),
-            None)
 
     def devices(self):
         return self._devices
@@ -205,7 +220,8 @@ class Transport:
         # If this is a broadcast request, then we are going to send to
         # everything.
         if (cmd_destination.can_id == 0x7f):
-            return self._devices
+            return [d for d in self._devices
+                    if d.empty_bus_tx_safe()]
 
         # We have multiple devices, and we don't know which one has
         # this destination.  First check the cache.
@@ -214,8 +230,8 @@ class Transport:
         if maybe_device is not None:
             return [maybe_device]
 
-        # Emit a simple time-limited request on all interfaces to see
-        # where it responds and save that result.
+        # Emit a simple time-limited request on all supported
+        # interfaces to see where it responds and save that result.
         discover_command = command.Command()
         discover_command.destination = cmd_destination
         discover_command.source = cmd.source
@@ -235,6 +251,8 @@ class Transport:
         # Send the frames.
         frame = self._command_to_frame(discover_command)
         for device in self._devices:
+            if not device.empty_bus_tx_safe():
+                continue
             await device.send_frame(frame)
 
         # Read everything.  If the system is consistent, we should
@@ -244,6 +262,7 @@ class Transport:
         tasks = [
             self._read_frames_until_timeout(device, end_time)
             for device in self._devices
+            if device.empty_bus_tx_safe()
         ]
         result_lists = await asyncio.gather(*tasks)
         results = []
@@ -597,7 +616,7 @@ class Transport:
 
     async def discover(self, can_prefix=0, source=0, timeout=0.2):
         """Discover all controllers attached to any included
-        TransportDevices.
+        TransportDevices which support discovery.
 
         Returns:
             A list of DeviceInfo structures containing the CAN ID,
@@ -624,6 +643,8 @@ class Transport:
         frame = self._command_to_frame(broadcast_cmd)
 
         for device in self._devices:
+            if not device.empty_bus_tx_safe():
+                continue
             await device.send_frame(frame)
 
         discovered_controllers = []
@@ -632,6 +653,8 @@ class Transport:
         # Collect from all transport devices in parallel.
         tasks = []
         for device in self._devices:
+            if not device.empty_bus_tx_safe():
+                continue
             tasks.append(self._read_frames_until_timeout(
                 device, start_time + timeout))
 

@@ -102,6 +102,9 @@ class PythonCanDevice(TransportDevice):
 
         self._can.shutdown()
 
+    def empty_bus_tx_safe(self):
+        return True
+
     def _maybe_setup(self):
         if self._setup:
             return
