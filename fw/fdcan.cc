@@ -223,8 +223,10 @@ void FDCan::Init() {
           }
           mbed_die();
         }();
-        sFilterConfig.FilterID1 = filter.id1;
-        sFilterConfig.FilterID2 = filter.id2;
+        const uint32_t mask =
+            filter.type == FilterType::kStandard ? 0x7FF : 0x1FFFFFFF;
+        sFilterConfig.FilterID1 = filter.id1 & mask;
+        sFilterConfig.FilterID2 = filter.id2 & mask;
 
         if (HAL_FDCAN_ConfigFilter(&can, &sFilterConfig) != HAL_OK)
         {
