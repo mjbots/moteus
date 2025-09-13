@@ -267,39 +267,65 @@ int main(void) {
       &pool, &command_manager, &telemetry_manager, &multiplex_protocol,
       moteus_controller.bldc_servo());
 
-  persistent_config.Register("id", multiplex_protocol.config(), [](){});
-
   GitInfo git_info;
   telemetry_manager.Register("git", &git_info);
 
   CanConfig can_config, old_can_config;
 
-  persistent_config.Register(
-      "can", &can_config,
-      [&can_config, &fdcan, &fdcan_micro_server, &old_can_config]() {
+  // We always want to update our filters at least once.
+  uint8_t old_multiplex_id = 255;
+
+  const auto maybe_update_filters =
+      [&can_config, &fdcan, &fdcan_micro_server, &old_can_config,
+       &old_multiplex_id, &multiplex_protocol]() {
         // We only update our config if it has actually changed.
         // Re-initializing the CAN-FD controller can cause packets to
         // be lost, so don't do it unless actually necessary.
-        if (can_config == old_can_config) {
+        if (can_config == old_can_config &&
+            multiplex_protocol.config()->id == old_multiplex_id) {
           return;
         }
         old_can_config = can_config;
+        old_multiplex_id = multiplex_protocol.config()->id;
 
-        FDCan::Filter filters[1] = {};
-        filters[0].id1 = can_config.prefix << 16;
-        filters[0].id2 = 0x1fff0000u;
+        FDCan::Filter filters[4] = {};
+        filters[0].id1 = (can_config.prefix << 16) | old_multiplex_id;
+        filters[0].id2 = 0x1fff00ffu;
         filters[0].mode = FDCan::FilterMode::kMask;
         filters[0].action = FDCan::FilterAction::kAccept;
         filters[0].type = FDCan::FilterType::kExtended;
+
+        filters[1].id1 = (can_config.prefix << 16) | 0x7f;
+        filters[1].id2 = 0x1fff00ffu;
+        filters[1].mode = FDCan::FilterMode::kMask;
+        filters[1].action = FDCan::FilterAction::kAccept;
+        filters[1].type = FDCan::FilterType::kExtended;
+
+        filters[2].id1 = (can_config.prefix << 16) | old_multiplex_id;
+        filters[2].id2 = 0x1fff00ffu;
+        filters[2].mode = FDCan::FilterMode::kMask;
+        filters[2].action = FDCan::FilterAction::kAccept;
+        filters[2].type = FDCan::FilterType::kStandard;
+
+        filters[3].id1 = (can_config.prefix << 16) | 0x7f;
+        filters[3].id2 = 0x1fff00ffu;
+        filters[3].mode = FDCan::FilterMode::kMask;
+        filters[3].action = FDCan::FilterAction::kAccept;
+        filters[3].type = FDCan::FilterType::kStandard;
+
         FDCan::FilterConfig filter_config;
         filter_config.begin = std::begin(filters);
         filter_config.end = std::end(filters);
-        filter_config.global_std_action = FDCan::FilterAction::kAccept;
+        filter_config.global_std_action = FDCan::FilterAction::kReject;
         filter_config.global_ext_action = FDCan::FilterAction::kReject;
         fdcan.ConfigureFilters(filter_config);
 
         fdcan_micro_server.SetPrefix(can_config.prefix);
-      });
+      };
+
+  persistent_config.Register("id", multiplex_protocol.config(), maybe_update_filters);
+
+  persistent_config.Register("can", &can_config, maybe_update_filters);
 
   persistent_config.Load();
 
