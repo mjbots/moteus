@@ -52,7 +52,7 @@ class DeviceInfo:
         return f'DeviceInfo(can_id={self.can_id}, uuid={uuid_bytes}, td={self.transport_device})'
 
     def _cmp_key(self):
-        return (self.can_id, self.uuid or b'', self.transport_device)
+        return (self.can_id, self.uuid or b'')
 
     def __lt__(self, other):
         if not isinstance(other, DeviceInfo):
