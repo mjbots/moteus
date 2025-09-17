@@ -197,7 +197,7 @@ class Transport:
                 break
         return results
 
-    async def _get_devices_for_command(self, cmd):
+    async def _get_devices_for_command(self, cmd, timeout=0.1):
         if len(self._devices) == 1:
             return self._devices
 
@@ -258,7 +258,7 @@ class Transport:
         # Read everything.  If the system is consistent, we should
         # only get one response across all devices.
         start_time = asyncio.get_event_loop().time()
-        end_time = start_time + 0.1
+        end_time = start_time + timeout
         tasks = [
             self._read_frames_until_timeout(device, end_time)
             for device in self._devices
