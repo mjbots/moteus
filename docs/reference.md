@@ -2082,7 +2082,7 @@ Selects what functionality will be used on the given pin.
 * 12 - RC PWM (not implemented)
 * 13 - I2C
 * 14 - Digital input
-* 15 - Digital output (not implemented)
+* 15 - Digital output
 * 16 - Analog input
 * 17 - PWM output
 
