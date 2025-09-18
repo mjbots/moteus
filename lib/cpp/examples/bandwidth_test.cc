@@ -92,6 +92,13 @@ int main(int argc, char** argv) {
   std::vector<moteus::CanFdFrame> send_frames;
   std::vector<moteus::CanFdFrame> receive_frames;
 
+  // Start by sending a stop command.
+  for (auto& c : controllers) {
+    send_frames.push_back(c->MakeStop());
+  }
+  transport->BlockingCycle(&send_frames[0], send_frames.size(),
+                           &receive_frames);
+
   moteus::PositionMode::Command cmd;
   cmd.position = NaN;
   cmd.velocity = 0.0;
