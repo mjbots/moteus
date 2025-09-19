@@ -227,6 +227,8 @@ enum Register : uint16_t {
 
   kDriverFault1 = 0x140,
   kDriverFault2 = 0x141,
+
+  kCommandDAxisCurrent = 0x160,
 };
 
 enum class Mode {
@@ -703,6 +705,8 @@ struct Query {
       { R::kDriverFault1, 2, MP::kInt, },
       // { R::kDriverFault2, 1, MP::kInt, },
 
+      { R::kCommandDAxisCurrent, 1, MP::kCurrent, },
+
 #ifndef ARDUINO
     };
 #else
@@ -860,6 +864,7 @@ struct PositionMode {
     double ilimit_scale = 1.0;
     double fixed_current_override = NaN;
     double ignore_position_bounds = 0.0;
+    double d_axis_current = 0.0;
   };
 
   struct Format {
@@ -877,6 +882,7 @@ struct PositionMode {
     Resolution ilimit_scale = kIgnore;
     Resolution fixed_current_override = kIgnore;
     Resolution ignore_position_bounds = kIgnore;
+    Resolution d_axis_current = kIgnore;
   };
 
   static uint8_t Make(WriteCanData* frame,
@@ -954,6 +960,28 @@ struct PositionMode {
     if (combiner.MaybeWrite()) {
       frame->WriteInt(command.ignore_position_bounds,
                       format.ignore_position_bounds);
+    }
+
+    {
+      const Resolution kExtraResolutions[] = {
+        format.d_axis_current,
+      };
+      const bool any_extra = [&]() {
+        for (const auto& res : kExtraResolutions) {
+          if (res != kIgnore) { return true; }
+        }
+        return false;
+      }();
+      if (any_extra) {
+        WriteCombiner extra_combiner(
+            frame, 0x00,
+            Register::kCommandDAxisCurrent,
+            kExtraResolutions,
+            sizeof(kExtraResolutions) / sizeof(*kExtraResolutions));
+        if (extra_combiner.MaybeWrite()) {
+          frame->WriteCurrent(command.d_axis_current, format.d_axis_current);
+        }
+      }
     }
     return 0;
   }

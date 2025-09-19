@@ -107,6 +107,10 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
         command->ignore_position_bounds = value != 0.0f;
         break;
       }
+      case 'D': {
+        command->d_axis_current = value;
+        break;
+      }
       default: {
         return false;
       }
@@ -694,7 +698,7 @@ class BoardDebug::Impl {
       // We default to no timeout for debug commands.
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pdisftavocb")) {
+      if (!ParseOptions(&command, &tokenizer, "pdisftavocbD")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }
@@ -733,7 +737,7 @@ class BoardDebug::Impl {
       BldcServo::CommandData command;
       command.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
-      if (!ParseOptions(&command, &tokenizer, "pditfb")) {
+      if (!ParseOptions(&command, &tokenizer, "pditfbD")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }

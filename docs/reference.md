@@ -1343,6 +1343,16 @@ If one or more of these fields are written, then the entire frame
 after this point will be discarded unless the devices corresponding
 UUID matches what was written.
 
+#### 0x160 - D Axis Current ####
+
+Name: D Axis Current
+Mode: Read/write
+
+In position or stay within mode, specify a desired non-zero D axis
+current.  This will likely become deprecated when field weakening
+support is officially added, and it is not recommended to use
+generally.
+
 ## A.3 Example ##
 
 A single CAN-FD frame can be used to command the servo, and initiate a
@@ -1474,6 +1484,7 @@ Each optional element consists of a prefix character followed by a value.  Permi
 - `c` - fixed current override: while in affect, treat the control
   like `fixed_voltage_mode`, but instead commanding a fixed current.
 - `b` - if non-zero, then ignore all `servopos` position bounds
+- `D` - the amount of D axis current to apply in A
 
 The position, velocity, maximum torque, and all optional fields have
 the same semantics as for the register protocol documented above.

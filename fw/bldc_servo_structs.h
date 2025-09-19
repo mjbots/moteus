@@ -328,6 +328,8 @@ struct BldcServoCommandData {
   float fixed_current_override = std::numeric_limits<float>::quiet_NaN();
   bool ignore_position_bounds = false;
 
+  float d_axis_current = 0.0f;
+
   float timeout_s = 0.0f;
 
   // For kStayWithinBounds
@@ -374,6 +376,7 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(fixed_voltage_override));
     a->Visit(MJ_NVP(fixed_current_override));
     a->Visit(MJ_NVP(ignore_position_bounds));
+    a->Visit(MJ_NVP(d_axis_current));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(bounds_min));
     a->Visit(MJ_NVP(bounds_max));

@@ -2222,10 +2222,11 @@ class BldcServo::Impl {
           status_.filt_1ms_bus_V - flux_brake_min_voltage_);
 
       if (error <= 0.0f) {
-        return 0.0f;
+        return data->d_axis_current;
       }
 
-      return (error / config_.flux_brake_resistance_ohm);
+      return data->d_axis_current +
+          (error / config_.flux_brake_resistance_ohm);
     }();
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE

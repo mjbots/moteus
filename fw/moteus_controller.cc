@@ -356,6 +356,8 @@ enum class Register {
   kUuidMask2 = 0x155,
   kUuidMask3 = 0x156,
   kUuidMask4 = 0x157,
+
+  kCommandDAxisCurrent = 0x160,
 };
 
 aux::AuxHardwareConfig GetAux1HardwareConfig() {
@@ -688,6 +690,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.ignore_position_bounds = ReadIntMapping(value);
         return 0;
       }
+      case Register::kCommandDAxisCurrent: {
+        command_.d_axis_current = ReadCurrent(value);
+        return 0;
+      }
       case Register::kStayWithinLower: {
         command_.bounds_min = ReadPosition(value);
         return 0;
@@ -971,6 +977,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kCommandIgnorePositionBounds:
       case Register::kStayWithinIgnorePositionBounds: {
         return IntMapping(command_.ignore_position_bounds ? 1 : 0, type);
+      }
+      case Register::kCommandDAxisCurrent: {
+        return ScaleCurrent(command_.d_axis_current, type);
       }
       case Register::kCommandFeedforwardTorque:
       case Register::kStayWithinFeedforward: {

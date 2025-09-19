@@ -295,6 +295,8 @@ class Register(enum.IntEnum):
     UUID_MASK3 = 0x0156
     UUID_MASK4 = 0x0157
 
+    COMMAND_D_AXIS_CURRENT = 0x160
+
 
 class Mode(enum.IntEnum):
     """Valid values for the Register.MODE register"""
@@ -364,6 +366,8 @@ class PositionResolution:
     ilimit_scale = mp.F32
     fixed_current_override = mp.F32
     ignore_position_bounds = mp.F32
+
+    d_axis_current = mp.F32
 
 
 class VFOCResolution:
@@ -1007,6 +1011,7 @@ class Controller:
                       ilimit_scale=None,
                       fixed_current_override=None,
                       ignore_position_bounds=None,
+                      d_axis_current=None,
                       query=False,
                       query_override=None):
         """Return a moteus.Command structure with data necessary to send a
@@ -1071,6 +1076,16 @@ class Controller:
             writer.write_current(fixed_current_override, pr.fixed_current_override)
         if combiner.maybe_write():
             writer.write_int(ignore_position_bounds, pr.ignore_position_bounds)
+
+        extra_resolutions = [
+            pr.d_axis_current if d_axis_current is not None else mp.IGNORE,
+        ]
+        if any([x != mp.IGNORE for x in extra_resolutions]):
+            extra_combiner = mp.WriteCombiner(
+                writer, 0, int(Register.COMMAND_D_AXIS_CURRENT), extra_resolutions)
+
+            if extra_combiner.maybe_write():
+                writer.write_current(d_axis_current, pr.d_axis_current)
 
         self._format_query(query, query_override, data_buf, result)
 
