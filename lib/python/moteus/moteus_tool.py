@@ -105,6 +105,14 @@ def stddev(data):
     mean = sum(data) / len(data)
     return math.sqrt(sum((x - mean) ** 2 for x in data) / len(data))
 
+
+class MoteusFault(RuntimeError):
+    def __init__(self, fault_code):
+        self.fault_code = fault_code
+        super(MoteusFault, self).__init__(
+            f"Controller reported fault: {int(self.fault_code)}")
+
+
 SUPPORTED_ABI_VERSION = 0x010c
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
@@ -1107,7 +1115,7 @@ class Stream:
     async def read_servo_stats(self):
         servo_stats = await self.read_data("servo_stats")
         if servo_stats.mode == 1:
-            raise RuntimeError(f"Controller reported fault: {int(servo_stats.fault)}")
+            raise MoteusFault(int(servo_stats.fault))
         return servo_stats
 
     async def check_for_fault(self):
@@ -1162,6 +1170,19 @@ class Stream:
             i += 1
 
     async def do_calibrate(self):
+        try:
+            await self.do_checked_calibrate()
+        except MoteusFault as mf:
+            if mf.fault_code == 33:
+                print()
+                print("*** FAILED: Gate driver fault (code=33) during calibration: ")
+                drv8323 = await self.read_data("drv8323")
+                print(json.dumps(_deep_asdict(drv8323), indent=2))
+                sys.exit(1)
+            else:
+                raise
+
+    async def do_checked_calibrate(self):
         self.firmware = await self.read_data("firmware")
 
         old_config = None
