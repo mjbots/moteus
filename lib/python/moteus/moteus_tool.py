@@ -18,6 +18,8 @@
 
 import argparse
 import asyncio
+import collections
+import collections.abc
 import datetime
 import elftools
 import elftools.elf.elffile
@@ -59,6 +61,22 @@ CURRENT_QUALITY_MIN = 20
 # We switch to voltage mode control if the ratio of maximum possible
 # current to current noise is less than this amount.
 VOLTAGE_MODE_QUALITY_MIN = 40
+
+
+def _deep_asdict(obj):
+    '''Convert a namedtuple recursively into a nested dictionary'''
+
+    if isinstance(obj, tuple) and hasattr(obj, "_fields"):
+        return {field: _deep_asdict(getattr(obj, field)) for field in obj._fields}
+
+    if isinstance(obj, collections.abc.Mapping):
+        return {k: _deep_asdict(v) for k, v in obj.items()}
+
+    if isinstance(obj, collections.abc.Sequence) and not isinstance(obj, (str, bytes, bytearray)):
+        return [_deep_asdict(x) for x in obj]
+
+    return obj
+
 
 def _wrap_neg_pi_to_pi(value):
     while value > math.pi:
@@ -985,6 +1003,10 @@ class Stream:
             for line in errors:
                 print(f" {line}")
             print()
+
+    async def do_read(self, channel):
+        result = await self.read_data(channel)
+        print(json.dumps(_deep_asdict(result), indent=2))
 
     async def do_flash(self, elffile):
         elf = _read_elf(elffile, [".text", ".ARM.extab", ".ARM.exidx",
@@ -2222,6 +2244,8 @@ class Runner:
             await stream.do_restore_config(self.args.restore_config)
         elif self.args.write_config:
             await stream.do_write_config(self.args.write_config)
+        elif self.args.read:
+            await stream.do_read(self.args.read)
         elif self.args.flash:
             await stream.do_flash(self.args.flash)
         elif self.args.calibrate:
@@ -2260,8 +2284,11 @@ async def async_main():
                        help='restore a config saved with --dump-config')
     group.add_argument('--write-config', metavar='FILE',
                        help='write the given configuration')
+    group.add_argument('-r', '--read', metavar='CHAN',
+                       help='report the diagnostic channel as JSON')
     group.add_argument('--flash', metavar='FILE',
                        help='write the given elf file to flash')
+
     parser.add_argument('--no-verify', action='store_true',
                         help='do not verify after flashing')
 
