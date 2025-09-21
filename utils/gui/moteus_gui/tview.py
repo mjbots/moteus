@@ -650,6 +650,13 @@ class Device:
         else:
             self.uuid_address = self.address
 
+        # Are we able to be addressed by UUID?
+        has_uuid_capability = self.uuid_address is not None
+
+        # Register UUID query completion with main window
+        await self._main_window.register_uuid_query_complete(
+            self, has_uuid_capability)
+
         await self.update_config()
         await self.update_telemetry()
 
@@ -708,9 +715,23 @@ class Device:
             # to do.
             return
 
+        # Wait for all devices to complete UUID queries if not done
+        if not self._main_window.uuid_query_event.is_set():
+            print("Waiting for all devices to complete UUID queries...")
+            await self._main_window.uuid_query_event.wait()
+
+        # Check if all devices on this transport support UUID
+        transport_device = self._main_window._get_transport_device(self.address)
+
+        if not self._main_window.can_use_uuid_on_transport(transport_device):
+            print(f"WARNING: Not all devices on transport {transport_device} support UUID addressing")
+            print(f"Device {self.address} will remain on CAN ID addressing and may become unreachable")
+            return
+
         await asyncio.sleep(0.1)
 
-        # Do our best to fix up all the necessary things.
+        # It is safe to switch to UUID based addressing.
+        print(f"Switching device {self.address} to UUID addressing: {self.uuid_address.uuid.hex()}")
         self.address = self.uuid_address
 
         self.controller = moteus.Controller(
@@ -1028,6 +1049,13 @@ class TviewMainWindow():
 
         self.user_task = None
 
+        # UUID coordination infrastructure
+        self.uuid_query_event = asyncio.Event()
+        self.uuid_query_count = 0
+        self.expected_device_count = 0
+        self.device_uuid_support = {}
+        self.uuid_query_lock = asyncio.Lock()
+
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
         uifilename = os.path.join(current_script_dir, "tview_main_window.ui")
 
@@ -1114,6 +1142,42 @@ class TviewMainWindow():
 
         return tree_key
 
+    def _init_uuid_coordination(self, device_count):
+        """Initialize UUID query coordination for a set of devices"""
+        self.expected_device_count = device_count
+
+    async def register_uuid_query_complete(self, device, has_uuid):
+        """Called by each device when UUID query completes"""
+        async with self.uuid_query_lock:
+            # Track device UUID capability
+            transport_device = self._get_transport_device(device.address)
+            if transport_device not in self.device_uuid_support:
+                self.device_uuid_support[transport_device] = []
+            self.device_uuid_support[transport_device].append((device, has_uuid))
+
+            # Update counter
+            self.uuid_query_count += 1
+
+            # Signal if all complete
+            if self.uuid_query_count >= self.expected_device_count:
+                self.uuid_query_event.set()
+
+    def _get_transport_device(self, address):
+        """Extract transport device from an address"""
+        if isinstance(address, int):
+            return None  # Default transport
+        elif hasattr(address, 'transport_device'):
+            return address.transport_device
+        return None
+
+    def can_use_uuid_on_transport(self, transport_device):
+        """Check if all devices on a transport support UUID"""
+        if transport_device not in self.device_uuid_support:
+            return False
+
+        devices_on_transport = self.device_uuid_support[transport_device]
+        return all(has_uuid for _, has_uuid in devices_on_transport)
+
     async def _populate_devices(self):
         self.devices = []
 
@@ -1134,6 +1198,9 @@ class TviewMainWindow():
 
         self.ui.configTreeWidget.clear()
         self.ui.telemetryTreeWidget.clear()
+
+        # Initialize UUID coordination for all devices
+        self._init_uuid_coordination(len(targets))
 
         device_count = 0
         source_can_id = 0x7d
