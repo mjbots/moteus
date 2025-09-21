@@ -107,6 +107,32 @@ def _has_nonascii(data):
     return any([ord(x) > 127 for x in data])
 
 
+def calculate_optimal_uuid_prefix(full_uuid, other_uuids):
+    """Pure function to find the shortest unique UUID prefix.
+
+    Args:
+        full_uuid: The full 16-byte UUID to find a prefix for
+        other_uuids: List of other UUIDs to check conflicts against
+
+    Returns:
+        The shortest unique prefix (4, 8, 12, or 16 bytes)
+    """
+    for prefix_len in [4, 8, 12, 16]:
+        proposed_prefix = full_uuid[:prefix_len]
+
+        # Check if this prefix conflicts with any other UUID
+        has_conflict = any(
+            other_uuid[:prefix_len] == proposed_prefix
+            for other_uuid in other_uuids
+        )
+
+        if not has_conflict:
+            return proposed_prefix
+
+    # Should never happen, but return full UUID as fallback
+    return full_uuid
+
+
 # TODO jpieper: Factor these out of tplot.py
 def _get_data(value, name):
     fields = name.split('.')
@@ -650,6 +676,11 @@ class Device:
         else:
             self.uuid_address = self.address
 
+        # Save the full UUID for later.
+        self.full_uuid = (self.uuid_address.uuid
+                          if self.uuid_address
+                          else None)
+
         # Are we able to be addressed by UUID?
         has_uuid_capability = self.uuid_address is not None
 
@@ -730,9 +761,24 @@ class Device:
 
         await asyncio.sleep(0.1)
 
-        # It is safe to switch to UUID based addressing.
-        print(f"Switching device {self.address} to UUID addressing: {self.uuid_address.uuid.hex()}")
-        self.address = self.uuid_address
+        # Calculate optimal UUID prefix.
+        optimal_uuid = self.uuid_address  # Default to full UUID
+
+        other_uuids = self._main_window.get_other_device_uuids(self, transport_device)
+
+        optimal_prefix = calculate_optimal_uuid_prefix(self.full_uuid, other_uuids)
+
+        # Create new address with optimal prefix
+        optimal_uuid = moteus.DeviceAddress(
+            uuid=optimal_prefix,
+            transport_device=self.address.transport_device
+            if isinstance(self.address, moteus.DeviceAddress)
+            else None)
+
+        print(f"Switching device {self.address} to UUID addressing: {optimal_prefix.hex()}")
+
+        # Now perform the state change
+        self.address = optimal_uuid
 
         self.controller = moteus.Controller(
             self.address,
@@ -1177,6 +1223,27 @@ class TviewMainWindow():
 
         devices_on_transport = self.device_uuid_support[transport_device]
         return all(has_uuid for _, has_uuid in devices_on_transport)
+
+    def get_other_device_uuids(self, device, transport_device):
+        """Get the UUIDs of other devices on the same transport.
+
+        Args:
+            device: The device to exclude from the list
+            transport_device: The transport to query
+
+        Returns:
+            List of full UUIDs from other devices on this transport
+        """
+        other_uuids = []
+        devices_on_transport = self.device_uuid_support.get(transport_device, [])
+
+        for other_device, has_uuid in devices_on_transport:
+            if other_device != device and has_uuid:
+                # Check if device has stored full UUID
+                if hasattr(other_device, 'full_uuid'):
+                    other_uuids.append(other_device.full_uuid)
+
+        return other_uuids
 
     async def _populate_devices(self):
         self.devices = []
