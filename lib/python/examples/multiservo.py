@@ -14,30 +14,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This example commands multiple servos connected to a pi3hat.  It
-uses the .cycle() method in order to optimally use the pi3hat
-bandwidth.
+"""This example commands multiple servos connected to a system.  It
+uses the uses the .cycle() method in order to optimally use bandwidth
+across any connected CAN-FD interfaces.
 """
 
+import argparse
 import asyncio
 import math
 import moteus
-import moteus_pi3hat
 import time
 
 async def main():
-    # We will be assuming a system where there are 4 servos, each
-    # attached to a separate pi3hat bus.  The servo_bus_map argument
-    # describes which IDs are found on which bus.
-    transport = moteus_pi3hat.Pi3HatRouter(
-        servo_bus_map = {
-            1:[11],
-            2:[12],
-            3:[13],
-            4:[14],
-        },
-    )
+    parser = argparse.ArgumentParser()
+    moteus.make_transport_args(parser)
+    args = parser.parse_args()
+
+    # Explicitly make a transport, so that we can call cycle onit.
+    transport = moteus.get_singleton_transport(args)
+
+    # Discover all connected devices.
+    #
+    # This will return a list of moteus.DeviceInfo structures.
+    devices = await transport.discover()
+
+    # You could alternately hard-code a list of servos, either by
+    # specifying integer CAN IDs, or by using the
+    # 'moteus.DeviceAddress' structure.
+    addresses = [x.address for x in devices]
 
     # We create one 'moteus.Controller' instance for each servo.  It
     # is not strictly required to pass a 'transport' since we do not
@@ -45,14 +49,12 @@ async def main():
     #
     # This syntax is a python "dictionary comprehension":
     # https://docs.python.org/3/tutorial/datastructures.html#dictionaries
-    servos = {
-        servo_id : moteus.Controller(id=servo_id, transport=transport)
-        for servo_id in [11, 12, 13, 14]
-    }
+    servos = [moteus.Controller(id=address, transport=transport)
+              for address in addresses]
 
     # We will start by sending a 'stop' to all servos, in the event
     # that any had a fault.
-    await transport.cycle([x.make_stop() for x in servos.values()])
+    await transport.cycle([x.make_stop() for x in servos])
 
     while True:
         # The 'cycle' method accepts a list of commands, each of which
@@ -63,7 +65,7 @@ async def main():
         now = time.time()
 
         # For now, we will just construct a position command for each
-        # of the 4 servos, each of which consists of a sinusoidal
+        # of the servos, each of which consists of a sinusoidal
         # velocity command starting from wherever the servo was at to
         # begin with.
         #
@@ -71,27 +73,15 @@ async def main():
         # correspond to each of the available position mode registers
         # in the moteus reference manual.
         commands = [
-            servos[11].make_position(
-                position=math.nan,
-                velocity=0.1*math.sin(now),
-                query=True),
-            servos[12].make_position(
-                position=math.nan,
-                velocity=0.1*math.sin(now + 1),
-                query=True),
-            servos[13].make_position(
-                position=math.nan,
-                velocity=0.1*math.sin(now + 2),
-                query=True),
-            servos[14].make_position(
-                position=math.nan,
-                velocity=0.1*math.sin(now + 3),
-                query=True),
+            servo.make_position(position=math.nan,
+                                velocity=0.1 * math.sin(now + i),
+                                query=True)
+            for i, servo in enumerate(servos)
         ]
 
         # By sending all commands to the transport in one go, the
-        # pi3hat can send out commands and retrieve responses
-        # simultaneously from all ports.  It can also pipeline
+        # library can send out commands and retrieve responses
+        # simultaneously from all interfaces.  It can also pipeline
         # commands and responses for multiple servos on the same bus.
         results = await transport.cycle(commands)
 
@@ -105,7 +95,7 @@ async def main():
         # Here, we'll just print the ID, position, and velocity of
         # each servo for which a reply was returned.
         print(", ".join(
-            f"({result.arbitration_id} " +
+            f"({result.arbitration_id:04X} " +
             f"{result.values[moteus.Register.POSITION]} " +
             f"{result.values[moteus.Register.VELOCITY]})"
             for result in results))
