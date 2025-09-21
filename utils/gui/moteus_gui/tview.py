@@ -628,7 +628,8 @@ class Device:
     STATE_DATA = 4
 
     def __init__(self, address, source_can_id, transport, console, prefix,
-                 config_tree_item, data_tree_item, can_prefix=None, main_window=None):
+                 config_tree_item, data_tree_item,
+                 can_prefix, main_window, can_id):
         self.error_count = 0
         self.poll_count = 0
         self.poll_lock = asyncio.Lock()  # Lock for poll-address change synchronization
@@ -636,6 +637,11 @@ class Device:
         self.address = address
         self.source_can_id = source_can_id
         self._can_prefix = can_prefix
+
+        # We keep around an estimate of the current CAN ID to enable
+        # user friendly commands.
+        self.can_id = can_id
+
         self.controller = moteus.Controller(
             address,
             source_can_id=source_can_id,
@@ -1061,6 +1067,16 @@ class Device:
 
         # For some commands, we need to take special actions.
         if line.startswith('conf set id.id '):
+            # Extract the new CAN ID from the command
+            try:
+                new_id_str = line.split('conf set id.id ')[1].strip()
+                new_can_id = int(new_id_str)
+                # Update our current CAN ID for future matching
+                self.can_id = new_can_id
+            except (IndexError, ValueError):
+                # Invalid command format, ignore
+                pass
+
             asyncio.create_task(self._handle_id_change())
 
     class Schema:
@@ -1248,6 +1264,12 @@ class TviewMainWindow():
 
         return other_uuids
 
+    def is_can_id_unique(self, can_id):
+        """Check if a CAN ID is unique across all devices in the system."""
+        matching_devices = [d for d in self.devices
+                            if d.can_id == can_id]
+        return len(matching_devices) == 1
+
     async def _populate_devices(self):
         self.devices = []
 
@@ -1276,6 +1298,17 @@ class TviewMainWindow():
         source_can_id = 0x7d
 
         for device_address in targets:
+            # Extract current CAN ID from the target specification
+            current_can_id = None
+            if isinstance(device_address, int):
+                # Direct integer CAN ID specification
+                current_can_id = device_address
+            elif getattr(device_address, 'can_id', None) is not None:
+                # DeviceAddress with CAN ID
+                current_can_id = device_address.can_id
+
+            # UUID-only addresses will have current_can_id = None
+
             tree_key = self._calculate_tree_key(device_address, self.transport)
 
             config_item = QtWidgets.QTreeWidgetItem()
@@ -1293,7 +1326,8 @@ class TviewMainWindow():
                             config_item,
                             data_item,
                             self.options.can_prefix,
-                            self)
+                            self,
+                            current_can_id)
 
             source_can_id -= 1
 
@@ -1401,17 +1435,33 @@ class TviewMainWindow():
             # Otherwise ignore problems so that tview keeps running.
 
     def _match(self, device, s):
-        if device.address.can_id is not None:
-            target_id = -1
-            try:
-                target_id = int(s)
-            except:
-                pass
-            return target_id == device.address.can_id
-        elif device.address.uuid is not None:
-            return s.upper() == device.address.uuid.hex().upper()
-        else:
-            return False
+        # Try to parse as integer for CAN ID matching
+        try:
+            target_id = int(s)
+            if target_id < 1 or target_id > 126:
+                # These are not valid IDs.
+                target_id = None
+        except:
+            target_id = None
+
+        # Check current address CAN ID.
+        if device.address.can_id is not None and target_id is not None:
+            if target_id == device.address.can_id:
+                return True
+
+        # Check UUID addressing.
+        if device.address.uuid is not None:
+            if s.upper() == device.address.uuid.hex().upper():
+                return True
+
+        # Check tracked CAN ID if it's unique in the system
+        if (target_id is not None and
+            getattr(device, 'can_id', None) is not None and
+            target_id == device.can_id and
+            self.is_can_id_unique(target_id)):
+            return True
+
+        return False
 
     async def _wait_user_query(self, maybe_id):
         devices = [self.devices[0]]
