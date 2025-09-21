@@ -631,6 +631,7 @@ class Device:
                  config_tree_item, data_tree_item, can_prefix=None, main_window=None):
         self.error_count = 0
         self.poll_count = 0
+        self.poll_lock = asyncio.Lock()  # Lock for poll-address change synchronization
 
         self.address = address
         self.source_can_id = source_can_id
@@ -759,35 +760,37 @@ class Device:
             print(f"Device {self.address} will remain on CAN ID addressing and may become unreachable")
             return
 
-        await asyncio.sleep(0.1)
+        # Acquire lock to ensure no poll is in progress when changing address
+        async with self.poll_lock:
+            await asyncio.sleep(0.1)
 
-        # Calculate optimal UUID prefix.
-        optimal_uuid = self.uuid_address  # Default to full UUID
+            # Calculate optimal UUID prefix.
+            optimal_uuid = self.uuid_address  # Default to full UUID
 
-        other_uuids = self._main_window.get_other_device_uuids(self, transport_device)
+            other_uuids = self._main_window.get_other_device_uuids(self, transport_device)
 
-        optimal_prefix = calculate_optimal_uuid_prefix(self.full_uuid, other_uuids)
+            optimal_prefix = calculate_optimal_uuid_prefix(self.full_uuid, other_uuids)
 
-        # Create new address with optimal prefix
-        optimal_uuid = moteus.DeviceAddress(
-            uuid=optimal_prefix,
-            transport_device=self.address.transport_device
-            if isinstance(self.address, moteus.DeviceAddress)
-            else None)
+            # Create new address with optimal prefix
+            optimal_uuid = moteus.DeviceAddress(
+                uuid=optimal_prefix,
+                transport_device=self.address.transport_device
+                if isinstance(self.address, moteus.DeviceAddress)
+                else None)
 
-        print(f"Switching device {self.address} to UUID addressing: {optimal_prefix.hex()}")
+            print(f"Switching device {self.address} to UUID addressing: {optimal_prefix.hex()}")
 
-        # Now perform the state change
-        self.address = optimal_uuid
+            # Now perform the state change (while holding lock)
+            self.address = optimal_uuid
 
-        self.controller = moteus.Controller(
-            self.address,
-            source_can_id=self.source_can_id,
-            can_prefix=self._can_prefix)
+            self.controller = moteus.Controller(
+                self.address,
+                source_can_id=self.source_can_id,
+                can_prefix=self._can_prefix)
 
-        self._stream.update_controller(self.controller)
+            self._stream.update_controller(self.controller)
 
-        # Update the tree items with the new address
+        # Update tree items (can be done outside lock)
         if self._main_window:
             new_tree_key = self._main_window._calculate_tree_key(
                 self.address, self._transport)
@@ -1346,27 +1349,29 @@ class TviewMainWindow():
                 device.poll_count -= 1
                 continue
 
-            await device.poll()
+            # Acquire lock for the entire poll-response cycle
+            async with device.poll_lock:
+                await device.poll()
 
-            try:
-                this_data_read = await asyncio.wait_for(
-                    self._dispatch_until(
-                        lambda x: (
-                            (x.arbitration_id & 0x7f) == device.source_can_id and
-                            (device.address.can_id is None or
-                             (x.arbitration_id >> 8) & 0x7f == device.address.can_id))),
-                    timeout = POLL_TIMEOUT_S)
+                try:
+                    this_data_read = await asyncio.wait_for(
+                        self._dispatch_until(
+                            lambda x: (
+                                (x.arbitration_id & 0x7f) == device.source_can_id and
+                                (device.address.can_id is None or
+                                 (x.arbitration_id >> 8) & 0x7f == device.address.can_id))),
+                        timeout = POLL_TIMEOUT_S)
 
-                device.error_count = 0
-                device.poll_count = 0
+                    device.error_count = 0
+                    device.poll_count = 0
 
-                if this_data_read:
-                    any_data_read = True
-            except asyncio.TimeoutError:
-                # Mark this device as error-full, which will then
-                # result in backoff in polling.
-                device.error_count = min(1000, device.error_count + 1)
-                device.poll_count = device.error_count
+                    if this_data_read:
+                        any_data_read = True
+                except asyncio.TimeoutError:
+                    # Mark this device as error-full, which will then
+                    # result in backoff in polling.
+                    device.error_count = min(1000, device.error_count + 1)
+                    device.poll_count = device.error_count
 
         return any_data_read
 
