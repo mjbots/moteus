@@ -849,9 +849,15 @@ class Device:
 
             _add_schema_item(item, archive, terminal_flags=flags)
             self._config_tree_items[element] = item
-            struct = archive.read(reader.Stream(io.BytesIO(data)))
-            _set_tree_widget_data(item, struct, archive, terminal_flags=flags)
+            data_struct = archive.read(reader.Stream(io.BytesIO(data)))
+            _set_tree_widget_data(item, data_struct, archive, terminal_flags=flags)
 
+            # Try to grab our current can_id.
+            if (element == 'id' and
+                getattr(data_struct, 'id', None) is not None
+                and self.can_id is None):
+
+                self.can_id = data_struct.id
 
     async def update_telemetry(self):
         self._data_tree_item.takeChildren()
@@ -977,6 +983,32 @@ class Device:
     def write(self, data):
         self._stream.write(data)
 
+        line = data.decode('latin1')
+
+        # For some commands, we need to take special actions.
+        if line.startswith('conf set id.id '):
+            # Extract the new CAN ID from the command
+            try:
+                new_id_str = line.split('conf set id.id ')[1].strip()
+                new_can_id = int(new_id_str)
+                # Update our current CAN ID for future matching
+                self.can_id = new_can_id
+            except (IndexError, ValueError):
+                # Invalid command format, ignore
+                pass
+
+            asyncio.create_task(self._handle_id_change())
+        elif line.startswith('conf default') or line.startswith('conf load'):
+            # Eventually it would be nice to reload the configuration
+            # here so the UI stays consistent.  For now, we'll satisfy
+            # ourselves with trying to switch to UUID based operation
+            # so that we don't lose communication.
+
+            # Reloading configuration is complicated, as we need to
+            # dispense with the OK that the above commands would
+            # create, but the current layering doesn't make that easy.
+            asyncio.create_task(self._handle_id_change())
+
     def config_item_changed(self, name, value, schema):
         if self._updating_config:
             return
@@ -1064,20 +1096,6 @@ class Device:
     def write_line(self, line):
         self._add_text(line)
         self.write(line.encode('latin1'))
-
-        # For some commands, we need to take special actions.
-        if line.startswith('conf set id.id '):
-            # Extract the new CAN ID from the command
-            try:
-                new_id_str = line.split('conf set id.id ')[1].strip()
-                new_can_id = int(new_id_str)
-                # Update our current CAN ID for future matching
-                self.can_id = new_can_id
-            except (IndexError, ValueError):
-                # Invalid command format, ignore
-                pass
-
-            asyncio.create_task(self._handle_id_change())
 
     class Schema:
         def __init__(self, name, parent, record):
