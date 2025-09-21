@@ -502,6 +502,9 @@ class DeviceStream:
         self.emit_count = 0
         self.poll_count = 0
 
+    def update_controller(self, controller):
+        self.controller = controller
+
     def ignore_all(self):
         self._read_data = b''
 
@@ -599,18 +602,20 @@ class Device:
     STATE_DATA = 4
 
     def __init__(self, address, source_can_id, transport, console, prefix,
-                 config_tree_item, data_tree_item, can_prefix=None):
+                 config_tree_item, data_tree_item, can_prefix=None, main_window=None):
         self.error_count = 0
         self.poll_count = 0
 
         self.address = address
         self.source_can_id = source_can_id
+        self._can_prefix = can_prefix
         self.controller = moteus.Controller(
             address,
             source_can_id=source_can_id,
             can_prefix=can_prefix)
         self._transport = transport
         self._stream = DeviceStream(transport, self.controller)
+        self._main_window = main_window
 
         self._console = console
         self._prefix = prefix
@@ -638,10 +643,88 @@ class Device:
 
         self._stream.ignore_all()
 
+        # Make sure we have a UUID based address available in case we
+        # need it later.
+        if isinstance(self.address, int) or self.address.can_id is not None:
+            self.uuid_address = await self._get_uuid_address()
+        else:
+            self.uuid_address = self.address
+
         await self.update_config()
         await self.update_telemetry()
 
         await self.run()
+
+    async def _get_uuid_address(self):
+        try:
+            to_query = {
+                moteus.Register.UUID1 : moteus.INT32,
+                moteus.Register.UUID2 : moteus.INT32,
+                moteus.Register.UUID3 : moteus.INT32,
+                moteus.Register.UUID4 : moteus.INT32,
+                moteus.Register.UUID_MASK_CAPABLE : moteus.INT32,
+            }
+            result = await self.controller.custom_query(to_query)
+
+
+            if result.values.get(moteus.Register.UUID_MASK_CAPABLE, None) is None:
+                return None
+
+            # We'll just use the full 16 byte UUID in this case for
+            # now.  Eventually maybe we could find an appropriate
+            # shorter prefix.
+            uuid_bytes = struct.pack(
+                '<iiii',
+                *[result.values[reg] for reg in [
+                    moteus.Register.UUID1,
+                    moteus.Register.UUID2,
+                    moteus.Register.UUID3,
+                    moteus.Register.UUID4]])
+
+            return moteus.DeviceAddress(
+                uuid=uuid_bytes,
+                transport_device=self.address.transport_device
+                if isinstance(self.address, moteus.DeviceAddress)
+                else None)
+        except Exception as e:
+            print(f"UUID query failed: {e}")
+            return None
+
+    def _update_tree_items(self, tree_key):
+        """Update tree items with the new tree key."""
+        self._config_tree_item.setText(0, tree_key)
+        self._data_tree_item.setText(0, tree_key)
+        self._prefix = f'{tree_key}>'
+
+    async def _handle_id_change(self):
+        if self.uuid_address is None:
+            # We don't have a UUID to work with, so this controller
+            # may become not addressable.
+            print(f"WARNING: controller {self.address} may now be unreachable")
+            return
+
+        if self.uuid_address == self.address:
+            # We are already using UUID based addressing, so nothing
+            # to do.
+            return
+
+        await asyncio.sleep(0.1)
+
+        # Do our best to fix up all the necessary things.
+        self.address = self.uuid_address
+
+        self.controller = moteus.Controller(
+            self.address,
+            source_can_id=self.source_can_id,
+            can_prefix=self._can_prefix)
+
+        self._stream.update_controller(self.controller)
+
+        # Update the tree items with the new address
+        if self._main_window:
+            new_tree_key = self._main_window._calculate_tree_key(
+                self.address, self._transport)
+            self._update_tree_items(new_tree_key)
 
     async def update_config(self):
         self._updating_config = True
@@ -906,6 +989,10 @@ class Device:
         self._add_text(line)
         self.write(line.encode('latin1'))
 
+        # For some commands, we need to take special actions.
+        if line.startswith('conf set id.id '):
+            asyncio.create_task(self._handle_id_change())
+
     class Schema:
         def __init__(self, name, parent, record):
             self._name = name
@@ -1011,6 +1098,22 @@ class TviewMainWindow():
 
         asyncio.create_task(self._populate_devices())
 
+    def _calculate_tree_key(self, device_address, transport):
+        """Calculate the tree key for a device based on its address."""
+        needs_suffix = (transport.count() > 1 and
+                        not isinstance(device_address, int) and
+                        hasattr(device_address, 'transport_device') and
+                        device_address.transport_device)
+
+        suffix_str = f'/{device_address.transport_device}' if needs_suffix else ''
+
+        tree_key = (
+            str(device_address) if isinstance(device_address, int)
+            else f'{device_address.can_id}{suffix_str}' if hasattr(device_address, 'can_id') and device_address.can_id
+            else f'{device_address.uuid.hex()}{suffix_str}')
+
+        return tree_key
+
     async def _populate_devices(self):
         self.devices = []
 
@@ -1036,15 +1139,8 @@ class TviewMainWindow():
         source_can_id = 0x7d
 
         for device_address in targets:
-            needs_suffix = (self.transport.count() > 1 and
-                            not isinstance(device_address, int) and
-                            device_address.transport_device)
-            suffix_str = f'/{device_address.transport_device}' if needs_suffix else ''
+            tree_key = self._calculate_tree_key(device_address, self.transport)
 
-            tree_key = (
-                str(device_address) if isinstance(device_address, int)
-                else f'{device_address.can_id}{suffix_str}' if device_address.can_id
-                else f'{device_address.uuid.hex()}{suffix_str}')
             config_item = QtWidgets.QTreeWidgetItem()
 
             config_item.setText(0, tree_key)
@@ -1059,7 +1155,8 @@ class TviewMainWindow():
                             self.console, '{}>'.format(tree_key),
                             config_item,
                             data_item,
-                            self.options.can_prefix)
+                            self.options.can_prefix,
+                            self)
 
             source_can_id -= 1
 
