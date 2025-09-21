@@ -88,7 +88,6 @@ RIGHT_LEGEND_LOC = 2
 
 DEFAULT_RATE = 100
 MAX_HISTORY_SIZE = 100
-MAX_SEND = 61
 POLL_TIMEOUT_S = 0.1
 STARTUP_TIMEOUT_S = 0.5
 
@@ -547,8 +546,9 @@ class DeviceStream:
 
         self.emit_count += 1
 
+        max_send = self.controller.max_diagnostic_write
         to_write, self._write_data = (
-            self._write_data[0:MAX_SEND], self._write_data[MAX_SEND:])
+            self._write_data[0:max_send], self._write_data[max_send:])
         await self.transport.write(self.controller.make_diagnostic_write(to_write))
 
     async def process_message(self, message):
@@ -561,7 +561,7 @@ class DeviceStream:
             return False
         if data[1] != 1:
             return False
-        if data[2] > MAX_SEND:
+        if data[2] > 61:
             return False
         datalen = data[2]
         if datalen > (len(data) - 3):
