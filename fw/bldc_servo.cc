@@ -836,7 +836,7 @@ class BldcServo::Impl {
     if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK) {
       return;
     }
-    
+
     // Reset and enable LPTIM1 peripheral
     __HAL_RCC_LPTIM1_FORCE_RESET();
     __HAL_RCC_LPTIM1_RELEASE_RESET();
@@ -853,7 +853,7 @@ class BldcServo::Impl {
     lptim_adc.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
     lptim_adc.Init.Input1Source = LPTIM_INPUT1SOURCE_GPIO;
     lptim_adc.Init.Input2Source = LPTIM_INPUT2SOURCE_GPIO;
-    
+
     if (HAL_LPTIM_Init(&lptim_adc) != HAL_OK) {
       while(true);
     }
@@ -866,7 +866,7 @@ class BldcServo::Impl {
     LPTIM1->ICR = LPTIM_ICR_CMPOKCF;
     LPTIM1->CMP = 1;
     while (!(LPTIM1->ISR & LPTIM_ISR_CMPOK));
-    
+
   }
 
   static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
