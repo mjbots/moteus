@@ -1879,6 +1879,17 @@ limits are as follows:
 NOTE: This is limited internally to be no more than
 `servo.max_velocity`.
 
+## `servo.inertia_feedforward` ##
+
+When set to non-zero, and acceleration limits are currently in effect,
+this will apply a feedforward torque equal to the current acceleration
+multiplied by this configurable value.  This can be used to improve
+response transients for short movements, where the acceleration period
+is not long enough for the normal position PID to track well.
+
+In an ideal world, you would set this to the moment of inertia of your
+system in measured in kg * m^2.
+
 ## `servo.voltage_mode_control` ##
 
 When set to non-zero, the current control loop is not closed, and all

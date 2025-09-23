@@ -159,6 +159,7 @@ struct BldcServoStatus {
   std::optional<int64_t> control_position_raw;
   float control_position = std::numeric_limits<float>::quiet_NaN();
   std::optional<float> control_velocity;
+  std::optional<float> control_acceleration;
   float timeout_s = 0.0;
   bool trajectory_done = false;
 
@@ -256,6 +257,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(control_position_raw));
     a->Visit(MJ_NVP(control_position));
     a->Visit(MJ_NVP(control_velocity));
+    a->Visit(MJ_NVP(control_acceleration));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(trajectory_done));
 
@@ -509,6 +511,10 @@ struct BldcServoConfig {
   // Set to true to disable bemf feedforward sanity checks.
   bool bemf_feedforward_override = false;
 
+  // If non-zero, apply a feedforward torque of the desired angular
+  // acceleration multiplied by this.
+  float inertia_feedforward = 0.0f;
+
   // Default values for the position mode velocity and acceleration
   // limits.
   float default_velocity_limit = std::numeric_limits<float>::quiet_NaN();
@@ -618,6 +624,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(current_feedforward));
     a->Visit(MJ_NVP(bemf_feedforward));
     a->Visit(MJ_NVP(bemf_feedforward_override));
+    a->Visit(MJ_NVP(inertia_feedforward));
     a->Visit(MJ_NVP(default_velocity_limit));
     a->Visit(MJ_NVP(default_accel_limit));
     a->Visit(MJ_NVP(voltage_mode_control));

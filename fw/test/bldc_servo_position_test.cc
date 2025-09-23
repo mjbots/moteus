@@ -626,3 +626,86 @@ BOOST_AUTO_TEST_CASE(StopPositionWithLimitOvershoot, * boost::unit_test::toleran
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0);
   BOOST_TEST(ctx.status.trajectory_done == true);
 }
+
+BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
+  Context ctx;
+
+  constexpr float kAccel = 5000.0f;
+
+  ctx.data.position = 0.25f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = 30000.0f;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  int steps_to_complete = 0;
+
+  enum ExpectedAccel {
+    kStrictlyPositive,
+    kStrictlyNegative,
+    kZero,
+  };
+  ExpectedAccel expected_accel = kStrictlyPositive;
+
+  // The control acceleration should be strictly positive, then
+  // strictly negative, and then 0, with no other transitions.
+
+  int negative_violations = 0;
+  int zero_violations = 0;
+
+  constexpr int kMaxSteps = 50000;
+  for (; steps_to_complete < kMaxSteps; steps_to_complete++) {
+    BOOST_TEST_CONTEXT("Step: " << steps_to_complete) {
+      ctx.Call();
+      if (ctx.status.trajectory_done) { break; }
+
+      const auto this_accel = ctx.status.control_acceleration.value_or(0.0f);
+      switch (expected_accel) {
+        case kStrictlyPositive: {
+          if (this_accel > 0.0f) {
+            // As expected, break.
+            BOOST_TEST(this_accel == kAccel);
+            break;
+          } else if (this_accel < 0.0f) {
+            // Advance.
+            expected_accel = kStrictlyNegative;
+            break;
+          } else {
+            // Not expected.
+            BOOST_TEST(expected_accel != 0.0f);
+          }
+          break;
+        }
+        case kStrictlyNegative: {
+          if (this_accel < 0.0f) {
+            BOOST_TEST(this_accel == -kAccel);
+            break;
+          } else if (this_accel == 0.0f) {
+            expected_accel = kZero;
+            break;
+          } else {
+            negative_violations++;
+          }
+          break;
+        }
+        case kZero: {
+          if (this_accel != 0.0f) {
+            zero_violations++;
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  BOOST_TEST(steps_to_complete >= 440);
+  BOOST_TEST(steps_to_complete <= 460);
+
+  // Because of floating point precision issues in the current
+  // implementation, we aren't perfect.  Still, verify that it
+  // *mostly* does what we want.
+  BOOST_TEST(negative_violations <= 15);
+  BOOST_TEST(zero_violations <= 2);
+}

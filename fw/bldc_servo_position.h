@@ -47,15 +47,18 @@ class BldcServoPosition {
       const float initial_sign = (dv > 0.0f) ? 1.0f : -1.0f;
       const float acceleration = data->accel_limit * initial_sign;
 
+      *status->control_acceleration = acceleration;
       *status->control_velocity += acceleration * period_s;
       const float final_sign =
           (velocity > *status->control_velocity) ? 1.0f : -1.0f;
       if (final_sign != initial_sign) {
+        status->control_acceleration = 0.0f;
         status->control_velocity = velocity;
         status->trajectory_done = true;
       }
     } else {
       // We must have only a velocity limit.  This is easy.
+      status->control_acceleration = 0.0f;
       status->control_velocity = velocity;
       status->trajectory_done = true;
     }
@@ -68,6 +71,7 @@ class BldcServoPosition {
       float velocity,
       float period_s) MOTEUS_CCM_ATTRIBUTE {
     const float initial_sign = dx < 0.0f ? 1.0f : -1.0f;
+    status->control_acceleration = 0.0f;
     status->control_velocity = -initial_sign * data->velocity_limit;
 
     const float next_dx = dx - *status->control_velocity * period_s;
@@ -159,6 +163,7 @@ class BldcServoPosition {
     const float acceleration = CalculateAcceleration(
         data, a, v0, vf, dx, dv);
 
+    *status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
     const float v1 = *status->control_velocity;
 
@@ -172,6 +177,7 @@ class BldcServoPosition {
     if (std::isfinite(data->velocity_limit) &&
         vel_lower < data->velocity_limit &&
         vel_upper > data->velocity_limit) {
+      status->control_acceleration = 0.0f;
       status->control_velocity = std::copysign(data->velocity_limit, v0);
     }
 
@@ -185,6 +191,7 @@ class BldcServoPosition {
     if ((target_cross || target_near) && position_near) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
+      status->control_acceleration = 0.0f;
       status->control_velocity = vf;
       status->trajectory_done = true;
     }
@@ -233,6 +240,7 @@ class BldcServoPosition {
     if (std::isnan(data->velocity_limit) &&
         std::isnan(data->accel_limit)) {
       status->trajectory_done = true;
+      status->control_acceleration = 0.0f;
       status->control_velocity = velocity;
     } else if (!!data->position_relative_raw ||
                !std::isnan(velocity)) {
@@ -247,10 +255,12 @@ class BldcServoPosition {
       status->control_position_raw = *data->position_relative_raw;
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
+      status->control_acceleration = 0.0f;
       status->control_velocity = velocity;
     } else if (!status->control_position_raw) {
       status->control_position_raw = position->position_relative_raw;
 
+      status->control_acceleration = 0.0f;
       if (std::abs(status->velocity_filt) <
           config->velocity_zero_capture_threshold) {
         status->control_velocity = 0.0f;
@@ -264,8 +274,10 @@ class BldcServoPosition {
     }
 
     if (*status->control_velocity > status->motor_max_velocity) {
+      status->control_acceleration = 0.0f;
       status->control_velocity = status->motor_max_velocity;
     } else if (*status->control_velocity < -status->motor_max_velocity) {
+      status->control_acceleration = 0.0f;
       status->control_velocity = -status->motor_max_velocity;
     }
 
@@ -309,9 +321,11 @@ class BldcServoPosition {
       const float slip = config->max_velocity_slip;
       const float error = status->velocity - *status->control_velocity;
       if (error < -slip) {
+        status->control_acceleration = 0.0f;
         status->control_velocity = status->velocity + slip;
       }
       if (error > slip) {
+        status->control_acceleration = 0.0f;
         status->control_velocity = status->velocity - slip;
       }
     }
@@ -347,6 +361,7 @@ class BldcServoPosition {
         // We are moving away from the stop position.  Force it to be
         // there and zero out our velocity command.
         status->control_position_raw = stop_position_raw;
+        status->control_acceleration = 0.0f;
         status->control_velocity = 0.0f;
         status->trajectory_done = true;
         data->position = std::numeric_limits<float>::quiet_NaN();
@@ -359,6 +374,7 @@ class BldcServoPosition {
     if (hit_limit) {
       // We have hit a limit.  Assume a velocity of 0.
       velocity_command = 0.0f;
+      status->control_acceleration = 0.0f;
       status->control_velocity = 0.0f;
     }
 

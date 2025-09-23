@@ -2163,6 +2163,10 @@ class BldcServo::Impl {
             position_.velocity - velocity_command, -config_.velocity_threshold,
             config_.velocity_threshold);
 
+    const float inertia_feedforward_Nm =
+        status_.control_acceleration.value_or(0.0f) *
+        config_.inertia_feedforward;
+
     // We always control relative to the control position of 0, so
     // that we get equal performance across the entire viable integral
     // position range.
@@ -2176,7 +2180,8 @@ class BldcServo::Impl {
             measured_velocity, velocity_command,
             rate_config_.rate_hz,
             pid_options) +
-         feedforward_Nm);
+         feedforward_Nm +
+         inertia_feedforward_Nm);
 
     const auto limited_torque_Nm_pair =
         LimitCode(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm,
@@ -2451,6 +2456,14 @@ class BldcServo::Impl {
 
     if (config_.emit_debug & (1 << 19)) {
       write_scalar(static_cast<int16_t>(control_.pwm.c * 32767.0f));
+    }
+
+    if (config_.emit_debug & (1 << 20)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.torque_Nm / 30.0f));
+    }
+
+    if (config_.emit_debug & (1 << 21)) {
+      write_scalar(static_cast<uint16_t>(32767.0f * status_.power_W / 3000.0f));
     }
 
     // We rely on the FIFO to queue these things up.
