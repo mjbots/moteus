@@ -159,7 +159,7 @@ struct BldcServoStatus {
   std::optional<int64_t> control_position_raw;
   float control_position = std::numeric_limits<float>::quiet_NaN();
   std::optional<float> control_velocity;
-  std::optional<float> control_acceleration;
+  float control_acceleration = 0.0f;
   float timeout_s = 0.0;
   bool trajectory_done = false;
 

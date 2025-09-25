@@ -47,7 +47,7 @@ class BldcServoPosition {
       const float initial_sign = (dv > 0.0f) ? 1.0f : -1.0f;
       const float acceleration = data->accel_limit * initial_sign;
 
-      *status->control_acceleration = acceleration;
+      status->control_acceleration = acceleration;
       *status->control_velocity += acceleration * period_s;
       const float final_sign =
           (velocity > *status->control_velocity) ? 1.0f : -1.0f;
@@ -95,7 +95,6 @@ class BldcServoPosition {
       float dv) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
-
 
     // If we are overspeed, we always slow down to the velocity
     // limit first.
@@ -149,7 +148,7 @@ class BldcServoPosition {
 
     // What is the delta between our current control state and the
     // command.
-    float dx = MotorPosition::IntToFloat(
+    const float dx = MotorPosition::IntToFloat(
         (*data->position_relative_raw - *status->control_position_raw));
     const float dv = vf - v0;
 
@@ -163,7 +162,7 @@ class BldcServoPosition {
     const float acceleration = CalculateAcceleration(
         data, a, v0, vf, dx, dv);
 
-    *status->control_acceleration = acceleration;
+    status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
     const float v1 = *status->control_velocity;
 

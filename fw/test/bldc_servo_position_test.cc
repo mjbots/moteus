@@ -661,7 +661,7 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
       ctx.Call();
       if (ctx.status.trajectory_done) { break; }
 
-      const auto this_accel = ctx.status.control_acceleration.value_or(0.0f);
+      const float this_accel = ctx.status.control_acceleration;
       switch (expected_accel) {
         case kStrictlyPositive: {
           if (this_accel > 0.0f) {

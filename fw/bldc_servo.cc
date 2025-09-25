@@ -619,6 +619,7 @@ class BldcServo::Impl {
     status_.control_position_raw = {};
     status_.control_position = std::numeric_limits<float>::quiet_NaN();
     status_.control_velocity = {};
+    status_.control_acceleration = {};
 
     __enable_irq();
   }
@@ -1501,6 +1502,7 @@ class BldcServo::Impl {
       status_.control_position_raw = {};
       status_.control_position = std::numeric_limits<float>::quiet_NaN();
       status_.control_velocity = {};
+      status_.control_acceleration = {};
     }
   }
 
@@ -2164,7 +2166,7 @@ class BldcServo::Impl {
             config_.velocity_threshold);
 
     const float inertia_feedforward_Nm =
-        status_.control_acceleration.value_or(0.0f) *
+        status_.control_acceleration *
         config_.inertia_feedforward;
 
     // We always control relative to the control position of 0, so
@@ -2273,6 +2275,7 @@ class BldcServo::Impl {
       status_.control_position_raw = {};
       status_.control_position = std::numeric_limits<float>::quiet_NaN();
       status_.control_velocity = {};
+      status_.control_acceleration = {};
 
       // In this region, we still apply feedforward torques if they
       // are present.
@@ -2303,6 +2306,7 @@ class BldcServo::Impl {
     status_.control_position_raw = data->position_relative_raw;
     status_.control_position = *target_position;
     status_.control_velocity = 0.0f;
+    status_.control_acceleration = 0.0f;
 
     ISR_DoPositionCommon(
         sin_cos, data, apply_options,
