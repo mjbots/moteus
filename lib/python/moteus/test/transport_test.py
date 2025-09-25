@@ -19,10 +19,41 @@ import unittest.mock
 
 import moteus.fdcanusb_device as fdcanusb
 import moteus.transport as transport
+import moteus.transport_device as transport_device
+import moteus.command as command
 from moteus.protocol import Register
 
 from moteus.test.fdcanusb_test_base import FdcanusbTestBase
 from moteus.test.mock_serial import MockSerial
+
+
+class MockTransportDevice:
+    """Mock TransportDevice for testing broadcast frame handling."""
+
+    def __init__(self):
+        self.transaction_calls = []
+        self.responses_to_return = []
+
+    def parent(self):
+        """Return None to indicate no parent device."""
+        return None
+
+    async def transaction(self, requests, request_attitude=False, force_can_check=None):
+        """Record the transaction call and return mock responses."""
+        self.transaction_calls.append({
+            'requests': requests[:],  # Make a copy
+            'request_attitude': request_attitude,
+            'force_can_check': force_can_check
+        })
+
+        # Return the next set of responses if any
+        if self.responses_to_return:
+            return self.responses_to_return.pop(0)
+        return []
+
+    def add_response(self, response):
+        """Add a response to be returned by the next transaction."""
+        self.responses_to_return.append(response)
 
 
 class TransportTest(FdcanusbTestBase):
@@ -116,6 +147,227 @@ class TransportTest(FdcanusbTestBase):
                         self.assertEqual(dev3.transport_device, device2)
                         self.assertIsNotNone(dev3.address)
                         self.assertEqual(dev3.address.can_id, 3)
+
+        self.run_async(test())
+
+    def test_single_broadcast_with_reply(self):
+        """Test that a single broadcast frame expecting a reply is sent alone."""
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            # Create a broadcast command that expects a reply
+            cmd = command.Command()
+            cmd.destination = 0x7f  # Broadcast destination
+            cmd.source = 1
+            cmd.reply_required = True
+            cmd.data = b'\x01\x02\x03'
+
+            # Mock a response
+            response_frame = transport_device.Frame(
+                arbitration_id=0x101,
+                data=b'\x04\x05\x06'
+            )
+            mock_device.add_response([response_frame])
+
+            # Send the command through Transport
+            result = await trans.cycle([cmd])
+
+            # Verify we got exactly one transaction call
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            # Verify the broadcast was sent alone
+            call = mock_device.transaction_calls[0]
+            self.assertEqual(len(call['requests']), 1)
+            # Check broadcast bit pattern (0x7f in lower 7 bits)
+            self.assertEqual(call['requests'][0].frame.arbitration_id & 0x7f, 0x7f)
+
+        self.run_async(test())
+
+    def test_multiple_broadcasts_with_replies(self):
+        """Test that multiple broadcast frames expecting replies are sent sequentially."""
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            # Create two broadcast commands that expect replies
+            commands = []
+            for i in range(2):
+                cmd = command.Command()
+                cmd.destination = 0x7f  # Broadcast
+                cmd.source = i + 1
+                cmd.reply_required = True
+                cmd.data = bytes([i, i+1, i+2])
+                commands.append(cmd)
+
+                # Add mock response for each
+                response = transport_device.Frame(
+                    arbitration_id=0x100 + i,
+                    data=bytes([i+3, i+4])
+                )
+                mock_device.add_response([response])
+
+            # Send both commands
+            result = await trans.cycle(commands, request_attitude=True, force_can_check='test')
+
+            # The implementation creates separate transactions for
+            # each broadcast with reply.
+            self.assertEqual(len(mock_device.transaction_calls), 2)
+
+            # Find the transactions that contain broadcast frames
+            broadcast_calls = [call for call in mock_device.transaction_calls
+                             if any(req.frame.arbitration_id & 0x7f == 0x7f
+                                   for req in call['requests'])]
+
+            # Should have exactly 2 broadcast transactions
+            self.assertEqual(len(broadcast_calls), 2)
+
+            # Each broadcast transaction should have exactly 1 frame
+            for call in broadcast_calls:
+                self.assertEqual(len(call['requests']), 1)
+
+            # First broadcast transaction
+            self.assertEqual(broadcast_calls[0]['requests'][0].frame.data, b'\x00\x01\x02')
+
+            # Second broadcast transaction
+            self.assertEqual(broadcast_calls[1]['requests'][0].frame.data, b'\x01\x02\x03')
+
+        self.run_async(test())
+
+    def test_broadcast_and_non_broadcast_mixed(self):
+        """Test mixing broadcast frames (with replies) and non-broadcast frames."""
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            commands = []
+
+            # Add a broadcast command with reply
+            broadcast_cmd = command.Command()
+            broadcast_cmd.destination = 0x7f  # Broadcast
+            broadcast_cmd.source = 1
+            broadcast_cmd.reply_required = True
+            broadcast_cmd.data = b'\xaa\xbb'
+            commands.append(broadcast_cmd)
+
+            # Add two non-broadcast commands
+            for i in range(2):
+                cmd = command.Command()
+                cmd.destination = i + 1  # Non-broadcast
+                cmd.source = i
+                cmd.reply_required = True
+                cmd.data = bytes([i * 10, i * 10 + 1])
+                commands.append(cmd)
+
+            # Add responses for each transaction
+            mock_device.add_response([transport_device.Frame(arbitration_id=0x200, data=b'\x01')])
+            mock_device.add_response([
+                transport_device.Frame(arbitration_id=0x201, data=b'\x02'),
+                transport_device.Frame(arbitration_id=0x202, data=b'\x03')
+            ])
+
+            # Send all commands
+            result = await trans.cycle(commands, request_attitude=True, force_can_check='check')
+
+            # Should have 2 transactions: 1 for broadcast, 1 for both non-broadcasts
+            self.assertEqual(len(mock_device.transaction_calls), 2)
+
+            # First transaction: broadcast alone
+            call1 = mock_device.transaction_calls[0]
+            self.assertEqual(len(call1['requests']), 1)
+            self.assertEqual(call1['requests'][0].frame.arbitration_id & 0x7f, 0x7f)
+            self.assertTrue(call1['request_attitude'])
+            self.assertEqual(call1['force_can_check'], 'check')
+
+            # Second transaction: both non-broadcasts together
+            call2 = mock_device.transaction_calls[1]
+            self.assertEqual(len(call2['requests']), 2)
+            # Non-broadcast IDs shouldn't have 0x7f in lower bits
+            self.assertNotEqual(call2['requests'][0].frame.arbitration_id & 0x7f, 0x7f)
+            self.assertNotEqual(call2['requests'][1].frame.arbitration_id & 0x7f, 0x7f)
+            self.assertFalse(call2['request_attitude'])
+            self.assertIsNone(call2['force_can_check'])
+
+        self.run_async(test())
+
+    def test_broadcast_without_reply(self):
+        """Test that broadcast frames without frame_filter are batched normally."""
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            commands = []
+
+            # Add broadcast commands WITHOUT reply_required (no reply expected)
+            for i in range(2):
+                cmd = command.Command()
+                cmd.destination = 0x7f  # Broadcast
+                cmd.source = i
+                cmd.reply_required = False  # No reply expected
+                cmd.data = bytes([i, i+1])
+                commands.append(cmd)
+
+            # Add a non-broadcast command
+            normal_cmd = command.Command()
+            normal_cmd.destination = 5
+            normal_cmd.source = 3
+            normal_cmd.reply_required = False
+            normal_cmd.data = b'\xff\xfe'
+            commands.append(normal_cmd)
+
+            mock_device.add_response([])
+
+            # Send all commands
+            result = await trans.cycle(commands, force_can_check=True)
+
+            # Should have only 1 transaction with all 3 frames
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            self.assertEqual(len(call['requests']), 3)
+            # All frames should be in the same batch
+            self.assertEqual(call['requests'][0].frame.arbitration_id & 0x7f, 0x7f)
+            self.assertEqual(call['requests'][1].frame.arbitration_id & 0x7f, 0x7f)
+            self.assertNotEqual(call['requests'][2].frame.arbitration_id & 0x7f, 0x7f)
+
+        self.run_async(test())
+
+    def test_non_broadcast_frames_batched(self):
+        """Verify that multiple non-broadcast frames are batched in a single transaction."""
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            commands = []
+
+            # Create several non-broadcast commands
+            for i in range(5):
+                cmd = command.Command()
+                cmd.destination = i + 1  # Non-broadcast IDs (1-5)
+                cmd.source = i
+                cmd.reply_required = (i % 2 == 0)  # Some with replies, some without
+                cmd.data = bytes([i, i*2, i*3])
+                commands.append(cmd)
+
+            # Add mock response
+            responses = [transport_device.Frame(arbitration_id=0x300 + i, data=bytes([i])) for i in range(3)]
+            mock_device.add_response(responses)
+
+            # Send all commands
+            result = await trans.cycle(commands, request_attitude=True, force_can_check='batch_check')
+
+            # Should have exactly 1 transaction with all 5 frames
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            self.assertEqual(len(call['requests']), 5)
+            self.assertTrue(call['request_attitude'])
+            self.assertEqual(call['force_can_check'], 'batch_check')
+
+            # Verify all frames are non-broadcast
+            for i in range(5):
+                self.assertNotEqual(call['requests'][i].frame.arbitration_id & 0x7f, 0x7f)
+                self.assertEqual(call['requests'][i].frame.data, bytes([i, i*2, i*3]))
 
         self.run_async(test())
 

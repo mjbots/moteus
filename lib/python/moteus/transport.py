@@ -330,7 +330,7 @@ class Transport:
     async def _cycle_batch(self, commands, request_attitude,
                            read_unsolicited, force_can_check):
         # Group requests by device.  This is a map from device to:
-        #  (TransportDevice.Request)
+        #  [TransportDevice.Request, ...]
         device_requests = collections.defaultdict(list)
 
         for i, command in enumerate(commands):
@@ -396,10 +396,55 @@ class Transport:
         tasks = []
         device_list = []
         for device, request_list in device_requests.items():
-            tasks.append(device.transaction(
-                request_list,
-                request_attitude=request_attitude,
-                force_can_check=force_can_check))
+            # We can send at most one broadcast frame that needs
+            # replies per transaction.
+            broadcast_with_reply = lambda request: (
+                (request.frame.arbitration_id & 0x7f) == 0x7f and
+                request.frame_filter is not None)
+
+            broadcast_requests = [x for x in request_list
+                                  if broadcast_with_reply(x)]
+            non_broadcast_requests = [x for x in request_list
+                                      if not broadcast_with_reply(x)]
+
+            async def run_in_sequence(d=device,
+                                      br=broadcast_requests,
+                                      nbr=non_broadcast_requests):
+
+                this_request_attitude = request_attitude
+                this_force_can_check = force_can_check
+
+                results = []
+                for b in br:
+                    results += await d.transaction(
+                        [b],
+                        request_attitude=this_request_attitude,
+                        force_can_check=this_force_can_check)
+
+                    this_request_attitude = False
+                    this_force_can_check = None
+
+                if nbr:
+                    results += await d.transaction(
+                        nbr,
+                        request_attitude=this_request_attitude,
+                        force_can_check=this_force_can_check)
+
+                return results
+
+            if (len(broadcast_requests) + (1 if non_broadcast_requests else 0)) == 1:
+                # We can use a single transaction, either because we
+                # have a single broadcast request and no other
+                # requests, or no broadcast requests.
+                tasks.append(device.transaction(
+                    request_list,
+                    request_attitude=request_attitude,
+                    force_can_check=force_can_check))
+            else:
+                # We have to do multiple transactions to complete
+                # this.
+                tasks.append(run_in_sequence())
+
             device_list.append(device)
 
         # Wait for all transports to complete.
