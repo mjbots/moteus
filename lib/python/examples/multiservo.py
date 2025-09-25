@@ -30,7 +30,7 @@ async def main():
     moteus.make_transport_args(parser)
     args = parser.parse_args()
 
-    # Explicitly make a transport, so that we can call cycle onit.
+    # Explicitly make a transport, so that we can call cycle on it.
     transport = moteus.get_singleton_transport(args)
 
     # Discover all connected devices.
