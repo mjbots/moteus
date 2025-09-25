@@ -29,8 +29,6 @@ Note that to use the pi3hat, all python scripts must be run as root.
 Using sudo is one mechanism to do so:
 
 ```
-sudo apt install libraspberrypi-dev
-
 source moteus-venv/bin/activate
 pip install moteus-pi3hat
 
