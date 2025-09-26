@@ -414,9 +414,8 @@ class Transport:
                 this_request_attitude = request_attitude
                 this_force_can_check = force_can_check
 
-                results = []
                 for b in br:
-                    results += await d.transaction(
+                    await d.transaction(
                         [b],
                         request_attitude=this_request_attitude,
                         force_can_check=this_force_can_check)
@@ -425,12 +424,10 @@ class Transport:
                     this_force_can_check = None
 
                 if nbr:
-                    results += await d.transaction(
+                    await d.transaction(
                         nbr,
                         request_attitude=this_request_attitude,
                         force_can_check=this_force_can_check)
-
-                return results
 
             if (len(broadcast_requests) + (1 if non_broadcast_requests else 0)) == 1:
                 # We can use a single transaction, either because we

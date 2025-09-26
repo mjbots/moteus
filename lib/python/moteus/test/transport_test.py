@@ -46,11 +46,6 @@ class MockTransportDevice:
             'force_can_check': force_can_check
         })
 
-        # Return the next set of responses if any
-        if self.responses_to_return:
-            return self.responses_to_return.pop(0)
-        return []
-
     def add_response(self, response):
         """Add a response to be returned by the next transaction."""
         self.responses_to_return.append(response)
