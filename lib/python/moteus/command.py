@@ -24,6 +24,10 @@ class Command():
     can_prefix = 0x0000  # a 13 bit CAN prefix
     expected_reply_size = 0
 
+    # An optional function object which when passed a Frame returns
+    # True if the frame matches what is expected for this command.
+    reply_filter = None
+
     # If True, then the following parameters are used directly instead
     # of being calculated from destination and source (i.e. for
     # non-moteus devices).

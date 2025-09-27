@@ -321,11 +321,31 @@ class Transport:
             # responses.
             return lambda f: True
 
-        # Filter by both the source and destination device IDs.
-        return lambda f: (
-            (((f.arbitration_id >> 8) & 0x7f) == self._make_canid(command.destination) or
-             self._make_canid(command.destination) == 0x7f) and
-            (f.arbitration_id & 0x7f) == command.source)
+        dest_id = self._make_canid(command.destination)
+        source_id = command.source
+        reply_filter = getattr(command, 'reply_filter', None)
+        prefix = getattr(command, 'can_prefix', 0)
+
+        def predicate(f,
+                      dest_id=dest_id,
+                      source_id=source_id,
+                      prefix=prefix):
+            if ((f.arbitration_id >> 16) & 0x1fff) != prefix:
+                return False
+
+            if ((f.arbitration_id >> 8) & 0x7f != dest_id and
+                dest_id != 0x7f):
+                return False
+
+            if f.arbitration_id & 0x7f != source_id:
+                return False
+
+            if reply_filter and not reply_filter(f):
+                return False
+
+            return True
+
+        return predicate
 
     async def _cycle_batch(self, commands, request_attitude,
                            read_unsolicited, force_can_check):

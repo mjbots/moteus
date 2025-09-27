@@ -271,14 +271,27 @@ class Controller:
         return buf.getvalue(), expected_reply_size
 
     def _format_query(self, query, query_override, data_buf, result):
+        def expect_reply(frame):
+            # For a reply to these requests, the first byte should be
+            # one of the reply or error frames.
+            if len(frame.data) < 1:
+                return False
+
+            if frame.data[0] & 0xf0 == 0x20 or frame.data[0] == 0x31:
+                return True
+
+            return False
+
         if query_override is not None:
             query_data, expected_reply_size = \
                 self._make_query_data(query_override)
             data_buf.write(query_data)
             result.expected_reply_size = expected_reply_size
+            result.reply_filter = expect_reply
         elif query:
             data_buf.write(self._query_data)
             result.expected_reply_size = self._default_query_reply_size
+            result.reply_filter = expect_reply
 
     def _make_command(self, *, query, query_override=None):
         result = cmd.Command()
@@ -906,6 +919,7 @@ class Controller:
         data_buf.write(data)
 
         result.data = data_buf.getvalue()
+
         return result
 
     async def send_diagnostic_write(self, *args, **kwargs):
@@ -923,6 +937,15 @@ class Controller:
 
         result.data = data_buf.getvalue()
         result.expected_reply_size = 3 + max_length
+
+        def expect_diagnostic_response(frame):
+            if len(frame.data) < 3:
+                return False
+
+            return frame.data[0] == 0x41
+
+        result.reply_filter = expect_diagnostic_response
+
         return result
 
     async def diagnostic_read(self, *args, **kwargs):

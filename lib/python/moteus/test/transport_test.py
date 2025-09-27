@@ -13,11 +13,13 @@
 # limitations under the License.
 
 import asyncio
+import itertools
 import struct
 import unittest
 import unittest.mock
 
 import moteus.fdcanusb_device as fdcanusb
+import moteus.moteus as moteus
 import moteus.transport as transport
 import moteus.transport_device as transport_device
 import moteus.command as command
@@ -363,6 +365,320 @@ class TransportTest(FdcanusbTestBase):
             for i in range(5):
                 self.assertNotEqual(call['requests'][i].frame.arbitration_id & 0x7f, 0x7f)
                 self.assertEqual(call['requests'][i].frame.data, bytes([i, i*2, i*3]))
+
+        self.run_async(test())
+
+    def test_reply_filter_basic(self):
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            def filter_0x10(frame):
+                return len(frame.data) > 0 and frame.data[0] == 0x10
+
+            cmd = command.Command()
+            cmd.destination = 1
+            cmd.source = 2
+            cmd.reply_required = True
+            cmd.data = b'\x01\x02\x03'
+            cmd.reply_filter = filter_0x10
+
+            matching_frame = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\x10\x11\x12'
+            )
+            non_matching_frame = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\x20\x21\x22'
+            )
+
+            mock_device.add_response([matching_frame, non_matching_frame])
+
+            result = await trans.cycle([cmd])
+
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            self.assertEqual(len(call['requests']), 1)
+
+            req = call['requests'][0]
+            self.assertIsNotNone(req.frame_filter)
+
+            self.assertTrue(req.frame_filter(matching_frame))
+            self.assertFalse(req.frame_filter(non_matching_frame))
+
+        self.run_async(test())
+
+    def test_reply_filter_query_vs_diagnostic(self):
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            def query_filter(frame):
+                if len(frame.data) < 1:
+                    return False
+                return frame.data[0] & 0xf0 == 0x10 or frame.data[0] == 0x31
+
+            def diagnostic_filter(frame):
+                if len(frame.data) < 3:
+                    return False
+                return frame.data[0] == 0x41
+
+            query_cmd = command.Command()
+            query_cmd.destination = 1
+            query_cmd.source = 2
+            query_cmd.reply_required = True
+            query_cmd.data = b'\x10\x00'
+            query_cmd.reply_filter = query_filter
+
+            diagnostic_cmd = command.Command()
+            diagnostic_cmd.destination = 1
+            diagnostic_cmd.source = 2
+            diagnostic_cmd.reply_required = True
+            diagnostic_cmd.data = b'\x40\x01'
+            diagnostic_cmd.reply_filter = diagnostic_filter
+
+            query_response = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\x10\xaa\xbb'
+            )
+            diagnostic_response = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\x41\xcc\xdd\xee'
+            )
+
+            mock_device.add_response([query_response, diagnostic_response])
+
+            result = await trans.cycle([query_cmd, diagnostic_cmd])
+
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            self.assertEqual(len(call['requests']), 2)
+
+            query_req = call['requests'][0]
+            diag_req = call['requests'][1]
+
+            self.assertIsNotNone(query_req.frame_filter)
+            self.assertIsNotNone(diag_req.frame_filter)
+
+            self.assertTrue(query_req.frame_filter(query_response))
+            self.assertFalse(query_req.frame_filter(diagnostic_response))
+
+            self.assertFalse(diag_req.frame_filter(query_response))
+            self.assertTrue(diag_req.frame_filter(diagnostic_response))
+
+        self.run_async(test())
+
+    def test_reply_filter_with_can_prefix(self):
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            def simple_filter(frame):
+                return len(frame.data) > 0 and frame.data[0] == 0x50
+
+            cmd = command.Command()
+            cmd.destination = 1
+            cmd.source = 2
+            cmd.reply_required = True
+            cmd.data = b'\x01\x02'
+            cmd.can_prefix = 0x123
+            cmd.reply_filter = simple_filter
+
+            correct_prefix_frame = transport_device.Frame(
+                arbitration_id=(0x123 << 16) | (1 << 8) | 2,
+                data=b'\x50\xaa'
+            )
+            wrong_prefix_frame = transport_device.Frame(
+                arbitration_id=(0x456 << 16) | (1 << 8) | 2,
+                data=b'\x50\xbb'
+            )
+
+            mock_device.add_response([correct_prefix_frame, wrong_prefix_frame])
+
+            result = await trans.cycle([cmd])
+
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            req = call['requests'][0]
+
+            self.assertTrue(req.frame_filter(correct_prefix_frame))
+            self.assertFalse(req.frame_filter(wrong_prefix_frame))
+
+        self.run_async(test())
+
+    def test_reply_filter_multiple_commands_same_destination(self):
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            def filter_type_a(frame):
+                return len(frame.data) > 0 and frame.data[0] == 0xAA
+
+            def filter_type_b(frame):
+                return len(frame.data) > 0 and frame.data[0] == 0xBB
+
+            def filter_type_c(frame):
+                return len(frame.data) > 0 and frame.data[0] == 0xCC
+
+            cmd_a = command.Command()
+            cmd_a.destination = 1
+            cmd_a.source = 2
+            cmd_a.reply_required = True
+            cmd_a.data = b'\xAA\x01'
+            cmd_a.reply_filter = filter_type_a
+
+            cmd_b = command.Command()
+            cmd_b.destination = 1
+            cmd_b.source = 2
+            cmd_b.reply_required = True
+            cmd_b.data = b'\xBB\x02'
+            cmd_b.reply_filter = filter_type_b
+
+            cmd_c = command.Command()
+            cmd_c.destination = 1
+            cmd_c.source = 2
+            cmd_c.reply_required = True
+            cmd_c.data = b'\xCC\x03'
+            cmd_c.reply_filter = filter_type_c
+
+            response_a = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\xAA\x10\x11'
+            )
+            response_b = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\xBB\x20\x21'
+            )
+            response_c = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\xCC\x30\x31'
+            )
+
+            mock_device.add_response([response_a, response_b, response_c])
+
+            result = await trans.cycle([cmd_a, cmd_b, cmd_c])
+
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            self.assertEqual(len(call['requests']), 3)
+
+            req_a = call['requests'][0]
+            req_b = call['requests'][1]
+            req_c = call['requests'][2]
+
+            self.assertTrue(req_a.frame_filter(response_a))
+            self.assertFalse(req_a.frame_filter(response_b))
+            self.assertFalse(req_a.frame_filter(response_c))
+
+            self.assertFalse(req_b.frame_filter(response_a))
+            self.assertTrue(req_b.frame_filter(response_b))
+            self.assertFalse(req_b.frame_filter(response_c))
+
+            self.assertFalse(req_c.frame_filter(response_a))
+            self.assertFalse(req_c.frame_filter(response_b))
+            self.assertTrue(req_c.frame_filter(response_c))
+
+        self.run_async(test())
+
+    def test_no_reply_filter_accepts_all(self):
+        async def test():
+            mock_device = MockTransportDevice()
+            trans = transport.Transport(mock_device)
+
+            cmd = command.Command()
+            cmd.destination = 1
+            cmd.source = 2
+            cmd.reply_required = True
+            cmd.data = b'\x01\x02\x03'
+
+            frame_a = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\x10\xaa\xbb'
+            )
+            frame_b = transport_device.Frame(
+                arbitration_id=(1 << 8) | 2,
+                data=b'\x20\xcc\xdd'
+            )
+            wrong_dest_frame = transport_device.Frame(
+                arbitration_id=(3 << 8) | 2,
+                data=b'\x30\xee\xff'
+            )
+            wrong_source_frame = transport_device.Frame(
+                arbitration_id=(1 << 8) | 5,
+                data=b'\x40\x11\x22'
+            )
+
+            mock_device.add_response([frame_a, frame_b])
+
+            result = await trans.cycle([cmd])
+
+            self.assertEqual(len(mock_device.transaction_calls), 1)
+
+            call = mock_device.transaction_calls[0]
+            req = call['requests'][0]
+
+            self.assertIsNotNone(req.frame_filter)
+
+            self.assertTrue(req.frame_filter(frame_a))
+            self.assertTrue(req.frame_filter(frame_b))
+
+            self.assertFalse(req.frame_filter(wrong_dest_frame))
+            self.assertFalse(req.frame_filter(wrong_source_frame))
+
+        self.run_async(test())
+
+    def test_reply_filter_controller_position_and_diagnostic(self):
+        async def test():
+            query_response = transport_device.Frame(
+                arbitration_id=(1 << 8) | 0,
+                data=b'\x20\x01\x02\x03\x04'
+            )
+            diagnostic_response = transport_device.Frame(
+                arbitration_id=(1 << 8) | 0,
+                data=b'\x41\x01\x05\x06'
+            )
+            wrong_response = transport_device.Frame(
+                arbitration_id=(1 << 8) | 0,
+                data=b'\x99\xaa\xbb\xcc'
+            )
+
+            all_responses = [query_response, diagnostic_response, wrong_response]
+
+            for response_ordering in itertools.permutations(all_responses):
+                mock_device = MockTransportDevice()
+                trans = transport.Transport(mock_device)
+
+                controller = moteus.Controller(id=1, transport=trans)
+
+                position_cmd = controller.make_position(position=0.5, query=True)
+                diagnostic_cmd = controller.make_diagnostic_read()
+
+                mock_device.add_response(list(response_ordering))
+
+                result = await trans.cycle([position_cmd, diagnostic_cmd])
+
+                self.assertEqual(len(mock_device.transaction_calls), 1)
+
+                call = mock_device.transaction_calls[0]
+                self.assertEqual(len(call['requests']), 2)
+
+                pos_req = call['requests'][0]
+                diag_req = call['requests'][1]
+
+                self.assertIsNotNone(pos_req.frame_filter)
+                self.assertIsNotNone(diag_req.frame_filter)
+
+                self.assertTrue(pos_req.frame_filter(query_response))
+                self.assertFalse(pos_req.frame_filter(diagnostic_response))
+                self.assertFalse(pos_req.frame_filter(wrong_response))
+
+                self.assertFalse(diag_req.frame_filter(query_response))
+                self.assertTrue(diag_req.frame_filter(diagnostic_response))
+                self.assertFalse(diag_req.frame_filter(wrong_response))
 
         self.run_async(test())
 
