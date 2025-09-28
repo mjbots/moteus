@@ -324,7 +324,18 @@ class Controller:
         else:
             result.data = self._query_data
             result.expected_reply_size = self._default_query_reply_size
-        return result;
+
+        def expect_reply(frame):
+            if len(frame.data) < 1:
+                return False
+
+            if frame.data[0] & 0xf0 == 0x20 or frame.data[0] == 0x31:
+                return True
+
+            return False
+
+        result.reply_filter = expect_reply
+        return result
 
     async def query(self, **kwargs):
         return await self.execute(self.make_query(**kwargs))
@@ -349,6 +360,17 @@ class Controller:
 
         result.data = data_buf.getvalue()
         result.expected_reply_size = c.reply_size
+
+        def expect_reply(frame):
+            if len(frame.data) < 1:
+                return False
+
+            if frame.data[0] & 0xf0 == 0x20 or frame.data[0] == 0x31:
+                return True
+
+            return False
+
+        result.reply_filter = expect_reply
         return result
 
     async def custom_query(self, *args, **kwargs):
