@@ -225,6 +225,24 @@ def _is_servo_stats_fault_field(item):
     parent_name = parent.text(0).lower()
     return parent_name == "servo_stats"
 
+def _format_fault_code(fault_code):
+    """Format a fault code with human-readable description.
+
+    Args:
+        fault_code: Integer fault code (can be None)
+
+    Returns:
+        str: Formatted fault code string, "0" for no fault, empty string for None
+    """
+    if fault_code is None:
+        return ""
+
+    if fault_code == 0:
+        return "0"
+
+    description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault code")
+    return f"{fault_code} ({description})"
+
 def _set_tree_widget_data(item, struct, element, terminal_flags=None):
     if (isinstance(element, reader.ObjectType) or
         isinstance(element, reader.ArrayType) or
@@ -253,8 +271,7 @@ def _set_tree_widget_data(item, struct, element, terminal_flags=None):
             text = f"{struct:x}"
         elif _is_servo_stats_fault_field(item) and isinstance(struct, int):
             # Special formatting for servo_stats.fault field
-            description = FAULT_CODE_DESCRIPTIONS.get(struct, "unknown fault code")
-            text = f"{struct} ({description})"
+            text = _format_fault_code(struct)
         else:
             text = repr(struct)
         item.setText(1, text)
@@ -2010,9 +2027,9 @@ class TviewMainWindow():
             # Single fault - show device and fault code with description
             device = faulted_devices[0]
             fault_code = device.fault_state.current_fault_code
-            if fault_code is not None:
-                description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault")
-                message = f"Fault: {device.address} {fault_code} ({description})"
+            fault_text = _format_fault_code(fault_code)
+            if fault_text:
+                message = f"Fault: {device.address} {fault_text}"
             else:
                 message = f"Fault: {device.address}"
         elif len(faulted_devices) <= FULL_LIST_COUNT:
@@ -2020,9 +2037,9 @@ class TviewMainWindow():
             fault_strs = []
             for device in faulted_devices:
                 fault_code = device.fault_state.current_fault_code
-                if fault_code is not None:
-                    description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault")
-                    fault_strs.append(f"{device.address} {fault_code} ({description})")
+                fault_text = _format_fault_code(fault_code)
+                if fault_text:
+                    fault_strs.append(f"{device.address} {fault_text}")
                 else:
                     fault_strs.append(f"{device.address}")
             message = f"Faults: {', '.join(fault_strs)}"
@@ -2034,9 +2051,9 @@ class TviewMainWindow():
             tooltip_lines = []
             for device in faulted_devices:
                 fault_code = device.fault_state.current_fault_code
-                if fault_code is not None:
-                    description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault")
-                    tooltip_lines.append(f"{device.address} {fault_code} ({description})")
+                fault_text = _format_fault_code(fault_code)
+                if fault_text:
+                    tooltip_lines.append(f"{device.address} {fault_text}")
                 else:
                     tooltip_lines.append(f"{device.address}")
             tooltip = "\n".join(tooltip_lines)
