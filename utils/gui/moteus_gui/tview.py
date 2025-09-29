@@ -19,6 +19,7 @@
 
 import argparse
 import asyncio
+from dataclasses import dataclass
 import io
 import moteus
 import moteus.moteus_tool
@@ -73,6 +74,19 @@ if os.environ['QT_API'] == 'pyside6':
 import asyncqt
 
 import moteus.reader as reader
+import moteus.multiplex
+from moteus import Register, Mode
+
+
+# Fault monitoring configuration
+FAULT_POLLING_INTERVAL_MS = 500
+
+
+@dataclass
+class FaultState:
+    """Tracks fault status and user observation for a device."""
+    is_faulted: bool = False
+    observed: bool = True  # Default to observed (no flashing for non-faulty devices)
 
 
 try:
@@ -666,6 +680,9 @@ class Device:
 
         self._updating_config = False
 
+        # Fault monitoring state
+        self.fault_state = FaultState()
+
     async def start(self):
         # Stop the spew.
         self.write('\r\ntel stop\r\n'.encode('latin1'))
@@ -1122,6 +1139,64 @@ class Device:
         _add_schema_item(item, schema_data)
         return item
 
+    async def check_fault_status(self):
+        """Check current fault status and return is_faulted, mode, fault_code)."""
+        result = await self.controller.custom_query({
+            Register.MODE: moteus.multiplex.INT8,
+            Register.FAULT: moteus.multiplex.INT8,
+        })
+
+        mode = result.values.get(Register.MODE, None)
+        fault_code = result.values.get(Register.FAULT, None)
+        is_faulted = (mode == Mode.FAULT) if mode is not None else False
+
+        return is_faulted, mode, fault_code
+
+    def update_fault_state(self, is_faulted):
+        """Update the fault state based on current status."""
+        previous_faulted = self.fault_state.is_faulted
+        fault_detected = False
+
+        if is_faulted and not previous_faulted:
+            # New fault detected - needs observation
+            self.fault_state.is_faulted = True
+            self.fault_state.observed = False
+            fault_detected = True
+        elif not is_faulted and previous_faulted:
+            # Fault cleared - mark as observed since it's no longer present
+            self.fault_state.is_faulted = False
+            self.fault_state.observed = True
+
+        return fault_detected
+
+    def mark_fault_observed(self):
+        """Mark the current fault as observed by the user."""
+        if self.fault_state.is_faulted:
+            self.fault_state.observed = True
+
+    def has_unobserved_fault(self):
+        """Check if device has a fault that hasn't been observed."""
+        return self.fault_state.is_faulted and not self.fault_state.observed
+
+    async def check_and_update_fault_state(self):
+        """Check fault status and update state. Returns (fault_detected, mode, fault_code)."""
+        # Check current fault status
+        is_faulted, mode, fault_code = await self.check_fault_status()
+
+        # Store previous state to detect fault clearing
+        prev_faulted = self.fault_state.is_faulted
+
+        # Update fault state and check if new fault detected
+        fault_detected = self.update_fault_state(is_faulted)
+
+        # Log status changes
+        if fault_detected:
+            print(f"FAULT detected on device {self.address}: mode={mode}, fault={fault_code}")
+        elif prev_faulted and not self.fault_state.is_faulted:
+            print(f"Fault cleared on device {self.address}")
+
+        return fault_detected
+
 
 class TviewMainWindow():
     def __init__(self, options, parent=None):
@@ -1138,6 +1213,12 @@ class TviewMainWindow():
         self.expected_device_count = 0
         self.device_uuid_support = {}
         self.uuid_query_lock = asyncio.Lock()
+
+        # Fault monitoring infrastructure
+        self.fault_monitoring_task = None
+        self.fault_flash_timer = None
+        self.original_tab_color = None  # Store original tab color
+        self.fault_flash_state = False
 
         current_script_dir = os.path.dirname(os.path.abspath(__file__))
         uifilename = os.path.join(current_script_dir, "tview_main_window.ui")
@@ -1162,6 +1243,10 @@ class TviewMainWindow():
             QtCore.Qt.CustomContextMenu)
         self.ui.telemetryTreeWidget.customContextMenuRequested.connect(
             self._handle_telemetry_context_menu)
+
+        # Track clicks for fault observation
+        self.ui.telemetryTreeWidget.itemClicked.connect(
+            self._handle_telemetry_item_clicked)
 
         self.ui.configTreeWidget.setItemDelegateForColumn(
             0, NoEditDelegate(self.ui))
@@ -1350,9 +1435,14 @@ class TviewMainWindow():
             source_can_id -= 1
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
+            data_item.setData(0, QtCore.Qt.UserRole, device)
             asyncio.create_task(device.start())
 
             self.devices.append(device)
+
+        # Start fault monitoring after all devices are created
+        if self.devices and not self.fault_monitoring_task:
+            self.fault_monitoring_task = asyncio.create_task(self._monitor_device_faults())
 
     def _handle_startup(self):
         self.console._control.setFocus()
@@ -1533,12 +1623,23 @@ class TviewMainWindow():
     def _handle_tree_expanded(self, item):
         self.ui.telemetryTreeWidget.resizeColumnToContents(0)
         user_data = item.data(0, QtCore.Qt.UserRole)
-        if user_data:
+        if (user_data and
+            hasattr(user_data, 'expand') and
+            callable(user_data.expand)):
             user_data.expand()
+
+        # Mark fault as observed if expanding servo_stats while
+        # telemetry is visible
+
+        if (self.ui.telemetryDock.isVisible() and
+            item.text(0).lower() == "servo_stats"):
+            device = self._find_device_from_tree_item(item)
+            if device and device.has_unobserved_fault():
+                self._mark_fault_observed(device)
 
     def _handle_tree_collapsed(self, item):
         user_data = item.data(0, QtCore.Qt.UserRole)
-        if user_data:
+        if user_data and hasattr(user_data, 'collapse') and callable(user_data.collapse):
             user_data.collapse()
 
     def _handle_telemetry_context_menu(self, pos):
@@ -1640,6 +1741,196 @@ class TviewMainWindow():
         item = self.ui.plotItemCombo.itemData(index)
         self.ui.plotWidget.remove_plot(item)
         self.ui.plotItemCombo.removeItem(index)
+
+    # Fault Monitoring System
+    async def _monitor_device_faults(self):
+        """Continuously monitor devices for fault conditions."""
+        # Wait for devices to initialize
+
+        # Start monitoring immediately - devices can handle queries during initialization
+
+        while True:
+            try:
+                await asyncio.sleep(FAULT_POLLING_INTERVAL_MS / 1000.0)
+
+                fault_detected = False
+                for device in self.devices:
+                    # Check and update fault state for this device
+                    device_fault_detected = await device.check_and_update_fault_state()
+                    if device_fault_detected:
+                        fault_detected = True
+
+                # Start/stop flashing based on unobserved faults
+                if fault_detected:
+                    self._start_fault_flashing()
+                elif self._all_faults_observed():
+                    self._stop_fault_flashing()
+
+            except Exception as e:
+                print(f"Error in fault monitoring: {e}")
+                await asyncio.sleep(1.0)
+
+    def _all_faults_observed(self):
+        """Check if all current faults have been visually observed."""
+        return all(not device.has_unobserved_fault() for device in self.devices)
+
+    def _start_fault_flashing(self):
+        """Start visual fault indicators."""
+        if self.fault_flash_timer is None:
+            self.fault_flash_timer = QtCore.QTimer()
+            self.fault_flash_timer.timeout.connect(self._toggle_fault_flash)
+            self.fault_flash_timer.start(500)
+            self._toggle_fault_flash()
+
+    def _stop_fault_flashing(self):
+        """Stop visual fault indicators."""
+        if self.fault_flash_timer is not None:
+            self.fault_flash_timer.stop()
+            self.fault_flash_timer = None
+            self._clear_fault_highlighting()
+
+    def _toggle_fault_flash(self):
+        """Toggle fault visual indicators."""
+        self.fault_flash_state = not self.fault_flash_state
+        color = "#FF4444" if self.fault_flash_state else "#FFA500"
+
+        for device in self.devices:
+            if device.has_unobserved_fault():
+                self._highlight_device_fault(device, color)
+
+    def _highlight_device_fault(self, device, color):
+        """Apply fault highlighting to UI elements."""
+        self._highlight_telemetry_tab(color)
+        self._highlight_device_tree_items(device, color)
+        self._highlight_servo_stats(device, color)
+
+    def _highlight_telemetry_tab(self, color):
+        """Flash telemetry tab text to indicate fault."""
+        tab_bars = self.ui.findChildren(QtWidgets.QTabBar)
+        for tab_bar in tab_bars:
+            for i in range(tab_bar.count()):
+                if "telemetry" in tab_bar.tabText(i).lower():
+                    # Store original color on first modification
+                    if self.original_tab_color is None:
+                        # Get the actual default color from the palette since tabTextColor
+                        # returns invalid QColor() for tabs that haven't been modified
+                        self.original_tab_color = tab_bar.palette().color(QtGui.QPalette.WindowText)
+
+                    # This is the best visual indicator I've managed
+                    # to find for tab text.
+                    if self.fault_flash_state:
+                        tab_bar.setTabTextColor(i, QtGui.QColor("#FF0000"))
+                    else:
+                        tab_bar.setTabTextColor(i, QtGui.QColor("#FF8800"))
+                    return
+
+    def _highlight_device_tree_items(self, device, color):
+        """Highlight device tree items in telemetry view."""
+        # Only highlight if device has unobserved fault
+        if hasattr(device, '_data_tree_item') and device.has_unobserved_fault():
+            brush = QtGui.QBrush(QtGui.QColor(color))
+            device._data_tree_item.setBackground(0, brush)
+            device._data_tree_item.setBackground(1, brush)
+
+    def _highlight_servo_stats(self, device, color):
+        """Highlight servo_stats entry for device."""
+        # Only highlight if device has unobserved fault
+        if hasattr(device, '_data_tree_item') and device.has_unobserved_fault():
+            for i in range(device._data_tree_item.childCount()):
+                child = device._data_tree_item.child(i)
+                if child.text(0) == 'servo_stats':
+                    brush = QtGui.QBrush(QtGui.QColor(color))
+                    child.setBackground(0, brush)
+                    child.setBackground(1, brush)
+                    break
+
+    def _clear_fault_highlighting(self):
+        """Clear all fault highlighting."""
+        # Clear telemetry tab color
+        tab_bars = self.ui.findChildren(QtWidgets.QTabBar)
+        for tab_bar in tab_bars:
+            for i in range(tab_bar.count()):
+                if "telemetry" in tab_bar.tabText(i).lower():
+                    # Reset the color using the stored original
+                    if self.original_tab_color and self.original_tab_color.isValid():
+                        tab_bar.setTabTextColor(i, self.original_tab_color)
+                    break  # Found and processed the telemetry tab
+
+        # Clear tree highlighting for all devices
+        for device in self.devices:
+            self._clear_device_highlighting(device)
+
+    def _clear_device_highlighting(self, device):
+        """Clear fault highlighting for a specific device."""
+        if hasattr(device, '_data_tree_item'):
+            device._data_tree_item.setBackground(0, QtGui.QBrush())
+            device._data_tree_item.setBackground(1, QtGui.QBrush())
+            # Clear servo_stats
+            for i in range(device._data_tree_item.childCount()):
+                child = device._data_tree_item.child(i)
+                if child.text(0) == 'servo_stats':
+                    child.setBackground(0, QtGui.QBrush())
+                    child.setBackground(1, QtGui.QBrush())
+
+    # Observation Tracking
+    def _handle_telemetry_item_clicked(self, item, column):
+        """Handle clicks on telemetry items for fault observation."""
+        if not self.ui.telemetryDock.isVisible():
+            return
+
+        # We only consider a fault observed if the user expanded or
+        # clicked on the 'servo_stats' entry, or the 'fault' or 'mode'
+        # elements of 'servo_stats.
+        item_text = item.text(0).lower()
+        if item_text == "servo_stats":
+            # Only count servo_stats click as observation if it's already expanded
+            if item.isExpanded():
+                device = self._find_device_from_tree_item(item)
+            else:
+                return  # Don't count clicks on collapsed servo_stats
+        elif item_text in ["mode", "fault"] and item.parent() and item.parent().text(0).lower() == "servo_stats":
+            device = self._find_device_from_tree_item(item.parent().parent())
+        else:
+            return
+
+        if device and device.has_unobserved_fault():
+            self._mark_fault_observed(device)
+            print(f"Fault observed: clicked on {item.text(0)}")
+
+
+    def _find_device_from_tree_item(self, item):
+        """Find device associated with tree item."""
+        if not item:
+            return None
+
+        # Traverse up to top-level item
+        current = item
+        while current.parent():
+            current = current.parent()
+
+        # Check if top-level item has device data
+        device_data = current.data(0, QtCore.Qt.UserRole)
+        if isinstance(device_data, Device):
+            return device_data
+
+        # Fallback: search by tree item reference
+        for device in self.devices:
+            if hasattr(device, '_data_tree_item') and device._data_tree_item == current:
+                return device
+
+        return None
+
+    def _mark_fault_observed(self, device):
+        """Mark device fault as visually observed."""
+        device.mark_fault_observed()
+        print(f"Fault on device {device.address} marked as observed")
+
+        # Clear highlighting for this specific device immediately
+        self._clear_device_highlighting(device)
+
+        # Check if all faults are now observed and stop global flashing if so
+        if self._all_faults_observed():
+            self._stop_fault_flashing()
 
 
 def main():
