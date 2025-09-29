@@ -87,6 +87,8 @@ class FaultState:
     """Tracks fault status and user observation for a device."""
     is_faulted: bool = False
     observed: bool = True  # Default to observed (no flashing for non-faulty devices)
+    current_mode: int = None  # Current mode register value
+    current_fault_code: int = None  # Current fault register value
 
 
 try:
@@ -1186,6 +1188,10 @@ class Device:
         # Store previous state to detect fault clearing
         prev_faulted = self.fault_state.is_faulted
 
+        # Store current fault information for status bar
+        self.fault_state.current_mode = mode
+        self.fault_state.current_fault_code = fault_code
+
         # Update fault state and check if new fault detected
         fault_detected = self.update_fault_state(is_faulted)
 
@@ -1766,6 +1772,9 @@ class TviewMainWindow():
                 elif self._all_faults_observed():
                     self._stop_fault_flashing()
 
+                # Update status bar with current fault information
+                self._update_fault_status_bar()
+
             except Exception as e:
                 print(f"Error in fault monitoring: {e}")
                 await asyncio.sleep(1.0)
@@ -1931,6 +1940,64 @@ class TviewMainWindow():
         # Check if all faults are now observed and stop global flashing if so
         if self._all_faults_observed():
             self._stop_fault_flashing()
+
+        # Update status bar to reflect observed fault
+        self._update_fault_status_bar()
+
+    def _update_fault_status_bar(self):
+        """Update the status bar with current fault information."""
+        # Collect all faulted devices
+        faulted_devices = []
+        for device in self.devices:
+            if device.fault_state.is_faulted:
+                faulted_devices.append(device)
+
+        if not faulted_devices:
+            # No faults - clear status bar
+            self.ui.statusbar.clearMessage()
+            return
+
+        FULL_LIST_COUNT = 2
+
+        if len(faulted_devices) == 1:
+            # Single fault - show device and fault code
+            device = faulted_devices[0]
+            fault_code = device.fault_state.current_fault_code
+            if fault_code is not None:
+                message = f"Fault: {device.address} fault={fault_code}"
+            else:
+                message = f"Fault: {device.address}"
+        elif len(faulted_devices) <= FULL_LIST_COUNT:
+            # Multiple faults - show compact list
+            fault_strs = []
+            for device in faulted_devices:
+                fault_code = device.fault_state.current_fault_code
+                if fault_code is not None:
+                    fault_strs.append(f"{device.address} fault={fault_code}")
+                else:
+                    fault_strs.append(f"{device.address}")
+            message = f"Faults: {', '.join(fault_strs)}"
+        else:
+            # Many faults - show count with tooltip
+            message = f"Faults: {len(faulted_devices)} devices - hover for details"
+
+            # Create tooltip with detailed fault information
+            tooltip_lines = []
+            for device in faulted_devices:
+                fault_code = device.fault_state.current_fault_code
+                if fault_code is not None:
+                    tooltip_lines.append(f"{device.address} fault={fault_code}")
+                else:
+                    tooltip_lines.append(f"{device.address}")
+            tooltip = "\n".join(tooltip_lines)
+            self.ui.statusbar.setToolTip(tooltip)
+
+        # Display the message
+        self.ui.statusbar.showMessage(message)
+
+        # Clear tooltip if not many faults
+        if len(faulted_devices) <= FULL_LIST_COUNT:
+            self.ui.statusbar.setToolTip("")
 
 
 def main():
