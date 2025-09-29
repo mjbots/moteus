@@ -1902,8 +1902,6 @@ class TviewMainWindow():
 
         if device and device.has_unobserved_fault():
             self._mark_fault_observed(device)
-            print(f"Fault observed: clicked on {item.text(0)}")
-
 
     def _find_device_from_tree_item(self, item):
         """Find device associated with tree item."""
