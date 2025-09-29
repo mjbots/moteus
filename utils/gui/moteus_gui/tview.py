@@ -81,6 +81,35 @@ from moteus import Register, Mode
 # Fault monitoring configuration
 FAULT_POLLING_INTERVAL_MS = 500
 
+# Fault code descriptions from docs/reference.md
+FAULT_CODE_DESCRIPTIONS = {
+    32: "calibration fault",
+    33: "motor driver fault",
+    34: "over voltage",
+    35: "encoder fault",
+    36: "motor not configured",
+    37: "pwm cycle overrun",
+    38: "over temperature",
+    39: "outside limit",
+    40: "under voltage",
+    41: "config changed",
+    42: "theta invalid",
+    43: "position invalid",
+    44: "driver enable fault",
+    45: "stop position deprecated",
+    46: "timing violation",
+    47: "bemf feedforward without accel",
+    48: "invalid limits",
+    96: "limit: servo.max_velocity",
+    97: "limit: servo.max_power_W",
+    98: "limit: max system voltage",
+    99: "limit: servo.max_current_A",
+    100: "limit: servo.fault_temperature",
+    101: "limit: servo.motor_fault_temperature",
+    102: "limit: commanded max torque",
+    103: "limit: servopos limit",
+}
+
 
 @dataclass
 class FaultState:
@@ -177,6 +206,25 @@ def _add_schema_item(parent, element, terminal_flags=None):
         if terminal_flags:
             parent.setFlags(terminal_flags)
 
+def _is_servo_stats_fault_field(item):
+    """Check if the tree widget item represents a servo_stats.fault field."""
+    # Check if this is a leaf node (has no children and is displaying a value)
+    if item.childCount() > 0:
+        return False
+
+    # Get the field name
+    field_name = item.text(0).lower()
+    if field_name != "fault":
+        return False
+
+    # Check if parent is servo_stats
+    parent = item.parent()
+    if parent is None:
+        return False
+
+    parent_name = parent.text(0).lower()
+    return parent_name == "servo_stats"
+
 def _set_tree_widget_data(item, struct, element, terminal_flags=None):
     if (isinstance(element, reader.ObjectType) or
         isinstance(element, reader.ArrayType) or
@@ -203,6 +251,10 @@ def _set_tree_widget_data(item, struct, element, terminal_flags=None):
         text = None
         if maybe_format == FMT_HEX and type(struct) == int:
             text = f"{struct:x}"
+        elif _is_servo_stats_fault_field(item) and isinstance(struct, int):
+            # Special formatting for servo_stats.fault field
+            description = FAULT_CODE_DESCRIPTIONS.get(struct, "unknown fault code")
+            text = f"{struct} ({description})"
         else:
             text = repr(struct)
         item.setText(1, text)
@@ -1955,20 +2007,22 @@ class TviewMainWindow():
         FULL_LIST_COUNT = 2
 
         if len(faulted_devices) == 1:
-            # Single fault - show device and fault code
+            # Single fault - show device and fault code with description
             device = faulted_devices[0]
             fault_code = device.fault_state.current_fault_code
             if fault_code is not None:
-                message = f"Fault: {device.address} fault={fault_code}"
+                description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault")
+                message = f"Fault: {device.address} {fault_code} ({description})"
             else:
                 message = f"Fault: {device.address}"
         elif len(faulted_devices) <= FULL_LIST_COUNT:
-            # Multiple faults - show compact list
+            # Multiple faults - show compact list with descriptions
             fault_strs = []
             for device in faulted_devices:
                 fault_code = device.fault_state.current_fault_code
                 if fault_code is not None:
-                    fault_strs.append(f"{device.address} fault={fault_code}")
+                    description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault")
+                    fault_strs.append(f"{device.address} {fault_code} ({description})")
                 else:
                     fault_strs.append(f"{device.address}")
             message = f"Faults: {', '.join(fault_strs)}"
@@ -1976,12 +2030,13 @@ class TviewMainWindow():
             # Many faults - show count with tooltip
             message = f"Faults: {len(faulted_devices)} devices - hover for details"
 
-            # Create tooltip with detailed fault information
+            # Create tooltip with detailed fault information including descriptions
             tooltip_lines = []
             for device in faulted_devices:
                 fault_code = device.fault_state.current_fault_code
                 if fault_code is not None:
-                    tooltip_lines.append(f"{device.address} fault={fault_code}")
+                    description = FAULT_CODE_DESCRIPTIONS.get(fault_code, "unknown fault")
+                    tooltip_lines.append(f"{device.address} {fault_code} ({description})")
                 else:
                     tooltip_lines.append(f"{device.address}")
             tooltip = "\n".join(tooltip_lines)
