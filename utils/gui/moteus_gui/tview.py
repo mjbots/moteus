@@ -18,6 +18,7 @@
 '''
 
 import argparse
+import ast
 import asyncio
 from dataclasses import dataclass
 import io
@@ -543,6 +544,18 @@ class TviewPythonConsole(HistoryConsoleWidget):
     def _is_complete(self, source, interactive):
         return True, False
 
+    def _has_await_expression(self, source):
+        """Check if source code contains await expressions using AST parsing."""
+        try:
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Await):
+                    return True
+            return False
+        except SyntaxError:
+            # If it doesn't parse, we'll handle the error later
+            return False
+
     def _execute(self, source, hidden):
         if not source.strip():
             self._show_prompt(self._prompt)
@@ -551,12 +564,8 @@ class TviewPythonConsole(HistoryConsoleWidget):
         loop = asyncio.get_event_loop()
 
         try:
-            # TODO: Use a sound way of checking for this, instead of
-            # text comparison.  This would fail if the user had a
-            # variable or function named fawait for instance.
-
-            # Check if this is an async expression.
-            if 'await' in source:
+            # Check if this is an async expression using AST analysis.
+            if self._has_await_expression(source):
                 # Wrap this in an async function.
                 wrapped = f"async def _async_exec():\n    return {source}"
                 exec(wrapped, self.namespace)
