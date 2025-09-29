@@ -508,6 +508,105 @@ class TviewConsoleWidget(HistoryConsoleWidget):
         return True
 
 
+class TviewPythonConsole(HistoryConsoleWidget):
+    def __init__(self, parent=None, get_controller=None):
+        super().__init__(parent)
+
+        self.execute_on_complete_input = False
+        self._prompt = '>>> '
+        self.clear()
+
+        self._append_before_prompt_cursor.setPosition(0)
+
+        self.namespace = {
+            'transport': None,
+            'controller': None,
+            'get_controller': get_controller,
+            'asyncio': asyncio,
+            'moteus': moteus,
+            'time': time,
+            'numpy': numpy,
+        }
+
+        for line in """
+# Python REPL for moteus control
+# Available: controller, get_controller(id), transport, asyncio, moteus
+# Use 'await' for async operations
+""".split('\n'):
+            self._append_plain_text(line + '\n')
+
+        self._show_prompt(self._prompt)
+
+    def sizeHint(self):
+        return QtCore.QSize(600, 200)
+
+    def _is_complete(self, source, interactive):
+        return True, False
+
+    def _execute(self, source, hidden):
+        if not source.strip():
+            self._show_prompt(self._prompt)
+            return True
+
+        loop = asyncio.get_event_loop()
+
+        try:
+            # TODO: Use a sound way of checking for this, instead of
+            # text comparison.  This would fail if the user had a
+            # variable or function named fawait for instance.
+
+            # Check if this is an async expression.
+            if 'await' in source:
+                # Wrap this in an async function.
+                wrapped = f"async def _async_exec():\n    return {source}"
+                exec(wrapped, self.namespace)
+                # Now, run the function we just evaluated.
+                future = asyncio.ensure_future(self.namespace['_async_exec']())
+
+                def done_callback(future):
+                    try:
+                        result = future.result()
+                        if result is not None:
+                            self._append_plain_text(repr(result) + '\n')
+                    except Exception as e:
+                        self._append_plain_text(f'Error: {type(e).__name__}: {e}\n')
+                    self._show_prompt(self._prompt)
+
+                future.add_done_callback(done_callback)
+            else:
+                # Try as expression first, then as a statement.
+                try:
+                    result = eval(source, self.namespace)
+                    if result is not None:
+                        self._append_plain_text(repr(result) + '\n')
+                except SyntaxError:
+                    # Try as a statement.
+                    exec(source, self.namespace)
+
+                self._show_prompt(self._prompt)
+        except Exception as e:
+            self._append_plain_text(f'Error: {type(e).__name__}: {e}\n')
+            self._show_prompt(self._prompt)
+
+        return True
+
+
+class TviewTabbedConsole(QtWidgets.QTabWidget):
+    def __init__(self, parent=None, get_controller=None):
+        super().__init__(parent)
+
+        self.diagnostic_console = TviewConsoleWidget()
+        self.diagnostic_console.ansi_codes = False
+
+        self.addTab(self.diagnostic_console, "Diagnostic")
+
+        self.python_console = TviewPythonConsole(
+            get_controller=get_controller)
+        self.addTab(self.python_console, "Python")
+
+    def sizeHint(self):
+        return QtCore.QSize(600, 200)
+
 class Record:
     def __init__(self, archive):
         self.archive = archive
@@ -712,7 +811,10 @@ class Device:
     STATE_SCHEMA = 3
     STATE_DATA = 4
 
-    def __init__(self, address, source_can_id, transport, console, prefix,
+    def __init__(self, address,
+                 source_can_id,
+                 python_source_can_id,
+                 transport, console, prefix,
                  config_tree_item, data_tree_item,
                  can_prefix, main_window, can_id):
         self.error_count = 0
@@ -721,6 +823,7 @@ class Device:
 
         self.address = address
         self.source_can_id = source_can_id
+        self.python_source_can_id = python_source_can_id
         self._can_prefix = can_prefix
 
         # We keep around an estimate of the current CAN ID to enable
@@ -1331,10 +1434,13 @@ class TviewMainWindow():
         self.ui.plotItemRemoveButton.clicked.connect(
             self._handle_plot_item_remove)
 
-        self.console = TviewConsoleWidget()
-        self.console.ansi_codes = False
+        self.tabbed_console = TviewTabbedConsole(get_controller=self._python_get_controller)
+        self.ui.consoleDock.setWidget(self.tabbed_console)
+
+        self.console = self.tabbed_console.diagnostic_console
         self.console.line_input.connect(self._handle_user_input)
-        self.ui.consoleDock.setWidget(self.console)
+
+        self.python_console = self.tabbed_console.python_console
 
         self.ui.tabifyDockWidget(self.ui.configDock, self.ui.telemetryDock)
 
@@ -1444,6 +1550,8 @@ class TviewMainWindow():
         return len(matching_devices) == 1
 
     async def _populate_devices(self):
+        self.python_console.namespace['transport'] = self.transport
+
         self.devices = []
 
         targets = moteus.moteus_tool.expand_targets(self.options.devices)
@@ -1493,7 +1601,11 @@ class TviewMainWindow():
             data_item.setText(0, tree_key)
             self.ui.telemetryTreeWidget.addTopLevelItem(data_item)
 
-            device = Device(device_address, source_can_id,
+            python_source_can_id = source_can_id - 1
+
+            device = Device(device_address,
+                            source_can_id,
+                            python_source_can_id,
                             self.transport,
                             self.console, '{}>'.format(tree_key),
                             config_item,
@@ -1502,7 +1614,7 @@ class TviewMainWindow():
                             self,
                             current_can_id)
 
-            source_can_id -= 1
+            source_can_id -= 2
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
             data_item.setData(0, QtCore.Qt.UserRole, device)
@@ -1513,6 +1625,49 @@ class TviewMainWindow():
         # Start fault monitoring after all devices are created
         if self.devices and not self.fault_monitoring_task:
             self.fault_monitoring_task = asyncio.create_task(self._monitor_device_faults())
+
+        if self.devices:
+            self.python_console.namespace['controller'] = self._python_get_controller(self.devices[0].address)
+
+    def _python_get_controller(self, name_or_address):
+        def get_device():
+            # Is this an address that matches one of our devices
+            # exactly?
+            maybe_device_by_address = [
+                device for device in self.devices
+                if (device.address == name_or_address
+                    or (isinstance(device.address, int) and
+                        isinstance(name_or_address, int) and
+                        device.address == name_or_address)
+                    or (not isinstance(device.address, int) and
+                        device.address.can_id is not None and
+                        isinstance(name_or_address, int) and
+                        device.address.can_id == name_or_address))
+            ]
+            if maybe_device_by_address:
+                return maybe_device_by_address[0]
+
+            # Can we look it up by name?
+            if isinstance(name_or_address, str):
+                maybe_devices = [x for x in self.devices
+                                 if self._match(x, name_or_address)]
+                if maybe_devices:
+                    return maybe_devices[0]
+
+            return None
+
+        device = get_device()
+        if device:
+            return moteus.Controller(
+                device.address,
+                source_can_id=device.python_source_can_id,
+                can_prefix=self.options.can_prefix)
+
+        # It doesn't appear to match one of our existing devices.
+        # Just try to make a new instance assuming it is address-like.
+        return moteus.Controller(
+            name_or_address,
+            can_prefix=self.options.can_prefix)
 
     def _handle_startup(self):
         self.console._control.setFocus()
