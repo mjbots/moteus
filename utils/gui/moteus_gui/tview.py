@@ -522,6 +522,13 @@ class TviewPythonConsole(HistoryConsoleWidget):
         # Track currently running async task for cancellation
         self._current_future = None
 
+        # Create custom print function for this console
+        def custom_print(*args, sep=' ', end='\n', file=None, flush=False):
+            """Custom print function that outputs to the Python console widget."""
+            output = io.StringIO()
+            print(*args, sep=sep, end=end, file=output)
+            self._append_plain_text(output.getvalue())
+
         self.namespace = {
             'transport': None,
             'controller': None,
@@ -530,6 +537,7 @@ class TviewPythonConsole(HistoryConsoleWidget):
             'moteus': moteus,
             'time': time,
             'numpy': numpy,
+            'print': custom_print,  # Custom print for console output
         }
 
         # Install event filter to catch key events
