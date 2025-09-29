@@ -1181,7 +1181,7 @@ class Device:
         return self.fault_state.is_faulted and not self.fault_state.observed
 
     async def check_and_update_fault_state(self):
-        """Check fault status and update state. Returns (fault_detected, mode, fault_code)."""
+        """Check fault status and update state. Returns (fault_detected, fault_cleared)."""
         # Check current fault status
         is_faulted, mode, fault_code = await self.check_fault_status()
 
@@ -1194,14 +1194,9 @@ class Device:
 
         # Update fault state and check if new fault detected
         fault_detected = self.update_fault_state(is_faulted)
+        fault_cleared = prev_faulted and not self.fault_state.is_faulted
 
-        # Log status changes
-        if fault_detected:
-            print(f"FAULT detected on device {self.address}: mode={mode}, fault={fault_code}")
-        elif prev_faulted and not self.fault_state.is_faulted:
-            print(f"Fault cleared on device {self.address}")
-
-        return fault_detected
+        return fault_detected, fault_cleared
 
 
 class TviewMainWindow():
@@ -1762,9 +1757,12 @@ class TviewMainWindow():
                 fault_detected = False
                 for device in self.devices:
                     # Check and update fault state for this device
-                    device_fault_detected = await device.check_and_update_fault_state()
+                    device_fault_detected, device_fault_cleared = await device.check_and_update_fault_state()
                     if device_fault_detected:
                         fault_detected = True
+                    if device_fault_cleared:
+                        # Clear highlighting for this device when fault is cleared
+                        self._clear_device_highlighting(device)
 
                 # Start/stop flashing based on unobserved faults
                 if fault_detected:
@@ -1932,7 +1930,6 @@ class TviewMainWindow():
     def _mark_fault_observed(self, device):
         """Mark device fault as visually observed."""
         device.mark_fault_observed()
-        print(f"Fault on device {device.address} marked as observed")
 
         # Clear highlighting for this specific device immediately
         self._clear_device_highlighting(device)
