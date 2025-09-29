@@ -519,6 +519,9 @@ class TviewPythonConsole(HistoryConsoleWidget):
 
         self._append_before_prompt_cursor.setPosition(0)
 
+        # Track currently running async task for cancellation
+        self._current_future = None
+
         self.namespace = {
             'transport': None,
             'controller': None,
@@ -529,10 +532,34 @@ class TviewPythonConsole(HistoryConsoleWidget):
             'numpy': numpy,
         }
 
+        # Install event filter to catch key events
+        self._control.installEventFilter(self)
+
+        # Also try using a QShortcut for Ctrl+C
+        try:
+            try:
+                from PySide6.QtGui import QShortcut, QKeySequence
+            except ImportError:
+                from PySide6.QtWidgets import QShortcut
+                from PySide6.QtGui import QKeySequence
+            # PySide6 style
+            self._interrupt_shortcut = QShortcut(QKeySequence("Ctrl+C"), self._control)
+            self._interrupt_shortcut.activated.connect(self._handle_interrupt)
+        except ImportError:
+            try:
+                from PySide2.QtWidgets import QShortcut
+                from PySide2.QtGui import QKeySequence
+                # PySide2 requires a lambda wrapper for the callable
+                self._interrupt_shortcut = QShortcut(QKeySequence("Ctrl+C"), self._control, lambda: self._handle_interrupt())
+            except Exception as e:
+                print(f"Warning: Could not set up Ctrl+C shortcut: {e}")
+                self._interrupt_shortcut = None
+
         for line in """
 # Python REPL for moteus control
 # Available: controller, get_controller(id), transport, asyncio, moteus
 # Use 'await' for async operations
+# Press Ctrl+C to interrupt long-running operations
 """.split('\n'):
             self._append_plain_text(line + '\n')
 
@@ -540,6 +567,46 @@ class TviewPythonConsole(HistoryConsoleWidget):
 
     def sizeHint(self):
         return QtCore.QSize(600, 200)
+
+    def _handle_interrupt(self):
+        """Handle interrupt signal from QShortcut."""
+        if self._current_future and not self._current_future.done():
+            cancelled = self._current_future.cancel()
+            if cancelled:
+                self._append_plain_text('\nKeyboardInterrupt\n')
+                self._show_prompt(self._prompt)
+            self._current_future = None
+
+    def eventFilter(self, obj, event):
+        """Event filter to catch key events before they're processed."""
+        if event.type() == QtCore.QEvent.KeyPress:
+            # Check for Ctrl+C
+            if (event.key() == QtCore.Qt.Key_C and
+                event.modifiers() == QtCore.Qt.ControlModifier):
+                if self._current_future and not self._current_future.done():
+                    cancelled = self._current_future.cancel()
+                    if cancelled:
+                        self._append_plain_text('\nKeyboardInterrupt\n')
+                        self._show_prompt(self._prompt)
+                    self._current_future = None
+                    return True  # Event handled, don't propagate
+        return super().eventFilter(obj, event)
+
+    def keyPressEvent(self, event):
+        """Handle key press events, including Ctrl+C for interruption."""
+        # Check for Ctrl+C
+        if (event.key() == QtCore.Qt.Key_C and
+            event.modifiers() == QtCore.Qt.ControlModifier):
+            if self._current_future and not self._current_future.done():
+                cancelled = self._current_future.cancel()
+                if cancelled:
+                    self._append_plain_text('\nKeyboardInterrupt\n')
+                    self._show_prompt(self._prompt)
+                self._current_future = None
+                return
+
+        # Pass other key events to parent
+        super().keyPressEvent(event)
 
     def _is_complete(self, source, interactive):
         return True, False
@@ -566,22 +633,53 @@ class TviewPythonConsole(HistoryConsoleWidget):
         try:
             # Check if this is an async expression using AST analysis.
             if self._has_await_expression(source):
-                # Wrap this in an async function.
-                wrapped = f"async def _async_exec():\n    return {source}"
+                # Determine if this is an expression or statement using AST
+                # We can't use compile() because await expressions fail in eval mode
+                is_expression = False
+                try:
+                    tree = ast.parse(source)
+                    # Check if it's a single expression statement
+                    if (len(tree.body) == 1 and
+                        isinstance(tree.body[0], ast.Expr)):
+                        is_expression = True
+                except SyntaxError:
+                    pass
+
+                # Wrap in an async function appropriately
+                if is_expression:
+                    # For expressions, we can return the value
+                    indented = '\n'.join('    ' + line for line in source.split('\n'))
+                    wrapped = f"async def _async_exec():\n    return (\n{indented}\n    )"
+                else:
+                    # For statements, just execute them
+                    indented = '\n'.join('    ' + line for line in source.split('\n'))
+                    wrapped = f"async def _async_exec():\n{indented}\n    return None"
+
                 exec(wrapped, self.namespace)
                 # Now, run the function we just evaluated.
-                future = asyncio.ensure_future(self.namespace['_async_exec']())
+                # Use create_task for better cancellation support
+                self._current_future = asyncio.create_task(self.namespace['_async_exec']())
 
                 def done_callback(future):
                     try:
                         result = future.result()
                         if result is not None:
                             self._append_plain_text(repr(result) + '\n')
+                    except asyncio.CancelledError:
+                        # Don't show anything extra - already handled in keyPressEvent
+                        pass
                     except Exception as e:
                         self._append_plain_text(f'Error: {type(e).__name__}: {e}\n')
-                    self._show_prompt(self._prompt)
+                    finally:
+                        # Clear the current future reference
+                        if self._current_future is future:
+                            self._current_future = None
 
-                future.add_done_callback(done_callback)
+                    # Only show prompt if not cancelled (already shown in keyPressEvent)
+                    if not future.cancelled():
+                        self._show_prompt(self._prompt)
+
+                self._current_future.add_done_callback(done_callback)
             else:
                 # Try as expression first, then as a statement.
                 try:
