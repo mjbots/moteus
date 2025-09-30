@@ -668,6 +668,79 @@ class TviewPythonConsole(HistoryConsoleWidget):
             # If it doesn't parse, we'll handle the error later
             return False
 
+    def _has_loops(self, source):
+        """Check if source code contains loops (for/while)."""
+        try:
+            tree = ast.parse(source)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.While, ast.For)):
+                    return True
+            return False
+        except SyntaxError:
+            return False
+
+    def _inject_yields_in_loops(self, source):
+        """Transform source code to inject 'await asyncio.sleep(0)' in loop bodies.
+
+        This allows tight loops to be cancelled via CTRL-C by giving the event
+        loop a chance to process cancellation.
+        """
+        try:
+            tree = ast.parse(source)
+
+            class LoopTransformer(ast.NodeTransformer):
+                def visit_While(self, node):
+                    # Visit children first
+                    self.generic_visit(node)
+                    # Inject await asyncio.sleep(0) at the start of the loop body
+                    yield_stmt = ast.Expr(
+                        value=ast.Await(
+                            value=ast.Call(
+                                func=ast.Attribute(
+                                    value=ast.Name(id='asyncio', ctx=ast.Load()),
+                                    attr='sleep',
+                                    ctx=ast.Load()
+                                ),
+                                args=[ast.Constant(value=0)],
+                                keywords=[]
+                            )
+                        )
+                    )
+                    # Insert at the beginning of the body
+                    node.body = [yield_stmt] + node.body
+                    return node
+
+                def visit_For(self, node):
+                    # Visit children first
+                    self.generic_visit(node)
+                    # Inject await asyncio.sleep(0) at the start of the loop body
+                    yield_stmt = ast.Expr(
+                        value=ast.Await(
+                            value=ast.Call(
+                                func=ast.Attribute(
+                                    value=ast.Name(id='asyncio', ctx=ast.Load()),
+                                    attr='sleep',
+                                    ctx=ast.Load()
+                                ),
+                                args=[ast.Constant(value=0)],
+                                keywords=[]
+                            )
+                        )
+                    )
+                    # Insert at the beginning of the body
+                    node.body = [yield_stmt] + node.body
+                    return node
+
+            transformer = LoopTransformer()
+            new_tree = transformer.visit(tree)
+            ast.fix_missing_locations(new_tree)
+
+            # Convert back to source code
+            return ast.unparse(new_tree)
+        except Exception:
+            # If transformation fails, return original source
+            return source
+
     def _execute(self, source, hidden):
         # Safety check: if we have a running future, we shouldn't be executing new code
         # This shouldn't normally happen but is defensive
@@ -725,14 +798,22 @@ class TviewPythonConsole(HistoryConsoleWidget):
 
         loop = asyncio.get_event_loop()
 
+        # Determine if this should run in async context
+        # Use async only if: code has top-level await OR code has loops (for cancellation)
+        has_await = self._has_top_level_await(full_source)
+        has_loops = self._has_loops(full_source)
+        use_async = has_await or has_loops
+
         try:
-            # Check if this has top-level await expressions using AST analysis.
-            if self._has_top_level_await(full_source):
+            if use_async:
+                # Inject yield points in loops to allow cancellation of tight loops
+                transformed_source = self._inject_yields_in_loops(full_source)
+
                 # Determine if this is an expression or statement using AST
                 # We can't use compile() because await expressions fail in eval mode
                 is_expression = False
                 try:
-                    tree = ast.parse(full_source)
+                    tree = ast.parse(transformed_source)
                     # Check if it's a single expression statement
                     if (len(tree.body) == 1 and
                         isinstance(tree.body[0], ast.Expr)):
@@ -743,11 +824,11 @@ class TviewPythonConsole(HistoryConsoleWidget):
                 # Wrap in an async function appropriately
                 if is_expression:
                     # For expressions, we can return the value
-                    indented = '\n'.join('    ' + line for line in full_source.split('\n'))
+                    indented = '\n'.join('    ' + line for line in transformed_source.split('\n'))
                     wrapped = f"async def _async_exec():\n    return (\n{indented}\n    )"
                 else:
                     # For statements, just execute them
-                    indented = '\n'.join('    ' + line for line in full_source.split('\n'))
+                    indented = '\n'.join('    ' + line for line in transformed_source.split('\n'))
                     wrapped = f"async def _async_exec():\n{indented}\n    return None"
 
                 exec(wrapped, self.namespace)
