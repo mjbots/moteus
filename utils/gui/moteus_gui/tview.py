@@ -635,13 +635,34 @@ class TviewPythonConsole(HistoryConsoleWidget):
             # Code has a syntax error but is complete (will error on execute)
             return True, False
 
-    def _has_await_expression(self, source):
-        """Check if source code contains await expressions using AST parsing."""
+    def _has_top_level_await(self, source):
+        """Check if source code contains top-level await expressions.
+
+        This detects await expressions that are NOT inside async function definitions.
+        For example:
+        - `await foo()` -> True (needs wrapping)
+        - `async def bar(): await foo()` -> False (already in async context)
+        """
         try:
             tree = ast.parse(source)
+
+            # Track which nodes are inside async function definitions
+            async_func_nodes = set()
+
+            # First pass: find all async function definition nodes and their children
+            for node in ast.walk(tree):
+                if isinstance(node, ast.AsyncFunctionDef):
+                    # Mark all descendants of this async function
+                    for child in ast.walk(node):
+                        async_func_nodes.add(id(child))
+
+            # Second pass: find await expressions not inside async functions
             for node in ast.walk(tree):
                 if isinstance(node, ast.Await):
-                    return True
+                    # Check if this await is NOT inside an async function
+                    if id(node) not in async_func_nodes:
+                        return True
+
             return False
         except SyntaxError:
             # If it doesn't parse, we'll handle the error later
@@ -705,8 +726,8 @@ class TviewPythonConsole(HistoryConsoleWidget):
         loop = asyncio.get_event_loop()
 
         try:
-            # Check if this is an async expression using AST analysis.
-            if self._has_await_expression(full_source):
+            # Check if this has top-level await expressions using AST analysis.
+            if self._has_top_level_await(full_source):
                 # Determine if this is an expression or statement using AST
                 # We can't use compile() because await expressions fail in eval mode
                 is_expression = False
