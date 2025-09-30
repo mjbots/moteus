@@ -20,6 +20,7 @@
 import argparse
 import ast
 import asyncio
+import codeop
 from dataclasses import dataclass
 import io
 import moteus
@@ -514,13 +515,24 @@ class TviewPythonConsole(HistoryConsoleWidget):
         super().__init__(parent)
 
         self.execute_on_complete_input = False
-        self._prompt = '>>> '
+
+        # Store our own copies of prompts since qtconsole modifies self._prompt
+        self._main_prompt = '>>> '
+        self._continuation_prompt_str = '... '
+
+        # Initialize the widget's prompt to main prompt
+        self._prompt = self._main_prompt
+        self._continuation_prompt = self._continuation_prompt_str
+
         self.clear()
 
         self._append_before_prompt_cursor.setPosition(0)
 
         # Track currently running async task for cancellation
         self._current_future = None
+
+        # Buffer for multi-line input
+        self._input_buffer = []
 
         # Create custom print function for this console
         def custom_print(*args, sep=' ', end='\n', file=None, flush=False):
@@ -540,10 +552,7 @@ class TviewPythonConsole(HistoryConsoleWidget):
             'print': custom_print,  # Custom print for console output
         }
 
-        # Install event filter to catch key events
-        self._control.installEventFilter(self)
-
-        # Also try using a QShortcut for Ctrl+C
+        # Use a QShortcut for Ctrl+C
         try:
             try:
                 from PySide6.QtGui import QShortcut, QKeySequence
@@ -571,53 +580,60 @@ class TviewPythonConsole(HistoryConsoleWidget):
 """.split('\n'):
             self._append_plain_text(line + '\n')
 
-        self._show_prompt(self._prompt)
+        self._show_prompt(self._main_prompt)
 
     def sizeHint(self):
         return QtCore.QSize(600, 200)
 
     def _handle_interrupt(self):
         """Handle interrupt signal from QShortcut."""
+        # Append KeyboardInterrupt message on a new line
+        self._append_plain_text('\nKeyboardInterrupt\n')
+
+        # Cancel any running future
         if self._current_future and not self._current_future.done():
-            cancelled = self._current_future.cancel()
-            if cancelled:
-                self._append_plain_text('\nKeyboardInterrupt\n')
-                self._show_prompt(self._prompt)
+            self._current_future.cancel()
             self._current_future = None
 
-    def eventFilter(self, obj, event):
-        """Event filter to catch key events before they're processed."""
-        if event.type() == QtCore.QEvent.KeyPress:
-            # Check for Ctrl+C
-            if (event.key() == QtCore.Qt.Key_C and
-                event.modifiers() == QtCore.Qt.ControlModifier):
-                if self._current_future and not self._current_future.done():
-                    cancelled = self._current_future.cancel()
-                    if cancelled:
-                        self._append_plain_text('\nKeyboardInterrupt\n')
-                        self._show_prompt(self._prompt)
-                    self._current_future = None
-                    return True  # Event handled, don't propagate
-        return super().eventFilter(obj, event)
+        # Always clear all state and reset to main prompt
+        self._input_buffer = []
 
-    def keyPressEvent(self, event):
-        """Handle key press events, including Ctrl+C for interruption."""
-        # Check for Ctrl+C
-        if (event.key() == QtCore.Qt.Key_C and
-            event.modifiers() == QtCore.Qt.ControlModifier):
-            if self._current_future and not self._current_future.done():
-                cancelled = self._current_future.cancel()
-                if cancelled:
-                    self._append_plain_text('\nKeyboardInterrupt\n')
-                    self._show_prompt(self._prompt)
-                self._current_future = None
-                return
+        # Clear any temporary buffers in the widget itself
+        try:
+            self._clear_temporary_buffer()
+        except:
+            pass
 
-        # Pass other key events to parent
-        super().keyPressEvent(event)
+        # Finish any existing prompt
+        try:
+            self._prompt_finished()
+        except:
+            pass
+
+        # Force show the main prompt (not continuation)
+        self._show_prompt(self._main_prompt)
 
     def _is_complete(self, source, interactive):
-        return True, False
+        """Check if the source code is complete and ready to execute.
+
+        Returns:
+            (is_complete, indent_needed): Tuple indicating if code is complete
+                                         and if indentation should be added.
+        """
+        try:
+            # Use codeop to determine if the code is complete
+            code = codeop.compile_command(source, '<console>', 'exec')
+
+            if code is None:
+                # More input is needed
+                return False, False
+            else:
+                # Code is complete
+                return True, False
+
+        except (SyntaxError, OverflowError, ValueError):
+            # Code has a syntax error but is complete (will error on execute)
+            return True, False
 
     def _has_await_expression(self, source):
         """Check if source code contains await expressions using AST parsing."""
@@ -632,20 +648,70 @@ class TviewPythonConsole(HistoryConsoleWidget):
             return False
 
     def _execute(self, source, hidden):
-        if not source.strip():
-            self._show_prompt(self._prompt)
+        # Safety check: if we have a running future, we shouldn't be executing new code
+        # This shouldn't normally happen but is defensive
+        if self._current_future and not self._current_future.done():
+            return True
+
+        # If buffer is empty and source is empty, do nothing
+        if not self._input_buffer and not source.strip():
+            self._show_prompt(self._main_prompt)
+            return True
+
+        # Two modes:
+        # 1. Single-line mode (buffer empty): execute complete statements immediately
+        # 2. Multi-line mode (buffer has content): only execute on blank line
+
+        if not self._input_buffer:
+            # Single-line mode: check if this line starts a multi-line block
+            is_complete, indent_needed = self._is_complete(source, True)
+
+            if not is_complete:
+                # This starts a multi-line block - enter multi-line mode
+                self._input_buffer.append(source)
+                self._show_prompt(self._continuation_prompt_str)
+                return True
+            else:
+                # Complete single line - execute immediately
+                full_source = source
+                # Don't add to buffer, execute directly
+        else:
+            # Multi-line mode: we have buffered input
+            if source:
+                # Non-blank line in multi-line mode - add to buffer and continue
+                self._input_buffer.append(source)
+                self._show_prompt(self._continuation_prompt_str)
+                return True
+            else:
+                # Blank line in multi-line mode - check if ready to execute
+                self._input_buffer.append(source)
+                full_source = '\n'.join(self._input_buffer)
+
+                is_complete, indent_needed = self._is_complete(full_source, True)
+
+                if not is_complete:
+                    # Still not complete - continue
+                    self._show_prompt(self._continuation_prompt_str)
+                    return True
+
+                # Complete - execute
+                self._input_buffer = []
+
+        # If the source was just blank lines, don't execute
+        if not full_source.strip():
+            self._show_prompt(self._main_prompt)
             return True
 
         loop = asyncio.get_event_loop()
 
         try:
             # Check if this is an async expression using AST analysis.
-            if self._has_await_expression(source):
+            if self._has_await_expression(full_source):
                 # Determine if this is an expression or statement using AST
                 # We can't use compile() because await expressions fail in eval mode
                 is_expression = False
                 try:
-                    tree = ast.parse(source)
+                    tree = ast.parse(full_source)
                     # Check if it's a single expression statement
                     if (len(tree.body) == 1 and
                         isinstance(tree.body[0], ast.Expr)):
@@ -656,11 +722,11 @@ class TviewPythonConsole(HistoryConsoleWidget):
                 # Wrap in an async function appropriately
                 if is_expression:
                     # For expressions, we can return the value
-                    indented = '\n'.join('    ' + line for line in source.split('\n'))
+                    indented = '\n'.join('    ' + line for line in full_source.split('\n'))
                     wrapped = f"async def _async_exec():\n    return (\n{indented}\n    )"
                 else:
                     # For statements, just execute them
-                    indented = '\n'.join('    ' + line for line in source.split('\n'))
+                    indented = '\n'.join('    ' + line for line in full_source.split('\n'))
                     wrapped = f"async def _async_exec():\n{indented}\n    return None"
 
                 exec(wrapped, self.namespace)
@@ -674,7 +740,9 @@ class TviewPythonConsole(HistoryConsoleWidget):
                         if result is not None:
                             self._append_plain_text(repr(result) + '\n')
                     except asyncio.CancelledError:
-                        # Don't show anything extra - already handled in keyPressEvent
+                        # Don't show anything extra - already handled in interrupt handler
+                        # But ensure buffer is cleared (defensive)
+                        self._input_buffer = []
                         pass
                     except Exception as e:
                         self._append_plain_text(f'Error: {type(e).__name__}: {e}\n')
@@ -683,25 +751,27 @@ class TviewPythonConsole(HistoryConsoleWidget):
                         if self._current_future is future:
                             self._current_future = None
 
-                    # Only show prompt if not cancelled (already shown in keyPressEvent)
+                    # Only show prompt if not cancelled (already shown in interrupt handler)
                     if not future.cancelled():
-                        self._show_prompt(self._prompt)
+                        self._show_prompt(self._main_prompt)
 
                 self._current_future.add_done_callback(done_callback)
             else:
                 # Try as expression first, then as a statement.
                 try:
-                    result = eval(source, self.namespace)
+                    result = eval(full_source, self.namespace)
                     if result is not None:
                         self._append_plain_text(repr(result) + '\n')
                 except SyntaxError:
                     # Try as a statement.
-                    exec(source, self.namespace)
+                    exec(full_source, self.namespace)
 
-                self._show_prompt(self._prompt)
+                self._show_prompt(self._main_prompt)
         except Exception as e:
             self._append_plain_text(f'Error: {type(e).__name__}: {e}\n')
-            self._show_prompt(self._prompt)
+            self._show_prompt(self._main_prompt)
+            # Clear buffer on error to avoid getting stuck
+            self._input_buffer = []
 
         return True
 
