@@ -23,6 +23,7 @@ import asyncio
 import codeop
 from dataclasses import dataclass
 import io
+import math
 import moteus
 import moteus.moteus_tool
 import numpy
@@ -547,6 +548,7 @@ class TviewPythonConsole(HistoryConsoleWidget):
             'get_controller': get_controller,
             'asyncio': asyncio,
             'moteus': moteus,
+            'math': math,
             'time': time,
             'numpy': numpy,
             'print': custom_print,  # Custom print for console output
@@ -574,7 +576,8 @@ class TviewPythonConsole(HistoryConsoleWidget):
 
         for line in """
 # Python REPL for moteus control
-# Available: controller, get_controller(id), transport, asyncio, moteus
+# Available: controller, controllers, get_controller(id), transport, moteus
+#            asyncio, math, numpy, time
 # Use 'await' for async operations
 # Press Ctrl+C to interrupt long-running operations
 """.split('\n'):
@@ -1915,6 +1918,9 @@ class TviewMainWindow():
 
         if self.devices:
             self.python_console.namespace['controller'] = self._python_get_controller(self.devices[0].address)
+            self.python_console.namespace['controllers'] = [
+                self._python_get_controller(device.address)
+                for device in self.devices]
 
     def _python_get_controller(self, name_or_address):
         def get_device():
