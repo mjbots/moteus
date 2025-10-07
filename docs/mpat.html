@@ -973,6 +973,7 @@ class Interpolator2D {
       copper_loss = null;
       iron_loss = null;
       controller_loss = null;
+      fan_power = null;
       mechanical_power = null;
       efficiency = null;
 
@@ -996,6 +997,7 @@ class Interpolator2D {
           copper_loss: { unit: 'W', precision: 2, displayName: 'Copper Loss' },
           iron_loss: { unit: 'W', precision: 2, displayName: 'Iron Loss' },
           controller_loss: { unit: 'W', precision: 2, displayName: 'Controller Loss' },
+          fan_power: { unit: 'W', precision: 2, displayName: 'Fan Power' },
           mechanical_power: { unit: 'W', precision: 2, displayName: 'Mechanical Power' },
           efficiency: { unit: '%', precision: 2, displayName: 'Efficiency' }
         };
@@ -1064,7 +1066,9 @@ class Controller {
     if (this.thermal?.[coolingName] == null) {
       return [null, null];
     }
-    return [this.thermal[coolingName]['R'], this.thermal[coolingName]['C']];
+    return [this.thermal[coolingName]['R'],
+            this.thermal[coolingName]['C'],
+            this.thermal[coolingName]['P']];
   }
 
   getMaxTemp() {
@@ -1109,7 +1113,7 @@ class Controller {
 
   getTemperature(thermalPower, {controller_cooling, time, ambient_temp}) {
     const timePeriodS = time;
-    const [R, C] = this.getThermalProperties(controller_cooling);
+    const [R, C, P] = this.getThermalProperties(controller_cooling);
     if (R == null || C == null) {
       return null;
     }
@@ -1434,10 +1438,10 @@ class MoteusC1 extends MoteusController {
               [0.052, 0.054, 0.053, 0.056]],
     },
     {
-      'none' :         {R: 11.3, C:10.7},
-      'heatspreader' : {R: 11.2, C:10.7},
-      'fan_5v' :       {R: 2.55, C:10.7},
-      'max' :          {R: 2.55, C:10.7},
+      'none' :         {R: 11.3, C:10.7, P:0},
+      'heatspreader' : {R: 11.2, C:10.7, P:0},
+      'fan_5v' :       {R: 2.55, C:10.7, P:0.67},
+      'max' :          {R: 2.55, C:10.7, P:0.67},
     });
   }
 }
@@ -1472,11 +1476,11 @@ class MoteusR4 extends MoteusController {
               [0.013, 0.013, 0.015, 0.018]],
     },
     {
-      'none' :         {R: 10.0, C:12.7},
-      'fan_5v' :       {R: 3.7,  C:12.7},
-      'heatspreader':  {R: 8.6,  C:13.9},
-      '4030sink':      {R: 6.2,  C:19.4},
-      'max':           {R: 2.4,  C:12.7},
+      'none' :         {R: 10.0, C:12.7, P:0},
+      'fan_5v' :       {R: 3.7,  C:12.7, P:0.29}, // Powered from 3V
+      'heatspreader':  {R: 8.6,  C:13.9, P:0},
+      '4030sink':      {R: 6.2,  C:19.4, P:0},
+      'max':           {R: 2.4,  C:12.7, P:2.0},
     });
   }
 }
@@ -1677,11 +1681,11 @@ class MoteusN1 extends MoteusController {
               [0.014, 0.018, 0.019, 0.022, 0.035]],
     },
     {
-      'none' :         {R: 11.7, C:10.3},
-      'fan_5v' :       {R: 4.1,  C:10.3},
-      'heatspreader':  {R: 9.8,  C:12.2},
-      '4030sink':      {R: 7.2,  C:16.8},
-      'max':           {R: 3.0,  C:10.3},
+      'none' :         {R: 11.7, C:10.3, P:0},
+      'fan_5v' :       {R: 4.1,  C:10.3, P:0.67},
+      'heatspreader':  {R: 9.8,  C:12.2, P:0},
+      '4030sink':      {R: 7.2,  C:16.8, P:0},
+      'max':           {R: 3.0,  C:10.3, P:2.0},
     });
   }
 }
@@ -1722,12 +1726,12 @@ class MoteusX1 extends MoteusController {
               [0.014, 0.023, 0.043, 0.090, 0.083]],
     },
     {
-      'none' :         {R: 8.1, C:14.8},
-      'fan_5v' :       {R: 2.8, C:14.8},
-      'fan_12v' :      {R: 2.1, C:14.8},
-      '4030sink':      {R: 6.0, C:20.0},
-      'heatspreader':  {R: 8.6, C:14.8},
-      'max' :          {R: 1.9, C:14.8},
+      'none' :         {R: 8.1, C:14.8, P:0},
+      'fan_5v' :       {R: 2.8, C:14.8, P:0.67},
+      'fan_12v' :      {R: 2.1, C:14.8, P:1.25},
+      '4030sink':      {R: 6.0, C:20.0, P:0},
+      'heatspreader':  {R: 8.6, C:14.8, P:0},
+      'max' :          {R: 1.9, C:14.8, P:2.0},
     });
   }
 }
@@ -1751,11 +1755,11 @@ class OdrivePro extends OdriveController {
       'k2': [[0.008, 0.009, 0.010, 0.010, 0.012]],
     },
     {
-      'none':         {R: 6.7, C: 30.4},
-      'heatspreader': {R: 5.4, C: 71.7},
-      'fan_5v':       {R: 1.5, C: 71.7 },
-      'fan_12v':      {R: 1.0, C: 71.7 },
-      'max':          {R: 1.0, C: 71.7},
+      'none':         {R: 6.7, C: 30.4, P:0},
+      'heatspreader': {R: 5.4, C: 71.7, P:0},
+      'fan_5v':       {R: 1.5, C: 71.7, P:0.67 },
+      'fan_12v':      {R: 1.0, C: 71.7, P:1.25 },
+      'max':          {R: 1.0, C: 71.7, P:1.25 },
     });
   }
 
@@ -1783,10 +1787,10 @@ class OdriveS1 extends OdriveController {
       'k2': [[0.008, 0.008, 0.008, 0.008 ]],
     },
     {
-      'none':  {R: 6.6, C: 35.8},
-      'heatspreader': {R: 4.7, C: 85.8},
-      'fan_5v': {R: 1.2, C: 85.8},
-      'max':   {R: 1.2, C: 85.8},
+      'none':         {R: 6.6, C: 35.8, P:0},
+      'heatspreader': {R: 4.7, C: 85.8, P:0},
+      'fan_5v':       {R: 1.2, C: 85.8, P:0.67},
+      'max':          {R: 1.2, C: 85.8, P:0.67},
     });
   }
 
@@ -1814,8 +1818,8 @@ class OdriveMicro extends OdriveController {
       'k2': [[0.148, 0.149]],
     },
     {
-      'none':  {R: 16.0, C: 7.9},
-      'max':   {R: 6.2, C: 10.0},
+      'none':  {R: 16.0, C: 7.9, P:0.0},
+      'max':   {R: 6.2, C: 10.0, P:2.0},
     });
   }
 
@@ -1836,7 +1840,7 @@ function evaluateMaxCurrent(config) {
       }
     }
 
-    const [R, C] = config.controller.getThermalProperties(config.controller_cooling);
+    const [R, C, P] = config.controller.getThermalProperties(config.controller_cooling);
     if (R == null || C == null) {
       return null;
     }
@@ -1926,7 +1930,10 @@ function evaluateOperatingPoint(config) {
     op._infeasible_reason = `Controller power ${electricalPowerW.toFixed(1)} exceeds maximum ${controllerMaxPower.toFixed(1)}`;
   }
 
-  const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss;
+  const [ignoredR, ignoredC, fanP] = config.controller.getThermalProperties(config.controller_cooling);
+  op['fan_power'] = fanP;
+
+  const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss + op.fan_power;
   op['supply_power'] = totalLossPowerW + op.mechanical_power;
   op['supply_current'] = op.supply_power / config.voltage;
   op['efficiency'] = Math.max(
