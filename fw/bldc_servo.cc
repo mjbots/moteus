@@ -2165,8 +2165,10 @@ class BldcServo::Impl {
             position_.velocity - velocity_command, -config_.velocity_threshold,
             config_.velocity_threshold);
 
+    // The control acceleration is in Hz, but we need it to be in
+    // rad/s in order to calculate the required torque.
     const float inertia_feedforward_Nm =
-        status_.control_acceleration *
+        2.0f * kPi * status_.control_acceleration *
         config_.inertia_feedforward;
 
     // We always control relative to the control position of 0, so
