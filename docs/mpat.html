@@ -591,6 +591,16 @@ const fieldDefinitions = {
     description: 'Gearbox output torque in Nm',
     type: 'numeric'
   },
+  'move_distance': {
+    defaultValue: '0.25',
+    description: 'Move distance in revolutions',
+    type: 'numeric'
+  },
+  'load_inertia': {
+    defaultValue: '0.0',
+    description: 'Load inertia in kg*m^2',
+    type: 'numeric'
+  },
   'output': {
     defaultValue: 'torque',
     description: 'Analysis output type - what metric to display',
@@ -607,7 +617,8 @@ const fieldDefinitions = {
       'iron_loss': { help: 'Power dissipated in motor stator in W' },
       'controller_loss': { help: 'Power dissipated in controller in W' },
       'mechanical_power': { help: 'Mechanical power at output of gearbox in W' },
-      'efficiency': { help: 'Motor efficiency as percentage' }
+      'efficiency': { help: 'Motor efficiency as percentage' },
+      'time': { help: 'Time to complete move' },
     }
   },
   'analysis': {
@@ -618,7 +629,8 @@ const fieldDefinitions = {
       'max_current': { help: 'Find maximum sustainable phase current' },
       'max_torque': { help: 'Find maximum sustainable torque' },
       'max_velocity': { help: 'Find maximum achievable velocity' },
-      'operating_point': { help: 'Evaluate specific operating point' }
+      'operating_point': { help: 'Evaluate specific operating point' },
+      'move_time': { help: 'Find the minimum time to complete a move' },
     }
   },
   // Motor sub-fields
@@ -976,6 +988,9 @@ class Interpolator2D {
       fan_power = null;
       mechanical_power = null;
       efficiency = null;
+      time = null;
+      peak_supply_power = null;
+      peak_velocity = null;
 
       // Meta fields for constraint analysis
       _infeasible_reason = null;  // String describing why the operating condition is not feasible
@@ -999,7 +1014,10 @@ class Interpolator2D {
           controller_loss: { unit: 'W', precision: 2, displayName: 'Controller Loss' },
           fan_power: { unit: 'W', precision: 2, displayName: 'Fan Power' },
           mechanical_power: { unit: 'W', precision: 2, displayName: 'Mechanical Power' },
-          efficiency: { unit: '%', precision: 2, displayName: 'Efficiency' }
+          efficiency: { unit: '%', precision: 2, displayName: 'Efficiency' },
+          time: { unit: 's', precision: 4, displayName: 'Time' },
+          peak_supply_power: { unit: 'W', precision: 2, displayName: 'Peak Supply Power' },
+          peak_velocity: { unit: 'Hz', precision: 2, displayName: 'Peak Velocity' },
         };
       }
 
@@ -1189,6 +1207,7 @@ class Motor {
                rotationCurrentScale=1,
                rotationTorqueScale=1,
                d0=0, d1=0,
+               inertia=null,
                productInfo=null}) {
     this.nameValue = name;
     this.displayNameValue = displayName;
@@ -1205,6 +1224,7 @@ class Motor {
     this.rotationTorqueScale = rotationTorqueScale;
     this.d0 = d0;
     this.d1 = d1;
+    this.inertia = inertia;
 
     this.kt = 8.3 / this.Kv;
   }
@@ -1495,6 +1515,7 @@ class MJ5208 extends Motor {
       R: 0.047,
       L: 28.6e-6,
       mass_kg: 0.192,
+      inertia: 5.6e-5,
       rotationCurrentCutoff: 22.5,
       rotationCurrentScale: 0.02494,
       rotationTorqueScale: 0.6638,
@@ -1519,6 +1540,7 @@ class MAD8318 extends Motor {
       R: 0.015,
       L: 9.75e-6,
       mass_kg: 0.646,
+      inertia: 0.00603,
       rotationCurrentCutoff: 31.07,
       rotationCurrentScale: 0.004214,
       rotationTorqueScale: 12.087,
@@ -1543,6 +1565,7 @@ class GBM5208 extends Motor {
       R: 7.545,
       L: 2254.5e-6,
       mass_kg: 0.193,
+      inertia: 5.6e-6,  // assumed to be basically the same as mj5208
       // We'll assume saturation isn't relevant for this gimbal wound motor.
       thermal: {
         // Assume this is basically the same as the mj5208, since mounting a
@@ -1567,6 +1590,7 @@ class BE8108 extends Motor {
       R: 0.0910,
       L: 39.2e-6,
       mass: 0.230,
+      inertia: 0.000110,
       rotationCurrentCutoff: 20.50,
       rotationCurrentScale: 0.04212,
       rotationTorqueScale: 1.0255,
@@ -1591,6 +1615,7 @@ class Hoverboard350 extends Motor {
       R: 0.216,
       L: 530e-6,
       mass_kg: 4.26,
+      inertia: 0.008,
       // No clue about saturation here yet, it is hard to mount in the dyno.
       thermal: {
         'none': {R: 2.41, C: 946.1},
@@ -1614,6 +1639,7 @@ class HT1105 extends Motor {
       R: 6.435,
       L: 298.5e-6,
       mass_kg: 0.008,
+      inertia: 5.1e-7,
       // i suspect due to its gimbal winding, no real saturation effects were
       // measured here all the way up to 2A of phase current.
       thermal: {
@@ -1638,6 +1664,7 @@ class DCWS500Spindle extends Motor {
       R: 0.123,
       L: 175e-6,
       mass_kg: 1.302,
+      inertia: 3.8e-5,
       // I do not have a saturation model for this.
       thermal: {
         'none': {R: 0.808, C: 2680},
@@ -1955,7 +1982,7 @@ class AnalysisOperatingPoint {
 
 function evaluateMaxTorque(config) {
   const required = [
-    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp'
   ];
 
   // Check if any required field is null
@@ -2020,7 +2047,7 @@ class AnalysisMaxTorque {
 
 function evaluateMaxVelocity(config) {
   const required = [
-    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
   ];
 
   // Check if any required field is null
@@ -2075,6 +2102,132 @@ function evaluateMaxVelocity(config) {
 class AnalysisMaxVelocity {
   evaluate(config) {
     return evaluateMaxVelocity(config);
+  }
+}
+
+function evaluateMinMovementTime(config) {
+  // Evaluate the time required to move a fixed distance, starting
+  // from velocity=0 and ending at velocity=0.
+  //
+  // Current caveats:
+  //  * Controller and motor thermals are completely ignored.
+  //  * This assumes the controller is able to plan a motion profile
+  //    to exactly matches the maximum possible torque at each
+  //    instant.  moteus only supports constant acceleration
+  //    trajectories, which will result in slower times.
+  //  * This assumes that deceleration and acceleration are symmetric,
+  //    which is not a perfect assumption.
+  //
+  // Thus, this will always be a lower bound on the achievable time.
+
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'pwm', 'gear_reduction', 'ambient_temp', 'move_distance', 'load_inertia'
+  ];
+
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
+  }
+
+  // Now we will numerically integrate velocity into position until we
+  // reach the halfway position point, assuming peak torque production
+  // is possible at each instant, then assume that things are
+  // symmetric when slowing down.  In order to be numerically stable
+  // near zero speed, we integrate in energy space, moving a fixed
+  // distance each timestep.
+
+  const loadInertia = config.load_inertia;
+  const moveAmount = config.move_distance;
+  const totalInertia = config.motor.inertia + loadInertia;
+
+  const integrationSteps = 100;
+  const smallEps = 1e-12;
+  const dposition = Math.min(moveAmount / integrationSteps, 0.002);
+  var E = 0.0;  // 0.5 * I * velocity_rad_s ^ 2
+  var position = 0.0;
+  var time = 0.0;
+
+  var supply_energy = 0.0;
+  var copper_energy = 0.0;
+  var iron_energy = 0.0;
+  var peak_supply_power = 0.0;
+
+  while (position < 0.5 * moveAmount) {
+    const velocity = Math.sqrt(2 * E / totalInertia, 0.0) / (2 * Math.PI);
+
+    const currentOp = evaluateMaxTorque({
+      ...config,
+      'time': 1.0,
+      'velocity': velocity,
+    });
+
+    if (currentOp == null) {
+      return null;
+    }
+
+    const torque = currentOp.torque;
+    const ePred = E + 2 * Math.PI * torque * dposition;
+    const velocityPred = Math.sqrt(Math.max(2 * ePred / totalInertia, 0.0)) / (2 * Math.PI);
+
+    const predOp = evaluateMaxTorque({
+      ...config,
+      'time': 1.0,
+      'velocity': velocityPred,
+    });
+    if (predOp == null) {
+      return null;
+    }
+    const torquePred = predOp.torque;
+    const dE = 0.5 * 2 * Math.PI * (torque + torquePred) * dposition;
+    const Eprev = E;
+    E = Math.max(E + dE, 0.0);
+
+    position += dposition;
+
+    const eMid = 0.5 * (Eprev + E);
+
+    const velocityMid = Math.sqrt(Math.max(2 * eMid / totalInertia, 0.0)) / (2 * Math.PI);
+
+    const delta_t = dposition / velocityMid;
+    time += delta_t;
+
+    supply_energy += delta_t * 0.5 * (currentOp.supply_power + predOp.supply_power);
+    copper_energy += delta_t * 0.5 * (currentOp.copper_loss + predOp.copper_loss);
+    iron_energy += delta_t * 0.5 * (currentOp.iron_loss + predOp.iron_loss);
+
+    peak_supply_power = Math.max(peak_supply_power, Math.max(currentOp.supply_power, predOp.supply_power));
+  }
+
+  // Return an operating point that includes the average power for
+  // several quantities, as well as a few peak values and the total
+  // motion time.
+  const peak_velocity = Math.sqrt(2 * E / totalInertia, 0.0) / (2 * Math.PI);
+
+  const result = new OperatingPoint({});
+
+  result.supply_power = supply_energy / time;
+  result.supply_current = result.supply_power / config.voltage;
+  result.copper_loss = copper_energy / time;
+  result.iron_loss = iron_energy / time;
+
+  result.time = time * 2;
+  result.peak_supply_power = peak_supply_power;
+  result.peak_velocity = peak_velocity;
+
+  // TODO: These can be calculated from the thermal models and the
+  // average energy being dissipated in both, although it is unclear
+  // how much value it gives.
+  //
+  // result.controller_temp = 0;
+  // result.motor_temp = 0;
+
+  return result;
+}
+
+class AnalysisMinMovementTime {
+  evaluate(config) {
+    return evaluateMinMovementTime(config);
   }
 }
 
@@ -3474,6 +3627,7 @@ const modelRegistry = (() => {
     'max_torque': new AnalysisMaxTorque(),
     'max_velocity': new AnalysisMaxVelocity(),
     'operating_point': new AnalysisOperatingPoint(),
+    'move_time': new AnalysisMinMovementTime(),
   };
 
   return registry;
@@ -3560,6 +3714,14 @@ function normalizeConfig(config) {
   normalizedConfig.pwm = (normalizedConfig.pwm == 'default') ? normalizedConfig.controller?.getDefaultPwm() : normalizedConfig.pwm;
   normalizedConfig.max_controller_temp = (normalizedConfig.max_controller_temp == 'default') ? normalizedConfig.controller?.getMaxTemp() : normalizedConfig.max_controller_temp;
   normalizedConfig.max_motor_temp = (normalizedConfig.max_motor_temp == 'default') ? normalizedConfig.motor?.getMaxTemp() : normalizedConfig.max_motor_temp;
+
+  const floatFields = [
+    'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'max_controller_temp', 'max_motor_temp', 'torque', 'move_distance', 'load_inertia'
+  ];
+
+  for (const field of floatFields) {
+    normalizedConfig[field] = parseFloat(normalizedConfig[field]);
+  }
 
   return normalizedConfig;
 }
