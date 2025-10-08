@@ -2149,8 +2149,10 @@ function evaluateMinMovementTime(config) {
   var time = 0.0;
 
   var supply_energy = 0.0;
+  var controller_energy = 0.0;
   var copper_energy = 0.0;
   var iron_energy = 0.0;
+  var mechanical_energy = 0.0;
   var peak_supply_power = 0.0;
 
   while (position < 0.5 * moveAmount) {
@@ -2193,8 +2195,10 @@ function evaluateMinMovementTime(config) {
     time += delta_t;
 
     supply_energy += delta_t * 0.5 * (currentOp.supply_power + predOp.supply_power);
+    controller_energy += delta_t * 0.5 * (currentOp.controller_loss + predOp.controller_loss);
     copper_energy += delta_t * 0.5 * (currentOp.copper_loss + predOp.copper_loss);
     iron_energy += delta_t * 0.5 * (currentOp.iron_loss + predOp.iron_loss);
+    mechanical_energy += delta_t * 0.5 * (currentOp.mechanical_power + predOp.mechanical_power);
 
     peak_supply_power = Math.max(peak_supply_power, Math.max(currentOp.supply_power, predOp.supply_power));
   }
@@ -2208,8 +2212,10 @@ function evaluateMinMovementTime(config) {
 
   result.supply_power = supply_energy / time;
   result.supply_current = result.supply_power / config.voltage;
+  result.controller_loss = controller_energy / time;
   result.copper_loss = copper_energy / time;
   result.iron_loss = iron_energy / time;
+  result.mechanical_power = mechanical_energy / time;
 
   result.time = time * 2;
   result.peak_supply_power = peak_supply_power;
