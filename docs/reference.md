@@ -314,8 +314,8 @@ pullups are not available on moteus-c1 for aux1.
 | moteus r4.5/8/11 | Con | Aux | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
 |------------------|-----|-----|------|-------------|-----|-------------|------|-----|
 | 3.3V (3)         | 1   |     |      |             |     |             |      |     |
-|                  | 2   | 0   |      |             | SCL |             | TX   | X   |
-|                  | 3   | 1   |      |             | SDA |             | RX   | X   |
+|                  | 2   | 0   |      |             | SCL |             | RX   | X   |
+|                  | 3   | 1   |      |             | SDA |             | TX   | X   |
 | GND (G)          | 4   |     |      |             |     |             |      |     |
 | DBG 1            |     | 2   |      |             |     |             |      | X   |
 | DBG 2            |     | 3   |      |             |     |             |      | X   |
