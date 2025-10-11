@@ -18,8 +18,8 @@ for moderately high power electronics.  It has not yet burned down my
 | Control Rate           | 15-30kHz     | -          | -         | -           |
 | PWM Switching Rate     | 15-60kHz     | -          | -         | -           |
 | CPU                    | STM32G4      | -          | -         | -           |
-| Uncooled phase current | 10A          | 5A         | 10A       | 25A         |
-| Cooled phase current   | 22A          | 14A        | 18A       | 60A         |
+| Uncooled phase current | 12A          | 5A         | 9A       | 25A         |
+| Cooled phase current   | 32A          | 14A        | 26A       | 62A         |
 | Peak phase current     | 100A         | 20A        | 100A      | 120A        |
 | Communications         | 5Mbps CAN-FD | -          | -         | -           |
 | Dimensions             | 46x53mm      | 38x38x9mm  | 46x46x8mm | 56x56x10mm  |
