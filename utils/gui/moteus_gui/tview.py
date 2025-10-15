@@ -21,6 +21,7 @@ import argparse
 import ast
 import asyncio
 import codeop
+import csv
 from dataclasses import dataclass
 import io
 import json
@@ -934,6 +935,52 @@ class Record:
         return count != 0
 
 
+def flatten_dict(d, parent_key='', sep='.'):
+    """Flatten a nested dictionary into a single-level dict with dotted keys.
+
+    Args:
+        d: Dictionary to flatten
+        parent_key: Prefix for keys (used in recursion)
+        sep: Separator between nested keys
+
+    Returns:
+        Flattened dictionary with dotted keys
+    """
+    items = []
+    for k, v in d.items():
+        new_key = f"{parent_key}{sep}{k}" if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        elif isinstance(v, list):
+            items.extend(_flatten_list(v, new_key, sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
+
+def _flatten_list(lst, parent_key, sep='.'):
+    """Helper to recursively flatten lists (including nested lists).
+
+    Args:
+        lst: List to flatten
+        parent_key: Prefix for keys
+        sep: Separator between nested keys
+
+    Returns:
+        Flattened dictionary with indexed keys
+    """
+    items = []
+    for i, item in enumerate(lst):
+        new_key = f"{parent_key}[{i}]"
+        if isinstance(item, dict):
+            items.extend(flatten_dict(item, new_key, sep=sep).items())
+        elif isinstance(item, list):
+            items.extend(_flatten_list(item, new_key, sep).items())
+        else:
+            items.append((new_key, item))
+    return dict(items)
+
+
 class LoggingManager:
     """Manages data logging to disk"""
 
@@ -942,35 +989,52 @@ class LoggingManager:
         self.log_filename = None
         self.logging_devices = None
         self.logging_channels = None
+        self.log_format = None
+
+        self.csv_writers = {}
+        self.csv_files = {}
+        self.csv_fieldnames = {}
+        self.csv_base_path = None
 
     def is_logging(self):
         """Check if any logging is currently active."""
-        return self.log_file is not None
+        return (self.log_file is not None or
+                len(self.csv_files) > 0 or
+                self.csv_base_path is not None)
 
-    def start_logging(self, filename, devices=None, channels=None):
+    def start_logging(self, filename, devices=None, channels=None, format='jsonl'):
         """Start logging to the specified file.
 
         Args:
-            filename: Path to the output file
+            filename: Path to the output file (for CSV, used as base name)
             devices: None for all devices, or set of device addresses to log
             channels: None for all channels, or set of channel names to log
+            format: 'jsonl' or 'csv'
         """
         if self.is_logging():
             self.stop_logging()
 
-        try:
-            self.log_file = open(filename, 'w')
+        self.log_format = format
+        self.logging_devices = devices
+        self.logging_channels = channels
+
+        if format == 'jsonl':
+            try:
+                self.log_file = open(filename, 'w')
+                self.log_filename = filename
+            except Exception as e:
+                print(f"Error opening log file {filename}: {e}")
+                self.log_file = None
+                self.log_filename = None
+                raise
+        elif format == 'csv':
+            self.csv_base_path = filename
             self.log_filename = filename
-            self.logging_devices = devices
-            self.logging_channels = channels
-        except Exception as e:
-            print(f"Error opening log file {filename}: {e}")
-            self.log_file = None
-            self.log_filename = None
-            raise
+        else:
+            raise ValueError(f"Unknown log format: {format}")
 
     def stop_logging(self):
-        """Stop logging and close the file."""
+        """Stop logging and close all files."""
         if self.log_file:
             try:
                 self.log_file.close()
@@ -978,9 +1042,21 @@ class LoggingManager:
                 print(f"Error closing log file: {e}")
             finally:
                 self.log_file = None
-                self.log_filename = None
-                self.logging_devices = None
-                self.logging_channels = None
+
+        for key, f in self.csv_files.items():
+            try:
+                f.close()
+            except Exception as e:
+                print(f"Error closing CSV file {key}: {e}")
+
+        self.csv_files.clear()
+        self.csv_writers.clear()
+        self.csv_fieldnames.clear()
+        self.csv_base_path = None
+        self.log_filename = None
+        self.logging_devices = None
+        self.logging_channels = None
+        self.log_format = None
 
     def should_log(self, device_address, channel_name):
         """Check if this device/channel combination should be logged."""
@@ -997,6 +1073,71 @@ class LoggingManager:
 
         return True
 
+    def _make_csv_filename(self, controller_address, channel_name):
+        """Generate a CSV filename for a specific controller/channel combo.
+
+        Args:
+            controller_address: Address of the controller
+            channel_name: Name of the channel
+
+        Returns:
+            Full path for the CSV file
+        """
+        import os.path
+
+        base_dir = os.path.dirname(self.csv_base_path)
+        base_name = os.path.basename(self.csv_base_path)
+
+        name_parts = os.path.splitext(base_name)
+        if len(name_parts) == 2 and name_parts[1]:
+            base, ext = name_parts
+        else:
+            base = base_name
+            ext = '.csv'
+
+        # Extract a clean controller identifier
+        if isinstance(controller_address, int):
+            controller_id = str(controller_address)
+        elif hasattr(controller_address, 'can_id') and controller_address.can_id is not None:
+            controller_id = str(controller_address.can_id)
+        elif hasattr(controller_address, 'uuid') and controller_address.uuid is not None:
+            controller_id = controller_address.uuid.hex()[:8]
+        else:
+            controller_id = str(controller_address).replace('/', '_').replace('\\', '_')
+
+        sanitized_channel = channel_name.replace('/', '_').replace('\\', '_')
+
+        filename = f"{base}_{controller_id}_{sanitized_channel}{ext}"
+        return os.path.join(base_dir, filename) if base_dir else filename
+
+    def _get_csv_key(self, controller_address, channel_name):
+        """Get or create CSV file infrastructure for a controller/channel combo.
+
+        Creates file and initializes tracking dictionaries if needed.
+
+        Args:
+            controller_address: Address of the controller
+            channel_name: Name of the channel
+
+        Returns:
+            Key tuple (controller_str, channel_name) for indexing csv_* dicts
+        """
+        key = (str(controller_address), channel_name)
+
+        if key not in self.csv_writers:
+            filename = self._make_csv_filename(controller_address, channel_name)
+
+            try:
+                f = open(filename, 'w', newline='')
+                self.csv_files[key] = f
+                self.csv_fieldnames[key] = set(['timestamp'])
+                self.csv_writers[key] = None
+            except Exception as e:
+                print(f"Error creating CSV file {filename}: {e}")
+                raise
+
+        return key
+
     def log_data(self, controller_address, timestamp, channel_name, data_struct, archive):
         """Write a data record to the log file.
 
@@ -1010,6 +1151,13 @@ class LoggingManager:
         if not self.should_log(controller_address, channel_name):
             return
 
+        if self.log_format == 'jsonl':
+            self._log_jsonl(controller_address, timestamp, channel_name, data_struct)
+        elif self.log_format == 'csv':
+            self._log_csv(controller_address, timestamp, channel_name, data_struct)
+
+    def _log_jsonl(self, controller_address, timestamp, channel_name, data_struct):
+        """Write a data record to a JSONL file."""
         data_dict = namedtuple_to_dict(data_struct)
 
         log_record = {
@@ -1025,6 +1173,58 @@ class LoggingManager:
             self.log_file.flush()
         except Exception as e:
             print(f"Error writing to log file: {e}")
+
+    def _log_csv(self, controller_address, timestamp, channel_name, data_struct):
+        """Write a data record to a CSV file."""
+        try:
+            key = self._get_csv_key(controller_address, channel_name)
+
+            data_dict = namedtuple_to_dict(data_struct)
+            flat_data = flatten_dict(data_dict)
+            flat_data['timestamp'] = timestamp
+
+            fieldnames_set = self.csv_fieldnames[key]
+            current_fields = set(flat_data.keys())
+
+            needs_rewrite = False
+            if not current_fields.issubset(fieldnames_set):
+                fieldnames_set.update(current_fields)
+                needs_rewrite = True
+
+            fieldnames = sorted(fieldnames_set)
+            if 'timestamp' in fieldnames:
+                fieldnames.remove('timestamp')
+                fieldnames.insert(0, 'timestamp')
+
+            if needs_rewrite or self.csv_writers[key] is None:
+                f = self.csv_files[key]
+
+                # Read existing rows if we're rewriting due to new columns
+                existing_rows = []
+                if needs_rewrite and self.csv_writers[key] is not None:
+                    f.seek(0)
+                    reader = csv.DictReader(f)
+                    existing_rows = list(reader)
+
+                # Truncate and write new header
+                f.seek(0)
+                f.truncate()
+
+                writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
+                writer.writeheader()
+
+                # Write back existing rows with new column structure
+                for row in existing_rows:
+                    writer.writerow(row)
+
+                self.csv_writers[key] = writer
+
+            writer = self.csv_writers[key]
+            writer.writerow(flat_data)
+            self.csv_files[key].flush()
+
+        except Exception as e:
+            print(f"Error writing CSV data: {e}")
 
 
 class NoEditDelegate(QtWidgets.QStyledItemDelegate):
@@ -2626,6 +2826,32 @@ class TviewMainWindow():
         if len(faulted_devices) <= FULL_LIST_COUNT:
             self.ui.statusbar.setToolTip("")
 
+    def _detect_log_format(self, filename, selected_filter):
+        """Detect log format from filename extension or file filter.
+
+        Args:
+            filename: User-provided filename
+            selected_filter: Selected file filter from dialog
+
+        Returns:
+            Tuple of (final_filename, format) where format is 'csv' or 'jsonl'
+        """
+        # Detect format from filename extension if present, otherwise from filter
+        if filename.endswith('.csv'):
+            log_format = 'csv'
+        elif filename.endswith('.jsonl'):
+            log_format = 'jsonl'
+        else:
+            # No recognized extension, use filter selection
+            log_format = 'csv' if 'CSV' in selected_filter else 'jsonl'
+            # Add appropriate extension
+            if log_format == 'jsonl':
+                filename += '.jsonl'
+            elif log_format == 'csv':
+                filename += '.csv'
+
+        return filename, log_format
+
     def _handle_logging_button_clicked(self):
         """Handle clicks on the status bar logging button."""
         if self.logging_manager.is_logging():
@@ -2635,23 +2861,24 @@ class TviewMainWindow():
 
     def _start_global_logging(self):
         """Start logging all data from all devices."""
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+        filename, selected_filter = QtWidgets.QFileDialog.getSaveFileName(
             self.ui,
             "Save Log File",
             "",
-            "JSON Lines (*.jsonl);;All Files (*)"
+            "JSON Lines (*.jsonl);;CSV Files (*.csv);;All Files (*)"
         )
 
         if not filename:
             return
 
-        if not filename.endswith('.jsonl'):
-            filename += '.jsonl'
+        filename, log_format = self._detect_log_format(filename, selected_filter)
 
         try:
-            self.logging_manager.start_logging(filename, devices=None, channels=None)
+            self.logging_manager.start_logging(
+                filename, devices=None, channels=None, format=log_format)
             self.logging_button.setText('Stop Logging')
             self.logging_button.setStyleSheet('background-color: #90EE90')
+            print(f"Started logging all data to {filename} (format: {log_format})")
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self.ui,
@@ -2664,6 +2891,7 @@ class TviewMainWindow():
         self.logging_manager.stop_logging()
         self.logging_button.setText('Start Logging All')
         self.logging_button.setStyleSheet('')
+        print("Stopped logging")
 
     def _start_channel_logging(self, item):
         """Start logging a specific channel from the tree view."""
@@ -2685,28 +2913,28 @@ class TviewMainWindow():
         if not isinstance(device, Device):
             return
 
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+        filename, selected_filter = QtWidgets.QFileDialog.getSaveFileName(
             self.ui,
             f"Save Log File for {channel_name}",
             "",
-            "JSON Lines (*.jsonl);;All Files (*)"
+            "JSON Lines (*.jsonl);;CSV Files (*.csv);;All Files (*)"
         )
 
         if not filename:
             return
 
-        if not filename.endswith('.jsonl'):
-            filename += '.jsonl'
+        filename, log_format = self._detect_log_format(filename, selected_filter)
 
         try:
             self.logging_manager.start_logging(
                 filename,
                 devices={device.address},
-                channels={channel_name}
+                channels={channel_name},
+                format=log_format
             )
             self.logging_button.setText('Stop Logging')
             self.logging_button.setStyleSheet('background-color: #90EE90')
-            print(f"Started logging {channel_name} from device {device.address} to {filename}")
+            print(f"Started logging {channel_name} from device {device.address} to {filename} (format: {log_format})")
         except Exception as e:
             QtWidgets.QMessageBox.warning(
                 self.ui,
