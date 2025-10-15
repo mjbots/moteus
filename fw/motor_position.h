@@ -50,6 +50,7 @@ class MotorPosition {
       kSineCosine,
       kI2C,
       kSensorless,
+      kBissC,
 
       kNumTypes,
     };
@@ -429,7 +430,8 @@ class MotorPosition {
         config.type == SourceConfig::kI2C ||
         config.type == SourceConfig::kHall ||
         config.type == SourceConfig::kSineCosine ||
-        config.type == SourceConfig::kUart;
+        config.type == SourceConfig::kUart ||
+        config.type == SourceConfig::kBissC;
   };
 
   void HandleConfigUpdate() {
@@ -495,6 +497,15 @@ class MotorPosition {
           const float source_rate_hz =
               1000000.0f /
               aux_config->uart.poll_rate_us;
+          const float max_pll_hz = source_rate_hz / 4.0f;
+          source_config.pll_filter_hz =
+              std::min(source_config.pll_filter_hz, max_pll_hz);
+          break;
+        }
+        case SourceConfig::kBissC: {
+          const float source_rate_hz =
+              1000000.0f /
+              aux_config->bissc.poll_rate_us;
           const float max_pll_hz = source_rate_hz / 4.0f;
           source_config.pll_filter_hz =
               std::min(source_config.pll_filter_hz, max_pll_hz);
@@ -898,6 +909,17 @@ class MotorPosition {
 
           updated = ISR_UpdateAbsoluteSource(
               uart_data->nonce, uart_data->value,
+              config.offset, config.sign, config.cpr, true,
+              &status);
+          break;
+        }
+        case SourceConfig::kBissC: {
+          const auto* bissc_data = &this_aux->bissc;
+          if (!bissc_data->active) { break; }
+          status.raw = bissc_data->value;
+
+          updated = ISR_UpdateAbsoluteSource(
+              bissc_data->nonce, bissc_data->value,
               config.offset, config.sign, config.cpr, true,
               &status);
           break;
@@ -1369,6 +1391,7 @@ struct IsEnum<moteus::MotorPosition::SourceConfig::Type> {
         { T::kSineCosine, "sine_cosine" },
         { T::kI2C, "i2c" },
         { T::kSensorless, "sensorless" },
+        { T::kBissC, "bissc" },
       }};
   }
 };

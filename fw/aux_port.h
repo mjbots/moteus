@@ -31,12 +31,14 @@
 #include "fw/aux_adc.h"
 #include "fw/aux_common.h"
 #include "fw/aux_mbed.h"
+#include "fw/bissc.h"
 #include "fw/ccm.h"
 #include "fw/cui_amt21.h"
 #include "fw/cui_amt22.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
 #include "fw/ma732.h"
+#include "fw/mbed_util.h"
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
@@ -65,7 +67,7 @@ class AuxPort {
           mjlib::micro::AsyncStream* tunnel_stream,
           MillisecondTimer* timer,
           SpiDefault spi_default,
-          std::array<DMA_Channel_TypeDef*, 4> dma_channels)
+          std::array<DMA_Channel_TypeDef*, 5> dma_channels)
       : pin_count_(std::max_element(
                        hw_config.pins.begin(), hw_config.pins.end(),
                        [](const auto& a, const auto& b) {
@@ -164,6 +166,10 @@ class AuxPort {
                 (status.warn ? 1 : 0) |
                 (status.err ? 2 : 0);
           }
+          break;
+        }
+        case SampleType::kBissC: {
+          bissc_->ISR_Update();
           break;
         }
         case SampleType::kGpio: {
@@ -323,7 +329,6 @@ class AuxPort {
         // We could be operating from an ISR context, so we disable
         // interrupts before updating it.
         __disable_irq();
-        status_.error = aux::AuxError::kNone;
 
         as5047_.emplace(*as5047_options_);
         AddSampleType(SampleType::kAs5047, true, true);
@@ -340,8 +345,6 @@ class AuxPort {
     if (!cui_amt22_ && cui_amt22_options_) {
       if (timer_->ms_since_boot() > 200) {
         __disable_irq();
-        status_.error = aux::AuxError::kNone;
-
         cui_amt22_.emplace(*cui_amt22_options_);
         AddSampleType(SampleType::kCuiAmt22, true, true);
 
@@ -356,7 +359,6 @@ class AuxPort {
       // deal with it if it has configured a longer filter period.
       if (timer_->read_ms() > 10) {
         __disable_irq();
-        status_.error = aux::AuxError::kNone;
         ma732_.emplace(timer_, *ma732_options_);
         if (ma732_->error()) {
           status_.error = aux::AuxError::kMaXXXConfigError;
@@ -444,6 +446,7 @@ class AuxPort {
     kI2c = 10,
     kCuiAmt22 = 11,
     kPwmInput = 12,
+    kBissC = 13,
 
     kLastEntry,
   };
@@ -837,6 +840,7 @@ class AuxPort {
     quad_.reset();
     index_.reset();
     pwm_input_.reset();
+    bissc_.reset();
     ic_pz_.reset();
 
     uart_.reset();
@@ -1105,11 +1109,11 @@ class AuxPort {
             return NC;
         }();
         if (!halla_) {
-          halla_.emplace(mbed, aux::MbedMapPull(cfg.pull));
+          halla_.emplace(mbed, MbedMapPull(cfg.pull));
         } else if (!hallb_) {
-          hallb_.emplace(mbed, aux::MbedMapPull(cfg.pull));
+          hallb_.emplace(mbed, MbedMapPull(cfg.pull));
         } else if (!hallc_) {
-          hallc_.emplace(mbed, aux::MbedMapPull(cfg.pull));
+          hallc_.emplace(mbed, MbedMapPull(cfg.pull));
         }
       }
       updated_any_isr = true;
@@ -1131,6 +1135,20 @@ class AuxPort {
       if (index_->error() != aux::AuxError::kNone) {
         status_.error = index_->error();
         index_.reset();
+      } else {
+        updated_any_isr = true;
+      }
+    }
+
+    if (config_.bissc.enabled) {
+      bissc_.emplace(config_.bissc, &status_.bissc,
+                     config_.pins, pin_count_, hw_config_, dma_channels_[4],
+                     timer_);
+
+      if (bissc_->error() != aux::AuxError::kNone) {
+        status_.error = bissc_->error();
+        bissc_.reset();
+        return;
       } else {
         updated_any_isr = true;
       }
@@ -1162,14 +1180,8 @@ class AuxPort {
       updated_any_isr = true;
     }
 
-    if (config_.uart.mode != aux::UartEncoder::Config::kDisabled) {
-      const auto maybe_uart = aux::FindUartOption(
-          config_.pins, pin_count_, hw_config_);
-      if (!maybe_uart) {
-        status_.error = aux::AuxError::kUartPinError;
-        return;
-      }
-
+    if (config_.uart.mode != aux::UartEncoder::Config::kDisabled ||
+        config_.bissc.enabled) {
       if (config_.uart.rs422 && (!rs422_de_ || !rs422_re_)) {
         status_.error = aux::AuxError::kUartPinError;
         return;
@@ -1177,6 +1189,15 @@ class AuxPort {
 
       if (rs422_de_) { rs422_de_->write(config_.uart.rs422); }
       if (rs422_re_) { rs422_re_->write(!config_.uart.rs422); }
+    }
+
+    if (config_.uart.mode != aux::UartEncoder::Config::kDisabled) {
+      const auto maybe_uart = aux::FindUartOption(
+          config_.pins, pin_count_, hw_config_);
+      if (!maybe_uart) {
+        status_.error = aux::AuxError::kUartPinError;
+        return;
+      }
 
       uart_.emplace(
           [&]() {
@@ -1234,12 +1255,12 @@ class AuxPort {
       if (cfg.mode == aux::Pin::Mode::kDigitalInput) {
         status_.gpio_bit_active |= (1 << i);
         digital_inputs_[i].emplace(first_mbed,
-                                   aux::MbedMapPull(cfg.pull));
+                                   MbedMapPull(cfg.pull));
         updated_any_isr = true;
       } else if (cfg.mode == aux::Pin::Mode::kDigitalOutput) {
         status_.gpio_bit_active |= (1 << i);
         digital_outputs_[i].emplace(first_mbed,
-                                    aux::MbedMapPull(cfg.pull));
+                                    MbedMapPull(cfg.pull));
         updated_any_isr = true;
       } else if (cfg.mode == aux::Pin::Mode::kPwmOutput) {
         const auto timer = [&]() -> TIM_TypeDef* {
@@ -1306,7 +1327,7 @@ class AuxPort {
             break;
           }
         }
-        pin_mode(pin->mbed, aux::MbedMapPull(cfg.pull));
+        pin_mode(pin->mbed, MbedMapPull(cfg.pull));
         updated_any_isr = true;
       } else if (cfg.mode == aux::Pin::Mode::kPwmInput) {
         if (pwm_input_) {
@@ -1334,6 +1355,7 @@ class AuxPort {
     if (cui_amt21_) { AddSampleType(SampleType::kCuiAmt21, false, true); }
     if (i2c_) { AddSampleType(SampleType::kI2c, false, true); }
     if (pwm_input_) { AddSampleType(SampleType::kPwmInput, false, true); }
+    if (bissc_) { AddSampleType(SampleType::kBissC, false, true); }
 
     pwm_timer_set_.Start();
 
@@ -1411,6 +1433,7 @@ class AuxPort {
   std::optional<aux::Stm32Quadrature> quad_;
   std::optional<aux::Stm32Index> index_;
   std::optional<aux::Stm32PwmInput> pwm_input_;
+  std::optional<BissC> bissc_;
   std::optional<Stm32G4DmaUart> uart_;
   std::optional<Aksim2> aksim2_;
   std::optional<CuiAmt21> cui_amt21_;
@@ -1453,7 +1476,7 @@ class AuxPort {
 
   std::optional<DigitalOut> i2c_pullup_dout_;
   const aux::AuxHardwareConfig hw_config_;
-  const std::array<DMA_Channel_TypeDef*, 4> dma_channels_;
+  const std::array<DMA_Channel_TypeDef*, 5> dma_channels_;
   const SpiDefault spi_default_;
 
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> start_sample_types_ = {};

@@ -475,14 +475,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    g_measured_hw_family != 3 ?
                    AuxPort::kDefaultOnboardSpi :
                    AuxPort::kDefaultOnboardMa600,
-                   {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6}),
+                   {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6, DMA1_Channel7}),
         aux2_port_("aux2", "ic_pz2", GetAux2HardwareConfig(),
                    &aux_adc_.aux_info[1],
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(3),
                    timer,
                    AuxPort::kNoDefaultSpi,
-                   {DMA1_Channel7, DMA1_Channel8, DMA2_Channel1, DMA2_Channel2}),
+                   {DMA1_Channel8, DMA2_Channel1, DMA2_Channel2, DMA2_Channel3, DMA2_Channel4}),
         motor_position_(persistent_config, telemetry_manager,
                         aux1_port_.status(),
                         aux2_port_.status(),
@@ -520,7 +520,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.debug_out2 = g_hw_pins.debug2;
             options.debug_uart_out = g_hw_pins.uart_tx;
 
-            options.lptim_trigger_dma = DMA2_Channel3;
+            options.lptim_trigger_dma = DMA2_Channel5;
 
             return options;
           }()),

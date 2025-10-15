@@ -39,6 +39,7 @@ The following encoders are currently supported by moteus:
 | CUI AMT22x      | SPI w/ 5V        | ++++        | shaft       | $$        |
 | MA600           | SPI              | ++++        | on/off-axis | $         |
 | MA732           | SPI              | +++         | on/off-axis | $         |
+| BiSS-C          | RS422 w/ 5V      | ++++        | on/off-axis | $$$       |
 | iC-PZ           | SPI w/ 5V        | +++++       | off-axis    | $$$       |
 | Quadrature      | Quadrature       | variable    | x           | x         |
 | Sine/Cosine     | Sine/Cosine      | +           | x           | x         |
@@ -221,7 +222,18 @@ through configuration.  RS485 devices like the CUI AMT21x can be used
 if the RS422 pin Y is connected to A and RS422 pin Z is connected to
 B.
 
-### Pin Configuration
+### BiSS-C
+
+Pins: select
+
+To configure BiSS-C encoders, two pins are required.  One is used for
+transmission and must be on a pin that supports both a UART TX
+capability and hardware quadrature input.  The other pin is
+unrestricted and will be used for receipt.  On moteus-n1 and
+moteus-x1, aux1 D/E are connected to the onboard RS422 transceiver and
+can be used to directly interface to BiSS-C encoders.
+
+## Pin Configuration
 
 Auxiliary port configuration is achieved in two steps.  First, the
 `aux[12].pins.X.mode` value is set to the proper capability for each
@@ -238,6 +250,13 @@ each of `aux[12].i2c.devices.[012]`.
 
 The diagnostic values in `aux[12]` can be used to monitor for errors
 from mis-configuration or mis-operation.
+
+## Encoder Configuration
+
+In addition to configuring pins, most encoders require an additional
+level of configuration at the port level.  Most of these configurable
+options are documented in the [configuration
+reference](configuration.md).
 
 ## Source Configuration
 
