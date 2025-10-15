@@ -249,6 +249,44 @@ struct SineCosine {
   };
 };
 
+struct BissC {
+  struct Config {
+    bool enabled = false;
+    uint32_t rate_hz = 1000000;  // 1 MHz default
+    uint8_t data_bits = 20;      // Position data bits (1-64)
+    uint8_t crc_bits = 6;        // CRC bits (0-16)
+    int32_t poll_rate_us = 100;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(enabled));
+      a->Visit(MJ_NVP(rate_hz));
+      a->Visit(MJ_NVP(data_bits));
+      a->Visit(MJ_NVP(crc_bits));
+      a->Visit(MJ_NVP(poll_rate_us));
+    }
+  };
+
+  struct Status {
+    bool active = false;
+    uint64_t value = 0;           // Position data
+    uint8_t nonce = 0;
+    uint16_t crc_errors = 0;
+    bool error_flag = false;      // BiSS-C error bit
+    bool warning_flag = false;    // BiSS-C warning bit
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(active));
+      a->Visit(MJ_NVP(value));
+      a->Visit(MJ_NVP(nonce));
+      a->Visit(MJ_NVP(crc_errors));
+      a->Visit(MJ_NVP(error_flag));
+      a->Visit(MJ_NVP(warning_flag));
+    }
+  };
+};
+
 struct I2C {
   struct DeviceConfig {
     enum Type {
@@ -340,6 +378,7 @@ struct Pin {
     kDigitalOutput,
     kAnalogInput,
     kPwmOut,
+    kBissC,
 
     kLength,
   };
@@ -369,6 +408,7 @@ struct AuxConfig {
   aux::Hall::Config hall;
   aux::Index::Config index;
   aux::SineCosine::Config sine_cosine;
+  aux::BissC::Config bissc;
   int32_t i2c_startup_delay_ms = 30;
   int32_t pwm_period_us = 1000;
 
@@ -384,6 +424,7 @@ struct AuxConfig {
     a->Visit(MJ_NVP(hall));
     a->Visit(MJ_NVP(index));
     a->Visit(MJ_NVP(sine_cosine));
+    a->Visit(MJ_NVP(bissc));
     a->Visit(MJ_NVP(i2c_startup_delay_ms));
     a->Visit(MJ_NVP(pwm_period_us));
     a->Visit(MJ_NVP(pins));
@@ -404,6 +445,7 @@ enum class AuxError {
   kUartPinError,
   kPwmPinError,
   kMaXXXConfigError,
+  kBisscPinError,
 
   kLength,
 };
@@ -418,6 +460,7 @@ struct AuxStatus {
   Hall::Status hall;
   Index::Status index;
   SineCosine::Status sine_cosine;
+  BissC::Status bissc;
 
   uint8_t gpio_bit_active = 0;
   std::array<bool, 5> pins = { {} };
@@ -439,6 +482,7 @@ struct AuxStatus {
     a->Visit(MJ_NVP(hall));
     a->Visit(MJ_NVP(index));
     a->Visit(MJ_NVP(sine_cosine));
+    a->Visit(MJ_NVP(bissc));
     a->Visit(MJ_NVP(gpio_bit_active));
     a->Visit(MJ_NVP(pins));
     a->Visit(MJ_NVP(analog_bit_active));
@@ -547,6 +591,7 @@ struct IsEnum<moteus::aux::Pin::Mode> {
         { P::kDigitalOutput, "digital_out" },
         { P::kAnalogInput, "analog_in" },
         { P::kPwmOut, "pwm_out" },
+        { P::kBissC, "bissc" },
       }};
   }
 };
@@ -588,6 +633,7 @@ struct IsEnum<moteus::aux::AuxError> {
         { A::kUartPinError, "uart_pin_error" },
         { A::kPwmPinError, "pwm_pin_error" },
         { A::kMaXXXConfigError, "maxxx_config" },
+        { A::kBisscPinError, "bissc_pin_error" },
       }};
   }
 };

@@ -437,6 +437,29 @@ done with 12 bits, so 2048 would be exactly 0.5 * 3.3V.  However, it
 is best to calibrate this with actual readings as observed over the
 diagnostic protocol for optimal performance.
 
+## `aux[12].bissc.enabled`
+
+True/non-zero if a BiSS-C sensor should be attached to this port.
+BiSS-C encoders require two pins, one of which is suitable both as a
+UART-TX pin and PWM pin.
+
+## `aux[12].bissc.rate_hz`
+
+The bitrate used for BiSS-C communication.  1,000,000 (1Mbit) is the
+maximum supported rate.
+
+## `aux[12].bissc.data_bits`
+
+The number of data bits reported by the BiSS-C encoder.
+
+## `aux[12].bissc.crc_bits`
+
+The number of CRC bits reported by the BiSS-C encoder.
+
+## `aux[12].bissc.poll_rate_us`
+
+The minimum period with which to poll the BiSS-C encoder.
+
 ## `aux[12].i2c_startup_delay_ms`
 
 A delay in milliseconds after power-on (or upon reconfiguring), before
