@@ -37,6 +37,7 @@ from . import moteus
 from . import aiostream
 from . import regression
 from . import calibrate_encoder as ce
+from .moteus import namedtuple_to_dict
 
 from .device_info import DeviceAddress
 
@@ -61,21 +62,6 @@ CURRENT_QUALITY_MIN = 20
 # We switch to voltage mode control if the ratio of maximum possible
 # current to current noise is less than this amount.
 VOLTAGE_MODE_QUALITY_MIN = 40
-
-
-def _deep_asdict(obj):
-    '''Convert a namedtuple recursively into a nested dictionary'''
-
-    if isinstance(obj, tuple) and hasattr(obj, "_fields"):
-        return {field: _deep_asdict(getattr(obj, field)) for field in obj._fields}
-
-    if isinstance(obj, collections.abc.Mapping):
-        return {k: _deep_asdict(v) for k, v in obj.items()}
-
-    if isinstance(obj, collections.abc.Sequence) and not isinstance(obj, (str, bytes, bytearray)):
-        return [_deep_asdict(x) for x in obj]
-
-    return obj
 
 
 def _wrap_neg_pi_to_pi(value):
@@ -1014,7 +1000,7 @@ class Stream:
 
     async def do_read(self, channel):
         result = await self.read_data(channel)
-        print(json.dumps(_deep_asdict(result), indent=2))
+        print(json.dumps(namedtuple_to_dict(result), indent=2))
 
     async def do_flash(self, elffile):
         elf = _read_elf(elffile, [".text", ".ARM.extab", ".ARM.exidx",
@@ -1177,7 +1163,7 @@ class Stream:
                 print()
                 print("*** FAILED: Gate driver fault (code=33) during calibration: ")
                 drv8323 = await self.read_data("drv8323")
-                print(json.dumps(_deep_asdict(drv8323), indent=2))
+                print(json.dumps(namedtuple_to_dict(drv8323), indent=2))
                 sys.exit(1)
             else:
                 raise

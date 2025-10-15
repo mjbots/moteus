@@ -14,6 +14,7 @@
 
 import asyncio
 import argparse
+import collections.abc
 import copy
 import enum
 import io
@@ -28,6 +29,32 @@ from .protocol import Register, Mode, Writer, parse_reply, Result, parse_message
 from .transport_factory import TRANSPORT_FACTORIES, get_singleton_transport, make_transport_args
 
 import moteus.reader
+
+
+def namedtuple_to_dict(obj):
+    '''Convert a namedtuple recursively into a nested dictionary.
+
+    This function handles namedtuples, dictionaries, and sequences,
+    converting them to nested dictionaries and lists suitable for
+    JSON serialization.
+
+    Args:
+        obj: The object to convert (typically a namedtuple)
+
+    Returns:
+        dict, list, or primitive type representation of the input
+    '''
+
+    if isinstance(obj, tuple) and hasattr(obj, "_fields"):
+        return {field: namedtuple_to_dict(getattr(obj, field)) for field in obj._fields}
+
+    if isinstance(obj, collections.abc.Mapping):
+        return {k: namedtuple_to_dict(v) for k, v in obj.items()}
+
+    if isinstance(obj, collections.abc.Sequence) and not isinstance(obj, (str, bytes, bytearray)):
+        return [namedtuple_to_dict(x) for x in obj]
+
+    return obj
 
 
 def _merge_resolutions(a, b):

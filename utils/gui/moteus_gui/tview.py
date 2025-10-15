@@ -23,9 +23,11 @@ import asyncio
 import codeop
 from dataclasses import dataclass
 import io
+import json
 import math
 import moteus
 import moteus.moteus_tool
+from moteus.moteus import namedtuple_to_dict
 import numpy
 import os
 import re
@@ -932,6 +934,99 @@ class Record:
         return count != 0
 
 
+class LoggingManager:
+    """Manages data logging to disk"""
+
+    def __init__(self):
+        self.log_file = None
+        self.log_filename = None
+        self.logging_devices = None
+        self.logging_channels = None
+
+    def is_logging(self):
+        """Check if any logging is currently active."""
+        return self.log_file is not None
+
+    def start_logging(self, filename, devices=None, channels=None):
+        """Start logging to the specified file.
+
+        Args:
+            filename: Path to the output file
+            devices: None for all devices, or set of device addresses to log
+            channels: None for all channels, or set of channel names to log
+        """
+        if self.is_logging():
+            self.stop_logging()
+
+        try:
+            self.log_file = open(filename, 'w')
+            self.log_filename = filename
+            self.logging_devices = devices
+            self.logging_channels = channels
+        except Exception as e:
+            print(f"Error opening log file {filename}: {e}")
+            self.log_file = None
+            self.log_filename = None
+            raise
+
+    def stop_logging(self):
+        """Stop logging and close the file."""
+        if self.log_file:
+            try:
+                self.log_file.close()
+            except Exception as e:
+                print(f"Error closing log file: {e}")
+            finally:
+                self.log_file = None
+                self.log_filename = None
+                self.logging_devices = None
+                self.logging_channels = None
+
+    def should_log(self, device_address, channel_name):
+        """Check if this device/channel combination should be logged."""
+        if not self.is_logging():
+            return False
+
+        if self.logging_devices is not None:
+            if device_address not in self.logging_devices:
+                return False
+
+        if self.logging_channels is not None:
+            if channel_name not in self.logging_channels:
+                return False
+
+        return True
+
+    def log_data(self, controller_address, timestamp, channel_name, data_struct, archive):
+        """Write a data record to the log file.
+
+        Args:
+            controller_address: Address of the controller (int or DeviceAddress)
+            timestamp: Unix timestamp as float
+            channel_name: Name of the telemetry channel
+            data_struct: The data structure to log
+            archive: The schema/archive for this data (unused currently)
+        """
+        if not self.should_log(controller_address, channel_name):
+            return
+
+        data_dict = namedtuple_to_dict(data_struct)
+
+        log_record = {
+            'controller': str(controller_address),
+            'timestamp': timestamp,
+            'channel': channel_name,
+            'data': data_dict
+        }
+
+        try:
+            json.dump(log_record, self.log_file)
+            self.log_file.write('\n')
+            self.log_file.flush()
+        except Exception as e:
+            print(f"Error writing to log file: {e}")
+
+
 class NoEditDelegate(QtWidgets.QStyledItemDelegate):
     def __init__(self, parent=None):
         QtWidgets.QStyledItemDelegate.__init__(self, parent=parent)
@@ -1433,6 +1528,10 @@ class Device:
             self._events[name].set()
             self._data_update_time[name] = time.time()
 
+            if self._main_window.logging_manager.is_logging():
+                self._main_window.logging_manager.log_data(
+                    self.address, now, name, struct, record.archive)
+
     async def wait_for_data(self, name):
         if name not in self._events:
             self._events[name] = asyncio.Event()
@@ -1744,6 +1843,14 @@ class TviewMainWindow():
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
         self.ui.historySpin.valueChanged.connect(update_plotwidget)
+
+        # Initialize logging manager
+        self.logging_manager = LoggingManager()
+
+        # Add logging button to status bar
+        self.logging_button = QtWidgets.QPushButton('Start Logging All')
+        self.logging_button.clicked.connect(self._handle_logging_button_clicked)
+        self.ui.statusbar.addPermanentWidget(self.logging_button)
 
         QtCore.QTimer.singleShot(0, self._handle_startup)
 
@@ -2194,6 +2301,9 @@ class TviewMainWindow():
         fmt_standard_action = menu.addAction('Standard Format')
         fmt_hex_action = menu.addAction('Hex Format')
 
+        menu.addSeparator()
+        log_channel_action = menu.addAction('Log this channel')
+
         requested = menu.exec_(self.ui.telemetryTreeWidget.mapToGlobal(pos))
 
         if requested in plot_actions:
@@ -2231,6 +2341,8 @@ class TviewMainWindow():
             item.setData(1, FORMAT_ROLE, FMT_STANDARD)
         elif requested == fmt_hex_action:
             item.setData(1, FORMAT_ROLE, FMT_HEX)
+        elif requested == log_channel_action:
+            self._start_channel_logging(item)
         else:
             # The user cancelled.
             pass
@@ -2514,6 +2626,94 @@ class TviewMainWindow():
         if len(faulted_devices) <= FULL_LIST_COUNT:
             self.ui.statusbar.setToolTip("")
 
+    def _handle_logging_button_clicked(self):
+        """Handle clicks on the status bar logging button."""
+        if self.logging_manager.is_logging():
+            self._stop_logging()
+        else:
+            self._start_global_logging()
+
+    def _start_global_logging(self):
+        """Start logging all data from all devices."""
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.ui,
+            "Save Log File",
+            "",
+            "JSON Lines (*.jsonl);;All Files (*)"
+        )
+
+        if not filename:
+            return
+
+        if not filename.endswith('.jsonl'):
+            filename += '.jsonl'
+
+        try:
+            self.logging_manager.start_logging(filename, devices=None, channels=None)
+            self.logging_button.setText('Stop Logging')
+            self.logging_button.setStyleSheet('background-color: #90EE90')
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self.ui,
+                "Logging Error",
+                f"Failed to start logging: {e}"
+            )
+
+    def _stop_logging(self):
+        """Stop logging and update UI."""
+        self.logging_manager.stop_logging()
+        self.logging_button.setText('Start Logging All')
+        self.logging_button.setStyleSheet('')
+
+    def _start_channel_logging(self, item):
+        """Start logging a specific channel from the tree view."""
+        channel_item = item
+        while channel_item.parent() and channel_item.parent().parent():
+            channel_item = channel_item.parent()
+
+        if not channel_item.parent():
+            return
+
+        schema = channel_item.data(0, QtCore.Qt.UserRole)
+        if not hasattr(schema, 'record'):
+            return
+
+        channel_name = channel_item.text(0)
+
+        device_item = channel_item.parent()
+        device = device_item.data(0, QtCore.Qt.UserRole)
+        if not isinstance(device, Device):
+            return
+
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(
+            self.ui,
+            f"Save Log File for {channel_name}",
+            "",
+            "JSON Lines (*.jsonl);;All Files (*)"
+        )
+
+        if not filename:
+            return
+
+        if not filename.endswith('.jsonl'):
+            filename += '.jsonl'
+
+        try:
+            self.logging_manager.start_logging(
+                filename,
+                devices={device.address},
+                channels={channel_name}
+            )
+            self.logging_button.setText('Stop Logging')
+            self.logging_button.setStyleSheet('background-color: #90EE90')
+            print(f"Started logging {channel_name} from device {device.address} to {filename}")
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(
+                self.ui,
+                "Logging Error",
+                f"Failed to start logging: {e}"
+            )
+
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -2538,11 +2738,17 @@ def main():
     loop = asyncqt.QEventLoop(app)
     asyncio.set_event_loop(loop)
 
+    tv = TviewMainWindow(args)
+
+    # Cleanup logging on exit
+    def cleanup():
+        tv.logging_manager.stop_logging()
+        os._exit(0)
+
     # Currently there are many things that can barf on exit, let's
     # just ignore all of them because, hey, we're about to exit!
-    app.aboutToQuit.connect(lambda: os._exit(0))
+    app.aboutToQuit.connect(cleanup)
 
-    tv = TviewMainWindow(args)
     tv.show()
 
     app.exec_()
