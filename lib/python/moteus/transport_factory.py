@@ -128,6 +128,11 @@ GLOBAL_TRANSPORT = None
 
 
 def make_transport_args(parser):
+    """Add transport specific arguments to an argparse.ArgumentParser
+
+    Args:
+        parser: the argparse.ArgumentParser instance
+    """
     for factory in get_transport_factories():
         if hasattr(factory, 'add_args'):
             factory.add_args(parser)
@@ -162,6 +167,16 @@ def check_gui_compatibility():
 
 
 def get_singleton_transport(args=None):
+    """Return (and construct if necessary) a transport.Transport
+    instance that uses either all available CAN-FD interfaces on the
+    system, or those configured by args.
+
+    Args:
+        args: an argparse.Namespace object
+
+    Returns:
+        a moteus.Transport object
+    """
     global GLOBAL_TRANSPORT
 
     if GLOBAL_TRANSPORT:

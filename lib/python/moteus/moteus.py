@@ -66,6 +66,9 @@ def _merge_resolutions(a, b):
 
 
 class QueryResolution:
+    """Specify which registers should be requested, and with which
+    resolution, during query operations."""
+
     mode = mp.INT8
     position = mp.F32
     velocity = mp.F32
@@ -93,6 +96,9 @@ class QueryResolution:
 
 
 class PositionResolution:
+    """Specify what resolutions should be used for each register when
+    sending position mode commands."""
+
     position = mp.F32
     velocity = mp.F32
     feedforward_torque = mp.F32
@@ -186,7 +192,7 @@ class Controller:
     """Operates a single moteus controller across some communication
     medium.
 
-    Attributes:
+    Arguments:
       id: bus ID of the controller or DeviceAddress structure
       query_resolution: an instance of moteus.QueryResolution
       position_resolution: an instance of moteus.PositionResolution
@@ -1095,7 +1101,13 @@ class CommandError(RuntimeError):
 
 class Stream:
     """Presents a python file-like interface to the diagnostic stream of a
-    moteus controller."""
+    moteus controller.
+
+    Arguments:
+      controller: moteus.Controller instance
+      channel: diagnostic channel to use
+      verbose: if True, all communication written to stdout
+    """
 
     def __init__(self, controller, verbose=False, channel=1):
         self.controller = controller

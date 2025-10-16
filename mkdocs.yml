@@ -1,0 +1,125 @@
+site_name: moteus Documentation
+site_url: https://mjbots.github.io/moteus/
+repo_url: https://github.com/mjbots/moteus
+repo_name: mjbots/moteus
+edit_uri: edit/main/docs/
+
+extra_css:
+  - style.css
+
+extra_javascript:
+  - javascripts/toc-collapse.js
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - macros:
+      module_name: docs/main
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [lib/python]
+          options:
+            docstring_style: google
+            show_source: false
+            heading_level: 3
+            show_root_heading: false
+            show_root_toc_entry: false
+            members_order: source
+            group_by_category: true
+
+nav:
+  - Introduction:
+      - Overview: index.md
+      - Quick Start: quick-start.md
+
+  - Using moteus:
+      - Mechanical Setup: guides/mechanical-setup.md
+      - Electrical Setup: guides/electrical-setup.md
+      - Software Installation: guides/software-installation.md
+      - Configuration: guides/configuration.md
+      - Encoder Overview: guides/encoder-overview.md
+      - Calibration: guides/calibration.md
+      - PID Tuning: guides/pid-tuning.md
+      - Control Modes: guides/control-modes.md
+      - Advanced Configuration:
+          - Motor with Hall Effects: guides/hall-effects.md
+          - Dual Encoders: guides/dual-encoders.md
+
+  - Integration:
+      - Python Client: integration/python.md
+      - C++ Client: integration/cpp.md
+      - Raw CAN-FD: integration/can-fd.md
+      - Host Platforms:
+          - Raspberry Pi: platforms/raspberry-pi.md
+          - Nvidia Jetson: platforms/jetson.md
+          - socketcan: platforms/socketcan.md
+          - Arduino: platforms/arduino.md
+
+  - Troubleshooting:
+      - Calibration: troubleshooting/calibration.md
+      - No Motion: troubleshooting/no-motion.md
+      - Limited Torque: troubleshooting/limited-torque.md
+      - Gate Driver Faults: troubleshooting/gate-driver-faults.md
+
+  - Reference:
+      - Pinouts: reference/pinouts.md
+      - Encoders: reference/encoders.md
+      - Client Tools: reference/client-tools.md
+      - Configuration Parameters: reference/configuration.md
+      - Hardware Specifications: reference/hardware.md
+      - Flashing and Building Firmware: reference/firmware.md
+      - Application Limits: reference/limits.md
+      - Theory of Operation: reference/theory.md
+      - API Reference:
+          - Python: reference/python.md
+      - Advanced:
+          - CAN Protocol: protocol/can.md
+          - Register Reference: protocol/registers.md
+          - Diagnostic Protocol: protocol/diagnostic.md
