@@ -2469,40 +2469,60 @@ class TviewMainWindow():
 
     def _handle_telemetry_context_menu(self, pos):
         item = self.ui.telemetryTreeWidget.itemAt(pos)
-        if item.childCount() > 0:
-            return
+
+        # Determine if this is a leaf item (field) or a channel item
+        is_leaf = item.childCount() == 0
+
+        is_controller = item.parent() is None
 
         menu = QtWidgets.QMenu(self.ui)
-        left_action = menu.addAction('Plot Left')
-        right_action = menu.addAction('Plot Right')
-        left_std_action = menu.addAction('Plot StdDev Left')
-        right_std_action = menu.addAction('Plot StdDev Right')
-        left_mean_action = menu.addAction('Plot Mean Left')
-        right_mean_action = menu.addAction('Plot Mean Right')
 
-        plot_actions = [
-            left_action,
-            right_action,
-            left_std_action,
-            right_std_action,
-            left_mean_action,
-            right_mean_action,
-        ]
+        # Plot actions only make sense for leaf items
+        plot_actions = []
+        if is_leaf:
+            left_action = menu.addAction('Plot Left')
+            right_action = menu.addAction('Plot Right')
+            left_std_action = menu.addAction('Plot StdDev Left')
+            right_std_action = menu.addAction('Plot StdDev Right')
+            left_mean_action = menu.addAction('Plot Mean Left')
+            right_mean_action = menu.addAction('Plot Mean Right')
 
-        right_actions = [right_action, right_std_action, right_mean_action]
-        std_actions = [left_std_action, right_std_action]
-        mean_actions = [left_mean_action, right_mean_action]
+            plot_actions = [
+                left_action,
+                right_action,
+                left_std_action,
+                right_std_action,
+                left_mean_action,
+                right_mean_action,
+            ]
 
-        menu.addSeparator()
+            right_actions = [right_action, right_std_action, right_mean_action]
+            std_actions = [left_std_action, right_std_action]
+            mean_actions = [left_mean_action, right_mean_action]
+
+            menu.addSeparator()
+
         copy_name = menu.addAction('Copy Name')
-        copy_value = menu.addAction('Copy Value')
+        if is_leaf:
+            copy_value = menu.addAction('Copy Value')
 
-        menu.addSeparator()
-        fmt_standard_action = menu.addAction('Standard Format')
-        fmt_hex_action = menu.addAction('Hex Format')
+        if is_leaf:
+            menu.addSeparator()
+            fmt_standard_action = menu.addAction('Standard Format')
+            fmt_hex_action = menu.addAction('Hex Format')
 
-        menu.addSeparator()
-        log_channel_action = menu.addAction('Log this channel')
+            menu.addSeparator()
+            log_channel_action = menu.addAction('Log this channel')
+
+        # Sample rate menu items - available for both channels and
+        # fields, but not controllers.
+        if not is_controller:
+            menu.addSeparator()
+            rate_10hz_action = menu.addAction('Set Rate: 10Hz')
+            rate_100hz_action = menu.addAction('Set Rate: 100Hz')
+        else:
+            rate_10hz_action = None
+            rate_100hz_action = None
 
         requested = menu.exec_(self.ui.telemetryTreeWidget.mapToGlobal(pos))
 
@@ -2535,14 +2555,35 @@ class TviewMainWindow():
             self.ui.plotItemCombo.addItem(name, plot_item)
         elif requested == copy_name:
             QtWidgets.QApplication.clipboard().setText(item.text(0))
-        elif requested == copy_value:
+        elif is_leaf and requested == copy_value:
             QtWidgets.QApplication.clipboard().setText(item.text(1))
-        elif requested == fmt_standard_action:
+        elif is_leaf and requested == fmt_standard_action:
             item.setData(1, FORMAT_ROLE, FMT_STANDARD)
-        elif requested == fmt_hex_action:
+        elif is_leaf and requested == fmt_hex_action:
             item.setData(1, FORMAT_ROLE, FMT_HEX)
-        elif requested == log_channel_action:
+        elif is_leaf and requested == log_channel_action:
             self._start_channel_logging(item)
+        elif (rate_10hz_action and requested == rate_10hz_action or
+              rate_100hz_action and requested == rate_100hz_action):
+            # Determine the channel schema and name
+            if is_leaf:
+                # For leaf items, find the parent channel item
+                channel_item = item
+                while channel_item.parent().parent():
+                    channel_item = channel_item.parent()
+                schema = channel_item.data(0, QtCore.Qt.UserRole)
+            else:
+                # For channel items, use the item directly
+                schema = item.data(0, QtCore.Qt.UserRole)
+
+            if schema and hasattr(schema, '_name') and hasattr(schema, '_parent'):
+                channel_name = schema._name
+                device = schema._parent
+
+                # 10Hz = 100ms, 100Hz = 10ms
+                poll_rate_ms = 100 if requested == rate_10hz_action else 10
+
+                device.write_line(f'tel rate {channel_name} {poll_rate_ms}\r\n')
         else:
             # The user cancelled.
             pass
