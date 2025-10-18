@@ -365,6 +365,30 @@
         box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
       }
     }
+
+    /* Mobile touch optimizations */
+    button, .tab, .primaryButton, .helpButton {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Ensure clickable table cells have good touch targets */
+    td.clickable {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(0, 119, 255, 0.1);
+    }
+
+    /* Prevent double-tap zoom on interactive elements */
+    input, select, textarea {
+      touch-action: manipulation;
+    }
+
+    /* Better touch feedback for active states on mobile */
+    @media (hover: none) and (pointer: coarse) {
+      button:active, .tab:active, .primaryButton:active {
+        opacity: 0.7;
+      }
+    }
   </style>
   <script type="importmap">
   {
@@ -421,6 +445,12 @@
     import Creatable from "react-select/creatable";
 
     const html = htm.bind(h);
+
+/* ---------- Touch Device Detection ---------- */
+// Detect if this is a touch device for optimized UI sizing
+const IS_TOUCH_DEVICE = ('ontouchstart' in window) ||
+                        (navigator.maxTouchPoints > 0) ||
+                        (navigator.msMaxTouchPoints > 0);
 
 /* ---------- helpers ---------- */
 const parseKV = (txt) => {
@@ -2529,12 +2559,29 @@ function ConfigFieldSelector({
             ${Object.entries(fieldDef.options).map(([value, optionDef]) => html`
               <div
                 key=${value}
-                onClick=${() => handleOptionSelect(value)}
+                onClick=${(e) => {
+                  handleOptionSelect(value);
+                }}
+                onPointerDown=${(e) => {
+                  e.target.style.backgroundColor = '#d5d5d5';
+                }}
+                onPointerUp=${(e) => {
+                  e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white';
+                }}
+                onPointerCancel=${(e) => {
+                  e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white';
+                }}
                 style=${{
-                  padding: '8px 12px',
+                  padding: IS_TOUCH_DEVICE ? '12px 16px' : '8px 12px',
                   cursor: 'pointer',
                   backgroundColor: value === data.data ? '#f0f0f0' : 'white',
-                  borderBottom: '1px solid #eee'
+                  borderBottom: '1px solid #eee',
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                  minHeight: IS_TOUCH_DEVICE ? '44px' : 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
                 }}
                 onMouseEnter=${(e) => e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : '#f5f5f5'}
                 onMouseLeave=${(e) => e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white'}
@@ -2554,7 +2601,7 @@ function ConfigFieldSelector({
       }
     }, [showDropdown]);
 
-    // Handle clicks outside to close dropdown
+    // Handle clicks/taps outside to close dropdown
     useEffect(() => {
       const handleClickOutside = (event) => {
         if (portalRef.current && !portalRef.current.contains(event.target) &&
@@ -2564,19 +2611,43 @@ function ConfigFieldSelector({
       };
 
       if (showDropdown) {
+        // Use both pointer and mouse events for maximum compatibility
+        document.addEventListener('pointerdown', handleClickOutside);
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside, { passive: true });
+        return () => {
+          document.removeEventListener('pointerdown', handleClickOutside);
+          document.removeEventListener('mousedown', handleClickOutside);
+          document.removeEventListener('touchstart', handleClickOutside);
+        };
       }
     }, [showDropdown]);
 
-    const handleChipClick = (e) => {
+    const handleChipInteraction = (e) => {
       if (isConstrainedSingleValue) {
+        e.preventDefault();
         e.stopPropagation();
         setShowDropdown(!showDropdown);
       } else if (isEditableNumeric) {
+        e.preventDefault();
         e.stopPropagation();
         setIsEditing(true);
         setEditValue(data.data);
+      }
+    };
+
+    const handleChipClick = (e) => {
+      handleChipInteraction(e);
+    };
+
+    const handleChipPointerDown = (e) => {
+      // For touch devices, handle interaction on pointer down
+      // since click events may not fire reliably
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        // Only handle if it's not clicking on the remove button
+        if (!e.target.closest('button')) {
+          handleChipInteraction(e);
+        }
       }
     };
 
@@ -2661,10 +2732,13 @@ function ConfigFieldSelector({
       borderRadius: '3px',
       display: 'inline-flex',
       margin: '2px',
-      padding: '3px 6px',
+      padding: IS_TOUCH_DEVICE ? '6px 8px' : '3px 6px',
       fontSize: '85%',
+      minHeight: IS_TOUCH_DEVICE ? '32px' : 'auto',
       boxShadow: (isConstrainedSingleValue || isEditableNumeric) ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
       transition: 'all 0.2s ease',
+      touchAction: 'manipulation',
+      WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
       ...((isConstrainedSingleValue || isEditableNumeric) && {
         ':hover': {
           boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
@@ -2675,7 +2749,8 @@ function ConfigFieldSelector({
     return html`
       <div ref=${(el) => { chipRef.current = el; if (innerRef) innerRef(el); }}
            style=${chipStyle}
-           onClick=${handleChipClick}>
+           onClick=${handleChipClick}
+           onPointerDown=${handleChipPointerDown}>
         <div style=${{ display: 'flex', alignItems: 'center', width: '100%' }}>
           ${isEditing ? html`
             <span>${data.field}=</span>
@@ -2702,30 +2777,57 @@ function ConfigFieldSelector({
           ` : html`
             <span>${data.label}</span>
             ${isConstrainedSingleValue && html`
-              <span style=${{ marginLeft: '4px', fontSize: '80%' }}>▼</span>
+              <span style=${{ marginLeft: '4px', fontSize: IS_TOUCH_DEVICE ? '90%' : '80%', opacity: IS_TOUCH_DEVICE ? 0.7 : 1 }}>▼</span>
             `}
             ${isEditableNumeric && html`
-              <span style=${{ marginLeft: '4px', fontSize: '80%', fontFamily: 'monospace' }}>✎</span>
+              <span style=${{ marginLeft: '4px', fontSize: IS_TOUCH_DEVICE ? '90%' : '80%', fontFamily: 'monospace', opacity: IS_TOUCH_DEVICE ? 0.7 : 1 }}>✎</span>
             `}
           `}
         </div>
         ${!isEditing && html`
           <button
             onClick=${(e) => {
+              e.preventDefault();
               e.stopPropagation();
               if (removeProps?.onClick) {
                 removeProps.onClick(e);
               }
             }}
+            onPointerDown=${(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // For touch devices, handle removal immediately on pointer down
+              // since click events may not fire reliably
+              if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                if (removeProps?.onClick) {
+                  removeProps.onClick(e);
+                }
+              }
+            }}
             style=${{
               border: 'none',
               backgroundColor: 'transparent',
-              marginLeft: '5px',
+              marginLeft: IS_TOUCH_DEVICE ? '6px' : '5px',
               cursor: 'pointer',
-              padding: '0 2px',
-              fontSize: '100%',
-              color: 'inherit'
+              padding: IS_TOUCH_DEVICE ? '4px 6px' : '0 2px',
+              fontSize: IS_TOUCH_DEVICE ? '110%' : '100%',
+              color: 'inherit',
+              minWidth: IS_TOUCH_DEVICE ? '24px' : 'auto',
+              minHeight: IS_TOUCH_DEVICE ? '24px' : 'auto',
+              display: IS_TOUCH_DEVICE ? 'flex' : 'inline',
+              alignItems: IS_TOUCH_DEVICE ? 'center' : 'normal',
+              justifyContent: IS_TOUCH_DEVICE ? 'center' : 'normal',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'rgba(0,0,0,0.2)',
+              borderRadius: '3px'
             }}
+            onMouseEnter=${(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.1)'}
+            onMouseLeave=${(e) => e.target.style.backgroundColor = 'transparent'}
+            onPointerEnter=${(e) => {
+              if (e.pointerType === 'mouse') e.target.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            }}
+            onPointerLeave=${(e) => e.target.style.backgroundColor = 'transparent'}
           >
             ×
           </button>
