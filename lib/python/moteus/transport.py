@@ -419,7 +419,7 @@ class Transport:
             # We can send at most one broadcast frame that needs
             # replies per transaction.
             broadcast_with_reply = lambda request: (
-                (request.frame.arbitration_id & 0x7f) == 0x7f and
+                (request.frame and ((request.frame.arbitration_id & 0x7f) == 0x7f)) and
                 request.frame_filter is not None)
 
             broadcast_requests = [x for x in request_list
