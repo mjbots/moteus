@@ -16,6 +16,7 @@
 import argparse
 import importlib_metadata
 import sys
+import warnings
 
 from . import fdcanusb_device
 from . import pythoncan_device
@@ -141,11 +142,35 @@ def make_transport_args(parser):
         help='Force the given transport type to be used exclusively')
 
 
+def check_gui_compatibility():
+    try:
+        import moteus_gui
+        from importlib.metadata import version, PackageNotFoundError
+        from packaging.version import parse as parse_version
+
+        try:
+            gui_version = version('moteus-gui')
+            if parse_version(gui_version) < parse_version('0.3.93'):
+                warnings.warn(
+                    "moteus-gui is outdated.  Please upgrade: python -m pip install -U moteus-gui",
+                    UserWarning
+                )
+        except PackageNotFoundError:
+            pass
+    except ImportError:
+        pass
+
+
 def get_singleton_transport(args=None):
     global GLOBAL_TRANSPORT
 
     if GLOBAL_TRANSPORT:
         return GLOBAL_TRANSPORT
+
+    # We check this here because it will likely only be called once
+    # per application instance, and will nearly always be called by
+    # the GUI.
+    check_gui_compatibility()
 
     if args and args.can_debug:
         args.can_debug = open(args.can_debug, 'wb')

@@ -53,5 +53,6 @@ setuptools.setup(
         'scipy>=1.8.0',
         'importlib_metadata>=3.6',
         'pywin32;platform_system=="Windows"',
+        'packaging',
     ],
 )
