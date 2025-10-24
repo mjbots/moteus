@@ -56,10 +56,7 @@ setuptools.setup(
         # For some reason, matplotlib can barf without this, but
         # doesn't actually list it as a dependency on Windows.
         'msvc-runtime;platform_system=="Windows" and python_version<"3.12"',
-        # At the time of this writing, 6.7.0 on Windows causes qtpy
-        # and qtconsole to fail miserably, so we just stay with 6.6 or
-        # earlier.
-        'PySide6>=6.8',
+        'PySide6>=6.6',
         'qtconsole>=5.6',
         'qtpy>=2.0.1',
         'scipy>=1.14',
