@@ -23,7 +23,7 @@ here = pathlib.Path(__file__).parent.resolve()
 long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setuptools.setup(
-    name = 'moteus-gui',
+    name = 'moteus_gui',
     version = {{VERSION}},
     description = 'moteus brushless controller graphical user interfaces',
     long_description = long_description,

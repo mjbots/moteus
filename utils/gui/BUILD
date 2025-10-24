@@ -46,12 +46,12 @@ genrule(
     ],
     outs = [
         "moteus_gui-{ver}-py3-none-any.whl".format(ver=VERSION),
-        "moteus-gui-{ver}.tar.gz".format(ver=VERSION),
+        "moteus_gui-{ver}.tar.gz".format(ver=VERSION),
     ],
     cmd = (
-        "mkdir -p $$(dirname $(location moteus-gui-{ver}.tar.gz)) && " +
+        "mkdir -p $$(dirname $(location moteus_gui-{ver}.tar.gz)) && " +
         "RELOUT=$$(realpath --relative-to $$(dirname $(location README.md)) " +
-        "          $$(dirname $(location moteus-gui-{ver}.tar.gz))) && " +
+        "          $$(dirname $(location moteus_gui-{ver}.tar.gz))) && " +
         "SRCROOT=$$(dirname $(location README.md)) && " +
         "ln -s $$(realpath $(location setup.py)) $$SRCROOT/setup.py && " +
         "ln -s $$(realpath $(location //utils/gui/moteus_gui:version.py)) $$SRCROOT/moteus_gui/version.py && " +
