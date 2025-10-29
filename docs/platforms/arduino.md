@@ -68,3 +68,9 @@ Many external MCP2517FD controller/transceivers do not have termination resistor
 ### Flash and storage limitations
 
 With some smaller Arduino platforms, notably the Arduino Uno or Longan Labs CANBed FD, the combination of the ACAN2517FD library and the moteus library can consume a significant fraction of the flash and RAM available. For simple applications this isn’t a problem, but if you want to execute something more complex, you may be better served using a more capable Arduino compatible processor, like a [Teensy 4](https://www.pjrc.com/store/teensy41.html) or a [Nano Sense 33](https://store-usa.arduino.cc/products/nano-33-ble-sense-rev2).
+
+## Overview video
+
+A video overview of the process of using an Arduino with moteus can be found here:
+
+{{ youtube("dbV0jIN8Ay4") }}
