@@ -42,8 +42,8 @@ Assembled and tested boards can be purchased at: https://mjbots.com
 
 # Documentation #
 
-* [Getting Started](docs/getting_started.md)
-* [Reference](docs/reference.md)
+* [Quick Start](https://mjbots.github.io/moteus/quick-start)
+* [All Documentation](https://mjbots.github.io/moteus/)
 * [Discord](https://discord.gg/W4hUpBb)
 
 # Misc #

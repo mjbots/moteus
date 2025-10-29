@@ -23,6 +23,14 @@ moteus controllers are high-performance modular brushless motor controllers with
 
 Assembled and tested boards can be purchased at [mjbots.com](https://mjbots.com)
 
+## Documentation
+
+- [Quick Start](quick-start.md)
+- [Using Moteus](guides/mechanical-setup.md)
+- [Integration](integration/python.md)
+- [Troubleshooting](troubleshooting/calibration.md)
+- [Reference](reference/pinouts.md)
+
 ## Community & Support
 
 - [Discord Community](https://discord.gg/W4hUpBb)
