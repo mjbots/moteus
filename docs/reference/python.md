@@ -64,3 +64,30 @@
             - command
             - write_message
             - read_data
+
+## moteus.Transport
+
+::: moteus.Transport
+    options:
+        members:
+            - cycle
+            - read
+            - discover
+            - flush_read_queue
+            - devices
+            - count
+            - close
+
+## moteus.FdcanusbDevice
+
+::: moteus.FdcanusbDevice
+    options:
+        members:
+            - detect_fdcanusbs
+
+## moteus.PythonCanDevice
+
+::: moteus.PythonCanDevice
+    options:
+        members:
+            - enumerate_devices

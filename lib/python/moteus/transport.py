@@ -159,9 +159,18 @@ class Transport:
 
 
     def devices(self):
+        """
+        Returns:
+            (list[TransportDevice]): list of TransportDevices in
+                this Transport
+        """
         return self._devices
 
     def count(self):
+        """
+        Returns:
+            (int): integer number of TransportDevices in this Transport
+        """
         return len(self._devices)
 
     def __enter__(self):
@@ -176,6 +185,7 @@ class Transport:
             self._cancel_queue_max_size.pop(0)
 
     def close(self):
+        """Close all TransportDevices associated with this Transport."""
         for device in self._devices:
             device.close()
 
@@ -489,18 +499,15 @@ class Transport:
                     force_can_check=None):
         """Issue all commands, returning any resulting frames.
 
-        Args:
-
+        Arguments:
           request_attitude: This is present to allow producing IMU
             data in the same SPI cycle as CAN data with an mjbots
             pi3hat.
-
           read_unsolicited: An optional list of TransportDevices, for
             which any available unsolicited CAN frames should be
             returned.  If specified on a TransportDevice where moteus
             controllers are commanded, this may result in duplicate
             frame receipts.
-
           force_can_check: A bitfield to force a connected pi3hat to
             check specific CAN ports.  Modern code should instead use
             the read_unsolicited kwargs.
@@ -538,8 +545,7 @@ class Transport:
 
         This can be used to receive unsolicited data.
 
-        Args:
-
+        Arguments:
           channel: If specified, only read from the given
             TransportDevice.
         """
@@ -620,7 +626,7 @@ class Transport:
     async def flush_read_queue(self, timeout=0.1, channel=None):
         """Flush any pending receive frames.
 
-        Args:
+        Arguments:
             timeout: Time in seconds to keep reading before giving up.
             channel: None = all channels
         """
@@ -687,9 +693,9 @@ class Transport:
         TransportDevices which support discovery.
 
         Returns:
-            A list of DeviceInfo structures containing the CAN ID,
-            UUID, and TransportDevice where this device is located.
-
+            (list[DeviceInfo]): A list of DeviceInfo structures
+                containing the CAN ID, UUID, and TransportDevice
+                where the device is located.
         """
 
         # Flush any responses that might be sitting around.

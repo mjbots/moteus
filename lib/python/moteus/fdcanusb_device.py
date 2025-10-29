@@ -334,6 +334,11 @@ class FdcanusbDevice(TransportDevice):
 
     @staticmethod
     def detect_fdcanusbs():
+        """
+        Returns:
+            (list[str]): list of filesystem paths that can be
+                used to construct FdcanusbDevice objects
+        """
         if sys.platform == 'win32':
             return FdcanusbDevice.pyserial_detect_fdcanusbs()
 

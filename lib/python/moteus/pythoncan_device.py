@@ -208,6 +208,11 @@ class PythonCanDevice(TransportDevice):
 
     @staticmethod
     def enumerate_devices(**kwargs):
+        """
+        Returns:
+            (list[PythonCanDevice]): list of objects for devices present
+                in the current system
+        """
         global can
         if not can:
             import can
