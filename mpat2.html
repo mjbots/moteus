@@ -1,0 +1,4929 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>moteus Perfomance Analysis Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-size: 14px;
+      font-family: system-ui, sans-serif;
+      color: #333;
+      background: #fcfcfc;
+      margin: 0;
+      padding: 1 rem;
+      padding-bottom: 2.5em;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      table-layout: auto;
+    }
+    td, th {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      font-weight: 600;
+    }
+    td:nth-child(odd) {
+      background-color:#f9fafb;
+    }
+    td:nth-child(even) {
+      background-color: #ffffff;
+    }
+    th:nth-child(odd) {
+      background-color: #f1f5f9;
+    }
+    th:nth-child(even) {
+      background-color: #f5f9fa;
+    }
+    td.clickable {
+      cursor: pointer;
+    }
+    td.selected {
+      background-color: #e3f2fd;
+    }
+    td.row-header {
+      font-weight: bold;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: #f1f1f1;
+      padding: 10px;
+      font-size: 0.9em;
+      border-top: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    .footerContent {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      max-width: 100%;
+    }
+
+    .footerText {
+      text-align: center;
+      flex: 1;
+    }
+
+    .footerButton {
+      position: absolute;
+      right: 0;
+    }
+
+    .helpButton {
+      background: none;
+      border: 1px solid #ccc;
+      color: inherit;
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .helpButton:hover {
+      background: #e0e0e0;
+    }
+
+    .helpOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .helpContent {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .helpSection {
+      margin-bottom: 20px;
+    }
+
+    .helpFieldName {
+      font-weight: bold;
+      color: #0066cc;
+      margin-bottom: 4px;
+    }
+
+    .helpFieldDescription {
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    .helpFieldConstraints {
+      font-size: 0.9em;
+      color: #666;
+      font-style: italic;
+    }
+
+    .helpHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .helpHeaderTitle {
+      margin: 0;
+    }
+
+    .helpIntro {
+      margin-bottom: 15px;
+      color: #666;
+    }
+
+    .helpOptionsContainer {
+      margin-left: 15px;
+      margin-top: 8px;
+    }
+
+    .helpOptionsTitle {
+      font-weight: bold;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .helpOptionRow {
+      margin-bottom: 6px;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    .helpOptionValue {
+      font-family: monospace;
+      color: #888;
+      font-weight: normal;
+      min-width: 120px;
+      margin-right: 10px;
+      background: #f5f5f5;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+
+    .helpOptionDescription {
+      font-size: 0.9em;
+      color: #555;
+      flex: 1;
+    }
+
+    .pageContainer {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.2rem;
+    }
+
+    .panelColumn {
+      flex: 1 1 300px;
+      max-width: 400px;
+      min-width: 200px;
+      padding: 1em;
+    }
+
+    .resultsColumn {
+      flex: 2 1 500px;
+      min-width: 200px;
+      padding: 1em;
+    }
+
+    .panelContainer {
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      margin: 0.4em 0;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+      /*overflow: hidden;*/
+    }
+
+    .panelContent {
+      padding: 0.5rem;
+    }
+
+    .configField {
+      margin-bottom: 0.375rem;
+    }
+
+    .configField:last-child {
+      margin-bottom: 0;
+    }
+
+    .primaryButton {
+      padding: 8px 16px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .primaryButton:hover {
+      background: #0056b3;
+    }
+
+    .tabContainer {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border: 1px solid #ddd;
+      border-bottom: none;
+      background: #f8f9fa;
+      margin-right: 2px;
+      border-radius: 4px 4px 0 0;
+    }
+
+    .tab.active {
+      background: white;
+      border-bottom: 1px solid white;
+      margin-bottom: -1px;
+    }
+
+    .tab:hover {
+      background: #e9ecef;
+    }
+
+    .tab.active:hover {
+      background: white;
+    }
+
+    .tabContent {
+      min-height: 400px;
+    }
+
+    .panelTitle {
+      cursor: move;
+      padding: 0.5rem;
+      background:#f7f9fc;
+      font-weight: 600;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .drag-handle {
+      color: #666;
+      font-size: 14px;
+      cursor: move;
+    }
+
+    .panelContainer.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .panelContainer.drag-over {
+      border: 2px dashed #007bff;
+      background: #f8f9ff;
+    }
+
+    .panelContainer:hover .drag-handle {
+      color: #333;
+    }
+
+    .panelContainer.not-draggable .panelTitle {
+      cursor: default;
+    }
+
+    .panelContainer.not-draggable:hover {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .resultTable {
+      display: inline-block;
+      max-width: 100%;
+      margin: 1 rem auto;
+      background: white;
+      border-radius: 5px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .multiHeader {
+      font-weight: 600;
+    }
+
+    .overlayContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.0);
+      z-index: 1000;
+      outline: 1px dashed red;
+      pointer-events: none;
+    }
+
+    .overlayBody {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background: white;
+      borderLeft: 1px solid #ccc;
+      padding: 1rem;
+      box-shadow: -2px 0px 8px rgba(0, 0, 0, 0.2);
+      pointer-events: auto;
+    }
+
+    @media (max-width: 600px) {
+      .overlayBody {
+        left: 5px;
+        right: 5px;
+        top: 5px;
+        bottom: 5px;
+        border-left: none;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+      }
+    }
+
+    /* Mobile touch optimizations */
+    button, .tab, .primaryButton, .helpButton {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    }
+
+    /* Ensure clickable table cells have good touch targets */
+    td.clickable {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: rgba(0, 119, 255, 0.1);
+    }
+
+    /* Prevent double-tap zoom on interactive elements */
+    input, select, textarea {
+      touch-action: manipulation;
+    }
+
+    /* Better touch feedback for active states on mobile */
+    @media (hover: none) and (pointer: coarse) {
+      button:active, .tab:active, .primaryButton:active {
+        opacity: 0.7;
+      }
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "preact":                 "https://esm.sh/preact@10.26.5",
+      "preact/":                "https://esm.sh/preact@10.26.5/",
+      "preact/hooks":           "https://esm.sh/preact@10.26.5/hooks",
+      "preact/compat":          "https://esm.sh/preact@10.26.5/compat",
+      "preact/jsx-runtime":     "https://esm.sh/preact@10.26.5/jsx-runtime",
+
+      "react": "https://esm.sh/preact@10.26.5/compat",
+	  "react/": "https://esm.sh/preact@10.26.5/compat/",
+	  "react-dom": "https://esm.sh/preact@10.26.5/compat",
+      "react-dom/":           "https://esm.sh/preact@10.26.5/compat/",
+      "react/jsx-runtime":    "https://esm.sh/preact@10.26.5/jsx-runtime",
+      "react/jsx-dev-runtime":"https://esm.sh/preact@10.26.5/jsx-runtime",
+      "react-dom/client":     "https://esm.sh/preact@10.26.5/compat",
+
+      "htm": "https://esm.sh/htm@3.1.1",
+      "react-select": "https://esm.sh/react-select@5?alias=react:preact/compat,react-dom:preact/compat&deps=preact@10.26.5",
+      "react-select/creatable": "https://esm.sh/react-select@5/creatable?alias=react:preact/compat,react-dom:preact/compat&deps=preact@10.26.5"
+
+    }
+  }
+</script>
+  <script>
+    // Embed the contents of preact, preact-hooks, and htm.
+    // preact 10.26.5 - MIT License: https://github.com/preactjs/preact/blob/main/LICENSE
+    // htm 3.1.1 - Apache 2.0 License: https://github.com/developit/htm/blob/master/LICENSE
+    //
+    // These were generated by:
+    //  curl -L https://unpkg.com/preact@10.26.5/dist/preact.umd.js -o preact.umd.js
+    //  curl -L https://unpkg.com/preact@10.26.5/hooks/dist/hooks.umd.js -o preact-hooks.umd.js
+    //  curl -L https://unpkg.com/htm@3.1.1/dist/htm.umd.js -o htm.umd.js
+  </script>
+  <script type="module">
+    // Copyright 2025 mjbots Robotic Systems, LLC.  info@mjbots.com
+    //
+    // Licensed under the Apache License, Version 2.0 (the "License");
+    // you may not use this file except in compliance with the License.
+    // You may obtain a copy of the License at
+    //
+    //     http://www.apache.org/licenses/LICENSE-2.0
+    //
+    // Unless required by applicable law or agreed to in writing, software
+    // distributed under the License is distributed on an "AS IS" BASIS,
+    // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    // See the License for the specific language governing permissions and
+    // limitations under the License.
+
+    import {h, render } from "preact";
+    import { useState, useEffect, useRef } from "preact/hooks";
+    import htm from "htm";
+    import Creatable from "react-select/creatable";
+
+    const html = htm.bind(h);
+
+/* ---------- Touch Device Detection ---------- */
+// Detect if this is a touch device for optimized UI sizing
+const IS_TOUCH_DEVICE = ('ontouchstart' in window) ||
+                        (navigator.maxTouchPoints > 0) ||
+                        (navigator.msMaxTouchPoints > 0);
+
+/* ---------- helpers ---------- */
+const parseKV = (txt) => {
+  const [field, val] = txt.split('=');
+  if (!field) return null;  // must have at least a field name
+  if (val === undefined) {
+    // No '=' found, treat as simple field
+    return { field, value: field, label: field };
+  }
+  // '=' found (val could be empty string)
+  // Check if the value contains commas (multiple values)
+  const hasMultipleValues = val.includes(',');
+  return {
+    field,
+    value: field,
+    data: val,
+    label: `${field}=${val}`,
+    isMultiValue: hasMultipleValues,
+    values: hasMultipleValues ? val.split(',').map(v => v.trim()) : [val]
+  };
+};
+
+// Consolidated field definitions - single source of truth for all field metadata
+const fieldDefinitions = {
+  // Common fields
+  'controller': {
+    defaultValue: 'moteus-x1',
+    description: 'Motor controller type - determines power limits, thermal characteristics, and control capabilities',
+    type: 'constrained',
+    options: {
+      'moteus-c1': {
+        help: html`38×38×9mm, 8.9g, 250W peak, 10-51V - <a href="https://mjbots.com/products/moteus-c1" target="_blank">product page</a>`,
+        model: () => new MoteusC1()
+      },
+      'moteus-r4': {
+        help: html`46×53mm, 14.2g, 900W peak, 10-42V - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`,
+        model: () => new MoteusR4()
+      },
+      'moteus-n1': {
+        help: html`46×46×8mm, 14.6g, 2kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
+        model: () => new MoteusN1()
+      },
+      'moteus-x1': {
+        help: html`56×56×10mm, 23.7g, 1.3kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-x1" target="_blank">product page</a>`,
+        model: () => new MoteusX1()
+      },
+      'odrive-micro': {
+        help: html`32×32×7.5mm, 6.8g, 100W, 10-31V - <a href="https://shop.odriverobotics.com/products/odrive-micro" target="_blank">product page</a>`,
+        model: () => new OdriveMicro()
+      },
+      'odrive-s1': {
+        help: html`51×64mm, 35g, 2kW, 10-50.5V - <a href="https://shop.odriverobotics.com/products/odrive-s1" target="_blank">product page</a>`,
+        model: () => new OdriveS1()
+      },
+      'odrive-pro': {
+        help: html`51×64mm, 35g, 5kW, 10-58V - <a href="https://shop.odriverobotics.com/products/odrive-pro" target="_blank">product page</a>`,
+        model: () => new OdrivePro()
+      }
+    }
+  },
+  'controller_cooling': {
+    defaultValue: 'none',
+    description: 'Controller cooling configuration - affects thermal limits and sustained power capability',
+    type: 'constrained',
+    options: {
+      'none': { help: 'Natural convection only' },
+      'heatspreader': { help: 'Board specific heat spreader plate' },
+      '4030sink': { help: 'Heat spreader with 40x40x30mm heat sink' },
+      'fan_5v': { help: '5V fan cooling' },
+      'fan_12v': { help: '12V fan cooling' },
+      'max': { help: 'Maximum achieved cooling' }
+    }
+  },
+  'motor': {
+    defaultValue: 'mad8318',
+    description: 'Motor model - defines electrical characteristics, thermal properties, and mechanical specifications',
+    type: 'constrained',
+    options: {
+      'mad8318': {
+        help: html`MAD 8318 motor - 83mm agricultural drone motor - <a href="https://mad-motor.com/products/mad-components-8318-ipe-for-agriculture-drone-motor" target="_blank">product page</a>`,
+        model: () => new MAD8318()
+      },
+      'mj5208': {
+        help: html`MJ 5208 motor - 52mm drone motor - <a href="https://mjbots.com/products/mj5208" target="_blank">product page</a>`,
+        model: () => new MJ5208()
+      },
+      'gbm5208': {
+        help: html`GBM 5208 motor - 52mm gimbal motor - <a href="https://www.rctimer.com/rctimer-gimbal-motor-gbm5208-75t-p0448.html" target="_blank">product page</a>`,
+        model: () => new GBM5208()
+      },
+      'be8108': {
+        help: html`BE 8108 motor - 81mm drone motor - <a href="https://hobbyking.com/en_us/dys-brushless-motor-86x10-be8108-12-135kv-for-multi-rotors.html" target="_blank">product page</a>`,
+        model: () => new BE8108()
+      },
+      'hoverboard350': {
+        help: html`350W hoverboard motor - <a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">product page</a>`,
+        model: () => new Hoverboard350()
+      },
+      'ht1105': {
+        help: html`HT 1105 motor - 11mm micro brushless motor - <a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">product page</a>`,
+        model: () => new HT1105()
+      },
+      'dcws500': {
+        help: html`Generic 1.3kg 500W Spindle Motor, 48V/12000RPM`,
+        model: () => new DCWS500Spindle()
+      },
+      'model': {
+        help: 'Generic motor model - for full custom motor definitions',
+        requiresSubFields: ['kv', 'r', 'l', 'd0', 'd1', 'thermal_r', 'thermal_c']
+      }
+    }
+  },
+  'motor_cooling': {
+    defaultValue: 'none',
+    description: 'Motor cooling configuration - affects motor thermal limits and continuous operation capability',
+    type: 'constrained',
+    options: {
+      'none': { help: 'Natural convection only' },
+      'max': { help: 'Maximum achieved cooling' }
+    }
+  },
+  'voltage': {
+    defaultValue: '24',
+    description: 'Supply voltage in volts - affects speed capability and power delivery',
+    type: 'numeric'
+  },
+  'velocity': {
+    defaultValue: '0',
+    description: 'Gearbox output velocity in Hz',
+    type: 'numeric'
+  },
+  'pwm': {
+    defaultValue: 'default',
+    description: 'PWM switching frequency - affects efficiency and maximum power (use "default" for controller-specific default value)',
+    type: 'mixed',
+    constraints: 'numeric (Hz) or "default"'
+  },
+  'time': {
+    defaultValue: 'infinity',
+    description: 'Time period for thermal analysis in seconds - use "infinity" for steady-state analysis',
+    type: 'mixed',
+    constraints: 'numeric (seconds) or "infinity"'
+  },
+  'gear_reduction': {
+    defaultValue: '1',
+    description: 'Gear reduction ratio - mechanical advantage between motor and load (1 = direct drive, 2 = half speed output)',
+    type: 'numeric'
+  },
+  'ambient_temp': {
+    defaultValue: '25',
+    description: 'Ambient temperature in °C - baseline temperature for thermal calculations',
+    type: 'numeric'
+  },
+  'max_controller_temp': {
+    defaultValue: 'default',
+    description: 'Maximum allowable controller temperature in °C (use "default" for controller-specific limit)',
+    type: 'mixed',
+    constraints: 'numeric (°C) or "default"'
+  },
+  'max_motor_temp': {
+    defaultValue: 'default',
+    description: 'Maximum allowable motor temperature in °C (use "default" for motor-specific limit)',
+    type: 'mixed',
+    constraints: 'numeric (°C) or "default"'
+  },
+  'torque': {
+    defaultValue: '0',
+    description: 'Gearbox output torque in Nm',
+    type: 'numeric'
+  },
+  'move_distance': {
+    defaultValue: '0.25',
+    description: 'Move distance in revolutions',
+    type: 'numeric'
+  },
+  'load_inertia': {
+    defaultValue: '0.0',
+    description: 'Load inertia in kg*m^2',
+    type: 'numeric'
+  },
+  'output': {
+    defaultValue: 'torque',
+    description: 'Analysis output type - what metric to display',
+    type: 'constrained',
+    options: {
+      'torque': { help: 'Torque at gearbox output in Nm' },
+      'velocity': { help: 'Velocity at gearbox output in Hz' },
+      'controller_temp': { help: 'Controller temperature in °C' },
+      'motor_temp': { help: 'Motor temperature in °C' },
+      'supply_power': { help: 'Total electrical power consumption in W' },
+      'supply_current': { help: 'Current sourced from supply in A' },
+      'phase_current': { help: 'Current applied to motor phases in A' },
+      'copper_loss': { help: 'Power dissipated in motor windings in W' },
+      'iron_loss': { help: 'Power dissipated in motor stator in W' },
+      'controller_loss': { help: 'Power dissipated in controller in W' },
+      'mechanical_power': { help: 'Mechanical power at output of gearbox in W' },
+      'efficiency': { help: 'Motor efficiency as percentage' },
+      'time': { help: 'Time to complete move' },
+    }
+  },
+  'analysis': {
+    defaultValue: 'max_torque',
+    description: 'Analysis method - determines what optimization or calculation to perform',
+    type: 'constrained',
+    options: {
+      'max_current': { help: 'Find maximum sustainable phase current' },
+      'max_torque': { help: 'Find maximum sustainable torque' },
+      'max_velocity': { help: 'Find maximum achievable velocity' },
+      'operating_point': { help: 'Evaluate specific operating point' },
+      'move_time': { help: 'Find the minimum time to complete a move' },
+    }
+  },
+  // Motor sub-fields
+  'motor.kv': {
+    defaultValue: '100',
+    description: 'Motor velocity constant in RPM/V',
+    type: 'numeric'
+  },
+  'motor.r': {
+    defaultValue: '0.2',
+    description: 'Phase-to-phase resistance in ohms',
+    type: 'numeric'
+  },
+  'motor.l': {
+    defaultValue: '2e-6',
+    description: 'Phase-to-phase inductance in henries',
+    type: 'numeric'
+  },
+  'motor.d0': {
+    defaultValue: '1e-2',
+    description: 'Linear iron loss in W/s',
+    type: 'numeric'
+  },
+  'motor.d1': {
+    defaultValue: '1e-4',
+    description: 'Quadratic iron loss in W/s^2',
+    type: 'numeric'
+  },
+  'motor.thermal_r': {
+    defaultValue: '0.5',
+    description: 'Thermal resistance in °C/W',
+    type: 'numeric'
+  },
+  'motor.thermal_c': {
+    defaultValue: '50',
+    description: 'Thermal capacitance in J/°C',
+    type: 'numeric'
+  }
+};
+
+// Helper function to get field metadata
+const getFieldDefinition = (fieldName) => {
+  return fieldDefinitions[fieldName] || null;
+};
+
+// Helper function to get default values (backwards compatibility)
+const defaultCommonValues = Object.fromEntries(
+  Object.entries(fieldDefinitions)
+    .filter(([key]) => !key.includes('.'))
+    .map(([key, def]) => [key, { value: def.defaultValue, description: def.description }])
+);
+
+// Helper function to get motor sub-field defaults (backwards compatibility)
+const motorSubFieldDefaults = Object.fromEntries(
+  Object.entries(fieldDefinitions)
+    .filter(([key]) => key.startsWith('motor.'))
+    .map(([key, def]) => [key, { value: def.defaultValue, description: def.description }])
+);
+
+// Default axis configurations
+const defaultAxisConfigs = [
+  // Default axis 1: Controllers
+  [{ field: 'controller', data: 'moteus-c1,moteus-r4,moteus-n1,moteus-x1' }],
+  // Default axis 2: Voltages
+  [{ field: 'voltage', data: '12,24,36,48,54' }]
+];
+
+/* Help text for constrained field values - includes productInfo links where available */
+const getConstrainedValueHelp = (fieldName, valueName) => {
+  const fieldDef = getFieldDefinition(fieldName);
+  if (!fieldDef || fieldDef.type !== 'constrained' || !fieldDef.options) {
+    return null;
+  }
+
+  const optionDef = fieldDef.options[valueName];
+  return optionDef?.help || null;
+};
+
+/* Field-specific value suggestions - only for constrained fields */
+const fieldValueOptions = (() => {
+  const options = {};
+  Object.entries(fieldDefinitions).forEach(([fieldName, fieldDef]) => {
+    if (fieldDef.type === 'constrained' && fieldDef.options) {
+      options[fieldName] = Object.keys(fieldDef.options);
+    }
+  });
+  return options;
+})();
+
+/* Motor model sub-field configurations */
+const motorModelFields = {
+  'model': fieldDefinitions['motor'].options['model'].requiresSubFields
+};
+
+/* Generate dynamic sub-fields based on selected values */
+const generateDynamicFields = (selectedValues) => {
+  const dynamicFields = [];
+
+  selectedValues.forEach(selected => {
+    if (selected.field === 'motor' && selected.data) {
+      const subFields = motorModelFields[selected.data];
+      if (subFields) {
+        subFields.forEach(subField => {
+          const fullFieldName = `motor.${subField}`;
+          dynamicFields.push({
+            field: fullFieldName,
+            value: fullFieldName,
+            label: fullFieldName + '=',
+            isMultiValue: false,
+            values: [fullFieldName]
+          });
+        });
+      }
+    }
+  });
+
+  return dynamicFields;
+};
+
+/* shared base fields for all selectors - derived from default values */
+const getBaseFields = (selectedValues) => {
+  const staticFields = Object.entries(fieldDefinitions)
+    .filter(([key]) => !key.includes('.'))
+    .map(([name]) => ({
+    field: name,
+    value: name,
+    label: name + '=',
+    isMultiValue: false,
+    values: [name]
+  }));
+
+  const dynamicFields = generateDynamicFields(selectedValues);
+
+  return [...staticFields, ...dynamicFields];
+};
+
+/* ---------- LimitedValue class for constraint tracking ---------- */
+class LimitedValue {
+  constructor(value, limitingFactor = null) {
+    this.value = value;
+    this.limitingFactor = limitingFactor;
+
+    return new Proxy(this, {
+      // Handle property access
+      get(target, prop) {
+        if (prop in target) return target[prop];
+
+        // Intercept Math operations and other number methods
+        if (typeof target.value[prop] === 'function') {
+          return function(...args) {
+            const result = target.value[prop](...args);
+            return new LimitedValue(result, target.limitingFactor);
+          };
+        }
+
+        return target.value[prop];
+      },
+
+      // Handle arithmetic operations
+      valueOf() { return target.value; },
+      toString() { return target.value.toString(); }
+    });
+  }
+
+  // Custom min that propagates the limiting factor
+  static min(a, b) {
+    const aVal = a instanceof LimitedValue ? a.value : a;
+    const bVal = b instanceof LimitedValue ? b.value : b;
+    const aFactor = a instanceof LimitedValue ? a.limitingFactor : null;
+    const bFactor = b instanceof LimitedValue ? b.limitingFactor : null;
+
+    if (aVal < bVal) {
+      return new LimitedValue(aVal, aFactor);
+    }
+    return new LimitedValue(bVal, bFactor);
+  }
+
+  // Custom max that propagates the limiting factor
+  static max(a, b) {
+    const aVal = a instanceof LimitedValue ? a.value : a;
+    const bVal = b instanceof LimitedValue ? b.value : b;
+    const aFactor = a instanceof LimitedValue ? a.limitingFactor : null;
+    const bFactor = b instanceof LimitedValue ? b.limitingFactor : null;
+
+    if (aVal > bVal) {
+      return new LimitedValue(aVal, aFactor);
+    }
+    return new LimitedValue(bVal, bFactor);
+  }
+}
+
+/* ---------- Multi-value expansion helpers ---------- */
+// Expand a line of chips that may contain comma-separated values into multiple lines
+const expandChipLine = (chipLine) => {
+  if (!chipLine || chipLine.length === 0) {
+    return [[]];
+  }
+
+  // Check if any chips have multiple values
+  const hasMultiValues = chipLine.some(chip => {
+    // Check both the isMultiValue flag and if data contains commas (fallback)
+    return chip.isMultiValue || (chip.data && typeof chip.data === 'string' && chip.data.includes(','));
+  });
+
+  if (!hasMultiValues) {
+    // No multi-values, return the original line
+    return [chipLine];
+  }
+
+  // Build arrays of possible values for each chip position
+  const chipValueArrays = chipLine.map(chip => {
+    const isMulti = chip.isMultiValue || (chip.data && typeof chip.data === 'string' && chip.data.includes(','));
+
+    if (isMulti) {
+      // Get values array, either from chip.values or by splitting chip.data
+      const values = chip.values || (chip.data ? chip.data.split(',').map(v => v.trim()) : []);
+
+      // Create a chip for each value
+      return values.map(value => ({
+        field: chip.field,
+        value: chip.value,
+        data: value,
+        label: `${chip.field}=${value}`,
+        isMultiValue: false,
+        values: [value]
+      }));
+    } else {
+      // Single value chip
+      return [chip];
+    }
+  });
+
+  // Generate cartesian product
+  const cartesianProduct = (arrays) => {
+    if (arrays.length === 0) return [[]];
+    const [first, ...rest] = arrays;
+    const restProduct = cartesianProduct(rest);
+    return first.flatMap(item =>
+      restProduct.map(restItem => [item, ...restItem])
+    );
+  };
+
+  return cartesianProduct(chipValueArrays);
+};
+
+/* ---------- Model Classes ---------- */
+
+function bisectMaxTrue(M, metric, threshold) {
+  let lo = 0;
+  let hi = M;
+
+  if (!metric(0)) {
+    return null;
+  }
+
+  if (metric(M)) {
+    return M;
+  }
+
+  // Invariant: metric(lo) === true, metric(hi) === false, lo < hi
+  while (lo < (hi - threshold)) {
+    const mid = 0.5 * (lo + hi);
+    if (metric(mid)) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return lo;
+}
+
+class Interpolator2D {
+  constructor(xlabels, ylabels, data) {
+    this.xlabels = xlabels;
+    this.ylabels = ylabels;
+    this.data = data;
+
+    // Validate that our data has the right number of rows and columns.
+    if (data.length != this.ylabels.length) {
+      throw new Error("Data matrix does not match label row count");
+    }
+    data.map((row) => {
+      if (row.length != this.xlabels.length) {
+        throw new Error("Data matrix does not match label column count");
+      }
+    });
+  }
+
+  // Also from 4o:
+  //
+  // Return a linear interpolation between nearest points, or if the
+  // requested point is outside the allowed bounds, just extend the
+  // nearest edge or corner indefinitely.
+  interpolate(x, y) {
+    // Helper function: Given a sorted label array and a value, returns
+    // the lower and upper indices and the interpolation factor.
+    function getInterval(labels, value) {
+      const n = labels.length;
+      if (value <= labels[0]) {
+        return { indexLow: 0, indexHigh: 0, t: 0 };
+      }
+      if (value >= labels[n - 1]) {
+        return { indexLow: n - 1, indexHigh: n - 1, t: 0 };
+      }
+      // Find the interval where labels[i] <= value <= labels[i+1]
+      for (let i = 0; i < n - 1; i++) {
+        if (value >= labels[i] && value <= labels[i + 1]) {
+          let t = (value - labels[i]) / (labels[i + 1] - labels[i]);
+          return { indexLow: i, indexHigh: i + 1, t: t };
+        }
+      }
+      // Fallback (should never be reached)
+      return { indexLow: n - 1, indexHigh: n - 1, t: 0 };
+    }
+
+    // Get the intervals and interpolation factors for x and y.
+    const xInterval = getInterval(this.xlabels, x);
+    const yInterval = getInterval(this.ylabels, y);
+
+    const i0 = xInterval.indexLow;
+    const i1 = xInterval.indexHigh;
+    const t = xInterval.t;
+
+    const j0 = yInterval.indexLow;
+    const j1 = yInterval.indexHigh;
+    const u = yInterval.t;
+
+    // Retrieve the four surrounding grid values.
+    const v00 = this.data[j0][i0];
+    const v01 = this.data[j0][i1];
+    const v10 = this.data[j1][i0];
+    const v11 = this.data[j1][i1];
+
+    // Interpolate along x for the two rows.
+    const interpX0 = (1 - t) * v00 + t * v01;
+    const interpX1 = (1 - t) * v10 + t * v11;
+
+    // Interpolate the two results along y.
+    return (1 - u) * interpX0 + u * interpX1;
+  }
+}
+
+    class OperatingPoint {
+      torque = null;
+      velocity = null;
+      controller_temp = null;
+      motor_temp = null;
+      supply_power = null;
+      supply_current = null;
+      phase_current = null;
+      copper_loss = null;
+      iron_loss = null;
+      controller_loss = null;
+      fan_power = null;
+      mechanical_power = null;
+      efficiency = null;
+      time = null;
+      peak_supply_power = null;
+      peak_velocity = null;
+
+      // Meta fields for constraint analysis
+      _infeasible_reason = null;  // String describing why the operating condition is not feasible
+      _limiting_factor = null;    // Reference to the primary field that was the limiting constraint
+
+      constructor(opts = {}) {
+        Object.assign(this, opts);
+      }
+
+      static getFieldInfo() {
+        return {
+          torque: { unit: 'Nm', precision: 2, displayName: 'Motor Torque' },
+          velocity: { unit: 'Hz', precision: 2, displayName: 'Velocity' },
+          controller_temp: { unit: 'C', precision: 2, displayName: 'Controller Temperature' },
+          motor_temp: { unit: 'C', precision: 2, displayName: 'Motor Temperature' },
+          supply_power: { unit: 'W', precision: 2, displayName: 'Supply Power' },
+          supply_current: { unit: 'A', precision: 2, displayName: 'Supply Current' },
+          phase_current: { unit: 'A', precision: 2, displayName: 'Phase Current' },
+          copper_loss: { unit: 'W', precision: 2, displayName: 'Copper Loss' },
+          iron_loss: { unit: 'W', precision: 2, displayName: 'Iron Loss' },
+          controller_loss: { unit: 'W', precision: 2, displayName: 'Controller Loss' },
+          fan_power: { unit: 'W', precision: 2, displayName: 'Fan Power' },
+          mechanical_power: { unit: 'W', precision: 2, displayName: 'Mechanical Power' },
+          efficiency: { unit: '%', precision: 2, displayName: 'Efficiency' },
+          time: { unit: 's', precision: 4, displayName: 'Time' },
+          peak_supply_power: { unit: 'W', precision: 2, displayName: 'Peak Supply Power' },
+          peak_velocity: { unit: 'Hz', precision: 2, displayName: 'Peak Velocity' },
+        };
+      }
+
+      static getUnitAbbreviation(field) {
+        const info = this.getFieldInfo();
+        return info[field]?.unit || '';
+      }
+
+      static getPrecision(field) {
+        const info = this.getFieldInfo();
+        return info[field]?.precision || 2;
+      }
+
+      static getDisplayName(field) {
+        const info = this.getFieldInfo();
+        return info[field]?.displayName || field;
+      }
+
+      static formatValue(field, value) {
+        if (value === null || value === undefined) return '';
+        const precision = this.getPrecision(field);
+        const unit = this.getUnitAbbreviation(field);
+        return `${value.toFixed(precision)} ${unit}`;
+      }
+
+      render() {
+        const fieldInfo = OperatingPoint.getFieldInfo();
+        return html`
+        <h3>Operating Point</h3>
+        ${this._infeasible_reason && !this._limiting_factor ? html`
+          <div style="color: #d32f2f; font-weight: bold; margin-bottom: 10px;">
+            ⚠️ ${this._infeasible_reason}
+          </div>
+        ` : ''}
+        ${this._limiting_factor ? html`
+          <div style="color: #f57c00; font-weight: bold; margin-bottom: 10px;">
+            🔒 Limited by: ${this._limiting_factor}
+          </div>
+        ` : ''}
+        <table>
+          ${Object.keys(fieldInfo).map(attrName => {
+            const info = fieldInfo[attrName];
+            const value = this[attrName];
+            return value !== null && value !== undefined ?
+              html`<tr><td>${info.displayName} (${info.unit})</td><td>${value.toFixed(info.precision)}</td></tr>` :
+              '';
+          })}
+        </table>
+        `
+      }
+    }
+
+class Controller {
+  constructor(props, power, thermal) {
+    this.props = props;
+    this.power = power;
+    this.thermal = thermal;
+    this.k0 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k0);
+    this.k1 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k1);
+    this.k2 = new Interpolator2D(this.power.voltages, this.power.pwms, this.power.k2);
+  }
+
+  getThermalProperties(coolingName) {
+    if (this.thermal?.[coolingName] == null) {
+      return [null, null];
+    }
+    return [this.thermal[coolingName]['R'],
+            this.thermal[coolingName]['C'],
+            this.thermal[coolingName]['P']];
+  }
+
+  getMaxTemp() {
+    return this.props['maxTemp'];
+  }
+
+  getMaxVoltage() {
+    return this.props['maxVoltage'];
+  }
+
+  getMaxSpeed(voltage, motor, config) {
+    return voltage * motor.getKv() * this.getSpeedFactor() / 60.0 / config.gear_reduction;
+  }
+
+  getCurrentFromThermalPower(thermalW, {voltage, pwm}) {
+    const [k0,k1,k2] = [
+      this.k0.interpolate(voltage, pwm),
+      this.k1.interpolate(voltage, pwm),
+      this.k2.interpolate(voltage, pwm),
+    ];
+    const c = k0;
+    const b = k1;
+    const a = k2;
+
+    const current = new LimitedValue((-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a), 'controller_temp');
+    const result = LimitedValue.min(new LimitedValue(this.getMaxCurrent(voltage), 'controller_max_current'), current);
+    return result;
+  }
+
+  getThermalPower({voltage, pwm, phase_current}) {
+    const [k0, k1, k2] = [
+      this.k0.interpolate(voltage, pwm),
+      this.k1.interpolate(voltage, pwm),
+      this.k2.interpolate(voltage, pwm),
+    ];
+
+    // Use absolute value since thermal power should be symmetric for +/- current
+    const absCurrent = Math.abs(phase_current);
+    const thermalPower = k0 + k1 * absCurrent + k2 * absCurrent * absCurrent;
+    return thermalPower;
+  }
+
+  getTemperature(thermalPower, {controller_cooling, time, ambient_temp}) {
+    const timePeriodS = time;
+    const [R, C, P] = this.getThermalProperties(controller_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
+    return ambient_temp + thermalPower * R * (1.0 - Math.exp(-timePeriodS / (R * C)));
+  }
+
+  productInfo() {
+    return this.props?.productInfo;
+  }
+}
+
+class MoteusController extends Controller {
+  constructor(props, power, thermal) {
+    super(props, power, thermal);
+  }
+
+  getDefaultPwm() {
+    return this.props['defaultPwm'];
+  }
+
+  getMaxPower(voltage, pwm) {
+    const [P_l_W, V_l, P_h_W, V_h] = [
+      this.props.P_l_W, this.props.V_l,
+      this.props.P_h_W, this.props.V_h,
+    ];
+    const basePower = (() => {
+      if (voltage <= V_l) return P_l_W;
+      if (voltage >= V_h) return P_h_W;
+      return (voltage - V_l) / (V_h - V_l) * (P_h_W - P_l_W) + P_l_W;
+    })();
+    const pwmDerate = pwm / 30000;
+    return basePower * pwmDerate;
+  }
+
+  getSpeedFactor() {
+    // Measured with moteus-c1, moteus-n1 and moteus-x1 on a MAD 8318 at 12V
+    // and 18V on 2025-04-17.
+    return 0.75;
+  }
+
+  getMaxCurrent() {
+    return this.props['maxCurrent'];
+  }
+}
+
+class OdriveController extends Controller {
+  constructor(props, power, thermal) {
+    super(props, power, thermal);
+  }
+
+  getDefaultPwm() {
+    return 24000.0;
+  }
+
+  getMaxPower() {
+    return this.props['P_W'];
+  }
+
+  getMaxCurrent(voltage) {
+    if (voltage < this.props['maxCurrentDerateVoltage']) {
+      return this.props['maxCurrent'];
+    } else {
+      return this.props['maxCurrent'] + (this.props['derateCurrent'] - this.props['maxCurrent']) *
+          (voltage - this.props['maxCurrentDerateVoltage']) /
+          (this.props['maxVoltage'] - this.props['maxCurrentDerateVoltage']);
+    }
+  }
+}
+
+class Motor {
+  constructor({name, displayName, maxTemp, Kv, R, L, R_pp, L_pp, thermal,
+               rotationCurrentCutoff=1000,
+               rotationCurrentScale=1,
+               rotationTorqueScale=1,
+               d0=0, d1=0,
+               inertia=null,
+               productInfo=null}) {
+    this.nameValue = name;
+    this.displayNameValue = displayName;
+    this.productInfoValue = productInfo;
+    this.maxTemp = maxTemp;
+    this.Kv = Kv;
+    // Handle both phase-to-phase and phase-to-center inputs
+    // If R_pp/L_pp provided, convert to phase-to-center; otherwise use R/L directly
+    this.R = R_pp !== undefined ? R_pp / 2 : R;
+    this.L = L_pp !== undefined ? L_pp / 2 : L;
+    this.thermal = thermal;
+    this.rotationCurrentScale = rotationCurrentScale;
+    this.rotationCurrentCutoff = rotationCurrentCutoff;
+    this.rotationTorqueScale = rotationTorqueScale;
+    this.d0 = d0;
+    this.d1 = d1;
+    this.inertia = inertia;
+
+    this.kt = 8.3 / this.Kv;
+  }
+
+  getThermalProperties(coolingName) {
+    if (this.thermal?.[coolingName] == null) {
+      return [null, null];
+    }
+    return [this.thermal[coolingName]['R'], this.thermal[coolingName]['C']];
+  }
+
+  getMaxTemp() {
+    return this.maxTemp;
+  }
+
+  getKv() {
+    return this.Kv;
+  }
+
+  name() {
+    return this.nameValue;
+  }
+
+  displayName() {
+    return this.displayNameValue;
+  }
+
+  productInfo() {
+    return this.productInfoValue;
+  }
+
+  getBackEmf(velocityHz, config) {
+    return velocityHz * config.gear_reduction * 60 / this.getKv();
+  }
+
+  getPower(current, outputVelocityHz, config) {
+    const velocityHz = outputVelocityHz * config.gear_reduction;
+    const torque = current < this.rotationCurrentCutoff ?
+      (this.kt * current) :
+      (this.kt * this.rotationCurrentCutoff +
+       this.rotationTorqueScale * Math.log2(
+          1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale));
+    const Pmech = 2 * Math.PI * torque * velocityHz;
+    const Pcopper = 1.5 * current * current * this.R;
+    const ironDrag = this.d0 + this.d1 * velocityHz;
+    const Piron = velocityHz == 0 ? 0 : (2 * Math.PI * velocityHz * ironDrag);
+    return {
+      torque: torque,
+      Pmech: Pmech,
+      Pcopper: Pcopper,
+      Piron: Piron,
+      Ptotal: Pmech + Pcopper + Piron,
+    };
+  }
+
+  getCurrentFromThermalPowerAndVelocity(thermalW, velocityHz, maxControllerPower, supplyVoltageMargin, config) {
+    // TODO: Should we model the fact that resistance tends to go up with
+    // temperature?
+
+    // Our convention is that resistance is measured to the virtual center,
+    // and that phase current is measured as per moteus convention.  Thus:
+    //
+    // torque = Kt * I + ts * log2(1 + (I - Ic)*is)
+    // Pmech = 2 * pi * torque * velocityHz
+    // Pcopper = 1.5 * I^2 * R
+    // Ptotal = Pcopper + Piron + Pmech
+
+    // and (Pcopper + Piron) < thermalW
+    // and (Ptotal) < maxControllerPower
+
+    const thermalLimit = LimitedValue.min(
+      new LimitedValue(thermalW, 'max_motor_temperature'),
+      new LimitedValue(maxControllerPower, 'max_controller_power'));
+
+    const ImaxPossible = LimitedValue.min(
+      new LimitedValue(supplyVoltageMargin / this.R, 'back_emf'),
+      new LimitedValue(Math.sqrt(thermalLimit.value / 1.5 / this.R), thermalLimit.limitingFactor));
+    // This equation is not really possible to solve directly, so lets just
+    // find it numerically.  The answer is much easier if the velocity is 0.
+    if (velocityHz == 0.0) {
+      return ImaxPossible;
+    }
+
+    // Bisect between 0 and ImaxPossible to find a current which is as large
+    // as possible while satisfying both of our inequalities.
+    const valid = (I) => {
+      const r = this.getPower(I, velocityHz, config);
+      return (((r.Pcopper + r.Piron) < thermalW) &&
+              (r.Ptotal < maxControllerPower));
+    };
+
+    const resultCurrent = bisectMaxTrue(ImaxPossible.value, valid, 0.01);
+    const r = this.getPower(resultCurrent, velocityHz, config);
+    const motorThermal = Math.abs((r.Pcopper + r.Piron) - thermalW);
+    const controllerPower = Math.abs(r.Ptotal - maxControllerPower);
+    const maxDelta = Math.abs(resultCurrent - ImaxPossible.value);
+    const resultReason = LimitedValue.min(
+      new LimitedValue(motorThermal, 'max_motor_temperature'),
+      LimitedValue.min(
+        new LimitedValue(controllerPower, 'max_controller_power'),
+        new LimitedValue(maxDelta, ImaxPossible.limitingFactor)));
+    return new LimitedValue(resultCurrent, resultReason.limitingFactor);
+  }
+
+  getVelocityFromThermalPowerAndTorque(thermalW, torque, maxControllerPower, config) {
+    const current = this.getCurrentFromTorque(torque, config);
+
+    // The copper loss does not change with velocity.
+    const Pcopper = 1.5 * current * current * this.R;
+
+    if (Pcopper > thermalW) {
+      // The torque alone is more thermal load than the motor can
+      // pull.
+      return null;
+    }
+
+    // Piron = 2 * pi * v * (d0 + d1 * v)
+    const controllerLossW = config.controller.getThermalPower({
+      ...config,
+      phase_current: current
+    });
+    const controllerTemp = config.controller.getTemperature(controllerLossW, config);
+    if (controllerTemp == null || controllerTemp > config.controller.getMaxTemp()) {
+      return null;
+    }
+    const Piron_motor = thermalW - Pcopper;
+
+    const d0 = this.d0;
+    const d1 = this.d1;
+    const pi = Math.PI;
+
+    // First find the rotor velocity as limited by motor temperature.
+    const vMotorTemp =
+          new LimitedValue(
+            (-2 * pi * d0 + Math.sqrt(Math.pow(2 * pi * d0, 2) + 4 * 2 * pi * d1 * Piron_motor)) / (2 * 2 * pi * d1),
+            'max_motor_temp');
+
+    // Then the rotor velocity limited by controller maximum power.
+    const vControllerPower =
+          new LimitedValue(
+            (-pi * torque - d0 * pi + Math.sqrt(Math.pow(pi * torque, 2) + 2 * d0 * pi * pi * torque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper) * d1 * pi)) / (2 * d1 * pi),
+            'max_controller_power');
+
+    const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
+    return new LimitedValue(rotorResult.value / config.gear_reduction,
+                            rotorResult.limitingFactor);
+  }
+
+  getCurrentFromTorque(outputTorque, config) {
+    const torque = outputTorque / config.gear_reduction;
+    const cutoffTorque = this.rotationCurrentCutoff * this.kt;
+    const copysign = (x, y) => Math.sign(x) === Math.sign(y) ? x : -x;
+
+    if (Math.abs(torque) < cutoffTorque) {
+      const result = torque / this.kt;
+      return result;
+    } else {
+      const a = (Math.abs(torque) - cutoffTorque) / this.rotationTorqueScale;
+      const pow2a = Math.pow(2, a);
+      const rotationExtra = (pow2a - 1.0) / this.rotationCurrentScale;
+      const unsignedResult = this.rotationCurrentCutoff + rotationExtra;
+      const result = copysign(unsignedResult, torque);
+      return result;
+    }
+  }
+
+  getTorqueFromCurrent(currentA, config) {
+    if (currentA < this.rotationCurrentCutoff) {
+      return currentA * this.kt * config.gear_reduction;
+    }
+    return (this.rotationCurrentCutoff * this.kt +
+            this.rotationTorqueScale *
+            (Math.log2(Math.max(1.0 + (currentA - this.rotationCurrentCutoff) *
+            this.rotationCurrentScale, 0.00001)))) * config.gear_reduction;
+  }
+
+  getMaxVelocity(config) {
+    return config.controller.getSpeedFactor() * config.voltage * this.Kv / 60.0 / config.gear_reduction;
+  }
+
+  getOperatingPoint(config) {
+    const result = new OperatingPoint({});
+    result.velocity = config.velocity;
+    result.torque = this.getTorqueFromCurrent(config.phase_current, config);
+    result.phase_current = config.phase_current;
+
+    const r = this.getPower(config.phase_current, config.velocity, config);
+    result.copper_loss = r.Pcopper;
+    result.iron_loss = r.Piron;
+    result.mechanical_power = r.Pmech;
+    const motorLossPower = r.Pcopper + r.Piron;
+
+    const [R, C] = this.getThermalProperties(config.motor_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
+    result.motor_temp = config.ambient_temp + motorLossPower * R * (1.0 - Math.exp(-config.time / (R * C)));
+
+    return result;
+  }
+}
+
+
+class MoteusC1 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-c1',
+      maxTemp: 60.0,
+      maxCurrent: 20.0,
+      maxVoltage: 51.0,
+      P_l_W: 250.0,
+      V_l: 28.0,
+      P_h_W: 150.0,
+      V_h: 41.0,
+      defaultPwm: 30000,
+    },
+    {
+      'voltages' : [12, 24, 36, 48],
+      'pwms' : [15000, 30000, 40000, 60000],
+      'k0' : [[.612, .906, 1.161, 1.378],
+              [.727, .986, 1.161, 1.515],
+              [.677, .988, 1.256, 1.576],
+              [.718, 1.034, 1.367, 1.710]],
+      'k1' : [[0.000, 0.017, 0.043, 0.112],
+              [0.009, 0.107, 0.224, 0.248],
+              [0.073, 0.176, 0.281, 0.360],
+              [0.155, 0.330, 0.468, 0.544]],
+      'k2' : [[0.046, 0.049, 0.051, 0.046],
+              [0.051, 0.051, 0.048, 0.050],
+              [0.051, 0.053, 0.055, 0.049],
+              [0.052, 0.054, 0.053, 0.056]],
+    },
+    {
+      'none' :         {R: 11.3, C:10.7, P:0},
+      'heatspreader' : {R: 11.2, C:10.7, P:0},
+      'fan_5v' :       {R: 2.55, C:10.7, P:0.67},
+      'max' :          {R: 2.55, C:10.7, P:0.67},
+    });
+  }
+}
+
+class MoteusR4 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-r4',
+      maxTemp: 60.0,
+      maxCurrent: 100.0,
+      maxVoltage: 42.0,
+      P_l_W: 900.0,
+      V_l: 30.0,
+      P_h_W: 400.0,
+      V_h: 38.0,
+      defaultPwm: 30000,
+    },
+    {
+      'voltages' : [12, 24, 36, 42],
+      'pwms' : [15000, 30000, 40000, 60000],
+      'k0' : [[0.514, 0.938, 1.266, 1.427],
+              [0.792, 1.167, 1.593, 1.834],
+              [0.851, 1.392, 1.765, 2.064],
+              [0.974, 1.504, 2.098, 2.524]],
+      'k1' : [[0.022, 0.007, 0.015, 0.018],
+              [0.021, 0.035, 0.045, 0.050],
+              [0.030, 0.020, 0.092, 0.091],
+              [0.046, 0.110, 0.139, 0.142]],
+      'k2' : [[0.010, 0.011, 0.011, 0.011],
+              [0.011, 0.012, 0.013, 0.013],
+              [0.011, 0.014, 0.012, 0.013],
+              [0.013, 0.013, 0.015, 0.018]],
+    },
+    {
+      'none' :         {R: 10.0, C:12.7, P:0},
+      'fan_5v' :       {R: 3.7,  C:12.7, P:0.29}, // Powered from 3V
+      'heatspreader':  {R: 8.6,  C:13.9, P:0},
+      '4030sink':      {R: 6.2,  C:19.4, P:0},
+      'max':           {R: 2.4,  C:12.7, P:2.0},
+    });
+  }
+}
+
+class MJ5208 extends Motor {
+  constructor() {
+    super({
+      name: 'mj5208',
+      displayName: 'mj5208',
+      maxTemp: 80,
+      Kv: 304,
+      R: 0.047,
+      L: 28.6e-6,
+      mass_kg: 0.192,
+      inertia: 5.6e-5,
+      rotationCurrentCutoff: 22.5,
+      rotationCurrentScale: 0.02494,
+      rotationTorqueScale: 0.6638,
+      thermal: {
+        'none': {R: 4.55, C: 164.59},  // measured 2025-04-18
+        'max':  {R: 0.48, C: 164.59},  // measured 2025-04-18 w/ large desk fan
+      },
+      // Measured on 2025-07-10 w/ `motor_iron_loss_test.py`
+      d0: 0.01289,
+      d1: 0.0001469,
+    });
+  }
+}
+
+class MAD8318 extends Motor {
+  constructor() {
+    super({
+      name: 'mad8318',
+      displayName: 'MAD 8318',
+      maxTemp: 80,
+      Kv: 120,
+      R: 0.015,
+      L: 9.75e-6,
+      mass_kg: 0.646,
+      inertia: 0.00603,
+      rotationCurrentCutoff: 31.07,
+      rotationCurrentScale: 0.004214,
+      rotationTorqueScale: 12.087,
+      thermal: {
+        'none': {R: 1.516, C: 735.5},  // measured 2025-04-17
+        'max':  {R: 0.311, C: 735.5},  // measured 2025-04-18 w/ large desk fan
+      },
+      // Measured on 2025-07-10 w/ `motor_iron_loss_test.py`
+      d0: 0.1272,
+      d1: 0.001829,
+    });
+  }
+}
+
+class GBM5208 extends Motor {
+  constructor() {
+    super({
+      name: 'gbm5208',
+      displayName: 'Rctimer GBM5208',
+      maxTemp: 80,
+      Kv: 25.5,
+      R: 7.545,
+      L: 2254.5e-6,
+      mass_kg: 0.193,
+      inertia: 5.6e-6,  // assumed to be basically the same as mj5208
+      // We'll assume saturation isn't relevant for this gimbal wound motor.
+      thermal: {
+        // Assume this is basically the same as the mj5208, since mounting a
+        // thermistor in the coils is basically impossible.
+        'none': {R: 4.55, C: 165},
+        'max':  {R: 0.5,  C: 165},
+      },
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 0.00822,
+      d1: 0.000183,
+    });
+  }
+}
+
+class BE8108 extends Motor {
+  constructor() {
+    super({
+      name: 'be8108',
+      displayName: 'be8108',
+      maxTemp: 80,
+      Kv: 135,
+      R: 0.0910,
+      L: 39.2e-6,
+      mass: 0.230,
+      inertia: 0.000110,
+      rotationCurrentCutoff: 20.50,
+      rotationCurrentScale: 0.04212,
+      rotationTorqueScale: 1.0255,
+      thermal: {
+        'none': {R: 2.74, C: 210.9},  // measured 2025-04-19
+        'max':  {R: 0.27, C: 210.9},  // measured 2025-04-19 w/ big desk fan
+      },
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 0.0300,
+      d1: 0.000691,
+    });
+  }
+}
+
+class Hoverboard350 extends Motor {
+  constructor() {
+    super({
+      name: 'hoverboard350',
+      displayName: '8.5" 350W hoverboard',
+      maxTemp: 80,
+      Kv: 18.2,
+      R: 0.216,
+      L: 530e-6,
+      mass_kg: 4.26,
+      inertia: 0.008,
+      // No clue about saturation here yet, it is hard to mount in the dyno.
+      thermal: {
+        'none': {R: 2.41, C: 946.1},
+        'max': {R: 1.80, C: 946.1},
+      },
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 0.0892,
+      d1: 0.0131,
+      productInfo: html`<a href="https://gyroor.com/products/gyroor-warrior-hoverboard-adults" target="_blank">[product page]</a>`,
+    });
+  }
+}
+
+class HT1105 extends Motor {
+  constructor() {
+    super({
+      name: 'ht1105',
+      displayName: 'HT1105',
+      maxTemp: 80,
+      Kv: 1180,
+      R: 6.435,
+      L: 298.5e-6,
+      mass_kg: 0.008,
+      inertia: 5.1e-7,
+      // i suspect due to its gimbal winding, no real saturation effects were
+      // measured here all the way up to 2A of phase current.
+      thermal: {
+        'none': {R: 20.8, C: 14.8},
+        'max':  {R: 3.2,  C: 14.8},
+      },
+      // Measured on 2025-07-11 w/ `motor_iron_loss_test.py`
+      d0: 6.29e-5,
+      d1: 3.80e-6,
+      productInfo: html`<a href="https://www.aliexpress.us/item/3256805488283662.html" target="_blank">[product page]</a>`,
+    });
+  }
+}
+
+class DCWS500Spindle extends Motor {
+  constructor() {
+    super({
+      name: 'dcws500',
+      displayName: 'DCWS500 Spindle',
+      maxTemp: 80,
+      Kv: 320,
+      R: 0.123,
+      L: 175e-6,
+      mass_kg: 1.302,
+      inertia: 3.8e-5,
+      // I do not have a saturation model for this.
+      thermal: {
+        'none': {R: 0.808, C: 2680},
+        'max':  {R: 0.808, C: 2680},  // BOGUS PLACEHOLDER
+      },
+      // Measured on 2025-07-14 w/ `motor_iron_loss_test.py`
+      d0: 0.018884,
+      d1: 0.00020887,
+      productInfo: html`Generic 1.3kg 500W Spindle Motor, 48V/12000RPM`,
+    });
+  }
+}
+
+class MoteusN1 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-n1',
+      maxTemp: 60.0,
+      maxCurrent: 100.0,
+      maxVoltage: 54.0,
+      P_l_W: 2000.0,
+      V_l: 36.0,
+      P_h_W: 1000.0,
+      V_h: 44.0,
+      defaultPwm: 30000,
+    },
+    {
+      'voltages' : [12, 24, 36, 48, 54],
+      'pwms' : [15000, 30000, 40000, 60000],
+      'k0' : [[0.681, 1.102, 1.467, 1.799, 2.063],
+              [0.884, 1.470, 1.983, 2.612, 2.862],
+              [1.025, 1.671, 2.302, 3.068, 3.559],
+              [1.203, 2.146, 3.036, 3.400, 4.000]],
+      'k1' : [[0.016, 0.013, 0.020, 0.032, 0.000],
+              [0.033, 0.027, 0.049, 0.073, 0.079],
+              [0.023, 0.055, 0.093, 0.112, 0.120],
+              [0.055, 0.076, 0.131, 0.140, 0.150]],
+      'k2' : [[0.011, 0.012, 0.012, 0.013, 0.016],
+              [0.012, 0.014, 0.015, 0.015, 0.018],
+              [0.013, 0.014, 0.015, 0.014, 0.030],
+              [0.014, 0.018, 0.019, 0.022, 0.035]],
+    },
+    {
+      'none' :         {R: 11.7, C:10.3, P:0},
+      'fan_5v' :       {R: 4.1,  C:10.3, P:0.67},
+      'heatspreader':  {R: 9.8,  C:12.2, P:0},
+      '4030sink':      {R: 7.2,  C:16.8, P:0},
+      'max':           {R: 3.0,  C:10.3, P:2.0},
+    });
+  }
+}
+
+class MoteusX1 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-x1',
+      maxTemp: 100.0,
+      maxCurrent: 120.0,
+      maxVoltage: 54.0,
+      P_l_W: 2000.0,
+      V_l: 36.0,
+      P_h_W: 1000.0,
+      V_h: 44.0,
+      defaultPwm: 20000,
+    },
+    {
+      'voltages' : [12, 24, 36, 48, 54],
+      'pwms' : [15000, 20000, 24000, 30000, 40000, 60000],
+      'k0' : [[0.615, 0.983, 1.266, 1.501, 1.652],
+              [0.744, 1.025, 1.468, 1.825, 2.051],
+              [0.822, 1.325, 1.618, 2.025, 2.321],
+              [1.119, 1.403, 1.824, 2.326, 2.622],
+              [1.135, 1.662, 2.251, 2.811, 3.253],
+              [1.465, 2.222, 3.094, 4.130, 4.501]],
+      'k1' : [[0.075, 0.090, 0.105, 0.133, 0.133],
+              [0.094, 0.128, 0.136, 0.137, 0.137],
+              [0.094, 0.124, 0.160, 0.180, 0.172],
+              [0.090, 0.163, 0.208, 0.213, 0.223],
+              [0.148, 0.227, 0.253, 0.278, 0.247],
+              [0.213, 0.317, 0.354, 0.192, 0.286]],
+      'k2' : [[0.007, 0.008, 0.010, 0.010, 0.011],
+              [0.007, 0.008, 0.011, 0.014, 0.015],
+              [0.009, 0.010, 0.013, 0.015, 0.017],
+              [0.010, 0.011, 0.014, 0.019, 0.021],
+              [0.010, 0.012, 0.021, 0.026, 0.037],
+              [0.014, 0.023, 0.043, 0.090, 0.083]],
+    },
+    {
+      'none' :         {R: 8.1, C:14.8, P:0},
+      'fan_5v' :       {R: 2.8, C:14.8, P:0.67},
+      'fan_12v' :      {R: 2.1, C:14.8, P:1.25},
+      '4030sink':      {R: 6.0, C:20.0, P:0},
+      'heatspreader':  {R: 8.6, C:14.8, P:0},
+      'max' :          {R: 1.9, C:14.8, P:2.0},
+    });
+  }
+}
+
+class OdrivePro extends OdriveController {
+  constructor() {
+    super({
+      name: 'odrive-pro',
+      maxTemp: 95,
+      maxCurrent: 120.0,
+      maxCurrentDerateVoltage: 100.0,
+      derateCurrent: 120.0,
+      maxVoltage: 58.0,
+      P_W: 5000.0,
+    },
+    {
+      voltages: [12, 24, 36, 48, 54],
+      pwms: [24000],
+      'k0': [[1.410, 1.996, 2.362, 2.823, 3.030]],
+      'k1': [[0.091, 0.115, 0.145, 0.161, 0.156]],
+      'k2': [[0.008, 0.009, 0.010, 0.010, 0.012]],
+    },
+    {
+      'none':         {R: 6.7, C: 30.4, P:0},
+      'heatspreader': {R: 5.4, C: 71.7, P:0},
+      'fan_5v':       {R: 1.5, C: 71.7, P:0.67 },
+      'fan_12v':      {R: 1.0, C: 71.7, P:1.25 },
+      'max':          {R: 1.0, C: 71.7, P:1.25 },
+    });
+  }
+
+  getSpeedFactor() {
+    return 0.90;
+  }
+}
+
+class OdriveS1 extends OdriveController {
+  constructor() {
+    super({
+      name: 'odrive-s1',
+      maxTemp: 95.0,
+      maxCurrent: 80.0,
+      maxCurrentDerateVoltage: 36.0,
+      derateCurrent: 40.0,
+      maxVoltage: 50.5,
+      P_W: 2000.0,
+    },
+    {
+      voltages: [12, 24, 36, 48],
+      pwms: [24000],
+      'k0': [[0.839, 1.037, 1.213, 1.328 ]],
+      'k1': [[0.066, 0.117, 0.153, 0.179 ]],
+      'k2': [[0.008, 0.008, 0.008, 0.008 ]],
+    },
+    {
+      'none':         {R: 6.6, C: 35.8, P:0},
+      'heatspreader': {R: 4.7, C: 85.8, P:0},
+      'fan_5v':       {R: 1.2, C: 85.8, P:0.67},
+      'max':          {R: 1.2, C: 85.8, P:0.67},
+    });
+  }
+
+  getSpeedFactor() {
+    return 0.75;
+  }
+}
+
+class OdriveMicro extends OdriveController {
+  constructor() {
+    super({
+      name: 'odrive-micro',
+      maxTemp: 80.0,
+      maxCurrent: 7.0,
+      maxCurrentDerateVoltage: 100.0,
+      derateCurrent: 40.0,
+      maxVoltage: 31.0,
+      P_W: 100.0,
+    },
+    {
+      voltages: [12, 24],
+      pwms: [24000],
+      'k0': [[0.607, 0.820]],
+      'k1': [[0.082, 0.301]],
+      'k2': [[0.148, 0.149]],
+    },
+    {
+      'none':  {R: 16.0, C: 7.9, P:0.0},
+      'max':   {R: 6.2, C: 10.0, P:2.0},
+    });
+  }
+
+  getSpeedFactor() {
+    return 0.75;
+  }
+}
+
+function evaluateMaxCurrent(config) {
+    const required = [
+      'controller', 'controller_cooling', 'voltage', 'pwm', 'time', 'ambient_temp',
+    ];
+
+    // Check if any required field is null
+    for (const field of required) {
+      if (config[field] == null) {
+        return null;
+      }
+    }
+
+    const [R, C, P] = config.controller.getThermalProperties(config.controller_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
+    const timePeriodS = config.time;
+    const deltaT = config.max_controller_temp - config.ambient_temp;
+
+    if (config.voltage > config.controller.getMaxVoltage()) {
+      return null;
+    }
+
+    const thermalW = (timePeriodS == Infinity) ? (deltaT / R) :
+          (deltaT) / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+    const result = config.controller.getCurrentFromThermalPower(thermalW, config);
+
+    if (result.value < 0) {
+      return null;
+    }
+
+    return new OperatingPoint({
+      phase_current: result.value,
+      controller_temp: config.max_controller_temp,
+      controller_loss: thermalW,
+      _limiting_factor: result.limitingFactor,
+    });
+}
+
+class AnalysisMaxCurrent {
+  evaluate(config) {
+    return evaluateMaxCurrent(config);
+  }
+}
+
+function evaluateOperatingPoint(config) {
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+  ];
+
+  // Check if any required field is null
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
+  }
+
+  const motorCurrent = config.motor.getCurrentFromTorque(config.torque, config);
+  const op = config.motor.getOperatingPoint({
+    ...config,
+    'phase_current': motorCurrent});
+
+  if (op == null) {
+    return null;
+  }
+  if (Math.abs(config.velocity) > config.motor.getMaxVelocity(config)) {
+    op._infeasible_reason = `back_emf`;
+  }
+
+  if ((config.voltage - config.controller.getMaxVoltage()) > 0.001) {
+    op._infeasible_reason = `Voltage ${config.voltage.toFixed(1)} exceeds maximum ${config.controller.getMaxVoltage().toFixed(1)}`;
+  }
+
+  if ((Math.abs(op.phase_current) -
+       config.controller.getMaxCurrent(config.voltage)) > 0.001) {
+    op._infeasible_reason = `Phase current ${op.phase_current.toFixed(1)} exceeds controller maximum ${config.controller.getMaxCurrent(config.voltage).toFixed(1)}`;
+  }
+
+  if ((op.motor_temp - config.motor.getMaxTemp()) > 0.001) {
+    op._infeasible_reason = `Motor temperature ${op.motor_temp.toFixed(1)} exceeds maximum ${config.motor.getMaxTemp().toFixed(1)}`;
+  }
+
+  const thermalPower = config.controller.getThermalPower({
+    ...config,
+    'phase_current': motorCurrent});
+  op['controller_loss'] = thermalPower;
+  op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
+  if (op['controller_temp'] == null) {
+    return null;
+  }
+
+  if ((op.controller_temp - config.controller.getMaxTemp()) > 0.001) {
+    op._infeasible_reason = `Controller temperature ${op.controller_temp.toFixed(1)} exceeds maximum ${config.controller.getMaxTemp().toFixed(1)}`;
+  }
+
+  const electricalPowerW = Math.abs(op.copper_loss + op.iron_loss + op.mechanical_power);
+  const controllerMaxPower = config.controller.getMaxPower(config.voltage, config.pwm);
+  if ((electricalPowerW - controllerMaxPower) > 0.001) {
+    op._infeasible_reason = `Controller power ${electricalPowerW.toFixed(1)} exceeds maximum ${controllerMaxPower.toFixed(1)}`;
+  }
+
+  const [ignoredR, ignoredC, fanP] = config.controller.getThermalProperties(config.controller_cooling);
+  op['fan_power'] = fanP;
+
+  const totalLossPowerW = op.controller_loss + op.copper_loss + op.iron_loss + op.fan_power;
+  op['supply_power'] = totalLossPowerW + op.mechanical_power;
+  op['supply_current'] = op.supply_power / config.voltage;
+  op['efficiency'] = Math.max(
+    0, Math.min(
+      100,
+      100.0 * ((op.velocity == 0 ? 0 :
+                (op.mechanical_power > 0) ?
+                (op.mechanical_power / op.supply_power) :
+                (op.supply_power / op.mechanical_power)))));
+
+  return op;
+}
+
+class AnalysisOperatingPoint {
+  evaluate(config) {
+    return evaluateOperatingPoint(config);
+  }
+}
+
+function evaluateMaxTorque(config) {
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp'
+  ];
+
+  // Check if any required field is null
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
+  }
+
+  if (config.velocity > config.motor.getMaxVelocity(config)) {
+    return null;
+  }
+
+  const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
+  if (R== null || C == null) {
+    return null;
+  }
+
+  const timePeriodS = config.time;
+  const deltaT = config.max_motor_temp - config.ambient_temp;
+
+  const thermalW = (timePeriodS == Infinity) ?
+        deltaT / R :
+        deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+  const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor() * config.voltage - config.motor.getBackEmf(config.velocity, config)));
+
+  if (supplyVoltageMargin < 0.0) {
+    return null;
+  }
+
+  const motorCurrent =
+        config.motor.getCurrentFromThermalPowerAndVelocity(
+          thermalW,
+          config.velocity,
+          config.controller.getMaxPower(config.voltage, config.pwm),
+          supplyVoltageMargin,
+          config);
+
+  const controllerCurrent = evaluateMaxCurrent(config);
+  if (controllerCurrent == null) {
+    return null;
+  }
+
+  const finalCurrent = LimitedValue.min(motorCurrent, new LimitedValue(controllerCurrent.phase_current, controllerCurrent._limiting_factor));
+  const motorTorque = config.motor.getTorqueFromCurrent(finalCurrent.value, config);
+
+  const op = evaluateOperatingPoint({
+      ...config,
+      'phase_current': finalCurrent.value,
+      'torque': motorTorque,
+  });
+  op['_limiting_factor'] = finalCurrent instanceof LimitedValue ? finalCurrent.limitingFactor : null;
+  return op;
+}
+
+class AnalysisMaxTorque {
+  evaluate(config) {
+    return evaluateMaxTorque(config);
+  }
+}
+
+function evaluateMaxVelocity(config) {
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'torque'
+  ];
+
+  // Check if any required field is null
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
+  }
+
+  const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
+  if (R== null || C == null) {
+    return null;
+  }
+
+  if (config.voltage > config.controller.getMaxVoltage()) {
+    return null;
+  }
+
+  // Check each of our possible limits in turn.
+  let resultVelocity = new LimitedValue(config.motor.getMaxVelocity(config), 'back_emf');
+
+  const timePeriodS = config.time;
+  const deltaT = config.max_motor_temp - config.ambient_temp;
+
+  const thermalW = (timePeriodS == Infinity) ?
+        deltaT / R :
+        deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+
+  const thermalVelocity =
+        config.motor.getVelocityFromThermalPowerAndTorque(
+          thermalW,
+          config.torque,
+          config.controller.getMaxPower(config.voltage, config.pwm),
+          config);
+  if (thermalVelocity == null) {
+    return null;
+  }
+  resultVelocity = LimitedValue.min(resultVelocity, thermalVelocity);
+
+  // The controller loss is not dependent upon output speed in our
+  // model.
+
+  const op = evaluateOperatingPoint({
+    ...config,
+    'velocity': resultVelocity.value,
+  });
+  op['_limiting_factor'] = resultVelocity.limitingFactor;
+
+  return op;
+}
+
+class AnalysisMaxVelocity {
+  evaluate(config) {
+    return evaluateMaxVelocity(config);
+  }
+}
+
+function evaluateMinMovementTime(config) {
+  // Evaluate the time required to move a fixed distance, starting
+  // from velocity=0 and ending at velocity=0.
+  //
+  // Current caveats:
+  //  * Controller and motor thermals are completely ignored.
+  //  * This assumes the controller is able to plan a motion profile
+  //    to exactly matches the maximum possible torque at each
+  //    instant.  moteus only supports constant acceleration
+  //    trajectories, which will result in slower times.
+  //  * This assumes that deceleration and acceleration are symmetric,
+  //    which is not a perfect assumption.
+  //
+  // Thus, this will always be a lower bound on the achievable time.
+
+  const required = [
+    'controller', 'controller_cooling', 'motor', 'motor_cooling', 'voltage', 'pwm', 'gear_reduction', 'ambient_temp', 'move_distance', 'load_inertia'
+  ];
+
+  for (const field of required) {
+    if (config[field] == null) {
+      return null;
+    }
+  }
+
+  // Now we will numerically integrate velocity into position until we
+  // reach the halfway position point, assuming peak torque production
+  // is possible at each instant, then assume that things are
+  // symmetric when slowing down.  In order to be numerically stable
+  // near zero speed, we integrate in energy space, moving a fixed
+  // distance each timestep.
+
+  const loadInertia = config.load_inertia;
+  const moveAmount = config.move_distance;
+  const totalInertia = config.motor.inertia + loadInertia;
+
+  const integrationSteps = 100;
+  const smallEps = 1e-12;
+  const dposition = Math.min(moveAmount / integrationSteps, 0.002);
+  var E = 0.0;  // 0.5 * I * velocity_rad_s ^ 2
+  var position = 0.0;
+  var time = 0.0;
+
+  var supply_energy = 0.0;
+  var controller_energy = 0.0;
+  var copper_energy = 0.0;
+  var iron_energy = 0.0;
+  var mechanical_energy = 0.0;
+  var peak_supply_power = 0.0;
+
+  while (position < 0.5 * moveAmount) {
+    const velocity = Math.sqrt(2 * E / totalInertia, 0.0) / (2 * Math.PI);
+
+    const currentOp = evaluateMaxTorque({
+      ...config,
+      'time': 1.0,
+      'velocity': velocity,
+    });
+
+    if (currentOp == null) {
+      return null;
+    }
+
+    const torque = currentOp.torque;
+    const ePred = E + 2 * Math.PI * torque * dposition;
+    const velocityPred = Math.sqrt(Math.max(2 * ePred / totalInertia, 0.0)) / (2 * Math.PI);
+
+    const predOp = evaluateMaxTorque({
+      ...config,
+      'time': 1.0,
+      'velocity': velocityPred,
+    });
+    if (predOp == null) {
+      return null;
+    }
+    const torquePred = predOp.torque;
+    const dE = 0.5 * 2 * Math.PI * (torque + torquePred) * dposition;
+    const Eprev = E;
+    E = Math.max(E + dE, 0.0);
+
+    position += dposition;
+
+    const eMid = 0.5 * (Eprev + E);
+
+    const velocityMid = Math.sqrt(Math.max(2 * eMid / totalInertia, 0.0)) / (2 * Math.PI);
+
+    const delta_t = dposition / velocityMid;
+    time += delta_t;
+
+    supply_energy += delta_t * 0.5 * (currentOp.supply_power + predOp.supply_power);
+    controller_energy += delta_t * 0.5 * (currentOp.controller_loss + predOp.controller_loss);
+    copper_energy += delta_t * 0.5 * (currentOp.copper_loss + predOp.copper_loss);
+    iron_energy += delta_t * 0.5 * (currentOp.iron_loss + predOp.iron_loss);
+    mechanical_energy += delta_t * 0.5 * (currentOp.mechanical_power + predOp.mechanical_power);
+
+    peak_supply_power = Math.max(peak_supply_power, Math.max(currentOp.supply_power, predOp.supply_power));
+  }
+
+  // Return an operating point that includes the average power for
+  // several quantities, as well as a few peak values and the total
+  // motion time.
+  const peak_velocity = Math.sqrt(2 * E / totalInertia, 0.0) / (2 * Math.PI);
+
+  const result = new OperatingPoint({});
+
+  result.supply_power = supply_energy / time;
+  result.supply_current = result.supply_power / config.voltage;
+  result.controller_loss = controller_energy / time;
+  result.copper_loss = copper_energy / time;
+  result.iron_loss = iron_energy / time;
+  result.mechanical_power = mechanical_energy / time;
+
+  result.time = time * 2;
+  result.peak_supply_power = peak_supply_power;
+  result.peak_velocity = peak_velocity;
+
+  // TODO: These can be calculated from the thermal models and the
+  // average energy being dissipated in both, although it is unclear
+  // how much value it gives.
+  //
+  // result.controller_temp = 0;
+  // result.motor_temp = 0;
+
+  return result;
+}
+
+class AnalysisMinMovementTime {
+  evaluate(config) {
+    return evaluateMinMovementTime(config);
+  }
+}
+
+/* ---------- Reusable ConfigFieldSelector Component ---------- */
+function ConfigFieldSelector({
+  selected,
+  onSelectedChange,
+  disabled = false,
+  placeholder = "Select or create fields...",
+  isClearable = true,
+  allowMultiValue = true
+}) {
+  const [inputValue, setInputValue] = useState('');
+  const selectRef = useRef(null);
+
+  /* utility – already have this field? */
+  const fieldTaken = (f) => selected.some((s) => s.field === f);
+
+  /* Generate dynamic options based on current input */
+  const getCurrentOptions = () => {
+    const kv = parseKV(inputValue);
+    const baseFields = getBaseFields(selected);
+
+    // If no '=' found, show base fields
+    if (!kv || kv.data === undefined) {
+      return baseFields;
+    }
+
+    // If field has constrained values, show all or filtered options
+    const fieldDef = getFieldDefinition(kv.field);
+    const fieldOptions = fieldDef?.type === 'constrained' ? Object.keys(fieldDef.options || {}) : null;
+    if (fieldOptions) {
+      let filterText = kv.data;
+
+      // Handle multi-value input: get the text after the last comma
+      if (allowMultiValue && kv.isMultiValue) {
+        const values = kv.data.split(',');
+        filterText = values[values.length - 1].trim();
+      }
+
+      // Show all options if filterText is empty (just typed '=' or ','), otherwise filter
+      const filteredOptions = filterText === '' ? fieldOptions :
+        fieldOptions.filter(value => value.toLowerCase().includes(filterText.toLowerCase()));
+
+      return filteredOptions.map(value => {
+        // For multi-value, construct the full value with previous values
+        let fullData = value;
+        if (allowMultiValue && kv.isMultiValue) {
+          const existingValues = kv.data.split(',').slice(0, -1).map(v => v.trim());
+          fullData = [...existingValues, value].join(',');
+        }
+
+        // Determine if this is a multi-value chip
+        const hasCommas = fullData.includes(',');
+
+        return {
+          field: kv.field,
+          value: kv.field,
+          data: fullData,
+          label: `${kv.field}=${fullData}`,
+          isMultiValue: hasCommas,
+          values: hasCommas ? fullData.split(',').map(v => v.trim()) : [fullData]
+        };
+      });
+    }
+
+    // For unconstrained fields, return base fields
+    return baseFields;
+  };
+
+  /* --- callbacks passed to <Creatable> --- */
+  const getNewOptionData = (input) => {
+    const parsed = parseKV(input);
+    if (parsed) {
+      return parsed;
+    }
+    // Fallback for simple field names
+    return { field: input, value: input, label: input, isMultiValue: false, values: [input] };
+  };
+
+  const isValidNewOption = (input) => {
+    const kv = parseKV(input);
+    if (!kv) return false;
+
+    // Check if multi-value is allowed and if this input contains commas
+    if (!allowMultiValue && kv.isMultiValue) {
+      return false;
+    }
+
+    // Check if the field is in our allowed list
+    const baseFields = getBaseFields(selected);
+    const isValidField = baseFields.some(bf => bf.field === kv.field);
+
+    if (!isValidField || fieldTaken(kv.field)) {
+      return false;
+    }
+
+    // For constrained fields, check if the value(s) are allowed
+    const fieldDef = getFieldDefinition(kv.field);
+    if (kv.data !== undefined && fieldDef?.type === 'constrained') {
+      const allowedValues = Object.keys(fieldDef.options || {});
+
+      if (kv.isMultiValue) {
+        // For multi-value, check that all values are valid
+        return kv.values.every(value => allowedValues.includes(value));
+      } else {
+        // For single value, check if it's in the allowed list
+        return allowedValues.includes(kv.data);
+      }
+    }
+
+    // For unconstrained fields or fields without values, allow
+    return true;
+  };
+
+  const isOptionDisabled = (opt) => fieldTaken(opt.field);
+
+  /* crucial: actually add the newly-typed chip */
+  const onCreateOption = (input) => {
+    const kv = parseKV(input);
+    if (!kv || fieldTaken(kv.field)) return;    // guard
+    onSelectedChange([...selected, kv]);
+    setInputValue('');
+  };
+
+  const handleInputChange = (input, { action }) => {
+    if (action === 'input-change') {
+      setInputValue(input);
+    }
+    return input;
+  };
+
+
+  const handleChange = (newValue) => {
+    // Check if the last added item is a field-only option (no data/value)
+    if (newValue && newValue.length > selected.length) {
+      const lastAdded = newValue[newValue.length - 1];
+
+      // If this is a field without data (just the field name), set input to field= for editing
+      if (lastAdded && lastAdded.field &&
+          (lastAdded.data === undefined || lastAdded.data === null) &&
+          lastAdded.label && lastAdded.label.endsWith('=')) {
+        setInputValue(lastAdded.field + '=');
+        // Don't add the incomplete chip to selected yet
+        return;
+      }
+    }
+
+    onSelectedChange(newValue);
+    setInputValue(''); // Clear input after selection
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
+
+      const kv = parseKV(inputValue);
+
+      // Try to get the focused option from the select component
+      const focusedOption = selectRef.current?.state?.focusedOption;
+
+      // If no '=' found, first try to complete the field name
+      if (kv && kv.data === undefined && kv.field) {
+        // Use the currently focused option if available
+        if (focusedOption && focusedOption.field) {
+          setInputValue(focusedOption.field + '=');
+        } else {
+          // Fallback to first matching field
+          const baseFields = getBaseFields(selected);
+          const matchingFields = baseFields.filter(field =>
+            field.field.toLowerCase().startsWith(kv.field.toLowerCase())
+          );
+
+          if (matchingFields.length > 0) {
+            const completedField = matchingFields[0].field;
+            setInputValue(completedField + '=');
+          } else {
+            setInputValue(kv.field + '=');
+          }
+        }
+        return;
+      }
+
+      // If we already have '=' and this is a constrained field, cycle through options
+      const fieldDef = getFieldDefinition(kv.field);
+      if (kv && kv.data !== undefined && fieldDef?.type === 'constrained') {
+        // Use the currently focused option if available
+        if (focusedOption && focusedOption.data !== undefined) {
+          setInputValue(kv.field + '=' + focusedOption.data);
+        } else {
+          // Fallback to first matching option
+          const fieldOptions = Object.keys(fieldDef.options || {});
+          let filterText = kv.data;
+
+          // Handle multi-value input: get the text after the last comma
+          if (allowMultiValue && kv.isMultiValue) {
+            const values = kv.data.split(',');
+            filterText = values[values.length - 1].trim();
+          }
+
+          // Find matching options
+          const filteredOptions = filterText === '' ? fieldOptions :
+            fieldOptions.filter(value => value.toLowerCase().includes(filterText.toLowerCase()));
+
+          if (filteredOptions.length > 0) {
+            const selectedOption = filteredOptions[0];
+
+            if (allowMultiValue && kv.isMultiValue) {
+              const existingValues = kv.data.split(',').slice(0, -1).map(v => v.trim());
+              const newData = [...existingValues, selectedOption].join(',');
+              setInputValue(kv.field + '=' + newData);
+            } else {
+              setInputValue(kv.field + '=' + selectedOption);
+            }
+          }
+        }
+        return;
+      }
+    }
+  };
+
+  // Custom MultiValue component with dropdown for constrained single values
+  const CustomMultiValue = (props) => {
+    const { data, innerRef, innerProps = {}, removeProps, selectProps } = props;
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValue, setEditValue] = useState(data.data || '');
+    const chipRef = useRef(null);
+    const dropdownRef = useRef(null);
+    const portalRef = useRef(null);
+    const inputRef = useRef(null);
+
+    // Check if this chip should have a dropdown or be editable
+    const fieldDef = getFieldDefinition(data.field);
+    const isConstrainedSingleValue = fieldDef?.type === 'constrained' &&
+                                    data.data &&
+                                    !data.isMultiValue &&
+                                    Object.keys(fieldDef.options || {}).length > 1;
+    const isEditableNumeric = (fieldDef?.type === 'numeric' || fieldDef?.type === 'mixed') &&
+                             data.data &&
+                             !data.isMultiValue;
+
+    // Create/manage portal for dropdown
+    useEffect(() => {
+      if (showDropdown && !portalRef.current) {
+        portalRef.current = document.createElement('div');
+        portalRef.current.style.position = 'absolute';
+        portalRef.current.style.zIndex = '10000';
+        document.body.appendChild(portalRef.current);
+      }
+
+      return () => {
+        if (portalRef.current && portalRef.current.parentNode) {
+          portalRef.current.parentNode.removeChild(portalRef.current);
+          portalRef.current = null;
+        }
+      };
+    }, [showDropdown]);
+
+    // Update dropdown position
+    useEffect(() => {
+      if (showDropdown && chipRef.current && portalRef.current) {
+        const rect = chipRef.current.getBoundingClientRect();
+        render(html`
+          <div
+            ref=${dropdownRef}
+            style=${{
+              position: 'fixed',
+              top: `${rect.bottom + 2}px`,
+              left: `${rect.left}px`,
+              backgroundColor: 'white',
+              border: '1px solid #ccc',
+              borderRadius: '4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              minWidth: '150px',
+              maxHeight: '200px',
+              overflowY: 'auto'
+            }}
+            onWheel=${(e) => {
+              const dropdown = e.currentTarget;
+              const { scrollTop, scrollHeight, clientHeight } = dropdown;
+              const isAtTop = scrollTop === 0;
+              const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+
+              // Prevent scroll propagation if we're at the limits
+              if ((isAtTop && e.deltaY < 0) || (isAtBottom && e.deltaY > 0)) {
+                e.preventDefault();
+              }
+              // Always stop propagation to prevent page scroll while over dropdown
+              e.stopPropagation();
+            }}
+          >
+            ${Object.entries(fieldDef.options).map(([value, optionDef]) => html`
+              <div
+                key=${value}
+                onClick=${(e) => {
+                  handleOptionSelect(value);
+                }}
+                onPointerDown=${(e) => {
+                  e.target.style.backgroundColor = '#d5d5d5';
+                }}
+                onPointerUp=${(e) => {
+                  e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white';
+                }}
+                onPointerCancel=${(e) => {
+                  e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white';
+                }}
+                style=${{
+                  padding: IS_TOUCH_DEVICE ? '12px 16px' : '8px 12px',
+                  cursor: 'pointer',
+                  backgroundColor: value === data.data ? '#f0f0f0' : 'white',
+                  borderBottom: '1px solid #eee',
+                  touchAction: 'manipulation',
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                  minHeight: IS_TOUCH_DEVICE ? '44px' : 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter=${(e) => e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : '#f5f5f5'}
+                onMouseLeave=${(e) => e.target.style.backgroundColor = value === data.data ? '#f0f0f0' : 'white'}
+              >
+                <div style=${{ fontWeight: value === data.data ? 'bold' : 'normal' }}>
+                  ${value}
+                </div>
+                ${optionDef.help && html`
+                  <div style=${{ fontSize: '80%', color: '#666', marginTop: '2px' }}>
+                    ${optionDef.help}
+                  </div>
+                `}
+              </div>
+            `)}
+          </div>
+        `, portalRef.current);
+      }
+    }, [showDropdown]);
+
+    // Handle clicks/taps outside to close dropdown
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (portalRef.current && !portalRef.current.contains(event.target) &&
+            chipRef.current && !chipRef.current.contains(event.target)) {
+          setShowDropdown(false);
+        }
+      };
+
+      if (showDropdown) {
+        // Use both pointer and mouse events for maximum compatibility
+        document.addEventListener('pointerdown', handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('touchstart', handleClickOutside, { passive: true });
+        return () => {
+          document.removeEventListener('pointerdown', handleClickOutside);
+          document.removeEventListener('mousedown', handleClickOutside);
+          document.removeEventListener('touchstart', handleClickOutside);
+        };
+      }
+    }, [showDropdown]);
+
+    const handleChipInteraction = (e) => {
+      if (isConstrainedSingleValue) {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowDropdown(!showDropdown);
+      } else if (isEditableNumeric) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsEditing(true);
+        setEditValue(data.data);
+      }
+    };
+
+    const handleChipClick = (e) => {
+      handleChipInteraction(e);
+    };
+
+    const handleChipPointerDown = (e) => {
+      // For touch devices, handle interaction on pointer down
+      // since click events may not fire reliably
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        // Only handle if it's not clicking on the remove button
+        if (!e.target.closest('button')) {
+          handleChipInteraction(e);
+        }
+      }
+    };
+
+    // Handle numeric value editing
+    const handleEditSubmit = () => {
+      const trimmedValue = editValue.trim();
+      if (trimmedValue && trimmedValue !== data.data) {
+        const newChip = {
+          ...data,
+          data: trimmedValue,
+          label: `${data.field}=${trimmedValue}`
+        };
+
+        const currentValues = selected || [];
+        const newValues = currentValues.map(chip =>
+          chip.field === data.field ? newChip : chip
+        );
+        onSelectedChange(newValues);
+      }
+      setIsEditing(false);
+    };
+
+    const handleEditCancel = () => {
+      setEditValue(data.data);
+      setIsEditing(false);
+    };
+
+    const handleEditKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleEditSubmit();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        handleEditCancel();
+      }
+    };
+
+    // Focus input when entering edit mode
+    useEffect(() => {
+      if (isEditing && inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.select();
+      }
+    }, [isEditing]);
+
+    const handleOptionSelect = (newValue) => {
+      const newChip = {
+        ...data,
+        data: newValue,
+        label: `${data.field}=${newValue}`
+      };
+
+      // Update the selected values through the parent component's handler
+      // We need to go through the component's change handler, not react-select's
+      const currentValues = selected || [];
+      const newValues = currentValues.map(chip =>
+        chip.field === data.field ? newChip : chip
+      );
+      onSelectedChange(newValues);
+      setShowDropdown(false);
+    };
+
+    // Determine chip styles
+    let backgroundColor = '#e0e0e0';
+    let color = '#000000';
+    let cursor = (isConstrainedSingleValue || isEditableNumeric) ? 'pointer' : 'default';
+
+    if (data.field === 'analysis') {
+      backgroundColor = '#d4f4dd';
+      color = '#2d5a3d';
+    } else if (data.field === 'output') {
+      backgroundColor = '#dae8fc';
+      color = '#1e3a5f';
+    }
+
+    const chipStyle = {
+      ...innerProps.style,
+      backgroundColor,
+      color,
+      cursor: isEditableNumeric ? 'text' : cursor,
+      position: 'relative',
+      borderRadius: '3px',
+      display: 'inline-flex',
+      margin: '2px',
+      padding: IS_TOUCH_DEVICE ? '6px 8px' : '3px 6px',
+      fontSize: '85%',
+      minHeight: IS_TOUCH_DEVICE ? '32px' : 'auto',
+      boxShadow: (isConstrainedSingleValue || isEditableNumeric) ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+      transition: 'all 0.2s ease',
+      touchAction: 'manipulation',
+      WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+      ...((isConstrainedSingleValue || isEditableNumeric) && {
+        ':hover': {
+          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+        }
+      })
+    };
+
+    return html`
+      <div ref=${(el) => { chipRef.current = el; if (innerRef) innerRef(el); }}
+           style=${chipStyle}
+           onClick=${handleChipClick}
+           onPointerDown=${handleChipPointerDown}>
+        <div style=${{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          ${isEditing ? html`
+            <span>${data.field}=</span>
+            <input
+              ref=${inputRef}
+              type="text"
+              value=${editValue}
+              onInput=${(e) => setEditValue(e.target.value)}
+              onKeyDown=${handleEditKeyDown}
+              onBlur=${handleEditSubmit}
+              onClick=${(e) => e.stopPropagation()}
+              style=${{
+                border: 'none',
+                outline: 'none',
+                backgroundColor: 'transparent',
+                color: 'inherit',
+                font: 'inherit',
+                padding: '0',
+                margin: '0 2px',
+                width: `${Math.max(3, editValue.length)}ch`,
+                minWidth: '3ch'
+              }}
+            />
+          ` : html`
+            <span>${data.label}</span>
+            ${isConstrainedSingleValue && html`
+              <span style=${{ marginLeft: '4px', fontSize: IS_TOUCH_DEVICE ? '90%' : '80%', opacity: IS_TOUCH_DEVICE ? 0.7 : 1 }}>▼</span>
+            `}
+            ${isEditableNumeric && html`
+              <span style=${{ marginLeft: '4px', fontSize: IS_TOUCH_DEVICE ? '90%' : '80%', fontFamily: 'monospace', opacity: IS_TOUCH_DEVICE ? 0.7 : 1 }}>✎</span>
+            `}
+          `}
+        </div>
+        ${!isEditing && html`
+          <button
+            onClick=${(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (removeProps?.onClick) {
+                removeProps.onClick(e);
+              }
+            }}
+            onPointerDown=${(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              // For touch devices, handle removal immediately on pointer down
+              // since click events may not fire reliably
+              if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                if (removeProps?.onClick) {
+                  removeProps.onClick(e);
+                }
+              }
+            }}
+            style=${{
+              border: 'none',
+              backgroundColor: 'transparent',
+              marginLeft: IS_TOUCH_DEVICE ? '6px' : '5px',
+              cursor: 'pointer',
+              padding: IS_TOUCH_DEVICE ? '4px 6px' : '0 2px',
+              fontSize: IS_TOUCH_DEVICE ? '110%' : '100%',
+              color: 'inherit',
+              minWidth: IS_TOUCH_DEVICE ? '24px' : 'auto',
+              minHeight: IS_TOUCH_DEVICE ? '24px' : 'auto',
+              display: IS_TOUCH_DEVICE ? 'flex' : 'inline',
+              alignItems: IS_TOUCH_DEVICE ? 'center' : 'normal',
+              justifyContent: IS_TOUCH_DEVICE ? 'center' : 'normal',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'rgba(0,0,0,0.2)',
+              borderRadius: '3px'
+            }}
+            onMouseEnter=${(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.1)'}
+            onMouseLeave=${(e) => e.target.style.backgroundColor = 'transparent'}
+            onPointerEnter=${(e) => {
+              if (e.pointerType === 'mouse') e.target.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            }}
+            onPointerLeave=${(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            ×
+          </button>
+        `}
+      </div>
+    `;
+  };
+
+  // Custom styles for chips based on field type
+  const getChipStyles = () => ({
+    multiValue: (styles, { data }) => {
+      // Styles are now handled in the custom component
+      return { ...styles, display: 'none' };
+    },
+    multiValueLabel: (styles, { data }) => {
+      // Styles are now handled in the custom component
+      return { ...styles };
+    },
+    multiValueRemove: (styles) => {
+      // Remove button is now handled in the custom component
+      return { ...styles, display: 'none' };
+    }
+  });
+
+  return html`
+    <${Creatable}
+        ref=${selectRef}
+        isMulti
+        isDisabled=${disabled}
+        isClearable=${isClearable}
+        value=${selected}
+        onChange=${handleChange}
+        placeholder=${placeholder}
+        options=${getCurrentOptions()}
+        getNewOptionData=${getNewOptionData}
+        isValidNewOption=${isValidNewOption}
+        onCreateOption=${onCreateOption}
+        isOptionDisabled=${isOptionDisabled}
+        formatCreateLabel=${(v) => `add ${v}`}
+        onInputChange=${handleInputChange}
+        inputValue=${inputValue}
+        onKeyDown=${handleKeyDown}
+        styles=${getChipStyles()}
+        components=${{ MultiValue: CustomMultiValue }}
+      />
+  `;
+}
+
+/* ---------- Plot View Component ---------- */
+function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
+  const [colorField, setColorField] = useState(plotMetadata?.colorField || 'bus_power');
+
+  // Calculate reasonable defaults based on motor capabilities
+  const getDefaultRanges = () => {
+    if (!baseConfig) {
+      return { speedMin: 0, speedMax: 100, torqueMin: 0, torqueMax: 40 };
+    }
+
+    try {
+      // Get max velocity at 0 torque using t=2s
+      const maxVelConfig = normalizeConfig({ ...baseConfig, torque: 0, time: 2 });
+      const maxVelResult = evaluateMaxVelocity(maxVelConfig);
+      const maxVel = maxVelResult?.velocity || 100;
+      const defaultSpeedMax = Math.ceil(maxVel * 1.1 * 100) / 100; // Ensure 2 decimal places
+
+      // Get max torque at 0 speed using t=2s
+      const maxTorqueConfig = normalizeConfig({ ...baseConfig, velocity: 0, time: 2 });
+      const maxTorqueResult = evaluateMaxTorque(maxTorqueConfig);
+      const maxTorque = maxTorqueResult?.torque || 40;
+      const defaultTorqueMax = Math.ceil(maxTorque * 1.1 * 100) / 100; // Ensure 2 decimal places
+
+      return {
+        speedMin: 0,
+        speedMax: defaultSpeedMax,
+        torqueMin: -defaultTorqueMax,
+        torqueMax: defaultTorqueMax
+      };
+    } catch (error) {
+      console.error('PlotView: Error calculating default ranges:', error);
+      return { speedMin: 0, speedMax: 100, torqueMin: 0, torqueMax: 40 };
+    }
+  };
+
+  const [speedMin, setSpeedMin] = useState(() => {
+    if (plotMetadata?.speedMin) return Number(plotMetadata.speedMin);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.speedMin;
+  });
+  const [speedMax, setSpeedMax] = useState(() => {
+    if (plotMetadata?.speedMax) return Number(plotMetadata.speedMax);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.speedMax;
+  });
+  const [torqueMin, setTorqueMin] = useState(() => {
+    if (plotMetadata?.torqueMin) return Number(plotMetadata.torqueMin);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.torqueMin;
+  });
+  const [torqueMax, setTorqueMax] = useState(() => {
+    if (plotMetadata?.torqueMax) return Number(plotMetadata.torqueMax);
+    const defaultRanges = getDefaultRanges();
+    return defaultRanges.torqueMax;
+  });
+  const [gridResolution, setGridResolution] = useState(plotMetadata?.gridResolution ? Number(plotMetadata.gridResolution) : 100);
+  const plotRef = useRef(null);
+
+  // Update ranges when baseConfig changes (but only if not restored from URL)
+  useEffect(() => {
+    if (baseConfig && !plotMetadata) {
+      const defaultRanges = getDefaultRanges();
+      setSpeedMin(defaultRanges.speedMin);
+      setSpeedMax(defaultRanges.speedMax);
+      setTorqueMin(defaultRanges.torqueMin);
+      setTorqueMax(defaultRanges.torqueMax);
+    }
+  }, [baseConfig, plotMetadata]);
+
+  const generatePlot = () => {
+    if (!baseConfig) return;
+
+    try {
+      // Normalize the base config to ensure consistent behavior with range calculation
+      const normalizedBaseConfig = normalizeConfig(baseConfig);
+      const plotData = generateGridData(speedMin, speedMax, torqueMin, torqueMax, gridResolution, colorField, normalizedBaseConfig);
+      createHeatmap(plotData, colorField);
+    } catch (error) {
+      console.error('PlotView: Error generating plot:', error);
+    }
+  };
+
+  const generateGridData = (speedMin, speedMax, torqueMin, torqueMax, resolution, colorField, baseConfig) => {
+    const speedStep = (speedMax - speedMin) / (resolution - 1);
+    const torqueStep = (torqueMax - torqueMin) / (resolution - 1);
+
+    const speeds = [];
+    const torques = [];
+    const zValues = [];
+    const hoverText = [];
+
+    let validPoints = 0;
+    let totalPoints = 0;
+
+    // Generate speed and torque arrays
+    for (let i = 0; i < resolution; i++) {
+      speeds.push(speedMin + i * speedStep);
+      torques.push(torqueMin + i * torqueStep);
+    }
+
+    // Organize data as z[torque_index][speed_index] for correct Plotly orientation
+    for (let torqueIndex = 0; torqueIndex < resolution; torqueIndex++) {
+      const zRow = [];
+      const hoverRow = [];
+      const torque = torques[torqueIndex];
+
+      for (let speedIndex = 0; speedIndex < resolution; speedIndex++) {
+        totalPoints++;
+        const speed = speeds[speedIndex];
+
+        // Create base config for this operating point
+        const baseOpConfig = { ...baseConfig };
+        baseOpConfig.velocity = speed; // Speed in Hz
+        baseOpConfig.torque = torque;
+
+        // Determine which time period to use based on colorField
+        let timeForEvaluation = 2; // Default for time-independent fields
+        if (colorField.includes('_60s')) {
+          timeForEvaluation = 60;
+        } else if (colorField.includes('_inf')) {
+          timeForEvaluation = Infinity;
+        }
+
+        // Evaluate the operating point at the relevant time period
+        const config = { ...baseOpConfig, time: timeForEvaluation };
+        const result = evaluateOperatingPoint(config);
+        let value = null;
+        let hoverInfo = '';
+
+        if (result && !result._infeasible_reason) {
+          // The result is feasible
+          switch (colorField) {
+            case 'bus_power':
+              value = result.supply_power;
+              break;
+            case 'efficiency':
+              value = result.efficiency;
+              break;
+            case 'controller_temp_2s':
+            case 'controller_temp_60s':
+            case 'controller_temp_inf':
+              value = result.controller_temp;
+              break;
+            case 'motor_temp_2s':
+            case 'motor_temp_60s':
+            case 'motor_temp_inf':
+              value = result.motor_temp;
+              break;
+            default:
+              value = result.supply_power;
+          }
+
+          if (value !== null && value !== undefined && !isNaN(value)) {
+            validPoints++;
+
+            // Create comprehensive hover info using OperatingPoint field info
+            const fieldInfo = OperatingPoint.getFieldInfo();
+            const hoverLines = [
+              `Speed: ${speed.toFixed(2)} Hz`,
+              `Torque: ${torque.toFixed(2)} Nm`,
+              `${getColorBarTitle(colorField)}: ${value.toFixed(2)}`
+            ];
+
+            // Add time period information for bus_power and efficiency
+            if (colorField === 'bus_power' || colorField === 'efficiency') {
+              const timeStr = timeForEvaluation === Infinity ? 'steady-state' : `${timeForEvaluation}s`;
+              hoverLines.push(`Evaluated at: ${timeStr}`);
+            }
+
+            hoverLines.push(`---`);
+
+            // Add all operating point fields dynamically
+            Object.entries(fieldInfo).forEach(([fieldName, info]) => {
+              const fieldValue = result[fieldName];
+              if (fieldValue !== null && fieldValue !== undefined && !fieldName.startsWith('_')) {
+                const formattedValue = fieldValue.toFixed(info.precision || 1);
+                const unitText = info.unit ? ` ${info.unit}` : '';
+                hoverLines.push(`${info.displayName}: ${formattedValue}${unitText}`);
+              }
+            });
+
+            hoverInfo = hoverLines.join('<br>');
+          } else {
+            hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>Invalid result`;
+          }
+        } else {
+          // Infeasible operating point - use null so it appears white/empty
+          value = null;
+          const reason = result?._infeasible_reason || 'Unknown infeasibility';
+          hoverInfo = `Speed: ${speed.toFixed(2)} Hz<br>Torque: ${torque.toFixed(2)} Nm<br>Infeasible: ${reason}`;
+        }
+
+        zRow.push(value);
+        hoverRow.push(hoverInfo);
+      }
+      zValues.push(zRow);
+      hoverText.push(hoverRow);
+    }
+
+    // Generate feasibility data for all time periods for boundary contours
+    const feasibilityData = generateFeasibilityBoundaries(speeds, torques, baseConfig);
+
+    return { speeds, torques, zValues, hoverText, feasibilityData };
+  };
+
+  const generateFeasibilityBoundaries = (speeds, torques, baseConfig) => {
+    const timePeriods = [2, 60, Infinity];
+    const boundaries = {};
+
+    // Generate feasibility grid for each time period
+    for (const time of timePeriods) {
+      const timeKey = time === Infinity ? 'inf' : time;
+      const feasibilityGrid = [];
+
+      // Create a higher resolution grid for smoother boundaries
+      const boundaryResolution = Math.max(50, speeds.length);
+      const speedStep = (speeds[speeds.length - 1] - speeds[0]) / (boundaryResolution - 1);
+      const torqueStep = (torques[torques.length - 1] - torques[0]) / (boundaryResolution - 1);
+
+      const boundarySpeeds = [];
+      const boundaryTorques = [];
+
+      for (let i = 0; i < boundaryResolution; i++) {
+        boundarySpeeds.push(speeds[0] + i * speedStep);
+        boundaryTorques.push(torques[0] + i * torqueStep);
+      }
+
+      // Generate feasibility grid
+      for (let torqueIndex = 0; torqueIndex < boundaryResolution; torqueIndex++) {
+        const feasibilityRow = [];
+        const torque = boundaryTorques[torqueIndex];
+
+        for (let speedIndex = 0; speedIndex < boundaryResolution; speedIndex++) {
+          const speed = boundarySpeeds[speedIndex];
+
+          const config = { ...baseConfig, velocity: speed, torque: torque, time: time };
+          const result = evaluateOperatingPoint(config);
+
+          // 1 = feasible, 0 = infeasible
+          feasibilityRow.push(result && !result._infeasible_reason ? 1 : 0);
+        }
+        feasibilityGrid.push(feasibilityRow);
+      }
+
+      boundaries[timeKey] = {
+        speeds: boundarySpeeds,
+        torques: boundaryTorques,
+        feasibilityGrid: feasibilityGrid
+      };
+    }
+
+    return boundaries;
+  };
+
+  const createHeatmap = (data, colorField) => {
+    if (!plotRef.current || !window.Plotly) return;
+
+    // Determine if we have signed data (both positive and negative values)
+    const flatValues = data.zValues.flat().filter(v => v !== null && !isNaN(v));
+    const hasPositive = flatValues.some(v => v > 0);
+    const hasNegative = flatValues.some(v => v < 0);
+    const usesDivergingScale = hasPositive && hasNegative;
+
+    // Choose color scale and range
+    let colorscale, zmid;
+    if (usesDivergingScale) {
+      // Red-white-blue diverging scale: red for positive, blue for negative, white for zero
+      colorscale = 'RdBu';
+      zmid = 0; // Center the scale at zero
+    } else {
+      // Use standard viridis for non-signed data
+      colorscale = 'Viridis';
+      zmid = undefined;
+    }
+
+    const trace = {
+      x: data.speeds,
+      y: data.torques,
+      z: data.zValues,
+      text: data.hoverText,
+      type: 'heatmap',
+      colorscale: colorscale,
+      zmid: zmid,
+      showscale: true,
+      hovertemplate: '%{text}<extra></extra>',
+      colorbar: {
+        title: {
+          text: getColorBarTitle(colorField),
+          font: { size: 14 }
+        },
+        len: 0.5,
+        y: 0.85,
+        yanchor: 'top',
+        x: 1.02
+      }
+    };
+
+    // Create contour traces for feasibility boundaries
+    const contourTraces = [];
+    if (data.feasibilityData) {
+      const timeLabels = { '2': '2s', '60': '60s', 'inf': '∞' };
+      const colors = { '2': '#ff4444', '60': '#ff8800', 'inf': '#4444ff' };
+
+      Object.entries(data.feasibilityData).forEach(([timeKey, boundaryData]) => {
+        const contourTrace = {
+          x: boundaryData.speeds,
+          y: boundaryData.torques,
+          z: boundaryData.feasibilityGrid,
+          type: 'contour',
+          contours: {
+            start: 0.5,
+            end: 0.5,
+            size: 1,
+            coloring: 'none'
+          },
+          line: {
+            color: colors[timeKey],
+            width: 2
+          },
+          showscale: false,
+          hoverinfo: 'skip',
+          name: `Feasible @ ${timeLabels[timeKey]}`,
+          showlegend: true
+        };
+        contourTraces.push(contourTrace);
+      });
+    }
+
+    const layout = {
+      title: 'Motor Performance Map',
+      xaxis: {
+        title: {
+          text: 'Speed (Hz)',
+          font: { size: 14 }
+        }
+      },
+      yaxis: {
+        title: {
+          text: 'Torque (Nm)',
+          font: { size: 14 }
+        }
+      },
+      autosize: true,
+      margin: { t: 50, l: 60, r: 140, b: 60 },
+      legend: {
+        x: 1.02,
+        y: 0.25,
+        yanchor: 'top',
+        bgcolor: 'rgba(255,255,255,0.9)',
+        bordercolor: 'rgba(0,0,0,0.2)',
+        borderwidth: 1
+      }
+    };
+
+    const allTraces = [trace, ...contourTraces];
+    Plotly.newPlot(plotRef.current, allTraces, layout, {responsive: true});
+  };
+
+  const getColorBarTitle = (colorField) => {
+    switch (colorField) {
+      case 'bus_power': return 'Supply Power (W)';
+      case 'efficiency': return 'Efficiency (%)';
+      case 'controller_temp_2s': return 'Controller Temp @ 2s (°C)';
+      case 'controller_temp_60s': return 'Controller Temp @ 60s (°C)';
+      case 'controller_temp_inf': return 'Controller Temp @ ∞ (°C)';
+      case 'motor_temp_2s': return 'Motor Temp @ 2s (°C)';
+      case 'motor_temp_60s': return 'Motor Temp @ 60s (°C)';
+      case 'motor_temp_inf': return 'Motor Temp @ ∞ (°C)';
+      default: return 'Value';
+    }
+  };
+
+  useEffect(() => {
+    if (baseConfig) {
+      generatePlot();
+    }
+  }, [baseConfig, colorField, speedMin, speedMax, torqueMin, torqueMax, gridResolution]);
+
+  // Expose plot metadata globally for URL generation
+  useEffect(() => {
+    window.getPlotMetadata = () => ({
+      colorField,
+      speedMin,
+      speedMax,
+      torqueMin,
+      torqueMax,
+      gridResolution
+    });
+
+    return () => {
+      window.getPlotMetadata = null;
+    };
+  }, [colorField, speedMin, speedMax, torqueMin, torqueMax, gridResolution]);
+
+  if (!baseConfig) {
+    return html`
+      <div style="padding: 40px; text-align: center; color: #666;">
+        <h3>No Plot Configuration</h3>
+        <p>Click "Generate Performance Plot" in a table cell's details to create a plot.</p>
+      </div>
+    `;
+  }
+
+  // Store the original raw config when plot is created
+  const [rawPlotConfig, setRawPlotConfig] = useState(null);
+
+  // Update raw config when baseConfig changes
+  useEffect(() => {
+    if (baseConfig) {
+      setRawPlotConfig(baseConfig);
+    }
+  }, [baseConfig]);
+
+  const getConfigDifferences = () => {
+    if (!rawPlotConfig || !commonConfig) return {};
+
+    const differences = {};
+
+
+    const commonDict = convertChipsToDict(commonConfig);
+
+    // Helper to normalize values for comparison
+    const normalizeValue = (value) => {
+      if (value === 'infinity') return Infinity;
+      if (value === 'default') return 'default';
+      if (typeof value === 'string' && !isNaN(value) && value !== '') {
+        return parseFloat(value);
+      }
+      return value;
+    };
+
+    // Compare raw config with common config to find differences
+    Object.keys(rawPlotConfig).forEach(key => {
+      const plotValue = rawPlotConfig[key];
+      const commonValue = normalizeValue(commonDict[key]);
+
+      // Special handling for different field types
+      let isDifferent = false;
+      let displayValue = plotValue;
+
+      if (typeof plotValue === 'object' && plotValue !== null) {
+        // For objects like motor/controller, compare with string identifier
+        if (plotValue.nameValue) {
+          // Motor objects have nameValue
+          isDifferent = plotValue.nameValue !== commonDict[key];
+          displayValue = plotValue.nameValue;
+        } else if (plotValue.props?.name) {
+          // Controller objects have props.name
+          isDifferent = plotValue.props.name !== commonDict[key];
+          displayValue = plotValue.props.name;
+        } else {
+          // Other objects - skip for now
+          return;
+        }
+      } else {
+        // Simple value comparison with type normalization
+        isDifferent = plotValue !== commonValue;
+      }
+
+      if (isDifferent && plotValue !== null && plotValue !== undefined) {
+        differences[key] = displayValue;
+      }
+    });
+
+    return differences;
+  };
+
+  const configDifferences = getConfigDifferences();
+
+  return html`
+    <div>
+      ${Object.keys(configDifferences).length > 0 && html`
+        <div style="margin-bottom: 16px; padding: 12px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;">
+          <div style="font-weight: 600; margin-bottom: 8px; color: #495057;">
+            Plot Configuration (differences from common config):
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+            ${Object.entries(configDifferences).map(([key, value]) => html`
+              <span style="
+                display: inline-block;
+                padding: 4px 8px;
+                background: #e9ecef;
+                border-radius: 3px;
+                font-size: 12px;
+                font-family: monospace;
+                color: #495057;
+              ">
+                ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}
+              </span>
+            `)}
+          </div>
+        </div>
+      `}
+
+      <div style="margin-bottom: 20px; padding: 15px; background: white; border: 1px solid #ddd; border-radius: 4px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Color Field:</label>
+            <select
+              value=${colorField}
+              onChange=${(e) => setColorField(e.target.value)}
+              style="padding: 4px 8px; border: 1px solid #ccc; border-radius: 3px;"
+            >
+              <option value="bus_power">Supply Power (W)</option>
+              <option value="efficiency">Efficiency (%)</option>
+              <option value="controller_temp_2s">Controller Temp @ 2s (°C)</option>
+              <option value="controller_temp_60s">Controller Temp @ 60s (°C)</option>
+              <option value="controller_temp_inf">Controller Temp @ ∞ (°C)</option>
+              <option value="motor_temp_2s">Motor Temp @ 2s (°C)</option>
+              <option value="motor_temp_60s">Motor Temp @ 60s (°C)</option>
+              <option value="motor_temp_inf">Motor Temp @ ∞ (°C)</option>
+            </select>
+          </div>
+
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Speed:</label>
+            <input
+              type="number"
+              value=${speedMin}
+              onChange=${(e) => setSpeedMin(Number(e.target.value))}
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin: 0 4px;">to</span>
+            <input
+              type="number"
+              value=${speedMax}
+              onChange=${(e) => setSpeedMax(Number(e.target.value))}
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin-left: 4px;">Hz</span>
+          </div>
+
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Torque:</label>
+            <input
+              type="number"
+              value=${torqueMin}
+              onChange=${(e) => setTorqueMin(Number(e.target.value))}
+              step="0.1"
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin: 0 4px;">to</span>
+            <input
+              type="number"
+              value=${torqueMax}
+              onChange=${(e) => setTorqueMax(Number(e.target.value))}
+              step="0.1"
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin-left: 4px;">Nm</span>
+          </div>
+
+          <div style="display: flex; align-items: center;">
+            <label style="font-weight: 600; margin-right: 8px;">Resolution:</label>
+            <input
+              type="number"
+              value=${gridResolution}
+              onChange=${(e) => setGridResolution(Number(e.target.value))}
+              min="10"
+              max="200"
+              style="width: 60px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;"
+            />
+            <span style="margin-left: 4px;">pts</span>
+          </div>
+        </div>
+      </div>
+
+      <div ref=${plotRef} style="width: 100%; height: 600px; border: 1px solid #ddd; border-radius: 4px; background: white;"></div>
+    </div>
+  `;
+}
+
+/* ---------- Overlay Component ---------- */
+function OperatingPointOverlay({ isVisible, selectedCell, onClose }) {
+  if (!isVisible || !selectedCell) return null;
+
+  // Create an OperatingPoint instance from the selected cell's config
+  const createOperatingPoint = (config) => {
+    const normalizedConfig = normalizeConfig(config);
+
+    if (normalizedConfig.analysis == null) {
+      return null;
+    }
+
+    return normalizedConfig.analysis.evaluate(normalizedConfig);
+  };
+
+  const handleGeneratePlot = () => {
+    // Switch to plot view and set the base configuration
+    window.switchToPlotView(selectedCell.config);
+    onClose(); // Close the overlay
+  };
+
+  const operatingPoint = createOperatingPoint(selectedCell.config);
+
+  return html`
+    <div class="overlayContainer">
+      <div class="overlayBody">
+        <button
+          onClick=${onClose}
+          style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer;"
+        >
+          X
+        </button>
+        ${operatingPoint ? html`
+          ${operatingPoint.render()}
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #ddd;">
+            <button
+              onClick=${handleGeneratePlot}
+              class="primaryButton"
+              style="width: 100%;"
+            >
+              Generate Performance Plot
+            </button>
+          </div>
+        ` : html`
+          <h3>Operating Point</h3>
+          <p>No operating point data available for this configuration.</p>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Help Overlay Component ---------- */
+function HelpOverlay({ isVisible, onClose }) {
+  if (!isVisible) return null;
+
+  return html`
+    <div class="helpOverlay" onClick=${onClose}>
+      <div class="helpContent" onClick=${(e) => e.stopPropagation()}>
+        <div class="helpHeader">
+          <h2 class="helpHeaderTitle">moteus Performance Analysis Tool</h2>
+          <button class="primaryButton" onClick=${onClose}>Close</button>
+        </div>
+
+        <div class="helpIntro">
+          <p>
+
+          Compare performance properties of different brushless motor
+          controller systems.  Options can be set globally, or added
+          to axes in order to produce comparison results.  In axis
+          definitions, multiple values to compare can either be added
+          to multiple lines, or separated with commas.
+
+          </p>
+
+          <p>
+
+          Click on table elements to see the full operating point for
+          that result.
+
+          </p>
+
+          <p>
+
+          A velocity vs torque plot with thermal and efficiency
+          operating curves can be generated for either the common
+          configuration, or any specific operating point.
+
+          </p>
+        </div>
+
+        ${Object.entries(fieldDefinitions).filter(([key]) => !key.includes('.')).map(([fieldName, fieldDef]) => {
+          // Determine field constraints
+          let constraints = '';
+          if (fieldDef.type === 'mixed' && fieldDef.constraints) {
+            constraints = fieldDef.constraints;
+          } else if (fieldDef.type === 'numeric') {
+            constraints = 'numeric values only';
+          }
+
+          return html`
+            <div class="helpSection">
+              <div class="helpFieldName">${fieldName}</div>
+              <div class="helpFieldDescription">
+                ${fieldDef.description}${constraints ? html` — <span class="helpFieldConstraints">${constraints}</span>` : ''}
+              </div>
+
+              ${fieldDef.type === 'constrained' && fieldDef.options ? html`
+                <div class="helpOptionsContainer">
+                  <div class="helpOptionsTitle">Available Options:</div>
+                  ${Object.entries(fieldDef.options).map(([optionValue, optionDef]) => {
+                    return html`
+                      <div class="helpOptionRow">
+                        <span class="helpOptionValue">${optionValue}</span>
+                        ${optionDef.help ? html`
+                          <div class="helpOptionDescription">
+                            ${optionDef.help}
+                          </div>
+                        ` : ''}
+                      </div>
+                    `;
+                  })}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        })}
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+          <h3 style="margin: 0 0 15px 0; color: #0066cc;">Parameterizable Motor Models</h3>
+          <div style="margin-bottom: 15px; color: #666;">
+            The "model" motor option allows custom motor definitions with the following parameters:
+          </div>
+
+          ${Object.entries(motorModelFields).map(([motorType, paramFields]) => html`
+            <div class="helpSection">
+              <div class="helpFieldName">${motorType}</div>
+              <div class="helpFieldDescription">
+                Generic motor model for full custom motor definitions — numeric values only
+              </div>
+              <div class="helpOptionsContainer">
+                <div class="helpOptionsTitle">Required Parameters:</div>
+                ${paramFields.map(paramField => {
+                  const fullFieldName = `motor.${paramField}`;
+                  const paramConfig = getFieldDefinition(fullFieldName);
+                  return html`
+                    <div class="helpOptionRow">
+                      <span class="helpOptionValue">${fullFieldName}</span>
+                      <div class="helpOptionDescription">${paramConfig?.description || 'Parameter description not available'}</div>
+                    </div>
+                  `;
+                })}
+              </div>
+            </div>
+          `)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Panel Components ---------- */
+function CommonConfigPanel({ selected, onSelectedChange }) {
+  const handlePlotCommonConfig = () => {
+    // Convert selected chips to base config
+    const commonConfig = convertChipsToDict(selected);
+
+    // Reify the config to convert strings to actual objects
+    const reifiedConfig = reifyObjects(commonConfig);
+
+    // Switch to plot view and set the reified configuration
+    window.switchToPlotView(reifiedConfig);
+  };
+
+  return html`
+    <div class="panelContainer">
+      <div class="panelTitle" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Common Config</span>
+        <button
+          class="primaryButton"
+          onClick=${handlePlotCommonConfig}
+          style="font-size: 12px; padding: 4px 8px;"
+        >
+          Plot
+        </button>
+      </div>
+      <div class="panelContent">
+        <${ConfigFieldSelector}
+          selected=${selected}
+          onSelectedChange=${onSelectedChange}
+          placeholder="Add common configuration..."
+          isClearable=${false}
+          allowMultiValue=${false}
+        />
+      </div>
+    </div>
+  `;
+}
+
+function AxisPanel({
+  axisNumber,
+  axisIndex,
+  configs,
+  onConfigsChange,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
+  isDragging,
+  isDragOver,
+  isDraggable
+}) {
+  const handleConfigChange = (index, newValue) => {
+    let newConfigs = [...configs];
+    newConfigs[index] = newValue;
+
+    // If this is the last (empty) field and user added something, add a new empty field
+    if (index === configs.length - 1 && newValue.length > 0) {
+      newConfigs.push([]);
+    }
+
+    // Remove empty fields that are not the last one
+    newConfigs = newConfigs.filter((config, i) => {
+      // Keep the last field (even if empty) and any non-empty fields
+      return i === newConfigs.length - 1 || config.length > 0;
+    });
+
+    // Ensure we always have at least one field (empty if needed)
+    if (newConfigs.length === 0) {
+      newConfigs = [[]];
+    }
+
+    onConfigsChange(newConfigs);
+  };
+
+  return html`
+    <div
+      class="panelContainer ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${!isDraggable ? 'not-draggable' : ''}"
+      draggable=${isDraggable}
+      onDragStart=${isDraggable ? (e) => onDragStart(e, axisIndex) : undefined}
+      onDragOver=${isDraggable ? (e) => onDragOver(e, axisIndex) : undefined}
+      onDragLeave=${isDraggable ? onDragLeave : undefined}
+      onDrop=${isDraggable ? (e) => onDrop(e, axisIndex) : undefined}
+      onDragEnd=${isDraggable ? onDragEnd : undefined}
+    >
+      <div class="panelTitle">
+        ${isDraggable ? html`<span class="drag-handle">☰</span>` : ''}
+        Axis ${axisNumber}
+      </div>
+      <div class="panelContent">
+        ${configs.map((config, index) => html`
+          <div key=${index} class="configField">
+            <${ConfigFieldSelector}
+              selected=${config}
+              onSelectedChange=${(newValue) => handleConfigChange(index, newValue)}
+              placeholder=${index === configs.length - 1 ? `Add new axis ${axisNumber} configuration...` : `Axis ${axisNumber} configuration...`}
+            />
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+}
+
+/* ---------- Model Registry ---------- */
+const modelRegistry = (() => {
+  const registry = {};
+
+  // Build registry from fieldDefinitions
+  Object.entries(fieldDefinitions).forEach(([fieldName, fieldDef]) => {
+    if (fieldDef.type === 'constrained' && fieldDef.options) {
+      registry[fieldName] = {};
+      Object.entries(fieldDef.options).forEach(([optionName, optionDef]) => {
+        if (optionDef.model) {
+          registry[fieldName][optionName] = optionDef.model();
+        }
+      });
+    }
+  });
+
+  // Add analysis mappings
+  registry.analysis = {
+    'max_current': new AnalysisMaxCurrent(),
+    'max_torque': new AnalysisMaxTorque(),
+    'max_velocity': new AnalysisMaxVelocity(),
+    'operating_point': new AnalysisOperatingPoint(),
+    'move_time': new AnalysisMinMovementTime(),
+  };
+
+  return registry;
+})();
+
+/* ---------- Utility Functions ---------- */
+// Convert chip array to key-value dictionary
+function convertChipsToDict(chips) {
+  const dict = {};
+  chips.forEach(chip => {
+    if (chip.field) {
+      dict[chip.field] = chip.data !== undefined ? chip.data : null;
+    }
+  });
+  return dict;
+}
+
+/* ---------- Reification Helper ---------- */
+// Convert string values to model instances where applicable
+function reifyObjects(dict) {
+  const reified = {};
+  Object.entries(dict).forEach(([key, value]) => {
+    if (value === null) {
+      reified[key] = null;
+    } else if (modelRegistry[key] && modelRegistry[key][value]) {
+      reified[key] = modelRegistry[key][value];
+    } else {
+      // Try to convert to number if it's a pure number string or infinity
+      if (typeof value === 'string') {
+        const lowerValue = value.toLowerCase().trim();
+        if (lowerValue === 'infinity') {
+          reified[key] = Infinity;
+        } else {
+          const numValue = Number(value);
+          if (!isNaN(numValue) && isFinite(numValue) && value.trim() === numValue.toString()) {
+            reified[key] = numValue;
+          } else {
+            reified[key] = value; // Keep as string if not a number
+          }
+        }
+      } else {
+        reified[key] = value; // Keep as-is if not a string
+      }
+    }
+  });
+
+  // Special handling for 'model' motor type
+  if (reified.motor === 'model') {
+    const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c', 'motor.d0', 'motor.d1'];
+    const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
+
+    if (hasAllFields) {
+      reified.motor = new Motor({
+        name: 'model',
+        displayName: 'model',
+        maxTemp: 80, // Fixed value
+        Kv: reified['motor.kv'],
+        R_pp: reified['motor.r'], // User input is phase-to-phase
+        L_pp: reified['motor.l'], // User input is phase-to-phase
+        d0: reified['motor.d0'],
+        d1: reified['motor.d1'],
+        thermal: {
+          'none': {
+            R: reified['motor.thermal_r'],
+            C: reified['motor.thermal_c']
+          }
+        }
+      });
+    } else {
+      reified.motor = null;
+    }
+  }
+
+
+  return reified;
+}
+
+/* ---------- Config Normalization Function ---------- */
+function normalizeConfig(config) {
+  // Create a copy to avoid modifying the original
+  const normalizedConfig = { ...config };
+
+  // Populate some defaults.
+  normalizedConfig.pwm = (normalizedConfig.pwm == 'default') ? normalizedConfig.controller?.getDefaultPwm() : normalizedConfig.pwm;
+  normalizedConfig.max_controller_temp = (normalizedConfig.max_controller_temp == 'default') ? normalizedConfig.controller?.getMaxTemp() : normalizedConfig.max_controller_temp;
+  normalizedConfig.max_motor_temp = (normalizedConfig.max_motor_temp == 'default') ? normalizedConfig.motor?.getMaxTemp() : normalizedConfig.max_motor_temp;
+
+  const floatFields = [
+    'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'max_controller_temp', 'max_motor_temp', 'torque', 'move_distance', 'load_inertia'
+  ];
+
+  for (const field of floatFields) {
+    normalizedConfig[field] = parseFloat(normalizedConfig[field]);
+  }
+
+  return normalizedConfig;
+}
+
+/* ---------- Evaluation Function ---------- */
+function evaluate(config) {
+  const normalizedConfig = normalizeConfig(config);
+
+  if (normalizedConfig.analysis == null) {
+    return { result: '', operatingPoint: null };
+  }
+
+  const op = normalizedConfig.analysis.evaluate(normalizedConfig);
+  if (op == null) {
+    return { result: '', operatingPoint: null };
+  }
+  const result = op[normalizedConfig.output];
+  if (result == null) {
+    return { result: '', operatingPoint: op };
+  }
+  return {
+    result: OperatingPoint.formatValue(normalizedConfig.output, result),
+    operatingPoint: op
+  };
+}
+
+/* ---------- Simulator Component ---------- */
+function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
+
+  // Use the module-level reifyObjects function
+
+  // Restructure configuration data
+  const restructureConfig = () => {
+    // Convert common config
+    const commonDict = convertChipsToDict(commonConfig);
+    const commonReified = reifyObjects(commonDict);
+
+    // Convert each axis config
+    const axisData = axisConfigs.map((axisConfigs, axisIndex) => {
+      // Each axis can have multiple configuration lines
+      const axisLines = axisConfigs.flatMap(lineChips => {
+        // Expand lines that contain comma-separated values
+        const expandedLines = expandChipLine(lineChips);
+        return expandedLines.map(expandedLine => {
+          const dict = convertChipsToDict(expandedLine);
+          return reifyObjects(dict);
+        });
+      }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
+
+      return {
+        axisNumber: axisIndex + 1,
+        configurations: axisLines
+      };
+    }).filter(axis => axis.configurations.length > 0); // Remove empty axes
+
+    return {
+      common: commonReified,
+      axes: axisData
+    };
+  };
+
+  const restructuredConfig = restructureConfig();
+
+  // Generate a short hash for a configuration object
+  const hashConfig = (config) => {
+    const str = JSON.stringify(config, null, 0);
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16).substr(0, 6);
+  };
+
+  // Generate axis name and label formatter based on configuration patterns
+  const getAxisInfo = (configs) => {
+    if (configs.length === 0) {
+      return { name: 'Empty', formatLabel: () => 'empty' };
+    }
+
+    // Get all unique field names across all configs
+    const allFields = new Set();
+    configs.forEach(config => {
+      Object.keys(config).forEach(field => allFields.add(field));
+    });
+
+    const fieldArray = Array.from(allFields).sort();
+
+    // Check if all configs have exactly one field and it's the same field
+    const singleField = fieldArray.length === 1 &&
+      configs.every(config => Object.keys(config).length === 1 && config[fieldArray[0]] !== undefined);
+
+    if (singleField) {
+      return {
+        name: fieldArray[0],
+        formatLabel: (config) => config[fieldArray[0]] || 'null'
+      };
+    } else {
+      return {
+        name: fieldArray.join(', '),
+        formatLabel: (config) => {
+          const values = fieldArray.map(field => config[field] || 'null');
+          return values.join(', ');
+        }
+      };
+    }
+  };
+
+  // Generate cartesian product of additional axes (beyond first 2)
+  const cartesianProduct = (arrays) => {
+    if (arrays.length === 0) return [[]];
+    return arrays.reduce((acc, current) => {
+      return acc.flatMap(accItem =>
+        current.map(currentItem => [...accItem, currentItem])
+      );
+    }, [[]]);
+  };
+
+  // Helper function to check if analysis and output are consistent across configurations
+  const getConsistentAnalysisAndOutput = (commonConfig, axisConfigs) => {
+    if (axisConfigs.length === 0) {
+      return null;
+    }
+
+    // Get original string values from common config (before reification)
+    const commonDict = convertChipsToDict(commonConfig);
+
+    // Collect all axis configurations as dictionaries (before reification)
+    const allAxisDicts = [];
+    axisConfigs.forEach((axisConfig, axisIndex) => {
+      if (axisConfig && axisConfig.length > 0) {
+        axisConfig.forEach(lineChips => {
+          if (lineChips.length > 0) {
+            const expandedLines = expandChipLine(lineChips);
+            expandedLines.forEach(expandedLine => {
+              const dict = convertChipsToDict(expandedLine);
+              allAxisDicts.push(dict);
+            });
+          }
+        });
+      }
+    });
+
+    // Check if any axis configuration overrides analysis or output
+    const analysisOverridden = allAxisDicts.some(dict => dict.hasOwnProperty('analysis'));
+    const outputOverridden = allAxisDicts.some(dict => dict.hasOwnProperty('output'));
+
+    // If overridden, we'd need to check consistency across all merged configs
+    // For now, only show in title if not overridden (common values apply to all)
+    const result = {
+      analysis: (!analysisOverridden && commonDict.analysis) ? commonDict.analysis : null,
+      output: (!outputOverridden && commonDict.output) ? commonDict.output : null
+    };
+
+    return result;
+  };
+
+  // Generate tables for simulation
+  const generateTables = () => {
+    const { common, axes } = restructuredConfig;
+
+    if (axes.length === 0) {
+      return [{
+        title: "No axes configured",
+        rows: [],
+        columns: [],
+        cells: []
+      }];
+    }
+
+    // Check for consistent analysis and output types across axes
+    const consistent = getConsistentAnalysisAndOutput(commonConfig, axisConfigs);
+
+    // Helper function to generate analysis/output suffix for titles
+    const getAnalysisOutputSuffix = () => {
+      const parts = [];
+      if (consistent?.analysis) {
+        parts.push(`Analysis: ${consistent.analysis}`);
+      }
+      if (consistent?.output) {
+        parts.push(`Output: ${consistent.output}`);
+      }
+      return parts.length > 0 ? ` (${parts.join(', ')})` : '';
+    };
+
+    // Get axis configurations (reified objects)
+    const axis1Configs = axes[0]?.configurations || [];
+    const axis2Configs = axes[1]?.configurations || [];
+    const additionalAxes = axes.slice(2);
+
+    // Get pre-reified configurations for labeling (also expand multi-values)
+    const axis1PreReified = axisConfigs[0]?.flatMap(lineChips => {
+      const expandedLines = expandChipLine(lineChips);
+      return expandedLines.map(expandedLine => convertChipsToDict(expandedLine));
+    }).filter(dict => Object.keys(dict).length > 0) || [];
+    const axis2PreReified = axisConfigs[1]?.flatMap(lineChips => {
+      const expandedLines = expandChipLine(lineChips);
+      return expandedLines.map(expandedLine => convertChipsToDict(expandedLine));
+    }).filter(dict => Object.keys(dict).length > 0) || [];
+
+    // Single axis case - single column table
+    if (axes.length === 1) {
+      const axis1Info = getAxisInfo(axis1PreReified);
+      return [{
+        title: `${axis1Info.name}${getAnalysisOutputSuffix()}`,
+        rows: axis1Configs,
+        columns: [{}], // Single empty column
+        cells: generateCells(common, axis1Configs, [{}], {}),
+        axis1Info,
+        axis1PreReified
+      }];
+    }
+
+    // Two axes case or more
+    if (additionalAxes.length === 0) {
+      const axis1Info = getAxisInfo(axis1PreReified);
+      const axis2Info = getAxisInfo(axis2PreReified);
+      return [{
+        title: `${axis1Info.name} vs ${axis2Info.name}${getAnalysisOutputSuffix()}`,
+        rows: axis1Configs,
+        columns: axis2Configs,
+        cells: generateCells(common, axis1Configs, axis2Configs, {}),
+        axis1Info,
+        axis2Info,
+        axis1PreReified,
+        axis2PreReified
+      }];
+    }
+
+    // Generate cartesian product for additional axes
+    const additionalConfigs = additionalAxes.map(axis => axis.configurations);
+    const combinations = cartesianProduct(additionalConfigs);
+
+    // Generate one table per combination
+    const axis1Info = getAxisInfo(axis1PreReified);
+    const axis2Info = getAxisInfo(axis2PreReified);
+
+    // Get pre-reified configurations for additional axes for proper labeling
+    const additionalAxesPreReified = additionalAxes.map((axis, axisIndex) => {
+      const realAxisIndex = axisIndex + 2; // axes 3, 4, 5, etc.
+      return axisConfigs[realAxisIndex]?.flatMap(lineChips => {
+        const expandedLines = expandChipLine(lineChips);
+        return expandedLines.map(expandedLine => convertChipsToDict(expandedLine));
+      }).filter(dict => Object.keys(dict).length > 0) || [];
+    });
+
+    return combinations.map((combination, index) => {
+      // Build additional config from combination
+      const additionalConfig = {};
+      combination.forEach((config, axisIndex) => {
+        Object.assign(additionalConfig, config);
+      });
+
+      // Generate title showing additional axes with proper labeling
+      const additionalTitle = combination.length > 0 ?
+        ` (${combination.map((config, i) => {
+          const axisPreReified = additionalAxesPreReified[i];
+          const axisInfo = getAxisInfo(axisPreReified);
+          const configIndex = additionalAxes[i].configurations.indexOf(config);
+
+          // For additional axes, always include field names in the label
+          let label;
+          if (axisPreReified[configIndex]) {
+            const preReifiedConfig = axisPreReified[configIndex];
+            const fieldEntries = Object.entries(preReifiedConfig);
+            label = fieldEntries.map(([field, value]) => `${field}=${value}`).join(', ');
+          } else {
+            label = hashConfig(config);
+          }
+
+          return `Axis ${i + 3}: ${label}`;
+        }).join(', ')})` :
+        '';
+
+      return {
+        title: `${axis1Info.name} vs ${axis2Info.name}${additionalTitle}${getAnalysisOutputSuffix()}`,
+        rows: axis1Configs,
+        columns: axis2Configs,
+        cells: generateCells(common, axis1Configs, axis2Configs, additionalConfig),
+        axis1Info,
+        axis2Info,
+        axis1PreReified,
+        axis2PreReified
+      };
+    });
+  };
+
+  // Generate cells for a table
+  const generateCells = (common, rows, columns, additionalConfig) => {
+    return rows.map(rowConfig => {
+      return columns.map(colConfig => {
+        // Union of configs: common < additional < axis1 < axis2
+        const cellConfig = {
+          ...common,
+          ...additionalConfig,
+          ...rowConfig,
+          ...colConfig
+        };
+        const evaluation = evaluate(cellConfig);
+        return {
+          config: cellConfig,
+          result: evaluation.result,
+          operatingPoint: evaluation.operatingPoint
+        };
+      });
+    });
+  };
+
+  const tables = generateTables();
+
+  // Helper function to format axis labels with fallback to config hash
+  const formatAxisLabel = (axisInfo, preReifiedArray, index, config) => {
+    return axisInfo?.formatLabel && preReifiedArray?.[index] ?
+      axisInfo.formatLabel(preReifiedArray[index]) :
+      hashConfig(config);
+  };
+
+  // Helper function to render single-column table structure
+  const renderSingleColumnTable = (table, tableIndex) => {
+    return html`
+      <table style="width: auto;">
+        <thead>
+          <tr>
+            <th>${table.axis1Info?.name || 'Axis 1'}</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${table.rows.map((rowConfig, rowIndex) => html`
+            <tr key=${hashConfig(rowConfig)}>
+              <td class="row-header">
+                ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
+              </td>
+              ${renderTableCell(table.cells[rowIndex][0], rowIndex, 0, tableIndex)}
+            </tr>
+          `)}
+        </tbody>
+      </table>
+    `;
+  };
+
+  // Helper function to render multi-column table structure
+  const renderMultiColumnTable = (table, tableIndex) => {
+    return html`
+      <table style="width: auto;">
+        <thead>
+          <tr>
+            <th>${table.axis1Info?.name || 'Axis 1'} \\ ${table.axis2Info?.name || 'Axis 2'}</th>
+            ${table.columns.map((colConfig, colIndex) => html`
+              <th key=${hashConfig(colConfig)}>
+                ${formatAxisLabel(table.axis2Info, table.axis2PreReified, colIndex, colConfig)}
+              </th>
+            `)}
+          </tr>
+        </thead>
+        <tbody>
+          ${table.rows.map((rowConfig, rowIndex) => html`
+            <tr key=${hashConfig(rowConfig)}>
+              <td class="row-header">
+                ${formatAxisLabel(table.axis1Info, table.axis1PreReified, rowIndex, rowConfig)}
+              </td>
+              ${table.cells[rowIndex].map((cell, colIndex) => renderTableCell(cell, rowIndex, colIndex, tableIndex))}
+            </tr>
+          `)}
+        </tbody>
+      </table>
+    `;
+  };
+
+  // Helper function to render a clickable table cell
+  const renderTableCell = (cell, rowIndex, colIndex, tableIndex) => {
+    const isSelected = selectedCell &&
+      selectedCell.rowIndex === rowIndex &&
+      selectedCell.colIndex === colIndex &&
+      selectedCell.tableIndex === tableIndex;
+    const isInfeasible = cell.operatingPoint && cell.operatingPoint._infeasible_reason && !cell.operatingPoint._limiting_factor;
+
+    return html`
+      <td
+        key=${colIndex}
+        class="${isSelected ? 'clickable selected' : 'clickable'}"
+        style="${isInfeasible ? 'color: #999;' : ''}"
+        onClick=${() => onCellClick && onCellClick(cell.config, cell.result, rowIndex, colIndex, tableIndex)}
+      >
+        ${isInfeasible ? html`<span style="color: #888;">⚠️ </span>` : ''}${cell.result}
+      </td>
+    `;
+  };
+
+  return html`
+    <div>
+      ${tables.map((table, tableIndex) => html`
+        <div key=${table.title} style="margin-bottom: 2rem;">
+          <h4>${table.title}</h4>
+          ${table.rows.length === 0 || table.columns.length === 0 ?
+            html`<p>No configurations to display</p>` :
+            table.columns.length === 1 && Object.keys(table.columns[0]).length === 0 ?
+              renderSingleColumnTable(table, tableIndex) :
+              renderMultiColumnTable(table, tableIndex)
+          }
+        </div>
+      `)}
+    </div>
+  `;
+}
+
+/* ---------- URL Query Parameter Parsing ---------- */
+function parseUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const commonParams = {};
+  const axisParams = {};
+  const plotParams = {};
+
+  for (const [key, value] of params.entries()) {
+    if (key.startsWith('common.')) {
+      const field = key.substring(7); // Remove 'common.'
+      commonParams[field] = value;
+    } else if (key.startsWith('axis.')) {
+      const lineMatch = key.match(/^axis\.(\d+)\.line\.(\d+)\.(.+)$/);
+      const directMatch = key.match(/^axis\.(\d+)\.(.+)$/);
+
+      if (lineMatch) {
+        // New multi-line format: axis.N.line.M.field
+        const axisNumber = parseInt(lineMatch[1]);
+        const lineIndex = parseInt(lineMatch[2]);
+        const field = lineMatch[3];
+
+        if (!axisParams[axisNumber]) {
+          axisParams[axisNumber] = { lines: {} };
+        }
+        if (!axisParams[axisNumber].lines[lineIndex]) {
+          axisParams[axisNumber].lines[lineIndex] = {};
+        }
+        axisParams[axisNumber].lines[lineIndex][field] = value;
+      } else if (directMatch) {
+        // Original format: axis.N.field (backwards compatibility)
+        const axisNumber = parseInt(directMatch[1]);
+        const field = directMatch[2];
+
+        if (!axisParams[axisNumber]) {
+          axisParams[axisNumber] = { lines: {} };
+        }
+        if (!axisParams[axisNumber].lines[0]) {
+          axisParams[axisNumber].lines[0] = {};
+        }
+        axisParams[axisNumber].lines[0][field] = value;
+      }
+    } else if (key.startsWith('plot.')) {
+      const field = key.substring(5); // Remove 'plot.'
+      if (field.startsWith('config.')) {
+        const configField = field.substring(7); // Remove 'config.'
+        if (!plotParams.config) {
+          plotParams.config = {};
+        }
+        plotParams.config[configField] = value;
+      } else if (field.startsWith('meta.')) {
+        const metaField = field.substring(5); // Remove 'meta.'
+        if (!plotParams.meta) {
+          plotParams.meta = {};
+        }
+        plotParams.meta[metaField] = value;
+      } else {
+        plotParams[field] = value;
+      }
+    }
+  }
+
+  return { commonParams, axisParams, plotParams };
+}
+
+function dictToChips(dict) {
+  return Object.entries(dict).map(([field, value]) => {
+    const hasMultipleValues = value.includes(',');
+    return {
+      field,
+      value: field,
+      data: value,
+      label: `${field}=${value}`,
+      isMultiValue: hasMultipleValues,
+      values: hasMultipleValues ? value.split(',').map(v => v.trim()) : [value]
+    };
+  });
+}
+
+function initializeFromUrl() {
+  const { commonParams, axisParams, plotParams } = parseUrlParams();
+
+
+  // Initialize common config
+  // Extract default values from the enhanced structure
+  const defaultValues = Object.fromEntries(
+    Object.entries(fieldDefinitions)
+      .filter(([key]) => !key.includes('.'))
+      .map(([field, def]) => [field, def.defaultValue])
+  );
+
+  const commonConfig = Object.keys(commonParams).length > 0 ?
+    dictToChips({ ...defaultValues, ...commonParams }) :
+    Object.entries(fieldDefinitions).filter(([key]) => !key.includes('.')).map(([field, def]) => ({
+      field,
+      value: field,
+      data: def.defaultValue,
+      label: `${field}=${def.defaultValue}`,
+      isMultiValue: false,
+      values: [def.defaultValue]
+    }));
+
+  // Initialize axis configs
+  const axisConfigs = [];
+  if (Object.keys(axisParams).length > 0) {
+    const maxAxis = Math.max(...Object.keys(axisParams).map(k => parseInt(k)));
+
+    // Initialize array with the right size to ensure proper indexing
+    for (let i = 0; i < maxAxis; i++) {
+      axisConfigs.push([[]]);
+    }
+
+    // Now populate the configurations at the correct indices
+    for (let axisNumber = 1; axisNumber <= maxAxis; axisNumber++) {
+      const axisIndex = axisNumber - 1; // Convert to 0-based index
+
+      if (axisParams[axisNumber] && axisParams[axisNumber].lines) {
+        // Convert line-based structure to lineConfigs array
+        const lineConfigs = [];
+        const lineIndices = Object.keys(axisParams[axisNumber].lines).map(k => parseInt(k)).sort((a, b) => a - b);
+
+        lineIndices.forEach(lineIndex => {
+          const lineDict = axisParams[axisNumber].lines[lineIndex];
+          if (Object.keys(lineDict).length > 0) {
+            const chips = dictToChips(lineDict);
+            lineConfigs.push(chips);
+          }
+        });
+
+        // Always add an empty line at the end for adding more chips
+        lineConfigs.push([]);
+
+        axisConfigs[axisIndex] = lineConfigs;
+      } else {
+        // Use default for this axis if it exists, otherwise empty
+        if (axisIndex < defaultAxisConfigs.length) {
+          const chips = defaultAxisConfigs[axisIndex].map(({ field, data }) => {
+            const hasMultipleValues = data.includes(',');
+            return {
+              field,
+              value: field,
+              data,
+              label: `${field}=${data}`,
+              isMultiValue: hasMultipleValues,
+              values: hasMultipleValues ? data.split(',').map(v => v.trim()) : [data]
+            };
+          });
+          axisConfigs[axisIndex] = [chips, []];
+        } else {
+          axisConfigs[axisIndex] = [[]];
+        }
+      }
+    }
+    axisConfigs.push([[]]);  // Add empty axis for adding more
+  } else {
+    // Use default axis configuration
+    defaultAxisConfigs.forEach(axisConfig => {
+      const chips = axisConfig.map(({ field, data }) => {
+        const hasMultipleValues = data.includes(',');
+        return {
+          field,
+          value: field,
+          data,
+          label: `${field}=${data}`,
+          isMultiValue: hasMultipleValues,
+          values: hasMultipleValues ? data.split(',').map(v => v.trim()) : [data]
+        };
+      });
+      axisConfigs.push([chips, []]);
+    });
+    axisConfigs.push([[]]);  // Add empty axis for adding more
+  }
+
+  return { commonConfig, axisConfigs, plotParams };
+}
+
+/* ---------- URL Generation ---------- */
+function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
+  const params = new URLSearchParams();
+
+  // Process common config - only include differences from defaults
+  const commonDict = {};
+  commonConfig.forEach(chip => {
+    if (chip.field && chip.data !== undefined) {
+      commonDict[chip.field] = chip.data;
+    }
+  });
+
+  Object.entries(commonDict).forEach(([field, value]) => {
+    const fieldDef = getFieldDefinition(field);
+    if (fieldDef?.defaultValue !== value) {
+      params.set(`common.${field}`, value);
+    }
+  });
+
+  // Helper functions for axis processing
+  const hasNonEmptyAxis = (configs) => {
+    return configs.some(config => config.length > 0);
+  };
+
+  const axisToDict = (axisConfigs) => {
+    const dict = {};
+    axisConfigs.forEach(lineConfigs => {
+      lineConfigs.forEach(chip => {
+        if (chip.field && chip.data !== undefined) {
+          dict[chip.field] = chip.data;
+        }
+      });
+    });
+    return dict;
+  };
+
+  const axisToLineArray = (axisConfigs) => {
+    return axisConfigs.map(lineConfigs => {
+      const lineDict = {};
+      lineConfigs.forEach(chip => {
+        if (chip.field && chip.data !== undefined) {
+          lineDict[chip.field] = chip.data;
+        }
+      });
+      return lineDict;
+    }).filter(lineDict => Object.keys(lineDict).length > 0);
+  };
+
+  const axisMatches = (axisConfigs, defaultAxis) => {
+    const axisDict = axisToDict(axisConfigs);
+    const defaultDict = Object.fromEntries(defaultAxis.map(({ field, data }) => [field, data]));
+
+    // Check if they have the same keys and values
+    const axisKeys = Object.keys(axisDict).sort();
+    const defaultKeys = Object.keys(defaultDict).sort();
+
+    if (axisKeys.length !== defaultKeys.length) return false;
+    if (axisKeys.some((key, i) => key !== defaultKeys[i])) return false;
+
+    return axisKeys.every(key => axisDict[key] === defaultDict[key]);
+  };
+
+  // Find the first non-default axis to determine where to start including axes
+  let firstNonDefaultAxis = -1;
+  for (let index = 0; index < axisConfigs.length; index++) {
+    if (!hasNonEmptyAxis(axisConfigs[index])) continue; // Skip empty axes
+
+    const isDefault = index < defaultAxisConfigs.length &&
+                     axisMatches(axisConfigs[index], defaultAxisConfigs[index]);
+
+    if (!isDefault) {
+      firstNonDefaultAxis = index;
+      break;
+    }
+  }
+
+  // Include all axes starting from the first non-default one
+  axisConfigs.forEach((axisConfig, index) => {
+    if (!hasNonEmptyAxis(axisConfig)) return; // Skip empty axes
+
+    const axisNumber = index + 1;
+    const shouldInclude = firstNonDefaultAxis >= 0 && index >= firstNonDefaultAxis;
+
+    if (shouldInclude) {
+      const lineArray = axisToLineArray(axisConfig);
+      lineArray.forEach((lineDict, lineIndex) => {
+        Object.entries(lineDict).forEach(([field, value]) => {
+          if (lineArray.length === 1) {
+            // Single line - use original format for backwards compatibility
+            params.set(`axis.${axisNumber}.${field}`, value);
+          } else {
+            // Multiple lines - use indexed format
+            params.set(`axis.${axisNumber}.line.${lineIndex}.${field}`, value);
+          }
+        });
+      });
+    }
+  });
+
+  // Add plot state if provided
+  if (plotState) {
+    params.set('plot.tab', plotState.activeTab);
+    if (plotState.activeTab === 'plot' && plotState.plotConfig) {
+      // Store plot config fields individually, similar to common config
+      Object.entries(plotState.plotConfig).forEach(([field, value]) => {
+        if (value !== null && value !== undefined) {
+          // Handle object values by extracting their identifier
+          if (typeof value === 'object') {
+            if (value.nameValue) {
+              // Motor objects
+              params.set(`plot.config.${field}`, value.nameValue);
+            } else if (value.props?.name) {
+              // Controller objects
+              params.set(`plot.config.${field}`, value.props.name);
+            }
+            // Skip other objects for now
+          } else {
+            params.set(`plot.config.${field}`, value);
+          }
+        }
+      });
+    }
+
+    // Store plot metadata (axis ranges, color field, etc.)
+    if (plotState.plotMetadata) {
+      Object.entries(plotState.plotMetadata).forEach(([field, value]) => {
+        if (value !== null && value !== undefined) {
+          params.set(`plot.meta.${field}`, value);
+        }
+      });
+    }
+  }
+
+  return params.toString();
+}
+
+async function copyUrlToClipboard(commonConfig, axisConfigs, plotState = null) {
+  const queryString = generateUrlFromConfig(commonConfig, axisConfigs, plotState);
+  const baseUrl = window.location.origin + window.location.pathname;
+  const fullUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+
+  // Try modern clipboard API first
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      return true;
+    } catch (err) {
+      console.error('Clipboard API failed:', err);
+    }
+  }
+
+  // Fallback to older method
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = fullUrl;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+
+    return successful;
+  } catch (err) {
+    console.error('Fallback copy method failed:', err);
+    return false;
+  }
+}
+
+/* ---------- Main App Component ---------- */
+function App() {
+  const { commonConfig: initialCommonConfig, axisConfigs: initialAxisConfigs, plotParams } = initializeFromUrl();
+  const [commonConfig, setCommonConfig] = useState(initialCommonConfig);
+  const [axisConfigs, setAxisConfigs] = useState(initialAxisConfigs);
+
+  // State for overlay functionality
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [overlayVisible, setOverlayVisible] = useState(false);
+  const [copyStatus, setCopyStatus] = useState('');
+  const [isHelpVisible, setIsHelpVisible] = useState(false);
+
+  // State for plot functionality - initialize from URL if present
+  const [activeTab, setActiveTab] = useState(plotParams?.tab || 'table');
+  const [plotMetadata, setPlotMetadata] = useState(plotParams?.meta || null);
+
+  // State for drag and drop functionality
+  const [draggedAxisIndex, setDraggedAxisIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  // Helper to create a complete config from URL plot params
+  const createConfigFromUrlParams = (plotConfigParams) => {
+    if (!plotConfigParams) {
+      return null;
+    }
+
+    // Start with default common values to ensure we have all required fields
+    const defaultValues = Object.fromEntries(
+      Object.entries(fieldDefinitions)
+        .filter(([key]) => !key.includes('.'))
+        .map(([field, def]) => [field, def.defaultValue])
+    );
+    const completeConfig = { ...defaultValues };
+
+    // Override with the plot-specific values from URL
+    Object.entries(plotConfigParams).forEach(([key, value]) => {
+      completeConfig[key] = value;
+    });
+
+    try {
+      // First reify the objects (convert strings to actual objects)
+      const reified = reifyObjects(completeConfig);
+
+      // Then normalize the reified config
+      const normalized = normalizeConfig(reified);
+      return normalized;
+    } catch (error) {
+      console.error('App: Error during reification/normalization:', error);
+      console.error('App: Config that failed:', completeConfig);
+      return null;
+    }
+  };
+
+  const [plotConfig, setPlotConfig] = useState(
+    createConfigFromUrlParams(plotParams?.config)
+  );
+
+  // Global function for overlay to switch to plot view
+  window.switchToPlotView = (baseConfig) => {
+    setPlotConfig(baseConfig);
+    setPlotMetadata(null); // Clear metadata so ranges get recalculated
+    setActiveTab('plot');
+  };
+
+  // Global function to show help overlay
+  window.showHelp = () => {
+    setIsHelpVisible(true);
+  };
+
+  const handleAxisConfigChange = (axisIndex, newConfigs) => {
+    let newAxisConfigs = [...axisConfigs];
+    newAxisConfigs[axisIndex] = newConfigs;
+
+    // If this is the last axis and it has any content, add a new empty axis
+    if (axisIndex === axisConfigs.length - 1 && hasAnyContent(newConfigs)) {
+      newAxisConfigs.push([[]]);  // Add new axis with one empty config
+    }
+
+    // Remove empty axes that are not the last one
+    newAxisConfigs = newAxisConfigs.filter((configs, i) => {
+      // Keep the last axis (even if empty) and any non-empty axes
+      return i === newAxisConfigs.length - 1 || hasAnyContent(configs);
+    });
+
+    // Ensure we always have at least one axis (empty if needed)
+    if (newAxisConfigs.length === 0) {
+      newAxisConfigs = [[[]]];  // One axis with one empty config
+    }
+
+    setAxisConfigs(newAxisConfigs);
+  };
+
+  // Drag and drop event handlers
+  const handleDragStart = (e, axisIndex) => {
+    // Prevent dragging the final empty axis
+    const isLastAxis = axisIndex === axisConfigs.length - 1;
+    const isEmpty = !hasAnyContent(axisConfigs[axisIndex]);
+
+    if (isLastAxis && isEmpty) {
+      e.preventDefault();
+      return;
+    }
+
+    setDraggedAxisIndex(axisIndex);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', ''); // Required for Firefox
+  };
+
+  const handleDragOver = (e, axisIndex) => {
+    // Prevent dropping on or below the final empty axis
+    const isLastAxis = axisIndex === axisConfigs.length - 1;
+    const isEmpty = !hasAnyContent(axisConfigs[axisIndex]);
+
+    if (isLastAxis && isEmpty) {
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
+
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(axisIndex);
+  };
+
+  const handleDragLeave = (e) => {
+    // Only clear dragOverIndex if we're leaving the container entirely
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+
+    // Prevent dropping on the final empty axis
+    const isLastAxis = dropIndex === axisConfigs.length - 1;
+    const isEmpty = !hasAnyContent(axisConfigs[dropIndex]);
+
+    if (isLastAxis && isEmpty) {
+      setDraggedAxisIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    if (draggedAxisIndex === null || draggedAxisIndex === dropIndex) {
+      setDraggedAxisIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Reorder the axis configurations
+    const newAxisConfigs = [...axisConfigs];
+    const [draggedConfig] = newAxisConfigs.splice(draggedAxisIndex, 1);
+    newAxisConfigs.splice(dropIndex, 0, draggedConfig);
+
+    setAxisConfigs(newAxisConfigs);
+    setDraggedAxisIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedAxisIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Helper function to check if any config in an axis has content
+  const hasAnyContent = (configs) => {
+    return configs.some(config => config.length > 0);
+  };
+
+  // Handler for cell clicks
+  const handleCellClick = (cellConfig, cellResult, rowIndex, colIndex, tableIndex) => {
+    // If clicking the same cell, close the overlay
+    if (selectedCell &&
+        selectedCell.rowIndex === rowIndex &&
+        selectedCell.colIndex === colIndex &&
+        selectedCell.tableIndex === tableIndex) {
+      setSelectedCell(null);
+      setOverlayVisible(false);
+      return;
+    }
+
+    // Set the selected cell and show overlay
+    setSelectedCell({
+      config: cellConfig,
+      result: cellResult,
+      rowIndex,
+      colIndex,
+      tableIndex
+    });
+    setOverlayVisible(true);
+  };
+
+  // Handler for closing overlay
+  const handleCloseOverlay = () => {
+    setSelectedCell(null);
+    setOverlayVisible(false);
+  };
+
+  // Handler for copying URL
+  const handleCopyUrl = async () => {
+    const plotState = {
+      activeTab,
+      plotConfig: activeTab === 'plot' ? plotConfig : null,
+      plotMetadata: activeTab === 'plot' ? window.getPlotMetadata?.() : null
+    };
+    const success = await copyUrlToClipboard(commonConfig, axisConfigs, plotState);
+    if (success) {
+      setCopyStatus('URL copied to clipboard!');
+      setTimeout(() => setCopyStatus(''), 3000);
+    } else {
+      setCopyStatus('Failed to copy URL');
+      setTimeout(() => setCopyStatus(''), 3000);
+    }
+  };
+
+  // Close overlay when configuration changes
+  useEffect(() => {
+    if (overlayVisible) {
+      setSelectedCell(null);
+      setOverlayVisible(false);
+    }
+  }, [commonConfig, axisConfigs]);
+
+  return html`
+    <div class="pageContainer">
+      <div class="panelColumn">
+        <${CommonConfigPanel}
+          selected=${commonConfig}
+          onSelectedChange=${setCommonConfig}
+        />
+        ${axisConfigs.map((configs, axisIndex) => {
+          const isLastAxis = axisIndex === axisConfigs.length - 1;
+          const isEmpty = !hasAnyContent(configs);
+          const isDraggable = !(isLastAxis && isEmpty);
+
+          return html`
+            <${AxisPanel}
+              key=${axisIndex}
+              axisNumber=${axisIndex + 1}
+              axisIndex=${axisIndex}
+              configs=${configs}
+              onConfigsChange=${(newConfigs) => handleAxisConfigChange(axisIndex, newConfigs)}
+              onDragStart=${handleDragStart}
+              onDragOver=${handleDragOver}
+              onDragLeave=${handleDragLeave}
+              onDrop=${handleDrop}
+              onDragEnd=${handleDragEnd}
+              isDragging=${draggedAxisIndex === axisIndex}
+              isDragOver=${dragOverIndex === axisIndex}
+              isDraggable=${isDraggable}
+            />
+          `;
+        })}
+        <div class="panelContainer">
+          <div class="panelContent">
+            <button
+              onClick=${handleCopyUrl}
+              class="primaryButton"
+            >
+              Copy URL
+            </button>
+            ${copyStatus && html`
+              <div style="margin-top: 8px; font-size: 12px; color: ${copyStatus.includes('Failed') ? '#d32f2f' : '#2e7d32'};">
+                ${copyStatus}
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+      <div class="resultsColumn">
+        <div class="tabContainer">
+          <div
+            class="tab ${activeTab === 'table' ? 'active' : ''}"
+            onClick=${() => setActiveTab('table')}
+          >
+            Table View
+          </div>
+          <div
+            class="tab ${activeTab === 'plot' ? 'active' : ''}"
+            onClick=${() => setActiveTab('plot')}
+          >
+            Plot View
+          </div>
+        </div>
+
+        <div class="tabContent">
+          ${activeTab === 'table' ? html`
+            <${Simulator}
+              commonConfig=${commonConfig}
+              axisConfigs=${axisConfigs}
+              onCellClick=${handleCellClick}
+              selectedCell=${selectedCell}
+            />
+          ` : html`
+            <${PlotView}
+              baseConfig=${plotConfig}
+              commonConfig=${commonConfig}
+              plotMetadata=${plotMetadata}
+            />
+          `}
+        </div>
+      </div>
+    </div>
+    <${OperatingPointOverlay}
+      isVisible=${overlayVisible}
+      selectedCell=${selectedCell}
+      onClose=${handleCloseOverlay}
+    />
+    <${HelpOverlay}
+      isVisible=${isHelpVisible}
+      onClose=${() => setIsHelpVisible(false)}
+    />
+  `;
+}
+
+render(html`<${App} />`, document.body);
+
+// Set the home link to current page without query parameters
+document.getElementById('homeLink').href = window.location.pathname;
+
+// Set up help button functionality
+document.getElementById('helpButton').onclick = () => window.showHelp();
+  </script>
+  <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
+</head>
+
+<body>
+<footer>
+  <div class="footerContent">
+    <div class="footerText">
+      <a id="homeLink" href="#" style="color: inherit; text-decoration: none;">moteus Performance Analysis Tool</a>
+      | Licensed under Apache 2.0
+      | (c) 2025 mjbots Robotic Systems
+      | <a href="https://mjbots.com">https://mjbots.com</a>
+    </div>
+    <button id="helpButton" class="helpButton footerButton">
+      Help
+    </button>
+  </div>
+</footer>
+</body>
+
+</html>

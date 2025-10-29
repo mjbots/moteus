@@ -1,0 +1,34 @@
+/* Compact table styling - override Material theme defaults */
+.md-typeset table {
+    table-layout: auto;
+    width: auto !important;  /* Table only as wide as content needs */
+    max-width: 100%;
+    display: table;  /* Ensure proper table layout */
+    border-collapse: collapse;
+}
+
+.md-typeset table:not([class]) th,
+.md-typeset table:not([class]) td {
+    padding: 0.4rem 0.6rem !important;  /* Much more compact than Material's default 1.25em */
+    white-space: nowrap;
+    min-width: auto !important;
+    border-left: 1px solid var(--md-typeset-table-color, rgba(0, 0, 0, 0.12));
+}
+
+/* Even more compact for dense technical tables */
+.md-typeset table th,
+.md-typeset table td {
+    padding: 0.4rem 0.6rem !important;
+    border-left: 1px solid var(--md-typeset-table-color, rgba(0, 0, 0, 0.12));
+}
+
+/* Remove border from first column */
+.md-typeset table th:first-child,
+.md-typeset table td:first-child {
+    border-left: none;
+}
+
+/* Allow content to wrap only in specific tables if needed */
+.md-typeset table.wrap-content td {
+    white-space: normal;
+}

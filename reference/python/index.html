@@ -1,0 +1,4818 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mjbots.github.io/moteus/reference/python/">
+      
+      
+        <link rel="prev" href="../theory/">
+      
+      
+        <link rel="next" href="../../protocol/can/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+    
+    
+      
+        <title>Python - moteus Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../style.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#python-api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="moteus Documentation" class="md-header__button md-logo" aria-label="moteus Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            moteus Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Python
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mjbots/moteus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mjbots/moteus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  Introduction
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/mechanical-setup/" class="md-tabs__link">
+          
+  
+  
+  Using moteus
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integration/python/" class="md-tabs__link">
+          
+  
+  
+  Integration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/calibration/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../pinouts/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="moteus Documentation" class="md-nav__button md-logo" aria-label="moteus Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    moteus Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mjbots/moteus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mjbots/moteus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Introduction
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Introduction
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Using moteus
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Using moteus
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/mechanical-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Mechanical Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/electrical-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electrical Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/software-installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Software Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/encoder-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Encoder Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Calibration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/pid-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PID Tuning
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/control-modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Control Modes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Advanced Configuration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/hall-effects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Motor with Hall Effects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/dual-encoders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dual Encoders
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Integration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Integration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Python Client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    C++ Client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/can-fd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Raw CAN-FD
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Host Platforms
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Host Platforms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/raspberry-pi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Raspberry Pi
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/jetson/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Nvidia Jetson
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/socketcan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    socketcan
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/arduino/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Arduino
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Troubleshooting
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Calibration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/no-motion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    No Motion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/limited-torque/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Limited Torque
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/gate-driver-faults/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Gate Driver Faults
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pinouts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Pinouts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../encoders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Encoders
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../client-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Client Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration Parameters
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Hardware Specifications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../firmware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Flashing and Building Firmware
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Application Limits
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Theory of Operation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_9" id="__nav_5_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_9">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Python
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Python
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#moteuscontroller" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.Controller
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.Controller">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_position_wait_complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_position_wait_complete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_stop" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_stop
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_stop" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_stop
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.query" class="md-nav__link">
+    <span class="md-ellipsis">
+      query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.custom_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      custom_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_custom_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_custom_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_output_nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_output_nearest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_set_output_nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_set_output_nearest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_output_exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_output_exact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_set_output_exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_set_output_exact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_recapture_position_velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_recapture_position_velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_recapture_position_velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_recapture_position_velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_vfoc" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_vfoc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_vfoc" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_vfoc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_stay_within" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_stay_within
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_stay_within" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_stay_within
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_brake" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_brake
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_brake" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_brake
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_write_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_write_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_write_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_write_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.read_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      read_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_trim
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_set_trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_set_trim
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_aux_pwm" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_aux_pwm
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_aux_pwm" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_aux_pwm
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusmake_transport_args" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.make_transport_args
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusget_singleton_transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.get_singleton_transport
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusqueryresolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.QueryResolution
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.QueryResolution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.position" class="md-nav__link">
+    <span class="md-ellipsis">
+      position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.q_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      q_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.d_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      d_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.abs_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      abs_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.power" class="md-nav__link">
+    <span class="md-ellipsis">
+      power
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.motor_temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      motor_temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.trajectory_complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajectory_complete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.rezero_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      rezero_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.home_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      home_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.fault" class="md-nav__link">
+    <span class="md-ellipsis">
+      fault
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.aux1_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      aux1_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.aux2_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      aux2_gpio
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteuspositionresolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.PositionResolution
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.PositionResolution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.position" class="md-nav__link">
+    <span class="md-ellipsis">
+      position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.feedforward_torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      feedforward_torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.kp_scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      kp_scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.kd_scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      kd_scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.maximum_torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      maximum_torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.stop_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      stop_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.watchdog_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      watchdog_timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.velocity_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      velocity_limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.accel_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      accel_limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.fixed_voltage_override" class="md-nav__link">
+    <span class="md-ellipsis">
+      fixed_voltage_override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.ilimit_scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      ilimit_scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.fixed_current_override" class="md-nav__link">
+    <span class="md-ellipsis">
+      fixed_current_override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.ignore_position_bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      ignore_position_bounds
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusstream" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.Stream
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.Stream">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Stream.command" class="md-nav__link">
+    <span class="md-ellipsis">
+      command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Stream.write_message" class="md-nav__link">
+    <span class="md-ellipsis">
+      write_message
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Stream.read_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      read_data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_10" id="__nav_5_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Advanced
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_10">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/can/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAN Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/registers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Register Reference
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../protocol/diagnostic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Diagnostic Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#moteuscontroller" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.Controller
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.Controller">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_position_wait_complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_position_wait_complete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_stop" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_stop
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_stop" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_stop
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.query" class="md-nav__link">
+    <span class="md-ellipsis">
+      query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.custom_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      custom_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_custom_query" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_custom_query
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_output_nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_output_nearest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_set_output_nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_set_output_nearest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_output_exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_output_exact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_set_output_exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_set_output_exact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_recapture_position_velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_recapture_position_velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_recapture_position_velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_recapture_position_velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_vfoc" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_vfoc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_vfoc" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_vfoc
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_stay_within" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_stay_within
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_stay_within" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_stay_within
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_brake" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_brake
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_brake" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_brake
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_write_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_write_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_write_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_write_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.read_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      read_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_trim
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_set_trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_set_trim
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.set_aux_pwm" class="md-nav__link">
+    <span class="md-ellipsis">
+      set_aux_pwm
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Controller.make_aux_pwm" class="md-nav__link">
+    <span class="md-ellipsis">
+      make_aux_pwm
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusmake_transport_args" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.make_transport_args
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusget_singleton_transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.get_singleton_transport
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusqueryresolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.QueryResolution
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.QueryResolution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.position" class="md-nav__link">
+    <span class="md-ellipsis">
+      position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.q_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      q_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.d_current" class="md-nav__link">
+    <span class="md-ellipsis">
+      d_current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.abs_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      abs_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.power" class="md-nav__link">
+    <span class="md-ellipsis">
+      power
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.motor_temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      motor_temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.trajectory_complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      trajectory_complete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.rezero_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      rezero_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.home_state" class="md-nav__link">
+    <span class="md-ellipsis">
+      home_state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.fault" class="md-nav__link">
+    <span class="md-ellipsis">
+      fault
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.aux1_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      aux1_gpio
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.QueryResolution.aux2_gpio" class="md-nav__link">
+    <span class="md-ellipsis">
+      aux2_gpio
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteuspositionresolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.PositionResolution
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.PositionResolution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.position" class="md-nav__link">
+    <span class="md-ellipsis">
+      position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.feedforward_torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      feedforward_torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.kp_scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      kp_scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.kd_scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      kd_scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.maximum_torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      maximum_torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.stop_position" class="md-nav__link">
+    <span class="md-ellipsis">
+      stop_position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.watchdog_timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      watchdog_timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.velocity_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      velocity_limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.accel_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      accel_limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.fixed_voltage_override" class="md-nav__link">
+    <span class="md-ellipsis">
+      fixed_voltage_override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.ilimit_scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      ilimit_scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.fixed_current_override" class="md-nav__link">
+    <span class="md-ellipsis">
+      fixed_current_override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.ignore_position_bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      ignore_position_bounds
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusstream" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus.Stream
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="moteus.Stream">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Stream.command" class="md-nav__link">
+    <span class="md-ellipsis">
+      command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Stream.write_message" class="md-nav__link">
+    <span class="md-ellipsis">
+      write_message
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.Stream.read_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      read_data
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="python-api-reference">Python API reference<a class="headerlink" href="#python-api-reference" title="Permanent link">&para;</a></h1>
+<h2 id="moteuscontroller">moteus.Controller<a class="headerlink" href="#moteuscontroller" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+        <p>Operates a single moteus controller across some communication
+medium.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>id</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>bus ID of the controller or DeviceAddress structure</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>query_resolution</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>an instance of moteus.QueryResolution</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="moteus.moteus.QueryResolution">QueryResolution</span>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>position_resolution</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>an instance of moteus.PositionResolution</p>
+              </div>
+            </td>
+            <td>
+                  <code><span title="moteus.moteus.PositionResolution">PositionResolution</span>()</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>transport</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>something modeling moteus.Transport to send commands through</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_position" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_position</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_position" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_position" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_position</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">feedforward_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kp_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kd_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">maximum_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">watchdog_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accel_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_voltage_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ilimit_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_current_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ignore_position_bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_position" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data necessary to send a
+position mode command with the given values.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_position_wait_complete" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_position_wait_complete</span><span class="p">(</span><span class="n">period_s</span><span class="o">=</span><span class="mf">0.025</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_position_wait_complete" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Repeatedly send a position mode command to a device until it
+reports that the trajectory has been completed.</p>
+<p>If the controller is unresponsive, this method will never return.</p>
+<p>If the controller reports a fault or position mode timeout, a
+FaultError exception will be raised.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_stop" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_stop</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_stop" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_stop" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_stop</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_stop" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data necessary to send a
+stop mode command.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.query" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">query</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.query" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_query" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_query</span><span class="p">(</span><span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_query" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.custom_query" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">custom_query</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.custom_query" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_custom_query" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_custom_query</span><span class="p">(</span><span class="n">to_query_fields</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_custom_query" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data required to query the
+registers given by the 'to_query_fields' dictionary of
+registers to resolutions.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_output_nearest" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_output_nearest</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_output_nearest" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_set_output_nearest" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_set_output_nearest</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_set_output_nearest" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_output_exact" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_output_exact</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_output_exact" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_set_output_exact" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_set_output_exact</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_set_output_exact" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_recapture_position_velocity" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_recapture_position_velocity</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_recapture_position_velocity" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_recapture_position_velocity" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_recapture_position_velocity</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_recapture_position_velocity" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_vfoc" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_vfoc</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_vfoc" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_vfoc" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_vfoc</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">theta</span><span class="p">,</span> <span class="n">voltage</span><span class="p">,</span> <span class="n">theta_rate</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_vfoc" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data necessary to send a
+voltage mode FOC command.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_current" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_current</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_current" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_current" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_current</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">d_A</span><span class="p">,</span> <span class="n">q_A</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_current" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data necessary to send a
+current mode command.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_stay_within" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_stay_within</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_stay_within" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_stay_within" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_stay_within</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">lower_bound</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">upper_bound</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">feedforward_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kp_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kd_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">maximum_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">watchdog_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ilimit_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ignore_position_bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_stay_within" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data necessary to send a
+within mode command with the given values.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_brake" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_brake</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_brake" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_brake" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_brake</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_brake" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_write_gpio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_write_gpio</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_write_gpio" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_write_gpio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_write_gpio</span><span class="p">(</span><span class="n">aux1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_write_gpio" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a moteus.Command structure with data necessary to set one or
+more GPIO registers.</p>
+<p>aux1/aux2 are an optional integer bitfield, where the least
+significant bit is pin 0 on the respective port.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.read_gpio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_gpio</span><span class="p">()</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.read_gpio" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Return a bytes() object with an int8 for each auxiliary port.  The
+pins for each port are represented as bits, with the least significant
+bit being pin 0.</p>
+<p>None can be returned if no response is received.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_trim" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_trim</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_trim" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_set_trim" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_set_trim</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">trim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_set_trim" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.set_aux_pwm" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">set_aux_pwm</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Controller.set_aux_pwm" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Controller.make_aux_pwm" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">make_aux_pwm</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">aux1_pwm1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux1_pwm2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux1_pwm3</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux1_pwm4</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux1_pwm5</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux2_pwm1</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux2_pwm2</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux2_pwm3</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux2_pwm4</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">aux2_pwm5</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+<a href="#moteus.Controller.make_aux_pwm" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="moteusmake_transport_args">moteus.make_transport_args<a class="headerlink" href="#moteusmake_transport_args" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+    <div class="doc doc-contents first">
+
+        <p>Add transport specific arguments to an argparse.ArgumentParser</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>parser</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>the argparse.ArgumentParser instance</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div><h2 id="moteusget_singleton_transport">moteus.get_singleton_transport<a class="headerlink" href="#moteusget_singleton_transport" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+    <div class="doc doc-contents first">
+
+        <p>Return (and construct if necessary) a transport.Transport
+instance that uses either all available CAN-FD interfaces on the
+system, or those configured by args.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>args</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>an argparse.Namespace object</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>a moteus.Transport object</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    </div>
+
+</div><h2 id="moteusqueryresolution">moteus.QueryResolution<a class="headerlink" href="#moteusqueryresolution" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+        <p>Specify which registers should be requested, and with which
+resolution, during query operations.</p>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.mode" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">mode</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">INT8</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.mode" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.position" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">position</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.position" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.velocity" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">velocity</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.velocity" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.torque" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">torque</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.torque" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.q_current" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">q_current</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.q_current" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.d_current" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">d_current</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.d_current" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.abs_position" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">abs_position</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.abs_position" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.power" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">power</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.power" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.motor_temperature" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">motor_temperature</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.motor_temperature" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.trajectory_complete" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">trajectory_complete</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.trajectory_complete" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.rezero_state" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">rezero_state</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.rezero_state" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.home_state" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">home_state</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.home_state" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.voltage" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">voltage</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">INT8</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.voltage" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.temperature" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">temperature</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">INT8</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.temperature" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.fault" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fault</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">INT8</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.fault" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.aux1_gpio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">aux1_gpio</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.aux1_gpio" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.QueryResolution.aux2_gpio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">aux2_gpio</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">IGNORE</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.QueryResolution.aux2_gpio" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="moteuspositionresolution">moteus.PositionResolution<a class="headerlink" href="#moteuspositionresolution" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+        <p>Specify what resolutions should be used for each register when
+sending position mode commands.</p>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.position" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">position</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.position" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.velocity" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">velocity</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.velocity" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.feedforward_torque" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">feedforward_torque</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.feedforward_torque" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.kp_scale" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">kp_scale</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.kp_scale" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.kd_scale" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">kd_scale</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.kd_scale" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.maximum_torque" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">maximum_torque</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.maximum_torque" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.stop_position" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">stop_position</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.stop_position" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.watchdog_timeout" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">watchdog_timeout</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.watchdog_timeout" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.velocity_limit" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">velocity_limit</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.velocity_limit" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.accel_limit" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">accel_limit</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.accel_limit" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.fixed_voltage_override" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fixed_voltage_override</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.fixed_voltage_override" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.ilimit_scale" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">ilimit_scale</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.ilimit_scale" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.fixed_current_override" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">fixed_current_override</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.fixed_current_override" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.ignore_position_bounds" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">ignore_position_bounds</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.ignore_position_bounds" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="moteusstream">moteus.Stream<a class="headerlink" href="#moteusstream" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+
+    <div class="doc doc-contents first">
+
+
+        <p>Presents a python file-like interface to the diagnostic stream of a
+moteus controller.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>controller</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>moteus.Controller instance</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>channel</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>diagnostic channel to use</p>
+              </div>
+            </td>
+            <td>
+                  <code>1</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>verbose</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>if True, all communication written to stdout</p>
+              </div>
+            </td>
+            <td>
+                  <code>False</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Stream.command" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">command</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">allow_any_response</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Stream.command" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Stream.write_message" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">write_message</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Stream.write_message" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="moteus.Stream.read_data" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">read_data</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-async"><code>async</code></small>
+  </span>
+
+<a href="#moteus.Stream.read_data" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/toc-collapse.js"></script>
+      
+    
+  </body>
+</html>

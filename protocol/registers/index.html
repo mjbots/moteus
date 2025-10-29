@@ -1,0 +1,4246 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://mjbots.github.io/moteus/protocol/registers/">
+      
+      
+        <link rel="prev" href="../can/">
+      
+      
+        <link rel="next" href="../diagnostic/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+    
+    
+      
+        <title>Register Reference - moteus Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../style.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#register-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="moteus Documentation" class="md-header__button md-logo" aria-label="moteus Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            moteus Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Register Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mjbots/moteus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mjbots/moteus
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+  Introduction
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/mechanical-setup/" class="md-tabs__link">
+          
+  
+  
+  Using moteus
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integration/python/" class="md-tabs__link">
+          
+  
+  
+  Integration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../troubleshooting/calibration/" class="md-tabs__link">
+          
+  
+  
+  Troubleshooting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../reference/pinouts/" class="md-tabs__link">
+          
+  
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="moteus Documentation" class="md-nav__button md-logo" aria-label="moteus Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    moteus Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mjbots/moteus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mjbots/moteus
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_1" id="__nav_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Introduction
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            Introduction
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Using moteus
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Using moteus
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/mechanical-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Mechanical Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/electrical-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Electrical Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/software-installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Software Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/encoder-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Encoder Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Calibration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/pid-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    PID Tuning
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/control-modes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Control Modes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_9" id="__nav_2_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Advanced Configuration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_9">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/hall-effects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Motor with Hall Effects
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/dual-encoders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Dual Encoders
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Integration
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Integration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Python Client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/cpp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    C++ Client
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/can-fd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Raw CAN-FD
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Host Platforms
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Host Platforms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/raspberry-pi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Raspberry Pi
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/jetson/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Nvidia Jetson
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/socketcan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    socketcan
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../platforms/arduino/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Arduino
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Troubleshooting
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Troubleshooting
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/calibration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Calibration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/no-motion/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    No Motion
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/limited-torque/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Limited Torque
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../troubleshooting/gate-driver-faults/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Gate Driver Faults
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/pinouts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Pinouts
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/encoders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Encoders
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/client-tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Client Tools
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration Parameters
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Hardware Specifications
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/firmware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Flashing and Building Firmware
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/limits/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Application Limits
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/theory/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Theory of Operation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_9" id="__nav_5_9_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_9">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/python/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Python
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_10" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_10" id="__nav_5_10_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Advanced
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_10_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_10">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../can/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CAN Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Register Reference
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Register Reference
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#register-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Register Usage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Register Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mappings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mappings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-measured-in-amps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Current (measured in Amps)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#torque-measured-in-nm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Torque (measured in N*m)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voltage-measured-in-volts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Voltage (measured in Volts)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-measured-in-degrees-celsius" class="md-nav__link">
+    <span class="md-ellipsis">
+      Temperature (measured in degrees Celsius)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#time-measured-in-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      Time (measured in seconds)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#position-measured-in-revolutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Position (measured in revolutions)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#velocity-measured-in-revolutions-s" class="md-nav__link">
+    <span class="md-ellipsis">
+      Velocity (measured in revolutions / s)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#acceleration-measured-in-revolutions-s2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acceleration (measured in revolutions / s^2)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pwm-and-kpkd-scale-unitless" class="md-nav__link">
+    <span class="md-ellipsis">
+      PWM and kp/kd scale (unitless)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-w" class="md-nav__link">
+    <span class="md-ellipsis">
+      Power (W)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Registers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Registers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#0x000-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x000 - Mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x001-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x001 - Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x002-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x002 - Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x003-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x003 - Torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x004-measured-q-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x004 - Measured Q phase current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x005-measured-d-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x005 - Measured D phase current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x006-measured-absolution-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x006 - Measured absolution position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x007-measured-electrical-power" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x007 - Measured electrical power
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00a-motor-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00a - Motor temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00b-trajectory-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00b - Trajectory complete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00c-home-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00c - Home state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00d-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00d - Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00e-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00e - Temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00f-fault-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00f - Fault code
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x010-0x011-0x012-pwm-phase-a-b-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x010 / 0x011 / 0x012 - PWM phase A / B / C
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x014-0x15-0x16-voltage-phase-a-b-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x014 / 0x15 / 0x16 - Voltage phase A / B / C
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x018-voltage-foc-theta" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x018 - Voltage FOC Theta
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x019-voltage-foc-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x019 - Voltage FOC Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01a-d-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01a - D Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01b-q-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01b - Q Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01c-commanded-q-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01c - Commanded Q Phase Current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01d-commanded-d-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01d - Commanded D Phase Current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x1e-voltage-foc-theta-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x1e - Voltage FOC Theta Rate
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x020-position-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x020 - Position command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x021-velocity-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x021 - Velocity command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x022-feedforward-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x022 - Feedforward torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x023-kp-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x023 - Kp scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x024-kd-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x024 - Kd scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x025-maximum-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x025 - Maximum torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x026-commanded-stop-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x026 - Commanded stop position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x027-watchdog-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x027 - Watchdog timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x028-velocity-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x028 - Velocity limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x029-acceleration-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x029 - Acceleration limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02a-fixed-voltage-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02a - Fixed voltage override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02b-ki-ilimit-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02b - Ki ilimit scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02c-fixed-current-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02c - Fixed current override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02d-ignore-position-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02d - Ignore position bounds
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x030-proportional-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x030 - Proportional torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x031-integral-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x031 - Integral torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x032-derivative-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x032 - Derivative torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x033-feedforward-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x033 - Feedforward torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x034-total-control-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x034 - Total control torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x038-control-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x038 - Control Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x039-control-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x039 - Control Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03a-control-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03a - Control Torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03b-position-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03b - Position Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03c-velocity-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03c - Velocity Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03d-torque-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03d - Torque Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x040-stay-within-lower-bound" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x040 - Stay within lower bound
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x041-stay-within-upper-bound" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x041 - Stay within upper bound
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x042-feedforward-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x042 - Feedforward torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x043-kp-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x043 - Kp scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x044-kd-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x044 - Kd scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x045-maximum-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x045 - Maximum torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x046-watchdog-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x046 - Watchdog timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x047-ki-ilimit-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x047 - Ki ilimit scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x048-ignore-position-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x048 - Ignore position bounds
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x050-encoder-0-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x050 - Encoder 0 Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x051-encoder-0-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x051 - Encoder 0 Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x052-encoder-1-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x052 - Encoder 1 Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x053-encoder-1-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x053 - Encoder 1 Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x054-encoder-2-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x054 - Encoder 2 Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x055-encoder-2-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x055 - Encoder 2 Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x058-encoder-validity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x058 - Encoder Validity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05c-aux1-gpio-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05c - Aux1 GPIO Command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05d-aux2-gpio-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05d - Aux2 GPIO Command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05e-aux1-gpio-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05e - Aux1 GPIO Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05f-aux2-gpio-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05f - Aux2 GPIO Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x0600x064-aux1-analog-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x060/0x064 - Aux1 Analog Inputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x0680x06c-aux2-analog-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x068/0x06c - Aux2 Analog Inputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x070-millisecond-counter" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x070 - Millisecond Counter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x071-clock-trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x071 - Clock Trim
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x0760x07a-aux1-pwm-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x076/0x07a - Aux1 PWM Outputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x07b0x07f-aux2-pwm-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x07b/0x07f - Aux2 PWM Outputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x100-model-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x100 - Model Number
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x101-firmware-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x101 - Firmware Version
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x102-register-map-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x102 - Register map version
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x110-multiplex-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x110 - Multiplex ID
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x120-0x122-serial-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x120 - 0x122 - Serial Number
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x130-set-output-nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x130 - Set Output Nearest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x131-set-output-exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x131 - Set Output Exact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x132-require-reindex" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x132 - Require Reindex
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x133-recapture-position-and-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x133 - Recapture Position and Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x140-driver-fault-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x140 - Driver Fault 1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x141-driver-fault-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x141 - Driver Fault 2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x150-0x153-uuid" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x150 - 0x153 - UUID
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x154-0x157-uuid-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x154 - 0x157 - UUID Mask
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x158-uuid-mask-functional" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x158 UUID Mask Functional
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../diagnostic/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Diagnostic Protocol
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#register-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Register Usage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Register Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mappings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Mappings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Mappings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#current-measured-in-amps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Current (measured in Amps)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#torque-measured-in-nm" class="md-nav__link">
+    <span class="md-ellipsis">
+      Torque (measured in N*m)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#voltage-measured-in-volts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Voltage (measured in Volts)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#temperature-measured-in-degrees-celsius" class="md-nav__link">
+    <span class="md-ellipsis">
+      Temperature (measured in degrees Celsius)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#time-measured-in-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      Time (measured in seconds)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#position-measured-in-revolutions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Position (measured in revolutions)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#velocity-measured-in-revolutions-s" class="md-nav__link">
+    <span class="md-ellipsis">
+      Velocity (measured in revolutions / s)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#acceleration-measured-in-revolutions-s2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Acceleration (measured in revolutions / s^2)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pwm-and-kpkd-scale-unitless" class="md-nav__link">
+    <span class="md-ellipsis">
+      PWM and kp/kd scale (unitless)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#power-w" class="md-nav__link">
+    <span class="md-ellipsis">
+      Power (W)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#registers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Registers
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Registers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#0x000-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x000 - Mode
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x001-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x001 - Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x002-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x002 - Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x003-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x003 - Torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x004-measured-q-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x004 - Measured Q phase current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x005-measured-d-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x005 - Measured D phase current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x006-measured-absolution-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x006 - Measured absolution position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x007-measured-electrical-power" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x007 - Measured electrical power
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00a-motor-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00a - Motor temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00b-trajectory-complete" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00b - Trajectory complete
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00c-home-state" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00c - Home state
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00d-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00d - Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00e-temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00e - Temperature
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x00f-fault-code" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x00f - Fault code
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x010-0x011-0x012-pwm-phase-a-b-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x010 / 0x011 / 0x012 - PWM phase A / B / C
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x014-0x15-0x16-voltage-phase-a-b-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x014 / 0x15 / 0x16 - Voltage phase A / B / C
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x018-voltage-foc-theta" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x018 - Voltage FOC Theta
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x019-voltage-foc-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x019 - Voltage FOC Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01a-d-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01a - D Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01b-q-voltage" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01b - Q Voltage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01c-commanded-q-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01c - Commanded Q Phase Current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x01d-commanded-d-phase-current" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x01d - Commanded D Phase Current
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x1e-voltage-foc-theta-rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x1e - Voltage FOC Theta Rate
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x020-position-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x020 - Position command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x021-velocity-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x021 - Velocity command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x022-feedforward-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x022 - Feedforward torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x023-kp-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x023 - Kp scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x024-kd-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x024 - Kd scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x025-maximum-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x025 - Maximum torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x026-commanded-stop-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x026 - Commanded stop position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x027-watchdog-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x027 - Watchdog timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x028-velocity-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x028 - Velocity limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x029-acceleration-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x029 - Acceleration limit
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02a-fixed-voltage-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02a - Fixed voltage override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02b-ki-ilimit-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02b - Ki ilimit scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02c-fixed-current-override" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02c - Fixed current override
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02d-ignore-position-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x02d - Ignore position bounds
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x030-proportional-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x030 - Proportional torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x031-integral-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x031 - Integral torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x032-derivative-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x032 - Derivative torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x033-feedforward-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x033 - Feedforward torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x034-total-control-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x034 - Total control torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x038-control-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x038 - Control Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x039-control-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x039 - Control Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03a-control-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03a - Control Torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03b-position-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03b - Position Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03c-velocity-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03c - Velocity Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x03d-torque-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x03d - Torque Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x040-stay-within-lower-bound" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x040 - Stay within lower bound
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x041-stay-within-upper-bound" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x041 - Stay within upper bound
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x042-feedforward-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x042 - Feedforward torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x043-kp-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x043 - Kp scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x044-kd-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x044 - Kd scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x045-maximum-torque" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x045 - Maximum torque
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x046-watchdog-timeout" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x046 - Watchdog timeout
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x047-ki-ilimit-scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x047 - Ki ilimit scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x048-ignore-position-bounds" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x048 - Ignore position bounds
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x050-encoder-0-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x050 - Encoder 0 Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x051-encoder-0-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x051 - Encoder 0 Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x052-encoder-1-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x052 - Encoder 1 Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x053-encoder-1-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x053 - Encoder 1 Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x054-encoder-2-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x054 - Encoder 2 Position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x055-encoder-2-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x055 - Encoder 2 Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x058-encoder-validity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x058 - Encoder Validity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05c-aux1-gpio-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05c - Aux1 GPIO Command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05d-aux2-gpio-command" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05d - Aux2 GPIO Command
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05e-aux1-gpio-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05e - Aux1 GPIO Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x05f-aux2-gpio-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x05f - Aux2 GPIO Status
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x0600x064-aux1-analog-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x060/0x064 - Aux1 Analog Inputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x0680x06c-aux2-analog-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x068/0x06c - Aux2 Analog Inputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x070-millisecond-counter" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x070 - Millisecond Counter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x071-clock-trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x071 - Clock Trim
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x0760x07a-aux1-pwm-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x076/0x07a - Aux1 PWM Outputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x07b0x07f-aux2-pwm-outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x07b/0x07f - Aux2 PWM Outputs
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x100-model-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x100 - Model Number
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x101-firmware-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x101 - Firmware Version
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x102-register-map-version" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x102 - Register map version
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x110-multiplex-id" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x110 - Multiplex ID
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x120-0x122-serial-number" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x120 - 0x122 - Serial Number
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x130-set-output-nearest" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x130 - Set Output Nearest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x131-set-output-exact" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x131 - Set Output Exact
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x132-require-reindex" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x132 - Require Reindex
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x133-recapture-position-and-velocity" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x133 - Recapture Position and Velocity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x140-driver-fault-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x140 - Driver Fault 1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x141-driver-fault-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x141 - Driver Fault 2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x150-0x153-uuid" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x150 - 0x153 - UUID
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x154-0x157-uuid-mask" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x154 - 0x157 - UUID Mask
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x158-uuid-mask-functional" class="md-nav__link">
+    <span class="md-ellipsis">
+      0x158 UUID Mask Functional
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="register-reference">Register Reference<a class="headerlink" href="#register-reference" title="Permanent link">&para;</a></h1>
+<h2 id="register-usage">Register Usage<a class="headerlink" href="#register-usage" title="Permanent link">&para;</a></h2>
+<p>Each register may be accessed as potentially multiple data types.
+This section describes the common mappings, and the semantics of each
+register.</p>
+<h3 id="mappings">Mappings<a class="headerlink" href="#mappings" title="Permanent link">&para;</a></h3>
+<p>When registers are accessed as integer types, the following mappings
+are used to encode the underlying floating point values into integer
+values.</p>
+<h4 id="current-measured-in-amps">Current (measured in Amps)<a class="headerlink" href="#current-measured-in-amps" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 1A</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.1A</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.001A</li>
+</ul>
+<h4 id="torque-measured-in-nm">Torque (measured in N*m)<a class="headerlink" href="#torque-measured-in-nm" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 0.5 N*m</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.01 N*m</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.001 N*m</li>
+</ul>
+<h4 id="voltage-measured-in-volts">Voltage (measured in Volts)<a class="headerlink" href="#voltage-measured-in-volts" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 0.5V</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.1V</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.001 V</li>
+</ul>
+<h4 id="temperature-measured-in-degrees-celsius">Temperature (measured in degrees Celsius)<a class="headerlink" href="#temperature-measured-in-degrees-celsius" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 1 C</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.1C</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.001 C</li>
+</ul>
+<h4 id="time-measured-in-seconds">Time (measured in seconds)<a class="headerlink" href="#time-measured-in-seconds" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 0.01s</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.001s</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.000001s</li>
+</ul>
+<h4 id="position-measured-in-revolutions">Position (measured in revolutions)<a class="headerlink" href="#position-measured-in-revolutions" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 0.01 rotation =&gt; 3.6 degrees (range of -1.27 to 1.27)</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.0001 rotation =&gt; 0.036 degrees (range of -3.2767 to 3.2767)</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.00001 rotation =&gt; 0.0036 degrees</li>
+</ul>
+<h4 id="velocity-measured-in-revolutions-s">Velocity (measured in revolutions / s)<a class="headerlink" href="#velocity-measured-in-revolutions-s" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 0.1Hz / 36 dps</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.00025 Hz &gt; 0.09 dps</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.00001 Hz =&gt; 0.0036 dps</li>
+</ul>
+<h4 id="acceleration-measured-in-revolutions-s2">Acceleration (measured in revolutions / s^2)<a class="headerlink" href="#acceleration-measured-in-revolutions-s2" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 0.05 l/s^2</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.001 l/s^2</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.00001 l/s^2</li>
+</ul>
+<h4 id="pwm-and-kpkd-scale-unitless">PWM and kp/kd scale (unitless)<a class="headerlink" href="#pwm-and-kpkd-scale-unitless" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; (1/127) - 0.007874</li>
+<li>int16 =&gt; 1 LSB =&gt; (1/32767) - 0.000030519</li>
+<li>int32 =&gt; 1 LSB =&gt; (1/2147483647) - 4.657e-10</li>
+</ul>
+<h4 id="power-w">Power (W)<a class="headerlink" href="#power-w" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 10.0 W</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.05 W</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.0001 W</li>
+</ul>
+<h2 id="registers">Registers<a class="headerlink" href="#registers" title="Permanent link">&para;</a></h2>
+<h3 id="0x000-mode">0x000 - Mode<a class="headerlink" href="#0x000-mode" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>The current operational mode of the servo.  Not all values are valid
+to write.</p>
+<ul>
+<li>0 =&gt; stopped = writeable, clears faults</li>
+<li>1 =&gt; fault</li>
+<li>2,3,4 =&gt; preparing to operate</li>
+<li>5 =&gt; PWM mode</li>
+<li>6 =&gt; voltage mode</li>
+<li>7 =&gt; voltage FOC</li>
+<li>8 =&gt; voltage DQ</li>
+<li>9 =&gt; current</li>
+<li>10 =&gt; position</li>
+<li>11 =&gt; timeout</li>
+<li>12 =&gt; zero velocity</li>
+<li>13 =&gt; stay within</li>
+<li>14 =&gt; measure inductance</li>
+<li>15 =&gt; brake</li>
+</ul>
+<p>When sending a command, this register must be written before any other
+registers in the command frame.</p>
+<h3 id="0x001-position">0x001 - Position<a class="headerlink" href="#0x001-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current position of the servo, measured in rotations of the output
+shaft.  The maximum negative integer is reserved and will not be
+reported.</p>
+<h3 id="0x002-velocity">0x002 - Velocity<a class="headerlink" href="#0x002-velocity" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current velocity of the servo, measured in Hz at the output shaft.</p>
+<h3 id="0x003-torque">0x003 - Torque<a class="headerlink" href="#0x003-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current applied torque as measured at the output shaft.</p>
+<h3 id="0x004-measured-q-phase-current">0x004 - Measured Q phase current<a class="headerlink" href="#0x004-measured-q-phase-current" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current in the Q phase measured in amperes.</p>
+<h3 id="0x005-measured-d-phase-current">0x005 - Measured D phase current<a class="headerlink" href="#0x005-measured-d-phase-current" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current in the D phase measured in amperes.</p>
+<h3 id="0x006-measured-absolution-position">0x006 - Measured absolution position<a class="headerlink" href="#0x006-measured-absolution-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>If an absolute encoder is configured on the ABS port, its value will
+be reported here in revolutions.</p>
+<h3 id="0x007-measured-electrical-power">0x007 - Measured electrical power<a class="headerlink" href="#0x007-measured-electrical-power" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The estimated electrical power applied to the motor if positive.  If
+negative, power applied to the DC input bus.</p>
+<h3 id="0x00a-motor-temperature">0x00a - Motor temperature<a class="headerlink" href="#0x00a-motor-temperature" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current motor temperature, measured in degrees celsius.  This will
+only be valid if an NTC thermistor is connected to the TEMP pads,
+<code>servo.motor_thermistor_ohm</code> is set to the correct resistance, and
+<code>servo.enable_motor_temperature</code> is set to 1.</p>
+<h3 id="0x00b-trajectory-complete">0x00b - Trajectory complete<a class="headerlink" href="#0x00b-trajectory-complete" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Non-zero if the current acceleration or velocity limited trajectory is
+complete, and the controller is following the final velocity.</p>
+<h3 id="0x00c-home-state">0x00c - Home state<a class="headerlink" href="#0x00c-home-state" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<ul>
+<li>0 - <em>relative only</em> - the position is not referenced to anything</li>
+<li>1 - <em>rotor</em> - the position is referenced to the rotor</li>
+<li>2 - <em>output</em> - the position has been referenced to the output,
+  either with an output referenced encoder, or with a "set output
+  nearest" or "set output exact" command</li>
+</ul>
+<h3 id="0x00d-voltage">0x00d - Voltage<a class="headerlink" href="#0x00d-voltage" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current input voltage.</p>
+<h3 id="0x00e-temperature">0x00e - Temperature<a class="headerlink" href="#0x00e-temperature" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current board temperature, measured in degrees celsius.</p>
+<h3 id="0x00f-fault-code">0x00f - Fault code<a class="headerlink" href="#0x00f-fault-code" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>A fault code which will be set if the primary mode is 1 (Fault).</p>
+<ul>
+<li>32 - <em>calibration fault</em> - the encoder was not able to sense a
+  magnet during calibration</li>
+<li>33 - <em>motor driver fault</em> - the most common reason for this is
+  undervoltage, moteus attempted to draw more current than the supply
+  could provide.  Other electrical faults may also report this error,
+  the <code>drv8323</code> diagnostic tree has more information.</li>
+<li>34 - <em>over voltage</em> - the bus voltage exceeded <code>servo.max_voltage</code>.
+  This can happen due to misconfiguration, or if the controller
+  regenerated power with a supply that cannot sink power and no flux
+  braking was configured.</li>
+<li>35 - <em>encoder fault</em> - the encoder readings are not consistent with
+  a magnet being present.</li>
+<li>36 - <em>motor not configured</em> - the <code>moteus_tool --calibrate</code>
+  procedure has not been run on this motor.</li>
+<li>37 - <em>pwm cycle overrun</em> - an internal firmware error</li>
+<li>38 - <em>over temperature</em> - the maximum configured temperature has
+  been exceeded</li>
+<li>39 - <em>outside limit</em> - an attempt was made to start position control
+  while outside the bounds configured by <code>servopos.position_min</code> and
+  <code>servopos.position_max</code>.</li>
+<li>40 - <em>under voltage</em> - the voltage was too low</li>
+<li>41 - <em>config changed</em> - a configuration value was changed during
+  operation that requires a stop</li>
+<li>42 - <em>theta invalid</em> - no valid commutation encoder is available</li>
+<li>43 - <em>position invalid</em> - no valid output encoder is available</li>
+<li>44 - <em>driver enable fault</em> - the MOSFET gate driver could not be
+  enabled</li>
+<li>45 - <em>stop position deprecated</em> - an attempt was made to use the
+  deprecated "stop position" feature along with velocity or
+  acceleration limits.  Prefer to instead command the desired position
+  directly with a target velocity of 0.0, or secondarily, disable
+  acceleration and velocity limits.</li>
+<li>46 - <em>timing violation</em> - internal checks are enabled, and the
+  controller violated an internal timing constraint</li>
+<li>47 - <em>bemf feedforward no accel</em> - <code>servo.bemf_feedforward</code> is
+  configured, but no acceleration limit was specified.  If you
+  <em>really</em> know what you are doing, you can disable this with
+  <code>servo.bemf_feedforward_override</code>.</li>
+<li>48 - <em>invalid limits</em> - <code>servopos.position_min</code> or
+  <code>servopos.position_max</code> are finite and outside the available
+  position range</li>
+</ul>
+<p>Some non-zero codes can be presented during valid control modes
+without a fault.  These indicate which, if any, function is limiting
+the output power of the controller.</p>
+<ul>
+<li>96 - <code>servo.max_velocity</code></li>
+<li>97 - <code>servo.max_power_W</code></li>
+<li>98 - the maximum system voltage</li>
+<li>99 - <code>servo.max_current_A</code></li>
+<li>100 - <code>servo.fault_temperature</code></li>
+<li>101 - <code>servo.motor_fault_temperature</code></li>
+<li>102 - the commanded maximum torque</li>
+<li>103 - <code>servopos.position_min</code> or <code>servopos.position_max</code></li>
+</ul>
+<h3 id="0x010-0x011-0x012-pwm-phase-a-b-c">0x010 / 0x011 / 0x012 - PWM phase A / B / C<a class="headerlink" href="#0x010-0x011-0x012-pwm-phase-a-b-c" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Pwm mode, this controls the raw PWM value for phase A, B, and
+C.  If unspecified, 0.0 is used.</p>
+<h3 id="0x014-0x15-0x16-voltage-phase-a-b-c">0x014 / 0x15 / 0x16 - Voltage phase A / B / C<a class="headerlink" href="#0x014-0x15-0x16-voltage-phase-a-b-c" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Voltage mode, this controls the voltage applied to phase A,
+B, and C.  If unspecified, 0.0 is used.</p>
+<h3 id="0x018-voltage-foc-theta">0x018 - Voltage FOC Theta<a class="headerlink" href="#0x018-voltage-foc-theta" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Voltage Foc mode, this controls the desired electrical phase.
+Integral types use the PWM mapping.  If unspecified, 0.0 is used.</p>
+<h3 id="0x019-voltage-foc-voltage">0x019 - Voltage FOC Voltage<a class="headerlink" href="#0x019-voltage-foc-voltage" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Voltage Foc mode, this controls the desired applied phase
+voltage.  If unspecified, 0.0 is used.</p>
+<h3 id="0x01a-d-voltage">0x01a - D Voltage<a class="headerlink" href="#0x01a-d-voltage" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Voltage Dq mode, this controls the desired applied D voltage.
+If unspecified, 0.0 is used.</p>
+<h3 id="0x01b-q-voltage">0x01b - Q Voltage<a class="headerlink" href="#0x01b-q-voltage" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in kVoltageDq mode, this controls the desired applied Q voltage.
+If unspecified, 0.0 is used.</p>
+<h3 id="0x01c-commanded-q-phase-current">0x01c - Commanded Q Phase Current<a class="headerlink" href="#0x01c-commanded-q-phase-current" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Current mode, this controls the desired Q phase current.  If
+unspecified, 0.0 is used.</p>
+<h3 id="0x01d-commanded-d-phase-current">0x01d - Commanded D Phase Current<a class="headerlink" href="#0x01d-commanded-d-phase-current" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Current mode, this controls the desired D phase current.  Unless
+you like burning power, with a BLDC motor you will typically want this
+set to 0.  If unspecified, 0.0 is used.</p>
+<h3 id="0x1e-voltage-foc-theta-rate">0x1e - Voltage FOC Theta Rate<a class="headerlink" href="#0x1e-voltage-foc-theta-rate" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Voltage Foc mode, this controls the rate of change of
+electrical phase.  Integral types use the velocity mapping.</p>
+<h3 id="0x020-position-command">0x020 - Position command<a class="headerlink" href="#0x020-position-command" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Position mode, this controls the desired position.</p>
+<p>The maximally negative integer, or NaN for float represents, "use the
+current position value".</p>
+<p>If unspecified, 0.0 is used.</p>
+<p>Note, in the absence of any configured or commanded velocity or
+acceleration limits, the controller will attempt to achieve this
+position <em>right now</em> subject to the kp and kd constants.</p>
+<h3 id="0x021-velocity-command">0x021 - Velocity command<a class="headerlink" href="#0x021-velocity-command" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Position mode, advance the desired position at the given
+velocity in Hz.</p>
+<p>As a special case, if the 0x020 position is unset, and 0x026 stop
+position is set, the sign of this is ignored, and is instead selected
+so that the motor will move towards the stop position.</p>
+<p>The maximally negative integer, or NaN for float, is treated the same
+as 0.0.</p>
+<p>If unspecified, 0.0 is used.</p>
+<h3 id="0x022-feedforward-torque">0x022 - Feedforward torque<a class="headerlink" href="#0x022-feedforward-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Position mode, add the given feedforward torque after applying
+all regular control loops.  Note, this is torque at the output shaft.
+If unspecified, 0.0 is used.</p>
+<h3 id="0x023-kp-scale">0x023 - Kp scale<a class="headerlink" href="#0x023-kp-scale" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Position mode, shrink the proportional control term by the
+given factor.  Integral types are applied as for PWM.  If unspecified,
+1.0 is used.</p>
+<h3 id="0x024-kd-scale">0x024 - Kd scale<a class="headerlink" href="#0x024-kd-scale" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Position mode, shrink the derivative control term by the given
+factor.  Integral types are applied as for PWM.  This is internally
+limited to be no more than the kp scale.  If unspecified, 1.0 is used.</p>
+<h3 id="0x025-maximum-torque">0x025 - Maximum torque<a class="headerlink" href="#0x025-maximum-torque" title="Permanent link">&para;</a></h3>
+<p>When in Position mode, the maximum torque to be applied.  If
+unspecified, this defaults to the system-wide configured maximum
+torque.</p>
+<h3 id="0x026-commanded-stop-position">0x026 - Commanded stop position<a class="headerlink" href="#0x026-commanded-stop-position" title="Permanent link">&para;</a></h3>
+<p>When in Position mode, and a non-zero velocity is commanded, stop
+motion when reaching the given position.  NaN / maximally negative
+means no limit is applied.  If unspecified, NaN is used.</p>
+<p>Note, if the controller is ever commanded to move <em>away</em> from the stop
+position, say with a velocity command that is inconsistent with the
+start and stop position, then it will act as if a 0 velocity has been
+commanded and the current command position equals the stop position.</p>
+<h3 id="0x027-watchdog-timeout">0x027 - Watchdog timeout<a class="headerlink" href="#0x027-watchdog-timeout" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>This determines the length of time for which this command is valid.
+If this timeout expires before another command is received, the
+controller will enter the Timeout state.  The default is 0.0, which
+means to use the system-wide configured default.  NaN / maximally
+negative means apply no enforced timeout.</p>
+<h3 id="0x028-velocity-limit">0x028 - Velocity limit<a class="headerlink" href="#0x028-velocity-limit" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>This can be used to override the global velocity limit for internally
+generated trajectories.</p>
+<p>If negative, then no limit is applied.</p>
+<p>If unspecified, it is NaN / maximally negative, which implies to use
+the global configurable default.</p>
+<h3 id="0x029-acceleration-limit">0x029 - Acceleration limit<a class="headerlink" href="#0x029-acceleration-limit" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>This can be used to override the global acceleration limit for
+internally generated trajectories.</p>
+<p>If negative, then no limit is applied.</p>
+<p>If unspecified, it is NaN / maximally negative, which implies to use
+the global configurable default.</p>
+<h3 id="0x02a-fixed-voltage-override">0x02a - Fixed voltage override<a class="headerlink" href="#0x02a-fixed-voltage-override" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>If specified and not-NaN, then the control mode will temporarily be in
+the "fixed voltage" mode, regardless of the current setting of
+<code>servo.fixed_voltage_mode</code>.</p>
+<h3 id="0x02b-ki-ilimit-scale">0x02b - Ki ilimit scale<a class="headerlink" href="#0x02b-ki-ilimit-scale" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Position mode, shrink the integral term's windup limit by the
+given factor.  Integral types are applied as for PWM.  If unspecified,
+1.0 is used.</p>
+<h3 id="0x02c-fixed-current-override">0x02c - Fixed current override<a class="headerlink" href="#0x02c-fixed-current-override" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>If specified, then the control mode will temporarily be in the "fixed
+current" mode.  This is parallel to "fixed voltage" mode, but instead
+of a fixed voltage, a fixed D axis current is controlled.</p>
+<h3 id="0x02d-ignore-position-bounds">0x02d - Ignore position bounds<a class="headerlink" href="#0x02d-ignore-position-bounds" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>If specified and non-zero, <code>servopos.position_min</code> and
+<code>servopos.position_max</code> will be ignore.</p>
+<h3 id="0x030-proportional-torque">0x030 - Proportional torque<a class="headerlink" href="#0x030-proportional-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the torque contribution from the proportional term in the
+PID controller.</p>
+<h3 id="0x031-integral-torque">0x031 - Integral torque<a class="headerlink" href="#0x031-integral-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the torque contribution from the integral term in the
+PID controller.</p>
+<h3 id="0x032-derivative-torque">0x032 - Derivative torque<a class="headerlink" href="#0x032-derivative-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the torque contribution from the derivative term in the
+PID controller.</p>
+<h3 id="0x033-feedforward-torque">0x033 - Feedforward torque<a class="headerlink" href="#0x033-feedforward-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the feedforward contribution in the PID controller.</p>
+<h3 id="0x034-total-control-torque">0x034 - Total control torque<a class="headerlink" href="#0x034-total-control-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the total commanded torque from the position mode
+controller.  This is also reported in 0x03a.</p>
+<h3 id="0x038-control-position">0x038 - Control Position<a class="headerlink" href="#0x038-control-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the current trajectory control position, in modes where
+that is valid.  When velocity or acceleration limiting is enabled, the
+control position will follow the desired limits to achieve the command
+position.</p>
+<h3 id="0x039-control-velocity">0x039 - Control Velocity<a class="headerlink" href="#0x039-control-velocity" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>This reports the current velocity control value, in modes where that
+is valid.  When velocity or acceleration limiting is enabled, the
+control velocity will follow the desired limits to achieve the control
+position and velocity.</p>
+<h3 id="0x03a-control-torque">0x03a - Control Torque<a class="headerlink" href="#0x03a-control-torque" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>The torque commanded by the control loop.  This is the same as 0x034.</p>
+<h3 id="0x03b-position-error">0x03b - Position Error<a class="headerlink" href="#0x03b-position-error" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>The current sensed position minus the control position.</p>
+<h3 id="0x03c-velocity-error">0x03c - Velocity Error<a class="headerlink" href="#0x03c-velocity-error" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>The current sensed velocity minus the control velocity.</p>
+<h3 id="0x03d-torque-error">0x03d - Torque Error<a class="headerlink" href="#0x03d-torque-error" title="Permanent link">&para;</a></h3>
+<p>Mode: Read</p>
+<p>The current sensed torque minus the control torque.</p>
+<h3 id="0x040-stay-within-lower-bound">0x040 - Stay within lower bound<a class="headerlink" href="#0x040-stay-within-lower-bound" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Stay Within mode, this controls the minimum allowable
+position.  The maximally negative integer or NaN for float represents,
+"there is no lower bound".  When special or the position is above this
+bound (and also respecting the optional upper bound), only a
+feedforward torque is applied.  When outside this bound, the PID
+controller is used to force the position back to the bound.  If
+unspecified, 0.0 is used.</p>
+<h3 id="0x041-stay-within-upper-bound">0x041 - Stay within upper bound<a class="headerlink" href="#0x041-stay-within-upper-bound" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>When in Stay Within mode, this controls the maximum allowable
+position.  The maximally negative integer, or NaN for float
+represents, "there is no upper bound". When special or the position is
+below this bound (and also respecting the optional lower bound), only
+a feedforward torque is applied.  When outside this bound, the PID
+controller is used to force the position back to the bound.  If
+unspecified, 0.0 is used.</p>
+<h3 id="0x042-feedforward-torque">0x042 - Feedforward torque<a class="headerlink" href="#0x042-feedforward-torque" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x022 register.</p>
+<h3 id="0x043-kp-scale">0x043 - Kp scale<a class="headerlink" href="#0x043-kp-scale" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x023 register.</p>
+<h3 id="0x044-kd-scale">0x044 - Kd scale<a class="headerlink" href="#0x044-kd-scale" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x024 register.</p>
+<h3 id="0x045-maximum-torque">0x045 - Maximum torque<a class="headerlink" href="#0x045-maximum-torque" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x025 register.</p>
+<h3 id="0x046-watchdog-timeout">0x046 - Watchdog timeout<a class="headerlink" href="#0x046-watchdog-timeout" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x027 register.</p>
+<h3 id="0x047-ki-ilimit-scale">0x047 - Ki ilimit scale<a class="headerlink" href="#0x047-ki-ilimit-scale" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x02b register.</p>
+<h3 id="0x048-ignore-position-bounds">0x048 - Ignore position bounds<a class="headerlink" href="#0x048-ignore-position-bounds" title="Permanent link">&para;</a></h3>
+<p>A shadow of the 0x02d register.</p>
+<h3 id="0x050-encoder-0-position">0x050 - Encoder 0 Position<a class="headerlink" href="#0x050-encoder-0-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the current filtered position of the encoder configured in
+slot 0.</p>
+<h3 id="0x051-encoder-0-velocity">0x051 - Encoder 0 Velocity<a class="headerlink" href="#0x051-encoder-0-velocity" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the current filtered velocity of the encoder configured in
+slot 0.</p>
+<h3 id="0x052-encoder-1-position">0x052 - Encoder 1 Position<a class="headerlink" href="#0x052-encoder-1-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the current filtered position of the encoder configured in
+slot 1.</p>
+<h3 id="0x053-encoder-1-velocity">0x053 - Encoder 1 Velocity<a class="headerlink" href="#0x053-encoder-1-velocity" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the current filtered velocity of the encoder configured in
+slot 1.</p>
+<h3 id="0x054-encoder-2-position">0x054 - Encoder 2 Position<a class="headerlink" href="#0x054-encoder-2-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the current filtered position of the encoder configured in
+slot 2.</p>
+<h3 id="0x055-encoder-2-velocity">0x055 - Encoder 2 Velocity<a class="headerlink" href="#0x055-encoder-2-velocity" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the current filtered velocity of the encoder configured in
+slot 2.</p>
+<h3 id="0x058-encoder-validity">0x058 - Encoder Validity<a class="headerlink" href="#0x058-encoder-validity" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Returns a bitfield, where bit 0 indicates whether encoder 0 is active,
+bit 1 indicates whether encoder 1 is active, etc.</p>
+<table>
+<thead>
+<tr>
+<th>Bit</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>Source 0 Theta</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Source 0 Velocity</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Source 1 Theta</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Source 1 Velocity</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Source 2 Theta</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Source 2 Velocity</td>
+</tr>
+</tbody>
+</table>
+<h3 id="0x05c-aux1-gpio-command">0x05c - Aux1 GPIO Command<a class="headerlink" href="#0x05c-aux1-gpio-command" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>The current output command for any GPIOs configured as an output on
+aux1 as a bitfield.  Not all bits may be used, as bit 0 is always for
+pin 1, whether or not it is configured as a GPIO output.</p>
+<h3 id="0x05d-aux2-gpio-command">0x05d - Aux2 GPIO Command<a class="headerlink" href="#0x05d-aux2-gpio-command" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>The current output command for any GPIOs configured as an output on
+aux2 as a bitfield.  Not all bits may be used, as bit 0 is always for
+pin 1, whether or not it is configured as a GPIO output.</p>
+<h3 id="0x05e-aux1-gpio-status">0x05e - Aux1 GPIO Status<a class="headerlink" href="#0x05e-aux1-gpio-status" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current input value of any GPIOs configured as an input on aux1 as
+a bitfield.  Not all bits may be used, as bit 0 is always for pin 1,
+whether or not it is configured as a GPIO input.</p>
+<h3 id="0x05f-aux2-gpio-status">0x05f - Aux2 GPIO Status<a class="headerlink" href="#0x05f-aux2-gpio-status" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current input value of any GPIOs configured as an input on aux2 as
+a bitfield.  Not all bits may be used, as bit 0 is always for pin 1,
+whether or not it is configured as a GPIO input.</p>
+<h3 id="0x0600x064-aux1-analog-inputs">0x060/0x064 - Aux1 Analog Inputs<a class="headerlink" href="#0x0600x064-aux1-analog-inputs" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current input value of any analog inputs configured on aux1.  The
+registers are associated with pins 1-5, regardless of whether they are
+configured as an analog input.  Each value is scaled as a PWM from 0
+to 1.</p>
+<h3 id="0x0680x06c-aux2-analog-inputs">0x068/0x06c - Aux2 Analog Inputs<a class="headerlink" href="#0x0680x06c-aux2-analog-inputs" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The current input value of any analog inputs configured on aux2.  The
+registers are associated with pins 1-5, regardless of whether they are
+configured as an analog input.  Each value is scaled as a PWM from 0
+to 1.</p>
+<h3 id="0x070-millisecond-counter">0x070 - Millisecond Counter<a class="headerlink" href="#0x070-millisecond-counter" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Increments once per millisecond.  It wraps at the maximum value for
+the queried type to the minimum value for that type.  For floating
+point types, it counts integers from 0 to 8388608.</p>
+<h3 id="0x071-clock-trim">0x071 - Clock Trim<a class="headerlink" href="#0x071-clock-trim" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>An integer which can trim the clock rate of the microprocessor on the
+moteus controller.  Positive values speed it up and negative values
+slow it down.  Each integer step roughly corresponds to a 0.25% change
+in speed.</p>
+<p>WARNING: Changing the speed affects all processes driven by the
+microcontroller, including CAN communication.  Thus setting this to a
+non-zero value may prevent future CAN communications.</p>
+<h3 id="0x0760x07a-aux1-pwm-outputs">0x076/0x07a - Aux1 PWM Outputs<a class="headerlink" href="#0x0760x07a-aux1-pwm-outputs" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>The current output PWM value for the given pin on Aux1.  PWM mapping
+is used for integral types.</p>
+<h3 id="0x07b0x07f-aux2-pwm-outputs">0x07b/0x07f - Aux2 PWM Outputs<a class="headerlink" href="#0x07b0x07f-aux2-pwm-outputs" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>The current output PWM value for the given pin on Aux1.  PWM mapping
+is used for integral types.</p>
+<h3 id="0x100-model-number">0x100 - Model Number<a class="headerlink" href="#0x100-model-number" title="Permanent link">&para;</a></h3>
+<p>Name: Model Number
+Mode: Read only</p>
+<p>This returns a 32 bit model number.</p>
+<h3 id="0x101-firmware-version">0x101 - Firmware Version<a class="headerlink" href="#0x101-firmware-version" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>This returns a 32 bit firmware version, encoded bytewise as
+major.minor.micro.  i.e. 0x010304 is version 1.3.4</p>
+<h3 id="0x102-register-map-version">0x102 - Register map version<a class="headerlink" href="#0x102-register-map-version" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>This returns a number that indicates how to interpret all registers.</p>
+<h3 id="0x110-multiplex-id">0x110 - Multiplex ID<a class="headerlink" href="#0x110-multiplex-id" title="Permanent link">&para;</a></h3>
+<p>Name: Multiplex ID
+Mode: Configurable</p>
+<p>This controls the primary ID used to access the device over the
+multiplex RS485 bus.  It can only be between 1 and 127.  (0 is
+reserved as the broadcast address).</p>
+<h3 id="0x120-0x122-serial-number">0x120 - 0x122 - Serial Number<a class="headerlink" href="#0x120-0x122-serial-number" title="Permanent link">&para;</a></h3>
+<p>Name: Serial Number
+Mode: Read only</p>
+<p>This returns a 96 bit serial number, least significant word first.</p>
+<h3 id="0x130-set-output-nearest">0x130 - Set Output Nearest<a class="headerlink" href="#0x130-set-output-nearest" title="Permanent link">&para;</a></h3>
+<p>Mode: Write only</p>
+<p>When sent, this causes the servo to select a whole number of internal
+motor rotations so that the final position is as close to the given
+position as possible.</p>
+<h3 id="0x131-set-output-exact">0x131 - Set Output Exact<a class="headerlink" href="#0x131-set-output-exact" title="Permanent link">&para;</a></h3>
+<p>Mode: Write only</p>
+<p>When sent, the servo will force the output position to be the exact
+specified value.</p>
+<h3 id="0x132-require-reindex">0x132 - Require Reindex<a class="headerlink" href="#0x132-require-reindex" title="Permanent link">&para;</a></h3>
+<p>Mode: Write only</p>
+<p>When sent with any value, the servo will require that any index
+position be re-located before control can begin.  Regardless, the
+position will reset to an arbitrary value consistent with the current
+encoder settings.</p>
+<h3 id="0x133-recapture-position-and-velocity">0x133 - Recapture Position and Velocity<a class="headerlink" href="#0x133-recapture-position-and-velocity" title="Permanent link">&para;</a></h3>
+<p>Mode: Write only</p>
+<p>When sent with any value, and if in "position" mode, the servo will
+re-initialize the current control position and velocity to the sensed
+values.  This also forces any pre-existing position integrative term
+to zero.  It is expected that this will mostly be used when the
+current applied torque is 0, either because of an in-place maximum
+torque limit of zero, or because of an in-place kp and kd scale of
+zero.</p>
+<h3 id="0x140-driver-fault-1">0x140 - Driver Fault 1<a class="headerlink" href="#0x140-driver-fault-1" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>The exact bitfield reported by the motor driver in fault conditions
+for fault register 1.  Up to 16 bits may be set.  This will only be
+non-zero if the current mode is fault (1) and the fault code is 33
+(motor driver fault).</p>
+<h3 id="0x141-driver-fault-2">0x141 - Driver Fault 2<a class="headerlink" href="#0x141-driver-fault-2" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only.</p>
+<p>The exact bitfield reported by the motor driver in fault conditions
+for fault register 2.  Up to 16 bits may be set.  This will only be
+non-zero if the current mode is fault (1) and the fault code is 33
+(motor driver fault).</p>
+<h3 id="0x150-0x153-uuid">0x150 - 0x153 - UUID<a class="headerlink" href="#0x150-0x153-uuid" title="Permanent link">&para;</a></h3>
+<p>Name: UUID
+Mode: Read only, int32 only</p>
+<p>This returns a 128 bit UUID, this is the value printed on mjbots
+packaging and returned by <code>moteus_tool --info</code></p>
+<h3 id="0x154-0x157-uuid-mask">0x154 - 0x157 - UUID Mask<a class="headerlink" href="#0x154-0x157-uuid-mask" title="Permanent link">&para;</a></h3>
+<p>Name: UUID
+Mode: Write only, int32 only</p>
+<p>If one or more of these fields are written, then the entire frame
+after this point will be discarded unless the devices corresponding
+UUID matches what was written.</p>
+<h3 id="0x158-uuid-mask-functional">0x158 UUID Mask Functional<a class="headerlink" href="#0x158-uuid-mask-functional" title="Permanent link">&para;</a></h3>
+<p>Name: UUID Filter capable
+Mode: Read only</p>
+<p>Returns non-zero if the UUID mask is usable.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/toc-collapse.js"></script>
+      
+    
+  </body>
+</html>
