@@ -1,14 +1,24 @@
 # Hardware Specifications
 
-## Mechanical
+## CAD and Models
 
-The current mechanical drawing for the controller can be found at:
-[20210124-moteus-controller-r45-mechanical.pdf](https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.pdf)
+| Name      | 2D CAD    | 3D Model   |
+|-----------|-----------|------------|
+| moteus-c1 |[2D CAD](https://github.com/mjbots/moteus/blob/0.1-20240430/hw/c1/r1.2/20240305-moteus-c1-r1_2.pdf) | [STEP](https://github.com/mjbots/moteus/blob/0.1-20240430/hw/c1/r1.2/20240305-moteus-c1-r1_2.step) |
+| moteus-r4 |[2D CAD](https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.pdf) | [STEP](https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.step) |
+| moteus-x1 | [2D CAD](https://drive.google.com/file/d/1R7wuc7vk1khD5ZvDWPy54Bx4PgHYiUCu/view) | [STEP](https://drive.google.com/file/d/19tJa4gzy0ZBWYYsaJA-Du0PgzoDWizjL/view?usp=sharing) |
+| moteus-n1 | [2D CAD](https://drive.google.com/file/d/1Ic65vT8BSeTtqz6uqd8C7l68aOMy3bMz/view?usp=share_link) | [STEP](https://drive.google.com/file/d/1wxX5G6kX6M6YZGGSceiXTOUZycxRaSIE/view?usp=share_link) |
 
-The current mechanical drawing for the qdd100 servo can be found at:
-[20200315-qdd100-mechanical.pdf](https://drive.google.com/file/d/1KUQyR853e2uw8WOVrQHaeskWYHGSm3nI/view?usp=sharing)
+## Electrical Limits
 
-## Power
+| Name | Min Voltage | Nominal | Abs Max Voltage | Peak Output | 3V Aux |  5V Aux | 12V Aux |
+|------|-------------|---------|-----------------|-------------|--------|---------|---------|
+| moteus-c1 | 10V | 24V | 51V (<= 12S) | 20A | 50mA | 100mA | N/A |
+| moteus-r4 | 10V | 24V | 44V (<= 10S) | 100A | 100mA | N/A | N/A |
+| moteus-x1 | 10V | 24V | 54V (<= 12S) | 120A | 100mA | 200mA | 150mA |
+| moteus-n1 | 10V | 24V | 54V (<= 12S) | 100A | 100mA | 200mA | N/A |
+
+## Power Limits
 
 The allowable maximum power for each moteus controller depends upon
 the input voltage and PWM switching frequency.  The below table gives
