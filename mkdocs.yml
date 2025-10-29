@@ -6,8 +6,11 @@ edit_uri: edit/main/docs/
 
 extra_css:
   - style.css
+  - stylesheets/iv-viewer.min.css
 
 extra_javascript:
+  - javascripts/iv-viewer.min.js
+  - javascripts/image-zoom.js
   - javascripts/toc-collapse.js
 
 theme:
