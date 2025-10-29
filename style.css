@@ -32,3 +32,22 @@
 .md-typeset table.wrap-content td {
     white-space: normal;
 }
+
+/* iv-viewer fullscreen background customization */
+.iv-fullscreen {
+    background-color: white !important;
+}
+
+.iv-fullscreen-container {
+    background-color: white !important;
+}
+
+/* Make close button visible on white background */
+.iv-fullscreen-close {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.iv-fullscreen-close:before,
+.iv-fullscreen-close:after {
+    background-color: white !important;
+}
