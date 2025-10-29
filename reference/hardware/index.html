@@ -1406,18 +1406,27 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#mechanical" class="md-nav__link">
+  <a href="#cad-and-models" class="md-nav__link">
     <span class="md-ellipsis">
-      Mechanical
+      CAD and Models
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#power" class="md-nav__link">
+  <a href="#electrical-limits" class="md-nav__link">
     <span class="md-ellipsis">
-      Power
+      Electrical Limits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#power-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Power Limits
     </span>
   </a>
   
@@ -1739,18 +1748,27 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#mechanical" class="md-nav__link">
+  <a href="#cad-and-models" class="md-nav__link">
     <span class="md-ellipsis">
-      Mechanical
+      CAD and Models
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#power" class="md-nav__link">
+  <a href="#electrical-limits" class="md-nav__link">
     <span class="md-ellipsis">
-      Power
+      Electrical Limits
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#power-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Power Limits
     </span>
   </a>
   
@@ -1776,12 +1794,96 @@
 
 
 <h1 id="hardware-specifications">Hardware Specifications<a class="headerlink" href="#hardware-specifications" title="Permanent link">&para;</a></h1>
-<h2 id="mechanical">Mechanical<a class="headerlink" href="#mechanical" title="Permanent link">&para;</a></h2>
-<p>The current mechanical drawing for the controller can be found at:
-<a href="https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.pdf">20210124-moteus-controller-r45-mechanical.pdf</a></p>
-<p>The current mechanical drawing for the qdd100 servo can be found at:
-<a href="https://drive.google.com/file/d/1KUQyR853e2uw8WOVrQHaeskWYHGSm3nI/view?usp=sharing">20200315-qdd100-mechanical.pdf</a></p>
-<h2 id="power">Power<a class="headerlink" href="#power" title="Permanent link">&para;</a></h2>
+<h2 id="cad-and-models">CAD and Models<a class="headerlink" href="#cad-and-models" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>2D CAD</th>
+<th>3D Model</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>moteus-c1</td>
+<td><a href="https://github.com/mjbots/moteus/blob/0.1-20240430/hw/c1/r1.2/20240305-moteus-c1-r1_2.pdf">2D CAD</a></td>
+<td><a href="https://github.com/mjbots/moteus/blob/0.1-20240430/hw/c1/r1.2/20240305-moteus-c1-r1_2.step">STEP</a></td>
+</tr>
+<tr>
+<td>moteus-r4</td>
+<td><a href="https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.pdf">2D CAD</a></td>
+<td><a href="https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.step">STEP</a></td>
+</tr>
+<tr>
+<td>moteus-x1</td>
+<td><a href="https://drive.google.com/file/d/1R7wuc7vk1khD5ZvDWPy54Bx4PgHYiUCu/view">2D CAD</a></td>
+<td><a href="https://drive.google.com/file/d/19tJa4gzy0ZBWYYsaJA-Du0PgzoDWizjL/view?usp=sharing">STEP</a></td>
+</tr>
+<tr>
+<td>moteus-n1</td>
+<td><a href="https://drive.google.com/file/d/1Ic65vT8BSeTtqz6uqd8C7l68aOMy3bMz/view?usp=share_link">2D CAD</a></td>
+<td><a href="https://drive.google.com/file/d/1wxX5G6kX6M6YZGGSceiXTOUZycxRaSIE/view?usp=share_link">STEP</a></td>
+</tr>
+</tbody>
+</table>
+<h2 id="electrical-limits">Electrical Limits<a class="headerlink" href="#electrical-limits" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Min Voltage</th>
+<th>Nominal</th>
+<th>Abs Max Voltage</th>
+<th>Peak Output</th>
+<th>3V Aux</th>
+<th>5V Aux</th>
+<th>12V Aux</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>moteus-c1</td>
+<td>10V</td>
+<td>24V</td>
+<td>51V (&lt;= 12S)</td>
+<td>20A</td>
+<td>50mA</td>
+<td>100mA</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>moteus-r4</td>
+<td>10V</td>
+<td>24V</td>
+<td>44V (&lt;= 10S)</td>
+<td>100A</td>
+<td>100mA</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>moteus-x1</td>
+<td>10V</td>
+<td>24V</td>
+<td>54V (&lt;= 12S)</td>
+<td>120A</td>
+<td>100mA</td>
+<td>200mA</td>
+<td>150mA</td>
+</tr>
+<tr>
+<td>moteus-n1</td>
+<td>10V</td>
+<td>24V</td>
+<td>54V (&lt;= 12S)</td>
+<td>100A</td>
+<td>100mA</td>
+<td>200mA</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<h2 id="power-limits">Power Limits<a class="headerlink" href="#power-limits" title="Permanent link">&para;</a></h2>
 <p>The allowable maximum power for each moteus controller depends upon
 the input voltage and PWM switching frequency.  The below table gives
 the maximum allowable power at <code>servo.pwm_rate_hz=30000</code>.</p>
