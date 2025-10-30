@@ -2156,8 +2156,8 @@ position is limited to stay within those bounds.  This does not
 directly limit torque, so is not reported via this mechanism.</p>
 <p>Similarly, if the commanded velocity exceeds either the velocity
 limit, <code>velocity.max_velocity</code>, or <code>servo_stats.motor_max_velocity</code>,
-then it is truncated to stay within.  This also is not reported via
-this mechanism.</p>
+then it is truncated to stay within.  These limits are not reported
+via the fault code mechanism.</p>
 <h2 id="resolution">Resolution<a class="headerlink" href="#resolution" title="Permanent link">&para;</a></h2>
 <p>If the error was mis-configuration, fix it and you are done.</p>
 <p>If the error was not mis-configuration, then the resolution depends upon what was causing the limiting.</p>
