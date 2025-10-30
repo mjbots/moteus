@@ -90,8 +90,8 @@ directly limit torque, so is not reported via this mechanism.
 
 Similarly, if the commanded velocity exceeds either the velocity
 limit, `velocity.max_velocity`, or `servo_stats.motor_max_velocity`,
-then it is truncated to stay within.  This also is not reported via
-this mechanism.
+then it is truncated to stay within.  These limits are not reported
+via the fault code mechanism.
 
 ## Resolution
 
