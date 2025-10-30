@@ -69,6 +69,18 @@ servo.pid_position.kp = 256
 servo.pid_position.kd = 3.2
 ```
 
+#### Invalidated calibration
+
+If your calibration was invalidated, it can result in lack of torque.  Invalidation can happen for any of the reasons in the [calibration troubleshooting guide](calibration.md), and include:
+
+- A sense magnet that was not rigidly affixed to the rotor, say because adhesive not used at a joint
+- A sense magnet that exceeded its rated temperature
+- The controller mounting shifted
+
+To test these hypotheses, re-calibrate the motor and check again.  If
+the problem is resolved, then you need to identify which of the above
+issues was the most likely culprit and resolve it.
+
 #### Other "limiting like things"
 
 There are some "limiting-like" features that do not report through the
