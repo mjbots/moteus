@@ -1265,6 +1265,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#invalidated-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Invalidated calibration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#other-limiting-like-things" class="md-nav__link">
     <span class="md-ellipsis">
       Other "limiting like things"
@@ -1932,6 +1941,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#invalidated-calibration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Invalidated calibration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#other-limiting-like-things" class="md-nav__link">
     <span class="md-ellipsis">
       Other "limiting like things"
@@ -2121,6 +2139,16 @@ gains by a factor of <code>8 ** 2 = 64</code>.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>servo.pid_position.kp = 256
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>servo.pid_position.kd = 3.2
 </span></code></pre></div>
+<h4 id="invalidated-calibration">Invalidated calibration<a class="headerlink" href="#invalidated-calibration" title="Permanent link">&para;</a></h4>
+<p>If your calibration was invalidated, it can result in lack of torque.  Invalidation can happen for any of the reasons in the <a href="../calibration/">calibration troubleshooting guide</a>, and include:</p>
+<ul>
+<li>A sense magnet that was not rigidly affixed to the rotor, say because adhesive not used at a joint</li>
+<li>A sense magnet that exceeded its rated temperature</li>
+<li>The controller mounting shifted</li>
+</ul>
+<p>To test these hypotheses, re-calibrate the motor and check again.  If
+the problem is resolved, then you need to identify which of the above
+issues was the most likely culprit and resolve it.</p>
 <h4 id="other-limiting-like-things">Other "limiting like things"<a class="headerlink" href="#other-limiting-like-things" title="Permanent link">&para;</a></h4>
 <p>There are some "limiting-like" features that do not report through the
 fault code mechanism.  If position bounds are configured, the control
