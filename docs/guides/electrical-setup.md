@@ -6,7 +6,9 @@ To use moteus without damage, proper care must be paid to the electrical connect
 
 Phase wires for the motor should be soldered to the pads labeled A, B, and C. The order does not matter. The location of the pads varies between controllers.  An inline connector, like an MR30, MR60, or bullet connectors can be used if repeated disconnection is desired.
 
-Power is provided via either the onboard XT30 connector, or on board-mountable moteus controllers, via the power pads that are interleaved with the A, B, and C phase pads.  The power input is *NOT* protected against reverse polarity.  Polarity should be triple checked before applying power, or irreversible damage may result.
+Power is provided via either the onboard XT30 connector, or on board-mountable moteus controllers, via the power pads that are interleaved with the A, B, and C phase pads.  The power input is *NOT* protected against reverse polarity.  Polarity should be triple checked before applying power, or irreversible damage may result.  XT30 connectors have a clear '+' and '-' marking on them which can be used to identify the positive and negative input.
+
+If you are unsure, pinout diagrams for all controllers can be found here: [Pinout diagrams](../reference/pinouts.md)
 
 !!! note "Hot plugging"
     It is important to *never* hot plug an XT30 connector.  The XT30 connector (and all connectors which are not anti-spark), should be connected *before* power is applied.  If you see or hear a spark, you have applied power in the wrong order.  See the below section on inrush current management.
