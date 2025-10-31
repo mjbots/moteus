@@ -138,6 +138,13 @@ py_test(
     size = "small",
 )
 
+py_test(
+    name = "discovery_test",
+    srcs = ["test/discovery_test.py"],
+    deps = [":moteus", ":test_helpers"],
+    size = "small",
+)
+
 test_suite(
     name = "test",
     tests = [
@@ -148,5 +155,6 @@ test_suite(
         ":reader_test",
         ":regression_test",
         ":transport_test",
+        ":discovery_test",
     ],
 )

@@ -201,6 +201,7 @@ def get_singleton_transport(args=None):
             to_try = [x for x in to_try if x.is_args_set(args)]
 
     devices = []
+    fdcanusb_serials = set()
 
     errors = []
     for factory in to_try:
@@ -218,7 +219,29 @@ def get_singleton_transport(args=None):
             errors.append((factory, str(e)))
             pass
 
+        # If this is fdcanusb factory, collect serial numbers for deduplication
+        if factory.name == 'fdcanusb':
+            for device in maybe_results:
+                serial = getattr(device, 'serial_number', None)
+                if serial:
+                    fdcanusb_serials.add(serial)
+
         devices.extend(maybe_results)
+
+    # Deduplicate: remove pythoncan devices that are fdcanusb duplicates
+    filtered_devices = []
+    for device in devices:
+        # Check if this is a pythoncan device with fdcanusb serial
+        fdcanusb_serial = getattr(device, 'fdcanusb_serial', None)
+
+        if fdcanusb_serial and fdcanusb_serial in fdcanusb_serials:
+            # Skip this device - already available as fdcanusb CDC
+            import logging
+            logging.info(f"Excluding {device} - already available as fdcanusb CDC")
+        else:
+            filtered_devices.append(device)
+
+    devices = filtered_devices
 
     if not devices:
         raise RuntimeError("Unable to find a default transport, tried: {}".format(

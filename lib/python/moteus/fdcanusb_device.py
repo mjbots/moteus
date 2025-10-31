@@ -106,6 +106,11 @@ class FdcanusbDevice(TransportDevice):
         else:
             return 'Fdcanusb()'
 
+    @property
+    def serial_number(self):
+        """Return the USB serial number of this device, if known."""
+        return self._serial_number
+
     def close(self):
         if self._reader_task and not self._reader_task.done():
             self._reader_task.cancel()
@@ -354,7 +359,12 @@ class FdcanusbDevice(TransportDevice):
 
     @staticmethod
     def pyserial_detect_fdcanusbs():
-        ports = serial.tools.list_ports.comports()
+        # Support both old and new fdcanusb VID/PID
+        FDCANUSB_IDS = [
+            (0x0483, 0x5740),  # Legacy fdcanusb
+            (0x1209, 0x2323),  # New fdcanusb with gs_usb
+        ]
 
+        ports = serial.tools.list_ports.comports()
         return [x.device for x in ports
-                if x.vid == 0x0483 and x.pid == 0x5740]
+                if (x.vid, x.pid) in FDCANUSB_IDS]
