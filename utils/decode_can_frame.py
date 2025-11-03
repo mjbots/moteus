@@ -287,6 +287,8 @@ def main():
             print(f'  {nbytes_data.hex()} - at most {nbytes} bytes')
         elif cmd == Command.NOP:
             print(f'{Command(cmd).name}')
+        else:
+            print(f'UNKNOWN')
 
 
 if __name__ == '__main__':
