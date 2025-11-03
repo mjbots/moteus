@@ -15,6 +15,22 @@ If using the default onboard encoder, the following steps must be taken:
 !!! note "3D printed mounts"
     If using 3D printed mounts, care should be taken to ensure the mount does not warp.  PLA and other low temperature filaments will warp under load at room temperature, and will do so even more when exposed to thermal heating like from a motor controller.  It is recommended to use PETG, PC, or a filament designed to not warp at the operating temperature you intend.
 
+## Additional Considerations
+
+There are additional considerations when mounting, some mostly common sense, and some unique to moteus.
+
+### Protection from debris and stray conductors
+
+It is advisable to mechanically shield moteus controllers from the environment during operation to prevent contact with stray conductors, dirt, or debris.  Contact with any of these things while the system is energized can result in failure.
+
+Similarly, manipulating or working on the system while it is energized should be avoided.
+
+### moteus-n1 light sensitivity
+
+moteus-n1 has a voltage regulator which is light sensitive and will fail when exposed to sunlight.  The enclosure used to house the system should be opaque.  If for some reason an enclosure can not be used, opaque expoxy can be placed over the voltage regulator IC.
+
+moteus-c1, moteus-r4 and moteus-x1 have no light sensitivity considerations to take into account.
+
 ## Next Steps
 
 Once mechanical mounting is complete, proceed to [Electrical Setup](electrical-setup.md) to connect the motor phase wires and power.
