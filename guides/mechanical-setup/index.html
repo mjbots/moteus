@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
     
     
       
@@ -576,6 +576,39 @@
       Mechanical Mounting
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Considerations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Additional Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#protection-from-debris-and-stray-conductors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Protection from debris and stray conductors
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus-n1-light-sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus-n1 light sensitivity
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1747,6 +1780,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#additional-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Considerations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Additional Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#protection-from-debris-and-stray-conductors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Protection from debris and stray conductors
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus-n1-light-sensitivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      moteus-n1 light sensitivity
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#next-steps" class="md-nav__link">
     <span class="md-ellipsis">
       Next Steps
@@ -1790,6 +1856,14 @@
 <p class="admonition-title">3D printed mounts</p>
 <p>If using 3D printed mounts, care should be taken to ensure the mount does not warp.  PLA and other low temperature filaments will warp under load at room temperature, and will do so even more when exposed to thermal heating like from a motor controller.  It is recommended to use PETG, PC, or a filament designed to not warp at the operating temperature you intend.</p>
 </div>
+<h2 id="additional-considerations">Additional Considerations<a class="headerlink" href="#additional-considerations" title="Permanent link">&para;</a></h2>
+<p>There are additional considerations when mounting, some mostly common sense, and some unique to moteus.</p>
+<h3 id="protection-from-debris-and-stray-conductors">Protection from debris and stray conductors<a class="headerlink" href="#protection-from-debris-and-stray-conductors" title="Permanent link">&para;</a></h3>
+<p>It is advisable to mechanically shield moteus controllers from the environment during operation to prevent contact with stray conductors, dirt, or debris.  Contact with any of these things while the system is energized can result in failure.</p>
+<p>Similarly, manipulating or working on the system while it is energized should be avoided.</p>
+<h3 id="moteus-n1-light-sensitivity">moteus-n1 light sensitivity<a class="headerlink" href="#moteus-n1-light-sensitivity" title="Permanent link">&para;</a></h3>
+<p>moteus-n1 has a voltage regulator which is light sensitive and will fail when exposed to sunlight.  The enclosure used to house the system should be opaque.  If for some reason an enclosure can not be used, opaque expoxy can be placed over the voltage regulator IC.</p>
+<p>moteus-c1, moteus-r4 and moteus-x1 have no light sensitivity considerations to take into account.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <p>Once mechanical mounting is complete, proceed to <a href="../electrical-setup/">Electrical Setup</a> to connect the motor phase wires and power.</p>
 
