@@ -32,7 +32,7 @@ tools/bazel/build --config=target //:target
 If CAN-FD is inoperative, then new firmware can be flashed using the SWD connector on each moteus.  First install dependencies:
 
 ```
-sudo apt install openocd binutils-arm-non-eabi
+sudo apt install openocd binutils-arm-none-eabi
 ```
 
 Then attach a [stm32 programmer](https://mjbots.com/products/stm32-programmer) to the USB port on your computer and the SWD port on the moteus.
