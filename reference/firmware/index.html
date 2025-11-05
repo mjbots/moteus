@@ -1831,7 +1831,7 @@ system is required.</p>
 </span></code></pre></div>
 <h2 id="flash-from-the-swd-port">Flash from the SWD port<a class="headerlink" href="#flash-from-the-swd-port" title="Permanent link">&para;</a></h2>
 <p>If CAN-FD is inoperative, then new firmware can be flashed using the SWD connector on each moteus.  First install dependencies:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo apt install openocd binutils-arm-non-eabi
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sudo apt install openocd binutils-arm-none-eabi
 </span></code></pre></div>
 <p>Then attach a <a href="https://mjbots.com/products/stm32-programmer">stm32 programmer</a> to the USB port on your computer and the SWD port on the moteus.</p>
 <p>The firmware can be built and flashed using:</p>
