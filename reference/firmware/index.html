@@ -1827,7 +1827,7 @@ command.</p>
 <h2 id="building-firmware">Building firmware<a class="headerlink" href="#building-firmware" title="Permanent link">&para;</a></h2>
 <p>To build the moteus firmware, an x86-64 Ubuntu 20.04, 22.04, or 24.04
 system is required.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>tools/bazel/build --config=target //:target
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>tools/bazel build --config=target //:target
 </span></code></pre></div>
 <h2 id="flash-from-the-swd-port">Flash from the SWD port<a class="headerlink" href="#flash-from-the-swd-port" title="Permanent link">&para;</a></h2>
 <p>If CAN-FD is inoperative, then new firmware can be flashed using the SWD connector on each moteus.  First install dependencies:</p>
