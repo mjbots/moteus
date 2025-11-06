@@ -24,7 +24,7 @@ To build the moteus firmware, an x86-64 Ubuntu 20.04, 22.04, or 24.04
 system is required.
 
 ```
-tools/bazel/build --config=target //:target
+tools/bazel build --config=target //:target
 ```
 
 ## Flash from the SWD port
