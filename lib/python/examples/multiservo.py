@@ -46,9 +46,6 @@ async def main():
     # We create one 'moteus.Controller' instance for each servo.  It
     # is not strictly required to pass a 'transport' since we do not
     # intend to use any 'set_*' methods, but it doesn't hurt.
-    #
-    # This syntax is a python "dictionary comprehension":
-    # https://docs.python.org/3/tutorial/datastructures.html#dictionaries
     servos = [moteus.Controller(id=address, transport=transport)
               for address in addresses]
 
