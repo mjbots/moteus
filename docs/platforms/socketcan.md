@@ -18,4 +18,4 @@ Some devices will give an error if the `sjw` or `dsjw` options are too large.  I
 
 ## Incompatible adapters
 
-CAN-FD adapters that use the slcan protocol, or that are derived from canable hardware whether or not they use the slcan or candelight firmware, are known to be currently incompatible with moteus controllers.
+CAN-FD adapters that use the slcan protocol, or that are derived from canable hardware whether or not they use the slcan or candlelight firmware, are known to be currently incompatible with moteus controllers.
