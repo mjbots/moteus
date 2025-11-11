@@ -110,6 +110,7 @@ nav:
       - No Motion: troubleshooting/no-motion.md
       - Limited Torque: troubleshooting/limited-torque.md
       - Gate Driver Faults: troubleshooting/gate-driver-faults.md
+      - Timeout Mode 11: troubleshooting/timeout-mode-11.md
 
   - Reference:
       - Pinouts: reference/pinouts.md
