@@ -16,7 +16,7 @@ The purpose of the three gains:
 
 The position control P(I)D loop parameters are set in `servo.pid_position` and are selected by the user to achieve a desired control response.  Most users want a PID controller that is well damped and sufficiently stiff for their application.
 
-Here is a possible procedure for tuning.  It is best executed using tview in a configuration where you can move the rotor with your hand.
+Here is a possible procedure for tuning.  It is best executed using tview in a configuration where you can move the motor with your hand.  A load that is close to representative in terms of inertia, damping, and friction is best, but something is better than nothing.
 
 1. Set kp to be small and kd, ki, and ilimit to be 0.
 ```
