@@ -15,7 +15,7 @@ If you sent a `d pos` command from tview, there are a few possibilities.
 
 Once the cause of the fault has been identified, it can be cleared by sending:
 
-`d pos`
+`d stop`
 
 Then the command in question can be attempted again.
 
