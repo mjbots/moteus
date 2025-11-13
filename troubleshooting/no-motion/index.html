@@ -2082,7 +2082,7 @@
 <li>"33 (gate driver fault)": this indicates that the onboard MOSFET gate driver reported a fault.  To know which one, you will need to expand the <code>drv8323</code> telemetry channel.  The only "easy" problem to solve is <code>uvlo</code> which indicates that moteus attempted to draw more power than your supply could provide.</li>
 </ul>
 <p>Once the cause of the fault has been identified, it can be cleared by sending:</p>
-<p><code>d pos</code></p>
+<p><code>d stop</code></p>
 <p>Then the command in question can be attempted again.</p>
 <h2 id="from-a-script-or-application">From a script or application<a class="headerlink" href="#from-a-script-or-application" title="Permanent link">&para;</a></h2>
 <p>If you have a python script, C++ application, or other tool which is commanding moteus and it does not move, there are a few tools you can use.</p>

@@ -2149,7 +2149,7 @@
 <p><strong>Integrative</strong>:  The integrative term applies a torque that scales with the error in position integrated over time.  Many, if not most, moteus systems use no integrative term at all.  Integrative terms are hard to tune, and result in poor transient response.  However, they are the only way to achieve 0 steady state error in a loaded system.  Without an integrative term, the steady state error, while possibly very small, will never be zero.  For the integrative term there are two parameters to select, the gain itself, and the anti-windup gain term.</p>
 <h2 id="procedure">Procedure<a class="headerlink" href="#procedure" title="Permanent link">&para;</a></h2>
 <p>The position control P(I)D loop parameters are set in <code>servo.pid_position</code> and are selected by the user to achieve a desired control response.  Most users want a PID controller that is well damped and sufficiently stiff for their application.</p>
-<p>Here is a possible procedure for tuning.  It is best executed using tview in a configuration where you can move the rotor with your hand.</p>
+<p>Here is a possible procedure for tuning.  It is best executed using tview in a configuration where you can move the motor with your hand.  A load that is close to representative in terms of inertia, damping, and friction is best, but something is better than nothing.</p>
 <ol>
 <li>Set kp to be small and kd, ki, and ilimit to be 0.
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>servo.pid_position.kp = 0.001
