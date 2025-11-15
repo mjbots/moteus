@@ -24,6 +24,11 @@ COPTS = [
     "-gdwarf-4",
 ]
 
+config_setting(
+    name = "enable_uart_fdcanusb",
+    values = {"define": "MOTEUS_ENABLE_UART_FDCANUSB=1"},
+)
+
 cc_library(
     name = "common",
     hdrs = [
@@ -164,11 +169,14 @@ g4_mbed_binary(
         "fdcan.h",
         "fdcan.cc",
         "fdcan_micro_server.h",
+    "uart_fdcanusb_micro_server.h",
     ],
     deps = MOTEUS_DEPS,
     linker_script = "stm32g474.ld",
     features = ["speedopt"],
-    copts = COPTS,
+    copts = COPTS + [
+        "-DMOTEUS_ENABLE_UART_FDCANUSB",
+    ],
 )
 
 genrule(

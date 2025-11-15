@@ -513,7 +513,13 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.debug_dac = g_hw_pins.debug_dac;
             options.debug_out = g_hw_pins.debug1;
             options.debug_out2 = g_hw_pins.debug2;
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+            // When UART protocol is enabled on PC10/PC11, do not drive the
+            // debug UART to avoid contention with the ASCII transport.
+            options.debug_uart_out = NC;
+#else
             options.debug_uart_out = g_hw_pins.uart_tx;
+#endif
 
             return options;
           }()),
