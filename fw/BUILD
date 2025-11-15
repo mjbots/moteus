@@ -175,7 +175,7 @@ g4_mbed_binary(
     linker_script = "stm32g474.ld",
     features = ["speedopt"],
     copts = COPTS + [
-        "-DMOTEUS_ENABLE_UART_FDCANUSB",
+        "-DMOTEUS_ENABLE_UART_PROTOCOL",
     ],
 )
 
