@@ -57,6 +57,10 @@ class PythonCanDevice(TransportDevice):
                 if 'Unknown interface type "None"' not in str(e):
                     raise
 
+        if 'interface' not in can.rc and 'interface' not in kwargs:
+            can.rc['interface'] = 'socketcan'
+        if 'channel' not in can.rc and 'channel' not in kwargs:
+            can.rc['channel'] = 'can0'
         if 'fd' not in can.rc:
             can.rc['fd'] = True
 
