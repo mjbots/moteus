@@ -70,7 +70,7 @@ def _find_serial_number(path):
 class FdcanusbDevice(TransportDevice):
     """Connects to a single mjbots fdcanusb."""
 
-    def __init__(self, path=None, debug_log=None, disable_brs=False, **kwargs):
+    def __init__(self, path=None, debug_log=None, disable_brs=False, baudrate=None, **kwargs):
         """Constructor.
 
         Arguments:
@@ -80,9 +80,12 @@ class FdcanusbDevice(TransportDevice):
 
         self._disable_brs = disable_brs
 
-        # A fdcanusb ignores the requested baudrate, so we'll just
-        # pick something nice and random.
-        self._serial = aioserial.AioSerial(port=path, baudrate=9600)
+        # Use explicit baudrate if provided, otherwise default to 9600
+        # (real fdcanusb ignores baudrate, but UART adapters require it)
+        if baudrate is None:
+            baudrate = 9600
+        
+        self._serial = aioserial.AioSerial(port=path, baudrate=baudrate, exclusive=True)
 
         # Attempt to discover the USB serial number associated with
         # this device for pretty-printing.
