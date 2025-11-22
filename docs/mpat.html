@@ -3336,7 +3336,10 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         }
       } else {
         // Simple value comparison with type normalization
-        isDifferent = plotValue !== commonValue;
+        // Normalize plotValue as well to handle cases like '0.0' vs 0
+        const normalizedPlotValue = normalizeValue(plotValue);
+        isDifferent = normalizedPlotValue !== commonValue;
+        displayValue = plotValue;  // Keep original for display
       }
 
       if (isDifferent && plotValue !== null && plotValue !== undefined) {
