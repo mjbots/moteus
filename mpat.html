@@ -781,7 +781,7 @@ const generateDynamicFields = (selectedValues) => {
 };
 
 /* shared base fields for all selectors - derived from default values */
-const getBaseFields = (selectedValues) => {
+const getBaseFields = (selectedValues, commonConfigValues = []) => {
   const staticFields = Object.entries(fieldDefinitions)
     .filter(([key]) => !key.includes('.'))
     .map(([name]) => ({
@@ -792,7 +792,10 @@ const getBaseFields = (selectedValues) => {
     values: [name]
   }));
 
-  const dynamicFields = generateDynamicFields(selectedValues);
+  // Generate dynamic fields from both selected values and common config values
+  // This allows motor.* fields to appear in axis configs when motor=model is in common config
+  const combinedValues = [...commonConfigValues, ...selectedValues];
+  const dynamicFields = generateDynamicFields(combinedValues);
 
   return [...staticFields, ...dynamicFields];
 };
@@ -2274,7 +2277,8 @@ function ConfigFieldSelector({
   disabled = false,
   placeholder = "Select or create fields...",
   isClearable = true,
-  allowMultiValue = true
+  allowMultiValue = true,
+  commonConfig = []
 }) {
   const [inputValue, setInputValue] = useState('');
   const selectRef = useRef(null);
@@ -2285,7 +2289,7 @@ function ConfigFieldSelector({
   /* Generate dynamic options based on current input */
   const getCurrentOptions = () => {
     const kv = parseKV(inputValue);
-    const baseFields = getBaseFields(selected);
+    const baseFields = getBaseFields(selected, commonConfig);
 
     // If no '=' found, show base fields
     if (!kv || kv.data === undefined) {
@@ -2354,7 +2358,7 @@ function ConfigFieldSelector({
     }
 
     // Check if the field is in our allowed list
-    const baseFields = getBaseFields(selected);
+    const baseFields = getBaseFields(selected, commonConfig);
     const isValidField = baseFields.some(bf => bf.field === kv.field);
 
     if (!isValidField || fieldTaken(kv.field)) {
@@ -3332,7 +3336,10 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         }
       } else {
         // Simple value comparison with type normalization
-        isDifferent = plotValue !== commonValue;
+        // Normalize plotValue as well to handle cases like '0.0' vs 0
+        const normalizedPlotValue = normalizeValue(plotValue);
+        isDifferent = normalizedPlotValue !== commonValue;
+        displayValue = plotValue;  // Keep original for display
       }
 
       if (isDifferent && plotValue !== null && plotValue !== undefined) {
@@ -3659,7 +3666,8 @@ function AxisPanel({
   onDragEnd,
   isDragging,
   isDragOver,
-  isDraggable
+  isDraggable,
+  commonConfig
 }) {
   const handleConfigChange = (index, newValue) => {
     let newConfigs = [...configs];
@@ -3705,6 +3713,7 @@ function AxisPanel({
               selected=${config}
               onSelectedChange=${(newValue) => handleConfigChange(index, newValue)}
               placeholder=${index === configs.length - 1 ? `Add new axis ${axisNumber} configuration...` : `Axis ${axisNumber} configuration...`}
+              commonConfig=${commonConfig}
             />
           </div>
         `)}
@@ -3875,7 +3884,33 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
         const expandedLines = expandChipLine(lineChips);
         return expandedLines.map(expandedLine => {
           const dict = convertChipsToDict(expandedLine);
-          return reifyObjects(dict);
+
+          // Don't merge common config into empty axis dicts to avoid creating spurious configs
+          if (Object.keys(dict).length === 0) {
+            return reifyObjects(dict);
+          }
+
+          // Merge common config with axis config before reification
+          // This allows motor parameters to be split between common and axis configs
+          // Only merge motor fields if axis is trying to use motor (has motor='model' or motor.* fields)
+          const hasMotorFields = dict.motor === 'model' ||
+                                  Object.keys(dict).some(key => key.startsWith('motor.'));
+
+          let mergedDict;
+          if (hasMotorFields) {
+            // Axis uses motor, merge all params including motor.* from common
+            mergedDict = { ...commonDict, ...dict };
+          } else {
+            // Axis doesn't use motor, only merge non-motor fields from common
+            const commonNonMotor = {};
+            Object.keys(commonDict).forEach(key => {
+              if (key !== 'motor' && !key.startsWith('motor.')) {
+                commonNonMotor[key] = commonDict[key];
+              }
+            });
+            mergedDict = { ...commonNonMotor, ...dict };
+          }
+          return reifyObjects(mergedDict);
         });
       }).filter(dict => Object.keys(dict).length > 0); // Remove empty dictionaries
 
@@ -4834,6 +4869,7 @@ function App() {
               isDragging=${draggedAxisIndex === axisIndex}
               isDragOver=${dragOverIndex === axisIndex}
               isDraggable=${isDraggable}
+              commonConfig=${commonConfig}
             />
           `;
         })}
