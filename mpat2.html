@@ -2897,16 +2897,68 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
       const maxVel = maxVelResult?.velocity || 100;
       const defaultSpeedMax = Math.ceil(maxVel * 1.1 * 100) / 100; // Ensure 2 decimal places
 
-      // Get max torque at 0 speed using t=2s
-      const maxTorqueConfig = normalizeConfig({ ...baseConfig, velocity: 0, time: 2 });
-      const maxTorqueResult = evaluateMaxTorque(maxTorqueConfig);
-      const maxTorque = maxTorqueResult?.torque || 40;
-      const defaultTorqueMax = Math.ceil(maxTorque * 1.1 * 100) / 100; // Ensure 2 decimal places
+      // Sample velocities and find actual max/min torque at each
+      // This captures asymmetric limits and varying torque curves
+      let maxTorque = 0;
+      let maxTorqueAtVel = 0;
+
+      const numVelSamples = 20;
+
+      // First pass: find maximum positive torque across all velocities
+      for (let i = 0; i < numVelSamples; i++) {
+        const vel = (i / (numVelSamples - 1)) * maxVel;
+        const maxTorqueResult = evaluateMaxTorque(normalizeConfig({ ...baseConfig, velocity: vel, time: 2 }));
+        if (maxTorqueResult?.torque !== undefined && maxTorqueResult.torque !== null) {
+          if (maxTorqueResult.torque > maxTorque) {
+            maxTorque = maxTorqueResult.torque;
+            maxTorqueAtVel = vel;
+          }
+        }
+      }
+
+      // Second pass: find minimum negative torque using adaptive bound
+      let minTorque = 0;
+      let minTorqueAtVel = 0;
+      const maxNegativeTorque = -4 * Math.max(maxTorque, 10); // Use 4x max torque, minimum 40
+
+      for (let i = 0; i < numVelSamples; i++) {
+        const vel = (i / (numVelSamples - 1)) * maxVel;
+
+        // Binary search for max negative torque (most negative feasible torque)
+        let feasibleBound = 0; // Start at 0 (known feasible for small torques)
+        let infeasibleBound = maxNegativeTorque; // Adaptive bound based on max positive torque
+
+        for (let iter = 0; iter < 20; iter++) {
+          const testTorque = (feasibleBound + infeasibleBound) / 2;
+          const testConfig = normalizeConfig({ ...baseConfig, velocity: vel, torque: testTorque, time: 2 });
+          const result = evaluateOperatingPoint(testConfig);
+
+          const isFeasible = result && !result._infeasible_reason;
+
+          if (isFeasible) {
+            // This negative torque is feasible, try more negative
+            feasibleBound = testTorque;
+          } else {
+            // Too negative, search less negative
+            infeasibleBound = testTorque;
+          }
+        }
+
+        // The converged boundary is at feasibleBound (most negative feasible torque)
+        if (feasibleBound < minTorque) {
+          minTorque = feasibleBound;
+          minTorqueAtVel = vel;
+        }
+      }
+
+      // Add 10% margin and round to 2 decimal places
+      const defaultTorqueMin = Math.floor(minTorque * 1.1 * 100) / 100;
+      const defaultTorqueMax = Math.ceil(maxTorque * 1.1 * 100) / 100;
 
       return {
         speedMin: 0,
         speedMax: defaultSpeedMax,
-        torqueMin: -defaultTorqueMax,
+        torqueMin: defaultTorqueMin,
         torqueMax: defaultTorqueMax
       };
     } catch (error) {
