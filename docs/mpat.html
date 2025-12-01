@@ -720,6 +720,12 @@ const motorSubFieldDefaults = Object.fromEntries(
     .map(([key, def]) => [key, { value: def.defaultValue, description: def.description }])
 );
 
+// Default values for optional custom motor model fields
+const motorModelDefaults = {
+  'd0': 1e-12,
+  'd1': 1e-12,
+};
+
 // Default axis configurations
 const defaultAxisConfigs = [
   // Default axis 1: Controllers
@@ -3845,7 +3851,7 @@ function reifyObjects(dict) {
 
   // Special handling for 'model' motor type
   if (reified.motor === 'model') {
-    const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c', 'motor.d0', 'motor.d1'];
+    const requiredFields = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
     const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
 
     if (hasAllFields) {
@@ -3856,8 +3862,8 @@ function reifyObjects(dict) {
         Kv: reified['motor.kv'],
         R_pp: reified['motor.r'], // User input is phase-to-phase
         L_pp: reified['motor.l'], // User input is phase-to-phase
-        d0: reified['motor.d0'],
-        d1: reified['motor.d1'],
+        d0: reified['motor.d0'] ?? motorModelDefaults.d0,
+        d1: reified['motor.d1'] ?? motorModelDefaults.d1,
         thermal: {
           'none': {
             R: reified['motor.thermal_r'],
