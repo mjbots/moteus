@@ -559,7 +559,7 @@ const fieldDefinitions = {
       },
       'model': {
         help: 'Generic motor model - for full custom motor definitions',
-        requiresSubFields: ['kv', 'r', 'l', 'd0', 'd1', 'thermal_r', 'thermal_c']
+        requiresSubFields: ['kv', 'r', 'l', 'd0', 'd1', 'thermal_r', 'thermal_c', 'inertia']
       }
     }
   },
@@ -698,6 +698,11 @@ const fieldDefinitions = {
     defaultValue: '50',
     description: 'Thermal capacitance in J/°C',
     type: 'numeric'
+  },
+  'motor.inertia': {
+    defaultValue: '0',
+    description: 'Rotor inertia in kg·m²',
+    type: 'numeric'
   }
 };
 
@@ -724,6 +729,7 @@ const motorSubFieldDefaults = Object.fromEntries(
 const motorModelDefaults = {
   'd0': 1e-12,
   'd1': 1e-12,
+  'inertia': 0,
 };
 
 // Default axis configurations
@@ -3837,7 +3843,7 @@ function reifyObjects(dict) {
           reified[key] = Infinity;
         } else {
           const numValue = Number(value);
-          if (!isNaN(numValue) && isFinite(numValue) && value.trim() === numValue.toString()) {
+          if (!isNaN(numValue) && isFinite(numValue)) {
             reified[key] = numValue;
           } else {
             reified[key] = value; // Keep as string if not a number
@@ -3864,6 +3870,7 @@ function reifyObjects(dict) {
         L_pp: reified['motor.l'], // User input is phase-to-phase
         d0: reified['motor.d0'] ?? motorModelDefaults.d0,
         d1: reified['motor.d1'] ?? motorModelDefaults.d1,
+        inertia: reified['motor.inertia'] ?? motorModelDefaults.inertia,
         thermal: {
           'none': {
             R: reified['motor.thermal_r'],
