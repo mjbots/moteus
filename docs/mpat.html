@@ -4527,9 +4527,13 @@ function generateUrlFromConfig(commonConfig, axisConfigs, plotState = null) {
     }
   });
 
+  // When motor=model, always include motor.* fields since they're required
+  const hasCustomMotor = commonDict['motor'] === 'model';
+
   Object.entries(commonDict).forEach(([field, value]) => {
     const fieldDef = getFieldDefinition(field);
-    if (fieldDef?.defaultValue !== value) {
+    const isMotorSubField = field.startsWith('motor.');
+    if (fieldDef?.defaultValue !== value || (hasCustomMotor && isMotorSubField)) {
       params.set(`common.${field}`, value);
     }
   });
