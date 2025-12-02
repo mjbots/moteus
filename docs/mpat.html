@@ -3956,17 +3956,20 @@ function Simulator({ commonConfig, axisConfigs, onCellClick, selectedCell }) {
 
           let mergedDict;
           if (hasMotorFields) {
-            // Axis uses motor, merge all params including motor.* from common
-            mergedDict = { ...commonDict, ...dict };
-          } else {
-            // Axis doesn't use motor, only merge non-motor fields from common
-            const commonNonMotor = {};
+            // Axis uses motor fields, merge only motor.* fields from common
+            // This allows motor parameters to be split between common and axis configs
+            // Don't merge ALL common fields - that causes axis configs to override each other
+            const commonMotorFields = {};
             Object.keys(commonDict).forEach(key => {
-              if (key !== 'motor' && !key.startsWith('motor.')) {
-                commonNonMotor[key] = commonDict[key];
+              if (key === 'motor' || key.startsWith('motor.')) {
+                commonMotorFields[key] = commonDict[key];
               }
             });
-            mergedDict = { ...commonNonMotor, ...dict };
+            mergedDict = { ...commonMotorFields, ...dict };
+          } else {
+            // Axis doesn't use motor fields, don't merge anything from common
+            // Common fields will be merged later in generateCells
+            mergedDict = dict;
           }
           return reifyObjects(mergedDict);
         });
