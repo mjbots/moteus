@@ -38,6 +38,8 @@ class FdcanusbFactory:
         parser.add_argument('--fdcanusb', type=str, action='append',
                             metavar='FILE',
                             help='path to fdcanusb device')
+        parser.add_argument('--fdcanusb-baud', type=int, metavar='BAUD',
+                            help='baudrate for serial adapter (default 3000000 for RS485, 460800 for UART)')
 
     def is_args_set(self, args):
         return args and args.fdcanusb
@@ -49,6 +51,8 @@ class FdcanusbFactory:
 
         if args and args.can_debug:
             kwargs['debug_log'] = args.can_debug
+        if args and getattr(args, 'fdcanusb_baud', None):
+            kwargs['baudrate'] = args.fdcanusb_baud
 
         if args and args.fdcanusb:
             return [fdcanusb_device.FdcanusbDevice(path, **kwargs)

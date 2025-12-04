@@ -16,3 +16,5 @@ hw/x1/#auto_saved_files#
 # MkDocs
 site/
 .venv-docs/
+
+.history/

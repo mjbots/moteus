@@ -39,6 +39,7 @@
 #if defined(TARGET_STM32G4)
 #include "fw/fdcan.h"
 #include "fw/fdcan_micro_server.h"
+#include "fw/uart_fdcanusb_micro_server.h"
 #include "fw/stm32g4_async_uart.h"
 #include "fw/stm32g4_flash.h"
 #else
@@ -190,19 +191,24 @@ int main(void) {
   // Turn on our power light.
   DigitalOut power_led(g_hw_pins.power_led, 0);
 
-  micro::SizedPool<20000> pool;
-
+  micro::SizedPool<24000> pool;
   std::optional<HardwareUart> rs485;
   if (g_hw_pins.uart_tx != NC) {
     rs485.emplace(&pool, &timer, []() {
       HardwareUart::Options options;
       options.tx = g_hw_pins.uart_tx;
       options.rx = g_hw_pins.uart_rx;
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+      options.dir = NC;         // TTL mode (no RS485 dir pin)
+      options.baud_rate = 460800;
+#else
       options.dir = g_hw_pins.uart_dir;
       options.baud_rate = 3000000;
+#endif
       return options;
                                  }());
   }
+
 
   FDCan fdcan([]() {
       FDCan::Options options;
@@ -235,7 +241,28 @@ int main(void) {
         return options;
       }());
 
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+  std::optional<FdcanusbAsciiMicroServer> uart_fdcanusb_server;
+  std::optional<mjlib::multiplex::MicroServer> uart_fdcanusb_multiplex;
+  if (rs485) {
+    uart_fdcanusb_server.emplace(&*rs485);
+    uart_fdcanusb_multiplex.emplace(
+        &pool, &*uart_fdcanusb_server,
+        []() {
+          mjlib::multiplex::MicroServer::Options o;
+          o.max_tunnel_streams = 3;
+          return o;
+        }());
+    uart_fdcanusb_server->Poll();
+  }
+#endif
+
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+  micro::AsyncStream* serial = uart_fdcanusb_multiplex ? 
+      uart_fdcanusb_multiplex->MakeTunnel(1) : multiplex_protocol.MakeTunnel(1);
+#else
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
+#endif
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(serial);
   micro::CommandManager command_manager(&pool, serial, &write_stream);
@@ -277,7 +304,7 @@ int main(void) {
 
   const auto maybe_update_filters =
       [&can_config, &fdcan, &fdcan_micro_server, &old_can_config,
-       &old_multiplex_id, &multiplex_protocol]() {
+       &old_multiplex_id, &multiplex_protocol, &uart_fdcanusb_server]() {
         // We only update our config if it has actually changed.
         // Re-initializing the CAN-FD controller can cause packets to
         // be lost, so don't do it unless actually necessary.
@@ -321,6 +348,12 @@ int main(void) {
         fdcan.ConfigureFilters(filter_config);
 
         fdcan_micro_server.SetPrefix(can_config.prefix);
+
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+        if (uart_fdcanusb_server) {
+          uart_fdcanusb_server->SetPrefix(can_config.prefix);
+        }
+#endif
       };
 
   persistent_config.Register("id", multiplex_protocol.config(), maybe_update_filters);
@@ -328,10 +361,18 @@ int main(void) {
   persistent_config.Register("can", &can_config, maybe_update_filters);
 
   persistent_config.Load();
+  // Ensure filters/prefix are applied at least once on boot so UART transport
+  // uses the correct CAN addressing and host tools don't hang waiting.
+  maybe_update_filters();
 
   moteus_controller.Start();
   command_manager.AsyncStart();
   multiplex_protocol.Start(moteus_controller.multiplex_server());
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+  if (uart_fdcanusb_multiplex) {
+    uart_fdcanusb_multiplex->Start(moteus_controller.multiplex_server());
+  }
+#endif
 
   auto old_time = timer.read_us();
 
@@ -342,6 +383,16 @@ int main(void) {
 #if defined(TARGET_STM32G4)
     fdcan_micro_server.Poll();
 #endif
+
+#if defined(MOTEUS_ENABLE_UART_PROTOCOL)
+    if (uart_fdcanusb_server) {
+      uart_fdcanusb_server->Poll();
+    }
+    if (uart_fdcanusb_multiplex) {
+      uart_fdcanusb_multiplex->Poll();
+    }
+#endif
+
     moteus_controller.Poll();
     multiplex_protocol.Poll();
 

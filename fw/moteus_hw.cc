@@ -284,8 +284,9 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.vsense_adc_scale =
         (hv <= 5 ? 0.00884f : 0.017947f);
 
-    result.uart_tx = PC_10_ALT0;
-    result.uart_rx = PC_11_ALT0;
+    // Use base pins; mbed will auto-select USART3 (AF7) via pinmap
+    result.uart_tx = PC_10;
+    result.uart_rx = PC_11;
 
     result.drv8323_enable = PA_3;
     result.drv8323_hiz = PB_7;
