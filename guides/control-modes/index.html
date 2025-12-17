@@ -818,10 +818,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#velocity-control" class="md-nav__link">
+  <a href="#constant-acceleration-trajectories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Velocity Control
+        Constant Acceleration Trajectories
       
     </span>
   </a>
@@ -829,10 +829,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#constant-acceleration-trajectories" class="md-nav__link">
+  <a href="#velocity-control" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constant Acceleration Trajectories
+        Velocity Control
       
     </span>
   </a>
@@ -2088,10 +2088,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#velocity-control" class="md-nav__link">
+  <a href="#constant-acceleration-trajectories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Velocity Control
+        Constant Acceleration Trajectories
       
     </span>
   </a>
@@ -2099,10 +2099,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#constant-acceleration-trajectories" class="md-nav__link">
+  <a href="#velocity-control" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constant Acceleration Trajectories
+        Velocity Control
       
     </span>
   </a>
@@ -2180,76 +2180,43 @@
 </ul>
 <p>Additionally, the position may be set as a "special value" (NaN for floating point and the debug interface, maximal negative for integer encodings). In that case, the position selected is "wherever you are right now".</p>
 <p>A pure velocity mode can be obtained by setting the kp scale to 0 (or permanently so by configuring the kp constant to 0). In this case, using the <code>servo.max_position_slip</code> configurable parameter may be valuable as per the velocity control section below.</p>
-<h2 id="velocity-control">Velocity Control<a class="headerlink" href="#velocity-control" title="Permanent link">&para;</a></h2>
-<p>To implement a velocity controller, each command should have the
-"position" set to NaN (or equivalent integral encoding).  It is
-recommended to configure <code>servo.max_position_slip</code> to a finite value
-greater than or equal to 0 (<a href="../../reference/configuration/#servomax_position_slip">reference</a>).
-When it is larger, more external disturbances will be rejected, but
-the controller will also "catch up" when the magnitude of external
-disturbances is decreased.</p>
-<p><strong>Example:</strong></p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Diagnostic Protocol</label><label for="__tabbed_1_2">Python</label><label for="__tabbed_1_3">C++</label></div>
-<div class="tabbed-content">
-<div class="tabbed-block">
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>d pos nan 2 nan
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">await</span> <span class="n">controller</span><span class="o">.</span><span class="n">set_position</span><span class="p">(</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">position</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>  <span class="c1"># NaN for velocity mode</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">velocity</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>       <span class="c1"># 2 revolutions/second</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">query</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">)</span>
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">PositionMode</span><span class="o">::</span><span class="n">Command</span><span class="w"> </span><span class="n">cmd</span><span class="p">;</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">cmd</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">numeric_limits</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;::</span><span class="n">quiet_NaN</span><span class="p">();</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span><span class="w">  </span><span class="c1">// 2 revolutions/second</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">controller</span><span class="p">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">cmd</span><span class="p">);</span>
-</span></code></pre></div>
-</div>
-</div>
-</div>
 <h2 id="constant-acceleration-trajectories">Constant Acceleration Trajectories<a class="headerlink" href="#constant-acceleration-trajectories" title="Permanent link">&para;</a></h2>
 <p>Velocity and acceleration limits can be configured either globally, or
 on a per-command basis which will cause moteus to internally generate
 continuous acceleration limited trajectories to reach the given
 position and velocity.  Once the trajectory is complete, the command
 velocity is continued indefinitely.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Diagnostic Protocol</label><label for="__tabbed_2_2">Python</label><label for="__tabbed_2_3">C++</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Diagnostic Protocol</label><label for="__tabbed_1_2">Python</label><label for="__tabbed_1_3">C++</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a># Move to position 1 then stop.  Accelerate/decelerate at 2Hz/s
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a># and use a maximum velocity of 0.5Hz.
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>d pos 1 0 nan a2 v0.5
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a># Move to position 1 then stop.  Accelerate/decelerate at 2Hz/s
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a># and use a maximum velocity of 0.5Hz.
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>d pos 1 0 nan a2 v0.5
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">await</span> <span class="n">controller</span><span class="o">.</span><span class="n">set_position</span><span class="p">(</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">velocity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">accel_limit</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">velocity_limit</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">await</span> <span class="n">controller</span><span class="o">.</span><span class="n">set_position</span><span class="p">(</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">position</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">velocity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">accel_limit</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">velocity_limit</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="o">::</span><span class="n">Options</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="w"> </span><span class="nf">controller</span><span class="p">(</span><span class="n">options</span><span class="p">);</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">PositionMode</span><span class="o">::</span><span class="n">Command</span><span class="w"> </span><span class="n">cmd</span><span class="p">;</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">cmd</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">cmd</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">cmd_velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="p">;</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">controller</span><span class="p">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">cmd</span><span class="p">);</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="o">::</span><span class="n">Options</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="w"> </span><span class="nf">controller</span><span class="p">(</span><span class="n">options</span><span class="p">);</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">PositionMode</span><span class="o">::</span><span class="n">Command</span><span class="w"> </span><span class="n">cmd</span><span class="p">;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">cmd</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">cmd</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">cmd_velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="p">;</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">controller</span><span class="p">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">cmd</span><span class="p">);</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -2260,6 +2227,39 @@ configuration.</p>
 <li><code>servo.default_accel_limit</code></li>
 <li><code>servo.default_velocity_limit</code></li>
 </ul>
+<h2 id="velocity-control">Velocity Control<a class="headerlink" href="#velocity-control" title="Permanent link">&para;</a></h2>
+<p>To implement a velocity controller, each command should have the
+"position" set to NaN (or equivalent integral encoding).  It is
+recommended to configure <code>servo.max_position_slip</code> to a finite value
+greater than or equal to 0 (<a href="../../reference/configuration/#servomax_position_slip">reference</a>).
+When it is larger, more external disturbances will be rejected, but
+the controller will also "catch up" when the magnitude of external
+disturbances is decreased.</p>
+<p><strong>Example:</strong></p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:3"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><input id="__tabbed_2_3" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Diagnostic Protocol</label><label for="__tabbed_2_2">Python</label><label for="__tabbed_2_3">C++</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>d pos nan 2 nan
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">await</span> <span class="n">controller</span><span class="o">.</span><span class="n">set_position</span><span class="p">(</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">position</span><span class="o">=</span><span class="n">math</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span>  <span class="c1"># NaN for velocity mode</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">velocity</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>       <span class="c1"># 2 revolutions/second</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">query</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">)</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">PositionMode</span><span class="o">::</span><span class="n">Command</span><span class="w"> </span><span class="n">cmd</span><span class="p">;</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">cmd</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">numeric_limits</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;::</span><span class="n">quiet_NaN</span><span class="p">();</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span><span class="w">  </span><span class="c1">// 2 revolutions/second</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">controller</span><span class="p">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">cmd</span><span class="p">);</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
 <h2 id="torque-control">Torque Control<a class="headerlink" href="#torque-control" title="Permanent link">&para;</a></h2>
 <p>For a pure torque control application, the PID gains of the position control loop must be set to 0.  One way to accomplish that is by sending the <code>kp_scale</code>, <code>kd_scale</code>, and <code>ilimit_scale</code> values to 0.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Diagnostic Protocol</label><label for="__tabbed_3_2">Python</label><label for="__tabbed_3_3">C++</label></div>
