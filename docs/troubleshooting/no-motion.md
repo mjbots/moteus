@@ -12,6 +12,7 @@ If you sent a `d pos` command from tview, there are a few possibilities.
 
  - "39 (outside bounds)": `servopos.position_min` and `servopos.position_max` are either not configured, or the motor starting position is outside the configured bounds.  Setting either to `nan` will disable it.
  - "33 (gate driver fault)": this indicates that the onboard MOSFET gate driver reported a fault.  To know which one, you will need to expand the `drv8323` telemetry channel.  The only "easy" problem to solve is `uvlo` which indicates that moteus attempted to draw more power than your supply could provide.
+ - "43 (no position)": the most common reason for this fault is that the controller has not been calibrated yet.  See the [quick start section on calibration](../guides/calibration.md).
 
 Once the cause of the fault has been identified, it can be cleared by sending:
 
