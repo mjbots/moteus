@@ -2080,6 +2080,7 @@
 <ul>
 <li>"39 (outside bounds)": <code>servopos.position_min</code> and <code>servopos.position_max</code> are either not configured, or the motor starting position is outside the configured bounds.  Setting either to <code>nan</code> will disable it.</li>
 <li>"33 (gate driver fault)": this indicates that the onboard MOSFET gate driver reported a fault.  To know which one, you will need to expand the <code>drv8323</code> telemetry channel.  The only "easy" problem to solve is <code>uvlo</code> which indicates that moteus attempted to draw more power than your supply could provide.</li>
+<li>"43 (no position)": the most common reason for this fault is that the controller has not been calibrated yet.  See the <a href="../../guides/calibration/">quick start section on calibration</a>.</li>
 </ul>
 <p>Once the cause of the fault has been identified, it can be cleared by sending:</p>
 <p><code>d stop</code></p>
