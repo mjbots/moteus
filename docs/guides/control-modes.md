@@ -21,44 +21,6 @@ Additionally, the position may be set as a "special value" (NaN for floating poi
 
 A pure velocity mode can be obtained by setting the kp scale to 0 (or permanently so by configuring the kp constant to 0). In this case, using the `servo.max_position_slip` configurable parameter may be valuable as per the velocity control section below.
 
-## Velocity Control
-
-To implement a velocity controller, each command should have the
-"position" set to NaN (or equivalent integral encoding).  It is
-recommended to configure `servo.max_position_slip` to a finite value
-greater than or equal to 0 ([reference](../reference/configuration.md#servomax_position_slip)).
-When it is larger, more external disturbances will be rejected, but
-the controller will also "catch up" when the magnitude of external
-disturbances is decreased.
-
-**Example:**
-
-=== "Diagnostic Protocol"
-
-    ```
-    d pos nan 2 nan
-    ```
-
-=== "Python"
-
-    ```python
-    await controller.set_position(
-        position=math.nan,  # NaN for velocity mode
-        velocity=2.0,       # 2 revolutions/second
-        query=True
-    )
-    ```
-
-=== "C++"
-
-    ```cpp
-    mjbots::moteus::PositionMode::Command cmd;
-    cmd.position = std::numeric_limits<double>::quiet_NaN();
-    cmd.velocity = 2.0;  // 2 revolutions/second
-
-    auto result = controller.SetPosition(cmd);
-    ```
-
 ## Constant Acceleration Trajectories
 
 Velocity and acceleration limits can be configured either globally, or
@@ -109,6 +71,46 @@ configuration.
 
 * `servo.default_accel_limit`
 * `servo.default_velocity_limit`
+
+
+## Velocity Control
+
+To implement a velocity controller, each command should have the
+"position" set to NaN (or equivalent integral encoding).  It is
+recommended to configure `servo.max_position_slip` to a finite value
+greater than or equal to 0 ([reference](../reference/configuration.md#servomax_position_slip)).
+When it is larger, more external disturbances will be rejected, but
+the controller will also "catch up" when the magnitude of external
+disturbances is decreased.
+
+**Example:**
+
+=== "Diagnostic Protocol"
+
+    ```
+    d pos nan 2 nan
+    ```
+
+=== "Python"
+
+    ```python
+    await controller.set_position(
+        position=math.nan,  # NaN for velocity mode
+        velocity=2.0,       # 2 revolutions/second
+        query=True
+    )
+    ```
+
+=== "C++"
+
+    ```cpp
+    mjbots::moteus::PositionMode::Command cmd;
+    cmd.position = std::numeric_limits<double>::quiet_NaN();
+    cmd.velocity = 2.0;  // 2 revolutions/second
+
+    auto result = controller.SetPosition(cmd);
+    ```
+
 
 ## Torque Control
 
