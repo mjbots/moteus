@@ -99,7 +99,7 @@ class MoteusFault(RuntimeError):
             f"Controller reported fault: {int(self.fault_code)}")
 
 
-SUPPORTED_ABI_VERSION = 0x010c
+SUPPORTED_ABI_VERSION = 0x010d
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -125,6 +125,14 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010c and self.old >= 0x010d:
+            for aux_num in [1, 2]:
+                key = f'aux{aux_num}.rs422'.encode('utf8')
+                rs422_val = items.pop(key, "0")
+                new_key = f'aux{aux_num}.uart.rs422'.encode('utf8')
+                items[new_key] = rs422_val
+                print(f"Downgraded aux{aux_num}.rs422 to aux{aux_num}.uart.rs422")
 
         if self.new <= 0x010b and self.old >= 0x010c:
             # Update all pll_filter_hz parameters.
@@ -605,6 +613,14 @@ class FirmwareUpgrade:
                 items[key] = str(pll_filter_hz).encode('utf8')
                 print(f"Upgraded motor_position.sources.{mpsource}.pll_filter_hz from {natural_hz} to {pll_filter_hz}")
 
+        if self.new >= 0x010d and self.old <= 0x010c:
+            for aux_num in [1, 2]:
+                key = f'aux{aux_num}.uart.rs422'.encode('utf8')
+                rs422_val = items.pop(key, None)
+                if rs422_val is not None:
+                    new_key = f'aux{aux_num}.rs422'.encode('utf8')
+                    items[new_key] = rs422_val
+                    print(f"Upgraded aux{aux_num}.uart.rs422 to aux{aux_num}.rs422")
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)

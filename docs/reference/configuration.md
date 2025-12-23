@@ -392,12 +392,6 @@ The baud rate to use for the UART.
 For encoder modes, the interval at which to poll the encoder for new
 position information.
 
-## `aux[12].uart.rs422`
-
-Enable the RS422 transceiver.  This is only valid for 'aux1', and
-requires that pin D and E (`aux1.pins.3` and `aux1.pins.4`) be
-used for UART.
-
 ## `aux[12].uart.cui_amt21_address`
 
 Select the CUI AMT21 address to communicate with.  The default is 0x54
@@ -469,6 +463,12 @@ I2C devices associated with this auxiliary port are first used.
 
 The period in microseconds to be used for PWM outputs on this
 auxiliary port.
+
+## `aux[12].rs422`
+
+Enable the RS422 transceiver.  This is only valid for 'aux1', and
+requires that pin D and E (`aux1.pins.3` and `aux1.pins.4`) be
+used for UART or BiSS-C.
 
 ## `motor_position.sources.X.aux_number`
 

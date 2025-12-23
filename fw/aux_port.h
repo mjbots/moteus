@@ -1176,13 +1176,13 @@ class AuxPort {
 
     if (config_.uart.mode != aux::UartEncoder::Config::kDisabled ||
         config_.bissc.enabled) {
-      if (config_.uart.rs422 && (!rs422_de_ || !rs422_re_)) {
+      if (config_.rs422 && (!rs422_de_ || !rs422_re_)) {
         status_.error = aux::AuxError::kUartPinError;
         return;
       }
 
-      if (rs422_de_) { rs422_de_->write(config_.uart.rs422); }
-      if (rs422_re_) { rs422_re_->write(!config_.uart.rs422); }
+      if (rs422_de_) { rs422_de_->write(config_.rs422); }
+      if (rs422_re_) { rs422_re_->write(!config_.rs422); }
     }
 
     if (config_.uart.mode != aux::UartEncoder::Config::kDisabled) {
