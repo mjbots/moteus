@@ -175,8 +175,13 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 //   in terms of a somewhat arbitrary "natural frequency", but is now
 //   specified in terms of the 3dB cutoff frequency
 
+// # 0x010d #
+//
+// * aux?.rs422 replaced aux?.uart.rs422 as now the RS422 transceiver
+//   can be enabled for both UART and BiSS-C encoders
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x00010c
+#define MOTEUS_FIRMWARE_VERSION 0x00010d
 
 extern MoteusHwPins g_hw_pins;
 

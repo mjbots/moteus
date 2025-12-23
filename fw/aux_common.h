@@ -100,7 +100,6 @@ struct UartEncoder {
 
     int32_t baud_rate = 115200;
     int32_t poll_rate_us = 100;
-    bool rs422 = false;
     uint8_t cui_amt21_address = 0x54;
 
     template <typename Archive>
@@ -108,7 +107,6 @@ struct UartEncoder {
       a->Visit(MJ_NVP(mode));
       a->Visit(MJ_NVP(baud_rate));
       a->Visit(MJ_NVP(poll_rate_us));
-      a->Visit(MJ_NVP(rs422));
       a->Visit(MJ_NVP(cui_amt21_address));
     }
   };
@@ -438,6 +436,7 @@ struct AuxConfig {
   aux::BissC::Config bissc;
   int32_t i2c_startup_delay_ms = 30;
   int32_t pwm_period_us = 1000;
+  bool rs422 = false;
 
   static constexpr size_t kNumPins = 5;
   std::array<Pin, kNumPins> pins = { {} };
@@ -455,6 +454,7 @@ struct AuxConfig {
     a->Visit(MJ_NVP(bissc));
     a->Visit(MJ_NVP(i2c_startup_delay_ms));
     a->Visit(MJ_NVP(pwm_period_us));
+    a->Visit(MJ_NVP(rs422));
     a->Visit(MJ_NVP(pins));
   }
 };
