@@ -896,6 +896,10 @@ class Stream:
             return False
         return True
 
+    async def conf_write(self):
+        print("Saving to persistent storage with 'conf write'")
+        await self.command("conf write")
+
     async def read_uuid(self):
         try:
             text_data = await self.command("conf enumerate uuid")
@@ -940,7 +944,7 @@ class Stream:
             position_raw = servo_stats.position_raw
             await self.command(f"conf set motor.position_offset {-position_raw:d}")
 
-        await self.command("conf write")
+        await self.conf_write()
         await self.command(f"d rezero {value}")
 
     async def do_restore_config(self, config_file):
@@ -959,7 +963,7 @@ class Stream:
                 except moteus.CommandError as ce:
                     errors.append(line)
 
-        await self.command(b'conf write')
+        await self.conf_write()
 
         if len(errors):
             print("\nSome config could not be set:")
@@ -1114,7 +1118,8 @@ class Stream:
                 continue
             new_config.append(b'conf set ' + line + b'\n')
         await self.write_config_stream(io.BytesIO(b''.join(new_config)))
-        await self.command("conf write")
+
+        await self.conf_write()
 
         # Reset the controller so we're sure any config has taken
         # effect.
@@ -1310,8 +1315,7 @@ class Stream:
         device_info = await self.get_device_info()
 
         if not self.args.cal_no_update:
-            print("Saving to persistent storage")
-            await self.command("conf write")
+            await self.conf_write()
         else:
             # Restore our baseline configuration.
             print("Restoring baseline configuration for --cal-no-update")
