@@ -515,6 +515,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.debug_out2 = g_hw_pins.debug2;
             options.debug_uart_out = g_hw_pins.uart_tx;
 
+            options.lptim_trigger_dma = DMA2_Channel3;
+
             return options;
           }()),
         clock_manager_(clock_manager),

@@ -62,6 +62,10 @@ class BldcServo {
     // If set, a constant telemetry stream will be emitted at the
     // control rate.
     PinName debug_uart_out = NC;
+
+    // DMA channel used to trigger LPTIM1 for ADC synchronization.
+    // This must be set to an available DMA channel.
+    DMA_Channel_TypeDef* lptim_trigger_dma = nullptr;
   };
 
   BldcServo(mjlib::micro::Pool*,

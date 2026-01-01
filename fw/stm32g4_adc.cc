@@ -135,17 +135,15 @@ void EnableAdc(MillisecondTimer* timer, ADC_TypeDef* adc, int prescaler, int off
 
   // Configure ADC trigger mode
   if (trigger_mode == AdcTriggerMode::kLptim1) {
-    // Configure ADC for external trigger from LPTIM1
-    // Configure ADC for LPTIM1 external trigger
-    // LL_ADC_REG_TRIG_EXT_LPTIM_OUT = ADC_CFGR_EXTSEL_4|3|2|0 = 0x1D (29)
-    // EXTEN = 0x1: Hardware trigger on rising edge (ADC_EXTERNALTRIGCONVEDGE_RISING)
-    // Clear continuous mode
+    // Configure ADC for external trigger from LPTIM1_OUT.
+    // Per STM32G4 errata ES0430 section 2.7.11, all ADCs must be triggered
+    // simultaneously. LPTIM1_OUT provides this synchronization.
+    // EXTSEL = 0x1D (LPTIM_OUT), EXTEN = 0x1 (rising edge)
     adc->CFGR = (adc->CFGR & ~(ADC_CFGR_CONT | ADC_CFGR_EXTSEL | ADC_CFGR_EXTEN)) |
-                (0x1D << ADC_CFGR_EXTSEL_Pos) |  // LPTIM_OUT (corrected value)
-                (0x01 << ADC_CFGR_EXTEN_Pos);    // Rising edge trigger
-    
+                (0x1D << ADC_CFGR_EXTSEL_Pos) |
+                (0x01 << ADC_CFGR_EXTEN_Pos);
+
     // For external trigger mode, ADC needs to be started to respond to triggers
-    // This enables the ADC to respond to external trigger events
     adc->CR |= ADC_CR_ADSTART;
   } else {
     // Software trigger mode - clear external trigger and continuous mode

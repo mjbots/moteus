@@ -29,6 +29,7 @@
 #include "fw/foc.h"
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
+#include "fw/stm32_dma.h"
 #include "fw/stm32g4_adc.h"
 #include "fw/thermistor.h"
 #include "fw/torque_model.h"
@@ -108,8 +109,8 @@ int MapConfig(const Array& array, int value) {
 // limits in place of +-1.0.  Something like "d pos nan 0 1 p0 d0 f1".
 // This all but ensures the current controller will saturate.
 //
-// As of 2020-09-13, 0.98 was the highest value that failed.
-constexpr float kCurrentSampleTime = 1.03e-6f;
+// As of 2026-01-01, 0.46e-6 was the lowest value which always passed.
+constexpr float kCurrentSampleTime = 0.60e-6f;
 
 
 // All of these constants depend upon the pwm rate.
@@ -328,6 +329,8 @@ class BldcServo::Impl {
 
   void Start() {
     ConfigureADC();
+    ConfigureLPTIM1();
+    ConfigureDmaLptimTrigger();
     ConfigurePwmIrq();
 
     if (options_.debug_uart_out != NC) {
@@ -694,6 +697,10 @@ class BldcServo::Impl {
         // ARR register is buffered.
         TIM_CR1_ARPE;
 
+    // Enable DMA request on Update event. The DMA will trigger LPTIM1
+    // which then triggers all ADCs simultaneously.
+    timer_->DIER |= TIM_DIER_UDE;
+
     // Update once per up/down of the counter.
     timer_->RCR |= 0x01;
 
@@ -743,12 +750,12 @@ class BldcServo::Impl {
     DisableAdc(ADC4);
     DisableAdc(ADC5);
 
-    // Per "ES0430 - Rev 8, 2.7.9" the ADCs can only be used
-    // simultaneously if they are in synchronous mode with a divider
-    // no more than 1.  Yay.  We can't use synchronous mode with a
-    // divider of 1, since that would run the ADCs too fast.  Instead,
-    // we use a divider of 2, and ensure that each ADC is started in
-    // an exact phase relationship to the global cycle counter.
+    // Per STM32G4 errata ES0430 section 2.7.11, ADC instances can impact
+    // each other's accuracy when conversions are concurrent. To avoid this,
+    // all ADCs must use the same clock configuration and be triggered
+    // simultaneously by the same timer. We use synchronous AHB/2 mode
+    // and ensure each ADC is started in an exact phase relationship to
+    // the global cycle counter.
     ADC12_COMMON->CCR =
         (2 << ADC_CCR_CKMODE_Pos) |  // synchronous AHB/2
         (1 << ADC_CCR_DUAL_Pos); // dual mode, regular + injected
@@ -758,7 +765,10 @@ class BldcServo::Impl {
 
     constexpr int kAdcPrescale = 2;  // from the CKMODE above
 
-    // Enable all ADCs with LPTIM1 external trigger for synchronized sampling
+    // Enable all ADCs with LPTIM1 external trigger for synchronized sampling.
+    // Per STM32G4 errata ES0430 section 2.7.11, all ADCs must be triggered
+    // simultaneously to avoid accuracy issues between ADC instances.
+    // LPTIM1 is triggered via DMA from the PWM timer update event.
     EnableAdc(ms_timer_, ADC1, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
     EnableAdc(ms_timer_, ADC2, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
     EnableAdc(ms_timer_, ADC3, kAdcPrescale, 0, AdcTriggerMode::kLptim1);
@@ -824,12 +834,23 @@ class BldcServo::Impl {
     ADC4->SMPR2 = all_aux_cycles;
     ADC5->SMPR1 = all_aux_cycles;
     ADC5->SMPR2 = all_aux_cycles;
+  }
 
-    // Configure LPTIM1 for ADC triggering
-    ConfigureLPTIM1();
+  // Get the DMAMUX request input number for the given timer's Update event.
+  static uint32_t GetTimerUpDmamuxInput(TIM_TypeDef* timer) {
+    // From STM32G4 reference manual Table 91 (DMAMUX request MUX inputs)
+    if (timer == TIM2) return 57;   // TIM2_UP
+    if (timer == TIM3) return 65;   // TIM3_UP
+    if (timer == TIM4) return 71;   // TIM4_UP
+    if (timer == TIM5) return 76;   // TIM5_UP
+    mbed_die();
+    return 0;
   }
 
   void ConfigureLPTIM1() {
+    // Configure LPTIM1 to generate a pulse on LPTIM1_OUT when triggered.
+    // This pulse triggers all ADCs simultaneously.
+
     // Configure LPTIM1 clock source using proper HAL method
     RCC_PeriphCLKInitTypeDef PeriphClkInit = {};
     PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_LPTIM1;
@@ -867,7 +888,45 @@ class BldcServo::Impl {
     LPTIM1->ICR = LPTIM_ICR_CMPOKCF;
     LPTIM1->CMP = 1;
     while (!(LPTIM1->ISR & LPTIM_ISR_CMPOK));
+  }
 
+  void ConfigureDmaLptimTrigger() {
+    // Configure DMA to transfer SNGSTRT to LPTIM1->CR on each PWM timer
+    // update event. This triggers LPTIM1 which then triggers all ADCs.
+    __HAL_RCC_DMA1_CLK_ENABLE();
+    __HAL_RCC_DMA2_CLK_ENABLE();
+    __HAL_RCC_DMAMUX1_CLK_ENABLE();
+
+    MJ_ASSERT(options_.lptim_trigger_dma != nullptr);
+    DMA_Channel_TypeDef* dma = options_.lptim_trigger_dma;
+    DMAMUX_Channel_TypeDef* dmamux = Stm32Dma::SelectDmamux(dma);
+
+    // Disable DMA channel before configuration
+    dma->CCR = 0;
+
+    // Configure DMAMUX to route PWM timer Update event to this DMA channel
+    dmamux->CCR = GetTimerUpDmamuxInput(timer_);
+
+    // Store the value to be transferred (ENABLE | SNGSTRT)
+    lptim1_sngstrt_value_ = LPTIM_CR_ENABLE | LPTIM_CR_SNGSTRT;
+
+    // Configure DMA channel:
+    // - Memory to peripheral
+    // - Memory address: &lptim1_sngstrt_value_
+    // - Peripheral address: &LPTIM1->CR
+    // - Transfer size: 32-bit
+    // - No increment (single value, single destination)
+    // - Circular mode (repeat on each trigger)
+    dma->CPAR = reinterpret_cast<uint32_t>(&LPTIM1->CR);
+    dma->CMAR = reinterpret_cast<uint32_t>(&lptim1_sngstrt_value_);
+    dma->CNDTR = 1;
+
+    dma->CCR =
+        DMA_CCR_CIRC |           // Circular mode
+        (0x2 << DMA_CCR_MSIZE_Pos) |  // 32-bit memory size
+        (0x2 << DMA_CCR_PSIZE_Pos) |  // 32-bit peripheral size
+        DMA_CCR_DIR |            // Memory to peripheral
+        DMA_CCR_EN;              // Enable channel
   }
 
   static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
@@ -898,16 +957,6 @@ class BldcServo::Impl {
   }
 
   void ISR_DoTimer() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
-    // We start our conversion here so that it can work while we get
-    // ready.  This means we will throw away the result if our control
-    // timer says it isn't our turn yet, but that is a relatively
-    // minor waste.
-
-    // Trigger all ADCs simultaneously using LPTIM1 OnePulse mode
-    // Equivalent to HAL_LPTIM_OnePulse_Start(&hlptim, 10, 5)
-    // This provides perfect hardware synchronization to meet STM32G474 errata
-    TriggerAllAdcs();
-
     phase_ = (phase_ + 1) & rate_config_.interrupt_mask;
     if (phase_) { return; }
 
@@ -999,7 +1048,11 @@ class BldcServo::Impl {
   }
 
   void ISR_DoSenseCritical() __attribute__((always_inline)) MOTEUS_CCM_ATTRIBUTE {
-    // Wait for sampling to complete.
+    // ADCs are triggered by hardware: Timer Update -> DMA -> LPTIM1
+    // -> LPTIM1_OUT -> ADCs.  This satisfies STM32G4 errata ES0430
+    // section 2.7.11 (simultaneous triggering).
+
+    // Wait for ADC conversion to complete.
     while ((ADC3->ISR & ADC_ISR_EOS) == 0);
 
 #ifdef MOTEUS_DEBUG_OUT
@@ -1062,39 +1115,51 @@ class BldcServo::Impl {
       status_.adc_cur3_raw = ADC1->DR;
     }
 
-    // TODO: Since we have to let ADC4/5 sample for much longer, we
-    // could save a lot of time by switching ADC5's targets every
-    // other cycle and not even reading it until the position sampling
-    // was done.  For now though, we read all the things every cycle.
+    // With hardware LPTIM1 triggering, ADC5 samples one channel per
+    // control cycle. We alternate between the two channels
+    // (vsense/tsense or tsense/msense depending on board version)
+    // each cycle.
     WaitForAdc(ADC4);
     WaitForAdc(ADC5);
 
+    // Read ADC4 (same every cycle)
     if (family0_rev4_and_older_) {
       status_.adc_motor_temp_raw = ADC4->DR;
-      status_.adc_voltage_sense_raw = ADC5->DR;
     } else if (family0_) {
       status_.adc_voltage_sense_raw = ADC4->DR;
-      status_.adc_fet_temp_raw = ADC5->DR;
     } else if (family1or2or3_) {
       status_.adc_fet_temp_raw = ADC4->DR;
-      status_.adc_voltage_sense_raw = ADC5->DR;
     }
 
-    // Start sampling the other thing on ADC5, what that is depends
-    // upon our board version.
-    if (family0_rev4_and_older_) {
-      ADC5->SQR1 =
-          (0 << ADC_SQR1_L_Pos) |  // length 1
-          tsense_sqr_ << ADC_SQR1_SQ1_Pos;
-    } else {  // family 0 || family 1
-      ADC5->SQR1 =
-          (0 << ADC_SQR1_L_Pos) |  // length 1
-          msense_sqr_ << ADC_SQR1_SQ1_Pos;
+    // Read ADC5 based on which phase we're in, then switch to other channel
+    if (adc5_phase_ == 0) {
+      // First channel: vsense (family0_rev4_and_older, family1or2or3) or
+      //                fet_temp (family0)
+      if (family0_rev4_and_older_) {
+        status_.adc_voltage_sense_raw = ADC5->DR;
+        ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+      } else if (family0_) {
+        status_.adc_fet_temp_raw = ADC5->DR;
+        ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (msense_sqr_ << ADC_SQR1_SQ1_Pos);
+      } else if (family1or2or3_) {
+        status_.adc_voltage_sense_raw = ADC5->DR;
+        ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (msense_sqr_ << ADC_SQR1_SQ1_Pos);
+      }
+    } else {
+      // Second channel: tsense (family0_rev4_and_older) or
+      //                 msense (family0, family1or2or3)
+      if (family0_rev4_and_older_) {
+        status_.adc_fet_temp_raw = ADC5->DR;
+        ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+      } else if (family0_) {
+        status_.adc_motor_temp_raw = ADC5->DR;
+        ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
+      } else if (family1or2or3_) {
+        status_.adc_motor_temp_raw = ADC5->DR;
+        ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
+      }
     }
-
-    // Trigger all ADCs again for secondary sampling
-    // Only ADC5 will be used, others will run but we won't wait for them
-    TriggerAllAdcs();
+    adc5_phase_ = 1 - adc5_phase_;
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.start_pos_sample = DWT->CYCCNT;
@@ -1110,31 +1175,6 @@ class BldcServo::Impl {
     motor_position_->ISR_Update();
 
     velocity_filter_(position_.velocity, &status_.velocity_filt);
-
-    // The temperature sensing should be done by now, but just double
-    // check.
-    WaitForAdc(ADC5);
-    if (family0_rev4_and_older_) {
-      status_.adc_fet_temp_raw = ADC5->DR;
-    } else {
-      status_.adc_motor_temp_raw = ADC5->DR;
-    }
-
-    if (family0_rev4_and_older_) {
-      // Switch back to the voltage sense resistor.
-      ADC5->SQR1 =
-          (0 << ADC_SQR1_L_Pos) |  // length 1
-          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
-    } else if (family0_) {
-      // Switch back to FET temp sense.
-      ADC5->SQR1 =
-          (0 << ADC_SQR1_L_Pos) |  // length 1
-          (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
-    } else if (family1or2or3_) {
-      ADC5->SQR1 =
-          (0 << ADC_SQR1_L_Pos) |  // length 1
-          (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
-    }
 
 
 #ifdef MOTEUS_PERFORMANCE_MEASURE
@@ -2550,6 +2590,15 @@ class BldcServo::Impl {
   RateConfig rate_config_;
 
   int32_t phase_ = 0;
+
+  // Tracks which ADC5 channel is being sampled (alternates each control cycle).
+  // 0 = first channel (vsense/tsense/fet_temp depending on board)
+  // 1 = second channel (tsense/msense depending on board)
+  int32_t adc5_phase_ = 0;
+
+  // Value transferred by DMA to LPTIM1->CR to trigger ADC sampling.
+  // Must be in memory accessible by DMA (not CCM).
+  uint32_t lptim1_sngstrt_value_ = 0;
 
   Thermistor fet_thermistor_;
   Thermistor motor_thermistor_;
