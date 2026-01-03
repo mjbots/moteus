@@ -26,11 +26,31 @@ To run the python unit tests, the following Ubuntu python packages must be insta
 sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb
 ```
 
+The apt packages (numpy, scipy, etc.) are built for the system Python 3.12. If `/usr/local/bin/python3` exists and points to a different Python version, it will shadow the system Python and cause import failures. Remove or rename it:
+
+```
+sudo mv /usr/local/bin/python3 /usr/local/bin/python3.bak
+```
+
 To run the cpp tests, you will need this package:
 
 ```
 wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
 sudo apt install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+```
+
+## Proxy/Offline Builds
+
+If bazel cannot download dependencies due to proxy authentication issues, use the download script to pre-populate the cache:
+
+```
+bash utils/download_bazel_deps.sh
+```
+
+Then run bazel with the cache flags:
+
+```
+tools/bazel test --config=host //:host --repository_cache=/tmp/repo_cache --distdir=/tmp/bazel_cache
 ```
 
 ## Development Commands
