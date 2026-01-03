@@ -60,9 +60,12 @@ class MockSerial:
 
     async def read(self, size, block=True):
         while True:
-            # If we are blocking, then we need the full data
-            if ((self.read_buffer and not block) or
-                len(self.read_buffer) > size):
+            # If we have enough data, return it
+            if len(self.read_buffer) >= size:
+                break
+
+            # If non-blocking, return whatever we have (even if empty)
+            if not block:
                 break
 
             # Wait for more data
