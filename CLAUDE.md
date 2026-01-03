@@ -39,7 +39,9 @@ wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ub
 sudo apt install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
 ```
 
-## Proxy/Offline Builds
+## Proxy/Offline Builds (Claude Code VM)
+
+**IMPORTANT for Claude Code:** When building in the Claude Code VM, always use the offline build approach below. Do not attempt direct bazel downloads as they will fail due to proxy authentication.
 
 If bazel cannot download dependencies due to proxy authentication issues, use the download script to pre-populate the cache:
 
@@ -47,11 +49,20 @@ If bazel cannot download dependencies due to proxy authentication issues, use th
 bash utils/download_bazel_deps.sh
 ```
 
-Then run bazel with the cache flags:
+**Download time estimate:** The script downloads approximately 650MB of dependencies (LLVM toolchain ~414MB, Boost ~124MB, mbed-os ~88MB, plus smaller packages). Expect 10-15 minutes on a typical connection.
+
+Then run bazel with the cache flags AND sandbox fix:
 
 ```
-tools/bazel test --config=host //:host --repository_cache=/tmp/repo_cache --distdir=/tmp/bazel_cache
+tools/bazel test --config=host //:host --repository_cache=/tmp/repo_cache --distdir=/tmp/bazel_cache --sandbox_writable_path=/dev
 ```
+
+The `--sandbox_writable_path=/dev` flag is required in the Claude Code VM to work around sandbox restrictions on `/dev/null`. Always include this flag when building in the VM environment.
+
+**If downloads fail:** Do NOT fall back to non-bazel builds or manual `pip install`. The bazel build is the only supported method for this project. If the download script fails:
+1. Retry the download script - network issues are often transient
+2. Check if specific URLs are blocked and report which ones
+3. Ask for help rather than attempting workarounds
 
 ## Development Commands
 
