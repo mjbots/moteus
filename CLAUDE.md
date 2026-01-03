@@ -18,6 +18,21 @@ Unit tests can be run with:
 
 The project also exposes a CMake interface for client libraries but does not use CMake for the main build.
 
+## Necessary Ubuntu packages
+
+To run the python unit tests, the following Ubuntu python packages must be installed:
+
+```
+sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb
+```
+
+To run the cpp tests, you will need this package:
+
+```
+wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+sudo apt install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+```
+
 ## Development Commands
 
 ### Command line interaction with devices
@@ -69,6 +84,11 @@ from the repository.
 - **moteus_tool.py**: Command-line tool for configuration and diagnostics
 - **gui/**: Graphical user interface for real-time monitoring
 - **Calibration tools**: Various encoder and motor calibration utilities
+
+### Bazel helpers (tools/)
+
+The `tools/` directory should only be used for storing bazel scripts
+and configuration.
 
 ## Key Configuration Parameters
 
