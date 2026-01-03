@@ -92,7 +92,8 @@ class BldcServoPosition {
       float v0,
       float vf,
       float dx,
-      float dv) MOTEUS_CCM_ATTRIBUTE {
+      float dv,
+      float period_s) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
 
@@ -112,7 +113,17 @@ class BldcServoPosition {
     if ((v_frame * dx) >= 0.0f && dx != 0.0f) {
       // The target is stationary and we are moving towards it.
       const float decel_distance = (v_frame * v_frame) / (2.0f * a);
-      if (std::abs(dx) >= decel_distance) {
+
+      // Add a margin to prevent oscillation at the transition due to
+      // floating point errors. During ideal constant deceleration,
+      // dx and decel_distance decrease at the same rate, leaving
+      // their difference unchanged. This means any floating point
+      // noise can cause the comparison to flip. By adding a margin of
+      // one timestep's worth of position travel, we ensure that once
+      // we commit to decelerating, we stay decelerating.
+      const float margin = std::abs(v_frame) * period_s;
+
+      if (std::abs(dx) >= decel_distance + margin) {
         if (std::isnan(data->velocity_limit) ||
             std::abs(v0) < data->velocity_limit) {
           return std::copysign(a, dx);
@@ -160,7 +171,7 @@ class BldcServoPosition {
     }
 
     const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, dv);
+        data, a, v0, vf, dx, dv, period_s);
 
     status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;

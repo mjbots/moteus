@@ -703,9 +703,7 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
   BOOST_TEST(steps_to_complete >= 440);
   BOOST_TEST(steps_to_complete <= 460);
 
-  // Because of floating point precision issues in the current
-  // implementation, we aren't perfect.  Still, verify that it
-  // *mostly* does what we want.
-  BOOST_TEST(negative_violations <= 15);
-  BOOST_TEST(zero_violations <= 2);
+  // With the margin-based comparison, we should have no violations.
+  BOOST_TEST(negative_violations == 0);
+  BOOST_TEST(zero_violations == 0);
 }
