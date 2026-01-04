@@ -23,6 +23,7 @@ The project also exposes a CMake interface for client libraries but does not use
 To run the python unit tests, the following Ubuntu python packages must be installed:
 
 ```
+sudo apt update
 sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb
 ```
 
