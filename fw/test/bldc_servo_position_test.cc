@@ -991,6 +991,88 @@ BOOST_AUTO_TEST_CASE(TrajectoryDurationOverhead) {
   BOOST_TEST(deviation <= 0.0001f);  // 100us tolerance
 }
 
+// Test long trajectory behavior.
+// Currently demonstrates that fixed thresholds don't scale well to long moves.
+// TODO: Fix threshold formulation to scale with trajectory length.
+BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
+  Context ctx;
+
+  // 50x the distance of TrajectoryDurationOverhead: 12.5 rev at 4000 rev/s²
+  constexpr float kDistance = 12.5f;
+  constexpr float kAccel = 4000.0f;
+  constexpr float kRateHz = 30000.0f;
+
+  // Theoretical time: 2 * sqrt(12.5 / 4000) = 111.8 ms
+  const float theoretical_time = 2.0f * std::sqrt(kDistance / kAccel);
+
+  ctx.data.position = kDistance;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = kRateHz;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  int steps_to_complete = 0;
+  constexpr int kMaxSteps = 500000;
+  int eot_violations = 0;
+  float prev_accel = 0.0f;
+  int accel_sign_changes = 0;
+
+  for (int i = 0; i < kMaxSteps; i++) {
+    ctx.Call();
+
+    const float current_accel = ctx.status.control_acceleration;
+
+    // Count acceleration sign changes (oscillation indicator)
+    if (i > 0 && prev_accel != 0.0f && current_accel != 0.0f) {
+      if ((prev_accel > 0) != (current_accel > 0)) {
+        accel_sign_changes++;
+      }
+    }
+    prev_accel = current_accel;
+
+    // Check for end-of-trajectory violations (position moving away from target)
+    const float dx = ctx.data.position - ctx.status.control_position;
+    const float v = ctx.status.control_velocity.value();
+    if (std::abs(dx) < 0.001f && !ctx.status.trajectory_done) {
+      // Near target but not done - check if moving away
+      if ((dx > 0 && v < -0.01f) || (dx < 0 && v > 0.01f)) {
+        eot_violations++;
+      }
+    }
+
+    if (ctx.status.trajectory_done) {
+      steps_to_complete = i + 1;
+      break;
+    }
+  }
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+
+  const float actual_time = steps_to_complete / kRateHz;
+  const float overhead = actual_time - theoretical_time;
+
+  std::cout << "LongTrajectoryNoOscillation: steps=" << steps_to_complete
+            << " actual=" << (actual_time * 1000) << "ms"
+            << " theoretical=" << (theoretical_time * 1000) << "ms"
+            << " overhead=" << (overhead * 1000) << "ms"
+            << " accel_sign_changes=" << accel_sign_changes
+            << " eot_violations=" << eot_violations << std::endl;
+
+  // Current behavior: ~40ms overhead due to oscillation at end.
+  // Ideally this should be < 1ms, but fixed thresholds don't scale.
+  BOOST_TEST(overhead < 0.050f);  // Accept current ~40ms overhead
+
+  // Current behavior: 2 sign changes (accel->decel at midpoint, then oscillation)
+  // Ideally should be 1 (no oscillation).
+  BOOST_TEST(accel_sign_changes <= 2);
+
+  // No end-of-trajectory violations (trajectory does eventually complete)
+  BOOST_TEST(eot_violations == 0);
+}
+
 // Hysteresis causes continued deceleration even when target moves further out.
 // Position tolerance is 0.3% to allow for prediction-based early completion.
 BOOST_AUTO_TEST_CASE(CommandChangeDuringDecel_HysteresisEffect,
