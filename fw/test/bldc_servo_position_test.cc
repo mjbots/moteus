@@ -24,7 +24,14 @@ using namespace moteus;
 
 namespace tt = boost::test_tools;
 
+// Set to true to enable verbose trajectory debug output in tests.
+// This prints step-by-step trajectory data for debugging.
+#ifndef TRAJECTORY_DEBUG_OUTPUT
+#define TRAJECTORY_DEBUG_OUTPUT false
+#endif
+
 namespace {
+constexpr bool kTrajectoryDebug = TRAJECTORY_DEBUG_OUTPUT;
 constexpr float NaN = std::numeric_limits<float>::quiet_NaN();
 
 struct Context {
@@ -388,25 +395,25 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
 
     /////////////////////////////////
     // No velocity limit.
-    { 0.0,  0.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 4.514 },
-    { 0.0,  1.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 3.730 },
-    { 0.0,  1.0,    5.0, 1.5,   1.0, NaN, 40,   0.000, 5.025 },
-    { 0.0, -1.0,   -5.0,-1.5,   1.0, NaN, 40,   0.000, 5.025 },
-    { 5.0,  0.0,    0.0, 0.0,   1.0, NaN, 40,   0.000, 4.514 },
-    { 5.0,  0.0,    0.0, 0.0,   2.0, NaN, 40,   0.000, 3.205 },
+    { 0.0,  0.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 4.568 },
+    { 0.0,  1.0,    5.0, 0.0,   1.0, NaN, 40,   0.000, 3.791 },
+    { 0.0,  1.0,    5.0, 1.5,   1.0, NaN, 40,   0.000, 5.140 },
+    { 0.0, -1.0,   -5.0,-1.5,   1.0, NaN, 40,   0.000, 5.141 },
+    { 5.0,  0.0,    0.0, 0.0,   1.0, NaN, 40,   0.000, 4.568 },
+    { 5.0,  0.0,    0.0, 0.0,   2.0, NaN, 40,   0.000, 3.216 },
 
     /////////////////////////////////
     // Accel and velocity limits
-    { 0.0,  0.0,    3.0, 0.0,   1.0, 0.5, 40,   5.502, 6.500 },
-    { 0.0,  0.0,    3.0, 0.0,   1.0, 0.7, 40,   3.588, 5.010 },
+    { 0.0,  0.0,    3.0, 0.0,   1.0, 0.5, 40,   5.502, 6.511 },
+    { 0.0,  0.0,    3.0, 0.0,   1.0, 0.7, 40,   3.588, 5.005 },
     { 0.0,  0.0,    3.0, 0.0,   2.0, 0.7, 40,   3.937, 4.645 },
-    { 0.0,  0.3,    3.0, 0.0,   2.0, 0.7, 40,   3.969, 4.522 },
-    { 0.3,  0.3,    3.0, 0.0,   2.0, 0.7, 40,   3.540, 4.094 },
+    { 0.0,  0.3,    3.0, 0.0,   2.0, 0.7, 40,   3.969, 4.527 },
+    { 0.3,  0.3,    3.0, 0.0,   2.0, 0.7, 40,   3.540, 4.098 },
     // overspeed
-    { 0.3,  2.0,    3.0, 0.0,   2.0, 0.7, 40,   2.429, 3.436 },
-    { -0.3, -2.0,  -3.0, 0.0,   2.0, 0.7, 40,   2.429, 3.436 },
+    { 0.3,  2.0,    3.0, 0.0,   2.0, 0.7, 40,   2.429, 3.437 },
+    { -0.3, -2.0,  -3.0, 0.0,   2.0, 0.7, 40,   2.429, 3.437 },
     // overshoot
-    { 0.3,  4.0,    3.0, 0.0,   2.0, 0.7, 40,   1.504, 4.207 },
+    { 0.3,  4.0,    3.0, 0.0,   2.0, 0.7, 40,   1.504, 4.209 },
 
     // non-zero final velocity
     { 0.0, 0.0,     3.0, 0.5,   1.0, 0.8, 40,  10.119, 11.217 },
@@ -419,7 +426,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
 
     // non-zero targets
     { 0.0, 0.0,     0.0, 0.5,   1.0, 0.6, 40,   1.152, 1.850 },
-    {-0.03, 0.5,    0.0, 0.3,   1.0, 0.6, 40,   0.000975, 0.2474 },
+    {-0.03, 0.5,    0.0, 0.3,   1.0, 0.6, 40,   0.000975, 0.2471 },
     // The same as the previous, but shifted to be near the wraparound
     // point and at a lower PWM rate to maximize numerical problems.
     {3275.97, 0.5,    3276.0, 0.3,   1.0, 0.6, 40,   0.000975, 0.2474 },
@@ -653,7 +660,9 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
   // strictly negative, and then 0, with no other transitions.
 
   int negative_violations = 0;
+  int end_of_trajectory_violations = 0;
   int zero_violations = 0;
+  float peak_velocity = 0.0f;
 
   constexpr int kMaxSteps = 50000;
   for (; steps_to_complete < kMaxSteps; steps_to_complete++) {
@@ -662,18 +671,18 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
       if (ctx.status.trajectory_done) { break; }
 
       const float this_accel = ctx.status.control_acceleration;
+      const float this_vel = ctx.status.control_velocity.value();
+
       switch (expected_accel) {
         case kStrictlyPositive: {
+          peak_velocity = std::max(peak_velocity, this_vel);
           if (this_accel > 0.0f) {
-            // As expected, break.
             BOOST_TEST(this_accel == kAccel);
             break;
           } else if (this_accel < 0.0f) {
-            // Advance.
             expected_accel = kStrictlyNegative;
             break;
           } else {
-            // Not expected.
             BOOST_TEST(expected_accel != 0.0f);
           }
           break;
@@ -686,7 +695,12 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
             expected_accel = kZero;
             break;
           } else {
-            negative_violations++;
+            // Spurious sign change - hysteresis should prevent these.
+            if (this_vel > peak_velocity * 0.1f) {
+              negative_violations++;
+            } else {
+              end_of_trajectory_violations++;
+            }
           }
           break;
         }
@@ -700,12 +714,334 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
     }
   }
 
-  BOOST_TEST(steps_to_complete >= 440);
-  BOOST_TEST(steps_to_complete <= 460);
+  // With exact integration and adjusted stopping distance, trajectories
+  // complete more efficiently. The step count varies slightly with
+  // floating-point rounding.
+  BOOST_TEST(steps_to_complete >= 395);
+  BOOST_TEST(steps_to_complete <= 430);
 
-  // Because of floating point precision issues in the current
-  // implementation, we aren't perfect.  Still, verify that it
-  // *mostly* does what we want.
-  BOOST_TEST(negative_violations <= 15);
-  BOOST_TEST(zero_violations <= 2);
+  // Hysteresis should prevent mid-trajectory sign changes.
+  BOOST_TEST(negative_violations == 0);
+  BOOST_TEST(end_of_trajectory_violations == 0);
+  BOOST_TEST(zero_violations == 0);
+}
+
+// When target moves further out during deceleration, we eventually switch
+// to acceleration and reach the new target.
+BOOST_AUTO_TEST_CASE(CommandChangeDuringDecel_TargetFurtherOut,
+                     * boost::unit_test::tolerance(1e-3)) {
+  Context ctx;
+
+  constexpr float kAccel = 1000.0f;
+  constexpr float kInitialTarget = 0.5f;
+  constexpr float kNewTarget = 1.0f;  // Further out
+
+  ctx.data.position = kInitialTarget;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = 10000.0f;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  // Run until we're in deceleration phase (after ~224 steps).
+  int step = 0;
+  for (; step < 280; step++) {
+    ctx.Call();
+  }
+
+  BOOST_TEST(ctx.status.control_acceleration < 0.0f);
+  BOOST_TEST(ctx.status.control_velocity.value() > 0.0f);
+
+  // Move target further out.
+  ctx.data.position = kNewTarget;
+  ctx.data.position_relative_raw.reset();
+
+  // Should eventually switch to acceleration and reach new target.
+  bool switched_to_accel = false;
+  for (; step < 10000; step++) {
+    ctx.Call();
+
+    if (!switched_to_accel && ctx.status.control_acceleration > 0.0f) {
+      switched_to_accel = true;
+    }
+
+    if (ctx.status.trajectory_done) {
+      break;
+    }
+  }
+
+  BOOST_TEST(switched_to_accel);
+  // Should reach the new target
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == kNewTarget);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+}
+
+// When target moves closer during deceleration, we continue decelerating
+// (hysteresis), overshoot the new target, then return to it.
+BOOST_AUTO_TEST_CASE(CommandChangeDuringDecel_TargetCloser,
+                     * boost::unit_test::tolerance(1e-3)) {
+  Context ctx;
+
+  constexpr float kAccel = 1000.0f;
+  constexpr float kInitialTarget = 0.5f;
+  constexpr float kNewTarget = 0.3f;
+
+  ctx.data.position = kInitialTarget;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = 10000.0f;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  // Run until we're in deceleration phase.
+  int step = 0;
+  for (; step < 280; step++) {
+    ctx.Call();
+  }
+
+  BOOST_TEST(ctx.status.control_acceleration < 0.0f);
+  BOOST_TEST(ctx.status.control_velocity.value() > 0.0f);
+
+  // Move target closer.
+  ctx.data.position = kNewTarget;
+  ctx.data.position_relative_raw.reset();
+
+  // Should overshoot due to hysteresis, then return to target.
+  bool ever_overshot = false;
+
+  for (; step < 10000; step++) {
+    ctx.Call();
+    float pos = ctx.from_raw(ctx.status.control_position_raw.value());
+
+    if (pos > kNewTarget + 0.001f) {
+      ever_overshot = true;
+    }
+
+    if (ctx.status.trajectory_done) {
+      break;
+    }
+  }
+
+  BOOST_TEST(ever_overshot);
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == kNewTarget);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+}
+
+// Small position increases late in deceleration are handled correctly.
+// Position tolerance is 0.3% to allow for prediction-based early completion.
+BOOST_AUTO_TEST_CASE(CommandChangeDuringDecel_SmallIncrease,
+                     * boost::unit_test::tolerance(3e-3)) {
+  Context ctx;
+
+  constexpr float kAccel = 1000.0f;
+  constexpr float kInitialTarget = 0.5f;
+  constexpr float kNewTarget = 0.52f;
+
+  ctx.data.position = kInitialTarget;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = 10000.0f;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  // Run until late in deceleration phase with low velocity.
+  int step = 0;
+  for (; step < 400; step++) {
+    ctx.Call();
+  }
+
+  BOOST_TEST(ctx.status.control_acceleration < 0.0f);
+  const float vel_at_change = ctx.status.control_velocity.value();
+  BOOST_TEST(vel_at_change > 0.0f);
+  BOOST_TEST(vel_at_change < 10.0f);
+
+  // Small increase in target.
+  ctx.data.position = kNewTarget;
+  ctx.data.position_relative_raw.reset();
+
+  for (; step < 10000; step++) {
+    ctx.Call();
+
+    if (ctx.status.trajectory_done) {
+      break;
+    }
+  }
+
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == kNewTarget);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+}
+
+// Verify that the trajectory duration for a typical high-acceleration move
+// is stable and predictable.
+BOOST_AUTO_TEST_CASE(TrajectoryDurationOverhead) {
+  Context ctx;
+
+  // Test parameters: 0.25 rev at 4000 rev/s², 30kHz control rate.
+  constexpr float kDistance = 0.25f;
+  constexpr float kAccel = 4000.0f;
+  constexpr float kRateHz = 30000.0f;
+
+  // Theoretical time for bang-bang trajectory: 2 * sqrt(dx / a)
+  // = 2 * sqrt(0.25 / 4000) = 2 * 0.00790569 = 0.01581 s = 15.811 ms
+  //
+  // With exact kinematic integration and prediction-based early completion
+  // at high sample rates, the trajectory completes very close to theoretical.
+  // The prediction detects when the final oscillation would bring us within
+  // threshold and completes early to avoid unnecessary oscillation steps.
+  constexpr float kExpectedTime = 0.0158f;  // 15.8 ms (474 steps)
+
+  ctx.data.position = kDistance;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = kRateHz;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  int steps_to_complete = 0;
+  constexpr int kMaxSteps = 50000;
+
+  // Analytical bang-bang trajectory parameters
+  const float t_switch = std::sqrt(kDistance / kAccel);  // Time to switch from accel to decel
+  const float v_max = kAccel * t_switch;  // Peak velocity at switch point
+  const float x_switch = 0.5f * kAccel * t_switch * t_switch;  // Position at switch
+
+  float prev_accel = 0.0f;
+  int switch_step = -1;
+
+  if (kTrajectoryDebug) {
+    std::cout << "\n=== Trajectory Debug Output ===\n";
+    std::cout << "Analytical: t_switch=" << (t_switch * 1000) << "ms, v_max=" << v_max
+              << " rev/s, x_switch=" << x_switch << " rev\n";
+    std::cout << "step,time_ms,pos,vel,accel,done,dx,ana_pos,ana_vel,pos_err\n";
+  }
+
+  for (; steps_to_complete < kMaxSteps; steps_to_complete++) {
+    ctx.Call();
+    const float pos = ctx.from_raw(ctx.status.control_position_raw.value());
+    const float vel = ctx.status.control_velocity.value();
+    const float accel = ctx.status.control_acceleration;
+    const float dx = kDistance - pos;
+    const float t = (steps_to_complete + 1) / kRateHz;
+    const float time_ms = t * 1000.0f;
+
+    // Track first switch for summary output
+    if (accel * prev_accel < 0 && switch_step < 0) {
+      switch_step = steps_to_complete;
+    }
+
+    if (kTrajectoryDebug) {
+      // Analytical position and velocity for ideal bang-bang trajectory
+      float ana_pos, ana_vel;
+      if (t <= t_switch) {
+        ana_pos = 0.5f * kAccel * t * t;
+        ana_vel = kAccel * t;
+      } else if (t <= 2.0f * t_switch) {
+        const float dt_decel = t - t_switch;
+        ana_pos = x_switch + v_max * dt_decel - 0.5f * kAccel * dt_decel * dt_decel;
+        ana_vel = v_max - kAccel * dt_decel;
+      } else {
+        ana_pos = kDistance;
+        ana_vel = 0.0f;
+      }
+
+      const float pos_err = pos - ana_pos;
+
+      // Print on accel sign change, near theoretical switch, near completion
+      bool is_transition = (accel * prev_accel < 0);  // Sign change
+      bool near_switch = (steps_to_complete >= 220 && steps_to_complete <= 245);
+      bool near_end = (steps_to_complete >= 460);
+
+      if (is_transition || near_switch || near_end) {
+        std::cout << steps_to_complete << "," << time_ms << ","
+                  << pos << "," << vel << "," << accel << ","
+                  << ctx.status.trajectory_done << "," << dx << ","
+                  << ana_pos << "," << ana_vel << ","
+                  << pos_err << "\n";
+      }
+    }
+
+    prev_accel = accel;
+    if (ctx.status.trajectory_done) { break; }
+  }
+
+  if (kTrajectoryDebug) {
+    std::cout << "\nFirst switch at step " << switch_step
+              << " (analytical=" << int(t_switch * kRateHz) << ")\n";
+    std::cout << "=== End Trajectory Debug ===\n\n";
+  }
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+
+  const float actual_time = steps_to_complete / kRateHz;
+
+  // Theoretical time for comparison
+  const float theoretical = 2.0f * std::sqrt(kDistance / kAccel);
+  std::cout << "TrajectoryDurationOverhead: steps=" << steps_to_complete
+            << " actual=" << (actual_time * 1000) << "ms"
+            << " theoretical=" << (theoretical * 1000) << "ms"
+            << " overhead=" << ((actual_time - theoretical) * 1000) << "ms" << std::endl;
+
+  // Duration must be within 100us of expected.
+  const float deviation = std::abs(actual_time - kExpectedTime);
+  BOOST_TEST(deviation <= 0.0001f);  // 100us tolerance
+}
+
+// Hysteresis causes continued deceleration even when target moves further out.
+// Position tolerance is 0.3% to allow for prediction-based early completion.
+BOOST_AUTO_TEST_CASE(CommandChangeDuringDecel_HysteresisEffect,
+                     * boost::unit_test::tolerance(3e-3)) {
+  Context ctx;
+
+  constexpr float kAccel = 1000.0f;
+  constexpr float kInitialTarget = 0.5f;
+  constexpr float kNewTarget = 0.6f;
+
+  ctx.data.position = kInitialTarget;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.rate_hz = 10000.0f;
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  // Run until mid-deceleration with significant velocity.
+  int step = 0;
+  for (; step < 280; step++) {
+    ctx.Call();
+  }
+
+  BOOST_TEST(ctx.status.control_acceleration < 0.0f);
+  const float vel_before = ctx.status.control_velocity.value();
+  BOOST_TEST(vel_before > 5.0f);
+
+  // Move target further out.
+  ctx.data.position = kNewTarget;
+  ctx.data.position_relative_raw.reset();
+
+  // Track steps where we continue decelerating despite target moving out.
+  int steps_still_decelerating = 0;
+
+  for (; step < 10000; step++) {
+    ctx.Call();
+    float vel = ctx.status.control_velocity.value();
+
+    if (ctx.status.control_acceleration < 0.0f && vel > 0.0f) {
+      steps_still_decelerating++;
+    }
+
+    if (ctx.status.trajectory_done) {
+      break;
+    }
+  }
+
+  // Hysteresis causes continued deceleration for some steps.
+  BOOST_TEST(steps_still_decelerating > 0);
+
+  BOOST_TEST(ctx.from_raw(ctx.status.control_position_raw.value()) == kNewTarget);
+  BOOST_TEST(ctx.status.trajectory_done == true);
 }

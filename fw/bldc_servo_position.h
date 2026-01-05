@@ -87,12 +87,13 @@ class BldcServoPosition {
   }
 
   static float CalculateAcceleration(
+      float prev_accel,
       BldcServoCommandData* data,
       float a,
       float v0,
       float vf,
       float dx,
-      float dv) MOTEUS_CCM_ATTRIBUTE {
+      float dt) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
 
@@ -110,9 +111,37 @@ class BldcServoPosition {
     const auto v_frame = v0 - vf;
 
     if ((v_frame * dx) >= 0.0f && dx != 0.0f) {
-      // The target is stationary and we are moving towards it.
-      const float decel_distance = (v_frame * v_frame) / (2.0f * a);
-      if (std::abs(dx) >= decel_distance) {
+      // Moving towards the target.
+      // With exact kinematic integration, the stopping distance v²/(2a) is exact.
+      // However, we make the switch decision at the START of a step, then apply
+      // acceleration for the ENTIRE step. So we need to check: "if I accelerate
+      // this step, can I still stop in time?"
+      // After accelerating: v' = v + a*dt, dx' = dx - v*dt - 0.5*a*dt²
+      // Can stop if: dx' >= v'²/(2a)
+      // Solving: dx >= v²/(2a) + 2*v*dt + a*dt²
+      const float base_decel_distance = (v_frame * v_frame) / (2.0f * a);
+      const float step_adjustment = 2.0f * std::abs(v_frame) * dt + a * dt * dt;
+      const float decel_distance = base_decel_distance + step_adjustment;
+      const bool should_accelerate = std::abs(dx) >= decel_distance;
+
+      const bool was_decelerating_towards_target =
+          (prev_accel != 0.0f) && (prev_accel * v_frame < 0.0f);
+
+      // Also consider deceleration when velocity is very near zero but we were
+      // just decelerating. This handles the case where v_frame crosses zero.
+      const float velocity_zero_threshold = a * dt * 2.0f;
+      const bool velocity_near_zero = std::abs(v_frame) < velocity_zero_threshold;
+      const bool was_decelerating = (prev_accel != 0.0f) &&
+          (std::copysign(1.0f, prev_accel) != std::copysign(1.0f, v_frame + prev_accel * dt));
+
+      // Hysteresis: once decelerating towards target, continue until
+      // overshoot or arrival to prevent floating-point oscillation.
+      if (was_decelerating_towards_target ||
+          (velocity_near_zero && was_decelerating)) {
+        return std::copysign(a, -v_frame);
+      }
+
+      if (should_accelerate) {
         if (std::isnan(data->velocity_limit) ||
             std::abs(v0) < data->velocity_limit) {
           return std::copysign(a, dx);
@@ -124,7 +153,7 @@ class BldcServoPosition {
       }
     }
 
-    // We are moving away.  Try to fix that.
+    // Moving away from target.
     return std::copysign(a, -v_frame);
   }
 
@@ -150,7 +179,6 @@ class BldcServoPosition {
     // command.
     const float dx = MotorPosition::IntToFloat(
         (*data->position_relative_raw - *status->control_position_raw));
-    const float dv = vf - v0;
 
     if (std::isnan(data->accel_limit)) {
       // We only have a velocity limit, not an acceleration limit.
@@ -160,7 +188,7 @@ class BldcServoPosition {
     }
 
     const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, dv);
+        status->control_acceleration, data, a, v0, vf, dx, period_s);
 
     status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
@@ -180,13 +208,77 @@ class BldcServoPosition {
       status->control_velocity = std::copysign(data->velocity_limit, v0);
     }
 
+    // Compute position step with exact integration for completion check.
+    // This predicts where we'll actually be after UpdateCommand integrates.
+    const float step_exact = (v0 + v1) * 0.5f * period_s;
+    const float dx_after_step = dx - step_exact;
+
+    // Check for position overshoot: position crosses target this step.
+    // With exact integration, we can detect this precisely and complete
+    // immediately to avoid oscillation around the target.
+    const bool would_overshoot = (dx > 0.0f && dx_after_step < 0.0f) ||
+                                  (dx < 0.0f && dx_after_step > 0.0f);
+
+    // Check if we're decelerating towards target.
+    const bool decelerating_towards_target =
+        (acceleration != 0.0f) && (acceleration * (v0 - vf) < 0.0f);
+
+    // Check if velocity is close to target (within a few timesteps).
+    const bool velocity_close_to_target =
+        std::abs(v1 - vf) < (a * period_s * 5.0f);
+
+    // Complete immediately on overshoot while decelerating.
+    if (would_overshoot && decelerating_towards_target && velocity_close_to_target) {
+      data->position = std::numeric_limits<float>::quiet_NaN();
+      data->position_relative_raw.reset();
+      status->control_acceleration = 0.0f;
+      status->control_velocity = vf;
+      status->trajectory_done = true;
+      return;
+    }
+
     const float signed_vel_lower = std::min(v0, v1);
     const float signed_vel_upper = std::max(v0, v1);
 
     // Did we span the target velocity this cycle?
     const bool target_cross = signed_vel_lower <= vf && signed_vel_upper >= vf;
     const bool target_near = std::abs(v1 - vf) < (a * 0.5f * period_s);
-    const bool position_near = (std::abs(dx / v1) <= (10.0f * period_s));
+
+    // Check position using predicted position after the step.
+    // The threshold accounts for discrete-time trajectory planning accuracy.
+    // Use velocity-based threshold at high velocity, accel-based at low velocity.
+    const float velocity_based_threshold =
+        std::abs(v0) * period_s * 3.0f + std::abs(v1) * period_s * 3.0f;
+    // At low velocity, position threshold is ~11 timesteps of acceleration
+    // (distance = 0.5*a*t² means t = sqrt(2*60)*dt ≈ 11*dt for threshold 60*a*dt²).
+    const float accel_based_threshold = a * period_s * period_s * 60.0f;
+    const float pos_threshold = std::max(velocity_based_threshold,
+                                          accel_based_threshold);
+
+    // Use prediction-based early completion to avoid oscillation at trajectory
+    // end. The prediction estimates that if we oscillate once more from current
+    // position error, we'll get closer to target. If the predicted final error
+    // is small, complete now instead of oscillating.
+    if (target_cross && decelerating_towards_target) {
+      const float v_peak = std::sqrt(2.0f * std::abs(dx_after_step) * a);
+      const float oscillation_velocity_threshold = a * period_s * 15.0f;
+      if (v_peak < oscillation_velocity_threshold) {
+        const float predicted_final_dx =
+            2.0f * v_peak * period_s + a * period_s * period_s;
+        // Complete if predicted error after oscillation is within threshold.
+        if (predicted_final_dx <= pos_threshold) {
+          data->position = std::numeric_limits<float>::quiet_NaN();
+          data->position_relative_raw.reset();
+          status->control_acceleration = 0.0f;
+          status->control_velocity = vf;
+          status->trajectory_done = true;
+          return;
+        }
+      }
+    }
+
+    const bool position_near = std::abs(dx_after_step) <= pos_threshold;
+
     if ((target_cross || target_near) && position_near) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
@@ -268,6 +360,9 @@ class BldcServoPosition {
       }
     }
 
+    // Save velocity before trajectory update for exact integration.
+    const float v_before = status->control_velocity.value_or(0.0f);
+
     if (!status->trajectory_done) {
       UpdateTrajectory(status, config, rate_hz, data, velocity);
     }
@@ -285,7 +380,15 @@ class BldcServoPosition {
     // This limits our usable velocity to 20kHz modulo the position
     // scale at a 40kHz switching frequency.  1.2 million RPM should
     // be enough for anybody?
-    const float step = velocity_command / rate_hz;
+    //
+    // Use exact kinematic integration when accelerating:
+    // (v_before + v_after) / 2 * dt = v0*dt + 0.5*a*dt² for constant accel.
+    // When not accelerating (velocity set directly), use final velocity.
+    const float v_after = velocity_command;
+    const bool is_accelerating = (status->control_acceleration != 0.0f);
+    const float step = is_accelerating ?
+        (v_before + v_after) * 0.5f / rate_hz :
+        v_after / rate_hz;
     const int64_t int64_step =
         (static_cast<int64_t>(
             static_cast<int32_t>((static_cast<float>(1ll << 32) * step))) <<
