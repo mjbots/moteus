@@ -1061,15 +1061,16 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
             << " accel_sign_changes=" << accel_sign_changes
             << " eot_violations=" << eot_violations << std::endl;
 
-  // Current behavior: ~40ms overhead due to oscillation at end.
-  // Ideally this should be < 1ms, but fixed thresholds don't scale.
-  BOOST_TEST(overhead < 0.050f);  // Accept current ~40ms overhead
+  // With exact switch point handling, there's no oscillation but some overhead
+  // due to discrete-time trajectory planning.
+  // TODO: Reduce overhead by improving switch point detection accuracy.
+  BOOST_TEST(overhead < 0.050f);  // Accept current ~38ms overhead
 
-  // Current behavior: 2 sign changes (accel->decel at midpoint, then oscillation)
-  // Ideally should be 1 (no oscillation).
-  BOOST_TEST(accel_sign_changes <= 2);
+  // With exact switch handling, should have 0 sign changes (switch happens
+  // within a single step, so no sign change between steps).
+  BOOST_TEST(accel_sign_changes <= 1);
 
-  // No end-of-trajectory violations (trajectory does eventually complete)
+  // No end-of-trajectory violations
   BOOST_TEST(eot_violations == 0);
 }
 
