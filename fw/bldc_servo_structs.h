@@ -163,6 +163,10 @@ struct BldcServoStatus {
   float timeout_s = 0.0;
   bool trajectory_done = false;
 
+  // Internal fields for exact trajectory integration (not serialized).
+  float exact_position_step = 0.0f;
+  bool use_exact_position_step = false;
+
   float motor_max_velocity = 0.0f;
   float max_power_W = 0.0f;
 

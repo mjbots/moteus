@@ -86,46 +86,32 @@ class BldcServoPosition {
     }
   }
 
-  static float CalculateAcceleration(
-      BldcServoCommandData* data,
-      float a,
-      float v0,
-      float vf,
-      float dx,
-      float dv) MOTEUS_CCM_ATTRIBUTE {
-    // This logic is broken out primarily so that early-return can be
-    // used as a control flow mechanism to aid factorization.
+  // Compute the time until we should switch from acceleration to deceleration.
+  // Returns a value in [0, dt]. Returns 0 if already decelerating, dt if no switch.
+  static float ComputeSwitchTime(float v_abs, float dx_abs, float a, float dt) {
+    // The switch point is where remaining_distance = stopping_distance.
+    // stopping_distance = v²/(2a)
+    // After accelerating for time t: v_new = v + a*t, dx_new = dx - v*t - 0.5*a*t²
+    // Setting dx_new = v_new²/(2a) and solving:
+    //   dx - v*t - 0.5*a*t² = (v + a*t)²/(2a)
+    //   2a*dx - 2a*v*t - a²*t² = v² + 2*v*a*t + a²*t²
+    //   2a*dx = v² + 4*v*a*t + 2*a²*t²
+    //   a²*t² + 2*v*a*t + (0.5*v² - a*dx) = 0
+    // Using quadratic formula:
+    //   t = (-v + sqrt(0.5*v² + a*dx)) / a
 
-    // If we are overspeed, we always slow down to the velocity
-    // limit first.
-    if (std::isfinite(data->velocity_limit) &&
-        std::abs(v0) > data->velocity_limit) {
-      return std::copysign(a, -v0);
+    const float stop_distance = v_abs * v_abs / (2.0f * a);
+    if (dx_abs <= stop_distance) {
+      return 0.0f;  // Already past switch point
     }
 
-    // Perform all operations in the target reference frame,
-    // i.e. we'll transform our frame so that the target velocity is
-    // 0.
+    const float discriminant = 0.5f * v_abs * v_abs + a * dx_abs;
+    if (discriminant < 0.0f) return dt;
 
-    const auto v_frame = v0 - vf;
-
-    if ((v_frame * dx) >= 0.0f && dx != 0.0f) {
-      // The target is stationary and we are moving towards it.
-      const float decel_distance = (v_frame * v_frame) / (2.0f * a);
-      if (std::abs(dx) >= decel_distance) {
-        if (std::isnan(data->velocity_limit) ||
-            std::abs(v0) < data->velocity_limit) {
-          return std::copysign(a, dx);
-        } else {
-          return 0.0f;
-        }
-      } else {
-        return std::copysign(a, -v_frame);
-      }
-    }
-
-    // We are moving away.  Try to fix that.
-    return std::copysign(a, -v_frame);
+    const float t_switch = (-v_abs + std::sqrt(discriminant)) / a;
+    if (t_switch <= 0.0f) return 0.0f;
+    if (t_switch >= dt) return dt;
+    return t_switch;
   }
 
   static void DoVelocityAndAccelLimits(
@@ -136,58 +122,134 @@ class BldcServoPosition {
       float velocity) MOTEUS_CCM_ATTRIBUTE {
     const float period_s = 1.0f / rate_hz;
 
-    // This is the most general case.  We decide whether to
-    // accelerate, remain constant, or decelerate, then advance the
-    // control velocity in an appropriate manner, and finally check
-    // for trajectory completion.
-
     const float a = data->accel_limit;
-
     const float v0 = *status->control_velocity;
     const float vf = velocity;
 
-    // What is the delta between our current control state and the
-    // command.
+    // Delta between current control state and command.
     const float dx = MotorPosition::IntToFloat(
         (*data->position_relative_raw - *status->control_position_raw));
-    const float dv = vf - v0;
 
     if (std::isnan(data->accel_limit)) {
-      // We only have a velocity limit, not an acceleration limit.
-      DoVelocityOnlyLimit(
-          status, dx, data, velocity, period_s);
+      DoVelocityOnlyLimit(status, dx, data, velocity, period_s);
       return;
     }
 
-    const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, dv);
+    // Work in target velocity frame.
+    // v_frame represents our velocity relative to the target velocity.
+    const float v_frame = v0 - vf;
+    const float v_frame_abs = std::abs(v_frame);
+    const float dx_abs = std::abs(dx);
 
-    status->control_acceleration = acceleration;
-    *status->control_velocity += acceleration * period_s;
-    const float v1 = *status->control_velocity;
+    // Target is stationary in this frame. We're moving toward it if v_frame
+    // has same sign as dx (closing in on target position).
+    const bool moving_towards = (v_frame * dx >= 0.0f) && (dx != 0.0f);
 
-    const float vel_lower = std::min(std::abs(v0), std::abs(v1));
-    const float vel_upper = std::max(std::abs(v0), std::abs(v1));
-
-    // If this velocity would exceed the velocity limit, or pass
-    // through it while decelerating, make sure we have at least one
-    // cycle exactly at the velocity limit so we will properly enter
-    // the "cruise" phase.
-    if (std::isfinite(data->velocity_limit) &&
-        vel_lower < data->velocity_limit &&
-        vel_upper > data->velocity_limit) {
-      status->control_acceleration = 0.0f;
-      status->control_velocity = std::copysign(data->velocity_limit, v0);
+    // Handle overspeed case.
+    if (std::isfinite(data->velocity_limit) && std::abs(v0) > data->velocity_limit) {
+      status->control_acceleration = std::copysign(a, -v0);
+      *status->control_velocity += status->control_acceleration * period_s;
+      return;
     }
 
+    float v1;
+    float position_step;
+
+    // For trajectories without velocity limit, use exact switch time calculation.
+    if (!std::isfinite(data->velocity_limit) && moving_towards) {
+      const float t_switch = ComputeSwitchTime(v_frame_abs, dx_abs, a, period_s);
+
+      if (t_switch > 0.0f && t_switch < period_s) {
+        // Switch happens within this step! Handle exactly.
+        // Phase 1: accelerate for t_switch
+        const float a_accel = std::copysign(a, dx);
+        const float v_peak = v0 + a_accel * t_switch;
+        const float dx_accel = (v0 + v_peak) * 0.5f * t_switch;
+
+        // Phase 2: decelerate for remaining time
+        const float t_decel = period_s - t_switch;
+        const float a_decel = -a_accel;
+        v1 = v_peak + a_decel * t_decel;
+        const float dx_decel = (v_peak + v1) * 0.5f * t_decel;
+
+        status->control_acceleration = a_decel;
+        status->control_velocity = v1;
+        position_step = dx_accel + dx_decel;
+        status->exact_position_step = position_step;
+        status->use_exact_position_step = true;
+      } else if (t_switch == 0.0f) {
+        // Decelerating (already past switch point)
+        status->control_acceleration = std::copysign(a, -v_frame);
+        *status->control_velocity += status->control_acceleration * period_s;
+        v1 = *status->control_velocity;
+        position_step = (v0 + v1) * 0.5f * period_s;
+      } else {
+        // Accelerating (switch is in a future timestep)
+        status->control_acceleration = std::copysign(a, dx);
+        *status->control_velocity += status->control_acceleration * period_s;
+        v1 = *status->control_velocity;
+        position_step = (v0 + v1) * 0.5f * period_s;
+      }
+    } else if (moving_towards) {
+      // With velocity limit: use stop_distance to decide accel vs decel.
+      // Use v_frame since we're targeting velocity vf, not 0.
+      const float stop_distance = v_frame_abs * v_frame_abs / (2.0f * a);
+      // Add discrete-time margin: during one step we travel ~v*dt and can't
+      // change direction mid-step, so need to start decelerating slightly early.
+      const float margin = v_frame_abs * period_s;
+      const bool should_decel = (dx_abs <= stop_distance + margin);
+
+      if (should_decel) {
+        // Decelerating toward target
+        status->control_acceleration = std::copysign(a, -v_frame);
+        *status->control_velocity += status->control_acceleration * period_s;
+        v1 = *status->control_velocity;
+      } else if (std::abs(v0) >= data->velocity_limit) {
+        // At velocity limit - cruise
+        status->control_acceleration = 0.0f;
+        v1 = v0;
+      } else {
+        // Accelerating
+        status->control_acceleration = std::copysign(a, dx);
+        *status->control_velocity += status->control_acceleration * period_s;
+        v1 = *status->control_velocity;
+        // Clamp to velocity limit
+        if (std::abs(v1) > data->velocity_limit) {
+          status->control_velocity = std::copysign(data->velocity_limit, v1);
+          status->control_acceleration = 0.0f;
+          v1 = *status->control_velocity;
+        }
+      }
+      position_step = (v0 + v1) * 0.5f * period_s;
+    } else {
+      // Moving away from target (or stationary) - decelerate toward it
+      status->control_acceleration = std::copysign(a, -v_frame);
+      *status->control_velocity += status->control_acceleration * period_s;
+      v1 = *status->control_velocity;
+      position_step = (v0 + v1) * 0.5f * period_s;
+    }
+
+    // Compute predicted position after step.
+    const float dx_after_step = dx - position_step;
+
+    // Check for completion.
+    // Velocity check: did we cross through the target velocity this cycle?
     const float signed_vel_lower = std::min(v0, v1);
     const float signed_vel_upper = std::max(v0, v1);
+    const bool velocity_crossed_target = signed_vel_lower <= vf && signed_vel_upper >= vf;
 
-    // Did we span the target velocity this cycle?
-    const bool target_cross = signed_vel_lower <= vf && signed_vel_upper >= vf;
-    const bool target_near = std::abs(v1 - vf) < (a * 0.5f * period_s);
-    const bool position_near = (std::abs(dx / v1) <= (10.0f * period_s));
-    if ((target_cross || target_near) && position_near) {
+    // Position check: either time-based (for moving cases) or threshold-based.
+    bool position_near;
+    if (std::abs(vf) > 1e-6f && std::abs(v1) > 1e-6f) {
+      // Time-based: within 4 timesteps of target
+      position_near = std::abs(dx_after_step / v1) <= (4.0f * period_s);
+    } else {
+      // Position threshold for stop trajectories
+      const float pos_threshold = 4.0f * a * period_s * period_s;
+      position_near = std::abs(dx_after_step) < pos_threshold;
+    }
+
+    if (velocity_crossed_target && position_near) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
       status->control_acceleration = 0.0f;
@@ -268,6 +330,9 @@ class BldcServoPosition {
       }
     }
 
+    // Save velocity before trajectory update for exact integration.
+    const float v_before = status->control_velocity.value_or(0.0f);
+
     if (!status->trajectory_done) {
       UpdateTrajectory(status, config, rate_hz, data, velocity);
     }
@@ -282,10 +347,23 @@ class BldcServoPosition {
 
     auto velocity_command = *status->control_velocity;
 
-    // This limits our usable velocity to 20kHz modulo the position
-    // scale at a 40kHz switching frequency.  1.2 million RPM should
-    // be enough for anybody?
-    const float step = velocity_command / rate_hz;
+    // Compute position step.
+    // If exact trajectory step was computed (handling mid-step transitions),
+    // use it directly. Otherwise use standard kinematic integration.
+    float step;
+    if (status->use_exact_position_step) {
+      step = status->exact_position_step;
+      status->use_exact_position_step = false;  // Reset for next iteration
+    } else {
+      // Use exact kinematic integration when accelerating:
+      // (v_before + v_after) / 2 * dt = v0*dt + 0.5*a*dt² for constant accel.
+      // When not accelerating (velocity set directly), use final velocity.
+      const float v_after = velocity_command;
+      const bool is_accelerating = (status->control_acceleration != 0.0f);
+      step = is_accelerating ?
+          (v_before + v_after) * 0.5f / rate_hz :
+          v_after / rate_hz;
+    }
     const int64_t int64_step =
         (static_cast<int64_t>(
             static_cast<int32_t>((static_cast<float>(1ll << 32) * step))) <<
