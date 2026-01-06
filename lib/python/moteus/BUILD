@@ -101,6 +101,13 @@ py_test(
 )
 
 py_test(
+    name = "protocol_test",
+    srcs = ["test/protocol_test.py"],
+    deps = [":moteus"],
+    size = "small",
+)
+
+py_test(
     name = "reader_test",
     srcs = ["test/reader_test.py"],
     deps = [":moteus"],
@@ -152,6 +159,7 @@ test_suite(
         ":fdcanusb_test",
         ":moteus_test",
         ":multiplex_test",
+        ":protocol_test",
         ":reader_test",
         ":regression_test",
         ":transport_test",

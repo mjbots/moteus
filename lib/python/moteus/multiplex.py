@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import enum
 import math
 import struct
+from typing import NamedTuple, Union, Iterator, Optional, Any
 
 """Constants and helper functions used for constructing and parsing
 frames in the mjlib multiplex protocol."""
@@ -102,6 +104,204 @@ def resolution_size(resolution):
     return [1, 2, 4, 4][resolution]
 
 
+class SubframeType(enum.Enum):
+    WRITE = 1
+    READ = 2
+    RESPONSE = 3
+    WRITE_ERROR = 4
+    READ_ERROR = 5
+    STREAM_CLIENT_TO_SERVER = 6
+    STREAM_SERVER_TO_CLIENT = 7
+    STREAM_CLIENT_POLL_SERVER = 8
+
+
+class RegisterSubframe(NamedTuple):
+    """A WRITE, READ, or RESPONSE subframe."""
+    type: SubframeType       # WRITE, READ, or RESPONSE
+    register: int            # Register number
+    resolution: int          # INT8/INT16/INT32/F32
+    value: Optional[Any]     # Decoded value (None for READ)
+
+
+class ErrorSubframe(NamedTuple):
+    """A WRITE_ERROR or READ_ERROR subframe."""
+    type: SubframeType       # WRITE_ERROR or READ_ERROR
+    register: int            # Register that caused error
+    error_code: int          # Error code
+
+
+class StreamSubframe(NamedTuple):
+    """A tunneled stream subframe."""
+    type: SubframeType       # STREAM_CLIENT_TO_SERVER, STREAM_SERVER_TO_CLIENT, STREAM_CLIENT_POLL_SERVER
+    channel: int             # Stream channel number
+    data: bytes              # Stream payload (empty for POLL)
+
+
+Subframe = Union[RegisterSubframe, ErrorSubframe, StreamSubframe]
+
+
+class Stream:
+    def __init__(self, data):
+        self._data = data
+        self._offset = 0
+
+    def remaining(self):
+        return len(self._data) - self._offset
+
+    def read_int8(self):
+        value = TYPES[INT8].unpack_from(self._data, self._offset)[0]
+        self._offset += 1
+        return value
+
+    def read_int16(self):
+        value = TYPES[INT16].unpack_from(self._data, self._offset)[0]
+        self._offset += 2
+        return value
+
+    def read_int32(self):
+        value = TYPES[INT32].unpack_from(self._data, self._offset)[0]
+        self._offset += 4
+        return value
+
+    def read_f32(self):
+        value = TYPES[F32].unpack_from(self._data, self._offset)[0]
+        self._offset += 4
+        return value
+
+    def read_varuint(self):
+        result, self._offset = read_varuint(self._offset, self._data)
+        if result is None:
+            raise RuntimeError('Invalid varuint')
+        return result
+
+    def read_type(self, typecode):
+        if typecode == INT8:
+            return self.read_int8()
+        elif typecode == INT16:
+            return self.read_int16()
+        elif typecode == INT32:
+            return self.read_int32()
+        elif typecode == F32:
+            return self.read_f32()
+        raise RuntimeError(f'Unknown type: {typecode}')
+
+    def read_bytes(self, count):
+        result = self._data[self._offset:self._offset + count]
+        self._offset += count
+        return result
+
+
+def parse_frame(data: bytes) -> Iterator[Subframe]:
+    """Parse a multiplex frame, yielding subframes.
+
+    Args:
+        data: Raw multiplex frame bytes (or any bytes-like object)
+
+    Yields:
+        Subframe objects (RegisterSubframe, ErrorSubframe, or StreamSubframe)
+
+    Example:
+        for subframe in parse_frame(data):
+            if isinstance(subframe, RegisterSubframe):
+                print(f"Register {subframe.register} = {subframe.value}")
+            elif isinstance(subframe, ErrorSubframe):
+                print(f"Error on register {subframe.register}: {subframe.error_code}")
+    """
+    # Ensure we have bytes
+    if not isinstance(data, bytes):
+        data = bytes(data)
+    stream = Stream(data)
+
+    while stream.remaining():
+        cmd = stream.read_int8() & 0xff  # ensure unsigned
+
+        upper = cmd & 0xf0
+        maybe_type = (cmd & 0b00001100) >> 2
+        maybe_num = cmd & 0b00000011
+
+        if upper == READ_BASE:
+            # READ frame: requests register values
+            if maybe_num > 0:
+                length = maybe_num
+            else:
+                length = stream.read_varuint()
+            if length == 0:
+                # Empty read, skip
+                continue
+            current_reg = stream.read_varuint()
+            for i in range(length):
+                yield RegisterSubframe(
+                    type=SubframeType.READ,
+                    register=current_reg + i,
+                    resolution=maybe_type,
+                    value=None)
+
+        elif upper == WRITE_BASE or upper == REPLY_BASE:
+            # WRITE or RESPONSE frame: contains register values
+            if maybe_num > 0:
+                length = maybe_num
+            else:
+                length = stream.read_varuint()
+            if length == 0:
+                # Empty write/response, skip
+                continue
+            current_reg = stream.read_varuint()
+            frame_type = SubframeType.WRITE if upper == WRITE_BASE else SubframeType.RESPONSE
+            for i in range(length):
+                yield RegisterSubframe(
+                    type=frame_type,
+                    register=current_reg + i,
+                    resolution=maybe_type,
+                    value=stream.read_type(maybe_type))
+
+        elif cmd == WRITE_ERROR or cmd == READ_ERROR:
+            # Error frame
+            register = stream.read_varuint()
+            error_code = stream.read_varuint()
+            yield ErrorSubframe(
+                type=SubframeType.WRITE_ERROR if cmd == WRITE_ERROR else SubframeType.READ_ERROR,
+                register=register,
+                error_code=error_code)
+
+        elif cmd == STREAM_CLIENT_DATA:
+            # Stream from client to server: channel (1 byte), size (1 byte), data
+            channel = stream.read_varuint()
+            size = stream.read_varuint()
+            data_bytes = stream.read_bytes(size)
+            yield StreamSubframe(
+                type=SubframeType.STREAM_CLIENT_TO_SERVER,
+                channel=channel,
+                data=data_bytes)
+
+        elif cmd == STREAM_SERVER_DATA:
+            # Stream from server to client: channel (1 byte), size (varuint), data
+            channel = stream.read_varuint()
+            size = stream.read_varuint()
+            data_bytes = stream.read_bytes(size)
+            yield StreamSubframe(
+                type=SubframeType.STREAM_SERVER_TO_CLIENT,
+                channel=channel,
+                data=data_bytes)
+
+        elif cmd == STREAM_CLIENT_POLL:
+            # Poll for stream data: channel (1 byte), max_length (1 byte)
+            channel = stream.read_varuint()
+            max_length = stream.read_varuint()
+            # Store max_length in data as a single byte for reference
+            yield StreamSubframe(
+                type=SubframeType.STREAM_CLIENT_POLL_SERVER,
+                channel=channel,
+                data=bytes([max_length]))
+
+        elif cmd == NOP:
+            # No operation, skip
+            continue
+
+        else:
+            # Unknown command, stop parsing to avoid corruption
+            break
+
+
 class RegisterParser:
     """This can be used as a helper for parsing multiplex formatted
     register replies."""
@@ -110,15 +310,12 @@ class RegisterParser:
         """
         Arguments:
 
-         data: a 'byte' containing multiplex response data
+         data: a 'bytes' containing multiplex response data
         """
-        self.data = data
-        self.size = len(data)
-
-        self._offset = 0
-        self._remaining = 0
-        self._current_register = 0
-        self._current_resolution = INT8
+        # Create generator and consume incrementally
+        self._parser = parse_frame(data)
+        self._current = None
+        self._exhausted = False
 
     def next(self):
         """
@@ -130,83 +327,32 @@ class RegisterParser:
         register_number: integer register number
         resolution: One of INT8/INT16/INT32/F32
         """
-
-        if self._offset >= self.size:
+        if self._exhausted:
             return (False, 0, INT8)
 
-        if self._remaining:
-            self._remaining -= 1
-            this_register = self._current_register
-            self._current_register += 1
-
-            # Do we actually have enough data?
-            if self._offset + resolution_size(self._current_resolution) > self.size:
+        # Find the next RESPONSE subframe
+        while True:
+            try:
+                subframe = next(self._parser)
+            except StopIteration:
+                self._exhausted = True
                 return (False, 0, INT8)
 
-            return (True, this_register, self._current_resolution)
-
-        # We need to look for more data.
-        while self._offset < self.size:
-            cmd = self.data[self._offset]
-            self._offset += 1
-
-            if cmd == NOP:
-                continue
-
-            if self._offset >= self.size:
-                # We are all out.
-                break
-
-            if cmd >= 0x20 and cmd < 0x30:
-                # This is a regular reply of some sort.
-                id = (cmd >> 2) & 0x03
-                self._current_resolution = id
-
-                count = cmd & 0x03
-                if count == 0:
-                    count = self.data[self._offset]
-                    self._offset += 1
-
-                    if self._offset >= self.size:
-                        # Guess this was malformed.  We'll be done now
-                        # anyways.
-                        break
-
-                if count == 0:
-                    # Empty, guess we can ignore.
-                    continue
-
-                maybe_current_register, self._offset = read_varuint(self._offset, self.data)
-                if maybe_current_register is None:
-                    return (False, 0, INT8)
-
-                self._current_register = maybe_current_register
-                self._remaining = count - 1
-
-                if self._offset + resolution_size(self._current_resolution) > self.size:
-                    return (False, 0, INT8)
-
-                result_register = self._current_register
-                self._current_register += 1
-                return (True, result_register, self._current_resolution)
-
-            # For anything else, we'll just assume it is an error of some
-            # sort and stop parsing.
-            self._offset = self.size
-            break
-
-        return (False, 0, INT8)
+            if (isinstance(subframe, RegisterSubframe) and
+                subframe.type == SubframeType.RESPONSE):
+                self._current = subframe
+                return (True, subframe.register, subframe.resolution)
+            # Skip non-RESPONSE subframes
 
     def read(self, resolution):
-        """Consume and return a single value from the stream."""
+        """Consume and return a single value from the stream.
 
-        size = resolution_size(resolution)
-        if self._offset + size > self.size:
-            raise RuntimeError("overrun")
-
-        start = self._offset
-        self._offset += size
-        return TYPES[resolution].unpack(self.data[start:start+size])[0]
+        Note: The resolution parameter is kept for API compatibility but
+        the value is already decoded based on the resolution in the frame.
+        """
+        if self._current is None:
+            raise RuntimeError("must call next() before read()")
+        return self._current.value
 
     def nanify(self, value, resolution):
         """The multiplex register protocol uses the negative-most value to
@@ -243,12 +389,9 @@ class QueryParser:
     resolution.'''
 
     def __init__(self, data):
-        self.data = data
-        self.size = len(data)
-        self._offset = 0
-        self._remaining = 0
-        self._current_register = 0
-        self._current_resolution = INT8
+        # Create generator and consume incrementally
+        self._parser = parse_frame(data)
+        self._exhausted = False
 
     @staticmethod
     def parse(data):
@@ -259,51 +402,20 @@ class QueryParser:
         return self
 
     def __next__(self):
-        if self._remaining:
-            self._remaining -= 1
-            this_register = self._current_register
-            self._current_register += 1
-
-            return this_register, self._current_resolution
-
-        if self._offset >= self.size:
+        if self._exhausted:
             raise StopIteration()
 
-        while self._offset < self.size:
-            cmd = self.data[self._offset]
-            self._offset += 1
+        # Find the next READ subframe
+        while True:
+            try:
+                subframe = next(self._parser)
+            except StopIteration:
+                self._exhausted = True
+                raise
 
-            if cmd == NOP:
-                continue
-
-            if cmd >= 0x10 and cmd < 0x20:
-                resolution = (cmd >> 2) & 0x03
-                self._current_resolution = resolution
-
-                count = cmd & 0x03
-
-                if count == 0 and self._offset >= self.size:
-                    # This is malformed.
-                    raise RuntimeError("malformed query")
-
-                if count == 0:
-                    count = self.data[self._offset]
-                    self._offset += 1
-
-                if count == 0:
-                    # Empty, guess we can ignore.
-                    continue
-
-                maybe_current_register, self._offset = read_varuint(self._offset, self.data)
-                if maybe_current_register is None:
-                    raise RuntimeError("malformed query")
-
-                self._current_register = maybe_current_register
-                self._remaining = count - 1
-
-                result_register = self._current_register
-                self._current_register += 1
-                return result_register, self._current_resolution
+            if (isinstance(subframe, RegisterSubframe) and
+                subframe.type == SubframeType.READ):
+                return (subframe.register, subframe.resolution)
 
 
 class WriteFrame:

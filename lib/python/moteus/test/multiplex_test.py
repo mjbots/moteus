@@ -94,6 +94,136 @@ class MultiplexTest(unittest.TestCase):
        self.assertEqual(mp.QueryParser.parse([0x1f, 0x02, 0x11, 0x08]),
                         [(0x002, 3), (0x003, 3), (0x004, 3), (0x008, 0)])
 
+    def test_parse_frame_empty(self):
+        result = list(mp.parse_frame(b''))
+        self.assertEqual(result, [])
+
+    def test_parse_frame_response(self):
+        # Test RESPONSE frame: 0x21 = REPLY_BASE + INT8 + count 1
+        result = list(mp.parse_frame([0x21, 0x03, 0x96]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.RegisterSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.RESPONSE)
+        self.assertEqual(result[0].register, 0x03)
+        self.assertEqual(result[0].resolution, mp.INT8)
+        self.assertEqual(result[0].value, -106)
+
+    def test_parse_frame_response_int16(self):
+        # Test RESPONSE frame with INT16: 0x25 = REPLY_BASE + INT16 + count 1
+        result = list(mp.parse_frame([0x25, 0x05, 0x01, 0x02]))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].type, mp.SubframeType.RESPONSE)
+        self.assertEqual(result[0].register, 0x05)
+        self.assertEqual(result[0].resolution, mp.INT16)
+        self.assertEqual(result[0].value, 0x0201)
+
+    def test_parse_frame_write(self):
+        # Test WRITE frame: 0x01 = WRITE_BASE + INT8 + count 1
+        result = list(mp.parse_frame([0x01, 0x0a, 0x05]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.RegisterSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.WRITE)
+        self.assertEqual(result[0].register, 0x0a)
+        self.assertEqual(result[0].resolution, mp.INT8)
+        self.assertEqual(result[0].value, 5)
+
+    def test_parse_frame_query(self):
+        # Test QUERY frame: 0x11 = READ_BASE + INT8 + count 1
+        result = list(mp.parse_frame([0x11, 0x01]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.RegisterSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.READ)
+        self.assertEqual(result[0].register, 0x01)
+        self.assertEqual(result[0].resolution, mp.INT8)
+        self.assertIsNone(result[0].value)
+
+    def test_parse_frame_multiple_queries(self):
+        # Test QUERY frame with count 3: 0x13 = READ_BASE + INT8 + count 3
+        result = list(mp.parse_frame([0x13, 0x05]))
+        self.assertEqual(len(result), 3)
+        for i, sf in enumerate(result):
+            self.assertEqual(sf.type, mp.SubframeType.READ)
+            self.assertEqual(sf.register, 0x05 + i)
+            self.assertIsNone(sf.value)
+
+    def test_parse_frame_write_error(self):
+        # Test WRITE_ERROR frame: 0x30 followed by register and error code
+        result = list(mp.parse_frame([0x30, 0x05, 0x01]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.ErrorSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.WRITE_ERROR)
+        self.assertEqual(result[0].register, 0x05)
+        self.assertEqual(result[0].error_code, 0x01)
+
+    def test_parse_frame_read_error(self):
+        # Test READ_ERROR frame: 0x31 followed by register and error code
+        result = list(mp.parse_frame([0x31, 0x0a, 0x02]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.ErrorSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.READ_ERROR)
+        self.assertEqual(result[0].register, 0x0a)
+        self.assertEqual(result[0].error_code, 0x02)
+
+    def test_parse_frame_stream_client_to_server(self):
+        # Test STREAM_CLIENT_DATA: 0x40, channel, size, data...
+        result = list(mp.parse_frame([0x40, 0x01, 0x03, 0x41, 0x42, 0x43]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.StreamSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.STREAM_CLIENT_TO_SERVER)
+        self.assertEqual(result[0].channel, 0x01)
+        self.assertEqual(result[0].data, b'ABC')
+
+    def test_parse_frame_stream_server_to_client(self):
+        # Test STREAM_SERVER_DATA: 0x41, channel, size (varuint), data...
+        result = list(mp.parse_frame([0x41, 0x02, 0x02, 0x58, 0x59]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.StreamSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.STREAM_SERVER_TO_CLIENT)
+        self.assertEqual(result[0].channel, 0x02)
+        self.assertEqual(result[0].data, b'XY')
+
+    def test_parse_frame_stream_poll(self):
+        # Test STREAM_CLIENT_POLL: 0x42, channel, max_length
+        result = list(mp.parse_frame([0x42, 0x03, 0x40]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.StreamSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.STREAM_CLIENT_POLL_SERVER)
+        self.assertEqual(result[0].channel, 0x03)
+        self.assertEqual(result[0].data, bytes([0x40]))  # max_length stored in data
+
+    def test_parse_frame_nop(self):
+        # NOP (0x50) should be skipped
+        result = list(mp.parse_frame([0x50, 0x50, 0x21, 0x03, 0x05, 0x50]))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].type, mp.SubframeType.RESPONSE)
+        self.assertEqual(result[0].register, 0x03)
+        self.assertEqual(result[0].value, 5)
+
+    def test_parse_frame_mixed(self):
+        # Test a frame with multiple subframes of different types
+        # 0x21 0x01 0xff = RESPONSE reg 1, value -1 (INT8)
+        # 0x11 0x05 = QUERY reg 5 (INT8)
+        data = [0x21, 0x01, 0xff, 0x11, 0x05]
+        result = list(mp.parse_frame(data))
+        self.assertEqual(len(result), 2)
+
+        self.assertEqual(result[0].type, mp.SubframeType.RESPONSE)
+        self.assertEqual(result[0].register, 0x01)
+        self.assertEqual(result[0].value, -1)
+
+        self.assertEqual(result[1].type, mp.SubframeType.READ)
+        self.assertEqual(result[1].register, 0x05)
+        self.assertIsNone(result[1].value)
+
+    def test_parse_frame_empty_response_skipped(self):
+        # Empty response (count=0) should be skipped
+        # 0x24 0x00 = REPLY INT16 with extended count 0 (empty, skipped)
+        # 0x25 0x05 0x01 0x02 = REPLY INT16 count 1, reg 5, value 0x0201
+        result = list(mp.parse_frame([0x24, 0x00, 0x25, 0x05, 0x01, 0x02]))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].register, 0x05)
+        self.assertEqual(result[0].value, 0x0201)
+
 
 if __name__ == '__main__':
     unittest.main()

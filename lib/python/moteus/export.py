@@ -28,6 +28,9 @@ ALL = [
     'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
     'reader',
     'RegisterParser', 'QueryParser',
+    'SubframeType', 'RegisterSubframe', 'ErrorSubframe', 'StreamSubframe',
+    'Subframe', 'parse_frame',
+    'ParsedRegisters', 'parse_registers', 'scale_register',
 ]
 from moteus.command import Command
 from moteus.device_info import DeviceAddress, DeviceInfo
@@ -38,7 +41,9 @@ from moteus.transport_wrapper import TransportWrapper
 from moteus.pythoncan import PythonCan
 from moteus.pythoncan_device import PythonCanDevice
 from moteus.multiplex import (INT8, INT16, INT32, F32, IGNORE,
-                              RegisterParser, QueryParser)
+                              RegisterParser, QueryParser,
+                              SubframeType, RegisterSubframe, ErrorSubframe,
+                              StreamSubframe, Subframe, parse_frame)
 from moteus.transport_device import Frame, FrameFilter, TransportDevice
 import moteus.reader as reader
 import moteus.aiostream as aiostream
@@ -48,6 +53,7 @@ from moteus.moteus import (
     Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
     make_transport_args, get_singleton_transport,
     TRANSPORT_FACTORIES)
+from moteus.protocol import ParsedRegisters, parse_registers, scale_register
 
 try:
     from moteus.version import VERSION

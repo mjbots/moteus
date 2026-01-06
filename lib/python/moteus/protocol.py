@@ -14,7 +14,9 @@
 
 import enum
 import io
+import math
 import struct
+from typing import NamedTuple, Any, Dict, List, Tuple
 
 from . import multiplex as mp
 
@@ -188,42 +190,6 @@ class Mode(enum.IntEnum):
     BRAKE = 15
 
 
-class Parser(mp.RegisterParser):
-    def read_position(self, resolution):
-        return self.read_mapped(resolution, 0.01, 0.0001, 0.00001)
-
-    def read_velocity(self, resolution):
-        return self.read_mapped(resolution, 0.1, 0.00025, 0.00001)
-
-    def read_accel(self, resolution):
-        return self.read_mapped(resolution, 0.05, 0.001, 0.00001)
-
-    def read_torque(self, resolution):
-        return self.read_mapped(resolution, 0.5, 0.01, 0.001)
-
-    def read_pwm(self, resolution):
-        return self.read_mapped(
-            resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
-
-    def read_voltage(self, resolution):
-        return self.read_mapped(resolution, 0.5, 0.1, 0.001)
-
-    def read_temperature(self, resolution):
-        return self.read_mapped(resolution, 1.0, 0.1, 0.001)
-
-    def read_time(self, resolution):
-        return self.read_mapped(resolution, 0.01, 0.001, 0.000001)
-
-    def read_current(self, resolution):
-        return self.read_mapped(resolution, 1.0, 0.1, 0.001)
-
-    def read_power(self, resolution):
-        return self.read_mapped(resolution, 10.0, 0.05, 0.0001)
-
-    def ignore(self, resolution):
-        self._offset += mp.resolution_size(resolution)
-
-
 class Writer(mp.WriteFrame):
     def write_position(self, value, resolution):
         self.write_mapped(value, 0.01, 0.0001, 0.00001, resolution)
@@ -263,79 +229,109 @@ class Writer(mp.WriteFrame):
         self.write_mapped(int(value), 1, 1, 1, resolution)
 
 
-def parse_register(parser, register, resolution):
+def _nanify(value, resolution):
+    """Convert the protocol's special "minimum value" to NaN."""
+    if resolution == mp.INT8 and value == -128:
+        return math.nan
+    elif resolution == mp.INT16 and value == -32768:
+        return math.nan
+    elif resolution == mp.INT32 and value == -2147483648:
+        return math.nan
+    return value
+
+
+def _scale_mapped(value, resolution, int8_scale, int16_scale, int32_scale):
+    """Apply scaling to a raw value based on resolution."""
+    scales = [int8_scale, int16_scale, int32_scale, 1.0]
+    return _nanify(value, resolution) * scales[resolution]
+
+
+def scale_register(register, resolution, value):
+    """Apply moteus-specific scaling to a raw register value.
+
+    Args:
+        register: Register number (e.g., Register.POSITION)
+        resolution: Resolution type (INT8, INT16, INT32, or F32)
+        value: Raw decoded value from the frame
+
+    Returns:
+        Scaled value in physical units (revolutions, rev/s, Nm, etc.)
+    """
+    if value is None:
+        return None
+
     if register == Register.MODE:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.POSITION:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.VELOCITY:
-        return parser.read_velocity(resolution)
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.TORQUE:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.Q_CURRENT:
-        return parser.read_current(resolution)
+        return _scale_mapped(value, resolution, 1.0, 0.1, 0.001)
     elif register == Register.D_CURRENT:
-        return parser.read_current(resolution)
+        return _scale_mapped(value, resolution, 1.0, 0.1, 0.001)
     elif register == Register.ABS_POSITION:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.POWER:
-        return parser.read_power(resolution)
+        return _scale_mapped(value, resolution, 10.0, 0.05, 0.0001)
     elif register == Register.TRAJECTORY_COMPLETE:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.HOME_STATE or register == Register.REZERO_STATE:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.VOLTAGE:
-        return parser.read_voltage(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.1, 0.001)
     elif register == Register.MOTOR_TEMPERATURE:
-        return parser.read_temperature(resolution)
+        return _scale_mapped(value, resolution, 1.0, 0.1, 0.001)
     elif register == Register.TEMPERATURE:
-        return parser.read_temperature(resolution)
+        return _scale_mapped(value, resolution, 1.0, 0.1, 0.001)
     elif register == Register.FAULT:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.POSITION_KP:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.POSITION_KI:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.POSITION_KD:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.POSITION_FEEDFORWARD:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.POSITION_COMMAND:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.CONTROL_POSITION:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.CONTROL_VELOCITY:
-        return parser.read_velocity(resolution)
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.CONTROL_TORQUE:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.POSITION_ERROR:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.VELOCITY_ERROR:
-        return parser.read_velocity(resolution)
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.TORQUE_ERROR:
-        return parser.read_torque(resolution)
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
     elif register == Register.ENCODER_0_POSITION:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.ENCODER_0_VELOCITY:
-        return parser.read_velocity(resolution)
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.ENCODER_1_POSITION:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.ENCODER_1_VELOCITY:
-        return parser.read_velocity(resolution)
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.ENCODER_2_POSITION:
-        return parser.read_position(resolution)
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
     elif register == Register.ENCODER_2_VELOCITY:
-        return parser.read_velocity(resolution)
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.ENCODER_VALIDITY:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.AUX1_GPIO_COMMAND:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.AUX2_GPIO_COMMAND:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.AUX1_GPIO_STATUS:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.AUX2_GPIO_STATUS:
-        return parser.read_int(resolution)
+        return int(value)
     elif (register == Register.AUX1_ANALOG_IN1 or
           register == Register.AUX1_ANALOG_IN2 or
           register == Register.AUX1_ANALOG_IN3 or
@@ -346,31 +342,119 @@ def parse_register(parser, register, resolution):
           register == Register.AUX2_ANALOG_IN3 or
           register == Register.AUX2_ANALOG_IN4 or
           register == Register.AUX2_ANALOG_IN5):
-        return parser.read_pwm(resolution)
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
     elif register == Register.MILLISECOND_COUNTER:
-        return parser.read_int(resolution)
+        return int(value)
     elif register == Register.CLOCK_TRIM:
-        return parser.read_int(resolution)
+        return int(value)
     elif (register >= Register.AUX1_PWM1 and
           register <= Register.AUX2_PWM5):
-        return parser.read_pwm(resolution)
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
+    # Command registers (0x020-0x02d)
+    elif register == Register.COMMAND_POSITION:
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
+    elif register == Register.COMMAND_VELOCITY:
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
+    elif register == Register.COMMAND_FEEDFORWARD_TORQUE:
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
+    elif register == Register.COMMAND_KP_SCALE:
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
+    elif register == Register.COMMAND_KD_SCALE:
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
+    elif register == Register.COMMAND_POSITION_MAX_TORQUE:
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
+    elif register == Register.COMMAND_STOP_POSITION:
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
+    elif register == Register.COMMAND_TIMEOUT:
+        return _scale_mapped(value, resolution, 0.01, 0.001, 0.000001)
+    elif register == Register.COMMAND_VELOCITY_LIMIT:
+        return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
+    elif register == Register.COMMAND_ACCEL_LIMIT:
+        return _scale_mapped(value, resolution, 0.05, 0.001, 0.00001)
+    elif register == Register.COMMAND_FIXED_VOLTAGE_OVERRIDE:
+        return _scale_mapped(value, resolution, 0.5, 0.1, 0.001)
+    elif register == Register.COMMAND_ILIMIT_SCALE:
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
+    # Stay-within command registers (0x040-0x048)
+    elif register == Register.COMMAND_WITHIN_LOWER_BOUND:
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
+    elif register == Register.COMMAND_WITHIN_UPPER_BOUND:
+        return _scale_mapped(value, resolution, 0.01, 0.0001, 0.00001)
+    elif register == Register.COMMAND_WITHIN_FEEDFORWARD_TORQUE:
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
+    elif register == Register.COMMAND_WITHIN_KP_SCALE:
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
+    elif register == Register.COMMAND_WITHIN_KD_SCALE:
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
+    elif register == Register.COMMAND_WITHIN_MAX_TORQUE:
+        return _scale_mapped(value, resolution, 0.5, 0.01, 0.001)
+    elif register == Register.COMMAND_WITHIN_TIMEOUT:
+        return _scale_mapped(value, resolution, 0.01, 0.001, 0.000001)
+    elif register == Register.COMMAND_WITHIN_ILIMIT_SCALE:
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
     else:
-        # We don't know what kind of value this is, so we don't know
-        # the units.
-        return parser.read(resolution)
+        # Unknown register, return raw value with NaN handling
+        return _nanify(value, resolution)
+
+
+class ParsedRegisters(NamedTuple):
+    """Result of parsing a multiplex frame with scaled register values.
+
+    Attributes:
+        command: WRITE subframes as {register: scaled_value}
+        response: RESPONSE subframes as {register: scaled_value}
+        query: QUERY subframes as [(register, resolution), ...]
+        errors: Error subframes as [(register, error_code), ...]
+    """
+    command: Dict[int, Any]
+    response: Dict[int, Any]
+    query: List[Tuple[int, int]]
+    errors: List[Tuple[int, int]]
+
+
+def parse_registers(data) -> ParsedRegisters:
+    """Parse a multiplex frame, returning scaled register values.
+
+    This function parses all subframes in a multiplex frame and applies
+    moteus-specific scaling to register values.
+
+    Args:
+        data: Raw multiplex frame bytes
+
+    Returns:
+        ParsedRegisters with command, response, query, and errors dicts/lists
+
+    Example:
+        result = parse_registers(frame_data)
+        if result.response:
+            position = result.response.get(Register.POSITION)
+            velocity = result.response.get(Register.VELOCITY)
+        if result.command:
+            cmd_position = result.command.get(Register.COMMAND_POSITION)
+    """
+    command = {}
+    response = {}
+    query = []
+    errors = []
+
+    for subframe in mp.parse_frame(data):
+        if isinstance(subframe, mp.RegisterSubframe):
+            if subframe.type == mp.SubframeType.WRITE:
+                scaled = scale_register(subframe.register, subframe.resolution, subframe.value)
+                command[subframe.register] = scaled
+            elif subframe.type == mp.SubframeType.RESPONSE:
+                scaled = scale_register(subframe.register, subframe.resolution, subframe.value)
+                response[subframe.register] = scaled
+            elif subframe.type == mp.SubframeType.READ:
+                query.append((subframe.register, subframe.resolution))
+        elif isinstance(subframe, mp.ErrorSubframe):
+            errors.append((subframe.register, subframe.error_code))
+
+    return ParsedRegisters(command, response, query, errors)
 
 
 def parse_reply(data):
-    parser = Parser(data)
-    result = {}
-    while True:
-        item = parser.next()
-        if not item[0]:
-            break
-        resolution = item[2]
-        register = item[1]
-        result[register] = parse_register(parser, register, resolution)
-    return result
+    return parse_registers(data).response
 
 
 class Result:
