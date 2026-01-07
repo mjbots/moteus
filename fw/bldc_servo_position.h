@@ -128,16 +128,17 @@ class BldcServoPosition {
       float v0,
       float vf,
       float dx,
-      float dv,
       float dt,
       float gap_threshold) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
 
+    const float v0_abs = std::abs(v0);
+
     // If we are overspeed, we always slow down to the velocity
     // limit first.
     if (std::isfinite(data->velocity_limit) &&
-        std::abs(v0) > data->velocity_limit) {
+        v0_abs > data->velocity_limit) {
       return std::copysign(a, -v0);
     }
 
@@ -155,6 +156,8 @@ class BldcServoPosition {
       const float dx_abs = std::abs(dx);
       // Precompute reciprocal for ComputeRequiredDecel calls.
       const float inv_2dx = 1.0f / (2.0f * dx_abs);
+      // Precompute threshold for adaptive decel check.
+      const float threshold_a = kAdaptiveDecelThreshold * a;
 
       if (dx_abs > stop_distance) {
         // Not yet at switch point - accelerate (unless at velocity limit).
@@ -170,7 +173,7 @@ class BldcServoPosition {
           // Switching early: compute exact decel to reach target.
           const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
           // Use exact decel if within threshold range, otherwise use max.
-          if (required_decel >= kAdaptiveDecelThreshold * a && required_decel <= a) {
+          if (required_decel >= threshold_a && required_decel <= a) {
             return std::copysign(required_decel, -v_frame);
           }
           return std::copysign(a, -v_frame);
@@ -188,7 +191,7 @@ class BldcServoPosition {
         }
 
         if (std::isnan(data->velocity_limit) ||
-            std::abs(v0) < data->velocity_limit) {
+            v0_abs < data->velocity_limit) {
           return std::copysign(a, dx);
         } else {
           return 0.0f;  // At velocity limit - cruise
@@ -198,7 +201,7 @@ class BldcServoPosition {
         // Compute exact deceleration to reach target.
         const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
         // Use exact decel if within threshold range, otherwise use max.
-        if (required_decel >= kAdaptiveDecelThreshold * a && required_decel <= a) {
+        if (required_decel >= threshold_a && required_decel <= a) {
           return std::copysign(required_decel, -v_frame);
         }
         return std::copysign(a, -v_frame);
@@ -230,7 +233,6 @@ class BldcServoPosition {
     // command.
     const float dx = MotorPosition::IntToFloat(
         (*data->position_relative_raw - *status->control_position_raw));
-    const float dv = vf - v0;
 
     if (std::isnan(data->accel_limit)) {
       // We only have a velocity limit, not an acceleration limit.
@@ -245,7 +247,7 @@ class BldcServoPosition {
     const float gap_threshold = kGapRegionMultiplier * a * period_s * period_s;
 
     const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, dv, period_s, gap_threshold);
+        data, a, v0, vf, dx, period_s, gap_threshold);
 
     status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
@@ -270,21 +272,25 @@ class BldcServoPosition {
     const float signed_vel_lower = std::min(v0, v1_final);
     const float signed_vel_upper = std::max(v0, v1_final);
 
+    // Precompute values used multiple times below.
+    const float dx_abs = std::abs(dx);
+    const float v_frame_final = v1_final - vf;
+    const float v_frame_final_abs = std::abs(v_frame_final);
+
     // Check for completion:
     // 1. Velocity crossed or reached target velocity
     // 2. Position is close enough to target
     const bool target_cross = signed_vel_lower <= vf && signed_vel_upper >= vf;
-    const bool target_near = std::abs(v1_final - vf) < (a * 0.5f * period_s);
+    const bool target_near = v_frame_final_abs < (a * 0.5f * period_s);
 
     // Position check: use time-to-target based on final velocity.
     // Gap region: when dx is within gap_threshold, complete to prevent oscillation.
-    const bool in_gap_region = std::abs(dx) < gap_threshold;
+    const bool in_gap_region = dx_abs < gap_threshold;
 
     // Check if we're heading toward the target (closing gap).
     // Use velocity in target frame (v1_final - vf) for non-zero target velocity.
-    const float v_frame_final = v1_final - vf;
-    const bool closing = (dx > 0.0f && v_frame_final > 0.0f) ||
-                         (dx < 0.0f && v_frame_final < 0.0f);
+    // Same sign check: both positive or both negative means we're closing.
+    const bool closing = (dx * v_frame_final) > 0.0f;
 
     // Position check: within 10 timesteps at effective velocity.
     // Use closing rate when it's larger than target velocity, otherwise use
@@ -292,9 +298,8 @@ class BldcServoPosition {
     // 1. During active catch-up, closing rate determines threshold
     // 2. When at target velocity (closing rate ~ 0), use target velocity
     //    which gives a reasonable completion threshold for the PID to handle
-    const float closing_rate = std::abs(v_frame_final);
-    const float v_for_threshold = std::max(closing_rate, std::abs(vf));
-    const bool position_near = (std::abs(dx) <= v_for_threshold * 10.0f * period_s);
+    const float v_for_threshold = std::max(v_frame_final_abs, std::abs(vf));
+    const bool position_near = (dx_abs <= v_for_threshold * 10.0f * period_s);
 
     // Complete if:
     // 1. Normal completion: velocity reached target AND position is near
@@ -308,8 +313,7 @@ class BldcServoPosition {
     //    false positives during normal decel.
     //    Check: v < 0.6 * sqrt(2*a*|dx|)
     //    Squared (to avoid sqrt): v² < 0.36 * 2 * a * |dx| = 0.72 * a * |dx|
-    const float v_abs = std::abs(v_frame_final);
-    const bool below_curve = (v_abs * v_abs) < (0.72f * a * std::abs(dx));
+    const bool below_curve = (v_frame_final_abs * v_frame_final_abs) < (0.72f * a * dx_abs);
     const bool decelerating = (acceleration * v_frame_final) < 0.0f;
     const bool gap_complete = in_gap_region && closing && below_curve && decelerating;
 
