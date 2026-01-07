@@ -130,7 +130,8 @@ class BldcServoPosition {
       float vf,
       float dx,
       float dv,
-      float dt) MOTEUS_CCM_ATTRIBUTE {
+      float dt,
+      float gap_threshold) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
 
@@ -153,11 +154,6 @@ class BldcServoPosition {
       const float inv_2a = 1.0f / (2.0f * a);
       const float stop_distance = (v_frame * v_frame) * inv_2a;
       const float dx_abs = std::abs(dx);
-
-      // Gap region threshold: when position is within this distance,
-      // prevent re-acceleration oscillation by using reduced acceleration
-      // or completing.
-      const float gap_threshold = kGapRegionMultiplier * a * dt * dt;
 
       if (dx_abs > stop_distance) {
         // Not yet at switch point - accelerate (unless at velocity limit).
@@ -243,8 +239,13 @@ class BldcServoPosition {
       return;
     }
 
+    // Gap region threshold: when position is within this distance,
+    // prevent re-acceleration oscillation by using reduced acceleration
+    // or completing.
+    const float gap_threshold = kGapRegionMultiplier * a * period_s * period_s;
+
     const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, dv, period_s);
+        data, a, v0, vf, dx, dv, period_s, gap_threshold);
 
     status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
@@ -276,10 +277,7 @@ class BldcServoPosition {
     const bool target_near = std::abs(v1_final - vf) < (a * 0.5f * period_s);
 
     // Position check: use time-to-target based on final velocity.
-    // Gap region threshold: When dx is within this threshold and we're
-    // moving toward target, complete to prevent oscillation.
-    // The position PID will handle the remaining error smoothly.
-    const float gap_threshold = kGapRegionMultiplier * a * period_s * period_s;
+    // Gap region: when dx is within gap_threshold, complete to prevent oscillation.
     const bool in_gap_region = std::abs(dx) < gap_threshold;
 
     // Check if we're heading toward the target (closing gap).
