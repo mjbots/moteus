@@ -692,9 +692,9 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
         }
         case kStrictlyNegative: {
           if (this_accel < 0.0f) {
-            // With adaptive deceleration, allow 90-100% of kAccel
+            // Allow 90-100% of kAccel during deceleration
             BOOST_TEST(this_accel <= -0.9f * kAccel);
-            BOOST_TEST(this_accel >= -kAccel - 1.0f);  // Allow tiny overshoot
+            BOOST_TEST(this_accel >= -kAccel);
             break;
           } else if (this_accel == 0.0f) {
             expected_accel = kZero;
@@ -714,15 +714,12 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
     }
   }
 
-  // With adaptive deceleration, trajectory may complete slightly earlier
   BOOST_TEST(steps_to_complete >= 420);
-  BOOST_TEST(steps_to_complete <= 500);
+  BOOST_TEST(steps_to_complete <= 440);
 
-  // Because of floating point precision issues in the current
-  // implementation, we aren't perfect.  Still, verify that it
-  // *mostly* does what we want.
-  BOOST_TEST(negative_violations <= 15);
-  BOOST_TEST(zero_violations <= 2);
+  // There should be no oscillations.
+  BOOST_TEST(negative_violations <= 0);
+  BOOST_TEST(zero_violations <= 0);
 }
 
 // Test with debug trace output for analyzing trajectory behavior.
@@ -734,8 +731,7 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
   constexpr float kAccel = 4000.0f;
   constexpr float kRateHz = 30000.0f;
 
-  // Theoretical time for bang-bang trajectory: 2 * sqrt(dx / a)
-  // = 2 * sqrt(0.25 / 4000) = 2 * 0.00790569 = 0.01581 s = 15.811 ms
+  // Theoretical time for bang-bang trajectory.
   const float theoretical_time = 2.0f * std::sqrt(kDistance / kAccel);
 
   ctx.data.position = kDistance;
@@ -753,11 +749,11 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
   int accel_sign_changes = 0;
 
   if (kTrajectoryDebug) {
-    std::cout << "\n=== TrajectoryDebugTrace ===\n";
-    std::cout << "Distance: " << kDistance << " rev, Accel: " << kAccel
-              << " rev/s², Rate: " << kRateHz << " Hz\n";
-    std::cout << "Theoretical time: " << (theoretical_time * 1000) << " ms\n";
-    std::cout << "step,time_ms,pos,vel,accel,dx,stop_dist,done\n";
+    fmt::print("\n=== TrajectoryDebugTrace ===\n");
+    fmt::print("Distance: {} rev, Accel: {} rev/s^2, Rate: {} Hz\n",
+               kDistance, kAccel, kRateHz);
+    fmt::print("Theoretical time: {} ms\n", theoretical_time * 1000);
+    fmt::print("step,time_ms,pos,vel,accel,dx,stop_dist,done\n");
   }
 
   for (; steps_to_complete < kMaxSteps; steps_to_complete++) {
@@ -775,7 +771,7 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
       if ((prev_accel > 0) != (accel > 0)) {
         accel_sign_changes++;
         if (kTrajectoryDebug) {
-          std::cout << ">>> SIGN CHANGE at step " << steps_to_complete << "\n";
+          fmt::print(">>> SIGN CHANGE at step {}\n", steps_to_complete);
         }
       }
     }
@@ -783,16 +779,15 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
     if (kTrajectoryDebug) {
       // Print on sign change, near switch point, or near end
       const float switch_time = std::sqrt(kDistance / kAccel);
-      bool near_switch = std::abs(t - switch_time) < 0.001f;
-      bool near_end = steps_to_complete >= 460 || ctx.status.trajectory_done;
-      bool is_transition = (prev_accel * accel < 0);
+      const bool near_switch = std::abs(t - switch_time) < 0.001f;
+      const bool near_end = steps_to_complete >= 460 || ctx.status.trajectory_done;
+      const bool is_transition = (prev_accel * accel < 0);
 
       if (is_transition || near_switch || near_end ||
           steps_to_complete < 5 || steps_to_complete % 50 == 0) {
-        std::cout << steps_to_complete << "," << time_ms << ","
-                  << pos << "," << vel << "," << accel << ","
-                  << dx << "," << stop_dist << ","
-                  << (ctx.status.trajectory_done ? "1" : "0") << "\n";
+        fmt::print("{},{},{},{},{},{},{},{}\n",
+                   steps_to_complete, time_ms, pos, vel, accel,
+                   dx, stop_dist, ctx.status.trajectory_done ? "1" : "0");
       }
     }
 
@@ -802,21 +797,19 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
 
   if (kTrajectoryDebug) {
     const float actual_time = steps_to_complete / kRateHz;
-    std::cout << "\nCompleted in " << steps_to_complete << " steps ("
-              << (actual_time * 1000) << " ms)\n";
-    std::cout << "Overhead: " << ((actual_time - theoretical_time) * 1000) << " ms\n";
-    std::cout << "Acceleration sign changes: " << accel_sign_changes << "\n";
-    std::cout << "=== End TrajectoryDebugTrace ===\n\n";
+    fmt::print("\nCompleted in {} steps ({} ms)\n",
+               steps_to_complete, actual_time * 1000);
+    fmt::print("Overhead: {} ms\n", (actual_time - theoretical_time) * 1000);
+    fmt::print("Acceleration sign changes: {}\n", accel_sign_changes);
+    fmt::print("=== End TrajectoryDebugTrace ===\n\n");
   }
 
   BOOST_TEST(ctx.status.trajectory_done == true);
   BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
 
   const float actual_time = steps_to_complete / kRateHz;
-  std::cout << "TrajectoryDebugTrace: steps=" << steps_to_complete
-            << " actual=" << (actual_time * 1000) << "ms"
-            << " theoretical=" << (theoretical_time * 1000) << "ms"
-            << " accel_sign_changes=" << accel_sign_changes << std::endl;
+  fmt::print("TrajectoryDebugTrace: steps={} actual={}ms theoretical={}ms accel_sign_changes={}\n",
+             steps_to_complete, actual_time * 1000, theoretical_time * 1000, accel_sign_changes);
 
   // The trajectory should complete within reasonable overhead
   BOOST_TEST(actual_time < theoretical_time + 0.010f);  // Within 10ms
@@ -825,47 +818,47 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
   BOOST_TEST(accel_sign_changes <= 1);
 }
 
-// Test short trajectories in the "gap region" where 4 ≤ u < 19.
-// u = √(dx/a)/dt, so gap region is dx ∈ [16·a·dt², 361·a·dt²]
-// At 30kHz, a=4000: dx ∈ [0.00007, 0.0016] rev = [0.025°, 0.58°]
-// At 15kHz, a=4000: dx ∈ [0.00028, 0.0064] rev = [0.1°, 2.3°]
-// These trajectories previously risked oscillation.
-BOOST_AUTO_TEST_CASE(ShortTrajectoryGapRegion) {
+// Test short trajectories in the "settling region" where 4 <= u < 9.
+// u = sqrt(dx/a)/dt, so settling region is dx ~= [16·a·dt^2, 80·a·dt^2]
+// At 30kHz, a=4000: dx ~= [0.00007, 0.00036] rev = [0.026°, 0.13°]
+// At 15kHz, a=4000: dx ~= [0.00028, 0.0014] rev = [0.1°, 0.51°]
+// These short trajectories require special handling to avoid oscillation.
+BOOST_AUTO_TEST_CASE(ShortTrajectorySettlingRegion) {
   struct TestCase {
     float distance;     // in revolutions
     float target_vel;   // target velocity (rev/s)
-    float accel;        // rev/s²
+    float accel;        // rev/s^2
     float rate_khz;     // kHz
     const char* desc;
   };
 
   TestCase test_cases[] = {
-    // At 30kHz, gap region tests (vf = 0)
-    { 0.0001f, 0.0f, 4000.0f, 30.0f, "30kHz low gap (u~5)" },
-    { 0.0005f, 0.0f, 4000.0f, 30.0f, "30kHz mid gap (u~11)" },
-    { 0.001f,  0.0f, 4000.0f, 30.0f, "30kHz high gap (u~15)" },
-    { 0.0015f, 0.0f, 4000.0f, 30.0f, "30kHz near gap edge (u~19)" },
+    // At 30kHz, settling region tests (vf = 0)
+    { 0.0001f,  0.0f, 4000.0f, 30.0f, "30kHz settling (u~5)" },
+    { 0.00016f, 0.0f, 4000.0f, 30.0f, "30kHz settling (u~6)" },
+    { 0.00022f, 0.0f, 4000.0f, 30.0f, "30kHz settling (u~7)" },
+    { 0.00028f, 0.0f, 4000.0f, 30.0f, "30kHz settling edge (u~8)" },
 
-    // At 15kHz, gap region tests (vf = 0)
-    { 0.0005f, 0.0f, 4000.0f, 15.0f, "15kHz low gap (u~5)" },
-    { 0.002f,  0.0f, 4000.0f, 15.0f, "15kHz mid gap (u~10)" },
-    { 0.004f,  0.0f, 4000.0f, 15.0f, "15kHz high gap (u~14)" },
-    { 0.006f,  0.0f, 4000.0f, 15.0f, "15kHz near gap edge (u~17)" },
+    // At 15kHz, settling region tests (vf = 0)
+    { 0.0005f,  0.0f, 4000.0f, 15.0f, "15kHz settling (u~5)" },
+    { 0.00064f, 0.0f, 4000.0f, 15.0f, "15kHz settling (u~6)" },
+    { 0.00087f, 0.0f, 4000.0f, 15.0f, "15kHz settling (u~7)" },
+    { 0.0011f,  0.0f, 4000.0f, 15.0f, "15kHz settling edge (u~8)" },
 
     // Edge cases at different accel rates (vf = 0)
-    { 0.0002f, 0.0f, 2000.0f, 30.0f, "lower accel 30kHz" },
-    { 0.001f,  0.0f, 8000.0f, 30.0f, "higher accel 30kHz" },
+    { 0.0001f,  0.0f, 2000.0f, 30.0f, "lower accel 30kHz" },
+    { 0.0004f,  0.0f, 8000.0f, 30.0f, "higher accel 30kHz" },
 
-    // Very short moves (below gap region, vf = 0)
-    { 0.00002f, 0.0f, 4000.0f, 30.0f, "below gap 30kHz (u~2)" },
-    { 0.00008f, 0.0f, 4000.0f, 15.0f, "below gap 15kHz (u~2)" },
+    // Very short moves (below settling region, vf = 0)
+    { 0.00002f, 0.0f, 4000.0f, 30.0f, "below settling 30kHz (u~2)" },
+    { 0.00008f, 0.0f, 4000.0f, 15.0f, "below settling 15kHz (u~2)" },
 
-    // Non-zero target velocity cases in gap region
+    // Non-zero target velocity cases in settling region
     // These test that the closing/position_near checks work with vf != 0
-    { 0.0005f, 0.5f, 4000.0f, 30.0f, "30kHz gap with vf=0.5" },
-    { 0.001f,  0.3f, 4000.0f, 30.0f, "30kHz gap with vf=0.3" },
-    { 0.002f,  0.4f, 4000.0f, 15.0f, "15kHz gap with vf=0.4" },
-    { 0.0005f, -0.5f, 4000.0f, 30.0f, "30kHz gap with vf=-0.5" },
+    { 0.00016f, 0.5f, 4000.0f, 30.0f, "30kHz settling with vf=0.5" },
+    { 0.00022f, 0.3f, 4000.0f, 30.0f, "30kHz settling with vf=0.3" },
+    { 0.00064f, 0.4f, 4000.0f, 15.0f, "15kHz settling with vf=0.4" },
+    { 0.00016f, -0.5f, 4000.0f, 30.0f, "30kHz settling with vf=-0.5" },
   };
 
   for (const auto& tc : test_cases) {
@@ -923,20 +916,22 @@ BOOST_AUTO_TEST_CASE(ShortTrajectoryGapRegion) {
       const float overhead_ms = (actual_time - theoretical_time) * 1000.0f;
 
       if (kTrajectoryDebug) {
-        std::cout << tc.desc << ": u=" << u
-                  << " steps=" << steps
-                  << " overhead=" << overhead_ms << "ms"
-                  << " sign_changes=" << accel_sign_changes
-                  << " eot_violations=" << eot_violations << "\n";
+        fmt::print("{}: u={} steps={} overhead={}ms sign_changes={} eot_violations={}\n",
+                   tc.desc, u, steps, overhead_ms, accel_sign_changes, eot_violations);
       }
 
       // Must complete
       BOOST_TEST(ctx.status.trajectory_done == true);
-      // Velocity should reach target velocity (within tolerance for float comparison)
+
+      // Velocity should reach target velocity (within tolerance for
+      // float comparison)
       BOOST_TEST(std::abs(ctx.status.control_velocity.value() - tc.target_vel) < 0.001f);
 
-      // Should complete with reasonable overhead (< 5ms for short moves)
-      BOOST_TEST(overhead_ms < 5.0f);
+      // Should complete with reasonable overhead
+      BOOST_TEST(overhead_ms < 0.15f);
+
+      // But it should not complete *too* early.
+      BOOST_TEST(overhead_ms > -0.30f);
 
       // Should have at most 1 sign change (accel to decel)
       BOOST_TEST(accel_sign_changes <= 1);
@@ -1007,11 +1002,11 @@ BOOST_AUTO_TEST_CASE(HighTargetVelocityPositionError) {
           std::abs(closing_rate) * 10.0f * period : 0.0f;
 
       if (kTrajectoryDebug) {
-        std::cout << tc.desc << ":\n";
-        std::cout << "  position_error=" << (position_error * 1e6) << " µrev\n";
-        std::cout << "  abs_threshold=" << (abs_threshold * 1e6) << " µrev\n";
-        std::cout << "  rel_threshold=" << (rel_threshold * 1e6) << " µrev\n";
-        std::cout << "  closing_rate=" << closing_rate << "\n";
+        fmt::print("{}:\n", tc.desc);
+        fmt::print("  position_error={} µrev\n", position_error * 1e6);
+        fmt::print("  abs_threshold={} µrev\n", abs_threshold * 1e6);
+        fmt::print("  rel_threshold={} µrev\n", rel_threshold * 1e6);
+        fmt::print("  closing_rate={}\n", closing_rate);
       }
 
       // The position error should be reasonably small.
@@ -1050,11 +1045,11 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
   int accel_sign_changes = 0;
 
   if (kTrajectoryDebug) {
-    std::cout << "\n=== LongTrajectoryBehavior ===\n";
-    std::cout << "Distance: " << kDistance << " rev, Accel: " << kAccel
-              << " rev/s², Rate: " << kRateHz << " Hz\n";
-    std::cout << "Theoretical time: " << (theoretical_time * 1000) << " ms\n";
-    std::cout << "step,time_ms,pos,vel,accel,dx,stop_dist,done\n";
+    fmt::print("\n=== LongTrajectoryBehavior ===\n");
+    fmt::print("Distance: {} rev, Accel: {} rev/s², Rate: {} Hz\n",
+               kDistance, kAccel, kRateHz);
+    fmt::print("Theoretical time: {} ms\n", theoretical_time * 1000);
+    fmt::print("step,time_ms,pos,vel,accel,dx,stop_dist,done\n");
   }
 
   for (int i = 0; i < kMaxSteps; i++) {
@@ -1071,9 +1066,8 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
         accel_sign_changes++;
         if (kTrajectoryDebug) {
           const float time_ms = (i + 1) / kRateHz * 1000.0f;
-          std::cout << ">>> SIGN CHANGE #" << accel_sign_changes
-                    << " at step " << i << " (" << time_ms << " ms)"
-                    << " pos=" << pos << " vel=" << vel << " dx=" << dx << "\n";
+          fmt::print(">>> SIGN CHANGE #{} at step {} ({} ms) pos={} vel={} dx={}\n",
+                     accel_sign_changes, i, time_ms, pos, vel, dx);
         }
       }
     }
@@ -1083,8 +1077,7 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
       if ((dx > 0 && vel < -0.01f) || (dx < 0 && vel > 0.01f)) {
         eot_violations++;
         if (kTrajectoryDebug && eot_violations <= 5) {
-          std::cout << ">>> EOT VIOLATION at step " << i
-                    << " dx=" << dx << " vel=" << vel << "\n";
+          fmt::print(">>> EOT VIOLATION at step {} dx={} vel={}\n", i, dx, vel);
         }
       }
     }
@@ -1095,10 +1088,9 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
       if (near_end || i % 500 == 0) {
         const float time_ms = (i + 1) / kRateHz * 1000.0f;
         const float stop_dist = (vel * vel) / (2.0f * kAccel);
-        std::cout << i << "," << time_ms << ","
-                  << pos << "," << vel << "," << accel << ","
-                  << dx << "," << stop_dist << ","
-                  << (ctx.status.trajectory_done ? "1" : "0") << "\n";
+        fmt::print("{},{},{},{},{},{},{},{}\n",
+                   i, time_ms, pos, vel, accel, dx, stop_dist,
+                   ctx.status.trajectory_done ? "1" : "0");
       }
     }
 
@@ -1115,15 +1107,12 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
   const float actual_time = steps_to_complete / kRateHz;
   const float overhead = actual_time - theoretical_time;
 
-  std::cout << "LongTrajectoryBehavior: steps=" << steps_to_complete
-            << " actual=" << (actual_time * 1000) << "ms"
-            << " theoretical=" << (theoretical_time * 1000) << "ms"
-            << " overhead=" << (overhead * 1000) << "ms"
-            << " accel_sign_changes=" << accel_sign_changes
-            << " eot_violations=" << eot_violations << std::endl;
+  fmt::print("LongTrajectoryBehavior: steps={} actual={}ms theoretical={}ms overhead={}ms accel_sign_changes={} eot_violations={}\n",
+             steps_to_complete, actual_time * 1000, theoretical_time * 1000,
+             overhead * 1000, accel_sign_changes, eot_violations);
 
   if (kTrajectoryDebug) {
-    std::cout << "=== End LongTrajectoryBehavior ===\n\n";
+    fmt::print("=== End LongTrajectoryBehavior ===\n\n");
   }
 
   // Allow reasonable overhead
@@ -1134,4 +1123,342 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
 
   // No end-of-trajectory violations
   BOOST_TEST(eot_violations == 0);
+}
+
+// Test that extending the target position while decelerating causes
+// re-acceleration. This verifies that the trajectory logic properly
+// handles target changes mid-trajectory.
+BOOST_AUTO_TEST_CASE(ExtendTargetDuringDeceleration) {
+  struct TestCase {
+    float initial_target;
+    float accel;
+    float rate_khz;
+    const char* desc;
+  };
+
+  TestCase test_cases[] = {
+    { 0.25f, 4000.0f, 30.0f, "30kHz standard" },
+    { 0.25f, 4000.0f, 15.0f, "15kHz standard" },
+    { 0.10f, 2000.0f, 30.0f, "30kHz lower accel" },
+    { 0.50f, 8000.0f, 30.0f, "30kHz higher accel" },
+  };
+
+  for (const auto& tc : test_cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      const float rate_hz = tc.rate_khz * 1000.0f;
+
+      ctx.data.position = tc.initial_target;
+      ctx.data.accel_limit = tc.accel;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_rate_hz(rate_hz);
+
+      ctx.set_velocity(0.0f);
+      ctx.set_position(0.0f);
+
+      // Run until we're decelerating
+      int steps_to_decel = 0;
+      float vel_at_decel = 0.0f;
+      float pos_at_decel = 0.0f;
+      float dx_at_decel = 0.0f;
+
+      constexpr int kMaxSteps = 50000;
+      for (int i = 0; i < kMaxSteps; i++) {
+        ctx.Call();
+        const float accel = ctx.status.control_acceleration;
+        if (accel < 0.0f) {
+          steps_to_decel = i;
+          vel_at_decel = ctx.status.control_velocity.value();
+          pos_at_decel = ctx.from_raw(ctx.status.control_position_raw.value());
+          dx_at_decel = tc.initial_target - pos_at_decel;
+          break;
+        }
+      }
+
+      BOOST_TEST(steps_to_decel > 0);
+
+      // Now test various target extensions to find the threshold
+      // for re-acceleration. We'll binary search for the minimum
+      // extension that triggers re-acceleration.
+
+      // The stopping distance from current velocity is v^2 / (2*a)
+      const float stopping_dist = (vel_at_decel * vel_at_decel) / (2.0f * tc.accel);
+
+      // Current distance to target
+      // dx_at_decel is already computed above
+
+      // Test extensions as fractions of the stopping distance
+      float min_extension_that_reaccels = NaN;
+      float max_extension_that_decels = 0.0f;
+
+      // Test a range of extensions
+      for (float extension_frac = 0.01f; extension_frac <= 2.0f; extension_frac += 0.01f) {
+        const float extension = extension_frac * stopping_dist;
+
+        // Reset and run to deceleration point again
+        ctx.status = BldcServoStatus{};
+        ctx.status.motor_max_velocity = 100.0f;
+        ctx.data.position = tc.initial_target;
+        ctx.set_velocity(0.0f);
+        ctx.set_position(0.0f);
+
+        // Run to deceleration
+        for (int i = 0; i < steps_to_decel + 1; i++) {
+          ctx.Call();
+        }
+
+        // Skip this extension if we're not decelerating
+        // (can happen due to timing variations)
+        if (ctx.status.control_acceleration >= 0.0f) {
+          continue;
+        }
+
+        // Now extend the target
+        ctx.data.position = tc.initial_target + extension;
+        ctx.data.position_relative_raw.reset();  // Force re-evaluation of new target
+
+        // Take one more step and check if we re-accelerate
+        ctx.Call();
+        const float accel_after_extend = ctx.status.control_acceleration;
+
+        if (accel_after_extend > 0.0f) {
+          if (std::isnan(min_extension_that_reaccels)) {
+            min_extension_that_reaccels = extension;
+          }
+        } else {
+          max_extension_that_decels = extension;
+        }
+      }
+
+      // Report the threshold
+      const float threshold_as_fraction_of_stop_dist =
+          min_extension_that_reaccels / stopping_dist;
+      const float threshold_as_fraction_of_dx =
+          min_extension_that_reaccels / dx_at_decel;
+
+      fmt::print("{}: vel_at_decel={:.4f} dx_at_decel={:.6f} stop_dist={:.6f}\n",
+                 tc.desc, vel_at_decel, dx_at_decel, stopping_dist);
+      fmt::print("  min_extension_for_reaccel={:.6f} ({:.1f}% of stop_dist, {:.1f}% of dx)\n",
+                 min_extension_that_reaccels,
+                 threshold_as_fraction_of_stop_dist * 100.0f,
+                 threshold_as_fraction_of_dx * 100.0f);
+      fmt::print("  max_extension_still_decel={:.6f}\n", max_extension_that_decels);
+
+      // Verify we found a threshold (i.e., large extensions do cause re-accel)
+      BOOST_TEST(!std::isnan(min_extension_that_reaccels));
+
+      // Verify the threshold is small - re-acceleration should trigger with
+      // a modest extension, not require extending by the full stopping distance.
+      BOOST_TEST(min_extension_that_reaccels < 0.20f * stopping_dist);
+
+      // Now run a complete trajectory with a large extension to verify
+      // the behavior end-to-end
+      ctx.status = BldcServoStatus{};
+      ctx.status.motor_max_velocity = 100.0f;
+      ctx.data.position = tc.initial_target;
+      ctx.set_velocity(0.0f);
+      ctx.set_position(0.0f);
+
+      int accel_sign_changes = 0;
+      float prev_accel = 0.0f;
+      bool extended = false;
+
+      for (int i = 0; i < kMaxSteps; i++) {
+        ctx.Call();
+        const float accel = ctx.status.control_acceleration;
+
+        // Track sign changes
+        if (i > 0 && prev_accel != 0.0f && accel != 0.0f) {
+          if ((prev_accel > 0) != (accel > 0)) {
+            accel_sign_changes++;
+          }
+        }
+
+        // Extend target when we start decelerating
+        if (!extended && accel < 0.0f) {
+          ctx.data.position = tc.initial_target * 2.0f;  // Double the target
+          ctx.data.position_relative_raw.reset();  // Force re-evaluation
+          extended = true;
+        }
+
+        prev_accel = accel;
+        if (ctx.status.trajectory_done) { break; }
+      }
+
+      BOOST_TEST(ctx.status.trajectory_done == true);
+
+      // With target extension, we should see:
+      // 1. Initial accel (positive)
+      // 2. Start decel (negative) - 1st sign change
+      // 3. Re-accel after extension (positive) - 2nd sign change
+      // 4. Final decel (negative) - 3rd sign change
+      // So we expect 3 sign changes for a successful re-acceleration
+      fmt::print("  end-to-end test: accel_sign_changes={}\n", accel_sign_changes);
+      BOOST_TEST(accel_sign_changes == 3);
+    }
+  }
+}
+
+// Test the precise threshold for re-acceleration by measuring at what
+// point extending the target switches from continued deceleration to
+// re-acceleration. This helps characterize the deceleration behavior.
+BOOST_AUTO_TEST_CASE(ReaccelerationThreshold) {
+  Context ctx;
+
+  constexpr float kAccel = 4000.0f;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kInitialTarget = 0.25f;
+
+  ctx.data.position = kInitialTarget;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_rate_hz(kRateHz);
+
+  ctx.set_velocity(0.0f);
+  ctx.set_position(0.0f);
+
+  // Run partway through trajectory, sampling at different points during
+  // deceleration to see how the threshold changes
+  fmt::print("\nReaccelerationThreshold analysis:\n");
+  fmt::print("step,vel,min_ext_urev,min_ext_us,min_ext_pct\n");
+
+  // First find when deceleration starts
+  int decel_start_step = 0;
+  for (int i = 0; i < 50000; i++) {
+    ctx.Call();
+    if (ctx.status.control_acceleration < 0.0f) {
+      decel_start_step = i;
+      break;
+    }
+  }
+
+  // Track threshold statistics in three units:
+  // - pct: percentage of stopping distance
+  // - dist: absolute distance in micro-revolutions
+  // - time: time to traverse at current velocity in microseconds
+  struct Stats {
+    float min = 1e9f;
+    float max = 0.0f;
+    float first = 0.0f;
+    float last = 0.0f;
+  };
+  Stats pct_stats, dist_stats, time_stats;
+  int num_samples = 0;
+
+  // Now sample at various points during deceleration
+  for (int sample_step = decel_start_step;
+       sample_step < decel_start_step + 200;
+       sample_step += 10) {
+
+    // Reset and run to sample point
+    ctx.status = BldcServoStatus{};
+    ctx.status.motor_max_velocity = 100.0f;
+    ctx.data.position = kInitialTarget;
+    ctx.set_velocity(0.0f);
+    ctx.set_position(0.0f);
+
+    for (int i = 0; i <= sample_step; i++) {
+      ctx.Call();
+    }
+
+    if (ctx.status.trajectory_done) break;
+
+    const float vel = ctx.status.control_velocity.value();
+    const float stop_dist = (vel * vel) / (2.0f * kAccel);
+
+    // Binary search for minimum extension that causes re-acceleration
+    float lo = 0.0f;
+    float hi = stop_dist;
+
+    for (int iter = 0; iter < 20; iter++) {
+      const float mid = (lo + hi) / 2.0f;
+
+      // Reset and run to sample point
+      ctx.status = BldcServoStatus{};
+      ctx.status.motor_max_velocity = 100.0f;
+      ctx.data.position = kInitialTarget;
+      ctx.set_velocity(0.0f);
+      ctx.set_position(0.0f);
+
+      for (int i = 0; i <= sample_step; i++) {
+        ctx.Call();
+      }
+
+      // Extend target
+      ctx.data.position = kInitialTarget + mid;
+      ctx.data.position_relative_raw.reset();  // Force re-evaluation
+
+      // Check next step
+      ctx.Call();
+
+      if (ctx.status.control_acceleration > 0.0f) {
+        hi = mid;  // Re-accelerated, try smaller extension
+      } else {
+        lo = mid;  // Still decelerating, try larger extension
+      }
+    }
+
+    const float min_ext = hi;
+    const float min_ext_pct = (min_ext / stop_dist) * 100.0f;
+    const float min_ext_urev = min_ext * 1e6f;  // micro-revolutions
+    const float min_ext_us = (vel > 0.001f) ? (min_ext / vel) * 1e6f : 0.0f;  // microseconds
+
+    // Track statistics
+    auto update_stats = [&](Stats& s, float val) {
+      if (num_samples == 0) s.first = val;
+      s.last = val;
+      s.min = std::min(s.min, val);
+      s.max = std::max(s.max, val);
+    };
+    update_stats(pct_stats, min_ext_pct);
+    update_stats(dist_stats, min_ext_urev);
+    update_stats(time_stats, min_ext_us);
+    num_samples++;
+
+    fmt::print("{},{:.2f},{:.1f},{:.1f},{:.1f}\n",
+               sample_step, vel, min_ext_urev, min_ext_us, min_ext_pct);
+  }
+
+  fmt::print("Summary (pct):  min={:.1f}% max={:.1f}% first={:.1f}% last={:.1f}%\n",
+             pct_stats.min, pct_stats.max, pct_stats.first, pct_stats.last);
+  fmt::print("Summary (urev): min={:.0f} max={:.0f} first={:.0f} last={:.0f}\n",
+             dist_stats.min, dist_stats.max, dist_stats.first, dist_stats.last);
+  fmt::print("Summary (us):   min={:.0f} max={:.0f} first={:.0f} last={:.0f}\n",
+             time_stats.min, time_stats.max, time_stats.first, time_stats.last);
+
+  // Verify we collected enough samples
+  BOOST_TEST(num_samples >= 15);
+
+  // === Percentage of stopping distance ===
+  // At decel start, threshold should be small (near the ideal curve)
+  BOOST_TEST(pct_stats.first < 5.0f);
+  BOOST_TEST(pct_stats.min < 5.0f);
+  // Max should be under 100% (never need full stopping distance)
+  BOOST_TEST(pct_stats.max < 100.0f);
+  // Threshold increases as we progress through deceleration
+  BOOST_TEST(pct_stats.last > pct_stats.first);
+
+  // === Absolute distance (micro-revolutions) ===
+  // At decel start with high velocity, threshold is ~3900 urev
+  BOOST_TEST(dist_stats.first > 3000.0f);
+  BOOST_TEST(dist_stats.first < 5000.0f);
+  // Min should be similar (occurs at decel start)
+  BOOST_TEST(dist_stats.min > 3000.0f);
+  BOOST_TEST(dist_stats.min < 5000.0f);
+  // Max occurs mid-trajectory when velocity is still significant
+  BOOST_TEST(dist_stats.max > 30000.0f);
+  BOOST_TEST(dist_stats.max < 50000.0f);
+  // At end, absolute distance decreases as velocity drops
+  BOOST_TEST(dist_stats.last < 10000.0f);
+
+  // === Absolute time (microseconds) ===
+  // At decel start, time threshold is ~125 us (distance / high velocity)
+  BOOST_TEST(time_stats.first > 100.0f);
+  BOOST_TEST(time_stats.first < 150.0f);
+  // Time threshold stays relatively stable through deceleration
+  // because both distance and velocity decrease together
+  BOOST_TEST(time_stats.min > 100.0f);
+  BOOST_TEST(time_stats.max < 2000.0f);
+  // At end, time threshold increases as we're further below the curve
+  BOOST_TEST(time_stats.last > time_stats.first);
 }

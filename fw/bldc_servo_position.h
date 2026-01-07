@@ -27,16 +27,11 @@ namespace moteus {
 // them in the header and also have a section definition.
 class BldcServoPosition {
  public:
-  // Adaptive decel threshold: use computed required_decel when it's
-  // within this fraction of max accel (e.g., 0.9 = 90-100% of max).
-  static constexpr float kAdaptiveDecelThreshold = 0.9f;
-
-  // Gap region multiplier: derived from kAdaptiveDecelThreshold (T) via
-  // u_max = (T + sqrt(T)) / (1 - T), where u = v/(a*dt) at switch point.
-  // The gap region covers u in [~4, u_max] where adaptive decel doesn't
-  // engage. Multiplier = u_max² with margin.
-  // For T=0.9: u_max ≈ 18.5, u_max² ≈ 342, with ~17% margin ≈ 400.
-  static constexpr float kGapRegionMultiplier = 400.0f;
+  // Multiplier for the settling region threshold. When position is
+  // within kSettlingRegion * a * dt^2 of the target, we prevent
+  // re-acceleration to avoid oscillation and allow early trajectory
+  // completion.
+  static constexpr float kSettlingRegion = 9.0f;
 
   static void DoVelocityModeLimits(
       BldcServoStatus* status,
@@ -96,28 +91,11 @@ class BldcServoPosition {
     }
   }
 
-  // Compute deceleration needed to reach target position with target velocity.
-  // Returns the required deceleration magnitude (always positive).
+  // Compute deceleration needed to reach target position starting
+  // from a given velocity.
+  //
   // v_abs: absolute velocity relative to target
   // inv_2dx: precomputed 1.0f / (2.0f * dx_abs) for efficiency
-  //
-  // Formula derivation:
-  // After one step at deceleration a_d:
-  //   v1 = v_frame - a_d * dt  (in target frame, so slowing toward 0)
-  //   dx_step = (v_frame + v1) / 2 * dt = v_frame * dt - 0.5 * a_d * dt²
-  //   dx_remaining = dx - dx_step
-  //
-  // For exact convergence, we want dx_remaining = v1² / (2 * a_d):
-  //   dx - v_frame * dt + 0.5 * a_d * dt² = (v_frame - a_d * dt)² / (2 * a_d)
-  //
-  // Let u = v_frame, d = dx, t = dt, a = a_d:
-  //   d - u*t + 0.5*a*t² = (u - a*t)² / (2*a)
-  //   2*a*(d - u*t + 0.5*a*t²) = (u - a*t)²
-  //   2*a*d - 2*a*u*t + a²*t² = u² - 2*u*a*t + a²*t²
-  //   2*a*d = u²
-  //   a = u² / (2*d) = v² / (2*dx)
-  //
-  // This is the standard kinematic formula!
   static float ComputeRequiredDecel(float v_abs, float inv_2dx) {
     return (v_abs * v_abs) * inv_2dx;
   }
@@ -129,7 +107,7 @@ class BldcServoPosition {
       float vf,
       float dx,
       float dt,
-      float gap_threshold) MOTEUS_CCM_ATTRIBUTE {
+      float settling_threshold) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
 
@@ -154,42 +132,50 @@ class BldcServoPosition {
       const float inv_2a = 1.0f / (2.0f * a);
       const float stop_distance = (v_frame * v_frame) * inv_2a;
       const float dx_abs = std::abs(dx);
+
       // Precompute reciprocal for ComputeRequiredDecel calls.
       const float inv_2dx = 1.0f / (2.0f * dx_abs);
-      // Precompute threshold for adaptive decel check.
-      const float threshold_a = kAdaptiveDecelThreshold * a;
 
       if (dx_abs > stop_distance) {
-        // Not yet at switch point - accelerate (unless at velocity limit).
-        //
-        // Check if we should switch early: if next step would overshoot
-        // the ideal switch point, switch now.
+        // We have not yet reached the point of needing to decelerate,
+        // which would normally mean accelerating.
+
+        // However, check if we should switch early: if next step
+        // would overshoot the ideal switch point, switch now.
         const float v_next = v_frame_abs + a * dt;
         const float dx_step = (v_frame_abs + v_next) * 0.5f * dt;
         const float dx_after = dx_abs - dx_step;
         const float stop_distance_next = (v_next * v_next) * inv_2a;
 
         if (dx_after < stop_distance_next) {
-          // Switching early: compute exact decel to reach target.
+          // We would switch in the middle of the next cycle, so
+          // instead start decelerating now.
           const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
-          // Use exact decel if within threshold range, otherwise use max.
-          if (required_decel >= threshold_a && required_decel <= a) {
+
+          if (required_decel > a) {
+            // This really shouldn't happen, but if it does, limit our
+            // deceleration to the intended limit.
+            return std::copysign(a, -v_frame);
+          } else {
             return std::copysign(required_decel, -v_frame);
           }
-          return std::copysign(a, -v_frame);
         }
 
-        // Gap region check: if close to target, don't accelerate - this
-        // would cause oscillation. Instead, coast or gently decel.
-        if (dx_abs < gap_threshold && v_frame_abs > 0.0f) {
-          // Compute decel needed to stop at target
-          const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
-          if (required_decel <= a) {
+        // Check to see if we are in the settling region.  If we are
+        // close to the target, don't re-accelerate which may cause
+        // oscillation.  Instead, just decelerate at the computed rate.
+        if (dx_abs < settling_threshold && v_frame_abs > 0.0f) {
+          const float required_decel =
+              ComputeRequiredDecel(v_frame_abs, inv_2dx);
+          if (required_decel > a) {
+            return std::copysign(a, -v_frame);
+          } else {
             return std::copysign(required_decel, -v_frame);
           }
-          return std::copysign(a, -v_frame);
         }
 
+        // With those checks out of the way, we should be good to
+        // accelerate now.
         if (std::isnan(data->velocity_limit) ||
             v0_abs < data->velocity_limit) {
           return std::copysign(a, dx);
@@ -197,14 +183,16 @@ class BldcServoPosition {
           return 0.0f;  // At velocity limit - cruise
         }
       } else {
-        // Past switch point - decelerate.
-        // Compute exact deceleration to reach target.
-        const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
-        // Use exact decel if within threshold range, otherwise use max.
-        if (required_decel >= threshold_a && required_decel <= a) {
+        // We are in the region where we should be decelerating.
+        // Decelerate as much as necessary but no more than our limit.
+
+        const float required_decel =
+            ComputeRequiredDecel(v_frame_abs, inv_2dx);
+        if (required_decel > a) {
+          return std::copysign(a, -v_frame);
+        } else {
           return std::copysign(required_decel, -v_frame);
         }
-        return std::copysign(a, -v_frame);
       }
     }
 
@@ -241,13 +229,13 @@ class BldcServoPosition {
       return;
     }
 
-    // Gap region threshold: when position is within this distance,
-    // prevent re-acceleration oscillation by using reduced acceleration
-    // or completing.
-    const float gap_threshold = kGapRegionMultiplier * a * period_s * period_s;
+    // Settling region threshold: when the position is within this
+    // distance, prevent re-acceleration to avoid oscillation and
+    // allow early completion.
+    const float settling_threshold = kSettlingRegion * a * period_s * period_s;
 
     const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, period_s, gap_threshold);
+        data, a, v0, vf, dx, period_s, settling_threshold);
 
     status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
@@ -272,52 +260,66 @@ class BldcServoPosition {
     const float signed_vel_lower = std::min(v0, v1_final);
     const float signed_vel_upper = std::max(v0, v1_final);
 
-    // Precompute values used multiple times below.
+    // Precompute values that will be used multiple times below.
     const float dx_abs = std::abs(dx);
     const float v_frame_final = v1_final - vf;
     const float v_frame_final_abs = std::abs(v_frame_final);
 
-    // Check for completion:
-    // 1. Velocity crossed or reached target velocity
-    // 2. Position is close enough to target
+    // We will consider this trajectory completed if both:
+    // 1. The velocity crossed or reached target velocity
+    // 2. The position is close enough to target
     const bool target_cross = signed_vel_lower <= vf && signed_vel_upper >= vf;
     const bool target_near = v_frame_final_abs < (a * 0.5f * period_s);
 
-    // Position check: use time-to-target based on final velocity.
-    // Gap region: when dx is within gap_threshold, complete to prevent oscillation.
-    const bool in_gap_region = dx_abs < gap_threshold;
+    // We also complete when in the settling region, so determine that now.
+    const bool in_settling_region = dx_abs < settling_threshold;
 
-    // Check if we're heading toward the target (closing gap).
-    // Use velocity in target frame (v1_final - vf) for non-zero target velocity.
-    // Same sign check: both positive or both negative means we're closing.
+    // Check if we're heading toward the target.
+    //
+    // We are closing if the sign of the position error and our
+    // relative velocity is the same.
     const bool closing = (dx * v_frame_final) > 0.0f;
 
-    // Position check: within 10 timesteps at effective velocity.
-    // Use closing rate when it's larger than target velocity, otherwise use
-    // target velocity as the minimum. This ensures:
-    // 1. During active catch-up, closing rate determines threshold
-    // 2. When at target velocity (closing rate ~ 0), use target velocity
-    //    which gives a reasonable completion threshold for the PID to handle
+    // When evaluating velocity "closeness" as the gate for checking
+    // position, we use closing rate when it's larger than target
+    // velocity.  This ensures we complete even if the current closing
+    // rate is small because of numerical precision.
     const float v_for_threshold = std::max(v_frame_final_abs, std::abs(vf));
+
+    // For the position portion, we're done if our position is close
+    // enough to complete.  We consider within 10 timesteps as "close
+    // enough".
     const bool position_near = (dx_abs <= v_for_threshold * 10.0f * period_s);
 
-    // Complete if:
-    // 1. Normal completion: velocity reached target AND position is near
-    // 2. Gap region completion: close to target, moving toward it, in decel
-    //    phase, and velocity is significantly below the bang-bang curve.
-    //    The curve is v = sqrt(2*a*dx), the velocity at distance dx from
-    //    target on an ideal trajectory. During normal discrete decel,
-    //    velocity stays close to this curve. When we've overshot (decel'd
-    //    too much relative to position), velocity drops well below the curve.
-    //    Using 60% threshold to catch significant overshoot while avoiding
-    //    false positives during normal decel.
-    //    Check: v < 0.6 * sqrt(2*a*|dx|)
-    //    Squared (to avoid sqrt): v² < 0.36 * 2 * a * |dx| = 0.72 * a * |dx|
-    const bool below_curve = (v_frame_final_abs * v_frame_final_abs) < (0.72f * a * dx_abs);
-    const bool decelerating = (acceleration * v_frame_final) < 0.0f;
-    const bool gap_complete = in_gap_region && closing && below_curve && decelerating;
+    // Now, some more constraints on whether or not we can complete by
+    // being in the settling region.
+    //
+    // Require that we are:
+    //   a) close to the target (in settling region)
+    //   b) moving toward it
+    //   c) decelerating
+    //   d) velocity is significantly below the bang-bang curve
+    //
+    // The bang-bang curve is v = sqrt(2*a*dx), the velocity at
+    // distance dx from target on an ideal trajectory.
+    //
+    // During normal deceleration, the velocity stays close to this
+    // curve.  When we've decelerated too much relative to position,
+    // the velocity drops well below this curve.
+    //
+    // We use a 60% threshold to catch when we're significantly below
+    // the curve while avoiding false positives during normal decel.
+    //
+    // Check: v < 0.6 * sqrt(2*a*|dx|)
+    // Squared (to avoid sqrt): v^2 < 0.36 * 2 * a * |dx| = 0.72 * a * |dx|
+    const bool below_curve =
+        (v_frame_final_abs * v_frame_final_abs) < (0.72f * a * dx_abs);
+    const bool decelerating =
+        (acceleration * v_frame_final) < 0.0f;
+    const bool settling_complete =
+        in_settling_region && closing && below_curve && decelerating;
 
-    if (((target_cross || target_near) && position_near) || gap_complete) {
+    if (((target_cross || target_near) && position_near) || settling_complete) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
       status->control_acceleration = 0.0f;
@@ -398,14 +400,15 @@ class BldcServoPosition {
       }
     }
 
-    // Capture velocity before trajectory update for exact kinematic integration.
+    // Capture the velocity before we update the trajectory
     const float v0 = status->control_velocity.value_or(0.0f);
 
     if (!status->trajectory_done) {
       UpdateTrajectory(status, config, period_s, data, velocity);
     }
 
-    // Velocity after trajectory update, before max velocity clamp.
+    // v1 will be the velocity after the trajectory update, before max
+    // velocity clamp.
     const float v1 = status->control_velocity.value_or(0.0f);
 
     if (*status->control_velocity > status->motor_max_velocity) {
@@ -418,12 +421,7 @@ class BldcServoPosition {
 
     auto velocity_command = *status->control_velocity;
 
-    // Compute position step.
-    // Use exact kinematic integration (average velocity) when ramping.
-    // Use final velocity when velocity jumps instantly (velocity-only mode).
-    // This limits our usable velocity to 20kHz modulo the position
-    // scale at a 40kHz switching frequency.  1.2 million RPM should
-    // be enough for anybody?
+    // Perform our position integration.
     const float step = [&]() {
       // When acceleration is non-zero, velocity is ramping - use average
       // for exact kinematic integration.
@@ -434,6 +432,10 @@ class BldcServoPosition {
       // use final velocity for the full timestep.
       return velocity_command * period_s;
     }();
+
+    // This fixed point formulation limits our usable velocity to
+    // 20kHz modulo the position scale at a 40kHz switching frequency.
+    // 1.2 million RPM should be enough for anybody?
     const int64_t int64_step =
         (static_cast<int64_t>(
             static_cast<int32_t>((static_cast<float>(1ll << 32) * step))) <<
