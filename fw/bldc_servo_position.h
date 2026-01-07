@@ -41,10 +41,9 @@ class BldcServoPosition {
   static void DoVelocityModeLimits(
       BldcServoStatus* status,
       const BldcServoConfig* config,
-      float rate_hz,
+      float period_s,
       BldcServoCommandData* data,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
-    const float period_s = 1.0f / rate_hz;
 
     if (!std::isnan(data->velocity_limit)) {
       if (velocity > data->velocity_limit) { velocity = data->velocity_limit; }
@@ -211,10 +210,9 @@ class BldcServoPosition {
   static void DoVelocityAndAccelLimits(
       BldcServoStatus* status,
       const BldcServoConfig* config,
-      float rate_hz,
+      float period_s,
       BldcServoCommandData* data,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
-    const float period_s = 1.0f / rate_hz;
 
     // This is the most general case.  We decide whether to
     // accelerate, remain constant, or decelerate, then advance the
@@ -324,7 +322,7 @@ class BldcServoPosition {
   static void UpdateTrajectory(
       BldcServoStatus* status,
       const BldcServoConfig* config,
-      float rate_hz,
+      float period_s,
       BldcServoCommandData* data,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
     // Clamp the desired velocity to our limit if we have one.
@@ -335,10 +333,10 @@ class BldcServoPosition {
 
     if (!data->position_relative_raw) {
       DoVelocityModeLimits(
-          status, config, rate_hz, data, velocity);
+          status, config, period_s, data, velocity);
     } else {
       DoVelocityAndAccelLimits(
-          status, config, rate_hz, data, velocity);
+          status, config, period_s, data, velocity);
     }
   }
 
@@ -348,7 +346,7 @@ class BldcServoPosition {
       const BldcServoPositionConfig* position_config,
       const MotorPosition::Status* position,
       int64_t absolute_relative_delta,
-      float rate_hz,
+      float period_s,
       BldcServoCommandData* data,
       float velocity) MOTEUS_CCM_ATTRIBUTE {
 
@@ -397,7 +395,7 @@ class BldcServoPosition {
     const float v0 = status->control_velocity.value_or(0.0f);
 
     if (!status->trajectory_done) {
-      UpdateTrajectory(status, config, rate_hz, data, velocity);
+      UpdateTrajectory(status, config, period_s, data, velocity);
     }
 
     // Velocity after trajectory update, before max velocity clamp.
@@ -423,11 +421,11 @@ class BldcServoPosition {
       // When acceleration is non-zero, velocity is ramping - use average
       // for exact kinematic integration.
       if (status->control_acceleration != 0.0f) {
-        return (v0 + v1) * 0.5f / rate_hz;
+        return (v0 + v1) * 0.5f * period_s;
       }
       // When acceleration is zero (velocity-only mode or at limit),
       // use final velocity for the full timestep.
-      return velocity_command / rate_hz;
+      return velocity_command * period_s;
     }();
     const int64_t int64_step =
         (static_cast<int64_t>(
@@ -436,7 +434,7 @@ class BldcServoPosition {
     status->control_position_raw = *status->control_position_raw + int64_step;
 
     if (data->position_relative_raw && !std::isnan(velocity)) {
-      const float tstep = velocity / rate_hz;
+      const float tstep = velocity * period_s;
       const int64_t tint64_step =
         (static_cast<int64_t>(
             static_cast<int32_t>((static_cast<float>(1ll << 32) * tstep))) <<

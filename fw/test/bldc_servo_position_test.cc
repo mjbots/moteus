@@ -39,7 +39,13 @@ struct Context {
   BldcServoPositionConfig position_config;
   MotorPosition::Status position;
   float rate_hz = 40000.0f;
+  float period_s = 1.0f / 40000.0f;
   BldcServoCommandData data;
+
+  void set_rate_hz(float hz) {
+    rate_hz = hz;
+    period_s = 1.0f / hz;
+  }
 
   Context() {
     position_config.position_min = NaN;
@@ -87,7 +93,7 @@ struct Context {
         &position_config,
         &position,
         0,
-        rate_hz,
+        period_s,
         &data,
         data.velocity);
   }
@@ -466,7 +472,7 @@ BOOST_AUTO_TEST_CASE(AccelVelocityLimits, * boost::unit_test::tolerance(1e-3)) {
                        << test_case.a << " "
                        << test_case.v) {
       Context ctx;
-      ctx.rate_hz = test_case.rate_khz * 1000.0;
+      ctx.set_rate_hz(test_case.rate_khz * 1000.0f);
       ctx.data.position = test_case.xf;
       ctx.data.velocity = test_case.vf;
       ctx.data.accel_limit = test_case.a;
@@ -641,7 +647,7 @@ BOOST_AUTO_TEST_CASE(ControlAccelerationConsistent) {
   ctx.data.position = 0.25f;
   ctx.data.accel_limit = kAccel;
   ctx.data.velocity_limit = NaN;
-  ctx.rate_hz = 30000.0f;
+  ctx.set_rate_hz(30000.0f);
 
   ctx.set_velocity(0.0f);
   ctx.set_position(0.0f);
@@ -735,7 +741,7 @@ BOOST_AUTO_TEST_CASE(TrajectoryDebugTrace) {
   ctx.data.position = kDistance;
   ctx.data.accel_limit = kAccel;
   ctx.data.velocity_limit = NaN;
-  ctx.rate_hz = kRateHz;
+  ctx.set_rate_hz(kRateHz);
 
   ctx.set_velocity(0.0f);
   ctx.set_position(0.0f);
@@ -876,7 +882,7 @@ BOOST_AUTO_TEST_CASE(ShortTrajectoryGapRegion) {
       ctx.data.velocity = tc.target_vel;
       ctx.data.accel_limit = tc.accel;
       ctx.data.velocity_limit = NaN;
-      ctx.rate_hz = rate_hz;
+      ctx.set_rate_hz(rate_hz);
 
       ctx.set_velocity(0.0f);
       ctx.set_position(0.0f);
@@ -974,7 +980,7 @@ BOOST_AUTO_TEST_CASE(HighTargetVelocityPositionError) {
       ctx.data.velocity = tc.target_vel;
       ctx.data.accel_limit = tc.accel;
       ctx.data.velocity_limit = tc.vel_limit;
-      ctx.rate_hz = rate_hz;
+      ctx.set_rate_hz(rate_hz);
 
       ctx.set_velocity(0.0f);
       ctx.set_position(0.0f);
@@ -1032,7 +1038,7 @@ BOOST_AUTO_TEST_CASE(LongTrajectoryBehavior) {
   ctx.data.position = kDistance;
   ctx.data.accel_limit = kAccel;
   ctx.data.velocity_limit = NaN;
-  ctx.rate_hz = kRateHz;
+  ctx.set_rate_hz(kRateHz);
 
   ctx.set_velocity(0.0f);
   ctx.set_position(0.0f);

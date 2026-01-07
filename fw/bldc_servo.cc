@@ -2148,7 +2148,7 @@ class BldcServo::Impl {
             &position_config_,
             &position_,
             absolute_relative_delta,
-            rate_config_.rate_hz,
+            rate_config_.period_s,
             data,
             velocity);
 
