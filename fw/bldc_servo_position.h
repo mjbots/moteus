@@ -150,7 +150,8 @@ class BldcServoPosition {
 
     if ((v_frame * dx) >= 0.0f && dx != 0.0f) {
       // We are moving towards the target (in the target frame).
-      const float stop_distance = (v_frame * v_frame) / (2.0f * a);
+      const float inv_2a = 1.0f / (2.0f * a);
+      const float stop_distance = (v_frame * v_frame) * inv_2a;
       const float dx_abs = std::abs(dx);
 
       // Gap region threshold: when position is within this distance,
@@ -166,7 +167,7 @@ class BldcServoPosition {
         const float v_next = v_frame_abs + a * dt;
         const float dx_step = (v_frame_abs + v_next) * 0.5f * dt;
         const float dx_after = dx_abs - dx_step;
-        const float stop_distance_next = (v_next * v_next) / (2.0f * a);
+        const float stop_distance_next = (v_next * v_next) * inv_2a;
 
         if (dx_after < stop_distance_next) {
           // Switching early: compute exact decel to reach target.
