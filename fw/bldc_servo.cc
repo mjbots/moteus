@@ -1959,11 +1959,11 @@ class BldcServo::Impl {
 
     if (!config_.voltage_mode_control) {
       const float denorm_d_V =
-          pid_d_.Apply(status_.d_A, i_d_A, rate_config_.rate_hz) +
+          pid_d_.Apply(status_.d_A, i_d_A, rate_config_.period_s) +
           i_d_A * config_.current_feedforward * motor_.resistance_ohm;
 
       const float denorm_q_V =
-          pid_q_.Apply(status_.q_A, i_q_A, rate_config_.rate_hz) +
+          pid_q_.Apply(status_.q_A, i_q_A, rate_config_.period_s) +
           i_q_A * config_.current_feedforward * motor_.resistance_ohm +
           (feedforward_velocity_rotor *
            config_.bemf_feedforward *

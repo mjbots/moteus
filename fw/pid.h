@@ -107,7 +107,7 @@ class PID {
 
   float Apply(float measured, float input_desired,
               float measured_rate, float input_desired_rate,
-              int rate_hz,
+              float period_s,
               ApplyOptions apply_options = {}) MOTEUS_CCM_ATTRIBUTE {
     float desired = {};
     float desired_rate = {};
@@ -115,7 +115,7 @@ class PID {
     // First apply max_desired_rate
     if (config_->max_desired_rate != 0.0f &&
         std::isfinite(state_->desired)) {
-      const float max_step = config_->max_desired_rate / rate_hz;
+      const float max_step = config_->max_desired_rate * period_s;
       const float proposed_step = input_desired - state_->desired;
       const float actual_step =
           mjlib::base::Limit(proposed_step, -max_step, max_step);
@@ -132,8 +132,8 @@ class PID {
     state_->error = measured - desired;
     state_->error_rate = measured_rate - desired_rate;
 
-    const float max_i_update = config_->iratelimit / rate_hz;
-    float to_update_i = state_->error * config_->ki / rate_hz;
+    const float max_i_update = config_->iratelimit * period_s;
+    float to_update_i = state_->error * config_->ki * period_s;
     if (max_i_update > 0.0f) {
       if (to_update_i > max_i_update) {
         to_update_i = max_i_update;

@@ -81,12 +81,12 @@ class SimplePI {
       : config_(config), state_(state) {}
 
   float Apply(float measured, float input_desired,
-              int rate_hz) MOTEUS_CCM_ATTRIBUTE {
+              float period_s) MOTEUS_CCM_ATTRIBUTE {
     float desired = {};
 
     if (config_->max_desired_rate != 0.0f &&
         std::isfinite(state_->desired)) {
-      const float max_step = config_->max_desired_rate / rate_hz;
+      const float max_step = config_->max_desired_rate * period_s;
       const float proposed_step = input_desired - state_->desired;
       const float actual_step =
           mjlib::base::Limit(proposed_step, -max_step, max_step);
@@ -98,7 +98,7 @@ class SimplePI {
     state_->desired = desired;
     state_->error = measured - desired;
 
-    float to_update_i = state_->error * config_->ki / rate_hz;
+    float to_update_i = state_->error * config_->ki * period_s;
     state_->integral += to_update_i;
 
     state_->p = config_->kp * state_->error;
