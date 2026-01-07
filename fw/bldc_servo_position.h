@@ -98,28 +98,28 @@ class BldcServoPosition {
 
   // Compute deceleration needed to reach target position with target velocity.
   // Returns the required deceleration magnitude (always positive).
-  // v_frame: velocity relative to target (v0 - vf)
-  // dx: distance to target position
-  // dt: timestep
-  static float ComputeRequiredDecel(float v_frame, float dx, float dt) {
-    // After one step at deceleration a_d:
-    //   v1 = v_frame - a_d * dt  (in target frame, so slowing toward 0)
-    //   dx_step = (v_frame + v1) / 2 * dt = v_frame * dt - 0.5 * a_d * dt²
-    //   dx_remaining = dx - dx_step
-    //
-    // For exact convergence, we want dx_remaining = v1² / (2 * a_d):
-    //   dx - v_frame * dt + 0.5 * a_d * dt² = (v_frame - a_d * dt)² / (2 * a_d)
-    //
-    // Let u = v_frame, d = dx, t = dt, a = a_d:
-    //   d - u*t + 0.5*a*t² = (u - a*t)² / (2*a)
-    //   2*a*(d - u*t + 0.5*a*t²) = (u - a*t)²
-    //   2*a*d - 2*a*u*t + a²*t² = u² - 2*u*a*t + a²*t²
-    //   2*a*d = u²
-    //   a = u² / (2*d) = v_frame² / (2*dx)
-    //
-    // This is the standard kinematic formula!
-    if (std::abs(dx) < 1e-9f) return 0.0f;
-    return (v_frame * v_frame) / (2.0f * std::abs(dx));
+  // v_abs: absolute velocity relative to target
+  // inv_2dx: precomputed 1.0f / (2.0f * dx_abs) for efficiency
+  //
+  // Formula derivation:
+  // After one step at deceleration a_d:
+  //   v1 = v_frame - a_d * dt  (in target frame, so slowing toward 0)
+  //   dx_step = (v_frame + v1) / 2 * dt = v_frame * dt - 0.5 * a_d * dt²
+  //   dx_remaining = dx - dx_step
+  //
+  // For exact convergence, we want dx_remaining = v1² / (2 * a_d):
+  //   dx - v_frame * dt + 0.5 * a_d * dt² = (v_frame - a_d * dt)² / (2 * a_d)
+  //
+  // Let u = v_frame, d = dx, t = dt, a = a_d:
+  //   d - u*t + 0.5*a*t² = (u - a*t)² / (2*a)
+  //   2*a*(d - u*t + 0.5*a*t²) = (u - a*t)²
+  //   2*a*d - 2*a*u*t + a²*t² = u² - 2*u*a*t + a²*t²
+  //   2*a*d = u²
+  //   a = u² / (2*d) = v² / (2*dx)
+  //
+  // This is the standard kinematic formula!
+  static float ComputeRequiredDecel(float v_abs, float inv_2dx) {
+    return (v_abs * v_abs) * inv_2dx;
   }
 
   static float CalculateAcceleration(
@@ -153,6 +153,8 @@ class BldcServoPosition {
       const float inv_2a = 1.0f / (2.0f * a);
       const float stop_distance = (v_frame * v_frame) * inv_2a;
       const float dx_abs = std::abs(dx);
+      // Precompute reciprocal for ComputeRequiredDecel calls.
+      const float inv_2dx = 1.0f / (2.0f * dx_abs);
 
       if (dx_abs > stop_distance) {
         // Not yet at switch point - accelerate (unless at velocity limit).
@@ -166,7 +168,7 @@ class BldcServoPosition {
 
         if (dx_after < stop_distance_next) {
           // Switching early: compute exact decel to reach target.
-          const float required_decel = ComputeRequiredDecel(v_frame_abs, dx_abs, dt);
+          const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
           // Use exact decel if within threshold range, otherwise use max.
           if (required_decel >= kAdaptiveDecelThreshold * a && required_decel <= a) {
             return std::copysign(required_decel, -v_frame);
@@ -178,7 +180,7 @@ class BldcServoPosition {
         // would cause oscillation. Instead, coast or gently decel.
         if (dx_abs < gap_threshold && v_frame_abs > 0.0f) {
           // Compute decel needed to stop at target
-          const float required_decel = ComputeRequiredDecel(v_frame_abs, dx_abs, dt);
+          const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
           if (required_decel <= a) {
             return std::copysign(required_decel, -v_frame);
           }
@@ -194,7 +196,7 @@ class BldcServoPosition {
       } else {
         // Past switch point - decelerate.
         // Compute exact deceleration to reach target.
-        const float required_decel = ComputeRequiredDecel(v_frame_abs, dx_abs, dt);
+        const float required_decel = ComputeRequiredDecel(v_frame_abs, inv_2dx);
         // Use exact decel if within threshold range, otherwise use max.
         if (required_decel >= kAdaptiveDecelThreshold * a && required_decel <= a) {
           return std::copysign(required_decel, -v_frame);
@@ -304,9 +306,10 @@ class BldcServoPosition {
     //    too much relative to position), velocity drops well below the curve.
     //    Using 60% threshold to catch significant overshoot while avoiding
     //    false positives during normal decel.
-    const float v_bb_threshold = 0.6f * std::sqrt(2.0f * a * std::abs(dx));
+    //    Check: v < 0.6 * sqrt(2*a*|dx|)
+    //    Squared (to avoid sqrt): v² < 0.36 * 2 * a * |dx| = 0.72 * a * |dx|
     const float v_abs = std::abs(v_frame_final);
-    const bool below_curve = v_abs < v_bb_threshold;
+    const bool below_curve = (v_abs * v_abs) < (0.72f * a * std::abs(dx));
     const bool decelerating = (acceleration * v_frame_final) < 0.0f;
     const bool gap_complete = in_gap_region && closing && below_curve && decelerating;
 
