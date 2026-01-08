@@ -27,12 +27,6 @@ namespace moteus {
 // them in the header and also have a section definition.
 class BldcServoPosition {
  public:
-  // Multiplier for the settling region threshold. When position is
-  // within kSettlingRegion * a * dt^2 of the target, we prevent
-  // re-acceleration to avoid oscillation and allow early trajectory
-  // completion.
-  static constexpr float kSettlingRegion = 9.0f;
-
   static void DoVelocityModeLimits(
       BldcServoStatus* status,
       const BldcServoConfig* config,
@@ -106,8 +100,7 @@ class BldcServoPosition {
       float v0,
       float vf,
       float dx,
-      float dt,
-      float settling_threshold) MOTEUS_CCM_ATTRIBUTE {
+      float dt) MOTEUS_CCM_ATTRIBUTE {
     // This logic is broken out primarily so that early-return can be
     // used as a control flow mechanism to aid factorization.
 
@@ -155,19 +148,6 @@ class BldcServoPosition {
           if (required_decel > a) {
             // This really shouldn't happen, but if it does, limit our
             // deceleration to the intended limit.
-            return std::copysign(a, -v_frame);
-          } else {
-            return std::copysign(required_decel, -v_frame);
-          }
-        }
-
-        // Check to see if we are in the settling region.  If we are
-        // close to the target, don't re-accelerate which may cause
-        // oscillation.  Instead, just decelerate at the computed rate.
-        if (dx_abs < settling_threshold && v_frame_abs > 0.0f) {
-          const float required_decel =
-              ComputeRequiredDecel(v_frame_abs, inv_2dx);
-          if (required_decel > a) {
             return std::copysign(a, -v_frame);
           } else {
             return std::copysign(required_decel, -v_frame);
@@ -229,13 +209,8 @@ class BldcServoPosition {
       return;
     }
 
-    // Settling region threshold: when the position is within this
-    // distance, prevent re-acceleration to avoid oscillation and
-    // allow early completion.
-    const float settling_threshold = kSettlingRegion * a * period_s * period_s;
-
     const float acceleration = CalculateAcceleration(
-        data, a, v0, vf, dx, period_s, settling_threshold);
+        data, a, v0, vf, dx, period_s);
 
     status->control_acceleration = acceleration;
     *status->control_velocity += acceleration * period_s;
@@ -271,15 +246,6 @@ class BldcServoPosition {
     const bool target_cross = signed_vel_lower <= vf && signed_vel_upper >= vf;
     const bool target_near = v_frame_final_abs < (a * 0.5f * period_s);
 
-    // We also complete when in the settling region, so determine that now.
-    const bool in_settling_region = dx_abs < settling_threshold;
-
-    // Check if we're heading toward the target.
-    //
-    // We are closing if the sign of the position error and our
-    // relative velocity is the same.
-    const bool closing = (dx * v_frame_final) > 0.0f;
-
     // When evaluating velocity "closeness" as the gate for checking
     // position, we use closing rate when it's larger than target
     // velocity.  This ensures we complete even if the current closing
@@ -291,35 +257,7 @@ class BldcServoPosition {
     // enough".
     const bool position_near = (dx_abs <= v_for_threshold * 10.0f * period_s);
 
-    // Now, some more constraints on whether or not we can complete by
-    // being in the settling region.
-    //
-    // Require that we are:
-    //   a) close to the target (in settling region)
-    //   b) moving toward it
-    //   c) decelerating
-    //   d) velocity is significantly below the bang-bang curve
-    //
-    // The bang-bang curve is v = sqrt(2*a*dx), the velocity at
-    // distance dx from target on an ideal trajectory.
-    //
-    // During normal deceleration, the velocity stays close to this
-    // curve.  When we've decelerated too much relative to position,
-    // the velocity drops well below this curve.
-    //
-    // We use a 60% threshold to catch when we're significantly below
-    // the curve while avoiding false positives during normal decel.
-    //
-    // Check: v < 0.6 * sqrt(2*a*|dx|)
-    // Squared (to avoid sqrt): v^2 < 0.36 * 2 * a * |dx| = 0.72 * a * |dx|
-    const bool below_curve =
-        (v_frame_final_abs * v_frame_final_abs) < (0.72f * a * dx_abs);
-    const bool decelerating =
-        (acceleration * v_frame_final) < 0.0f;
-    const bool settling_complete =
-        in_settling_region && closing && below_curve && decelerating;
-
-    if (((target_cross || target_near) && position_near) || settling_complete) {
+    if ((target_cross || target_near) && position_near) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
       status->control_acceleration = 0.0f;
