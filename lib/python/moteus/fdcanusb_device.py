@@ -257,7 +257,7 @@ class FdcanusbDevice(TransportDevice):
         await self._ensure_reader_started()
 
         try:
-            ok_waiter = asyncio.Future()
+            ok_waiter: asyncio.Future[None] = asyncio.Future()
             self._ok_waiters.append(ok_waiter)
 
             await self._write_send_frame(frame)
@@ -308,7 +308,7 @@ class FdcanusbDevice(TransportDevice):
 
         try:
             # Now we will send all our requests.
-            ok_waiters = set([asyncio.Future()
+            ok_waiters: set[asyncio.Future[None]] = set([asyncio.Future()
                               for _ in range(len(requests))])
             try:
                 self._ok_waiters.extend(list(ok_waiters))

@@ -461,7 +461,7 @@ class Result:
     id = None
     arbitration_id = None
     bus = None
-    values = {}
+    values: dict = {}
 
     def __repr__(self):
         value_str = ', '.join(['{}(0x{:03x}): {}'.format(Register(key).name, key, value)

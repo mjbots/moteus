@@ -90,7 +90,7 @@ class QueryResolution:
 
     # Additional registers can be queried by enumerating them as keys
     # in this dictionary, with the resolution as the matching value.
-    _extra = {
+    _extra: dict = {
         # 0x020 : mp.F32, ...
     }
 

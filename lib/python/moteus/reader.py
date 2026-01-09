@@ -456,7 +456,7 @@ TYPES = [
 ]
 
 
-_TYPES_FROM_BINARY = [x.from_binary if x else None for x in TYPES]
+_TYPES_FROM_BINARY = [x.from_binary if x else None for x in TYPES]  # type: ignore[attr-defined]
 
 
 class Type:

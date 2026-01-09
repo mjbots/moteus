@@ -21,7 +21,7 @@ import typing
 
 from .transport_device import Frame, FrameFilter, TransportDevice, Subscription
 
-can = None
+can: typing.Any = None
 
 
 def _detect_fdcanusb_serial_linux(ifname: str) -> typing.Optional[str]:
