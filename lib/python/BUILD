@@ -24,6 +24,7 @@ test_suite(
     tests = [
         "//lib/python/moteus:test",
         ":bdist_test",
+        ":mypy_test",
     ],
 )
 
@@ -65,4 +66,18 @@ sh_test(
     name = "bdist_test",
     data = [":bdist_wheel"],
     srcs = ["test/bdist_test.sh"],
+)
+
+sh_test(
+    name = "mypy_test",
+    srcs = ["test/mypy_test.sh"],
+    data = [
+        "//lib/python/moteus:libfiles",
+        "//lib/python/moteus:version.py",
+        "//lib/python/moteus:__init__.py",
+        "pyproject.toml",
+        "//lib/python/moteus:py.typed",
+    ],
+    size = "small",
+    tags = ["local"],
 )

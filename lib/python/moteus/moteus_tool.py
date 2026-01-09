@@ -46,7 +46,7 @@ try:
 except ImportError:
     class Version:
         VERSION = 'dev'
-    version = Version()
+    version = Version()  # type: ignore[assignment]
 
 MAX_FLASH_BLOCK_SIZE = 32
 
@@ -724,7 +724,7 @@ class ElfMappings:
 
 
 class ElfData:
-    sections = []
+    sections: list = []
     firmware_version = None
 
 

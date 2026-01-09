@@ -46,7 +46,9 @@ class AioSerial:
             **kwargs)
         self._loop: Optional[asyncio.AbstractEventLoop] = loop
 
-        self.loop.add_reader(self.serial.fileno(), self._handle_read)
+        loop_to_use = self.loop
+        assert loop_to_use is not None
+        loop_to_use.add_reader(self.serial.fileno(), self._handle_read)
         self._read_event = asyncio.Event()
         self._read_data = bytearray()
         self._write_data = bytearray()
@@ -90,10 +92,12 @@ class AioSerial:
 
     def write(self, data: Union[bytearray, bytes, memoryview]) -> int:
         self._write_data += data
+        return len(data)
 
-    async def drain(self, ) -> int:
+    async def drain(self) -> int:
         to_write, self._write_data = self._write_data, bytearray()
         self.serial.write(to_write)
+        return len(to_write)
 
     def _handle_read(self):
         self._read_data += self.serial.read(8192)

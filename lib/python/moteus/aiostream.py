@@ -90,8 +90,9 @@ class AioStream:
 
     def write(self, data: Union[bytearray, bytes, memoryview]) -> int:
         self._write_data += data
+        return len(data)
 
-    async def drain(self, ) -> int:
+    async def drain(self) -> int:
         self._write_data, write_data = b'', self._write_data
         loop = asyncio.get_event_loop()
         f = loop.create_future()
@@ -111,6 +112,7 @@ class AioStream:
             with self._write_lock:
                 skip[0] = True
             raise
+        return len(write_data)
 
     def _read_child(self):
         _run_queue(self._read_queue)

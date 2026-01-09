@@ -12,7 +12,7 @@ jobs:
     - name: setup
       run: |
         sudo apt update
-        sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb
+        sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb mypy
         wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
         sudo apt install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
     - name: test

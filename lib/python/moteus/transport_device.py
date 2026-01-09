@@ -88,7 +88,7 @@ class TransportDevice:
                 return self._receive_queue.pop(0)
 
             try:
-                waiter = asyncio.Future()
+                waiter: asyncio.Future[None] = asyncio.Future()
                 self._receive_waiters.append(waiter)
 
                 await waiter
@@ -145,7 +145,7 @@ class TransportDevice:
             return 64
         return size
 
-    class _Subscription:
+    class _Subscription(Subscription):
         def __init__(self, parent, subscription_id):
             self.parent = parent
             self.id = subscription_id

@@ -56,6 +56,11 @@ filegroup(
     ]
 )
 
+exports_files([
+    "__init__.py",
+    "py.typed",
+])
+
 py_library(
     name = "moteus",
     srcs = [

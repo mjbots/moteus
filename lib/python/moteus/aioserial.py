@@ -26,4 +26,4 @@ if (sys.platform == 'win32' or
     os.environ.get('MOTEUS_FORCE_WIN32_SERIAL', False)):
     from moteus.win32_aioserial import *
 else:
-    from moteus.posix_aioserial import *
+    from moteus.posix_aioserial import *  # type: ignore[assignment]
