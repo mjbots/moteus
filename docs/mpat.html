@@ -2212,7 +2212,7 @@ function evaluateMinMovementTime(config) {
 
     const currentOp = evaluateMaxTorque({
       ...config,
-      'time': 1.0,
+      'time': 0.01,
       'velocity': velocity,
     });
 
@@ -2226,7 +2226,7 @@ function evaluateMinMovementTime(config) {
 
     const predOp = evaluateMaxTorque({
       ...config,
-      'time': 1.0,
+      'time': 0.01,
       'velocity': velocityPred,
     });
     if (predOp == null) {

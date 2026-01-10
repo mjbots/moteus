@@ -74,7 +74,7 @@ function parseArgs(args) {
         max_motor_temp: null,       // Will use motor default
         pwm: null,                  // Will use controller default
         move_distance: null,
-        load_inertia: null,
+        load_inertia: 0.0,
         output: 'torque',
         json: false,
         // Custom motor parameters
