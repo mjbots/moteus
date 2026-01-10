@@ -24,7 +24,7 @@ To run the python unit tests, the following Ubuntu python packages must be insta
 
 ```
 sudo apt update
-sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb mypy
+sudo apt install -y python3-can python3-serial python3-setuptools python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb mypy nodejs
 ```
 
 The apt packages (numpy, scipy, etc.) are built for the system Python 3.12. If `/usr/local/bin/python3` exists and points to a different Python version, it will shadow the system Python and cause import failures. Remove or rename it:

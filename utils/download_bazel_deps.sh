@@ -96,7 +96,7 @@ fi
 # Python dependencies
 echo "Installing Python dependencies..."
 apt-get install -y python3-can python3-serial python3-setuptools python3-pyelftools \
-    python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb mypy
+    python3-qtpy python3-wheel python3-importlib-metadata python3-scipy python3-usb mypy nodejs
 
 echo ""
 echo "All dependencies downloaded!"

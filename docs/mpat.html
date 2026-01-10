@@ -473,6 +473,8 @@ const parseKV = (txt) => {
   };
 };
 
+/* MPAT_CORE_START - Core computation logic extractable for CLI use */
+
 // Consolidated field definitions - single source of truth for all field metadata
 const fieldDefinitions = {
   // Common fields
@@ -2286,6 +2288,8 @@ class AnalysisMinMovementTime {
     return evaluateMinMovementTime(config);
   }
 }
+
+/* MPAT_CORE_END */
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
 function ConfigFieldSelector({

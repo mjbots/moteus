@@ -110,6 +110,39 @@ test_suite(
     name = "host",
     tests = [
         "test",
+        "mpat_test",
         "//utils/gui:host",
+    ],
+)
+
+py_test(
+    name = "mpat_test",
+    srcs = ["test/mpat_test.py"],
+    main = "test/mpat_test.py",
+    data = [":mpat"],
+    deps = [
+        "@bazel_tools//tools/python/runfiles",
+    ],
+    size = "small",
+)
+
+# Extract core computation logic from mpat.html for CLI use
+genrule(
+    name = "mpat_core",
+    srcs = ["//docs:mpat.html"],
+    outs = ["mpat_core.mjs"],
+    tools = ["extract_mpat_core.sh"],
+    cmd = "$(location extract_mpat_core.sh) $(location //docs:mpat.html) $@",
+)
+
+py_binary(
+    name = "mpat",
+    srcs = ["mpat.py"],
+    data = [
+        "mpat_cli.mjs",
+        ":mpat_core",
+    ],
+    deps = [
+        "@bazel_tools//tools/python/runfiles",
     ],
 )
