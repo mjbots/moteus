@@ -473,6 +473,8 @@ const parseKV = (txt) => {
   };
 };
 
+/* MPAT_CORE_START - Core computation logic extractable for CLI use */
+
 // Consolidated field definitions - single source of truth for all field metadata
 const fieldDefinitions = {
   // Common fields
@@ -2205,12 +2207,17 @@ function evaluateMinMovementTime(config) {
   var mechanical_energy = 0.0;
   var peak_supply_power = 0.0;
 
+  const maxVel = config.motor.getMaxVelocity(config);
+  const maxE = 0.5 * totalInertia * Math.pow(2 * Math.PI * maxVel, 2);
+
   while (position < 0.5 * moveAmount) {
-    const velocity = Math.sqrt(2 * E / totalInertia, 0.0) / (2 * Math.PI);
+    // Cap velocity to avoid floating point issues at the boundary
+    const velocityRaw = Math.sqrt(2 * E / totalInertia, 0.0) / (2 * Math.PI);
+    const velocity = Math.min(velocityRaw, maxVel * (1 - 1e-9));
 
     const currentOp = evaluateMaxTorque({
       ...config,
-      'time': 1.0,
+      'time': 0.01,
       'velocity': velocity,
     });
 
@@ -2220,21 +2227,25 @@ function evaluateMinMovementTime(config) {
 
     const torque = currentOp.torque;
     const ePred = E + 2 * Math.PI * torque * dposition;
-    const velocityPred = Math.sqrt(Math.max(2 * ePred / totalInertia, 0.0)) / (2 * Math.PI);
+    // Cap velocity at max velocity - when we reach max velocity, we enter
+    // a "cruise" phase where we can't accelerate further (back-EMF limits).
+    // Use a small epsilon to avoid floating point boundary issues.
+    const velocityPredRaw = Math.sqrt(Math.max(2 * ePred / totalInertia, 0.0)) / (2 * Math.PI);
+    const velocityPred = Math.min(velocityPredRaw, maxVel * (1 - 1e-9));
 
     const predOp = evaluateMaxTorque({
       ...config,
-      'time': 1.0,
+      'time': 0.01,
       'velocity': velocityPred,
     });
     if (predOp == null) {
       return null;
     }
     const torquePred = predOp.torque;
+
     const dE = 0.5 * 2 * Math.PI * (torque + torquePred) * dposition;
     const Eprev = E;
-    E = Math.max(E + dE, 0.0);
-
+    E = Math.min(Math.max(E + dE, 0.0), maxE);
     position += dposition;
 
     const eMid = 0.5 * (Eprev + E);
@@ -2286,6 +2297,8 @@ class AnalysisMinMovementTime {
     return evaluateMinMovementTime(config);
   }
 }
+
+/* MPAT_CORE_END */
 
 /* ---------- Reusable ConfigFieldSelector Component ---------- */
 function ConfigFieldSelector({
