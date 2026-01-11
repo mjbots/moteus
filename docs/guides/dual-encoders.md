@@ -64,7 +64,7 @@ If starting from a factory default configuration, first configure the aux1 port.
 ```
 aux1.pins.4.mode 3 # uart
 aux1.pins.5.mode 3 # uart
-aux1.uart.mode 2 # aksim2
+aux1.uart.mode 1 # aksim2
 aux1.uart.baud_rate 1000000
 aux1.uart.rs422 1
 ```
