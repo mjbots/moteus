@@ -27,6 +27,7 @@ As of firmware version 2025-07-21, the firmware will report if a factor is limit
 - **101 motor_temperature**: Temperature: The motor temperature sensor can also limit the output current.  This is configured in `servo.motor_fault_temperature`/`servo.motor_temperature_margin`.
 - **102 max_torque**: Maximum torque: With each position mode command, the client can specify a maximum torque to use.  If the combination of the onboard PID and commanded feedforward torque exceeds this, then limiting occurs.
 - **103 position_bounds**: Position bounds: If the current position is outside of `servopos.position_min` and `servopos.position_max`, then torque is limited in the direction that would push the motor further outside the bounds.
+- **104 flux_braking**: Flux braking: The input voltage is too high and the controller is dissipating energy in the motor windings.
 
 ### Other possibilities
 

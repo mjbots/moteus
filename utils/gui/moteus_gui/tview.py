@@ -114,6 +114,7 @@ FAULT_CODE_DESCRIPTIONS = {
     101: "limit: servo.motor_fault_temperature",
     102: "limit: commanded max torque",
     103: "limit: servopos limit",
+    104: "limit: flux braking",
 }
 
 

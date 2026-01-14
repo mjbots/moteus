@@ -62,6 +62,7 @@ enum class errc {
   kLimitMotorTemperature = 101, // servo.motor_fault_temperature
   kLimitMaxTorque = 102,
   kLimitPositionBounds = 103,   // servopos.position_min / servopos.position_max
+  kLimitFluxBraking = 104,      // flux braking is active
 };
 
 mjlib::micro::error_code make_error_code(errc);

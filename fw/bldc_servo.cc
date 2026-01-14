@@ -2289,6 +2289,10 @@ class BldcServo::Impl {
       return (error / config_.flux_brake_resistance_ohm);
     }();
 
+    if (d_A != 0.0f) {
+      status_.fault = errc::kLimitFluxBraking;
+    }
+
 #ifdef MOTEUS_PERFORMANCE_MEASURE
     status_.dwt.control_done_pos = DWT->CYCCNT;
 #endif
