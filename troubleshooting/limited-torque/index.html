@@ -2472,6 +2472,7 @@
 <li><strong>101 motor_temperature</strong>: Temperature: The motor temperature sensor can also limit the output current.  This is configured in <code>servo.motor_fault_temperature</code>/<code>servo.motor_temperature_margin</code>.</li>
 <li><strong>102 max_torque</strong>: Maximum torque: With each position mode command, the client can specify a maximum torque to use.  If the combination of the onboard PID and commanded feedforward torque exceeds this, then limiting occurs.</li>
 <li><strong>103 position_bounds</strong>: Position bounds: If the current position is outside of <code>servopos.position_min</code> and <code>servopos.position_max</code>, then torque is limited in the direction that would push the motor further outside the bounds.</li>
+<li><strong>104 flux_braking</strong>: Flux braking: The input voltage is too high and the controller is dissipating energy in the motor windings.</li>
 </ul>
 <h3 id="other-possibilities">Other possibilities<a class="headerlink" href="#other-possibilities" title="Permanent link">&para;</a></h3>
 <p>If none of the above limiting flags are present, then the remaining options include:</p>

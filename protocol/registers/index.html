@@ -2884,6 +2884,50 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#0x072-aux1-pwm-input-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x072 - Aux1 PWM Input Period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x073-aux1-pwm-input-duty-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x073 - Aux1 PWM Input Duty Cycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x074-aux2-pwm-input-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x074 - Aux2 PWM Input Period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x075-aux2-pwm-input-duty-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x075 - Aux2 PWM Input Duty Cycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#0x0760x07a-aux1-pwm-outputs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4091,6 +4135,50 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#0x072-aux1-pwm-input-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x072 - Aux1 PWM Input Period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x073-aux1-pwm-input-duty-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x073 - Aux1 PWM Input Duty Cycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x074-aux2-pwm-input-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x074 - Aux2 PWM Input Period
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x075-aux2-pwm-input-duty-cycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x075 - Aux2 PWM Input Duty Cycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#0x0760x07a-aux1-pwm-outputs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4798,6 +4886,36 @@ in speed.</p>
 <p>WARNING: Changing the speed affects all processes driven by the
 microcontroller, including CAN communication.  Thus setting this to a
 non-zero value may prevent future CAN communications.</p>
+<h3 id="0x072-aux1-pwm-input-period">0x072 - Aux1 PWM Input Period<a class="headerlink" href="#0x072-aux1-pwm-input-period" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only, int16/int32/float supported</p>
+<p>Reports the period in microseconds between rising edges on the Aux1
+PWM input pin, when a pin is configured in <code>pwm_in</code> mode.  Returns 0
+if no signal detected for approximately 100ms.  Can be used to
+calculate fan RPM: <code>RPM = 60000000 / (period_us * pulses_per_rev)</code>.
+Typical PC fans output 2 pulses per revolution.</p>
+<p>The measurable period range is approximately 10us to 65535us.  For a
+2-pulse/rev fan, this corresponds to roughly 460 to 3,000,000 RPM.</p>
+<h3 id="0x073-aux1-pwm-input-duty-cycle">0x073 - Aux1 PWM Input Duty Cycle<a class="headerlink" href="#0x073-aux1-pwm-input-duty-cycle" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the duty cycle of the signal on the Aux1 PWM input pin as a
+floating point fraction from 0.0 to 1.0.  PWM mapping is used for
+integral types.  Returns NaN (or maximally negative for integral
+types) if no signal is detected.</p>
+<h3 id="0x074-aux2-pwm-input-period">0x074 - Aux2 PWM Input Period<a class="headerlink" href="#0x074-aux2-pwm-input-period" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only, int16/int32/float supported</p>
+<p>Reports the period in microseconds between rising edges on the Aux2
+PWM input pin, when a pin is configured in <code>pwm_in</code> mode.  Returns 0
+if no signal detected for approximately 100ms.  Can be used to
+calculate fan RPM: <code>RPM = 60000000 / (period_us * pulses_per_rev)</code>.
+Typical PC fans output 2 pulses per revolution.</p>
+<p>The measurable period range is approximately 10us to 65535us.  For a
+2-pulse/rev fan, this corresponds to roughly 460 to 3,000,000 RPM.</p>
+<h3 id="0x075-aux2-pwm-input-duty-cycle">0x075 - Aux2 PWM Input Duty Cycle<a class="headerlink" href="#0x075-aux2-pwm-input-duty-cycle" title="Permanent link">&para;</a></h3>
+<p>Mode: Read only</p>
+<p>Reports the duty cycle of the signal on the Aux2 PWM input pin as a
+floating point fraction from 0.0 to 1.0.  PWM mapping is used for
+integral types.  Returns NaN (or maximally negative for integral
+types) if no signal is detected.</p>
 <h3 id="0x0760x07a-aux1-pwm-outputs">0x076/0x07a - Aux1 PWM Outputs<a class="headerlink" href="#0x0760x07a-aux1-pwm-outputs" title="Permanent link">&para;</a></h3>
 <p>Mode: Read/write</p>
 <p>The current output PWM value for the given pin on Aux1.  PWM mapping
