@@ -393,6 +393,7 @@ class Stm32PwmInput {
 
     const uint16_t last_rising = last_rising_us_.load();
     const uint16_t prev_rising = prev_rising_us_.load();
+    const uint16_t pulse_width = last_pulse_width_us_.load();
 
     if (last_rising != last_rising_seen_) {
       // New edge detected
@@ -400,6 +401,7 @@ class Stm32PwmInput {
       stale_count_ = 0;
       // Unsigned subtraction handles 16-bit wrap correctly
       status->period_us = static_cast<uint16_t>(last_rising - prev_rising);
+      status->pulse_width_us = pulse_width;
       status->nonce++;
     } else {
       // No new edge
@@ -408,6 +410,7 @@ class Stm32PwmInput {
       } else {
         // Signal is stale/stopped
         status->period_us = 0;
+        status->pulse_width_us = 0;
       }
     }
     status->active = true;
@@ -425,11 +428,12 @@ class Stm32PwmInput {
       // Rising edge
       prev_rising_us_.store(last_rising_us_.load());
       last_rising_us_.store(now);
+    } else {
+      // Falling edge - compute pulse width now while we know which
+      // rising edge this corresponds to
+      last_pulse_width_us_.store(
+          static_cast<uint16_t>(now - last_rising_us_.load()));
     }
-    // For future duty cycle: capture falling edge time
-    // else {
-    //   last_falling_us_.store(now);
-    // }
   }
 
  private:
@@ -439,7 +443,7 @@ class Stm32PwmInput {
 
   std::atomic<uint16_t> last_rising_us_{0};
   std::atomic<uint16_t> prev_rising_us_{0};
-  // For future: std::atomic<uint16_t> last_falling_us_{0};
+  std::atomic<uint16_t> last_pulse_width_us_{0};
 
   // For stale detection (non-atomic, only accessed in ISR_Update)
   uint16_t last_rising_seen_ = 0;

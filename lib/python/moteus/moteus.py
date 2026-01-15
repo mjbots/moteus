@@ -89,7 +89,9 @@ class QueryResolution:
     aux2_gpio = mp.IGNORE
 
     aux1_pwm_input_period_us = mp.IGNORE
+    aux1_pwm_input_duty_cycle = mp.IGNORE
     aux2_pwm_input_period_us = mp.IGNORE
+    aux2_pwm_input_duty_cycle = mp.IGNORE
 
     # Additional registers can be queried by enumerating them as keys
     # in this dictionary, with the resolution as the matching value.
@@ -295,9 +297,9 @@ class Controller:
 
         c4 = mp.WriteCombiner(writer, 0x10, int(Register.AUX1_PWM_INPUT_PERIOD), [
             qr.aux1_pwm_input_period_us,
-            mp.IGNORE,  # aux1 duty cycle reserved
+            qr.aux1_pwm_input_duty_cycle,
             qr.aux2_pwm_input_period_us,
-            mp.IGNORE,  # aux2 duty cycle reserved
+            qr.aux2_pwm_input_duty_cycle,
         ])
         for i in range(c4.size()):
             c4.maybe_write()

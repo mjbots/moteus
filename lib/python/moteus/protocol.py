@@ -352,6 +352,12 @@ def scale_register(register, resolution, value):
         return int(value)
     elif register == Register.CLOCK_TRIM:
         return int(value)
+    elif (register == Register.AUX1_PWM_INPUT_PERIOD or
+          register == Register.AUX2_PWM_INPUT_PERIOD):
+        return int(value)
+    elif (register == Register.AUX1_PWM_INPUT_DUTY_CYCLE or
+          register == Register.AUX2_PWM_INPUT_DUTY_CYCLE):
+        return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)
     elif (register >= Register.AUX1_PWM1 and
           register <= Register.AUX2_PWM5):
         return _scale_mapped(value, resolution, 1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0)

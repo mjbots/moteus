@@ -261,16 +261,15 @@ struct PwmInput {
 
   struct Status {
     bool active = false;
-    uint16_t period_us = 0;      // Time between rising edges
-    // For future duty cycle support:
-    // uint16_t pulse_width_us = 0;
+    uint16_t period_us = 0;       // Time between rising edges
+    uint16_t pulse_width_us = 0;  // Time from rising to falling edge
     uint8_t nonce = 0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(active));
       a->Visit(MJ_NVP(period_us));
-      // a->Visit(MJ_NVP(pulse_width_us));
+      a->Visit(MJ_NVP(pulse_width_us));
       a->Visit(MJ_NVP(nonce));
     }
   };

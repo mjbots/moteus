@@ -1126,15 +1126,23 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         return IntMapping(bldc_.aux1().pwm_input.period_us, type);
       }
       case Register::kAux1PwmInputDutyCycle: {
-        // Reserved for future - return 0 for now
-        return IntMapping(0, type);
+        const auto& pwm_input = bldc_.aux1().pwm_input;
+        const float duty = (pwm_input.period_us > 0) ?
+            static_cast<float>(pwm_input.pulse_width_us) /
+            static_cast<float>(pwm_input.period_us) :
+            std::numeric_limits<float>::quiet_NaN();
+        return ScalePwm(duty, type);
       }
       case Register::kAux2PwmInputPeriod: {
         return IntMapping(bldc_.aux2().pwm_input.period_us, type);
       }
       case Register::kAux2PwmInputDutyCycle: {
-        // Reserved for future - return 0 for now
-        return IntMapping(0, type);
+        const auto& pwm_input = bldc_.aux2().pwm_input;
+        const float duty = (pwm_input.period_us > 0) ?
+            static_cast<float>(pwm_input.pulse_width_us) /
+            static_cast<float>(pwm_input.period_us) :
+            std::numeric_limits<float>::quiet_NaN();
+        return ScalePwm(duty, type);
       }
 
       case Register::kAux1Pwm1:

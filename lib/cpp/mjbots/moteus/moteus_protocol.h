@@ -314,7 +314,9 @@ struct Query {
     int8_t aux2_gpio = 0;
 
     int32_t aux1_pwm_input_period_us = 0;
+    float aux1_pwm_input_duty_cycle = 0.0f;
     int32_t aux2_pwm_input_period_us = 0;
+    float aux2_pwm_input_duty_cycle = 0.0f;
 
     // Before gcc-12, initializating non-POD array types can be
     // painful if done in the idiomatic way with ={} inline.  Instead
@@ -351,7 +353,9 @@ struct Query {
     Resolution aux2_gpio = kIgnore;
 
     Resolution aux1_pwm_input_period_us = kIgnore;
+    Resolution aux1_pwm_input_duty_cycle = kIgnore;
     Resolution aux2_pwm_input_period_us = kIgnore;
+    Resolution aux2_pwm_input_duty_cycle = kIgnore;
 
     // Any values here must be sorted by register number.
     ItemFormat extra[kMaxExtra];
@@ -421,9 +425,9 @@ struct Query {
     {
       const Resolution kResolutions[] = {
         format.aux1_pwm_input_period_us,
-        kIgnore,  // aux1 duty cycle reserved
+        format.aux1_pwm_input_duty_cycle,
         format.aux2_pwm_input_period_us,
-        kIgnore,  // aux2 duty cycle reserved
+        format.aux2_pwm_input_duty_cycle,
       };
       const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
       WriteCombiner combiner(
@@ -579,8 +583,16 @@ struct Query {
           result.aux1_pwm_input_period_us = parser->ReadInt(res);
           break;
         }
+        case Register::kAux1PwmInputDutyCycle: {
+          result.aux1_pwm_input_duty_cycle = parser->ReadPwm(res);
+          break;
+        }
         case Register::kAux2PwmInputPeriod: {
           result.aux2_pwm_input_period_us = parser->ReadInt(res);
+          break;
+        }
+        case Register::kAux2PwmInputDutyCycle: {
+          result.aux2_pwm_input_duty_cycle = parser->ReadPwm(res);
           break;
         }
         default: {

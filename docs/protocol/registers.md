@@ -724,7 +724,10 @@ The measurable period range is approximately 10us to 65535us.  For a
 
 Mode: Read only
 
-Reserved for future use.  Currently returns 0.
+Reports the duty cycle of the signal on the Aux1 PWM input pin as a
+floating point fraction from 0.0 to 1.0.  PWM mapping is used for
+integral types.  Returns NaN (or maximally negative for integral
+types) if no signal is detected.
 
 ### 0x074 - Aux2 PWM Input Period
 
@@ -743,7 +746,10 @@ The measurable period range is approximately 10us to 65535us.  For a
 
 Mode: Read only
 
-Reserved for future use.  Currently returns 0.
+Reports the duty cycle of the signal on the Aux2 PWM input pin as a
+floating point fraction from 0.0 to 1.0.  PWM mapping is used for
+integral types.  Returns NaN (or maximally negative for integral
+types) if no signal is detected.
 
 ### 0x076/0x07a - Aux1 PWM Outputs
 
