@@ -31,6 +31,7 @@ import moteus.moteus_tool
 from moteus.moteus import namedtuple_to_dict
 import numpy
 import os
+import pydoc
 import re
 import signal
 import struct
@@ -546,6 +547,18 @@ class TviewPythonConsole(HistoryConsoleWidget):
             print(*args, sep=sep, end=end, file=output)
             self._append_plain_text(output.getvalue())
 
+        # Create custom help function that outputs to console widget
+        def custom_help(obj=None):
+            """Custom help function that outputs to the Python console widget."""
+            if obj is None:
+                self._append_plain_text("Type help(object) for help about object.\n")
+            else:
+                try:
+                    help_text = pydoc.render_doc(obj, title='%s')
+                    self._append_plain_text(help_text)
+                except Exception as e:
+                    self._append_plain_text(f"Could not get help for {obj}: {e}\n")
+
         self.namespace = {
             'transport': None,
             'controller': None,
@@ -556,6 +569,7 @@ class TviewPythonConsole(HistoryConsoleWidget):
             'time': time,
             'numpy': numpy,
             'print': custom_print,  # Custom print for console output
+            'help': custom_help,  # Custom help for console output
         }
 
         # Use a QShortcut for Ctrl+C
