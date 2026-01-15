@@ -249,6 +249,33 @@ struct SineCosine {
   };
 };
 
+struct PwmInput {
+  struct Config {
+    bool enabled = false;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(enabled));
+    }
+  };
+
+  struct Status {
+    bool active = false;
+    uint16_t period_us = 0;      // Time between rising edges
+    // For future duty cycle support:
+    // uint16_t pulse_width_us = 0;
+    uint8_t nonce = 0;
+
+    template <typename Archive>
+    void Serialize(Archive* a) {
+      a->Visit(MJ_NVP(active));
+      a->Visit(MJ_NVP(period_us));
+      // a->Visit(MJ_NVP(pulse_width_us));
+      a->Visit(MJ_NVP(nonce));
+    }
+  };
+};
+
 struct I2C {
   struct DeviceConfig {
     enum Type {
@@ -334,12 +361,12 @@ struct Pin {
     kCosine,
     kStep,
     kDir,
-    kRcPwm,
+    kPwmInput,
     kI2C,
     kDigitalInput,
     kDigitalOutput,
     kAnalogInput,
-    kPwmOut,
+    kPwmOutput,
 
     kLength,
   };
@@ -369,6 +396,7 @@ struct AuxConfig {
   aux::Hall::Config hall;
   aux::Index::Config index;
   aux::SineCosine::Config sine_cosine;
+  aux::PwmInput::Config pwm_input;
   int32_t i2c_startup_delay_ms = 30;
   int32_t pwm_period_us = 1000;
 
@@ -384,6 +412,7 @@ struct AuxConfig {
     a->Visit(MJ_NVP(hall));
     a->Visit(MJ_NVP(index));
     a->Visit(MJ_NVP(sine_cosine));
+    a->Visit(MJ_NVP(pwm_input));
     a->Visit(MJ_NVP(i2c_startup_delay_ms));
     a->Visit(MJ_NVP(pwm_period_us));
     a->Visit(MJ_NVP(pins));
@@ -418,6 +447,7 @@ struct AuxStatus {
   Hall::Status hall;
   Index::Status index;
   SineCosine::Status sine_cosine;
+  PwmInput::Status pwm_input;
 
   uint8_t gpio_bit_active = 0;
   std::array<bool, 5> pins = { {} };
@@ -439,6 +469,7 @@ struct AuxStatus {
     a->Visit(MJ_NVP(hall));
     a->Visit(MJ_NVP(index));
     a->Visit(MJ_NVP(sine_cosine));
+    a->Visit(MJ_NVP(pwm_input));
     a->Visit(MJ_NVP(gpio_bit_active));
     a->Visit(MJ_NVP(pins));
     a->Visit(MJ_NVP(analog_bit_active));
@@ -541,12 +572,12 @@ struct IsEnum<moteus::aux::Pin::Mode> {
         { P::kCosine, "cosine" },
         { P::kStep, "step" },
         { P::kDir, "dir" },
-        { P::kRcPwm, "rc_pwm" },
+        { P::kPwmInput, "pwm_in" },
         { P::kI2C, "i2c" },
         { P::kDigitalInput, "digital_in" },
         { P::kDigitalOutput, "digital_out" },
         { P::kAnalogInput, "analog_in" },
-        { P::kPwmOut, "pwm_out" },
+        { P::kPwmOutput, "pwm_out" },
       }};
   }
 };

@@ -198,6 +198,11 @@ enum Register : uint16_t {
   kMillisecondCounter = 0x070,
   kClockTrim = 0x071,
 
+  kAux1PwmInputPeriod = 0x072,
+  kAux1PwmInputDutyCycle = 0x073,
+  kAux2PwmInputPeriod = 0x074,
+  kAux2PwmInputDutyCycle = 0x075,
+
   kAux1Pwm1 = 0x076,
   kAux1Pwm2 = 0x077,
   kAux1Pwm3 = 0x078,
@@ -308,6 +313,9 @@ struct Query {
     int8_t aux1_gpio = 0;
     int8_t aux2_gpio = 0;
 
+    int32_t aux1_pwm_input_period_us = 0;
+    int32_t aux2_pwm_input_period_us = 0;
+
     // Before gcc-12, initializating non-POD array types can be
     // painful if done in the idiomatic way with ={} inline.  Instead
     // we do it in the constructor.
@@ -341,6 +349,9 @@ struct Query {
 
     Resolution aux1_gpio = kIgnore;
     Resolution aux2_gpio = kIgnore;
+
+    Resolution aux1_pwm_input_period_us = kIgnore;
+    Resolution aux2_pwm_input_period_us = kIgnore;
 
     // Any values here must be sorted by register number.
     ItemFormat extra[kMaxExtra];
@@ -400,6 +411,23 @@ struct Query {
       const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
       WriteCombiner combiner(
           frame, 0x10, Register::kAux1GpioStatus,
+          kResolutions, kResolutionsSize);
+      for (uint16_t i = 0; i < kResolutionsSize; i++) {
+        combiner.MaybeWrite();
+      }
+      reply_size += combiner.reply_size();
+    }
+
+    {
+      const Resolution kResolutions[] = {
+        format.aux1_pwm_input_period_us,
+        kIgnore,  // aux1 duty cycle reserved
+        format.aux2_pwm_input_period_us,
+        kIgnore,  // aux2 duty cycle reserved
+      };
+      const uint16_t kResolutionsSize = sizeof(kResolutions) / sizeof(*kResolutions);
+      WriteCombiner combiner(
+          frame, 0x10, Register::kAux1PwmInputPeriod,
           kResolutions, kResolutionsSize);
       for (uint16_t i = 0; i < kResolutionsSize; i++) {
         combiner.MaybeWrite();
@@ -545,6 +573,14 @@ struct Query {
         }
         case Register::kAux2GpioStatus: {
           result.aux2_gpio = parser->ReadInt(res);
+          break;
+        }
+        case Register::kAux1PwmInputPeriod: {
+          result.aux1_pwm_input_period_us = parser->ReadInt(res);
+          break;
+        }
+        case Register::kAux2PwmInputPeriod: {
+          result.aux2_pwm_input_period_us = parser->ReadInt(res);
           break;
         }
         default: {

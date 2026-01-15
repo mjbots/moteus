@@ -319,6 +319,11 @@ enum class Register {
   kMillisecondCounter = 0x070,
   kClockTrim = 0x071,
 
+  kAux1PwmInputPeriod = 0x072,
+  kAux1PwmInputDutyCycle = 0x073,  // Reserved for future
+  kAux2PwmInputPeriod = 0x074,
+  kAux2PwmInputDutyCycle = 0x075,  // Reserved for future
+
   kAux1Pwm1 = 0x076,
   kAux1Pwm2 = 0x077,
   kAux1Pwm3 = 0x078,
@@ -818,6 +823,10 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       case Register::kAux2AnalogIn4:
       case Register::kAux2AnalogIn5:
       case Register::kMillisecondCounter:
+      case Register::kAux1PwmInputPeriod:
+      case Register::kAux1PwmInputDutyCycle:
+      case Register::kAux2PwmInputPeriod:
+      case Register::kAux2PwmInputDutyCycle:
       case Register::kModelNumber:
       case Register::kSerialNumber1:
       case Register::kSerialNumber2:
@@ -1111,6 +1120,21 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kClockTrim: {
         return IntMapping(clock_manager_->trim(), type);
+      }
+
+      case Register::kAux1PwmInputPeriod: {
+        return IntMapping(bldc_.aux1().pwm_input.period_us, type);
+      }
+      case Register::kAux1PwmInputDutyCycle: {
+        // Reserved for future - return 0 for now
+        return IntMapping(0, type);
+      }
+      case Register::kAux2PwmInputPeriod: {
+        return IntMapping(bldc_.aux2().pwm_input.period_us, type);
+      }
+      case Register::kAux2PwmInputDutyCycle: {
+        // Reserved for future - return 0 for now
+        return IntMapping(0, type);
       }
 
       case Register::kAux1Pwm1:

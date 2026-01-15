@@ -88,6 +88,9 @@ class QueryResolution:
     aux1_gpio = mp.IGNORE
     aux2_gpio = mp.IGNORE
 
+    aux1_pwm_input_period_us = mp.IGNORE
+    aux2_pwm_input_period_us = mp.IGNORE
+
     # Additional registers can be queried by enumerating them as keys
     # in this dictionary, with the resolution as the matching value.
     _extra: dict = {
@@ -290,16 +293,27 @@ class Controller:
 
         expected_reply_size += c3.reply_size
 
+        c4 = mp.WriteCombiner(writer, 0x10, int(Register.AUX1_PWM_INPUT_PERIOD), [
+            qr.aux1_pwm_input_period_us,
+            mp.IGNORE,  # aux1 duty cycle reserved
+            qr.aux2_pwm_input_period_us,
+            mp.IGNORE,  # aux2 duty cycle reserved
+        ])
+        for i in range(c4.size()):
+            c4.maybe_write()
+
+        expected_reply_size += c4.reply_size
+
         if len(qr._extra):
             min_val = int(min(qr._extra.keys()))
             max_val = int(max(qr._extra.keys()))
-            c4 = mp.WriteCombiner(
+            c5 = mp.WriteCombiner(
                 writer, 0x10, min_val,
                 [qr._extra.get(i, mp.IGNORE)
                  for i in range(min_val, max_val +1)])
-            for _ in range(c4.size()):
-                c4.maybe_write()
-            expected_reply_size += c4.reply_size
+            for _ in range(c5.size()):
+                c5.maybe_write()
+            expected_reply_size += c5.reply_size
 
         return buf.getvalue(), expected_reply_size
 

@@ -172,7 +172,7 @@ class AuxPort {
               status_.pins[i] = digital_inputs_[i]->read() ? true : false;
             } else if (config_.pins[i].mode == aux::Pin::Mode::kDigitalOutput) {
               digital_outputs_[i]->write(status_.pins[i]);
-            } else if (config_.pins[i].mode == aux::Pin::Mode::kPwmOut) {
+            } else if (config_.pins[i].mode == aux::Pin::Mode::kPwmOutput) {
               pwm_[i]->write(status_.pwm[i]);
             }
           }
@@ -233,6 +233,10 @@ class AuxPort {
         }
         case SampleType::kI2c: {
           ISR_I2C_Update();
+          break;
+        }
+        case SampleType::kPwmInput: {
+          pwm_input_->ISR_Update(&status_.pwm_input);
           break;
         }
         case SampleType::kNone: {
@@ -439,6 +443,7 @@ class AuxPort {
     kCuiAmt21 = 9,
     kI2c = 10,
     kCuiAmt22 = 11,
+    kPwmInput = 12,
 
     kLastEntry,
   };
@@ -831,6 +836,7 @@ class AuxPort {
 
     quad_.reset();
     index_.reset();
+    pwm_input_.reset();
     ic_pz_.reset();
 
     uart_.reset();
@@ -1235,7 +1241,7 @@ class AuxPort {
         digital_outputs_[i].emplace(first_mbed,
                                     aux::MbedMapPull(cfg.pull));
         updated_any_isr = true;
-      } else if (cfg.mode == aux::Pin::Mode::kPwmOut) {
+      } else if (cfg.mode == aux::Pin::Mode::kPwmOutput) {
         const auto timer = [&]() -> TIM_TypeDef* {
           for (const auto& pin: hw_config_.pins) {
             if (pin.number == static_cast<int>(i) &&
@@ -1302,6 +1308,18 @@ class AuxPort {
         }
         pin_mode(pin->mbed, aux::MbedMapPull(cfg.pull));
         updated_any_isr = true;
+      } else if (cfg.mode == aux::Pin::Mode::kPwmInput) {
+        if (pwm_input_) {
+          // Only one PWM input supported per aux port
+          status_.error = aux::AuxError::kPwmPinError;
+          return;
+        }
+        pwm_input_.emplace(first_mbed, cfg.pull, timer_);
+        if (pwm_input_->error() != aux::AuxError::kNone) {
+          status_.error = pwm_input_->error();
+          return;
+        }
+        updated_any_isr = true;
       }
     }
 
@@ -1315,6 +1333,7 @@ class AuxPort {
     if (aksim2_) { AddSampleType(SampleType::kAksim2, false, true); }
     if (cui_amt21_) { AddSampleType(SampleType::kCuiAmt21, false, true); }
     if (i2c_) { AddSampleType(SampleType::kI2c, false, true); }
+    if (pwm_input_) { AddSampleType(SampleType::kPwmInput, false, true); }
 
     pwm_timer_set_.Start();
 
@@ -1391,6 +1410,7 @@ class AuxPort {
 
   std::optional<aux::Stm32Quadrature> quad_;
   std::optional<aux::Stm32Index> index_;
+  std::optional<aux::Stm32PwmInput> pwm_input_;
   std::optional<Stm32G4DmaUart> uart_;
   std::optional<Aksim2> aksim2_;
   std::optional<CuiAmt21> cui_amt21_;

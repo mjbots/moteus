@@ -198,6 +198,11 @@ SCALE_TYPES = [
               0.01, 0.001, 0.000001),
     ScaleType([moteus.Register.POWER,],
               10.0, 0.05, 0.0001),
+    ScaleType([moteus.Register.AUX1_PWM_INPUT_PERIOD,
+               moteus.Register.AUX1_PWM_INPUT_DUTY_CYCLE,
+               moteus.Register.AUX2_PWM_INPUT_PERIOD,
+               moteus.Register.AUX2_PWM_INPUT_DUTY_CYCLE,],
+              1.0, 1.0, 1.0),
 ]
 
 

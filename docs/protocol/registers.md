@@ -707,6 +707,44 @@ WARNING: Changing the speed affects all processes driven by the
 microcontroller, including CAN communication.  Thus setting this to a
 non-zero value may prevent future CAN communications.
 
+### 0x072 - Aux1 PWM Input Period
+
+Mode: Read only, int16/int32/float supported
+
+Reports the period in microseconds between rising edges on the Aux1
+PWM input pin, when a pin is configured in `pwm_in` mode.  Returns 0
+if no signal detected for approximately 100ms.  Can be used to
+calculate fan RPM: `RPM = 60000000 / (period_us * pulses_per_rev)`.
+Typical PC fans output 2 pulses per revolution.
+
+The measurable period range is approximately 10us to 65535us.  For a
+2-pulse/rev fan, this corresponds to roughly 460 to 3,000,000 RPM.
+
+### 0x073 - Aux1 PWM Input Duty Cycle
+
+Mode: Read only
+
+Reserved for future use.  Currently returns 0.
+
+### 0x074 - Aux2 PWM Input Period
+
+Mode: Read only, int16/int32/float supported
+
+Reports the period in microseconds between rising edges on the Aux2
+PWM input pin, when a pin is configured in `pwm_in` mode.  Returns 0
+if no signal detected for approximately 100ms.  Can be used to
+calculate fan RPM: `RPM = 60000000 / (period_us * pulses_per_rev)`.
+Typical PC fans output 2 pulses per revolution.
+
+The measurable period range is approximately 10us to 65535us.  For a
+2-pulse/rev fan, this corresponds to roughly 460 to 3,000,000 RPM.
+
+### 0x075 - Aux2 PWM Input Duty Cycle
+
+Mode: Read only
+
+Reserved for future use.  Currently returns 0.
+
 ### 0x076/0x07a - Aux1 PWM Outputs
 
 Mode: Read/write
