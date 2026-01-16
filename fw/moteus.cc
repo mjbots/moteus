@@ -190,7 +190,7 @@ int main(void) {
   // Turn on our power light.
   DigitalOut power_led(g_hw_pins.power_led, 0);
 
-  micro::SizedPool<20000> pool;
+  micro::SizedPool<22000> pool;
 
   std::optional<HardwareUart> rs485;
   if (g_hw_pins.uart_tx != NC) {
