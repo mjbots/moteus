@@ -94,7 +94,7 @@ py_binary(
     ],
 )
 
-py_binary(
+py_test(
     name = "firmware_validate",
     srcs = ["firmware_validate.py"],
     deps = [
@@ -104,6 +104,7 @@ py_binary(
         ":dynamometer_drive",
         ":dyno_static_torque_ripple",
     ],
+    tags = ["manual"],
 )
 
 test_suite(
@@ -111,6 +112,7 @@ test_suite(
     tests = [
         "test",
         "mpat_test",
+        "firmware_validate",
         "//utils/gui:host",
     ],
 )
