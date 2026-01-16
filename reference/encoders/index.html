@@ -1789,6 +1789,22 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#biss-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BiSS-C
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pin-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1798,9 +1814,15 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#encoder-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encoder Configuration
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2506,6 +2528,22 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#biss-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        BiSS-C
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pin-configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2515,9 +2553,15 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#encoder-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encoder Configuration
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2658,6 +2702,13 @@ the output configuration.</p>
 <td>+++</td>
 <td>on/off-axis</td>
 <td>$</td>
+</tr>
+<tr>
+<td>BiSS-C</td>
+<td>RS422 w/ 5V</td>
+<td>++++</td>
+<td>on/off-axis</td>
+<td>$$$</td>
 </tr>
 <tr>
 <td>iC-PZ</td>
@@ -3213,7 +3264,15 @@ transceiver connected to aux1's pins D and E which can be enabled
 through configuration.  RS485 devices like the CUI AMT21x can be used
 if the RS422 pin Y is connected to A and RS422 pin Z is connected to
 B.</p>
-<h3 id="pin-configuration">Pin Configuration<a class="headerlink" href="#pin-configuration" title="Permanent link">&para;</a></h3>
+<h3 id="biss-c">BiSS-C<a class="headerlink" href="#biss-c" title="Permanent link">&para;</a></h3>
+<p>Pins: select</p>
+<p>To configure BiSS-C encoders, two pins are required.  One is used for
+transmission and must be on a pin that supports both a UART TX
+capability and hardware quadrature input.  The other pin is
+unrestricted and will be used for receipt.  On moteus-n1 and
+moteus-x1, aux1 D/E are connected to the onboard RS422 transceiver and
+can be used to directly interface to BiSS-C encoders.</p>
+<h2 id="pin-configuration">Pin Configuration<a class="headerlink" href="#pin-configuration" title="Permanent link">&para;</a></h2>
 <p>Auxiliary port configuration is achieved in two steps.  First, the
 <code>aux[12].pins.X.mode</code> value is set to the proper capability for each
 pin.  <code>aux[12].pins.X.pull</code> can be used to configure an optional
@@ -3227,6 +3286,11 @@ peripheral.</p>
 each of <code>aux[12].i2c.devices.[012]</code>.</p>
 <p>The diagnostic values in <code>aux[12]</code> can be used to monitor for errors
 from mis-configuration or mis-operation.</p>
+<h2 id="encoder-configuration">Encoder Configuration<a class="headerlink" href="#encoder-configuration" title="Permanent link">&para;</a></h2>
+<p>In addition to configuring pins, most encoders require an additional
+level of configuration at the port level.  Most of these configurable
+options are documented in the <a href="../configuration/">configuration
+reference</a>.</p>
 <h2 id="source-configuration">Source Configuration<a class="headerlink" href="#source-configuration" title="Permanent link">&para;</a></h2>
 <p>Once the auxiliary ports have been configured, next encoder sources
 should be configured in <code>motor_position.sources</code>.  Up to 3 sources may

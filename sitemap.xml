@@ -2,150 +2,150 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://mjbots.github.io/moteus/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/quick-start/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/calibration/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/configuration/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/control-modes/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/dual-encoders/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/electrical-setup/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/encoder-overview/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/hall-effects/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/mechanical-setup/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/pid-tuning/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/guides/software-installation/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/integration/can-fd/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/integration/cpp/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/integration/python/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/platforms/arduino/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/platforms/jetson/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/platforms/raspberry-pi/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/platforms/socketcan/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/protocol/can/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/protocol/diagnostic/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/protocol/registers/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/client-tools/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/configuration/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/encoders/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/firmware/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/hardware/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/limits/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/pinouts/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/python/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/theory/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/troubleshooting/calibration/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/troubleshooting/gate-driver-faults/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/troubleshooting/limited-torque/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/troubleshooting/no-motion/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/troubleshooting/timeout-mode-11/</loc>
-         <lastmod>2026-01-15</lastmod>
+         <lastmod>2026-01-16</lastmod>
     </url>
 </urlset>

@@ -2091,17 +2091,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aux12uartrs422" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        aux[12].uart.rs422
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#aux12uartcui_amt21_address" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2190,6 +2179,61 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#aux12bisscenabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.enabled
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bisscrate_hz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.rate_hz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bisscdata_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.data_bits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bissccrc_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.crc_bits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bisscpoll_rate_us" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.poll_rate_us
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aux12i2c_startup_delay_ms" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2205,6 +2249,17 @@
     <span class="md-ellipsis">
       
         aux[12].pwm_period_us
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12rs422" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].rs422
       
     </span>
   </a>
@@ -3235,17 +3290,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aux12uartrs422" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        aux[12].uart.rs422
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#aux12uartcui_amt21_address" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3334,6 +3378,61 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#aux12bisscenabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.enabled
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bisscrate_hz" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.rate_hz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bisscdata_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.data_bits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bissccrc_bits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.crc_bits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12bisscpoll_rate_us" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].bissc.poll_rate_us
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aux12i2c_startup_delay_ms" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3349,6 +3448,17 @@
     <span class="md-ellipsis">
       
         aux[12].pwm_period_us
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aux12rs422" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        aux[12].rs422
       
     </span>
   </a>
@@ -3826,10 +3936,6 @@ aux2, use diagnostic channel 3.</p>
 <h2 id="aux12uartpoll_rate_us"><code>aux[12].uart.poll_rate_us</code><a class="headerlink" href="#aux12uartpoll_rate_us" title="Permanent link">&para;</a></h2>
 <p>For encoder modes, the interval at which to poll the encoder for new
 position information.</p>
-<h2 id="aux12uartrs422"><code>aux[12].uart.rs422</code><a class="headerlink" href="#aux12uartrs422" title="Permanent link">&para;</a></h2>
-<p>Enable the RS422 transceiver.  This is only valid for 'aux1', and
-requires that pin D and E (<code>aux1.pins.3</code> and <code>aux1.pins.4</code>) be
-used for UART.</p>
 <h2 id="aux12uartcui_amt21_address"><code>aux[12].uart.cui_amt21_address</code><a class="headerlink" href="#aux12uartcui_amt21_address" title="Permanent link">&para;</a></h2>
 <p>Select the CUI AMT21 address to communicate with.  The default is 0x54
 (84 decimal), which is the default address CUI AMT21 encoders are
@@ -3853,12 +3959,29 @@ source.</p>
 done with 12 bits, so 2048 would be exactly 0.5 * 3.3V.  However, it
 is best to calibrate this with actual readings as observed over the
 diagnostic protocol for optimal performance.</p>
+<h2 id="aux12bisscenabled"><code>aux[12].bissc.enabled</code><a class="headerlink" href="#aux12bisscenabled" title="Permanent link">&para;</a></h2>
+<p>True/non-zero if a BiSS-C sensor should be attached to this port.
+BiSS-C encoders require two pins, one of which is suitable both as a
+UART-TX pin and PWM pin.</p>
+<h2 id="aux12bisscrate_hz"><code>aux[12].bissc.rate_hz</code><a class="headerlink" href="#aux12bisscrate_hz" title="Permanent link">&para;</a></h2>
+<p>The bitrate used for BiSS-C communication.  1,000,000 (1Mbit) is the
+maximum supported rate.</p>
+<h2 id="aux12bisscdata_bits"><code>aux[12].bissc.data_bits</code><a class="headerlink" href="#aux12bisscdata_bits" title="Permanent link">&para;</a></h2>
+<p>The number of data bits reported by the BiSS-C encoder.</p>
+<h2 id="aux12bissccrc_bits"><code>aux[12].bissc.crc_bits</code><a class="headerlink" href="#aux12bissccrc_bits" title="Permanent link">&para;</a></h2>
+<p>The number of CRC bits reported by the BiSS-C encoder.</p>
+<h2 id="aux12bisscpoll_rate_us"><code>aux[12].bissc.poll_rate_us</code><a class="headerlink" href="#aux12bisscpoll_rate_us" title="Permanent link">&para;</a></h2>
+<p>The minimum period with which to poll the BiSS-C encoder.</p>
 <h2 id="aux12i2c_startup_delay_ms"><code>aux[12].i2c_startup_delay_ms</code><a class="headerlink" href="#aux12i2c_startup_delay_ms" title="Permanent link">&para;</a></h2>
 <p>A delay in milliseconds after power-on (or upon reconfiguring), before
 I2C devices associated with this auxiliary port are first used.</p>
 <h2 id="aux12pwm_period_us"><code>aux[12].pwm_period_us</code><a class="headerlink" href="#aux12pwm_period_us" title="Permanent link">&para;</a></h2>
 <p>The period in microseconds to be used for PWM outputs on this
 auxiliary port.</p>
+<h2 id="aux12rs422"><code>aux[12].rs422</code><a class="headerlink" href="#aux12rs422" title="Permanent link">&para;</a></h2>
+<p>Enable the RS422 transceiver.  This is only valid for 'aux1', and
+requires that pin D and E (<code>aux1.pins.3</code> and <code>aux1.pins.4</code>) be
+used for UART or BiSS-C.</p>
 <h2 id="motor_positionsourcesxaux_number"><code>motor_position.sources.X.aux_number</code><a class="headerlink" href="#motor_positionsourcesxaux_number" title="Permanent link">&para;</a></h2>
 <p>1 for an aux1 device, or 2 for an aux2 device.</p>
 <h2 id="motor_positionsourcesxtype"><code>motor_position.sources.X.type</code><a class="headerlink" href="#motor_positionsourcesxtype" title="Permanent link">&para;</a></h2>
