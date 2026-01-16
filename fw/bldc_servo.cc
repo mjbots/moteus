@@ -2222,7 +2222,7 @@ class BldcServo::Impl {
              65536.0f),
             0.0,
             measured_velocity, velocity_command,
-            rate_config_.rate_hz,
+            rate_config_.period_s,
             pid_options) +
          feedforward_Nm +
          inertia_feedforward_Nm);
