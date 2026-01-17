@@ -31,6 +31,7 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
+    - navigation.indexes
     - navigation.instant
     - navigation.tracking
     - navigation.tabs
@@ -83,6 +84,7 @@ nav:
       - Quick Start: quick-start.md
 
   - Using moteus:
+      - guides/index.md
       - Mechanical Setup: guides/mechanical-setup.md
       - Electrical Setup: guides/electrical-setup.md
       - Software Installation: guides/software-installation.md
@@ -96,16 +98,19 @@ nav:
           - Dual Encoders: guides/dual-encoders.md
 
   - Integration:
+      - integration/index.md
       - Python Client: integration/python.md
       - C++ Client: integration/cpp.md
       - Raw CAN-FD: integration/can-fd.md
       - Host Platforms:
+          - platforms/index.md
           - Raspberry Pi: platforms/raspberry-pi.md
           - Nvidia Jetson: platforms/jetson.md
           - socketcan: platforms/socketcan.md
           - Arduino: platforms/arduino.md
 
   - Troubleshooting:
+      - troubleshooting/index.md
       - Calibration: troubleshooting/calibration.md
       - No Motion: troubleshooting/no-motion.md
       - Limited Torque: troubleshooting/limited-torque.md
@@ -114,6 +119,7 @@ nav:
       - Overvoltage Fault 34: troubleshooting/overvoltage-fault-34.md
 
   - Reference:
+      - reference/index.md
       - Pinouts: reference/pinouts.md
       - Encoders: reference/encoders.md
       - Client Tools: reference/client-tools.md
@@ -124,7 +130,8 @@ nav:
       - Theory of Operation: reference/theory.md
       - API Reference:
           - Python: reference/python.md
-      - Advanced:
+      - Protocol:
+          - protocol/index.md
           - CAN Protocol: protocol/can.md
           - Register Reference: protocol/registers.md
           - Diagnostic Protocol: protocol/diagnostic.md
