@@ -369,11 +369,18 @@ limited to be no more than the kp scale.  If unspecified, 1.0 is used.
 
 ### 0x025 - Maximum torque
 
-When in Position mode, the maximum torque to be applied.  If
-unspecified, this defaults to the system-wide configured maximum
-torque.
+Mode: Read/write
+
+When in Position mode, the maximum torque to be applied.
+
+The maximally negative integer, or NaN for float, uses the system-wide
+configured maximum torque derived from `servo.max_current_A`.
+
+If unspecified, NaN is used.
 
 ### 0x026 - Commanded stop position
+
+Mode: Read/write
 
 When in Position mode, and a non-zero velocity is commanded, stop
 motion when reaching the given position.  NaN / maximally negative
@@ -383,6 +390,9 @@ Note, if the controller is ever commanded to move *away* from the stop
 position, say with a velocity command that is inconsistent with the
 start and stop position, then it will act as if a 0 velocity has been
 commanded and the current command position equals the stop position.
+
+NOTE: This register is deprecated.  Most users of this option should
+instead use acceleration or velocity limits.
 
 ### 0x027 - Watchdog timeout
 
