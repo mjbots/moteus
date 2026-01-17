@@ -23,7 +23,7 @@ pip install --no-deps moteus moteus_gui
 
 # Running moteus_tool and tview #
 
-pi3hat specific options for these tools are documented at https://github.com/mjbots/pi3hat/blob/master/docs/reference.md#usage-with-client-side-tools
+pi3hat specific options for these tools are documented at [https://github.com/mjbots/pi3hat/blob/master/docs/reference.md#usage-with-client-side-tools](https://github.com/mjbots/pi3hat/blob/master/docs/reference.md#usage-with-client-side-tools)
 
 Note that to use the pi3hat, all python scripts must be run as root.
 Using sudo is one mechanism to do so:
