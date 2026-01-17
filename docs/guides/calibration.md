@@ -53,9 +53,13 @@ Where X is the power in watts to apply.  Small motors will need smaller values, 
 
 ### Updating encoder and torque bandwidth
 
-If your application requires changing torque or velocity very quickly, you may want to configure an alternate "bandwidth" parameter during the calibration process.  The specific value of bandwidth can be roughly used to estimate how quickly moteus can change the output torque, and how quickly it can sense velocity and position changes.  For instance, the default bandwidth is 200Hz.  This means that as a rough order of magnitude, moteus can change the torque or observe a change in velocity in 1/200 = 5ms.  Higher bandwidth values will result in the controller and motor emitting more audible noise.  Other than audible noise (which can be significant), there is not much downside to increasing the bandwidth.
+If your application requires changing torque or velocity very quickly there are several additional considerations.
+
+**Torque bandwidth**: You may want to configure an alternate "bandwidth" parameter during the calibration process.  The specific value of bandwidth can be roughly used to estimate how quickly moteus can change the output torque, and how quickly it can sense velocity and position changes.  For instance, the default bandwidth is 200Hz.  This means that as a rough order of magnitude, moteus can change the torque or observe a change in velocity in 1/200 = 5ms.  Higher bandwidth values will result in the controller and motor emitting more audible noise.  Other than audible noise (which can be significant), there is not much downside to increasing the bandwidth.
 
 `--cal-bw-hz X`
+
+**`servo.pid_dq.max_desired_rate`**: moteus limits the rate at which the commanded phase current to the motor can change.  By default, this is set to 10000A/s.  For a moteus-r4 with a 100A current limit, that means it can take 20ms to change full range from -100A to 100A.  Many high bandwidth applications will require rates larger than this.
 
 ## Troubleshooting
 
