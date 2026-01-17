@@ -4680,10 +4680,13 @@ given factor.  Integral types are applied as for PWM.  If unspecified,
 factor.  Integral types are applied as for PWM.  This is internally
 limited to be no more than the kp scale.  If unspecified, 1.0 is used.</p>
 <h3 id="0x025-maximum-torque">0x025 - Maximum torque<a class="headerlink" href="#0x025-maximum-torque" title="Permanent link">&para;</a></h3>
-<p>When in Position mode, the maximum torque to be applied.  If
-unspecified, this defaults to the system-wide configured maximum
-torque.</p>
+<p>Mode: Read/write</p>
+<p>When in Position mode, the maximum torque to be applied.</p>
+<p>The maximally negative integer, or NaN for float, uses the system-wide
+configured maximum torque derived from <code>servo.max_current_A</code>.</p>
+<p>If unspecified, NaN is used.</p>
 <h3 id="0x026-commanded-stop-position">0x026 - Commanded stop position<a class="headerlink" href="#0x026-commanded-stop-position" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
 <p>When in Position mode, and a non-zero velocity is commanded, stop
 motion when reaching the given position.  NaN / maximally negative
 means no limit is applied.  If unspecified, NaN is used.</p>
@@ -4691,6 +4694,8 @@ means no limit is applied.  If unspecified, NaN is used.</p>
 position, say with a velocity command that is inconsistent with the
 start and stop position, then it will act as if a 0 velocity has been
 commanded and the current command position equals the stop position.</p>
+<p>NOTE: This register is deprecated.  Most users of this option should
+instead use acceleration or velocity limits.</p>
 <h3 id="0x027-watchdog-timeout">0x027 - Watchdog timeout<a class="headerlink" href="#0x027-watchdog-timeout" title="Permanent link">&para;</a></h3>
 <p>Mode: Read/write</p>
 <p>This determines the length of time for which this command is valid.
