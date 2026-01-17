@@ -13,6 +13,10 @@
          <lastmod>2026-01-17</lastmod>
     </url>
     <url>
+         <loc>https://mjbots.github.io/moteus/guides/</loc>
+         <lastmod>2026-01-17</lastmod>
+    </url>
+    <url>
          <loc>https://mjbots.github.io/moteus/guides/calibration/</loc>
          <lastmod>2026-01-17</lastmod>
     </url>
@@ -53,6 +57,10 @@
          <lastmod>2026-01-17</lastmod>
     </url>
     <url>
+         <loc>https://mjbots.github.io/moteus/integration/</loc>
+         <lastmod>2026-01-17</lastmod>
+    </url>
+    <url>
          <loc>https://mjbots.github.io/moteus/integration/can-fd/</loc>
          <lastmod>2026-01-17</lastmod>
     </url>
@@ -62,6 +70,10 @@
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/integration/python/</loc>
+         <lastmod>2026-01-17</lastmod>
+    </url>
+    <url>
+         <loc>https://mjbots.github.io/moteus/platforms/</loc>
          <lastmod>2026-01-17</lastmod>
     </url>
     <url>
@@ -81,6 +93,10 @@
          <lastmod>2026-01-17</lastmod>
     </url>
     <url>
+         <loc>https://mjbots.github.io/moteus/protocol/</loc>
+         <lastmod>2026-01-17</lastmod>
+    </url>
+    <url>
          <loc>https://mjbots.github.io/moteus/protocol/can/</loc>
          <lastmod>2026-01-17</lastmod>
     </url>
@@ -90,6 +106,10 @@
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/protocol/registers/</loc>
+         <lastmod>2026-01-17</lastmod>
+    </url>
+    <url>
+         <loc>https://mjbots.github.io/moteus/reference/</loc>
          <lastmod>2026-01-17</lastmod>
     </url>
     <url>
@@ -126,6 +146,10 @@
     </url>
     <url>
          <loc>https://mjbots.github.io/moteus/reference/theory/</loc>
+         <lastmod>2026-01-17</lastmod>
+    </url>
+    <url>
+         <loc>https://mjbots.github.io/moteus/troubleshooting/</loc>
          <lastmod>2026-01-17</lastmod>
     </url>
     <url>
