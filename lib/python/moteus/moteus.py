@@ -20,12 +20,13 @@ import enum
 import io
 import math
 import struct
+import time
 
 from . import multiplex as mp
 from . import command as cmd
 from . import fdcanusb
 from . import pythoncan
-from .protocol import Register, Mode, Writer, parse_reply, Result, parse_message, make_uuid_prefix
+from .protocol import Register, Mode, Writer, parse_reply, Result, parse_registers, parse_message, make_uuid_prefix
 from .transport_factory import TRANSPORT_FACTORIES, get_singleton_transport, make_transport_args
 
 import moteus.reader
@@ -186,6 +187,21 @@ def make_diagnostic_parser(channel):
         result.data = parse_diagnostic_message(message, channel)
         return result
     return parse
+
+
+class Setpoint:
+    """Specifies a setpoint for move_to() with optional parameters.
+
+    This class allows specifying position mode parameters beyond just
+    position when using move_to().
+    """
+
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def _to_make_position_kwargs(self):
+        """Convert to kwargs dict for Controller.make_position()."""
+        return dict(self._kwargs)
 
 
 class FaultError(RuntimeError):
@@ -1271,3 +1287,245 @@ class Stream:
 
         data = await self.read_binary_blob()
         return reader.read(moteus.reader.Stream(io.BytesIO(data)))
+
+
+def _normalize_setpoint(setpoint_spec):
+    """Normalize a setpoint specification to (position, kwargs_dict).
+
+    Args:
+        setpoint_spec: Either a number (position), math.nan, or a Setpoint object
+
+    Returns:
+        Tuple of (position, kwargs_dict) where kwargs_dict contains any
+        additional make_position arguments from a Setpoint object.
+    """
+    if isinstance(setpoint_spec, Setpoint):
+        kwargs = setpoint_spec._to_make_position_kwargs()
+
+        # NOTE: In the register protocol, and the regular python API,
+        # omitting position is the same as setting a position of 0.0.
+        # That is unlikely to make sense here (or really there
+        # either).  For now, just error if it is omitted here.
+        position = kwargs.pop('position', None)
+        if position is None:
+            raise RuntimeError('Setpoint() must specify position')
+        return (position, kwargs)
+    else:
+        # Plain number (or nan)
+        return (setpoint_spec, {})
+
+
+async def move_to(
+        setpoints,
+        *,
+        position=None,
+        transport=None,
+        duration=None,
+        velocity_limit=None,
+        accel_limit=None,
+        maximum_torque=None,
+        period_s=0.025,
+        timeout=None,
+):
+    """Move servos to setpoint positions and wait for all to complete.
+
+    This function provides a simple way to move one or more servos to
+    setpoint positions and wait until all trajectories are complete.
+
+    Can be called two ways:
+
+    Single servo:
+        await move_to(controller, position=0.5, duration=1.0)
+
+    Multiple servos:
+        await move_to([
+            (controller1, 0.5),
+            (controller2, -0.3),
+        ], duration=2.0)
+
+    The setpoint can be a plain number (position), math.nan (hold position),
+    or a Setpoint object for additional control:
+
+        await move_to([
+            (c1, 0.5),                                   # Just position
+            (c2, Setpoint(position=-0.3, velocity=0.1)),   # With velocity
+            (c3, Setpoint(position=0.0, kp_scale=0.5)),    # With reduced kp
+            (c4, math.nan),                              # Hold position
+        ])
+
+    Servos with math.nan as their setpoint position will be commanded to
+    hold their current position (position=nan keeps the current
+    setpoint) but will not be waited on for completion. This is useful
+    when you need to move a subset of servos while keeping others
+    active.
+
+    If a duration is specified, then approximate velocity limits will
+    be used to attempt to have all servos reach trajectory completion
+    at the same time.  However, this does not account for any possible
+    configured or specified acceleration limit or starting velocity,
+    so the actual completion times may still be quite far apart.
+
+    Arguments:
+      setpoints: List of (Controller, setpoint) tuples for multi-servo, or
+               single Controller for single-servo case. The setpoint can be
+               a number, math.nan, or a Setpoint object.
+      position: Setpoint position (required for single-servo case)
+      transport: Optional transport, inferred from controllers if absent
+      duration: If specified, velocity limits are calculated so all
+                servos complete in approximately this time. This
+                overrides both the global velocity_limit and any
+                Setpoint velocity_limit.
+      velocity_limit: Default velocity limit for servos without a
+                      Setpoint velocity_limit. Setpoint values override
+                      this.
+      accel_limit: Default acceleration limit. Setpoint values override
+                   this.
+      maximum_torque: Default maximum torque limit. Setpoint values
+                      override this.
+      period_s: Polling interval for checking completion (default
+                0.025s)
+      timeout: Maximum time to wait (raises TimeoutError if exceeded)
+
+    Returns:
+      For single-servo case: the final Result object
+      For multi-servo case: List of (Controller, final_Result) tuples
+                              in same order as input
+
+    Raises:
+      FaultError: If any servo enters fault or timeout mode
+      asyncio.TimeoutError: If timeout exceeded
+      ValueError: If position is not provided for single-servo case
+
+    """
+
+    # Normalize to list of (controller, setpoint_spec) tuples
+    single_servo = False
+    if isinstance(setpoints, Controller):
+        # Single servo case
+        if position is None:
+            raise ValueError("position required for single-servo case")
+        setpoints = [(setpoints, position)]
+        single_servo = True
+    else:
+        # Multi-servo case: setpoints is a list of (controller, setpoint) tuples
+        setpoints = list(setpoints)
+
+    if not setpoints:
+        return [] if not single_servo else None
+
+    # Normalize all setpoints
+    normalized = []
+    for controller, setpoint_spec in setpoints:
+        pos, kwargs = _normalize_setpoint(setpoint_spec)
+        normalized.append({'c': controller, 'pos': pos, 'kwargs': kwargs})
+
+    # Get transport from the first controller if not provided.
+    if transport is None:
+        transport = normalized[0]['c']._get_transport()
+
+    # Set up the query resolution to include the flags we need.
+    qr = copy.deepcopy(normalized[0]['c'].query_resolution)
+    if qr.mode == mp.IGNORE:
+        qr.mode = mp.INT8
+    if qr.fault == mp.IGNORE:
+        qr.fault = mp.INT8
+    qr.trajectory_complete = mp.INT8
+
+    # If duration is specified, query the current positions and
+    # calculate the necessary velocity limits.
+    if duration is not None and duration > 0:
+        queries = [n['c'].make_query() for n in normalized]
+        results = await transport.cycle(queries)
+
+        # Map results to controllers by ID
+        result_by_id = {r.id: r for r in results}
+
+        # Calculate per-servo velocity limits: velocity = distance / duration
+        for norm in normalized:
+            if math.isnan(norm['pos']):
+                continue
+
+            result = result_by_id.get(norm['c'].id)
+            if result is None or Register.POSITION not in result.values:
+                raise RuntimeError(
+                    f'Could not retrieve current position for {norm['c']}')
+
+            current_pos = result.values.get(Register.POSITION)
+
+            distance = abs(norm['pos'] - current_pos)
+            norm['velocity_limit'] = (
+                (distance / duration) if distance != 0 else None)
+
+    # Send position commands and poll until all complete
+    start_time = time.time()
+
+    count = 2
+
+    while True:
+        if timeout is not None and (time.time() - start_time) > timeout:
+            raise asyncio.TimeoutError(f"move_to timed out after {timeout}s")
+
+        # Build commands
+        commands = []
+
+        for norm in normalized:
+            # Active setpoint or NaN setpoint (both get position commands)
+            # Start with global defaults, then apply Setpoint overrides
+            cmd_kwargs = {
+                'position': norm['pos'],
+                'query': True,
+                'query_override': qr,
+            }
+
+            # Apply global defaults first
+            if velocity_limit is not None:
+                cmd_kwargs['velocity_limit'] = velocity_limit
+            if accel_limit is not None:
+                cmd_kwargs['accel_limit'] = accel_limit
+            if maximum_torque is not None:
+                cmd_kwargs['maximum_torque'] = maximum_torque
+
+            # Setpoint object values override global defaults
+            cmd_kwargs.update(norm['kwargs'])
+
+            # Duration-computed velocity limits override everything
+            # (since duration is for coordinated timing across all servos)
+            velocity_limit = norm.get('velocity_limit', None)
+            if velocity_limit is not None:
+                cmd_kwargs['velocity_limit'] = velocity_limit
+
+            commands.append(norm['c'].make_position(**cmd_kwargs))
+
+        results = await transport.cycle(commands)
+
+        result_by_id = {r.id: r for r in results}
+
+        final_results = []
+        completed = []
+
+        count = max(count - 1, 0)
+
+        # Process results
+        for norm in normalized:
+            result = result_by_id.get(norm['c'].id)
+            if result is None:
+                continue
+
+            final_results.append((norm['c'], result))
+
+            mode = result.values.get(Register.MODE, Mode.STOPPED)
+
+            if mode == Mode.FAULT or mode == Mode.TIMEOUT:
+                fault_code = result.values.get(Register.FAULT, 0)
+                raise FaultError(mode, fault_code)
+
+            # Only check trajectory_complete for non-NaN setpoints
+            if not math.isnan(norm['pos']):
+                completed.append(result.values.get(Register.TRAJECTORY_COMPLETE, 0))
+
+        if count == 0 and all(completed):
+            if single_servo:
+                return final_results[0][1]
+            return final_results
+
+        await asyncio.sleep(period_s)

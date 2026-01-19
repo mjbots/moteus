@@ -15,6 +15,7 @@
 # limitations under the License.
 
 
+import asyncio
 import math
 import unittest
 
@@ -411,6 +412,316 @@ class MoteusTest(unittest.TestCase):
         result = dut.make_stop()
 
         self.assertEqual(result.source, 0x42)
+
+
+class MockTransport:
+    """A mock transport for testing move_to."""
+    def __init__(self, responses=None):
+        self.responses = responses or []
+        self.call_count = 0
+        self.commands = []
+
+    async def cycle(self, commands):
+        self.commands.append(commands)
+        if self.call_count < len(self.responses):
+            result = self.responses[self.call_count]
+            self.call_count += 1
+            return result
+        return []
+
+
+class MockResult:
+    """A mock result for testing."""
+    def __init__(self, servo_id, position=0.0, velocity=0.0, mode=10,
+                 trajectory_complete=False, fault=0):
+        self.id = servo_id
+        self.arbitration_id = (servo_id << 8) | 0x100
+        self.values = {
+            mot.Register.MODE: mode,
+            mot.Register.POSITION: position,
+            mot.Register.VELOCITY: velocity,
+            mot.Register.TRAJECTORY_COMPLETE: 1 if trajectory_complete else 0,
+            mot.Register.FAULT: fault,
+        }
+
+
+class MoveToTest(unittest.TestCase):
+    def test_move_to_single_servo_requires_position(self):
+        """Test that single servo case requires position parameter."""
+        controller = mot.Controller(id=1)
+
+        async def test():
+            with self.assertRaises(ValueError) as ctx:
+                await mot.move_to(controller)
+            self.assertIn("position required", str(ctx.exception))
+
+        asyncio.run(test())
+
+    def test_move_to_empty_list(self):
+        """Test that empty target list returns empty result."""
+
+        async def test():
+            result = await mot.move_to([])
+            self.assertEqual(result, [])
+
+        asyncio.run(test())
+
+    def test_move_to_single_servo_complete(self):
+        """Test single servo move_to completes when trajectory_complete."""
+
+        mock_transport = MockTransport(responses=[
+            # First call (count=2->1): trajectory not complete
+            [MockResult(1, position=0.5, trajectory_complete=False)],
+            # Second call (count=1->0): trajectory still not complete
+            [MockResult(1, position=0.8, trajectory_complete=False)],
+            # Third call: trajectory complete
+            [MockResult(1, position=1.0, trajectory_complete=True)],
+        ])
+
+        controller = mot.Controller(id=1, transport=mock_transport)
+
+        async def test():
+            result = await mot.move_to(controller, position=1.0)
+            self.assertIsNotNone(result)
+            self.assertEqual(result.id, 1)
+            self.assertEqual(result.values[mot.Register.POSITION], 1.0)
+            self.assertEqual(result.values[mot.Register.TRAJECTORY_COMPLETE], 1)
+            self.assertEqual(mock_transport.call_count, 3)
+
+        asyncio.run(test())
+
+    def test_move_to_multi_servo_complete(self):
+        """Test multi-servo move_to completes when all trajectories complete."""
+
+        mock_transport = MockTransport(responses=[
+            # First call: neither complete
+            [MockResult(1, position=0.5, trajectory_complete=False),
+             MockResult(2, position=-0.2, trajectory_complete=False)],
+            # Second call: servo 1 complete, servo 2 not
+            [MockResult(1, position=1.0, trajectory_complete=True),
+             MockResult(2, position=-0.3, trajectory_complete=False)],
+            # Third call: both complete
+            [MockResult(1, position=1.2, trajectory_complete=True),
+             MockResult(2, position=-0.5, trajectory_complete=True)],
+        ])
+
+        c1 = mot.Controller(id=1, transport=mock_transport)
+        c2 = mot.Controller(id=2, transport=mock_transport)
+
+        async def test():
+            results = await mot.move_to([
+                (c1, 1.0),
+                (c2, -0.5),
+            ])
+            self.assertEqual(len(results), 2)
+
+            # Results should be in same order as input
+            self.assertEqual(results[0][0].id, 1)
+            self.assertEqual(results[1][0].id, 2)
+            self.assertEqual(results[0][1].values[mot.Register.TRAJECTORY_COMPLETE], 1)
+            self.assertEqual(results[1][1].values[mot.Register.TRAJECTORY_COMPLETE], 1)
+            self.assertEqual(results[0][1].values[mot.Register.POSITION], 1.2)
+            self.assertEqual(results[1][1].values[mot.Register.POSITION], -0.5)
+
+        asyncio.run(test())
+
+    def test_move_to_with_duration(self):
+        """Test move_to with duration parameter queries positions first."""
+
+        mock_transport = MockTransport(responses=[
+            # Initial query to get current positions
+            [MockResult(1, position=0.0, trajectory_complete=False)],
+            # First command cycle (count=2->1)
+            [MockResult(1, position=0.5, trajectory_complete=True)],
+            # Second command cycle (count=1->0)
+            [MockResult(1, position=1.0, trajectory_complete=True)],
+        ])
+
+        controller = mot.Controller(id=1, transport=mock_transport)
+
+        async def test():
+            result = await mot.move_to(
+                controller, position=1.0, duration=2.0)
+            self.assertIsNotNone(result)
+            # Should have made 3 calls: query + 2 position commands
+            cmd_registers = mot.parse_registers(mock_transport.commands[1][0].data)
+            self.assertEqual(cmd_registers.command.get(
+                mot.Register.COMMAND_VELOCITY_LIMIT, None), 0.5)
+            self.assertEqual(mock_transport.call_count, 3)
+
+        asyncio.run(test())
+
+    def test_move_to_fault_raises_error(self):
+        """Test that move_to raises FaultError on servo fault."""
+
+        mock_transport = MockTransport(responses=[
+            # Servo reports fault
+            [MockResult(1, position=0.5, mode=1, fault=5)],  # mode 1 = FAULT
+        ])
+
+        controller = mot.Controller(id=1, transport=mock_transport)
+
+        async def test():
+            with self.assertRaises(mot.FaultError):
+                await mot.move_to(controller, position=1.0)
+
+        asyncio.run(test())
+
+    def test_move_to_timeout(self):
+        """Test that move_to raises TimeoutError on timeout."""
+
+        # Transport that never completes
+        mock_transport = MockTransport(responses=[
+            [MockResult(1, position=0.5, trajectory_complete=False)]
+            for _ in range(100)  # Many incomplete responses
+        ])
+
+        controller = mot.Controller(id=1, transport=mock_transport)
+
+        async def test():
+            with self.assertRaises(asyncio.TimeoutError):
+                await mot.move_to(
+                    controller, position=1.0, timeout=0.05, period_s=0.01)
+
+        asyncio.run(test())
+
+    def test_move_to_nan_position_not_waited(self):
+        """Test that NaN positions are commanded but not waited on."""
+
+        mock_transport = MockTransport(responses=[
+            # First call (count=2->1): servo 1 not complete
+            [MockResult(1, position=0.5, trajectory_complete=False),
+             MockResult(2, position=0.0, trajectory_complete=False)],
+            # Second call (count=1->0): servo 1 still not complete
+            [MockResult(1, position=0.8, trajectory_complete=False),
+             MockResult(2, position=0.0, trajectory_complete=False)],
+            # Third call: servo 1 complete - should finish even though
+            # servo 2 never reported trajectory_complete
+            [MockResult(1, position=1.0, trajectory_complete=True),
+             MockResult(2, position=0.0, trajectory_complete=False)],
+        ])
+
+        c1 = mot.Controller(id=1, transport=mock_transport)
+        c2 = mot.Controller(id=2, transport=mock_transport)
+
+        async def test():
+            results = await mot.move_to([
+                (c1, 1.0),        # Move to 1.0 and wait
+                (c2, math.nan),   # Hold position, don't wait
+            ])
+            # Should complete after servo 1 finishes, regardless of servo 2
+            self.assertEqual(len(results), 2)
+            self.assertEqual(results[0][0].id, 1)
+            self.assertEqual(results[1][0].id, 2)
+            # Servo 1 should show complete
+            self.assertEqual(results[0][1].values[mot.Register.TRAJECTORY_COMPLETE], 1)
+            # Servo 2 never completed but we got a result
+            self.assertEqual(results[1][1].values[mot.Register.TRAJECTORY_COMPLETE], 0)
+            self.assertEqual(mock_transport.call_count, 3)
+
+        asyncio.run(test())
+
+    def test_move_to_all_nan_completes_immediately(self):
+        """Test that if all targets are NaN, function completes after two cycles."""
+
+        mock_transport = MockTransport(responses=[
+            # First cycle (count=2->1)
+            [MockResult(1, position=0.0, trajectory_complete=False),
+             MockResult(2, position=0.0, trajectory_complete=False)],
+            # Second cycle (count=1->0)
+            [MockResult(1, position=0.0, trajectory_complete=False),
+             MockResult(2, position=0.0, trajectory_complete=False)],
+        ])
+
+        c1 = mot.Controller(id=1, transport=mock_transport)
+        c2 = mot.Controller(id=2, transport=mock_transport)
+
+        async def test():
+            results = await mot.move_to([
+                (c1, math.nan),
+                (c2, math.nan),
+            ])
+            # Should complete after two cycles (count=2 mechanism)
+            self.assertEqual(len(results), 2)
+            self.assertEqual(mock_transport.call_count, 2)
+
+        asyncio.run(test())
+
+    def test_move_to_with_setpoint_object(self):
+        """Test move_to with Setpoint object for velocity control."""
+
+        mock_transport = MockTransport(responses=[
+            # First cycle (count=2->1)
+            [MockResult(1, position=0.5, trajectory_complete=True)],
+            # Second cycle (count=1->0)
+            [MockResult(1, position=1.0, trajectory_complete=True)],
+        ])
+
+        controller = mot.Controller(id=1, transport=mock_transport)
+
+        async def test():
+            # Use Setpoint object with velocity
+            setpoint = mot.Setpoint(position=1.0, velocity=0.5)
+            result = await mot.move_to([
+                (controller, setpoint),
+            ])
+            self.assertEqual(len(result), 1)
+            # Verify the command was built (we can check that it was called)
+            self.assertEqual(mock_transport.call_count, 2)
+
+        asyncio.run(test())
+
+    def test_move_to_mixed_setpoint_types(self):
+        """Test move_to with mix of numbers, NaN, and Setpoint objects."""
+
+        mock_transport = MockTransport(responses=[
+            # First cycle: c1 not complete
+            [MockResult(1, position=0.5, trajectory_complete=False),
+             MockResult(2, position=0.0, trajectory_complete=False),
+             MockResult(3, position=-0.2, trajectory_complete=False)],
+            # Second cycle: all that matter are complete
+            [MockResult(1, position=1.0, trajectory_complete=True),
+             MockResult(2, position=0.0, trajectory_complete=False),
+             MockResult(3, position=-0.5, trajectory_complete=True)],
+        ])
+
+        c1 = mot.Controller(id=1, transport=mock_transport)
+        c2 = mot.Controller(id=2, transport=mock_transport)
+        c3 = mot.Controller(id=3, transport=mock_transport)
+
+        async def test():
+            results = await mot.move_to([
+                (c1, 1.0),                                    # Plain number
+                (c2, math.nan),                               # NaN - hold position
+                (c3, mot.Setpoint(position=-0.5, velocity=0.2)), # Setpoint object
+            ])
+            self.assertEqual(len(results), 3)
+            self.assertEqual(results[0][0].id, 1)
+            self.assertEqual(results[1][0].id, 2)
+            self.assertEqual(results[2][0].id, 3)
+
+            # Verify the commands sent in the first cycle
+            first_cycle_cmds = mock_transport.commands[0]
+            self.assertEqual(len(first_cycle_cmds), 3)
+
+            # c1: plain number position=1.0
+            c1_regs = mot.parse_registers(first_cycle_cmds[0].data)
+            self.assertAlmostEqual(
+                c1_regs.command.get(mot.Register.COMMAND_POSITION), 1.0, places=4)
+            self.assertNotIn(mot.Register.COMMAND_VELOCITY, c1_regs.command)
+
+            # c2: NaN position (hold)
+            c2_regs = mot.parse_registers(first_cycle_cmds[1].data)
+            self.assertTrue(math.isnan(c2_regs.command.get(mot.Register.COMMAND_POSITION)))
+
+            # c3: Setpoint with position=-0.5, velocity=0.2
+            c3_regs = mot.parse_registers(first_cycle_cmds[2].data)
+            self.assertAlmostEqual(
+                c3_regs.command.get(mot.Register.COMMAND_POSITION), -0.5, places=4)
+            self.assertAlmostEqual(
+                c3_regs.command.get(mot.Register.COMMAND_VELOCITY), 0.2, places=4)
+
+        asyncio.run(test())
 
 
 if __name__ == '__main__':

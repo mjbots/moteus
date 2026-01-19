@@ -23,7 +23,10 @@ ALL = [
     'Fdcanusb', 'FdcanusbDevice', 'Controller', 'Register', 'Transport', 'TransportWrapper',
     'PythonCan', 'PythonCanDevice',
     'Mode', 'QueryResolution', 'PositionResolution', 'Command', 'CommandError',
+    'FaultError',
     'Stream',
+    'Setpoint',
+    'move_to',
     'TRANSPORT_FACTORIES',
     'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
     'reader',
@@ -50,8 +53,11 @@ import moteus.aiostream as aiostream
 
 from moteus.moteus import (
     CommandError,
+    FaultError,
+    Setpoint,
     Controller, Register, Mode, QueryResolution, PositionResolution, Stream,
     make_transport_args, get_singleton_transport,
+    move_to,
     TRANSPORT_FACTORIES)
 from moteus.protocol import ParsedRegisters, parse_registers, scale_register
 
