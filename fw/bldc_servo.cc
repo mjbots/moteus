@@ -109,7 +109,7 @@ int MapConfig(const Array& array, int value) {
 // limits in place of +-1.0.  Something like "d pos nan 0 1 p0 d0 f1".
 // This all but ensures the current controller will saturate.
 //
-// As of 2026-01-01, 0.46e-6 was the lowest value which always passed.
+// As of 2026-01-21, 0.45e-6 was the lowest value which always passed.
 constexpr float kCurrentSampleTime = 0.60e-6f;
 
 
@@ -665,6 +665,15 @@ class BldcServo::Impl {
   }
 
   void ConfigurePwmTimer() {
+    // Disable PWM interrupt during reconfiguration to prevent ISR from
+    // running while timer/DMA chain is in an inconsistent state.
+    // Only do this if interrupts have been configured (pwm_irqn_ is set).
+    const bool irq_was_enabled = (pwm_irqn_ != IRQn_Type{}) &&
+                                  NVIC_GetEnableIRQ(pwm_irqn_);
+    if (irq_was_enabled) {
+      NVIC_DisableIRQ(pwm_irqn_);
+    }
+
     const auto pwm1_timer = pinmap_peripheral(options_.pwm1, PinMap_PWM);
     const auto pwm2_timer = pinmap_peripheral(options_.pwm2, PinMap_PWM);
     const auto pwm3_timer = pinmap_peripheral(options_.pwm3, PinMap_PWM);
@@ -697,9 +706,12 @@ class BldcServo::Impl {
         // ARR register is buffered.
         TIM_CR1_ARPE;
 
-    // Enable DMA request on Update event. The DMA will trigger LPTIM1
+    // Enable DMA request on CC4 event. The DMA will trigger LPTIM1
     // which then triggers all ADCs simultaneously.
-    timer_->DIER |= TIM_DIER_UDE;
+    // Using CC4 instead of Update because in center-aligned mode 2 (CMS=2),
+    // the CC4 flag is set only when counting down, giving us exactly one
+    // DMA trigger per PWM cycle. Update events would trigger twice per cycle.
+    timer_->DIER |= TIM_DIER_CC4DE;
 
     // Update once per up/down of the counter.
     timer_->RCR |= 0x01;
@@ -710,11 +722,23 @@ class BldcServo::Impl {
     pwm_counts_ = HAL_RCC_GetPCLK1Freq() * 2 / (2 * rate_config_.pwm_rate_hz);
     timer_->ARR = pwm_counts_;
 
+    // Set CCR4 to trigger at the top of the count (when counting
+    // down).  Current sensing requires sampling when low-side
+    // switches are ON, which happens at the peak of the PWM cycle
+    // (counter near ARR).  We set CCR4 = ARR so the DMA triggers
+    // right at the peak when counting down.
+    timer_->CCR4 = pwm_counts_;
+
     // Reinitialize the counter and update all registers.
     timer_->EGR |= TIM_EGR_UG;
 
     // Finally, enable the timer.
     timer_->CR1 |= TIM_CR1_CEN;
+
+    // Re-enable PWM interrupt now that reconfiguration is complete.
+    if (irq_was_enabled) {
+      NVIC_EnableIRQ(pwm_irqn_);
+    }
   }
 
   void ConfigureADC() {
@@ -836,13 +860,16 @@ class BldcServo::Impl {
     ADC5->SMPR2 = all_aux_cycles;
   }
 
-  // Get the DMAMUX request input number for the given timer's Update event.
-  static uint32_t GetTimerUpDmamuxInput(TIM_TypeDef* timer) {
+  // Get the DMAMUX request input number for the given timer's CH4 event.
+  // Using CH4 instead of Update because in center-aligned mode 2, the CC4
+  // flag is set only when counting down, giving us exactly one DMA trigger
+  // per PWM cycle. Update events would trigger on both edges.
+  static uint32_t GetTimerCh4DmamuxInput(TIM_TypeDef* timer) {
     // From STM32G4 reference manual Table 91 (DMAMUX request MUX inputs)
-    if (timer == TIM2) return 57;   // TIM2_UP
-    if (timer == TIM3) return 65;   // TIM3_UP
-    if (timer == TIM4) return 71;   // TIM4_UP
-    if (timer == TIM5) return 76;   // TIM5_UP
+    if (timer == TIM2) return 59;   // TIM2_CH4
+    if (timer == TIM3) return 64;   // TIM3_CH4
+    if (timer == TIM4) return 70;   // TIM4_CH4
+    if (timer == TIM5) return 75;   // TIM5_CH4
     mbed_die();
     return 0;
   }
@@ -904,8 +931,8 @@ class BldcServo::Impl {
     // Disable DMA channel before configuration
     dma->CCR = 0;
 
-    // Configure DMAMUX to route PWM timer Update event to this DMA channel
-    dmamux->CCR = GetTimerUpDmamuxInput(timer_);
+    // Configure DMAMUX to route PWM timer CH4 event to this DMA channel
+    dmamux->CCR = GetTimerCh4DmamuxInput(timer_);
 
     // Store the value to be transferred (ENABLE | SNGSTRT)
     lptim1_sngstrt_value_ = LPTIM_CR_ENABLE | LPTIM_CR_SNGSTRT;
@@ -930,7 +957,7 @@ class BldcServo::Impl {
   }
 
   static void WaitForAdc(ADC_TypeDef* adc) MOTEUS_CCM_ATTRIBUTE {
-    while ((adc->ISR & ADC_ISR_EOC) == 0);
+    while ((adc->ISR & ADC_ISR_EOS) == 0);
   }
 
   // CALLED IN INTERRUPT CONTEXT.
@@ -1052,8 +1079,8 @@ class BldcServo::Impl {
     // -> LPTIM1_OUT -> ADCs.  This satisfies STM32G4 errata ES0430
     // section 2.7.11 (simultaneous triggering).
 
-    // Wait for ADC conversion to complete.
-    while ((ADC3->ISR & ADC_ISR_EOS) == 0);
+    // Wait for ADC sampling to complete.
+    while ((ADC3->ISR & ADC_ISR_EOSMP) == 0);
 
 #ifdef MOTEUS_DEBUG_OUT
     // We would like to set this debug pin as soon as possible.
@@ -1121,6 +1148,11 @@ class BldcServo::Impl {
     // each cycle.
     WaitForAdc(ADC4);
     WaitForAdc(ADC5);
+
+    // Clear the end of sample flag for the ADCs we check.
+    ADC3->ISR |= (ADC_ISR_EOSMP | ADC_ISR_EOS);
+    ADC4->ISR |= (ADC_ISR_EOSMP | ADC_ISR_EOS);
+    ADC5->ISR |= (ADC_ISR_EOSMP | ADC_ISR_EOS);
 
     // Read ADC4 (same every cycle)
     if (family0_rev4_and_older_) {
