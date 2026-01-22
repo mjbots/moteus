@@ -14,14 +14,38 @@
 
 //! # moteus-protocol
 //!
-//! Low-level protocol encoding for moteus brushless motor controllers.
+//! Low-level protocol types for moteus brushless motor controllers.
 //!
-//! This crate provides the core types and encoding/decoding functions for
-//! communicating with moteus controllers over CAN-FD.
+//! This crate provides `no_std` compatible types for encoding and decoding
+//! CAN-FD frames used to communicate with moteus controllers. It is designed
+//! to be usable on embedded systems without an allocator, as well as in
+//! standard environments.
 //!
-//! ## no_std Support
+//! ## Features
 //!
-//! This crate supports `no_std` environments when the `std` feature is disabled.
+//! - `std` (default): Enables `std::error::Error` implementations
+//! - `alloc`: Enables types that require allocation (e.g., `Vec`-based results)
+//!
+//! ## Example
+//!
+//! ```rust
+//! use moteus_protocol::{Register, Mode, Resolution, CanFdFrame};
+//! use moteus_protocol::command::PositionCommand;
+//! use moteus_protocol::query::QueryFormat;
+//!
+//! // Build a position command frame
+//! let mut frame = CanFdFrame::new();
+//! let cmd = PositionCommand {
+//!     position: Some(0.5),
+//!     velocity: Some(1.0),
+//!     ..Default::default()
+//! };
+//! cmd.serialize(&mut frame, &Default::default());
+//!
+//! // Add a query for telemetry
+//! let query = QueryFormat::default();
+//! query.serialize(&mut frame);
+//! ```
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -32,6 +56,9 @@ mod register;
 mod resolution;
 mod scaling;
 
+pub mod command;
+pub mod query;
+
 pub use frame::{CanFdFrame, Toggle, calculate_arbitration_id, parse_arbitration_id};
 pub use mode::{HomeState, Mode};
 pub use multiplex::{
@@ -41,3 +68,7 @@ pub use multiplex::{
 pub use register::Register;
 pub use resolution::Resolution;
 pub use scaling::{read_scaled, Scaling};
+
+/// The current register map version expected from moteus controllers.
+/// If the version differs, semantics of one or more registers may have changed.
+pub const CURRENT_REGISTER_MAP_VERSION: u8 = 5;
