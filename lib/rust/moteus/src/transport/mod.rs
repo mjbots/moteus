@@ -15,11 +15,13 @@
 //! Transport layer for communicating with moteus controllers.
 //!
 //! This module provides transports for CAN-FD communication:
+//! - [`fdcanusb`]: USB-to-CAN adapter using serial CDC protocol
 //! - [`device`]: TransportDevice trait for hardware abstraction
 //! - [`transaction`]: Request/response handling
 
 pub mod async_transport;
 pub mod device;
+pub mod fdcanusb;
 pub mod transaction;
 
 use crate::error::Result;
