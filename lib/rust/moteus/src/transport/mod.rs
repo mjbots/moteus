@@ -22,6 +22,8 @@
 pub mod async_transport;
 pub mod device;
 pub mod fdcanusb;
+pub mod socketcan;
+pub(crate) mod socketcan_common;
 pub mod transaction;
 
 use crate::error::Result;
