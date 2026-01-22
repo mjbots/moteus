@@ -105,3 +105,49 @@ mbed_repository(
 load("@com_github_mjbots_bazel_deps//tools/workspace:default.bzl",
      bazel_deps_add = "add_default_repositories")
 bazel_deps_add()
+
+# Rust toolchain via rules_rust
+load("@rules_rust//rust:repositories.bzl", "rules_rust_dependencies", "rust_register_toolchains")
+
+rules_rust_dependencies()
+
+rust_register_toolchains(
+    edition = "2021",
+    versions = ["1.82.0"],
+)
+
+# Rust crate dependencies via crates_repository
+load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository")
+
+crates_repository(
+    name = "crate_index",
+    cargo_lockfile = "//lib/rust:Cargo.lock",
+    lockfile = "//lib/rust:Cargo.bazel.lock",
+    packages = {
+        "clap": crate.spec(
+            version = "4.5",
+            features = ["derive"],
+        ),
+        "proc-macro2": crate.spec(
+            version = "1",
+        ),
+        "quote": crate.spec(
+            version = "1",
+        ),
+        "syn": crate.spec(
+            version = "2",
+            features = ["full"],
+        ),
+        "tokio": crate.spec(
+            version = "1.0",
+            features = ["net", "io-util", "time", "rt", "rt-multi-thread", "macros", "sync"],
+        ),
+        "tokio-serial": crate.spec(
+            version = "5.4",
+        ),
+    },
+)
+
+load("@crate_index//:defs.bzl", "crate_repositories")
+
+crate_repositories()
