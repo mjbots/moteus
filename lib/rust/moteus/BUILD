@@ -51,6 +51,48 @@ rust_library(
     ],
 )
 
+# Library with tokio support for true async I/O
+rust_library(
+    name = "moteus_tokio",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "moteus",
+    edition = "2021",
+    rustc_flags = [
+        "--cfg=feature=\"tokio\"",
+        "-D", "warnings",
+    ],
+    proc_macro_deps = [
+        "//lib/rust/moteus-derive",
+    ],
+    deps = [
+        "//lib/rust/moteus-protocol",
+        "@crate_index//:tokio",
+        "@crate_index//:tokio-serial",
+    ],
+)
+
+# Library with both clap and tokio support
+rust_library(
+    name = "moteus_clap_tokio",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "moteus",
+    edition = "2021",
+    rustc_flags = [
+        "--cfg=feature=\"clap\"",
+        "--cfg=feature=\"tokio\"",
+        "-D", "warnings",
+    ],
+    proc_macro_deps = [
+        "//lib/rust/moteus-derive",
+    ],
+    deps = [
+        "//lib/rust/moteus-protocol",
+        "@crate_index//:clap",
+        "@crate_index//:tokio",
+        "@crate_index//:tokio-serial",
+    ],
+)
+
 rust_test(
     name = "moteus-test",
     crate = ":moteus",

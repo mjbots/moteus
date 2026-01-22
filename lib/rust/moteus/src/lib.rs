@@ -55,4 +55,19 @@ pub use transport::singleton::{create_default_transport, get_singleton_transport
 pub use transport::transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
 
 // Transport traits (for polymorphism or custom transport implementations)
+// Note: Most users don't need to import these - use Transport/AsyncTransport directly
 pub use transport::async_transport::{AsyncTransportOps, BoxFuture};
+
+// Tokio async transport re-exports
+#[cfg(feature = "tokio")]
+pub use transport::async_factory::{
+    create_async_transports, AsyncTransportFactory, AsyncTransportOptions,
+};
+#[cfg(feature = "tokio")]
+pub use transport::async_fdcanusb::AsyncFdcanusb;
+#[cfg(feature = "tokio")]
+pub use transport::async_transport::AsyncTransport;
+#[cfg(feature = "tokio")]
+pub use transport::async_singleton::get_async_singleton_transport;
+#[cfg(feature = "tokio")]
+pub use transport::async_socketcan::AsyncSocketCan;
