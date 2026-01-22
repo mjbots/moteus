@@ -20,11 +20,19 @@
 //! controllers over CAN-FD. It supports multiple transport backends and
 //! automatic device discovery.
 
+mod blocking_controller;
+mod command_ext;
+mod command_types;
+mod controller;
 mod device_address;
 mod error;
 
 pub mod transport;
 
+pub use blocking_controller::BlockingController;
+pub use command_ext::{CommandExt, MaybeQuery, WithQuery};
+pub use command_types::Command;
+pub use controller::{Controller, GpioResult};
 pub use device_address::DeviceAddress;
 pub use error::Error;
 
