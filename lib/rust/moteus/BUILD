@@ -32,6 +32,25 @@ rust_library(
     ],
 )
 
+# Library with clap support for CLI applications
+rust_library(
+    name = "moteus_clap",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "moteus",
+    edition = "2021",
+    rustc_flags = [
+        "--cfg=feature=\"clap\"",
+        "-D", "warnings",
+    ],
+    proc_macro_deps = [
+        "//lib/rust/moteus-derive",
+    ],
+    deps = [
+        "//lib/rust/moteus-protocol",
+        "@crate_index//:clap",
+    ],
+)
+
 rust_test(
     name = "moteus-test",
     crate = ":moteus",

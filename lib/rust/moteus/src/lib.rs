@@ -17,12 +17,19 @@
 //! Rust client library for moteus brushless motor controllers.
 //!
 //! This crate provides a high-level API for communicating with moteus
-//! controllers over CAN-FD.
+//! controllers over CAN-FD. It supports multiple transport backends and
+//! automatic device discovery.
 
+mod device_address;
 mod error;
+
 pub mod transport;
 
+pub use device_address::DeviceAddress;
 pub use error::Error;
+
+// Re-export derive macros
+pub use moteus_derive::Setters;
 
 // Re-export protocol types for convenience
 pub use moteus_protocol::{
@@ -30,11 +37,14 @@ pub use moteus_protocol::{
     Register, Resolution, Scaling, Toggle, CURRENT_REGISTER_MAP_VERSION,
 };
 
-// Re-export transport types
-pub use transport::{
-    dispatch_frame, FrameFilter, NullTransport, Request, ResponseCollector, TransportDevice,
-    TransportDeviceInfo, TransportOps,
-};
+// Re-export transport types for convenience
+pub use transport::args::{ArgSpec, ArgType, TransportArgs, TRANSPORT_ARG_SPECS};
+#[cfg(feature = "clap")]
+pub use transport::args::add_transport_args;
+pub use transport::factory::TransportOptions;
+pub use transport::{make_uuid_prefix, DeviceInfo, Transport, TransportOps};
+pub use transport::singleton::{create_default_transport, get_singleton_transport};
+pub use transport::transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
 
 // Transport traits (for polymorphism or custom transport implementations)
 pub use transport::async_transport::{AsyncTransportOps, BoxFuture};
