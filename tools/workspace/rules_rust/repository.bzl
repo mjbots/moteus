@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
+# Copyright 2026 mjbots Robotic Systems, LLC.  info@mjbots.com
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("//tools/workspace:github_archive.bzl", "github_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-def bazel_toolchain_repository():
-    github_archive(
-        name = "com_github_mjbots_bazel_toolchain",
-        repo = "mjbots/bazel-toolchain",
-        commit = "dc473354cd63db404a69cf98a85114a91fb36736",
-        sha256 = "4f239b6aa9d956e5df0c3b9a929735a470614d4005736fbe38513478264a9efb",
+def rules_rust_repository(name = "rules_rust"):
+    """Add rules_rust to the workspace."""
+
+    if native.existing_rule(name):
+        return
+
+    http_archive(
+        name = name,
+        sha256 = "c8aa806cf6066679ac23463241ee80ad692265dad0465f51111cbbe30b890352",
+        urls = ["https://github.com/bazelbuild/rules_rust/releases/download/0.68.1/rules_rust-0.68.1.tar.gz"],
     )

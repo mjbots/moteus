@@ -20,6 +20,7 @@ load("//tools/workspace/bazel:repository.bzl", "bazel_repository")
 load("//tools/workspace/elfio:repository.bzl", "elfio_repository")
 load("//tools/workspace/mjlib:repository.bzl", "mjlib_repository")
 load("//tools/workspace/rules_mbed:repository.bzl", "rules_mbed_repository")
+load("//tools/workspace/rules_rust:repository.bzl", "rules_rust_repository")
 
 def add_default_repositories(excludes = []):
     if not native.existing_rule("com_github_mjbots_rules_mbed"):
@@ -34,3 +35,5 @@ def add_default_repositories(excludes = []):
         elfio_repository()
     if not native.existing_rule("com_github_mjbots_mjlib"):
         mjlib_repository(name = "com_github_mjbots_mjlib")
+    if not native.existing_rule("rules_rust"):
+        rules_rust_repository()
