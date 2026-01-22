@@ -117,6 +117,10 @@ rust_register_toolchains(
 )
 
 # Rust crate dependencies via crates_repository
+load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencies")
+
+crate_universe_dependencies()
+
 load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository")
 
 crates_repository(
@@ -144,6 +148,10 @@ crates_repository(
         ),
         "tokio-serial": crate.spec(
             version = "5.4",
+        ),
+        "num_enum": crate.spec(
+            version = "0.7",
+            default_features = False,
         ),
     },
 )
