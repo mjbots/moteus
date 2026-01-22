@@ -14,14 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Rust client libraries for moteus
-# See moteus-protocol/ for the no_std protocol crate
-# See moteus/ for the full client library with transports
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
-test_suite(
-    name = "host",
-    tests = [
-        "//lib/rust/moteus-protocol:moteus-protocol-test",
-        "//lib/rust/moteus:moteus-test",
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "moteus",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "moteus",
+    edition = "2021",
+    rustc_flags = ["-D", "warnings"],
+    proc_macro_deps = [
+        "//lib/rust/moteus-derive",
     ],
+    deps = [
+        "//lib/rust/moteus-protocol",
+    ],
+)
+
+rust_test(
+    name = "moteus-test",
+    crate = ":moteus",
+    edition = "2021",
+    size = "small",
 )
