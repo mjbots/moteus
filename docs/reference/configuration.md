@@ -360,6 +360,7 @@ The type of SPI device.
 * 4 - MA732 (CPR == 65536)
 * 5 - MA600 (CPR == 65536)
 * 8 - AMT22 (CPR == 16384)
+* 9 - RLS Orbis (CPR == 16384)
 
 NOTE: iC-PZ devices require significant configuration and calibration
 before use.  Diagnostic mode commands are provided for low level

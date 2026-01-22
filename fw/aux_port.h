@@ -37,6 +37,7 @@
 #include "fw/cui_amt22.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
+#include "fw/orbis.h"
 #include "fw/ma732.h"
 #include "fw/mbed_util.h"
 #include "fw/millisecond_timer.h"
@@ -235,6 +236,10 @@ class AuxPort {
         }
         case SampleType::kCuiAmt22: {
           cui_amt22_->ISR_Update(&status_.spi);
+          break;
+        }
+        case SampleType::kOrbis: {
+          orbis_->ISR_Update(&status_.spi);
           break;
         }
         case SampleType::kI2c: {
@@ -447,6 +452,7 @@ class AuxPort {
     kCuiAmt22 = 11,
     kPwmInput = 12,
     kBissC = 13,
+    kOrbis = 14,
 
     kLastEntry,
   };
@@ -842,6 +848,7 @@ class AuxPort {
     pwm_input_.reset();
     bissc_.reset();
     ic_pz_.reset();
+    orbis_.reset();
 
     uart_.reset();
 
@@ -1048,6 +1055,17 @@ class AuxPort {
           options.rx_dma = dma_channels_[0];
           options.tx_dma = dma_channels_[1];
           ic_pz_.emplace(options, timer_);
+          break;
+        }
+        case aux::Spi::Config::kOrbis: {
+          Orbis::Options options{spi_options};
+          // Orbis recommends 1-2 MHz clock frequency
+          if (options.frequency > 2000000) { options.frequency = 2000000; }
+          if (options.frequency < 500000) { options.frequency = 500000; }
+          options.timeout = 2000;
+          options.rx_dma = dma_channels_[0];
+          options.tx_dma = dma_channels_[1];
+          orbis_.emplace(options);
           break;
         }
         case aux::Spi::Config::kMa732: {
@@ -1345,6 +1363,7 @@ class AuxPort {
     }
 
     if (ic_pz_) { AddSampleType(SampleType::kIcPz, true, true); }
+    if (orbis_) { AddSampleType(SampleType::kOrbis, false, true); }
     if (status_.gpio_bit_active != 0) {
       AddSampleType(SampleType::kGpio, false, true);
     }
@@ -1416,6 +1435,7 @@ class AuxPort {
   std::optional<CuiAmt22::Options> cui_amt22_options_;
 
   std::optional<IcPz> ic_pz_;
+  std::optional<Orbis> orbis_;
   std::optional<DigitalOut> onboard_cs_;
 
   std::array<std::optional<DigitalIn>,

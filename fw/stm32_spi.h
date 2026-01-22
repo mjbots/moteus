@@ -46,7 +46,8 @@ class Stm32Spi {
   };
 
   Stm32Spi(const Options& options)
-      : cs_(std::in_place_t(), options.cs, 1),
+      : cs_(options.cs == NC ?
+            std::nullopt : std::optional<Stm32DigitalOutput>(std::in_place, options.cs, 1)),
         options_(options) {
 
     spi_init(&spi_, options.mosi, options.miso, options.sck, NC);
@@ -106,7 +107,9 @@ class Stm32Spi {
 
   void start_write(uint16_t value) MOTEUS_CCM_ATTRIBUTE {
     auto* const spi = spi_.spi.handle.Instance;
-    cs_->clear();
+    if (cs_) {
+      cs_->clear();
+    }
 
     // This doesn't seem to be a whole lot faster than the HAL in
     // practice, but it doesn't hurt to do it ourselves and not have
@@ -131,7 +134,9 @@ class Stm32Spi {
     while (((spi->SR & SPI_SR_BSY) != 0) && timeout) { timeout--; }
     spi->CR1 &= ~(SPI_CR1_SPE);
 
-    cs_->set();
+    if (cs_) {
+      cs_->set();
+    }
     return result;
   }
 
@@ -169,7 +174,9 @@ class Stm32Spi {
   void start_dma_transfer(
       std::string_view tx_buffer,
       mjlib::base::string_span rx_buffer) MOTEUS_CCM_ATTRIBUTE {
-    cs_->clear();
+    if (cs_) {
+      cs_->clear();
+    }
 
     auto* const spi = spi_.spi.handle.Instance;
 
@@ -220,7 +227,9 @@ class Stm32Spi {
 
     spi->CR2 &= ~(SPI_CR2_TXDMAEN | SPI_CR2_RXDMAEN);
 
-    cs_->set();
+    if (cs_) {
+      cs_->set();
+    }
   }
 
  private:

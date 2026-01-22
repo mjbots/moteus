@@ -529,6 +529,8 @@ class MotorPosition {
             source_config.cpr = 65536;
           } else if (mode == M::kIcPz) {
             source_config.cpr = 16777216;
+          } else if (mode == M::kOrbis) {
+            source_config.cpr = 16384;  // 14-bit
           }
 
           break;

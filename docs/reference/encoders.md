@@ -41,6 +41,7 @@ The following encoders are currently supported by moteus:
 | MA732           | SPI              | +++         | on/off-axis | $         |
 | BiSS-C          | RS422 w/ 5V      | ++++        | on/off-axis | $$$       |
 | iC-PZ           | SPI w/ 5V        | +++++       | off-axis    | $$$       |
+| RLS Orbis       | SPI w/ 5V        | ++++        | off-axis    | $$        |
 | Quadrature      | Quadrature       | variable    | x           | x         |
 | Sine/Cosine     | Sine/Cosine      | +           | x           | x         |
 | Hall effect     | Hall effect      |             | x           | $         |
