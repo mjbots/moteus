@@ -35,6 +35,16 @@
 //! - [`discovery`]: Device enumeration and detection
 //! - [`factory`]: Factory pattern for transport creation
 //! - [`singleton`]: Global singleton transport
+//!
+//! ## Tokio Feature
+//!
+//! When the `tokio` feature is enabled, additional async transport modules are available:
+//!
+//! - [`async_fdcanusb`]: Tokio-based async FdCanUSB transport
+//! - [`async_socketcan`]: Tokio-based async SocketCAN transport (Linux only)
+//! - [`async_factory`]: Async transport factory for device creation
+//! - [`async_transport`]: Async Transport for multi-device routing
+//! - [`async_singleton`]: Global async singleton transport
 
 pub mod args;
 pub mod async_transport;
@@ -46,6 +56,16 @@ pub mod singleton;
 pub mod socketcan;
 pub(crate) mod socketcan_common;
 pub mod transaction;
+
+// Tokio-based async transports (requires tokio feature)
+#[cfg(feature = "tokio")]
+pub mod async_factory;
+#[cfg(feature = "tokio")]
+pub mod async_fdcanusb;
+#[cfg(feature = "tokio")]
+pub mod async_singleton;
+#[cfg(feature = "tokio")]
+pub mod async_socketcan;
 
 use crate::device_address::DeviceAddress;
 use crate::error::{Error, Result};
