@@ -26,10 +26,12 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod mode;
+mod register;
 mod resolution;
 mod scaling;
 
 pub use mode::{HomeState, Mode};
+pub use register::Register;
 pub use resolution::Resolution;
 pub use scaling::{
     nanify_i16, nanify_i32, nanify_i8, read_scaled, saturate_i16, saturate_i32, saturate_i8,
