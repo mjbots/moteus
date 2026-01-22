@@ -170,7 +170,6 @@ pub fn nanify_i32(value: i32) -> f64 {
 }
 
 /// Reads a scaled value from raw bytes based on resolution.
-#[allow(dead_code)] // Public API for external use
 pub fn read_scaled(value: i32, resolution: Resolution, scaling: &Scaling) -> f64 {
     match resolution {
         Resolution::Int8 => nanify_i8(value as i8) * scaling.int8,
