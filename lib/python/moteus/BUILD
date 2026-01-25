@@ -32,6 +32,7 @@ filegroup(
     srcs = [
         "aioserial.py",
         "aiostream.py",
+        "async_timeout.py",
         "calibrate_encoder.py",
         "command.py",
         "device_info.py",
