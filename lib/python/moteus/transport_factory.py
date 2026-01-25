@@ -38,9 +38,11 @@ class FdcanusbFactory:
         parser.add_argument('--fdcanusb', type=str, action='append',
                             metavar='FILE',
                             help='path to fdcanusb device')
+        parser.add_argument('--fdcanusb-baudrate', type=int, metavar='BAUD',
+                            help='baudrate for serial adapter')
 
     def is_args_set(self, args):
-        return args and args.fdcanusb
+        return args and (args.fdcanusb or args.fdcanusb_baudrate)
 
     def __call__(self, args):
         kwargs = {}
@@ -49,6 +51,9 @@ class FdcanusbFactory:
 
         if args and args.can_debug:
             kwargs['debug_log'] = args.can_debug
+
+        if args and args.fdcanusb_baudrate:
+            kwargs['baudrate'] = args.fdcanusb_baudrate
 
         if args and args.fdcanusb:
             return [fdcanusb_device.FdcanusbDevice(path, **kwargs)

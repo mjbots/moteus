@@ -862,6 +862,7 @@ def _verify_blocks(expected, message):
 class Stream:
     def __init__(self, args, target_id, transport):
         self.args = args
+        self.transport = transport
         self.controller = moteus.Controller(target_id, transport=transport,
                                             can_prefix=args.can_prefix)
         self.stream = moteus.Stream(self.controller, verbose=args.verbose,
@@ -1023,6 +1024,12 @@ class Stream:
         print(json.dumps(namedtuple_to_dict(result), indent=2))
 
     async def do_flash(self, elffile):
+        # Check if the transport device for this target supports flashing
+        if not await self.transport.supports_flash_for_target(self.controller.id):
+            raise RuntimeError(
+                "Flashing is not supported over UART connections. "
+                "Use an fdcanusb or other CAN-FD adapter to flash firmware.")
+
         elf = _read_elf(elffile, [".text", ".ARM.extab", ".ARM.exidx",
                                   ".data", ".ccmram", ".isr_vector"])
         count_bytes = sum([len(section) for address, section in elf.sections])

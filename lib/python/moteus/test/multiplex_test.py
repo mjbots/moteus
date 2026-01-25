@@ -224,6 +224,36 @@ class MultiplexTest(unittest.TestCase):
         self.assertEqual(result[0].register, 0x05)
         self.assertEqual(result[0].value, 0x0201)
 
+    def test_parse_frame_stream_server_data_flow(self):
+        # 0x43 = STREAM_SERVER_DATA_FLOW: channel, packet_number, size, data
+        result = list(mp.parse_frame(
+            [0x43, 0x09, 0x01, 0x05, 0x73, 0x74, 0x75, 0x66, 0x66]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.FlowStreamSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.STREAM_SERVER_TO_CLIENT_FLOW)
+        self.assertEqual(result[0].channel, 9)
+        self.assertEqual(result[0].packet_number, 1)
+        self.assertEqual(result[0].data, b'stuff')
+
+    def test_parse_frame_stream_server_data_flow_empty(self):
+        # 0x43 with zero-length data
+        result = list(mp.parse_frame([0x43, 0x02, 0x03, 0x00]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.FlowStreamSubframe)
+        self.assertEqual(result[0].channel, 2)
+        self.assertEqual(result[0].packet_number, 3)
+        self.assertEqual(result[0].data, b'')
+
+    def test_parse_frame_stream_client_poll_flow(self):
+        # 0x44 = STREAM_CLIENT_POLL_FLOW: channel, packet_number, max_length
+        result = list(mp.parse_frame([0x44, 0x09, 0x00, 0x05]))
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], mp.FlowStreamSubframe)
+        self.assertEqual(result[0].type, mp.SubframeType.STREAM_CLIENT_POLL_SERVER_FLOW)
+        self.assertEqual(result[0].channel, 9)
+        self.assertEqual(result[0].packet_number, 0)
+        self.assertEqual(result[0].data, bytes([5]))
+
 
 if __name__ == '__main__':
     unittest.main()

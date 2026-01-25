@@ -161,15 +161,18 @@ def parse_diagnostic_message(message, channel):
 
     if data[0] != mp.STREAM_SERVER_DATA:
         return None
-    if data[1] != channel:
+
+    msg_channel, offset = mp.read_varuint(1, data)
+    if msg_channel is None or msg_channel != channel:
         return None
-    datalen, nextoff = mp.read_varuint(2, data)
+
+    datalen, offset = mp.read_varuint(offset, data)
     if datalen is None:
         return None
 
-    if datalen > (len(data) - nextoff):
+    if datalen > (len(data) - offset):
         return None
-    return data[nextoff:nextoff+datalen]
+    return data[offset:offset+datalen]
 
 
 class DiagnosticResult:
@@ -185,6 +188,53 @@ def make_diagnostic_parser(channel):
         result = DiagnosticResult()
         result.id = (message.arbitration_id >> 8) & 0x7f
         result.data = parse_diagnostic_message(message, channel)
+        return result
+    return parse
+
+
+def parse_diagnostic_flow_message(message, channel):
+    data = message.data
+
+    if len(data) < 4:
+        return None, None
+
+    if data[0] != mp.STREAM_SERVER_DATA_FLOW:
+        return None, None
+
+    msg_channel, offset = mp.read_varuint(1, data)
+    if msg_channel is None or msg_channel != channel:
+        return None, None
+
+    if offset >= len(data):
+        return None, None
+    packet_number = data[offset]
+    offset += 1
+
+    datalen, offset = mp.read_varuint(offset, data)
+    if datalen is None:
+        return None, None
+
+    if datalen > (len(data) - offset):
+        return None, None
+    return data[offset:offset+datalen], packet_number
+
+
+class DiagnosticFlowResult:
+    def __init__(self):
+        self.id = None
+        self.data = b''
+        self.packet_number = None
+
+    def __repr__(self):
+        return f'{self.id}/{self.packet_number}/{self.data}'
+
+
+def make_diagnostic_flow_parser(channel):
+    def parse(message):
+        result = DiagnosticFlowResult()
+        result.id = (message.arbitration_id >> 8) & 0x7f
+        result.data, result.packet_number = \
+            parse_diagnostic_flow_message(message, channel)
         return result
     return parse
 
@@ -1039,6 +1089,38 @@ class Controller:
         return await self._get_transport().cycle(
             [self.make_diagnostic_read(**kwargs)])
 
+    def make_diagnostic_read_flow(self, packet_number=0,
+                                  max_length=48, channel=1):
+        result, data_buf = self._make_command(query=True)
+
+        writer = Writer(data_buf)
+        writer.write_int8(mp.STREAM_CLIENT_POLL_FLOW)
+        writer.write_int8(channel)
+        # packet_number is uint8 on the wire (0-255), but write_int8
+        # requires signed range.  Convert to signed for packing.
+        writer.write_int8(packet_number if packet_number < 128
+                          else packet_number - 256)
+        writer.write_int8(max_length)
+
+        result.parse = make_diagnostic_flow_parser(channel)
+
+        result.data = data_buf.getvalue()
+        result.expected_reply_size = 4 + max_length
+
+        def expect_diagnostic_flow_response(frame):
+            if len(frame.data) < 4:
+                return False
+
+            return frame.data[0] == mp.STREAM_SERVER_DATA_FLOW
+
+        result.reply_filter = expect_diagnostic_flow_response
+
+        return result
+
+    async def diagnostic_read_flow(self, *args, **kwargs):
+        return await self._get_transport().cycle(
+            [self.make_diagnostic_read_flow(**kwargs)])
+
     def make_set_trim(self, *, trim=0):
         result, data_buf = self._make_command(query=False)
 
@@ -1139,12 +1221,20 @@ class Stream:
       controller: moteus.Controller instance
       channel: diagnostic channel to use
       verbose: if True, all communication written to stdout
+      use_flow_control: if True, use flow control protocol for reliable delivery.
+                       If None, auto-detect based on transport type.
     """
 
-    def __init__(self, controller, verbose=False, channel=1):
+    def __init__(self, controller, verbose=False, channel=1,
+                 use_flow_control=None):
         self.controller = controller
         self.verbose = verbose
         self.channel = channel
+
+        # Flow control state
+        self._use_flow_control = use_flow_control
+        self._last_ack_packet = 0
+        self._flow_control_probed = False
 
         self.lock = asyncio.Lock()
         self._read_data = b''
@@ -1164,16 +1254,74 @@ class Stream:
                 await self.controller.send_diagnostic_write(
                     data=to_write, channel=self.channel)
 
+    async def _read_with_flow_control(self, bytes_to_request):
+        """Read using flow control protocol with acknowledgments."""
+        these_results = await self.controller.diagnostic_read_flow(
+            packet_number=self._last_ack_packet,
+            max_length=bytes_to_request,
+            channel=self.channel)
+
+        this_data = b''
+        for result in these_results:
+            if result.packet_number is not None:
+                # Always advance the ack even if data is empty,
+                # otherwise the controller won't send new data.
+                self._last_ack_packet = result.packet_number
+                if result.data:
+                    this_data += result.data
+
+        return this_data
+
+    async def _read_without_flow_control(self, bytes_to_request):
+        """Read using standard diagnostic protocol."""
+        these_results = await self.controller.diagnostic_read(
+            max_length=bytes_to_request, channel=self.channel)
+        return b''.join(x.data for x in these_results if x.data)
+
+    async def _probe_flow_control(self):
+        """Probe firmware for flow control support.
+
+        Returns True if flow control is supported, False otherwise.
+
+        """
+        try:
+            results = await asyncio.wait_for(
+                self.controller.diagnostic_read_flow(
+                    packet_number=0,
+                    max_length=1,
+                    channel=self.channel),
+                timeout=0.5)
+            for result in results:
+                if result.packet_number is not None:
+                    self._last_ack_packet = result.packet_number
+                    # Preserve any data the probe consumed so it
+                    # isn't lost from the diagnostic stream.
+                    if result.data:
+                        self._read_data += result.data
+                    return True
+            return False
+        except asyncio.TimeoutError:
+            return False
+
+    async def _do_diagnostic_read(self, bytes_to_request):
+        """Perform a diagnostic read, using flow control if enabled."""
+        # Probe for flow control support on first use if not explicitly set
+        if self._use_flow_control is None and not self._flow_control_probed:
+            self._use_flow_control = await self._probe_flow_control()
+            self._flow_control_probed = True
+
+        if self._use_flow_control:
+            return await self._read_with_flow_control(bytes_to_request)
+        else:
+            return await self._read_without_flow_control(bytes_to_request)
+
     async def read(self, size, block=True):
         while ((block == True and len(self._read_data) < size)
                or len(self._read_data) == 0):
             bytes_to_request = min(self._maxlen, size - len(self._read_data))
 
             async with self.lock:
-                these_results = await self.controller.diagnostic_read(
-                    bytes_to_request, channel=self.channel)
-
-            this_data = b''.join(x.data for x in these_results if x.data)
+                this_data = await self._do_diagnostic_read(bytes_to_request)
 
             self._read_data += this_data
 
@@ -1187,8 +1335,19 @@ class Stream:
     async def flush_read(self, timeout=0.2):
         self._read_data = b''
 
+        # Use _read_without_flow_control directly to avoid triggering
+        # the flow control probe.  flush_read just needs to drain
+        # stale data using regular 0x42 polls.
+        async def _flush_loop():
+            while True:
+                async with self.lock:
+                    this_data = await self._read_without_flow_control(
+                        self._maxlen)
+                if len(this_data) == 0:
+                    await asyncio.sleep(0.01)
+
         try:
-            await asyncio.wait_for(self.read(65536), timeout)
+            await asyncio.wait_for(_flush_loop(), timeout)
             raise RuntimeError("More data to flush than expected")
         except asyncio.TimeoutError:
             # This is the expected path.
@@ -1202,10 +1361,7 @@ class Stream:
     async def _read_maybe_empty_line(self):
         while b'\n' not in self._read_data and b'\r' not in self._read_data:
             async with self.lock:
-                these_results = await self.controller.diagnostic_read(
-                    61, channel=self.channel)
-
-            this_data = b''.join(x.data for x in these_results if x.data)
+                this_data = await self._do_diagnostic_read(61)
 
             self._read_data += this_data
 
