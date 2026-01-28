@@ -149,8 +149,8 @@ constexpr float kMaxUnconfiguredCurrent = 5.0f;
 /// Template class that encapsulates the BldcServo control logic,
 /// parameterized on an Impl type that provides both hardware-touching
 /// terminal operations and access to all state members.  On the
-/// target, Impl is BldcServo::Impl (zero overhead via inlining).  In
-/// tests, Impl is a mock context.
+/// target, the Impl is BldcServo::Impl (zero overhead via inlining).
+/// In tests, Impl is a mock context.
 ///
 /// The Impl must provide a long list of things which it isn't
 /// important to enumerate aside from that it must compile.
@@ -161,6 +161,106 @@ class BldcServoControl {
   using CommandData = BldcServoCommandData;
 
   BldcServoControl() {}
+
+  /// Process a command, applying defaults and transforming positions.
+  /// This mirrors the logic in BldcServo::Impl::Command but without
+  /// double-buffering.  Returns an error code if the command is invalid.
+  errc PrepareCommand(CommandData* data) {
+    if (data->mode == kFault ||
+        data->mode == kEnabling ||
+        data->mode == kCalibrating ||
+        data->mode == kCalibrationComplete) {
+      // These are not valid states to command.
+      return errc::kSuccess;
+    }
+
+    if (data->timeout_s == 0.0f) {
+      data->timeout_s = self().config_.default_timeout_s;
+    }
+    if (std::isnan(data->velocity_limit)) {
+      data->velocity_limit = self().config_.default_velocity_limit;
+    } else if (data->velocity_limit < 0.0f) {
+      data->velocity_limit = std::numeric_limits<float>::quiet_NaN();
+    }
+    if (std::isnan(data->accel_limit)) {
+      data->accel_limit = self().config_.default_accel_limit;
+    } else if (data->accel_limit < 0.0f) {
+      data->accel_limit = std::numeric_limits<float>::quiet_NaN();
+    }
+
+    // If we are going to limit at all, ensure that we have a velocity
+    // limit, and that it is no more than the configured maximum velocity.
+    if (!std::isnan(data->velocity_limit) || !std::isnan(data->accel_limit)) {
+      if (std::isnan(data->velocity_limit)) {
+        data->velocity_limit = self().config_.max_velocity;
+      } else {
+        data->velocity_limit =
+            std::min(data->velocity_limit, self().config_.max_velocity);
+      }
+    }
+
+    // If we have a velocity command and velocity_limit, ensure that
+    // the command does not violate the limit.
+    if (!std::isnan(data->velocity_limit) &&
+        !std::isnan(data->velocity)) {
+      data->velocity = Limit(data->velocity,
+                             -data->velocity_limit,
+                             data->velocity_limit);
+    }
+
+    // Transform any position and stop_position command into the
+    // relative raw space.
+    const auto delta = static_cast<int64_t>(self().absolute_relative_delta()) << 32ll;
+    if (!std::isnan(data->position)) {
+      data->position_relative_raw =
+          MotorPosition::FloatToInt(data->position) - delta;
+    } else {
+      data->position_relative_raw.reset();
+    }
+
+    if (!std::isnan(data->stop_position)) {
+      data->stop_position_relative_raw =
+          MotorPosition::FloatToInt(data->stop_position) - delta;
+    }
+
+    // If we have a case where the position is left unspecified, but
+    // we have a velocity and stop condition, then we pick the sign of
+    // the velocity so that we actually move.
+    if (!data->position_relative_raw &&
+        !!data->stop_position_relative_raw &&
+        !std::isnan(data->velocity) &&
+        data->velocity != 0.0f) {
+      data->velocity = std::abs(data->velocity) *
+          (((*data->stop_position_relative_raw -
+             self().position_.position_relative_raw) > 0) ?
+           1.0f : -1.0f);
+    }
+
+    if (!!data->stop_position_relative_raw &&
+        (std::isfinite(data->accel_limit) ||
+         std::isfinite(data->velocity_limit))) {
+      // There is no valid use case for using a stop position along
+      // with an acceleration or velocity limit.
+      return errc::kStopPositionDeprecated;
+    }
+
+    if (self().config_.bemf_feedforward != 0.0f &&
+        !std::isfinite(data->accel_limit) &&
+        !self().config_.bemf_feedforward_override) {
+      // We normally don't allow bemf feedforward if an acceleration
+      // limit is not applied, as that can easily result in output
+      // currents exceeding any configured limits.
+      return errc::kBemfFeedforwardNoAccelLimit;
+    }
+
+    // Pre-compute this to save time in the ISR.
+    data->synthetic_theta =
+        self().config_.fixed_voltage_mode ||
+        !std::isnan(data->fixed_voltage_override) ||
+        !std::isnan(data->fixed_current_override);
+
+    return errc::kSuccess;
+  }
 
   bool is_torque_constant_configured() const MOTEUS_CCM_ATTRIBUTE {
     return self().motor_.Kv != 0.0f;
