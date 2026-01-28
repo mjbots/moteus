@@ -667,6 +667,52 @@ struct BldcServoPositionConfig {
   }
 };
 
+struct BldcServoControl_Control {
+  Vec3 pwm;
+  Vec3 voltage;
+
+  float d_V = 0.0f;
+  float q_V = 0.0f;
+
+  float i_d_A = 0.0f;
+  float i_q_A = 0.0f;
+
+  float q_comp_A = 0.0f;
+  float torque_Nm = 0.0f;
+
+  void Clear() {
+    // We implement this manually merely because it is faster than
+    // using the constructor which delegates to memset.  It is
+    // definitely more brittle.
+    pwm.a = 0.0f;
+    pwm.b = 0.0f;
+    pwm.c = 0.0f;
+
+    voltage.a = 0.0f;
+    voltage.b = 0.0f;
+    voltage.c = 0.0f;
+
+    d_V = 0.0f;
+    q_V = 0.0f;
+    i_d_A = 0.0f;
+    i_q_A = 0.0f;
+    q_comp_A = 0.0f;
+    torque_Nm = 0.0f;
+  }
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(pwm));
+    a->Visit(MJ_NVP(voltage));
+    a->Visit(MJ_NVP(d_V));
+    a->Visit(MJ_NVP(q_V));
+    a->Visit(MJ_NVP(i_d_A));
+    a->Visit(MJ_NVP(i_q_A));
+    a->Visit(MJ_NVP(q_comp_A));
+    a->Visit(MJ_NVP(torque_Nm));
+  }
+};
+
 }
 
 namespace mjlib {

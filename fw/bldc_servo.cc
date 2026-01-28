@@ -25,9 +25,9 @@
 #include "mjlib/base/assert.h"
 #include "mjlib/base/windowed_average.h"
 
+#include "fw/bldc_servo_control.h"
 #include "fw/bldc_servo_position.h"
 #include "fw/foc.h"
-#include "fw/math.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_dma.h"
 #include "fw/stm32g4_adc.h"
@@ -56,121 +56,15 @@ using HardwareUart = Stm32G4AsyncUart;
 #endif
 
 
-float Limit(float, float, float) MOTEUS_CCM_ATTRIBUTE;
-
-float Limit(float a, float min, float max) {
-  if (a < min) { return min; }
-  if (a > max) { return max; }
-  return a;
+RateConfig MakeRateConfig(int pwm_rate_hz_in) {
+  const int board_min_pwm_rate_hz =
+      (g_measured_hw_family == 0 &&
+       g_measured_hw_rev == 2) ? 60000 :
+      15000;
+  return RateConfig(pwm_rate_hz_in, board_min_pwm_rate_hz);
 }
-
-// This variant, in addition to performing the limiting, will return
-// the `code_limit` if limiting was performed and `code_nolimit` if no
-// limiting was performed.  It can be used to chain operations, to
-// determine which operation caused any limiting to occur.
-std::pair<float, errc> LimitCode(float, float, float, errc, errc) MOTEUS_CCM_ATTRIBUTE;
-
-std::pair<float, errc> LimitCode(float a, float min, float max, errc code_limit, errc code_nolimit) {
-  if (a < min) { return {min, code_limit}; }
-  if (a > max) { return {max, code_limit}; }
-  return {a, code_nolimit};
-}
-
-float Threshold(float, float, float) MOTEUS_CCM_ATTRIBUTE;
-
-float Threshold(float value, float lower, float upper) {
-  if (value > lower && value < upper) { return 0.0f; }
-  return value;
-}
-
-float Interpolate(float, float, float, float, float) MOTEUS_CCM_ATTRIBUTE;
-
-float Interpolate(float x, float xl, float xh, float vl, float vh) {
-  return (x - xl) / (xh - xl) * (vh - vl) + vl;
-}
-
-template <typename Array>
-int MapConfig(const Array& array, int value) {
-  static_assert(sizeof(array) > 0);
-  int result = 0;
-  for (const auto& item : array) {
-    if (value <= item) { return result; }
-    result++;
-  }
-  // Never return past the end.
-  return result - 1;
-}
-
-// This is used to determine the maximum allowable PWM value so that
-// the current sampling is guaranteed to occur while the FETs are
-// still low.  It was calibrated using the scope and trial and error.
-//
-// The primary test is a high torque pulse with absolute position
-// limits in place of +-1.0.  Something like "d pos nan 0 1 p0 d0 f1".
-// This all but ensures the current controller will saturate.
-//
-// As of 2026-01-21, 0.45e-6 was the lowest value which always passed.
-constexpr float kCurrentSampleTime = 0.60e-6f;
-
-
-// All of these constants depend upon the pwm rate.
-struct RateConfig {
-  int int_rate_hz;
-  int interrupt_divisor;
-  uint32_t interrupt_mask;
-  int pwm_rate_hz;
-  float min_pwm;
-  float max_pwm;
-  float max_voltage_ratio;
-  float rate_hz;
-  float period_s;
-  int16_t max_position_delta;
-
-  RateConfig(int pwm_rate_hz_in = 30000) {
-    const int board_min_pwm_rate_hz =
-        (g_measured_hw_family == 0 &&
-         g_measured_hw_rev == 2) ? 60000 :
-        15000;
-
-    // Limit our PWM rate to even frequencies between 15kHz and 60kHz.
-    pwm_rate_hz =
-        ((std::max(board_min_pwm_rate_hz,
-                   std::min(60000, pwm_rate_hz_in))) / 2) * 2;
-
-    interrupt_divisor = (pwm_rate_hz > 30000) ? 2 : 1;
-    interrupt_mask = [&]() {
-                       switch (interrupt_divisor) {
-                         case 1: return 0;
-                         case 2: return 1;
-                         default: mbed_die();
-                       }
-                     }();
-
-    // The maximum interrupt rate is 30kHz, so if our PWM rate is
-    // higher than that, then set up the interrupt at half rate.
-    int_rate_hz = pwm_rate_hz / interrupt_divisor;
-
-    min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
-    max_pwm = 1.0f - min_pwm;
-    max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f);
-
-    rate_hz = int_rate_hz;
-    period_s = 1.0f / rate_hz;
-
-    // The maximum amount the absolute encoder can change in one cycle
-    // without triggering a fault.  Measured as a fraction of a uint16_t
-    // and corresponds to roughly 28krpm, which is the limit of the AS5047
-    // encoder.
-    //  28000 / 60 = 467 Hz
-    //  467 Hz * 65536 / kIntRate ~= 763
-    max_position_delta = 28000 / 60 * 65536 / int_rate_hz;
-  }
-};
 
 constexpr int kCalibrateCount = 256;
-
-constexpr float kDefaultTorqueConstant = 0.1f;
-constexpr float kMaxUnconfiguredCurrent = 5.0f;
 
 constexpr int kMaxVelocityFilter = 256;
 
@@ -276,7 +170,7 @@ class ExponentialFilter {
 };
 }
 
-class BldcServo::Impl {
+class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
  public:
   Impl(micro::PersistentConfig* persistent_config,
        micro::TelemetryManager* telemetry_manager,
@@ -487,16 +381,8 @@ class BldcServo::Impl {
     return model.current_to_torque(current);
   }
 
-  float torque_to_current(float torque) const MOTEUS_CCM_ATTRIBUTE {
-    TorqueModel model(torque_constant_,
-                      motor_.rotation_current_cutoff_A,
-                      motor_.rotation_current_scale,
-                      motor_.rotation_torque_scale);
-    return model.torque_to_current(torque);
-  }
-
   void UpdateConfig() {
-    rate_config_ = RateConfig(config_.pwm_rate_hz);
+    rate_config_ = MakeRateConfig(config_.pwm_rate_hz);
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
 
@@ -639,6 +525,8 @@ class BldcServo::Impl {
   }
 
  private:
+  friend class BldcServoControl<Impl>;
+
   void ConfigurePwmIrq() {
     // NOTE: We don't use micro::CallbackTable here because we need the
     // absolute minimum latency possible.
@@ -1298,39 +1186,6 @@ class BldcServo::Impl {
 #endif
   }
 
-  bool current_control() const {
-    switch (status_.mode) {
-      case kNumModes: {
-        MJ_ASSERT(false);
-        return false;
-      }
-      case kFault:
-      case kCalibrating:
-      case kCalibrationComplete:
-      case kEnabling:
-      case kStopped:
-      case kPwm:
-      case kVoltage:
-      case kVoltageFoc:
-      case kVoltageDq:
-      case kMeasureInductance:
-      case kBrake: {
-        return false;
-      }
-      case kCurrent:
-      case kPosition:
-      case kZeroVelocity:
-      case kStayWithinBounds: {
-        return true;
-      }
-      case kPositionTimeout: {
-        return (config_.timeout_mode == BldcServoMode::kZeroVelocity ||
-                config_.timeout_mode == BldcServoMode::kPosition);
-      }
-    }
-    return false;
-  }
-
   bool torque_on() const {
     switch (status_.mode) {
       case kNumModes: {
@@ -1363,384 +1218,6 @@ class BldcServo::Impl {
     return false;
   }
 
-  void ISR_MaybeChangeMode(CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    // We are requesting a different mode than we are in now.  Do our
-    // best to advance if possible.
-    switch (data->mode) {
-      case kNumModes:
-      case kFault:
-      case kCalibrating:
-      case kCalibrationComplete: {
-        // These should not be possible.
-        MJ_ASSERT(false);
-        return;
-      }
-      case kStopped: {
-        // It is always valid to enter stopped mode.
-        status_.mode = kStopped;
-        return;
-      }
-      case kEnabling: {
-        // We can never change out from enabling in ISR context.
-        return;
-      }
-      case kPwm:
-      case kVoltage:
-      case kVoltageFoc:
-      case kVoltageDq:
-      case kCurrent:
-      case kPosition:
-      case kPositionTimeout:
-      case kZeroVelocity:
-      case kStayWithinBounds:
-      case kMeasureInductance:
-      case kBrake: {
-        switch (status_.mode) {
-          case kNumModes: {
-            MJ_ASSERT(false);
-            return;
-          }
-          case kFault: {
-            // We cannot leave a fault state directly into an active state.
-            return;
-          }
-          case kStopped: {
-            // From a stopped state, we first have to enter the
-            // calibrating state.
-            ISR_StartCalibrating();
-            return;
-          }
-          case kEnabling:
-          case kCalibrating: {
-            // We can only leave this state when calibration is
-            // complete.
-            return;
-          }
-          case kCalibrationComplete:
-          case kPwm:
-          case kVoltage:
-          case kVoltageFoc:
-          case kVoltageDq:
-          case kCurrent:
-          case kPosition:
-          case kZeroVelocity:
-          case kStayWithinBounds:
-          case kMeasureInductance:
-          case kBrake: {
-            if ((data->mode == kPosition || data->mode == kStayWithinBounds) &&
-                !data->ignore_position_bounds &&
-                ISR_IsOutsideLimits()) {
-              status_.mode = kFault;
-              status_.fault = errc::kStartOutsideLimit;
-            } else if ((data->mode == kPosition ||
-                        data->mode == kStayWithinBounds) &&
-                       !data->ignore_position_bounds &&
-                       ISR_InvalidLimits()) {
-              status_.mode = kFault;
-              status_.fault = errc::kInvalidLimits;
-            } else {
-              // Yep, we can do this.
-              status_.mode = data->mode;
-
-              // We are entering a new active control mode.  Require
-              // our PID loops to start from scratch.
-              ISR_ClearPid(kAlwaysClear);
-            }
-
-            if (data->mode == kMeasureInductance) {
-              status_.meas_ind_phase = 0;
-              status_.meas_ind_integrator = 0.0f;
-              status_.meas_ind_old_d_A = status_.d_A;
-            }
-
-            return;
-          }
-          case kPositionTimeout: {
-            // We cannot leave this mode except through a stop.
-            return;
-          }
-        }
-      }
-    }
-  }
-
-  bool ISR_IsOutsideLimits() {
-    return ((!std::isnan(position_config_.position_min) &&
-             position_.position < position_config_.position_min) ||
-            (!std::isnan(position_config_.position_max) &&
-             position_.position > position_config_.position_max));
-  }
-
-  bool ISR_InvalidLimits() {
-    return ((!std::isnan(position_config_.position_min) && (
-                 std::abs(position_config_.position_min) > 32768.0f)) ||
-            (!std::isnan(position_config_.position_max) && (
-                std::abs(position_config_.position_max) > 32768.0f)));
-  }
-
-  void ISR_StartCalibrating() {
-    // Capture the current motor position epoch.
-    isr_motor_position_epoch_ = position_.epoch;
-
-    status_.mode = kEnabling;
-
-    // The main context will set our state to kCalibrating when the
-    // motor driver is fully enabled.
-
-    (*pwm1_ccr_) = 0;
-    (*pwm2_ccr_) = 0;
-    (*pwm3_ccr_) = 0;
-
-    // Power should already be false for any state we could possibly
-    // be in, but lets just be certain.
-    motor_driver_->PowerOff();
-
-    calibrate_adc1_ = 0;
-    calibrate_adc2_ = 0;
-    calibrate_adc3_ = 0;
-    calibrate_count_ = 0;
-  }
-
-  enum ClearMode {
-    kClearIfMode,
-    kAlwaysClear,
-  };
-
-  void ISR_ClearPid(ClearMode force_clear) MOTEUS_CCM_ATTRIBUTE {
-    const bool current_pid_active = [&]() MOTEUS_CCM_ATTRIBUTE {
-      switch (status_.mode) {
-        case kNumModes:
-        case kFault:
-        case kEnabling:
-        case kCalibrating:
-        case kCalibrationComplete:
-        case kPwm:
-        case kVoltage:
-        case kVoltageFoc:
-        case kVoltageDq:
-        case kMeasureInductance:
-        case kBrake:
-          return false;
-        case kCurrent:
-        case kPosition:
-        case kPositionTimeout:
-        case kZeroVelocity:
-        case kStayWithinBounds:
-          return true;
-        case kStopped: {
-          return status_.cooldown_count != 0;
-        }
-      }
-      return false;
-    }();
-
-    if (!current_pid_active || force_clear == kAlwaysClear) {
-      status_.pid_d.Clear();
-      status_.pid_q.Clear();
-
-      // We always want to start from 0 current when initiating
-      // current control of some form.
-      status_.pid_d.desired = 0.0f;
-      status_.pid_q.desired = 0.0f;
-    }
-
-    const bool position_pid_active = [&]() MOTEUS_CCM_ATTRIBUTE {
-      switch (status_.mode) {
-        case kNumModes:
-        case kStopped:
-        case kFault:
-        case kEnabling:
-        case kCalibrating:
-        case kCalibrationComplete:
-        case kPwm:
-        case kVoltage:
-        case kVoltageFoc:
-        case kVoltageDq:
-        case kCurrent:
-        case kMeasureInductance:
-        case kBrake:
-          return false;
-        case kPosition:
-        case kPositionTimeout:
-        case kZeroVelocity:
-        case kStayWithinBounds:
-          return true;
-      }
-      return false;
-    }();
-
-    if (!position_pid_active || force_clear == kAlwaysClear) {
-      status_.pid_position.Clear();
-      status_.control_position_raw = {};
-      status_.control_position = std::numeric_limits<float>::quiet_NaN();
-      status_.control_velocity = {};
-      status_.control_acceleration = {};
-    }
-  }
-
-  void ISR_DoControl(const SinCos& sin_cos,
-                     CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    old_d_V = control_.d_V;
-    old_q_V = control_.q_V;
-
-    control_.Clear();
-
-    if (!std::isnan(status_.timeout_s) && status_.timeout_s > 0.0f) {
-      status_.timeout_s =
-          std::max(0.0f, status_.timeout_s - rate_config_.period_s);
-    }
-
-    // See if we need to update our current mode.
-    if (data->mode != status_.mode) {
-      ISR_MaybeChangeMode(data);
-    }
-
-    // Handle our persistent fault conditions.
-    if (status_.mode != kStopped && status_.mode != kFault) {
-      if (motor_driver_->fault()) {
-        status_.mode = kFault;
-        status_.fault = errc::kMotorDriverFault;
-      }
-      if (status_.bus_V > config_.max_voltage) {
-        status_.mode = kFault;
-        status_.fault = errc::kOverVoltage;
-      }
-      // NOTE: This is mostly to identify faulty voltage sense
-      // components.  Actual undervolts are more likely to trigger the
-      // drv8323 first.  If we erroneously use a very low voltage
-      // here, we can command a very large current due to the voltage
-      // compensation.
-      if (status_.bus_V < 4.0f) {
-        status_.mode = kFault;
-        status_.fault = errc::kUnderVoltage;
-      }
-      if (status_.filt_fet_temp_C > config_.fault_temperature) {
-        status_.mode = kFault;
-        status_.fault = errc::kOverTemperature;
-      }
-      if (std::isfinite(config_.motor_fault_temperature) &&
-          status_.filt_motor_temp_C > config_.motor_fault_temperature) {
-        status_.mode = kFault;
-        status_.fault = errc::kOverTemperature;
-      }
-    }
-
-    if ((status_.mode == kPosition || status_.mode == kStayWithinBounds) &&
-        !std::isnan(status_.timeout_s) &&
-        status_.timeout_s <= 0.0f) {
-      status_.mode = kPositionTimeout;
-    }
-
-    // Ensure unused PID controllers have zerod state.
-    ISR_ClearPid(kClearIfMode);
-
-    if (status_.mode != kFault) {
-      status_.fault = errc::kSuccess;
-    }
-
-#ifdef MOTEUS_PERFORMANCE_MEASURE
-    status_.dwt.control_sel_mode = DWT->CYCCNT;
-#endif
-
-    if (current_control()) {
-      status_.cooldown_count = config_.cooldown_cycles;
-    }
-
-    switch (status_.mode) {
-      case kNumModes:
-      case kStopped: {
-        ISR_DoStopped(sin_cos);
-        break;
-      }
-      case kFault: {
-        ISR_DoFault();
-        break;
-      }
-      case kEnabling: {
-        break;
-      }
-      case kCalibrating: {
-        ISR_DoCalibrating();
-        break;
-      }
-      case kCalibrationComplete: {
-        break;
-      }
-      case kPwm: {
-        ISR_DoPwmControl(data->pwm);
-        break;
-      }
-      case kVoltage: {
-        ISR_DoBalancedVoltageControl(data->phase_v);
-        break;
-      }
-      case kVoltageFoc: {
-        ISR_DoVoltageFOC(data);
-        break;
-      }
-      case kVoltageDq: {
-        ISR_DoVoltageDQCommand(sin_cos, data->d_V, data->q_V);
-        break;
-      }
-      case kCurrent: {
-        ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f,
-                      data->ignore_position_bounds);
-        break;
-      }
-      case kPosition: {
-        ISR_DoPosition(sin_cos, data);
-        break;
-      }
-      case kPositionTimeout: {
-        ISR_DoPositionTimeout(sin_cos, data);
-        break;
-      }
-      case kZeroVelocity: {
-        ISR_DoZeroVelocity(sin_cos, data);
-        break;
-      }
-      case kStayWithinBounds: {
-        ISR_DoStayWithinBounds(sin_cos, data);
-        break;
-      }
-      case kMeasureInductance: {
-        ISR_DoMeasureInductance(sin_cos, data);
-        break;
-      }
-      case kBrake: {
-        ISR_DoBrake();
-        break;
-      }
-    }
-  }
-
-  void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
-    if (status_.cooldown_count) {
-      status_.cooldown_count--;
-      ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f, false);
-      return;
-    }
-
-    const auto result = motor_driver_->StartEnable(false);
-    // We should always be able to disable immediately.
-    MJ_ASSERT(result == MotorDriver::kDisabled);
-    motor_driver_->PowerOff();
-    *pwm1_ccr_ = 0;
-    *pwm2_ccr_ = 0;
-    *pwm3_ccr_ = 0;
-
-    status_.power_W = 0.0f;
-  }
-
-  void ISR_DoFault() MOTEUS_CCM_ATTRIBUTE {
-    motor_driver_->PowerOff();
-
-    *pwm1_ccr_ = 0;
-    *pwm2_ccr_ = 0;
-    *pwm3_ccr_ = 0;
-
-    status_.power_W = 0.0f;
-  }
 
   void ISR_DoCalibrating() {
     calibrate_adc1_ += status_.adc_cur1_raw;
@@ -1769,683 +1246,6 @@ class BldcServo::Impl {
     status_.adc_cur2_offset = new_adc2_offset;
     status_.adc_cur3_offset = new_adc3_offset;
     status_.mode = kCalibrationComplete;
-  }
-
-  void ISR_DoPwmControl(const Vec3& pwm) MOTEUS_CCM_ATTRIBUTE {
-    control_.pwm.a = LimitPwm(pwm.a);
-    control_.pwm.b = LimitPwm(pwm.b);
-    control_.pwm.c = LimitPwm(pwm.c);
-
-    const uint16_t pwm1 = static_cast<uint16_t>(control_.pwm.a * pwm_counts_);
-    const uint16_t pwm2 = static_cast<uint16_t>(control_.pwm.b * pwm_counts_);
-    const uint16_t pwm3 = static_cast<uint16_t>(control_.pwm.c * pwm_counts_);
-
-    // NOTE(jpieper): The default ordering has pwm2 and pwm3 flipped.
-    // Why you may ask?  No good reason.  It does require that the
-    // currents be similarly swapped in ISR_CalculateCurrentState.
-    // Changing it back now would reverse the sign of position for any
-    // existing motor, so it isn't an easy change to make.
-    *pwm1_ccr_ = pwm1;
-    if (!motor_.phase_invert) {
-      *pwm2_ccr_ = pwm3;
-      *pwm3_ccr_ = pwm2;
-    } else {
-      *pwm2_ccr_ = pwm2;
-      *pwm3_ccr_ = pwm3;
-    }
-
-    motor_driver_->PowerOn();
-  }
-
-  /// Assume that the voltages are intended to be balanced around the
-  /// midpoint and can be shifted accordingly.
-  void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
-    control_.voltage = voltage;
-
-    const float bus_V = status_.filt_bus_V;
-    const Vec3 pwm_in = {voltage.a / bus_V, voltage.b / bus_V, voltage.c / bus_V};
-
-    const float pwmmin = std::min(pwm_in.a, std::min(pwm_in.b, pwm_in.c));
-    const float pwmmax = std::max(pwm_in.a, std::max(pwm_in.b, pwm_in.c));
-
-    // Balance the three phases so that the highest and lowest are
-    // equidistant from the midpoint.  Note, this results in a
-    // waveform that is identical to SVPWM, or min/max injection.
-    const float offset = 0.5f * (pwmmin + pwmmax) - 0.5f;
-
-    ISR_DoPwmControl(Vec3{
-        pwm_in.a - offset,
-        pwm_in.b - offset,
-        pwm_in.c - offset});
-  }
-
-  void ISR_DoVoltageFOC(CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    data->theta += data->theta_rate * rate_config_.period_s;
-    SinCos sc = cordic_(RadiansToQ31(data->theta));
-    const float max_voltage = (0.5f - rate_config_.min_pwm) *
-        status_.filt_bus_V * kSvpwmRatio;
-    InverseDqTransform idt(sc, Limit(data->voltage, -max_voltage, max_voltage), 0);
-    ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
-  }
-
-  void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in,
-                     float feedforward_velocity_rotor,
-                     bool ignore_position_bounds) MOTEUS_CCM_ATTRIBUTE {
-    if (motor_.poles == 0) {
-      // We aren't configured yet.
-      status_.mode = kFault;
-      status_.fault = errc::kMotorNotConfigured;
-      return;
-    }
-    if (!position_.theta_valid) {
-      status_.mode = kFault;
-      status_.fault = errc::kThetaInvalid;
-      return;
-    }
-
-    auto limit_q_current = [&](std::pair<float, errc> in_pair) -> std::pair<float, errc> MOTEUS_CCM_ATTRIBUTE {
-      const auto in = in_pair.first;
-      if (ignore_position_bounds) { return {in, in_pair.second}; }
-
-      if (!std::isnan(position_config_.position_max) &&
-          position_.position > position_config_.position_max &&
-          in > 0.0f) {
-        // We derate the request in the direction that moves it
-        // further outside the position limits.  This is mostly useful
-        // when feedforward is applied, as otherwise, the position
-        // limits could easily be exceeded.  Without feedforward, we
-        // shouldn't really be trying to push outside the limits
-        // anyhow.
-        return std::make_pair(
-            in *
-            std::max(0.0f,
-                     1.0f - (position_.position -
-                             position_config_.position_max) /
-                     config_.position_derate),
-            errc::kLimitPositionBounds);
-      }
-      if (!std::isnan(position_config_.position_min) &&
-          position_.position < position_config_.position_min &&
-          in < 0.0f) {
-        return std::make_pair(
-            in *
-            std::max(0.0f,
-                     1.0f - (position_config_.position_min -
-                             position_.position) /
-                     config_.position_derate),
-            errc::kLimitPositionBounds);
-      }
-
-      return in_pair;
-    };
-
-    auto limit_q_velocity = [&](std::pair<float, errc> in_pair) -> std::pair<float, errc> MOTEUS_CCM_ATTRIBUTE {
-      const auto in = in_pair.first;
-      const float abs_velocity = std::abs(position_.velocity);
-      if (abs_velocity < config_.max_velocity ||
-          position_.velocity * in < 0.0f) {
-        return in_pair;
-      }
-      const float derate_fraction =
-          1.0f - ((abs_velocity - config_.max_velocity) /
-                  config_.max_velocity_derate);
-      const float current_limit =
-          std::max(0.0f, derate_fraction * config_.max_current_A);
-      const errc maybe_fault = derate_fraction < 1.0f ? errc::kLimitMaxVelocity : errc::kLimitMaxCurrent;
-      return LimitCode(in, -current_limit, current_limit,
-                       maybe_fault, in_pair.second);
-    };
-
-    float derate_fraction =
-        (status_.filt_fet_temp_C - derate_temperature_) /
-        config_.temperature_margin;
-    errc derate_fault = errc::kLimitMaxCurrent;
-    if (derate_fraction > 0.0f) {
-      derate_fault = errc::kLimitFetTemperature;
-    }
-    if (std::isfinite(config_.motor_fault_temperature)) {
-      const float motor_derate =
-          ((status_.filt_motor_temp_C - motor_derate_temperature_) /
-           config_.motor_temperature_margin);
-      if (motor_derate > derate_fraction) {
-        derate_fraction = motor_derate;
-        derate_fault = errc::kLimitMotorTemperature;
-      }
-    }
-
-    const float derate_current_A =
-        std::max<float>(
-            0.0f,
-            derate_fraction *
-            (config_.derate_current_A - config_.max_current_A) +
-            config_.max_current_A);
-
-    const float temp_limit_A = std::min<float>(
-        config_.max_current_A, derate_current_A);
-
-    auto limit_either_current = [&](std::pair<float, errc> in_pair) MOTEUS_CCM_ATTRIBUTE {
-      return LimitCode(in_pair.first, -temp_limit_A, temp_limit_A, derate_fault, in_pair.second);
-    };
-
-
-    const auto almost_i_q_A_pair =
-        limit_either_current(
-            limit_q_velocity(
-                limit_q_current(
-                    std::make_pair(i_q_A_in, errc::kSuccess))));
-    const auto almost_i_d_A_pair = limit_either_current(
-        std::make_pair(i_d_A_in, errc::kSuccess));
-
-    const auto almost_i_q_A = almost_i_q_A_pair.first;
-    const auto almost_i_d_A = almost_i_d_A_pair.first;
-    const auto almost_fault =
-        (almost_i_q_A_pair.second == errc::kSuccess) ?
-        almost_i_d_A_pair.second : almost_i_q_A_pair.second;
-
-    // Apply our power limits by limiting the maximum current command.
-    // This has a feedback loop from the previous cycle's voltage
-    // output, which is not ideal, but is what we've got.
-
-    // Applying the limit here, rather than at the voltage stage has
-    // proven to be more stable when activated under load.
-    const float used_d_power_W = 1.5f * old_d_V * almost_i_d_A;
-    const float used_q_power_W = 1.5f * old_q_V * almost_i_q_A;
-    const float used_power = used_q_power_W + used_d_power_W;
-
-    const auto [i_d_A, i_q_A, limit_code] = [&]() {
-      // If we have slack, then no limiting needs to occur.
-      if (std::abs(used_power) < status_.max_power_W) {
-        return std::make_tuple(almost_i_d_A, almost_i_q_A, almost_fault);
-      }
-
-      // Scale both currents equally in power terms.
-      const float scale = status_.max_power_W / std::abs(used_power);
-
-      const float scaled_d_power = used_d_power_W * scale;
-      const float scaled_q_power = used_q_power_W * scale;
-
-      return std::make_tuple(
-          scaled_d_power / (1.5f * old_d_V),
-          scaled_q_power / (1.5f * old_q_V),
-          errc::kLimitMaxPower);
-    }();
-
-    control_.i_d_A = i_d_A;
-    control_.i_q_A = i_q_A;
-
-    const float max_V =
-        rate_config_.max_voltage_ratio * kSvpwmRatio *
-        0.5f * status_.filt_bus_V;
-
-    const auto limit_to_max_voltage = [max_V](float denorm_d_V, float denorm_q_V, errc inlimit) {
-      const float max_V_sq = max_V * max_V;
-      const float denorm_len =
-          denorm_d_V * denorm_d_V + denorm_q_V * denorm_q_V;
-      if (denorm_len < max_V_sq) {
-        return std::make_tuple(denorm_d_V, denorm_q_V, inlimit);
-      }
-
-      const float scale = sqrtf(max_V_sq / denorm_len);
-      return std::make_tuple(denorm_d_V * scale, denorm_q_V * scale, errc::kLimitMaxVoltage);
-    };
-
-    if (!config_.voltage_mode_control) {
-      const float denorm_d_V =
-          pid_d_.Apply(status_.d_A, i_d_A, rate_config_.period_s) +
-          i_d_A * config_.current_feedforward * motor_.resistance_ohm;
-
-      const float denorm_q_V =
-          pid_q_.Apply(status_.q_A, i_q_A, rate_config_.period_s) +
-          i_q_A * config_.current_feedforward * motor_.resistance_ohm +
-          (feedforward_velocity_rotor *
-           config_.bemf_feedforward *
-           v_per_hz_);
-
-      auto [d_V, q_V, final_limit_code] =
-          limit_to_max_voltage(denorm_d_V, denorm_q_V, limit_code);
-
-      if (final_limit_code != errc::kSuccess) {
-        status_.fault = final_limit_code;
-      }
-
-      // We also limit the integral to be no more than the maximal
-      // applied voltage for each phase independently.  This helps to
-      // more quickly recover if things saturate in the case of no or
-      // incomplete feedforward terms.
-      status_.pid_d.integral = Limit(
-          status_.pid_d.integral,
-          -max_V, max_V);
-
-      status_.pid_q.integral = Limit(
-          status_.pid_q.integral,
-          -max_V, max_V);
-
-      // eq 2.28 from "DYNAMIC MODEL OF PM SYNCHRONOUS MOTORS" D. Ohm,
-      // 2000
-      status_.power_W =
-          1.5f * (status_.d_A * d_V +
-                  status_.q_A * q_V);
-
-      ISR_DoVoltageDQ(sin_cos, d_V, q_V);
-    } else {
-      status_.power_W =
-          1.5f * (i_d_A * i_d_A * motor_.resistance_ohm +
-                  i_q_A * i_q_A * motor_.resistance_ohm);
-
-      auto [d_V, q_V, final_limit_code] = limit_to_max_voltage(
-          i_d_A * motor_.resistance_ohm,
-          i_q_A * motor_.resistance_ohm +
-          (feedforward_velocity_rotor *
-           config_.bemf_feedforward *
-           v_per_hz_),
-          limit_code);
-
-      if (final_limit_code != errc::kSuccess) {
-        status_.fault = final_limit_code;
-      }
-
-      ISR_DoVoltageDQ(sin_cos, d_V, q_V);
-    }
-  }
-
-  // The idiomatic thing to do in DoMeasureInductance would be to just
-  // call DoVoltageDQ.  However, because of
-  // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=41091 that results
-  // in a compile time error.  Instead, we construct a similar
-  // factorization by delegating most of the work to this helper
-  // function.
-  Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    if (position_.epoch != isr_motor_position_epoch_) {
-      status_.mode = kFault;
-      status_.fault = errc::kConfigChanged;
-
-      return Vec3{0.f, 0.f, 0.f};
-    }
-
-    control_.d_V = d_V;
-    control_.q_V = q_V;
-
-    InverseDqTransform idt(
-        sin_cos, control_.d_V,
-        motor_position_config()->output.sign * control_.q_V);
-
-#ifdef MOTEUS_PERFORMANCE_MEASURE
-    status_.dwt.control_done_cur = DWT->CYCCNT;
-#endif
-
-    return Vec3{idt.a, idt.b, idt.c};
-  }
-
-  void ISR_DoVoltageDQ(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
-  }
-
-  void ISR_DoVoltageDQCommand(const SinCos& sin_cos, float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    if (motor_.poles == 0) {
-      // We aren't configured yet.
-      status_.mode = kFault;
-      status_.fault = errc::kMotorNotConfigured;
-      return;
-    }
-    if (!position_.theta_valid) {
-      status_.mode = kFault;
-      status_.fault = errc::kThetaInvalid;
-      return;
-    }
-
-    // We could limit maximum voltage further down the call stack in a
-    // common place, however current mode control limits it
-    // inherently, and is the most expensive of the control modes.
-    // Thus all other users of CalculatePhaseVoltage are required to
-    // limit voltage beforehand.
-    const float max_V =
-        rate_config_.max_voltage_ratio * kSvpwmRatio *
-        0.5f * status_.filt_bus_V;
-
-    ISR_DoBalancedVoltageControl(
-        ISR_CalculatePhaseVoltage(
-            sin_cos,
-            Limit(d_V, -max_V, max_V),
-            Limit(q_V, -max_V, max_V)));
-  }
-
-  void ISR_DoPositionTimeout(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    if (config_.timeout_mode == kStopped) {
-      ISR_DoStopped(sin_cos);
-    } else if (config_.timeout_mode == kPosition) {
-      CommandData timeout_data;
-      timeout_data.mode = kPosition;
-      timeout_data.position = std::numeric_limits<float>::quiet_NaN();
-      timeout_data.velocity_limit = config_.default_velocity_limit;
-      timeout_data.accel_limit = config_.default_accel_limit;
-      timeout_data.timeout_s = std::numeric_limits<float>::quiet_NaN();
-
-      PID::ApplyOptions apply_options;
-      ISR_DoPositionCommon(
-          sin_cos, &timeout_data, apply_options,
-          timeout_data.max_torque_Nm,
-          0.0f,
-          0.0f);
-    } else if (config_.timeout_mode == kZeroVelocity) {
-      ISR_DoZeroVelocity(sin_cos, data);
-    } else if (config_.timeout_mode == kBrake) {
-      ISR_DoBrake();
-    } else {
-      ISR_DoStopped(sin_cos);
-    }
-  }
-
-  void ISR_DoZeroVelocity(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    CommandData zero_velocity;
-
-    zero_velocity.mode = kPosition;
-    zero_velocity.position = std::numeric_limits<float>::quiet_NaN();
-    zero_velocity.velocity = 0.0f;
-    zero_velocity.timeout_s = std::numeric_limits<float>::quiet_NaN();
-
-    PID::ApplyOptions apply_options;
-    apply_options.kp_scale = 0.0f;
-    apply_options.kd_scale = data->kd_scale;
-    apply_options.ilimit_scale = 0.0f;
-
-    ISR_DoPositionCommon(sin_cos, &zero_velocity,
-                         apply_options, config_.timeout_max_torque_Nm,
-                         0.0f, 0.0f);
-  }
-
-  void ISR_DoPosition(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    PID::ApplyOptions apply_options;
-    apply_options.kp_scale = data->kp_scale;
-    apply_options.kd_scale = data->kd_scale;
-    apply_options.ilimit_scale = data->ilimit_scale;
-
-    ISR_DoPositionCommon(sin_cos, data, apply_options, data->max_torque_Nm,
-                         data->feedforward_Nm, data->velocity);
-  }
-
-  void ISR_DoPositionCommon(
-      const SinCos& sin_cos, CommandData* data,
-      const PID::ApplyOptions& pid_options,
-      float max_torque_Nm,
-      float feedforward_Nm,
-      float velocity) MOTEUS_CCM_ATTRIBUTE {
-    const int64_t absolute_relative_delta =
-        static_cast<int64_t>(
-            motor_position_->absolute_relative_delta.load()) << 32ll;
-
-    const float velocity_command =
-        BldcServoPosition::UpdateCommand(
-            &status_,
-            &config_,
-            &position_config_,
-            &position_,
-            absolute_relative_delta,
-            rate_config_.period_s,
-            data,
-            velocity);
-
-    // At this point, our control position and velocity are known.
-
-    if (config_.fixed_voltage_mode ||
-        !std::isnan(data->fixed_voltage_override) ||
-        !std::isnan(data->fixed_current_override)) {
-      status_.position =
-          static_cast<float>(
-              static_cast<int32_t>(
-                  *status_.control_position_raw >> 32)) /
-          65536.0f;
-      status_.velocity = velocity_command;
-
-      // For "fixed voltage" and "fixed current" mode, we skip all
-      // position PID loops and all their associated calculations,
-      // including everything that uses the encoder, further for
-      // "fixed voltage" mode we also skip the current control loop.
-      //
-      // In either case, we just burn power with a fixed voltage or
-      // current drive based on the desired position.
-      if (!std::isnan(data->fixed_current_override)) {
-        ISR_DoCurrent(sin_cos,
-                      data->fixed_current_override,
-                      0.0f, 0.0f, data->ignore_position_bounds);
-      } else {
-        const float fixed_voltage =
-            std::isnan(data->fixed_voltage_override) ?
-            config_.fixed_voltage_control_V +
-            (std::abs(status_.velocity) *
-             v_per_hz_ *
-             config_.bemf_feedforward) :
-            data->fixed_voltage_override;
-        ISR_DoVoltageDQ(sin_cos, fixed_voltage, 0.0f);
-      }
-      return;
-    }
-
-    // From this point, we require actual valid position.
-    if (!position_.position_relative_valid) {
-      status_.mode = kFault;
-      status_.fault = errc::kPositionInvalid;
-      return;
-    }
-    if (position_.error != MotorPosition::Status::kNone) {
-      status_.mode = kFault;
-      status_.fault = errc::kEncoderFault;
-      return;
-    }
-
-    const float measured_velocity = velocity_command +
-        Threshold(
-            position_.velocity - velocity_command, -config_.velocity_threshold,
-            config_.velocity_threshold);
-
-    // The control acceleration is in Hz, but we need it to be in
-    // rad/s in order to calculate the required torque.
-    const float inertia_feedforward_Nm =
-        2.0f * kPi * status_.control_acceleration *
-        config_.inertia_feedforward;
-
-    // We always control relative to the control position of 0, so
-    // that we get equal performance across the entire viable integral
-    // position range.
-    const float unlimited_torque_Nm =
-        (pid_position_.Apply(
-            (static_cast<int32_t>(
-                (position_.position_relative_raw -
-                 *status_.control_position_raw) >> 32) /
-             65536.0f),
-            0.0,
-            measured_velocity, velocity_command,
-            rate_config_.period_s,
-            pid_options) +
-         feedforward_Nm +
-         inertia_feedforward_Nm);
-
-    const auto limited_torque_Nm_pair =
-        LimitCode(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm,
-                  errc::kLimitMaxTorque, errc::kSuccess);
-    const auto limited_torque_Nm = limited_torque_Nm_pair.first;
-    if (limited_torque_Nm_pair.second != errc::kSuccess) {
-      status_.fault = limited_torque_Nm_pair.second;
-    }
-
-    control_.torque_Nm = limited_torque_Nm;
-    status_.torque_error_Nm = status_.torque_Nm - control_.torque_Nm;
-
-    const float limited_q_A =
-        torque_to_current(limited_torque_Nm *
-                          motor_position_->config()->rotor_to_output_ratio);
-
-    {
-      const auto& pos_config = motor_position_->config();
-      const auto commutation_source = pos_config->commutation_source;
-      const float cpr = static_cast<float>(
-          pos_config->sources[commutation_source].cpr);
-      const float commutation_position =
-          position_.sources[commutation_source].filtered_value / cpr;
-
-      auto sample =
-          [&](const auto& table, float scale) {
-            const int left_index = std::min<int>(
-                table.size() - 1,
-                static_cast<int>(table.size() * commutation_position));
-            const int right_index = (left_index + 1) % table.size();
-            const float comp_fraction =
-                (commutation_position -
-                 static_cast<float>(left_index) / table.size()) *
-                static_cast<float>(table.size());
-            const float left_comp = table[left_index] * scale;
-            const float right_comp = table[right_index] * scale;
-
-            return (right_comp - left_comp) * comp_fraction + left_comp;
-          };
-      const float q_comp_A = sample(motor_.cogging_dq_comp,
-                                    motor_.cogging_dq_scale);
-
-      control_.q_comp_A = q_comp_A;
-    }
-
-    const float compensated_q_A = limited_q_A + control_.q_comp_A;
-
-    const float q_A =
-        is_torque_constant_configured() ?
-        compensated_q_A :
-        Limit(compensated_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
-
-    const float d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
-      const auto error = (
-          status_.filt_1ms_bus_V - flux_brake_min_voltage_);
-
-      if (error <= 0.0f) {
-        return 0.0f;
-      }
-
-      return (error / config_.flux_brake_resistance_ohm);
-    }();
-
-    if (d_A != 0.0f) {
-      status_.fault = errc::kLimitFluxBraking;
-    }
-
-#ifdef MOTEUS_PERFORMANCE_MEASURE
-    status_.dwt.control_done_pos = DWT->CYCCNT;
-#endif
-
-    ISR_DoCurrent(
-        sin_cos, d_A, q_A,
-        velocity_command / motor_position_->config()->rotor_to_output_ratio,
-        data->ignore_position_bounds);
-  }
-
-  void ISR_DoStayWithinBounds(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    const auto target_position = [&]() MOTEUS_CCM_ATTRIBUTE -> std::optional<float> {
-      if (!std::isnan(data->bounds_min) &&
-          position_.position < data->bounds_min) {
-        return data->bounds_min;
-      }
-      if (!std::isnan(data->bounds_max) &&
-          position_.position > data->bounds_max) {
-        return data->bounds_max;
-      }
-      return {};
-    }();
-
-    if (!target_position) {
-      status_.pid_position.Clear();
-      status_.control_position_raw = {};
-      status_.control_position = std::numeric_limits<float>::quiet_NaN();
-      status_.control_velocity = {};
-      status_.control_acceleration = {};
-
-      // In this region, we still apply feedforward torques if they
-      // are present.
-      PID::ApplyOptions apply_options;
-      apply_options.kp_scale = 0.0;
-      apply_options.kd_scale = 0.0;
-      apply_options.ilimit_scale = 0.0;
-
-      ISR_DoPositionCommon(
-          sin_cos, data, apply_options,
-          data->max_torque_Nm, data->feedforward_Nm, 0.0f);
-      return;
-    }
-
-    // Control position to whichever bound we are currently violating.
-    PID::ApplyOptions apply_options;
-    apply_options.kp_scale = data->kp_scale;
-    apply_options.kd_scale = data->kd_scale;
-    apply_options.ilimit_scale = data->ilimit_scale;
-
-    const int64_t absolute_relative_delta =
-        (static_cast<int64_t>(
-            motor_position_->absolute_relative_delta.load()) << 32ll);
-    data->position_relative_raw =
-        MotorPosition::FloatToInt(*target_position) -
-        absolute_relative_delta;
-    data->velocity = 0.0;
-    status_.control_position_raw = data->position_relative_raw;
-    status_.control_position = *target_position;
-    status_.control_velocity = 0.0f;
-    status_.control_acceleration = 0.0f;
-
-    ISR_DoPositionCommon(
-        sin_cos, data, apply_options,
-        data->max_torque_Nm, data->feedforward_Nm, 0.0f);
-  }
-
-  void ISR_DoMeasureInductance(const SinCos& sin_cos, CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    // While we do use the sin_cos here, it doesn't really matter as
-    // this should only be done with the motor stationary.  Thus we
-    // won't bother checking if the motor is configured or the encoder
-    // is valid.
-    //
-    // Newer moteus_tool will probably use the fixed_voltage_override
-    // method anyways, which will force the sin_cos to be valid
-    // regardless of encoder status.
-
-    const int8_t old_sign = status_.meas_ind_phase > 0 ? 1 : -1;
-    const float old_sign_float = old_sign > 0 ? 1.0f : -1.0f;
-
-    status_.meas_ind_phase += -old_sign;
-
-    // When measuring inductance, we just drive a 0 centered square
-    // wave at some integral multiple of the control period.
-    if (status_.meas_ind_phase == 0) {
-      status_.meas_ind_phase = -old_sign * data->meas_ind_period;
-    }
-
-    const float offset = std::isfinite(data->fixed_voltage_override) ?
-        data->fixed_voltage_override :
-        0.0f;
-
-    // We could limit maximum voltage further down the call stack in a
-    // common place, however current mode control limits it
-    // inherently, and is the most expensive of the control modes.
-    // Thus all other users of CalculatePhaseVoltage are required to
-    // limit voltage beforehand.
-    const float max_V = (0.5f - rate_config_.min_pwm) *
-        status_.filt_bus_V * kSvpwmRatio;
-
-    const float d_V =
-        Limit(
-            offset +
-            data->d_V * (status_.meas_ind_phase > 0 ? 1.0f : -1.0f),
-            -max_V,
-            max_V);
-
-    // We also integrate the difference in current.
-    status_.meas_ind_integrator +=
-        (status_.d_A - status_.meas_ind_old_d_A) *
-        old_sign_float;
-    status_.meas_ind_old_d_A = status_.d_A;
-
-    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
-  }
-
-  void ISR_DoBrake() MOTEUS_CCM_ATTRIBUTE {
-    *pwm1_ccr_ = 0;
-    *pwm2_ccr_ = 0;
-    *pwm3_ccr_ = 0;
-
-    motor_driver_->PowerOn();
   }
 
   void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
@@ -2554,10 +1354,78 @@ class BldcServo::Impl {
     }
   }
 
-  float LimitPwm(float in) MOTEUS_CCM_ATTRIBUTE {
-    // We can't go full duty cycle or we wouldn't have time to sample
-    // the current.
-    return Limit(in, rate_config_.min_pwm, rate_config_.max_pwm);
+  void DoPwmControl(const Vec3& pwm) MOTEUS_CCM_ATTRIBUTE {
+    const uint16_t pwm1 =
+        static_cast<uint16_t>(pwm.a * pwm_counts_);
+    const uint16_t pwm2 =
+        static_cast<uint16_t>(pwm.b * pwm_counts_);
+    const uint16_t pwm3 =
+        static_cast<uint16_t>(pwm.c * pwm_counts_);
+
+    *pwm1_ccr_ = pwm1;
+    if (!motor_.phase_invert) {
+      *pwm2_ccr_ = pwm3;
+      *pwm3_ccr_ = pwm2;
+    } else {
+      *pwm2_ccr_ = pwm2;
+      *pwm3_ccr_ = pwm3;
+    }
+
+    motor_driver_->PowerOn();
+  }
+
+  void DoHardStop() MOTEUS_CCM_ATTRIBUTE {
+    const auto result = motor_driver_->StartEnable(false);
+    MJ_ASSERT(result == MotorDriver::kDisabled);
+    motor_driver_->PowerOff();
+    *pwm1_ccr_ = 0;
+    *pwm2_ccr_ = 0;
+    *pwm3_ccr_ = 0;
+  }
+
+  void DoFault() MOTEUS_CCM_ATTRIBUTE {
+    motor_driver_->PowerOff();
+    *pwm1_ccr_ = 0;
+    *pwm2_ccr_ = 0;
+    *pwm3_ccr_ = 0;
+
+    status_.power_W = 0.0f;
+  }
+
+  void DoCalibrating() MOTEUS_CCM_ATTRIBUTE {
+    ISR_DoCalibrating();
+  }
+
+  void DoBrake() MOTEUS_CCM_ATTRIBUTE {
+    *pwm1_ccr_ = 0;
+    *pwm2_ccr_ = 0;
+    *pwm3_ccr_ = 0;
+    motor_driver_->PowerOn();
+  }
+
+  void StartCalibrating() MOTEUS_CCM_ATTRIBUTE {
+    (*pwm1_ccr_) = 0;
+    (*pwm2_ccr_) = 0;
+    (*pwm3_ccr_) = 0;
+    motor_driver_->PowerOff();
+
+    calibrate_adc1_ = 0;
+    calibrate_adc2_ = 0;
+    calibrate_adc3_ = 0;
+    calibrate_count_ = 0;
+  }
+
+  bool motor_driver_fault() const MOTEUS_CCM_ATTRIBUTE {
+    return motor_driver_->fault();
+  }
+
+  SinCos cordic(int32_t radians_q31) const MOTEUS_CCM_ATTRIBUTE {
+    return cordic_(radians_q31);
+  }
+
+  int64_t absolute_relative_delta() const MOTEUS_CCM_ATTRIBUTE {
+    return static_cast<int64_t>(
+        motor_position_->absolute_relative_delta.load());
   }
 
   const Options options_;
@@ -2679,8 +1547,8 @@ class BldcServo::Impl {
   float adc_scale_ = 0.0f;
   float pwm_derate_ = 1.0f;
 
-  float old_d_V = 0.0f;
-  float old_q_V = 0.0f;
+  float old_d_V_ = 0.0f;
+  float old_q_V_ = 0.0f;
 
   float vsense_adc_scale_ = 0.0f;
 

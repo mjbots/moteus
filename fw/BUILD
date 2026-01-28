@@ -27,6 +27,7 @@ COPTS = [
 cc_library(
     name = "common",
     hdrs = [
+        "bldc_servo_control.h",
         "bldc_servo_position.h",
         "bldc_servo_structs.h",
         "aux_common.h",
@@ -100,6 +101,7 @@ MOTEUS_SOURCES = [
     "moteus_assert.cc",
     "bldc_servo.h",
     "bldc_servo.cc",
+    "bldc_servo_control.h",
     "board_debug.h",
     "board_debug.cc",
     "bootloader.h",
@@ -208,6 +210,7 @@ genrule(
 cc_test(
     name = "test",
     srcs = [
+        "test/bldc_servo_control_test.cc",
         "test/bldc_servo_position_test.cc",
         "test/foc_test.cc",
         "test/math_test.cc",
