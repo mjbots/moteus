@@ -138,6 +138,33 @@ class SpmsmMotorSimulator {
   float i_d() const { return static_cast<float>(state_.i_d); }
   float i_q() const { return static_cast<float>(state_.i_q); }
 
+  // Phase currents (A, B, C) via inverse DQ transform at motor electrical angle.
+  // These can be fed into a DqTransform at a different angle (e.g., encoder)
+  // to get currents in that reference frame.
+  struct PhaseCurrent {
+    float a, b, c;
+  };
+
+  PhaseCurrent phase_currents() const {
+    const float theta = theta_electrical();
+    const float sin_t = std::sin(theta);
+    const float cos_t = std::cos(theta);
+    const float d = i_d();
+    const float q = i_q();
+
+    // Inverse Park transform: alpha-beta from d-q
+    const float i_alpha = cos_t * d - sin_t * q;
+    const float i_beta = sin_t * d + cos_t * q;
+
+    // Inverse Clarke transform: a-b-c from alpha-beta
+    constexpr float kSqrt3_2 = 0.86602540378f;
+    return PhaseCurrent{
+        i_alpha,
+        -0.5f * i_alpha + kSqrt3_2 * i_beta,
+        -0.5f * i_alpha - kSqrt3_2 * i_beta
+    };
+  }
+
   // Position in revolutions (mechanical), continuous (not wrapped).
   float position_rev() const {
     return static_cast<float>(state_.theta_mechanical / k2Pi_d);

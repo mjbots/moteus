@@ -355,6 +355,71 @@ class BldcServoControl {
     return Limit(in, self().rate_config_.min_pwm, self().rate_config_.max_pwm);
   }
 
+  /// Compute electrical theta, perform DQ transform, and calculate derived
+  /// quantities.
+  ///
+  /// If use_synthetic_theta is true, computes electrical theta from
+  /// control_position_raw (for fixed voltage mode, etc.).  Otherwise uses
+  /// position_.electrical_theta from the encoder.
+  ///
+  /// Sets: status_.electrical_theta, status_.sin, status_.cos,
+  ///       status_.d_A, status_.q_A, status_.torque_Nm, status_.motor_max_velocity
+  ///
+  /// Returns: SinCos for use by ISR_DoControl
+  SinCos ISR_CalculateDerivedQuantities(
+      float cur_a, float cur_b, float cur_c,
+      bool use_synthetic_theta) MOTEUS_CCM_ATTRIBUTE {
+    // Compute electrical theta.
+    const float electrical_theta = !use_synthetic_theta ?
+        self().position_.electrical_theta :
+        WrapZeroToTwoPi(
+            self().motor_position_config()->output.sign *
+            MotorPosition::IntToFloat(*self().status_.control_position_raw) /
+            self().motor_position_config()->rotor_to_output_ratio *
+            self().motor_.poles * 0.5f * kPi);
+    self().status_.electrical_theta = electrical_theta;
+
+    // Compute sin/cos for transforms.
+    const SinCos sin_cos = self().cordic(RadiansToQ31(electrical_theta));
+    self().status_.sin = sin_cos.s;
+    self().status_.cos = sin_cos.c;
+
+    // DQ transform from phase currents.
+    DqTransform dq{sin_cos, cur_a, cur_b, cur_c};
+    self().status_.d_A = dq.d;
+    self().status_.q_A = self().motor_position_config()->output.sign * dq.q;
+
+    // Calculate output torque from q-axis current.
+    const float rotor_to_output_ratio =
+        self().motor_position_config()->rotor_to_output_ratio;
+    const bool is_torque_on = torque_on();
+    self().status_.torque_Nm = is_torque_on ?
+        (current_to_torque(self().status_.q_A) / rotor_to_output_ratio) : 0.0f;
+    if (!is_torque_on) {
+      self().status_.torque_error_Nm = 0.0f;
+    }
+
+    // Calculate maximum achievable motor velocity based on bus voltage.
+    //
+    // As of firmware ABI 0x010a moteus records motor Kv values that
+    // correspond roughly with open loop oscilloscope measurements and
+    // motor manufacturer's ratings.  They don't perfectly correspond
+    // to the speed that can actually be achieved under control.  For
+    // stable control loops, we need to limit the maximum controlled
+    // velocity to be a modest amount under what is actually capable,
+    // which tends to be around 90% of the speed expected based on
+    // input voltage, Kv, and modulation depth alone.
+    constexpr float kVelocityMargin = 0.87f;
+
+    self().status_.motor_max_velocity =
+        rotor_to_output_ratio *
+        self().rate_config_.max_voltage_ratio *
+        kVelocityMargin * 0.5f * self().status_.filt_1ms_bus_V /
+        self().v_per_hz_;
+
+    return sin_cos;
+  }
+
   enum ClearMode {
     kClearIfMode,
     kAlwaysClear,

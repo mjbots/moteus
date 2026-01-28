@@ -165,9 +165,6 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     status_.filt_fet_temp_C = 25.0f;
     status_.max_power_W = 500.0f;
 
-    // This is normally calculated in ISR_CalculateCurrentState
-    status_.motor_max_velocity = 100.0f;
-
     // Disable timeouts by default
     status_.timeout_s = kNaN;
 
@@ -285,7 +282,6 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     // 6. Update reported values
     status_.position = position_.position;
     status_.velocity = position_.velocity;
-    status_.torque_Nm = current_to_torque(status_.q_A);
   }
 
   // Run simulation for a given duration.

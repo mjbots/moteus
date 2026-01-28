@@ -254,101 +254,17 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     CommandData* next = next_data_;
     *next = data;
 
-    if (next->timeout_s == 0.0f) {
-      next->timeout_s = config_.default_timeout_s;
-    }
-    if (std::isnan(next->velocity_limit)) {
-      next->velocity_limit = config_.default_velocity_limit;
-    } else if (next->velocity_limit < 0.0f) {
-      next->velocity_limit = std::numeric_limits<float>::quiet_NaN();
-    }
-    if (std::isnan(next->accel_limit)) {
-      next->accel_limit = config_.default_accel_limit;
-    } else if (next->accel_limit < 0.0f) {
-      next->accel_limit = std::numeric_limits<float>::quiet_NaN();
-    }
-    // If we are going to limit at all, ensure that we have a velocity
-    // limit, and that is is no more than the configured maximum
-    // velocity.
-    if (!std::isnan(next->velocity_limit) || !std::isnan(next->accel_limit)) {
-      if (std::isnan(next->velocity_limit)) {
-        next->velocity_limit = config_.max_velocity;
-      } else {
-        next->velocity_limit =
-            std::min(next->velocity_limit, config_.max_velocity);
-      }
-    }
-
-    // If we have a velocity command and velocity_limit, ensure that
-    // the command does not violate the limit.
-    if (!std::isnan(next->velocity_limit) &&
-        !std::isnan(next->velocity)) {
-      next->velocity = Limit(next->velocity,
-                             -next->velocity_limit,
-                             next->velocity_limit);
-    }
-
-    // Transform any position and stop_position command into the
-    // relative raw space.
-    const auto delta = static_cast<int64_t>(
-        motor_position_->absolute_relative_delta.load()) << 32ll;
-    if (!std::isnan(next->position)) {
-      next->position_relative_raw =
-          MotorPosition::FloatToInt(next->position) - delta;
-    } else {
-      next->position_relative_raw.reset();
-    }
-
-    if (!std::isnan(next->stop_position)) {
-      next->stop_position_relative_raw =
-          MotorPosition::FloatToInt(next->stop_position) - delta;
-    }
-
-    // If we have a case where the position is left unspecified, but
-    // we have a velocity and stop condition, then we pick the sign of
-    // the velocity so that we actually move.
-    if (!next->position_relative_raw &&
-        !!next->stop_position_relative_raw &&
-        !std::isnan(next->velocity) &&
-        next->velocity != 0.0f) {
-
-      next->velocity = std::abs(next->velocity) *
-          (((*next->stop_position_relative_raw -
-             position_.position_relative_raw) > 0) ?
-           1.0f : -1.0f);
-    }
+    // Apply defaults, transform positions, and validate the command.
+    errc err = PrepareCommand(next);
 
     telemetry_data_ = *next;
 
-    volatile auto* mode_volatile = &status_.mode;
-    volatile auto* fault_volatile = &status_.fault;
-
-    if (!!next->stop_position_relative_raw &&
-        (std::isfinite(next->accel_limit) ||
-         std::isfinite(next->velocity_limit))) {
-      // There is no valid use case for using a stop position along
-      // with an acceleration or velocity limit.
-      *fault_volatile = errc::kStopPositionDeprecated;
+    if (err != errc::kSuccess) {
+      volatile auto* mode_volatile = &status_.mode;
+      volatile auto* fault_volatile = &status_.fault;
+      *fault_volatile = err;
       *mode_volatile = kFault;
     }
-
-    if (config_.bemf_feedforward != 0.0f &&
-        !std::isfinite(next->accel_limit) &&
-        !config_.bemf_feedforward_override) {
-      // We normally don't allow bemf feedforward if an acceleration
-      // limit is not applied, as that can easily result in output
-      // currents exceeding any configured limits.  Even with limits,
-      // if they are non-realistic this can happen, but we're mostly
-      // trying to catch gross problems here.
-      *fault_volatile = errc::kBemfFeedforwardNoAccelLimit;
-      *mode_volatile = kFault;
-    }
-
-    // We pre-compute this here to save time in the ISR.
-    next->synthetic_theta =
-        config_.fixed_voltage_mode ||
-        !std::isnan(next->fixed_voltage_override) ||
-        !std::isnan(next->fixed_current_override);
 
     std::swap(current_data_, next_data_);
   }
@@ -906,23 +822,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     // the pointer for the rest of the routine.
     CommandData* data = current_data_;
 
-    const float electrical_theta = !data->synthetic_theta ?
-        position_.electrical_theta :
-        WrapZeroToTwoPi(
-            motor_position_config()->output.sign *
-            MotorPosition::IntToFloat(*status_.control_position_raw)
-            / motor_position_->config()->rotor_to_output_ratio
-            * motor_.poles
-            * 0.5f
-            * k2Pi);
-
-    status_.electrical_theta = electrical_theta;
-
-    SinCos sin_cos = cordic_(RadiansToQ31(electrical_theta));
-    status_.sin = sin_cos.s;
-    status_.cos = sin_cos.c;
-
-    ISR_CalculateCurrentState(sin_cos);
+    SinCos sin_cos = ISR_CalculateCurrentState(data->synthetic_theta);
 
     if (config_.fixed_voltage_mode) {
       // Don't pretend we know where we are.
@@ -1122,7 +1022,9 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   }
 
   // This is called from the ISR.
-  void ISR_CalculateCurrentState(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
+  //
+  // Returns the SinCos for use by ISR_DoControl.
+  SinCos ISR_CalculateCurrentState(bool use_synthetic_theta) MOTEUS_CCM_ATTRIBUTE {
     status_.cur1_A = (status_.adc_cur1_raw - status_.adc_cur1_offset) * adc_scale_;
     status_.cur2_A = (status_.adc_cur2_raw - status_.adc_cur2_offset) * adc_scale_;
     status_.cur3_A = (status_.adc_cur3_raw - status_.adc_cur3_offset) * adc_scale_;
@@ -1134,35 +1036,9 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     slow_bus_v_filter_(status_.bus_V, &status_.filt_bus_V);
     fast_bus_v_filter_(status_.bus_V, &status_.filt_1ms_bus_V);
 
-    DqTransform dq{sin_cos,
-          status_.cur1_A,
-          status_.cur3_A,
-          status_.cur2_A
-          };
-    status_.d_A = dq.d;
-    status_.q_A = motor_position_config()->output.sign * dq.q;
-    const bool is_torque_on = torque_on();
-    status_.torque_Nm = is_torque_on ? (
-        current_to_torque(status_.q_A) /
-        motor_position_->config()->rotor_to_output_ratio) : 0.0f;
-    if (!is_torque_on) {
-      status_.torque_error_Nm = 0.0f;
-    }
-
-    // As of firmware ABI 0x010a moteus records motor Kv values that
-    // correspond roughly with open loop oscilloscope measurements and
-    // motor manufacturer's ratings.  They don't perfectly correspond
-    // to the speed that can actually be achieved under control.  For
-    // stable control loops, we need to limit the maximum controlled
-    // velocity to be a modest amount under what is actually capable,
-    // which tends to be around 90% of the speed expected based on
-    // input voltage, Kv, and modulation depth alone.
-    constexpr float kVelocityMargin = 0.87f;
-
-    status_.motor_max_velocity =
-        motor_position_->config()->rotor_to_output_ratio *
-        rate_config_.max_voltage_ratio *
-        kVelocityMargin * 0.5f * status_.filt_1ms_bus_V / v_per_hz_;
+    const SinCos sin_cos = ISR_CalculateDerivedQuantities(
+        status_.cur1_A, status_.cur3_A, status_.cur2_A,
+        use_synthetic_theta);
 
     status_.max_power_W = [&]() {
       if (config_.override_board_max_power &&
@@ -1182,8 +1058,9 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       return std::min(config_.max_power_W, board_power_limit);
     }();
 #ifdef MOTEUS_EMIT_CURRENT_TO_DAC
-    DAC1->DHR12R1 = static_cast<uint32_t>(dq.d * 400.0f + 2048.0f);
+    DAC1->DHR12R1 = static_cast<uint32_t>(status_.d_A * 400.0f + 2048.0f);
 #endif
+    return sin_cos;
   }
 
   bool torque_on() const {
