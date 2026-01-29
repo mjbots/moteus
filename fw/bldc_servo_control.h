@@ -691,10 +691,19 @@ class BldcServoControl {
       const float scaled_d_power = used_d_power_W * scale;
       const float scaled_q_power = used_q_power_W * scale;
 
-      return std::make_tuple(
-          scaled_d_power / (1.5f * self().old_d_V_),
-          scaled_q_power / (1.5f * self().old_q_V_),
-          errc::kLimitMaxPower);
+      // Avoid division by zero when old voltage is 0. If voltage was 0,
+      // then power was 0, so scaled power is also 0, and we should keep
+      // the original current command.
+      const float i_d_limited =
+          (std::abs(self().old_d_V_) < 0.001f) ?
+          almost_i_d_A :
+          scaled_d_power / (1.5f * self().old_d_V_);
+      const float i_q_limited =
+          (std::abs(self().old_q_V_) < 0.001f) ?
+          almost_i_q_A :
+          scaled_q_power / (1.5f * self().old_q_V_);
+
+      return std::make_tuple(i_d_limited, i_q_limited, errc::kLimitMaxPower);
     }();
 
     self().control_.i_d_A = i_d_A;
