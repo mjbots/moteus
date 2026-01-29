@@ -403,6 +403,12 @@ class MotorPosition {
   Config* config() { return &config_; }
   BldcServoMotor* motor() { return &motor_; }
 
+  // Re-apply configuration and reset all position tracking state.
+  // Call after modifying config() to ensure changes take effect.
+  void ApplyConfig() {
+    HandleConfigUpdate();
+  }
+
   // The high 32 bits of (position - position_relative).
   std::atomic<int32_t> absolute_relative_delta;
 

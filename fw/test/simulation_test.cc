@@ -15,38 +15,20 @@
 #include <boost/test/auto_unit_test.hpp>
 
 #include <cmath>
+#include <string>
+
+#include "fmt/format.h"
 
 #include "fw/test/simulation_fixture.h"
 
 using namespace moteus;
 using namespace moteus::test;
 
-namespace {
-
-using moteus::test::kNaN;
-
-// Helper to check if a value is close to a target within tolerance
-bool IsClose(float actual, float expected, float tolerance) {
-  return std::abs(actual - expected) < tolerance;
-}
-
-}  // namespace
-
 BOOST_FIXTURE_TEST_SUITE(SimulationTests, SimulationFixture)
 
-// Test 1: Position hold at zero with zero velocity command
+// Position hold at zero with zero velocity command
 BOOST_AUTO_TEST_CASE(SimPositionHoldZeroVelocity) {
-  ctx.Reset();
-
-  // Command: position=0, velocity=0
-  BldcServoCommandData cmd;
-  cmd.mode = kPosition;
-  cmd.position = 0.0f;
-  cmd.velocity = 0.0f;
-  cmd.max_torque_Nm = 1.0f;
-  cmd.timeout_s = kNaN;
-
-  // Process command (applies defaults and transforms position)
+  auto cmd = MakePositionCommand(0.0f, 0.0f, 1.0f);
   ctx.Command(&cmd);
 
   // Run for 0.5 seconds to settle
@@ -63,18 +45,9 @@ BOOST_AUTO_TEST_CASE(SimPositionHoldZeroVelocity) {
       "Velocity error: expected ~0, got " << ctx.status_.velocity);
 }
 
-// Test 2: Position hold with external torque disturbance
+// Position hold with external torque disturbance
 BOOST_AUTO_TEST_CASE(SimPositionHoldWithExternalTorque) {
-  ctx.Reset();
-
-  // Command: position=0, velocity=0
-  BldcServoCommandData cmd;
-  cmd.mode = kPosition;
-  cmd.position = 0.0f;
-  cmd.velocity = 0.0f;
-  cmd.max_torque_Nm = 1.0f;
-  cmd.timeout_s = kNaN;
-
+  auto cmd = MakePositionCommand(0.0f, 0.0f, 1.0f);
   ctx.Command(&cmd);
 
   // First settle without disturbance
@@ -98,16 +71,9 @@ BOOST_AUTO_TEST_CASE(SimPositionHoldWithExternalTorque) {
           << ctx.status_.q_A);
 }
 
-// Test 3: Constant velocity tracking using trajectory generation
+// Constant velocity tracking using trajectory generation
 BOOST_AUTO_TEST_CASE(SimPositionConstantVelocity) {
-  ctx.Reset();
-
-  BldcServoCommandData cmd;
-  cmd.mode = kPosition;
-  cmd.position = kNaN;  // No position target
-  cmd.velocity = 1.0f;  // 1 rev/s target velocity
-  cmd.max_torque_Nm = 1.0f;
-  cmd.timeout_s = kNaN;
+  auto cmd = MakePositionCommand(kNaN, 1.0f, 1.0f);
   cmd.accel_limit = 10.0f;  // Accelerate at 10 rev/s^2
 
   ctx.Command(&cmd);
@@ -121,16 +87,9 @@ BOOST_AUTO_TEST_CASE(SimPositionConstantVelocity) {
       "Velocity tracking: expected ~1.0, got " << ctx.status_.velocity);
 }
 
-// Test 4: Constant velocity with load torque
+// Constant velocity with load torque
 BOOST_AUTO_TEST_CASE(SimPositionConstantVelocityWithLoad) {
-  ctx.Reset();
-
-  BldcServoCommandData cmd;
-  cmd.mode = kPosition;
-  cmd.position = kNaN;  // No position target
-  cmd.velocity = 0.5f;  // 0.5 rev/s target
-  cmd.max_torque_Nm = 1.0f;
-  cmd.timeout_s = kNaN;
+  auto cmd = MakePositionCommand(kNaN, 0.5f, 1.0f);
   cmd.accel_limit = 10.0f;
 
   ctx.Command(&cmd);
@@ -150,18 +109,10 @@ BOOST_AUTO_TEST_CASE(SimPositionConstantVelocityWithLoad) {
       "Velocity with load: expected ~0.5, got " << ctx.status_.velocity);
 }
 
-// Test 5: Step response to position command with trajectory generation
+// Step response to position command with trajectory generation
 BOOST_AUTO_TEST_CASE(SimPositionStepResponse) {
-  ctx.Reset();
-
   // First hold at 0
-  BldcServoCommandData cmd;
-  cmd.mode = kPosition;
-  cmd.position = 0.0f;
-  cmd.velocity = 0.0f;
-  cmd.max_torque_Nm = 1.0f;
-  cmd.timeout_s = kNaN;
-
+  auto cmd = MakePositionCommand(0.0f, 0.0f, 1.0f);
   ctx.Command(&cmd);
   ctx.RunSimulation(&cmd, 0.1f);
 
@@ -185,17 +136,9 @@ BOOST_AUTO_TEST_CASE(SimPositionStepResponse) {
       "Velocity after step: expected ~0, got " << ctx.status_.velocity);
 }
 
-// Test 6: Position move with velocity limit
+// Position move with velocity limit
 BOOST_AUTO_TEST_CASE(SimPositionWithVelocityLimit) {
-  ctx.Reset();
-
-  BldcServoCommandData cmd;
-  cmd.mode = kPosition;
-  cmd.position = 0.0f;
-  cmd.velocity = 0.0f;
-  cmd.max_torque_Nm = 1.0f;
-  cmd.timeout_s = kNaN;
-
+  auto cmd = MakePositionCommand(0.0f, 0.0f, 1.0f);
   ctx.Command(&cmd);
   ctx.RunSimulation(&cmd, 0.1f);
 
@@ -308,7 +251,7 @@ BOOST_AUTO_TEST_CASE(SimVelocityAcrossBusVoltages) {
   // approximately 4.1 rev/s per volt of bus voltage. This matches
   // real hardware measurements (71 Hz at 18V).
   const VoltageTest tests[] = {
-      {18.0f, 73.6f},   // 18V: user reports 71 rev/s
+      {18.0f, 73.6f},   // 18V
       {24.0f, 98.2f},   // 24V
       {36.0f, 148.0f},  // 36V
   };
@@ -317,23 +260,15 @@ BOOST_AUTO_TEST_CASE(SimVelocityAcrossBusVoltages) {
     ctx.Reset();
 
     // Set bus voltage
-    ctx.bus_voltage_ = test.bus_voltage;
-    ctx.status_.filt_bus_V = test.bus_voltage;
-    ctx.status_.filt_1ms_bus_V = test.bus_voltage;
-    ctx.status_.bus_V = test.bus_voltage;
+    ctx.SetBusVoltage(test.bus_voltage);
 
     // Increase max_velocity so it's not a limiting factor
     ctx.config_.max_velocity = 1000.0f;
 
     // Command: velocity = 500 Hz (above what any voltage can achieve)
     // with slow acceleration to avoid transients
-    BldcServoCommandData cmd;
-    cmd.mode = kPosition;
-    cmd.position = kNaN;  // No position target
-    cmd.velocity = 500.0f;  // 500 rev/s target (will be voltage-limited)
-    cmd.max_torque_Nm = 5.0f;  // Allow high torque for acceleration
-    cmd.timeout_s = kNaN;
-    cmd.accel_limit = 50.0f;  // 50 rev/s^2 acceleration
+    auto cmd = MakePositionCommand(kNaN, 500.0f, 5.0f);
+    cmd.accel_limit = 100.0f;  // 50 rev/s^2 acceleration
 
     ctx.Command(&cmd);
 
@@ -356,27 +291,17 @@ BOOST_AUTO_TEST_CASE(SimVelocityAcrossBusVoltages) {
       q_A_samples.push_back(ctx.status_.q_A);
     }
 
-    // Helper to calculate mean and stddev
-    auto calc_stats = [](const std::vector<float>& samples)
-        -> std::pair<float, float> {
-      float sum = 0.0f;
-      for (float v : samples) {
-        sum += v;
-      }
-      const float mean = sum / samples.size();
+    // Use CalcStats helper from fixture
+    const Stats vel_stats = CalcStats(velocity_samples);
+    const Stats d_A_stats = CalcStats(d_A_samples);
+    const Stats q_A_stats = CalcStats(q_A_samples);
 
-      float variance_sum = 0.0f;
-      for (float v : samples) {
-        const float diff = v - mean;
-        variance_sum += diff * diff;
-      }
-      const float std_dev = std::sqrt(variance_sum / samples.size());
-      return {mean, std_dev};
-    };
-
-    const auto [mean_velocity, vel_std_dev] = calc_stats(velocity_samples);
-    const auto [mean_d_A, d_A_std_dev] = calc_stats(d_A_samples);
-    const auto [mean_q_A, q_A_std_dev] = calc_stats(q_A_samples);
+    const float mean_velocity = vel_stats.mean;
+    const float vel_std_dev = vel_stats.std_dev;
+    const float mean_d_A = d_A_stats.mean;
+    const float d_A_std_dev = d_A_stats.std_dev;
+    const float mean_q_A = q_A_stats.mean;
+    const float q_A_std_dev = q_A_stats.std_dev;
 
     // Diagnostic output
     std::cout << "Bus " << test.bus_voltage << "V: "

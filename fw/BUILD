@@ -215,9 +215,6 @@ cc_test(
         "test/foc_test.cc",
         "test/math_test.cc",
         "test/motor_position_test.cc",
-        "test/simulation_fixture.h",
-        "test/simulation_test.cc",
-        "test/spmsm_motor_simulator.h",
         "test/stm32_i2c_timing_test.cc",
         "test/bissc_extract_test.cc",
         "test/torque_model_test.cc",
@@ -233,6 +230,24 @@ cc_test(
         "@com_github_mjbots_mjlib//mjlib/micro:test_fixtures",
     ],
     size = "small",
+)
+
+cc_test(
+    name = "slow_test",
+    srcs = [
+        "test/simulation_fixture.h",
+        "test/simulation_dynamometer_test.cc",
+        "test/simulation_test.cc",
+        "test/spmsm_motor_simulator.h",
+        "test/test_main.cc",
+    ],
+    deps = [
+        ":common",
+        "@boost//:test",
+        "@fmt",
+        "@com_github_mjbots_mjlib//mjlib/micro:test_fixtures",
+    ],
+    size = "medium",
 )
 
 cc_binary(
@@ -332,6 +347,7 @@ test_suite(
     name = "host",
     tests = [
         "test",
+        "slow_test",
         "dummy_host_test",
         "hall_regression_test",
         "encoder_bw_regression_test",
