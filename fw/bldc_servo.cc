@@ -147,7 +147,7 @@ class ExponentialFilter {
         one_minus_alpha_(1.0f - alpha_) {}
 
   void operator()(float input, float* filtered) {
-    if (std::isnan(*filtered)) {
+    if (!std::isfinite(*filtered)) {
       *filtered = input;
     } else {
       *filtered = alpha_ * input + one_minus_alpha_ * *filtered;
