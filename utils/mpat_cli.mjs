@@ -1,12 +1,21 @@
 #!/usr/bin/env node
 
+// Copyright 2025 mjbots Robotic Systems, LLC.  info@mjbots.com
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // CLI tool for moteus Performance Analysis Tool
 // Uses the core computation logic extracted from docs/mpat.html
-//
-// Usage examples:
-//   ./mpat_cli.mjs --help
-//   ./mpat_cli.mjs --analysis max_torque --controller moteus-x1 --motor mj5208 --voltage 48 --velocity 10
-//   ./mpat_cli.mjs --analysis operating_point --controller moteus-n1 --voltage 24 --torque 0.5 --velocity 5
 
 import {
     fieldDefinitions,
@@ -192,18 +201,18 @@ Output Options:
 
 Examples:
   # Maximum torque at 10 Hz with moteus-x1 and mj5208 at 48V
-  ./mpat_cli.mjs --analysis max_torque --controller moteus-x1 --motor mj5208 \\
-                 --voltage 48 --velocity 10
+  ./mpat.py --analysis max_torque --controller moteus-x1 --motor mj5208 \\
+            --voltage 48 --velocity 10
 
   # Operating point analysis
-  ./mpat_cli.mjs --analysis operating_point --controller moteus-n1 --motor mad8318 \\
-                 --voltage 24 --torque 0.5 --velocity 5
+  ./mpat.py --analysis operating_point --controller moteus-n1 --motor mad8318 \\
+            --voltage 24 --torque 0.5 --velocity 5
 
   # Custom motor model
-  ./mpat_cli.mjs --analysis max_torque --controller moteus-x1 --motor model \\
-                 --motor.kv 200 --motor.r 0.05 --motor.l 0.00001 \\
-                 --motor.thermal_r 1.0 --motor.thermal_c 100 \\
-                 --voltage 48 --velocity 10
+  ./mpat.py --analysis max_torque --controller moteus-x1 --motor model \\
+            --motor.kv 200 --motor.r 0.05 --motor.l 0.00001 \\
+            --motor.thermal_r 1.0 --motor.thermal_c 100 \\
+            --voltage 48 --velocity 10
 `);
 }
 
