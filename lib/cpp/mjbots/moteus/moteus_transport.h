@@ -16,9 +16,11 @@
 
 #include <fcntl.h>
 #include <glob.h>
+#ifdef __linux__
 #include <linux/can.h>
 #include <linux/can/raw.h>
 #include <linux/serial.h>
+#endif
 #include <net/if.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -397,7 +399,13 @@ class TimeoutTransport : public Transport {
       tmo.tv_sec = to_sleep_ns / 1000000000;
       tmo.tv_nsec = to_sleep_ns % 1000000000;
 
+
+#ifdef __APPLE__
+      const int poll_ret = ::poll(&fds[0], 1, static_cast<int>(to_sleep_ns / 1000000));
+#else
       const int poll_ret = ::ppoll(&fds[0], 1, &tmo, nullptr);
+#endif
+
       if (poll_ret < 0) {
         if (errno == EINTR) {
           // Go back and try again.
@@ -513,7 +521,7 @@ class Fdcanusb : public details::TimeoutTransport {
     const int fd = ::open(device.c_str(), O_RDWR | O_NOCTTY);
     FailIfErrno(fd == -1);
 
-#ifndef _WIN32
+#ifdef __linux__
     {
       struct serial_struct serial;
       FailIfErrno(::ioctl(fd, TIOCGSERIAL, &serial) < 0);
@@ -531,7 +539,16 @@ class Fdcanusb : public details::TimeoutTransport {
       FailIfErrno(::tcsetattr(fd, TCSANOW, &toptions) < 0);
       FailIfErrno(::tcsetattr(fd, TCSAFLUSH, &toptions) < 0);
     }
-#else  // _WIN32
+#elif __APPLE__
+    {
+      termios toptions{};
+      FailIfErrno(::tcgetattr(fd, &toptions) < 0);
+      toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+      toptions.c_oflag &= ~OPOST;
+      FailIfErrno(::tcsetattr(fd, TCSANOW, &toptions) < 0);
+      FailIfErrno(::tcsetattr(fd, TCSAFLUSH, &toptions) < 0);
+    }
+#elif _WIN32
     {
       // Windows is likely broken for many other reasons, but if we do
       // fix all the other problems, this will be necessary.
