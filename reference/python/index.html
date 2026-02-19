@@ -21,7 +21,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
     
     
       
@@ -2340,6 +2340,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#moteusmove_to" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        moteus.move_to
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#moteusmake_transport_args" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3544,6 +3555,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moteusmove_to" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        moteus.move_to
+      
+    </span>
+  </a>
   
 </li>
       
@@ -4902,6 +4924,291 @@ bit being pin 0.</p>
 
 
   </div>
+
+    </div>
+
+</div><h2 id="moteusmove_to">moteus.move_to<a class="headerlink" href="#moteusmove_to" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+
+    <div class="doc doc-contents first">
+
+        <p>Move servos to setpoint positions and wait for all to complete.</p>
+<p>This function provides a simple way to move one or more servos to
+setpoint positions and wait until all trajectories are complete.</p>
+<p>Can be called two ways:</p>
+
+
+<details class="single-servo" open>
+  <summary>Single servo</summary>
+  <p>await move_to(controller, position=0.5, duration=1.0)</p>
+</details>
+
+<details class="multiple-servos" open>
+  <summary>Multiple servos</summary>
+  <p>await move_to([
+    (controller1, 0.5),
+    (controller2, -0.3),
+], duration=2.0)</p>
+</details>        <p>The setpoint can be a plain number (position), math.nan (hold position),
+or a Setpoint object for additional control:</p>
+<div class="language-text highlight"><pre><span></span><code>await move_to([
+    (c1, 0.5),                                   # Just position
+    (c2, Setpoint(position=-0.3, velocity=0.1)),   # With velocity
+    (c3, Setpoint(position=0.0, kp_scale=0.5)),    # With reduced kp
+    (c4, math.nan),                              # Hold position
+])
+</code></pre></div>
+<p>Servos with math.nan as their setpoint position will be commanded to
+hold their current position (position=nan keeps the current
+setpoint) but will not be waited on for completion. This is useful
+when you need to move a subset of servos while keeping others
+active.</p>
+<p>If a duration is specified, then approximate velocity limits will
+be used to attempt to have all servos reach trajectory completion
+at the same time.  However, this does not account for any possible
+configured or specified acceleration limit or starting velocity,
+so the actual completion times may still be quite far apart.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>setpoints</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of (Controller, setpoint) tuples for multi-servo, or
+       single Controller for single-servo case. The setpoint can be
+       a number, math.nan, or a Setpoint object.</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>position</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Setpoint position (required for single-servo case)</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>transport</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Optional transport, inferred from controllers if absent</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>duration</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If specified, velocity limits are calculated so all
+        servos complete in approximately this time. This
+        overrides both the global velocity_limit and any
+        Setpoint velocity_limit.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>velocity_limit</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Default velocity limit for servos without a
+              Setpoint velocity_limit. Setpoint values override
+              this.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>accel_limit</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Default acceleration limit. Setpoint values override
+           this.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>maximum_torque</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Default maximum torque limit. Setpoint values
+              override this.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>period_s</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Polling interval for checking completion (default
+        0.025s)</p>
+              </div>
+            </td>
+            <td>
+                  <code>0.025</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>timeout</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum time to wait (raises TimeoutError if exceeded)</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>For single-servo case: the final Result object</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>For multi-servo case: List of (Controller, final_Result) tuples
+                      in same order as input</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+<p><span class="doc-section-title">Raises:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="moteus.moteus.FaultError">FaultError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If any servo enters fault or timeout mode</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="asyncio.TimeoutError">TimeoutError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If timeout exceeded</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="ValueError">ValueError</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>If position is not provided for single-servo case</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
 
     </div>
 
