@@ -39,14 +39,14 @@
 //!
 //! # Approach 2: With any CLI parser
 //!
-//! Use [`TRANSPORT_ARG_SPECS`] to generate arguments for any parser,
+//! Use [`transport_arg_specs()`] to generate arguments for any parser,
 //! then pass results to [`TransportOptions::from_pairs()`]:
 //!
 //! ```
-//! use moteus::transport::args::{TRANSPORT_ARG_SPECS, ArgType};
+//! use moteus::transport::args::{transport_arg_specs, ArgType};
 //!
-//! // Print what arguments are available
-//! for spec in TRANSPORT_ARG_SPECS {
+//! // Print what arguments are available (includes registered factory args)
+//! for spec in transport_arg_specs() {
 //!     println!("--{}: {} ({:?})", spec.name, spec.help, spec.arg_type);
 //! }
 //! ```
@@ -55,11 +55,11 @@
 //!
 //! ```ignore
 //! use clap::{Arg, ArgAction, Command};
-//! use moteus::transport::args::{TRANSPORT_ARG_SPECS, ArgType};
+//! use moteus::transport::args::{transport_arg_specs, ArgType};
 //! use moteus::TransportOptions;
 //!
 //! let mut cmd = Command::new("myapp");
-//! for spec in TRANSPORT_ARG_SPECS {
+//! for spec in transport_arg_specs() {
 //!     cmd = cmd.arg(spec.to_clap_arg());
 //! }
 //! let matches = cmd.get_matches();
@@ -128,24 +128,8 @@ impl ArgSpec {
     }
 }
 
-/// Specifications for all transport-related command-line arguments.
-///
-/// Use this to programmatically generate CLI arguments for any parser.
-pub static TRANSPORT_ARG_SPECS: &[ArgSpec] = &[
-    ArgSpec {
-        name: "fdcanusb",
-        help: "Path to fdcanusb device (can be specified multiple times)",
-        arg_type: ArgType::MultiString,
-        default: None,
-        possible_values: None,
-    },
-    ArgSpec {
-        name: "can-chan",
-        help: "SocketCAN interface (can be specified multiple times)",
-        arg_type: ArgType::MultiString,
-        default: None,
-        possible_values: None,
-    },
+/// Common transport arguments not owned by any specific factory.
+pub static COMMON_ARG_SPECS: &[ArgSpec] = &[
     ArgSpec {
         name: "can-disable-brs",
         help: "Disable CAN-FD bit rate switching",
@@ -158,7 +142,7 @@ pub static TRANSPORT_ARG_SPECS: &[ArgSpec] = &[
         help: "Force specific transport type",
         arg_type: ArgType::String,
         default: None,
-        possible_values: Some(&["fdcanusb", "socketcan"]),
+        possible_values: None,
     },
     ArgSpec {
         name: "timeout-ms",
@@ -169,11 +153,28 @@ pub static TRANSPORT_ARG_SPECS: &[ArgSpec] = &[
     },
 ];
 
+/// Get all transport-related argument specifications.
+///
+/// Returns the common args plus args from all registered transport factories.
+/// This is dynamic: if external factories have been registered via
+/// [`register()`](super::factory::register), their arg specs are included.
+pub fn transport_arg_specs() -> Vec<ArgSpec> {
+    use super::factory::get_factories;
+
+    let mut specs: Vec<ArgSpec> = COMMON_ARG_SPECS.to_vec();
+    for factory in get_factories() {
+        specs.extend(factory.arg_specs());
+    }
+    specs
+}
+
 impl TransportOptions {
     /// Create transport options from clap ArgMatches.
     ///
     /// This works with arguments created via [`ArgSpec::to_clap_arg()`] or
     /// any clap arguments using the standard transport argument names.
+    /// Arguments from registered external factories are extracted into
+    /// the `extra` field.
     #[cfg(feature = "clap")]
     pub fn from_arg_matches(matches: &clap::ArgMatches) -> std::result::Result<Self, String> {
         let mut opts = TransportOptions::new();
@@ -200,16 +201,49 @@ impl TransportOptions {
                 .map_err(|_| format!("invalid timeout: {}", value))?;
         }
 
+        // Extract registered factory args into extra
+        for factory in super::factory::get_factories() {
+            for spec in factory.arg_specs() {
+                // Skip args we already handled above
+                if matches!(spec.name, "fdcanusb" | "can-chan") {
+                    continue;
+                }
+                match spec.arg_type {
+                    ArgType::MultiString => {
+                        if let Some(values) = matches.get_many::<String>(spec.name) {
+                            let vals: Vec<String> = values.cloned().collect();
+                            if !vals.is_empty() {
+                                opts.extra.insert(spec.name.to_string(), vals);
+                            }
+                        }
+                    }
+                    ArgType::Bool => {
+                        if matches.get_flag(spec.name) {
+                            opts.extra
+                                .insert(spec.name.to_string(), vec!["true".to_string()]);
+                        }
+                    }
+                    ArgType::String | ArgType::Integer => {
+                        if let Some(value) = matches.get_one::<String>(spec.name) {
+                            opts.extra
+                                .insert(spec.name.to_string(), vec![value.clone()]);
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(opts)
     }
 }
 
 /// Add all transport arguments to a clap Command.
 ///
-/// This is a convenience function for clap's builder API.
+/// This is a convenience function for clap's builder API. It includes
+/// common args plus args from all registered transport factories.
 #[cfg(feature = "clap")]
 pub fn add_transport_args(mut cmd: clap::Command) -> clap::Command {
-    for spec in TRANSPORT_ARG_SPECS {
+    for spec in transport_arg_specs() {
         cmd = cmd.arg(spec.to_clap_arg());
     }
     cmd
@@ -218,7 +252,11 @@ pub fn add_transport_args(mut cmd: clap::Command) -> clap::Command {
 /// Command-line arguments for transport configuration.
 ///
 /// This struct can be used with clap's derive API via `#[command(flatten)]`.
-/// For the builder API, use [`TRANSPORT_ARG_SPECS`] and [`add_transport_args()`].
+/// For the builder API, use [`transport_arg_specs()`] and [`add_transport_args()`].
+///
+/// Note: This covers built-in transport args only. External factory args
+/// should be handled via [`TransportOptions::from_arg_matches()`] or
+/// [`TransportOptions::from_pairs()`] with the builder API.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "clap", derive(clap::Args))]
 pub struct TransportArgs {
@@ -234,8 +272,8 @@ pub struct TransportArgs {
     #[cfg_attr(feature = "clap", arg(long = "can-disable-brs"))]
     pub can_disable_brs: bool,
 
-    /// Force specific transport type (fdcanusb or socketcan).
-    #[cfg_attr(feature = "clap", arg(long = "force-transport", value_parser = ["fdcanusb", "socketcan"]))]
+    /// Force specific transport type.
+    #[cfg_attr(feature = "clap", arg(long = "force-transport"))]
     pub force_transport: Option<String>,
 
     /// Communication timeout in milliseconds.
@@ -260,6 +298,7 @@ impl TransportArgs {
             disable_brs: self.can_disable_brs,
             force_transport: self.force_transport,
             timeout_ms: self.timeout_ms,
+            extra: Default::default(),
         }
     }
 }
@@ -303,19 +342,30 @@ mod tests {
     }
 
     #[test]
-    fn test_arg_specs_complete() {
-        // Verify all expected args are present
-        let names: Vec<_> = TRANSPORT_ARG_SPECS.iter().map(|s| s.name).collect();
-        assert!(names.contains(&"fdcanusb"));
-        assert!(names.contains(&"can-chan"));
+    fn test_common_arg_specs_complete() {
+        let names: Vec<_> = COMMON_ARG_SPECS.iter().map(|s| s.name).collect();
         assert!(names.contains(&"can-disable-brs"));
         assert!(names.contains(&"force-transport"));
         assert!(names.contains(&"timeout-ms"));
     }
 
     #[test]
+    fn test_transport_arg_specs_includes_factory_args() {
+        let specs = transport_arg_specs();
+        let names: Vec<_> = specs.iter().map(|s| s.name).collect();
+        // Common args
+        assert!(names.contains(&"can-disable-brs"));
+        assert!(names.contains(&"force-transport"));
+        assert!(names.contains(&"timeout-ms"));
+        // Factory-provided args
+        assert!(names.contains(&"fdcanusb"));
+        assert!(names.contains(&"can-chan"));
+    }
+
+    #[test]
     fn test_arg_specs_types() {
-        for spec in TRANSPORT_ARG_SPECS {
+        let specs = transport_arg_specs();
+        for spec in &specs {
             match spec.name {
                 "fdcanusb" | "can-chan" => {
                     assert_eq!(spec.arg_type, ArgType::MultiString);
@@ -325,13 +375,12 @@ mod tests {
                 }
                 "force-transport" => {
                     assert_eq!(spec.arg_type, ArgType::String);
-                    assert!(spec.possible_values.is_some());
                 }
                 "timeout-ms" => {
                     assert_eq!(spec.arg_type, ArgType::Integer);
                     assert_eq!(spec.default, Some("100"));
                 }
-                _ => panic!("unexpected arg: {}", spec.name),
+                _ => {} // External factory args - don't panic
             }
         }
     }
