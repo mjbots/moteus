@@ -16,8 +16,18 @@
 //!
 //! This module provides the factory pattern for creating transport devices
 //! from different backends (fdcanusb, socketcan, etc.).
+//!
+//! External crates can register additional factories via [`register()`]:
+//!
+//! ```rust,ignore
+//! moteus::transport::factory::register(Box::new(MyFactory));
+//! ```
+
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 use crate::error::Result;
+use crate::transport::args::ArgSpec;
 use crate::transport::device::TransportDevice;
 
 /// Default communication timeout in milliseconds.
@@ -36,6 +46,12 @@ pub struct TransportOptions {
     pub force_transport: Option<String>,
     /// Communication timeout in milliseconds.
     pub timeout_ms: u32,
+    /// Extra transport-specific options for external factories.
+    ///
+    /// Keys are argument names, values are lists of values (to support
+    /// multi-value arguments). Built-in factories ignore this field;
+    /// external factories read from it.
+    pub extra: HashMap<String, Vec<String>>,
 }
 
 impl TransportOptions {
@@ -80,18 +96,29 @@ impl TransportOptions {
         self
     }
 
+    /// Set an extra transport-specific option.
+    pub fn extra(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.extra
+            .entry(key.into())
+            .or_default()
+            .push(value.into());
+        self
+    }
+
     /// Parse transport options from key-value pairs.
     ///
     /// This method allows creating transport options from any CLI parser by
     /// converting parsed arguments to key-value pairs. Keys match the standard
     /// command-line argument names (without leading dashes).
     ///
+    /// Unknown keys are stored in the `extra` field for external factories.
+    ///
     /// # Supported Keys
     ///
     /// - `fdcanusb`: Path to fdcanusb device (can appear multiple times)
     /// - `can-chan`: SocketCAN interface name (can appear multiple times)
     /// - `can-disable-brs`: "true" to disable CAN-FD bit rate switching
-    /// - `force-transport`: "fdcanusb" or "socketcan"
+    /// - `force-transport`: Transport type name (validated against registered factories)
     /// - `timeout-ms`: Communication timeout in milliseconds
     ///
     /// # Example
@@ -116,9 +143,6 @@ impl TransportOptions {
                 "can-chan" => opts.socketcan_interfaces.push(value.to_string()),
                 "can-disable-brs" => opts.disable_brs = value == "true",
                 "force-transport" => {
-                    if value != "fdcanusb" && value != "socketcan" {
-                        return Err(format!("invalid transport: {}", value));
-                    }
                     opts.force_transport = Some(value.to_string());
                 }
                 "timeout-ms" => {
@@ -126,7 +150,12 @@ impl TransportOptions {
                         .parse()
                         .map_err(|_| format!("invalid timeout: {}", value))?;
                 }
-                _ => return Err(format!("unknown option: {}", key)),
+                _ => {
+                    opts.extra
+                        .entry(key.to_string())
+                        .or_default()
+                        .push(value.to_string());
+                }
             }
         }
         Ok(opts)
@@ -136,12 +165,23 @@ impl TransportOptions {
 /// A factory for creating transport devices.
 ///
 /// Factories are tried in priority order (lower numbers first).
+/// External crates implement this trait and call [`register()`] to
+/// add themselves to the auto-detection flow.
 pub trait TransportFactory: Send + Sync {
     /// The priority of this factory (lower = tried first).
     fn priority(&self) -> u32;
 
     /// The name of this transport type.
     fn name(&self) -> &'static str;
+
+    /// Command-line argument specifications for this factory.
+    ///
+    /// Override this to declare factory-specific CLI arguments. These are
+    /// included by [`transport_arg_specs()`](super::args::transport_arg_specs)
+    /// and [`add_transport_args()`](super::args::add_transport_args).
+    fn arg_specs(&self) -> Vec<ArgSpec> {
+        Vec::new()
+    }
 
     /// Create transport devices using this factory.
     ///
@@ -167,6 +207,17 @@ impl TransportFactory for FdcanusbFactory {
 
     fn name(&self) -> &'static str {
         "fdcanusb"
+    }
+
+    fn arg_specs(&self) -> Vec<ArgSpec> {
+        use crate::transport::args::ArgType;
+        vec![ArgSpec {
+            name: "fdcanusb",
+            help: "Path to fdcanusb device (can be specified multiple times)",
+            arg_type: ArgType::MultiString,
+            default: None,
+            possible_values: None,
+        }]
     }
 
     #[cfg(target_os = "linux")]
@@ -232,6 +283,17 @@ impl TransportFactory for SocketCanFactory {
         "socketcan"
     }
 
+    fn arg_specs(&self) -> Vec<ArgSpec> {
+        use crate::transport::args::ArgType;
+        vec![ArgSpec {
+            name: "can-chan",
+            help: "SocketCAN interface (can be specified multiple times)",
+            arg_type: ArgType::MultiString,
+            default: None,
+            possible_values: None,
+        }]
+    }
+
     #[cfg(target_os = "linux")]
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
         use crate::transport::discovery::detect_socketcan_interfaces;
@@ -267,7 +329,49 @@ impl TransportFactory for SocketCanFactory {
     }
 }
 
-/// Get all available transport factories.
+// -- Global transport factory registry --
+
+static REGISTRY: OnceLock<Mutex<Vec<Box<dyn TransportFactory>>>> = OnceLock::new();
+
+fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
+    REGISTRY.get_or_init(|| {
+        Mutex::new(vec![
+            Box::new(FdcanusbFactory),
+            Box::new(SocketCanFactory),
+        ])
+    })
+}
+
+/// Register an external transport factory.
+///
+/// The factory will be included in all subsequent calls to
+/// [`get_factories()`], [`create_transports()`], and singleton creation.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use moteus::transport::factory::{register, TransportFactory, TransportOptions};
+///
+/// struct Pi3HatFactory;
+/// impl TransportFactory for Pi3HatFactory {
+///     fn priority(&self) -> u32 { 5 }
+///     fn name(&self) -> &'static str { "pi3hat" }
+///     fn create(&self, opts: &TransportOptions) -> moteus::Result<Vec<Box<dyn TransportDevice>>> {
+///         // ...
+///     }
+/// }
+///
+/// register(Box::new(Pi3HatFactory));
+/// ```
+pub fn register(factory: Box<dyn TransportFactory>) {
+    get_registry().lock().unwrap().push(factory);
+}
+
+/// Get the built-in transport factories.
+///
+/// Returns fresh instances of the built-in factories. For the full set
+/// of registered factories (including external ones), use
+/// [`create_transports()`] which reads the global registry.
 pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
     vec![
         Box::new(FdcanusbFactory::new()),
@@ -275,7 +379,7 @@ pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
     ]
 }
 
-/// Create transport devices using all available factories.
+/// Create transport devices using all registered factories.
 ///
 /// This is the main entry point for creating transports with auto-discovery.
 /// It tries each factory in priority order and returns all successfully created
@@ -286,24 +390,25 @@ pub fn create_transports(
 ) -> Result<Vec<Box<dyn TransportDevice>>> {
     use std::collections::HashSet;
 
-    let mut factories = get_factories();
+    let registry = get_registry().lock().unwrap();
 
-    // Sort by priority
-    factories.sort_by_key(|f| f.priority());
+    // Collect priorities and filter/sort
+    let mut indices: Vec<usize> = (0..registry.len()).collect();
+    indices.sort_by_key(|&i| registry[i].priority());
 
     // Filter by forced transport if specified
     if let Some(ref force) = options.force_transport {
-        factories.retain(|f| f.name() == force.as_str());
+        indices.retain(|&i| registry[i].name() == force.as_str());
     }
 
     let mut all_devices = Vec::new();
     let mut fdcanusb_serials: HashSet<String> = HashSet::new();
 
-    for factory in &factories {
-        match factory.create(options) {
+    for &idx in &indices {
+        match registry[idx].create(options) {
             Ok(devices) => {
                 // Track fdcanusb serial numbers for deduplication
-                if factory.name() == "fdcanusb" {
+                if registry[idx].name() == "fdcanusb" {
                     for device in &devices {
                         if let Some(serial) = device.info().serial_number.as_ref() {
                             fdcanusb_serials.insert(serial.clone());
@@ -315,6 +420,9 @@ pub fn create_transports(
             Err(_) => continue,
         }
     }
+
+    // Drop the lock before doing more work
+    drop(registry);
 
     // Deduplicate: remove socketcan interfaces that are backed by fdcanusb
     // devices we're already using via CDC serial
@@ -367,6 +475,18 @@ mod tests {
     }
 
     #[test]
+    fn test_transport_options_extra() {
+        let opts = TransportOptions::new()
+            .extra("pi3hat-cfg", "1=1,2")
+            .extra("pi3hat-cfg", "3=3,4");
+
+        assert_eq!(
+            opts.extra.get("pi3hat-cfg").unwrap(),
+            &vec!["1=1,2".to_string(), "3=3,4".to_string()]
+        );
+    }
+
+    #[test]
     fn test_factory_priorities() {
         let fdcanusb = FdcanusbFactory::new();
         let socketcan = SocketCanFactory::new();
@@ -375,11 +495,23 @@ mod tests {
     }
 
     #[test]
+    fn test_factory_arg_specs() {
+        let fdcanusb = FdcanusbFactory::new();
+        let specs = fdcanusb.arg_specs();
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].name, "fdcanusb");
+
+        let socketcan = SocketCanFactory::new();
+        let specs = socketcan.arg_specs();
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].name, "can-chan");
+    }
+
+    #[test]
     fn test_get_factories() {
         let factories = get_factories();
         assert!(!factories.is_empty());
 
-        // Verify they are sorted by priority implicitly
         let names: Vec<_> = factories.iter().map(|f| f.name()).collect();
         assert!(names.contains(&"fdcanusb"));
         assert!(names.contains(&"socketcan"));
@@ -421,10 +553,28 @@ mod tests {
     }
 
     #[test]
-    fn test_from_pairs_invalid_transport() {
-        let result = TransportOptions::from_pairs([("force-transport", "invalid")]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("invalid transport"));
+    fn test_from_pairs_unknown_key_goes_to_extra() {
+        let opts = TransportOptions::from_pairs([
+            ("pi3hat-cfg", "1=1,2"),
+            ("custom-opt", "value"),
+        ])
+        .unwrap();
+        assert_eq!(
+            opts.extra.get("pi3hat-cfg").unwrap(),
+            &vec!["1=1,2".to_string()]
+        );
+        assert_eq!(
+            opts.extra.get("custom-opt").unwrap(),
+            &vec!["value".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_from_pairs_force_transport_any_value() {
+        // force-transport now accepts any value (validated dynamically at creation time)
+        let opts =
+            TransportOptions::from_pairs([("force-transport", "pi3hat")]).unwrap();
+        assert_eq!(opts.force_transport, Some("pi3hat".to_string()));
     }
 
     #[test]
@@ -432,12 +582,5 @@ mod tests {
         let result = TransportOptions::from_pairs([("timeout-ms", "not_a_number")]);
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("invalid timeout"));
-    }
-
-    #[test]
-    fn test_from_pairs_unknown_key() {
-        let result = TransportOptions::from_pairs([("unknown-key", "value")]);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("unknown option"));
     }
 }

@@ -16,8 +16,13 @@
 //!
 //! This module provides the factory pattern for creating async transport devices
 //! from different backends (fdcanusb, socketcan, etc.) using tokio.
+//!
+//! External crates can register additional async factories via [`register_async()`].
+
+use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::error::Result;
+use crate::transport::args::ArgSpec;
 use crate::transport::async_transport::BoxFuture;
 use crate::transport::device::AsyncTransportDevice;
 
@@ -30,12 +35,21 @@ pub use super::factory::TransportOptions as AsyncTransportOptions;
 /// A factory for creating async transport devices.
 ///
 /// Factories are tried in priority order (lower numbers first).
+/// External crates implement this trait and call [`register_async()`] to
+/// add themselves to the async auto-detection flow.
 pub trait AsyncTransportFactory: Send + Sync {
     /// The priority of this factory (lower = tried first).
     fn priority(&self) -> u32;
 
     /// The name of this transport type.
     fn name(&self) -> &'static str;
+
+    /// Command-line argument specifications for this factory.
+    ///
+    /// Override this to declare factory-specific CLI arguments.
+    fn arg_specs(&self) -> Vec<ArgSpec> {
+        Vec::new()
+    }
 
     /// Create async transport devices using this factory.
     ///
@@ -64,6 +78,17 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
 
     fn name(&self) -> &'static str {
         "fdcanusb"
+    }
+
+    fn arg_specs(&self) -> Vec<ArgSpec> {
+        use crate::transport::args::ArgType;
+        vec![ArgSpec {
+            name: "fdcanusb",
+            help: "Path to fdcanusb device (can be specified multiple times)",
+            arg_type: ArgType::MultiString,
+            default: None,
+            possible_values: None,
+        }]
     }
 
     #[cfg(target_os = "linux")]
@@ -145,6 +170,17 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
         "socketcan"
     }
 
+    fn arg_specs(&self) -> Vec<ArgSpec> {
+        use crate::transport::args::ArgType;
+        vec![ArgSpec {
+            name: "can-chan",
+            help: "SocketCAN interface (can be specified multiple times)",
+            arg_type: ArgType::MultiString,
+            default: None,
+            possible_values: None,
+        }]
+    }
+
     #[cfg(target_os = "linux")]
     fn create<'a>(
         &'a self,
@@ -190,7 +226,33 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
     }
 }
 
-/// Get all available async transport factories.
+// -- Global async transport factory registry --
+
+static ASYNC_REGISTRY: OnceLock<Mutex<Vec<Arc<dyn AsyncTransportFactory>>>> = OnceLock::new();
+
+fn get_async_registry() -> &'static Mutex<Vec<Arc<dyn AsyncTransportFactory>>> {
+    ASYNC_REGISTRY.get_or_init(|| {
+        Mutex::new(vec![
+            Arc::new(AsyncFdcanusbFactory) as Arc<dyn AsyncTransportFactory>,
+            Arc::new(AsyncSocketCanFactory) as Arc<dyn AsyncTransportFactory>,
+        ])
+    })
+}
+
+/// Register an external async transport factory.
+///
+/// The factory will be included in all subsequent calls to
+/// [`get_async_factories()`], [`create_async_transports()`], and
+/// async singleton creation.
+pub fn register_async(factory: Arc<dyn AsyncTransportFactory>) {
+    get_async_registry().lock().unwrap().push(factory);
+}
+
+/// Get the built-in async transport factories.
+///
+/// Returns fresh instances of the built-in factories. For the full set
+/// of registered factories (including external ones), use
+/// [`create_async_transports()`] which reads the global registry.
 pub fn get_async_factories() -> Vec<Box<dyn AsyncTransportFactory>> {
     vec![
         Box::new(AsyncFdcanusbFactory::new()),
@@ -198,7 +260,7 @@ pub fn get_async_factories() -> Vec<Box<dyn AsyncTransportFactory>> {
     ]
 }
 
-/// Create async transport devices using all available factories.
+/// Create async transport devices using all registered factories.
 ///
 /// This is the main entry point for creating async transports with auto-discovery.
 /// It tries each factory in priority order and returns all successfully created devices.
@@ -208,7 +270,11 @@ pub async fn create_async_transports(
 ) -> Result<Vec<Box<dyn AsyncTransportDevice>>> {
     use std::collections::HashSet;
 
-    let mut factories = get_async_factories();
+    // Snapshot the registry under lock, then release the lock before awaiting.
+    let mut factories: Vec<Arc<dyn AsyncTransportFactory>> = {
+        let registry = get_async_registry().lock().unwrap();
+        registry.clone()
+    };
 
     // Sort by priority
     factories.sort_by_key(|f| f.priority());
@@ -221,7 +287,7 @@ pub async fn create_async_transports(
     let mut all_devices = Vec::new();
     let mut fdcanusb_serials: HashSet<String> = HashSet::new();
 
-    for factory in factories {
+    for factory in &factories {
         match factory.create(options).await {
             Ok(devices) => {
                 // Track fdcanusb serial numbers for deduplication
@@ -282,6 +348,19 @@ mod tests {
         let socketcan = AsyncSocketCanFactory::new();
 
         assert!(fdcanusb.priority() < socketcan.priority());
+    }
+
+    #[test]
+    fn test_async_factory_arg_specs() {
+        let fdcanusb = AsyncFdcanusbFactory::new();
+        let specs = fdcanusb.arg_specs();
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].name, "fdcanusb");
+
+        let socketcan = AsyncSocketCanFactory::new();
+        let specs = socketcan.arg_specs();
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].name, "can-chan");
     }
 
     #[test]
