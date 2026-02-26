@@ -1087,19 +1087,34 @@ class BldcServoControl {
     const float max_V = (0.5f - self().rate_config_.min_pwm) *
         self().status_.filt_bus_V * kSvpwmRatio;
 
-    const float d_V =
-        Limit(
-            offset +
-            data->d_V * (self().status_.meas_ind_phase > 0 ? 1.0f : -1.0f),
-            -max_V,
-            max_V);
+    const float excitation =
+        data->d_V * (self().status_.meas_ind_phase > 0 ? 1.0f : -1.0f);
 
-    self().status_.meas_ind_integrator +=
-        (self().status_.d_A - self().status_.meas_ind_old_d_A) *
-        old_sign_float;
-    self().status_.meas_ind_old_d_A = self().status_.d_A;
+    if (data->meas_ind_axis == 0) {
+      // D-axis excitation (default behavior).
+      const float d_V = Limit(offset + excitation, -max_V, max_V);
 
-    ISR_DoBalancedVoltageControl(ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
+      self().status_.meas_ind_integrator +=
+          (self().status_.d_A - self().status_.meas_ind_old_d_A) *
+          old_sign_float;
+      self().status_.meas_ind_old_d_A = self().status_.d_A;
+
+      ISR_DoBalancedVoltageControl(
+          ISR_CalculatePhaseVoltage(sin_cos, d_V, 0.0f));
+    } else {
+      // Q-axis excitation: apply excitation on q-axis, keep d-axis
+      // offset to hold rotor position.
+      const float d_V = Limit(offset, -max_V, max_V);
+      const float q_V = Limit(excitation, -max_V, max_V);
+
+      self().status_.meas_ind_integrator +=
+          (self().status_.q_A - self().status_.meas_ind_old_q_A) *
+          old_sign_float;
+      self().status_.meas_ind_old_q_A = self().status_.q_A;
+
+      ISR_DoBalancedVoltageControl(
+          ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+    }
   }
 
   void ISR_StartCalibrating() MOTEUS_CCM_ATTRIBUTE {
@@ -1190,6 +1205,7 @@ class BldcServoControl {
               self().status_.meas_ind_phase = 0;
               self().status_.meas_ind_integrator = 0.0f;
               self().status_.meas_ind_old_d_A = self().status_.d_A;
+              self().status_.meas_ind_old_q_A = self().status_.q_A;
             }
 
             return;

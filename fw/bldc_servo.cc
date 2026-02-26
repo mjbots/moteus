@@ -1394,7 +1394,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   uint16_t calibrate_count_ = 0;
 
   SimplePI pid_d_{&config_.pid_dq, &status_.pid_d};
-  SimplePI pid_q_{&config_.pid_dq, &status_.pid_q};
+  SimplePI pid_q_{&config_.pid_q, &status_.pid_q};
   PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   USART_TypeDef* debug_uart_ = nullptr;

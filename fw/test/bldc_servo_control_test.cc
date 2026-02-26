@@ -34,10 +34,11 @@ struct Context : public BldcServoControl<Context> {
   BldcServoMotor motor_;
 
   SimplePI::Config pid_dq_config;
+  SimplePI::Config pid_q_config;
   PID::Config pid_position_config;
 
   SimplePI pid_d_{&pid_dq_config, &status_.pid_d};
-  SimplePI pid_q_{&pid_dq_config, &status_.pid_q};
+  SimplePI pid_q_{&pid_q_config, &status_.pid_q};
   PID pid_position_{&pid_position_config, &status_.pid_position};
 
   RateConfig rate_config_{30000, 15000};

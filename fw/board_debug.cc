@@ -107,6 +107,10 @@ bool ParseOptions(BldcServo::CommandData* command, base::Tokenizer* tokenizer,
         command->ignore_position_bounds = value != 0.0f;
         break;
       }
+      case 'q': {
+        command->meas_ind_axis = static_cast<int8_t>(value);
+        break;
+      }
       default: {
         return false;
       }
@@ -769,7 +773,7 @@ class BoardDebug::Impl {
 
       BldcServo::CommandData command;
 
-      if (!ParseOptions(&command, &tokenizer, "ob")) {
+      if (!ParseOptions(&command, &tokenizer, "obq")) {
         WriteMessage(response, "ERR unknown option\r\n");
         return;
       }

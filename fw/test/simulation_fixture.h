@@ -86,10 +86,11 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   MotorPosition::Config motor_position_config_;
 
   SimplePI::Config pid_dq_config;
+  SimplePI::Config pid_q_config;
   PID::Config pid_position_config;
 
   SimplePI pid_d_{&pid_dq_config, &status_.pid_d};
-  SimplePI pid_q_{&pid_dq_config, &status_.pid_q};
+  SimplePI pid_q_{&pid_q_config, &status_.pid_q};
   PID pid_position_{&pid_position_config, &status_.pid_position};
 
   RateConfig rate_config_{30000, 15000};
@@ -185,6 +186,10 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     pid_dq_config.kp = 0.065f;
     pid_dq_config.ki = 120.0f;
     pid_dq_config.max_desired_rate = 10000.0f;
+
+    pid_q_config.kp = 0.065f;
+    pid_q_config.ki = 120.0f;
+    pid_q_config.max_desired_rate = 10000.0f;
 
     pid_position_config.kp = 4.0f;
     pid_position_config.ki = 1.0f;

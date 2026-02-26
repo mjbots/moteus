@@ -99,9 +99,9 @@ enum BldcServoMode {
   // that region.
   kStayWithinBounds = 13,
 
-  // This mode applies a fixed voltage square waveform in the D axis
-  // in order to measure inductance assuming a motor with
-  // approximately equal D/Q axis inductances.
+  // This mode applies a fixed voltage square waveform to measure
+  // inductance.  The meas_ind_axis field selects whether the D or Q
+  // axis is excited.
   kMeasureInductance = 14,
 
   // All phases are pulled to ground.
@@ -175,6 +175,7 @@ struct BldcServoStatus {
   uint32_t total_timer = 0;
 
   float meas_ind_old_d_A = 0.0f;
+  float meas_ind_old_q_A = 0.0f;
   int8_t meas_ind_phase = 0;
   float meas_ind_integrator = 0.0f;
 
@@ -272,6 +273,7 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(total_timer));
 
     a->Visit(MJ_NVP(meas_ind_old_d_A));
+    a->Visit(MJ_NVP(meas_ind_old_q_A));
     a->Visit(MJ_NVP(meas_ind_phase));
     a->Visit(MJ_NVP(meas_ind_integrator));
 
@@ -338,6 +340,8 @@ struct BldcServoCommandData {
 
   // For kMeasureInductance
   int8_t meas_ind_period = 4;
+  // 0 = d-axis (default), 1 = q-axis
+  int8_t meas_ind_axis = 0;
 
 
   /////// NOT SERIALIZED
@@ -380,6 +384,7 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(bounds_min));
     a->Visit(MJ_NVP(bounds_max));
     a->Visit(MJ_NVP(meas_ind_period));
+    a->Visit(MJ_NVP(meas_ind_axis));
   }
 };
 
@@ -390,6 +395,11 @@ struct BldcServoMotor {
   uint8_t phase_invert = 0;
 
   float resistance_ohm = 0.0f;
+
+  // D-axis phase-to-center inductance in henries.
+  float inductance_d_H = 0.0f;
+  // Q-axis phase-to-center inductance in henries.
+  float inductance_q_H = 0.0f;
 
   float Kv = 0.0f;
 
@@ -422,6 +432,8 @@ struct BldcServoMotor {
     a->Visit(MJ_NVP(poles));
     a->Visit(MJ_NVP(phase_invert));
     a->Visit(MJ_NVP(resistance_ohm));
+    a->Visit(MJ_NVP(inductance_d_H));
+    a->Visit(MJ_NVP(inductance_q_H));
     a->Visit(MJ_NVP(Kv));
     a->Visit(MJ_NVP(offset));
     a->Visit(MJ_NVP(rotation_current_cutoff_A));
@@ -496,9 +508,11 @@ struct BldcServoConfig {
   // need a larger sampling time.
   uint16_t adc_aux_cycles = 47;
 
-  // We use the same PID constants for D and Q current control
-  // loops.
+  // D-axis current control loop.
   SimplePI::Config pid_dq;
+  // Q-axis current control loop.  When left at defaults, behaves
+  // identically to pid_dq.  Set different kp to account for L_q != L_d.
+  SimplePI::Config pid_q;
   PID::Config pid_position;
 
   // Use the configured motor resistance to apply a feedforward phase
@@ -598,6 +612,10 @@ struct BldcServoConfig {
     // still provides a fair amount of control smoothing.
     pid_dq.max_desired_rate = 10000.0f;
 
+    pid_q.kp = 0.005f;
+    pid_q.ki = 30.0f;
+    pid_q.max_desired_rate = 10000.0f;
+
     pid_position.kp = 4.0f;
     pid_position.ki = 1.0f;
     pid_position.ilimit = 0.0f;
@@ -625,6 +643,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(adc_cur_cycles));
     a->Visit(MJ_NVP(adc_aux_cycles));
     a->Visit(MJ_NVP(pid_dq));
+    a->Visit(MJ_NVP(pid_q));
     a->Visit(MJ_NVP(pid_position));
     a->Visit(MJ_NVP(current_feedforward));
     a->Visit(MJ_NVP(bemf_feedforward));

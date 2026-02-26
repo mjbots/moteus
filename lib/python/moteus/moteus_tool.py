@@ -1297,6 +1297,17 @@ class Stream:
             await self.command(f"conf set servo.pid_dq.kp {kp}")
             await self.command(f"conf set servo.pid_dq.ki {ki}")
 
+            # Also set Q-axis PI to the same initial values.
+            try:
+                if await self.is_config_supported("servo.pid_q.kp"):
+                    await self.command(f"conf set servo.pid_q.kp {kp}")
+                    await self.command(f"conf set servo.pid_q.ki {ki}")
+                    await self.command(
+                        f"conf set servo.pid_q.max_desired_rate "
+                        f"{10000.0}")
+            except Exception:
+                pass
+
             await self.check_for_fault()
 
         enc_kp, enc_ki, enc_bw_hz = await self.set_encoder_filter(
@@ -1308,6 +1319,31 @@ class Stream:
             input_V, winding_resistance, current_noise,
             unwrapped_position_scale)
         await self.check_for_fault()
+
+        inductance_d, inductance_q = None, None
+        kp_d, kp_q = kp, kp
+        if inductance and await self.is_config_supported("motor.inductance_d_H"):
+            inductance_d, inductance_q = await self.calibrate_dq_inductance(
+                resistance_cal_voltage, input_V)
+            await self.check_for_fault()
+
+            # Recalculate per-axis kp using the separate inductances.
+            # ki depends on R, not L, so it stays the same for both.
+            if inductance_d is not None and torque_bw_hz is not None:
+                w_3db = torque_bw_hz * 2 * math.pi
+                kp_d = w_3db * inductance_d
+                kp_q = w_3db * inductance_q
+                kp = kp_d
+
+                await self.command(f"conf set servo.pid_dq.kp {kp_d}")
+                try:
+                    if await self.is_config_supported("servo.pid_q.kp"):
+                        await self.command(
+                            f"conf set servo.pid_q.kp {kp_q}")
+                except Exception:
+                    pass
+
+                print(f"Per-axis PI gains: kp_d={kp_d:.6g} kp_q={kp_q:.6g}")
 
         motor_kv = await self.calibrate_kv_rating(
             input_V, unwrapped_position_scale, motor_output_sign)
@@ -1360,7 +1396,10 @@ class Stream:
             'calibration' : cal_result.to_json(),
             'winding_resistance' : winding_resistance,
             'inductance' : inductance,
-            'pid_dq_kp' : kp,
+            'inductance_d' : inductance_d,
+            'inductance_q' : inductance_q,
+            'pid_dq_kp' : kp_d,
+            'pid_q_kp' : kp_q,
             'pid_dq_ki' : ki,
             'torque_bw_hz' : torque_bw_hz,
             'encoder_filter_bw_hz' : enc_bw_hz,
@@ -1791,7 +1830,7 @@ class Stream:
 
 
     async def calibrate_inductance(self, cal_voltage, input_V):
-        print("Calculating motor inductance")
+        print("Calculating preliminary motor inductance")
 
         old_motor_poles = await self.read_config_int("motor.poles")
         if old_motor_poles == 0:
@@ -1861,7 +1900,125 @@ class Stream:
             raise RuntimeError(f'Inductance too small ({inductance} < 1e-6)')
 
         print(f"Calculated inductance: {inductance}H")
+
+        if await self.is_config_supported("motor.inductance_d_H"):
+            await self.command(f"conf set motor.inductance_d_H {inductance}")
+            await self.command(f"conf set motor.inductance_q_H {inductance}")
+        elif await self.is_config_supported("motor.inductance_H"):
+            await self.command(f"conf set motor.inductance_H {inductance}")
+
         return inductance
+
+    async def _measure_inductance_axis(self, cal_voltage, input_V,
+                                       period, axis):
+        """Measure inductance on a single axis (0=d, 1=q).
+
+        Requires encoder calibration to be complete so the DQ frame is
+        aligned to the rotor.
+        """
+        offset = min(0.2 * input_V, cal_voltage)
+        ind_voltage = min(0.15 * input_V, 0.80 * cal_voltage)
+        await asyncio.wait_for(
+            self.command(
+                f"d ind {ind_voltage} {period} o{offset} q{axis}"), 0.25)
+
+        start = time.time()
+        await asyncio.sleep(1.0)
+
+        # Hold position while we read the result.
+        await self.command(f"d pos nan 0 nan o{offset} b1")
+
+        end = time.time()
+        data = await self.read_servo_stats()
+
+        delta_time = end - start
+        di_dt = data.meas_ind_integrator / delta_time
+
+        if self.args.verbose:
+            print(f"  axis={axis} period={period} di_dt={di_dt}")
+
+        return ind_voltage / di_dt if di_dt > 0 else None
+
+    async def calibrate_dq_inductance(self, cal_voltage, input_V):
+        """Measure separate D-axis and Q-axis inductances.
+
+        This must be called after encoder calibration so that the DQ
+        frame is aligned to the physical rotor.
+        """
+        print("Measuring D/Q axis inductances")
+
+        # Find a good period by sweeping on the d-axis first.
+        periods_to_test = [2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 32]
+        best_period = 4
+        highest_di_dt = None
+        since_highest = None
+
+        offset = min(0.2 * input_V, cal_voltage)
+        ind_voltage = min(0.15 * input_V, 0.80 * cal_voltage)
+
+        try:
+            for period in periods_to_test:
+                await asyncio.wait_for(
+                    self.command(
+                        f"d ind {ind_voltage} {period} o{offset} q0"), 0.25)
+                start = time.time()
+                await asyncio.sleep(0.5)
+                await self.command(f"d pos nan 0 nan o{offset} b1")
+                end = time.time()
+                data = await self.read_servo_stats()
+                di_dt = data.meas_ind_integrator / (end - start)
+
+                if self.args.verbose:
+                    print(f"  dq sweep period={period} di_dt={di_dt}")
+
+                if highest_di_dt is None or di_dt > highest_di_dt:
+                    highest_di_dt = di_dt
+                    best_period = period
+                    since_highest = 0
+                else:
+                    if since_highest is not None:
+                        since_highest += 1
+
+                if (highest_di_dt > 0 and
+                    (di_dt < 0.5 * highest_di_dt or since_highest > 2)):
+                    break
+
+            await self.command("d stop")
+            await asyncio.sleep(0.1)
+        except (moteus.CommandError, asyncio.TimeoutError):
+            print("Firmware does not support DQ inductance measurement")
+            return None, None
+
+        if self.args.verbose:
+            print(f"  Using period={best_period}")
+
+        # Measure d-axis inductance.
+        L_d = await self._measure_inductance_axis(
+            cal_voltage, input_V, best_period, 0)
+        await self.command("d stop")
+        await asyncio.sleep(0.1)
+        await self.check_for_fault()
+
+        # Measure q-axis inductance.
+        L_q = await self._measure_inductance_axis(
+            cal_voltage, input_V, best_period, 1)
+        await self.command("d stop")
+        await asyncio.sleep(0.1)
+        await self.check_for_fault()
+
+        if L_d is None or L_q is None:
+            print("WARNING: Could not measure D/Q inductances")
+            return None, None
+
+        ratio = L_q / L_d if L_d > 0 else float('inf')
+        print(f"  L_d = {L_d:.6g} H")
+        print(f"  L_q = {L_q:.6g} H")
+        print(f"  Saliency ratio L_q/L_d = {ratio:.2f}")
+
+        await self.command(f"conf set motor.inductance_d_H {L_d}")
+        await self.command(f"conf set motor.inductance_q_H {L_q}")
+
+        return L_d, L_q
 
     async def set_encoder_filter(self, torque_bw_hz, inductance, control_rate_hz = None):
         # Check to see if our firmware supports encoder filtering.
