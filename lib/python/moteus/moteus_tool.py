@@ -2137,13 +2137,10 @@ class Stream:
                 raise RuntimeError(
                     f"v_per_hz measured as negative ({v_per_hz}), something wrong")
 
-            # Experimental verification of Kv using this protocol
-            # typically results in a determination of Kv roughly 14%
-            # below what an open circuit spin measures with an
-            # oscilloscope.  That is probably due to friction in the
-            # system and other non-linearities.
-            FUDGE = 1.14
-            motor_kv = FUDGE * 0.5 * 60 / v_per_hz
+            # Kv = RPM / V_peak_LL, and v_per_hz = V_peak_LN / f_mech
+            # Since V_peak_LL = sqrt(3) * V_peak_LN:
+            #   Kv = 60 / (sqrt(3) * v_per_hz)
+            motor_kv = 60 / (math.sqrt(3) * v_per_hz)
         else:
             motor_kv = self.args.cal_force_kv
             print(f"Using forced Kv: {self.args.cal_force_kv}")

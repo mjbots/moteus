@@ -160,7 +160,8 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     motor_.rotation_current_scale = mp.kRotationCurrentScale;
     motor_.rotation_torque_scale = mp.kRotationTorqueScale;
     torque_constant_ = mp.kKt;
-    v_per_hz_ = 0.5f * 60.0f / mp.kKv;  // V/(rev/s), matches firmware
+    // 1 / sqrt(3) = 0.57735
+    v_per_hz_ = 0.57735f * 60.0f / mp.kKv;  // V/(rev/s), matches firmware
 
     // Motor simulator (uses Mj5208Params defaults, but explicit for clarity)
     SpmsmMotorSimulator::Params sim_params;

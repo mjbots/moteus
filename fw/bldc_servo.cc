@@ -323,7 +323,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
         is_torque_constant_configured() ?
         kTorqueFactor / motor_.Kv :
         kDefaultTorqueConstant;
-    v_per_hz_ = motor_.Kv == 0.0f ? 0.0f : 0.5f * 60.0f / motor_.Kv;
+    // 1 / sqrt(3) = 0.57735
+    v_per_hz_ = motor_.Kv == 0.0f ? 0.0f : 0.57735f * 60.0f / motor_.Kv;
 
     adc_scale_ = 3.3f / (4096.0f *
                          config_.current_sense_ohm *

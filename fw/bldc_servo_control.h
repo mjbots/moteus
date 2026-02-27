@@ -401,20 +401,10 @@ class BldcServoControl {
 
     // Calculate maximum achievable motor velocity based on bus voltage.
     //
-    // As of firmware ABI 0x010a moteus records motor Kv values that
-    // correspond roughly with open loop oscilloscope measurements and
-    // motor manufacturer's ratings.  They don't perfectly correspond
-    // to the speed that can actually be achieved under control.  For
-    // stable control loops, we need to limit the maximum controlled
-    // velocity to be a modest amount under what is actually capable,
-    // which tends to be around 90% of the speed expected based on
-    // input voltage, Kv, and modulation depth alone.
-    constexpr float kVelocityMargin = 0.87f;
-
     self().status_.motor_max_velocity =
         rotor_to_output_ratio *
         self().rate_config_.max_voltage_ratio *
-        kVelocityMargin * 0.5f * self().status_.filt_1ms_bus_V /
+        0.5f * self().status_.filt_1ms_bus_V /
         self().v_per_hz_;
 
     return sin_cos;
