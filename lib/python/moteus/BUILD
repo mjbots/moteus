@@ -39,6 +39,8 @@ filegroup(
         "export.py",
         "fdcanusb.py",
         "fdcanusb_device.py",
+        "ld_measure.py",
+        "ld_saturation.py",
         "moteus.py",
         "moteus_tool.py",
         "multiplex.py",
@@ -158,11 +160,25 @@ py_test(
     size = "small",
 )
 
+filegroup(
+    name = "ld_testdata",
+    srcs = glob(["test/testdata/ld_*.json"]),
+)
+
+py_test(
+    name = "ld_saturation_test",
+    srcs = ["test/ld_saturation_test.py"],
+    deps = [":moteus"],
+    data = [":ld_testdata"],
+    size = "small",
+)
+
 test_suite(
     name = "test",
     tests = [
         ":calibrate_encoder_test",
         ":fdcanusb_test",
+        ":ld_saturation_test",
         ":moteus_test",
         ":multiplex_test",
         ":protocol_test",

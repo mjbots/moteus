@@ -35,6 +35,7 @@ import uuid
 
 from . import moteus
 from . import aiostream
+from . import ld_measure
 from . import regression
 from . import calibrate_encoder as ce
 from .moteus import namedtuple_to_dict
@@ -1377,6 +1378,15 @@ class Stream:
             input_V, unwrapped_position_scale, motor_output_sign)
         await self.check_for_fault()
 
+        inductance_d_scale = 0.0
+        if (self.args.cal_measure_ld_saturation and
+                hasattr(self, '_kv_v_per_hz')):
+            ld_result = await self.measure_ld_saturation(
+                winding_resistance, unwrapped_position_scale)
+            if ld_result is not None:
+                inductance_d, inductance_d_scale = ld_result
+            await self.check_for_fault()
+
         # Rezero the servo since we just spun it a lot.
         await self.command("d rezero")
 
@@ -1426,6 +1436,7 @@ class Stream:
             'inductance' : inductance,
             'inductance_d' : inductance_d,
             'inductance_q' : inductance_q,
+            'inductance_d_scale' : inductance_d_scale,
             'pid_dq_kp' : kp_d,
             'pid_q_kp' : kp_q,
             'pid_dq_ki' : ki,
@@ -2322,6 +2333,10 @@ class Stream:
                 raise RuntimeError(
                     f"v_per_hz measured as negative ({v_per_hz}), something wrong")
 
+            # Save for optional L_d saturation measurement.
+            self._kv_cal_voltage = kv_cal_voltage
+            self._kv_v_per_hz = v_per_hz
+
             # Kv = RPM / V_peak_LL, and v_per_hz = V_peak_LN / f_mech
             # Since V_peak_LL = sqrt(3) * V_peak_LN:
             #   Kv = 60 / (sqrt(3) * v_per_hz)
@@ -2345,6 +2360,42 @@ class Stream:
             raise RuntimeError(f'Kv value ({motor_kv}) is negative')
 
         return motor_kv
+
+    async def measure_ld_saturation(self, winding_resistance,
+                                      unwrapped_position_scale):
+        """Measure D-axis effective inductance via multi-speed
+        steady-state regression.
+
+        Uses voltage-mode V_d injection: `d vdq V_d V_q` provides
+        inherently stable speed control (set by V_q), while a
+        V_d integral controller drives the measured d_A toward
+        each target level.  The device-facing protocol and the
+        analysis pipeline both live in ``ld_measure`` and
+        ``ld_saturation`` respectively; this method is thin glue
+        that owns device config reads/writes.
+        """
+        motor_poles = await self.read_config_int("motor.poles")
+        if motor_poles <= 0:
+            print("WARNING: motor.poles not set, skipping L_d measurement")
+            return None
+
+        params = ld_measure.LdSweepParams(
+            winding_resistance=winding_resistance,
+            unwrapped_position_scale=unwrapped_position_scale,
+            pp=motor_poles / 2.0,
+            v_per_hz=self._kv_v_per_hz,
+            kv_cal_voltage=self._kv_cal_voltage,
+            motor_power=self.args.cal_motor_power,
+            power_factor=self.args.cal_ld_power_factor,
+            voltage_factor=self.args.cal_ld_voltage_factor,
+        )
+
+        fit = await ld_measure.measure_and_fit(self, params, motor_poles)
+        if fit is None:
+            return None
+
+        await self.command(f"conf set motor.inductance_d_H {fit.B}")
+        return (fit.B, fit.C)
 
     async def stop_and_idle(self):
         await self.command("d stop")
@@ -2597,6 +2648,16 @@ async def async_main():
     parser.add_argument('--cal-disable-optimize', action='store_true',
                         help='prevent nonlinear commutation optimization')
 
+
+    parser.add_argument('--cal-measure-ld-saturation', action='store_true',
+                        help='measure D-axis inductance vs current after Kv cal')
+    parser.add_argument('--cal-ld-power-factor', metavar='F', type=float,
+                        default=6.0,
+                        help='multiple of cal-motor-power for L_d sweep')
+    parser.add_argument('--cal-ld-voltage-factor', metavar='F', type=float,
+                        default=1.0,
+                        help='max multiple of kv-cal-voltage for '
+                        'L_d speed sweep')
 
     parser.add_argument('--cal-max-remainder', metavar='F',
                         type=float, default=0.1,
