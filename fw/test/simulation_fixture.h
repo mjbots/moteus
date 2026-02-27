@@ -85,12 +85,10 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   BldcServoMotor motor_;
   MotorPosition::Config motor_position_config_;
 
-  SimplePI::Config pid_dq_config;
-  SimplePI::Config pid_q_config;
   PID::Config pid_position_config;
 
-  SimplePI pid_d_{&pid_dq_config, &status_.pid_d};
-  SimplePI pid_q_{&pid_q_config, &status_.pid_q};
+  SimplePI pid_d_{&pid_d_config_, &status_.pid_d};
+  SimplePI pid_q_{&pid_q_config_, &status_.pid_q};
   PID pid_position_{&pid_position_config, &status_.pid_position};
 
   RateConfig rate_config_{30000, 15000};
@@ -156,6 +154,8 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     // Firmware motor model
     motor_.poles = mp.kPolePairs * 2;  // 14 poles
     motor_.resistance_ohm = mp.kR;
+    motor_.inductance_d_H = mp.kL;
+    motor_.inductance_q_H = mp.kL;
     motor_.Kv = mp.kKv;
     motor_.rotation_current_cutoff_A = mp.kRotationCurrentCutoff;
     motor_.rotation_current_scale = mp.kRotationCurrentScale;
@@ -182,14 +182,10 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     position_config_.position_min = kNaN;
     position_config_.position_max = kNaN;
 
-    // Set up PID parameters (matched to real hardware at 400Hz bandwidth)
-    pid_dq_config.kp = 0.065f;
-    pid_dq_config.ki = 120.0f;
-    pid_dq_config.max_desired_rate = 10000.0f;
-
-    pid_q_config.kp = 0.065f;
-    pid_q_config.ki = 120.0f;
-    pid_q_config.max_desired_rate = 10000.0f;
+    // Current control bandwidth — UpdateCurrentPidGains() computes
+    // kp/ki from this and the motor inductance/resistance.
+    config_.pid_dq_hz = 400.0f;
+    UpdateCurrentPidGains();
 
     pid_position_config.kp = 4.0f;
     pid_position_config.ki = 1.0f;

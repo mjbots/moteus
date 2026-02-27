@@ -176,8 +176,14 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 // * aux?.rs422 replaced aux?.uart.rs422 as now the RS422 transceiver
 //   can be enabled for both UART and BiSS-C encoders
 
+// # 0x010e #
+//
+// * servo.pid_dq.kp/ki/max_desired_rate replaced by servo.pid_dq_hz
+//   and servo.max_current_desired_rate.  PI gains are now computed
+//   automatically from the bandwidth and motor parameters.
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x00010d
+#define MOTEUS_FIRMWARE_VERSION 0x00010e
 
 extern MoteusHwPins g_hw_pins;
 

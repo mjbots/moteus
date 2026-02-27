@@ -99,7 +99,7 @@ class MoteusFault(RuntimeError):
             f"Controller reported fault: {int(self.fault_code)}")
 
 
-SUPPORTED_ABI_VERSION = 0x010d
+SUPPORTED_ABI_VERSION = 0x010e
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -125,6 +125,24 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010d and self.old >= 0x010e:
+            pid_dq_hz = float(items.pop(b'servo.pid_dq_hz', 100.0))
+            max_desired_rate = float(items.pop(b'servo.max_current_desired_rate', 10000.0))
+
+            inductance = float(items.pop(b'motor.inductance_d_H', 0))
+            items.pop(b'motor.inductance_q_H', None)
+            resistance = float(items.get(b'motor.resistance_ohm', 0))
+
+            twopi = 2 * math.pi
+            w = twopi * pid_dq_hz
+            kp = w * inductance if inductance > 0 else 0.005
+            ki = w * resistance if resistance > 0 else 30.0
+
+            items[b'servo.pid_dq.kp'] = str(kp).encode('utf8')
+            items[b'servo.pid_dq.ki'] = str(ki).encode('utf8')
+            items[b'servo.pid_dq.max_desired_rate'] = str(max_desired_rate).encode('utf8')
+            print(f"Downgraded servo.pid_dq_hz to servo.pid_dq kp={kp:.6g} ki={ki:.6g}")
 
         if self.new <= 0x010c and self.old >= 0x010d:
             for aux_num in [1, 2]:
@@ -621,6 +639,41 @@ class FirmwareUpgrade:
                     new_key = f'aux{aux_num}.rs422'.encode('utf8')
                     items[new_key] = rs422_val
                     print(f"Upgraded aux{aux_num}.uart.rs422 to aux{aux_num}.rs422")
+
+        if self.new >= 0x010e and self.old <= 0x010d:
+            # Replace pid_dq/pid_q PI constants with bandwidth-in-Hz.
+            kp = float(items.pop(b'servo.pid_dq.kp', 0.005))
+            ki = float(items.pop(b'servo.pid_dq.ki', 30.0))
+            max_desired_rate = float(
+                items.pop(b'servo.pid_dq.max_desired_rate', 10000.0))
+
+            inductance = float(items.get(b'motor.inductance_d_H', 0))
+            resistance = float(items.get(b'motor.resistance_ohm', 0))
+
+            # Estimate bandwidth from ki/resistance (resistance is
+            # always calibrated on old firmware).  Then back-compute
+            # inductance from kp so the new firmware reproduces the
+            # same gains.
+            twopi = 2 * math.pi
+            if resistance > 0:
+                hz = ki / (twopi * resistance)
+            else:
+                hz = 100.0
+
+            w = twopi * hz
+            if inductance <= 0 and w > 0:
+                inductance = kp / w
+                items[b'motor.inductance_d_H'] = (
+                    str(inductance).encode('utf8'))
+                items[b'motor.inductance_q_H'] = (
+                    str(inductance).encode('utf8'))
+                print(f"Estimated motor.inductance_d_H="
+                      f"{inductance:.6g} from pid_dq gains")
+
+            items[b'servo.pid_dq_hz'] = str(hz).encode('utf8')
+            items[b'servo.max_current_desired_rate'] = (
+                str(max_desired_rate).encode('utf8'))
+            print(f"Upgraded servo.pid_dq to servo.pid_dq_hz={hz:.1f}")
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
@@ -1294,19 +1347,12 @@ class Stream:
                 await self.calculate_bandwidth(winding_resistance, inductance,
                                                control_rate_hz)
 
-            await self.command(f"conf set servo.pid_dq.kp {kp}")
-            await self.command(f"conf set servo.pid_dq.ki {ki}")
-
-            # Also set Q-axis PI to the same initial values.
-            try:
-                if await self.is_config_supported("servo.pid_q.kp"):
-                    await self.command(f"conf set servo.pid_q.kp {kp}")
-                    await self.command(f"conf set servo.pid_q.ki {ki}")
-                    await self.command(
-                        f"conf set servo.pid_q.max_desired_rate "
-                        f"{10000.0}")
-            except Exception:
-                pass
+            if await self.is_config_supported("servo.pid_dq_hz"):
+                await self.command(
+                    f"conf set servo.pid_dq_hz {torque_bw_hz}")
+            else:
+                await self.command(f"conf set servo.pid_dq.kp {kp}")
+                await self.command(f"conf set servo.pid_dq.ki {ki}")
 
             await self.check_for_fault()
 
@@ -1326,24 +1372,6 @@ class Stream:
             inductance_d, inductance_q = await self.calibrate_dq_inductance(
                 resistance_cal_voltage, input_V)
             await self.check_for_fault()
-
-            # Recalculate per-axis kp using the separate inductances.
-            # ki depends on R, not L, so it stays the same for both.
-            if inductance_d is not None and torque_bw_hz is not None:
-                w_3db = torque_bw_hz * 2 * math.pi
-                kp_d = w_3db * inductance_d
-                kp_q = w_3db * inductance_q
-                kp = kp_d
-
-                await self.command(f"conf set servo.pid_dq.kp {kp_d}")
-                try:
-                    if await self.is_config_supported("servo.pid_q.kp"):
-                        await self.command(
-                            f"conf set servo.pid_q.kp {kp_q}")
-                except Exception:
-                    pass
-
-                print(f"Per-axis PI gains: kp_d={kp_d:.6g} kp_q={kp_q:.6g}")
 
         motor_kv = await self.calibrate_kv_rating(
             input_V, unwrapped_position_scale, motor_output_sign)

@@ -33,12 +33,10 @@ struct Context : public BldcServoControl<Context> {
   MotorPosition::Status position_;
   BldcServoMotor motor_;
 
-  SimplePI::Config pid_dq_config;
-  SimplePI::Config pid_q_config;
   PID::Config pid_position_config;
 
-  SimplePI pid_d_{&pid_dq_config, &status_.pid_d};
-  SimplePI pid_q_{&pid_q_config, &status_.pid_q};
+  SimplePI pid_d_{&pid_d_config_, &status_.pid_d};
+  SimplePI pid_q_{&pid_q_config_, &status_.pid_q};
   PID pid_position_{&pid_position_config, &status_.pid_position};
 
   RateConfig rate_config_{30000, 15000};
@@ -119,8 +117,10 @@ struct Context : public BldcServoControl<Context> {
   Context() {
     position_config_.position_min = NaN;
     position_config_.position_max = NaN;
-    pid_dq_config.kp = 0.005f;
-    pid_dq_config.ki = 30.0f;
+    motor_.resistance_ohm = 0.048f;
+    motor_.inductance_d_H = 8e-6f;
+    motor_.inductance_q_H = 8e-6f;
+    UpdateCurrentPidGains();
     pid_position_config.kp = 4.0f;
     pid_position_config.ki = 1.0f;
     pid_position_config.kd = 0.05f;

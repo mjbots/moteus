@@ -508,11 +508,14 @@ struct BldcServoConfig {
   // need a larger sampling time.
   uint16_t adc_aux_cycles = 47;
 
-  // D-axis current control loop.
-  SimplePI::Config pid_dq;
-  // Q-axis current control loop.  When left at defaults, behaves
-  // identically to pid_dq.  Set different kp to account for L_q != L_d.
-  SimplePI::Config pid_q;
+  // Current control loop bandwidth in Hz.  The firmware computes the
+  // actual PI gains from this and the motor inductance/resistance at
+  // config update time.
+  float pid_dq_hz = 100.0f;
+
+  // Maximum rate of change of desired current in A/s.  0 is unlimited.
+  float max_current_desired_rate = 10000.0f;
+
   PID::Config pid_position;
 
   // Use the configured motor resistance to apply a feedforward phase
@@ -605,17 +608,6 @@ struct BldcServoConfig {
   uint32_t emit_debug = 0;
 
   BldcServoConfig() {
-    pid_dq.kp = 0.005f;
-    pid_dq.ki = 30.0f;
-
-    // 100A in 10ms seems like a reasonably unrestricted default yet
-    // still provides a fair amount of control smoothing.
-    pid_dq.max_desired_rate = 10000.0f;
-
-    pid_q.kp = 0.005f;
-    pid_q.ki = 30.0f;
-    pid_q.max_desired_rate = 10000.0f;
-
     pid_position.kp = 4.0f;
     pid_position.ki = 1.0f;
     pid_position.ilimit = 0.0f;
@@ -642,8 +634,8 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(position_derate));
     a->Visit(MJ_NVP(adc_cur_cycles));
     a->Visit(MJ_NVP(adc_aux_cycles));
-    a->Visit(MJ_NVP(pid_dq));
-    a->Visit(MJ_NVP(pid_q));
+    a->Visit(MJ_NVP(pid_dq_hz));
+    a->Visit(MJ_NVP(max_current_desired_rate));
     a->Visit(MJ_NVP(pid_position));
     a->Visit(MJ_NVP(current_feedforward));
     a->Visit(MJ_NVP(bemf_feedforward));

@@ -335,6 +335,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     fet_thermistor_.Reset(47000.0f);
     motor_thermistor_.Reset(config_.motor_thermistor_ohm);
     motor_position_->SetRate(rate_config_.period_s);
+
+    UpdateCurrentPidGains();
   }
 
   void PollMillisecond() {
@@ -1393,8 +1395,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   uint32_t calibrate_adc3_ = 0;
   uint16_t calibrate_count_ = 0;
 
-  SimplePI pid_d_{&config_.pid_dq, &status_.pid_d};
-  SimplePI pid_q_{&config_.pid_q, &status_.pid_q};
+  SimplePI pid_d_{&pid_d_config_, &status_.pid_d};
+  SimplePI pid_q_{&pid_q_config_, &status_.pid_q};
   PID pid_position_{&config_.pid_position, &status_.pid_position};
 
   USART_TypeDef* debug_uart_ = nullptr;

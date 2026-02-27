@@ -266,6 +266,16 @@ class BldcServoControl {
     return self().motor_.Kv != 0.0f;
   }
 
+  void UpdateCurrentPidGains() {
+    const float w = k2Pi * self().config_.pid_dq_hz;
+    pid_d_config_.kp = w * self().motor_.inductance_d_H;
+    pid_d_config_.ki = w * self().motor_.resistance_ohm;
+    pid_d_config_.max_desired_rate = self().config_.max_current_desired_rate;
+    pid_q_config_.kp = w * self().motor_.inductance_q_H;
+    pid_q_config_.ki = w * self().motor_.resistance_ohm;
+    pid_q_config_.max_desired_rate = self().config_.max_current_desired_rate;
+  }
+
   float current_to_torque(float current) const MOTEUS_CCM_ATTRIBUTE {
     TorqueModel model(self().torque_constant_,
                       self().motor_.rotation_current_cutoff_A,
@@ -1348,6 +1358,9 @@ class BldcServoControl {
  protected:
   Impl& self() { return static_cast<Impl&>(*this); }
   const Impl& self() const { return static_cast<const Impl&>(*this); }
+
+  SimplePI::Config pid_d_config_;
+  SimplePI::Config pid_q_config_;
 };
 
 }  // namespace moteus
