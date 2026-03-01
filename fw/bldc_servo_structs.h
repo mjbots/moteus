@@ -521,7 +521,7 @@ struct BldcServoConfig {
   // Default values for the position mode velocity and acceleration
   // limits.
   float default_velocity_limit = std::numeric_limits<float>::quiet_NaN();
-  float default_accel_limit = std::numeric_limits<float>::quiet_NaN();
+  float default_accel_limit = 50.0f;
 
   // If true, then the currents in A that are calculated for the D
   // and Q phase are instead directly commanded as voltages on the
