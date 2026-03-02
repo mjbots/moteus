@@ -6,7 +6,7 @@ To use the onboard on-axis encoder integrated with moteus, the controller must b
 
 If using the default onboard encoder, the following steps must be taken:
 
-1. A diametrically magnetized sense magnet should be attached to the rotor. The fastening must be rigid, allowing no slip. Adhesive is generally required, cyanoacrylate or epoxy can be used.
+1. A diametrically magnetized sense magnet should be attached to the rotor (*NOT* the output of any reducer or linkage). The fastening must be rigid, allowing no slip. Adhesive is generally required, cyanoacrylate or epoxy can be used.
 2. The moteus controller must be mounted so that the encoder is (a) centered laterally on the sense magnet and (b) has an air-gap of approximately 2mm. This mount must be rigid and allow no slip.
 
 !!! note "moteus-r4 mounting"
