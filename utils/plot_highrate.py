@@ -20,60 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import struct
 
-
-EMIT_DEBUG = [
-    (1 << 0, 'aux1_spi', 1 / 4, 'counts'),
-    (1 << 1, 'servo_stats.velocity', 100 / 32767, 'A'),
-    (1 << 2, 'servo_stats.d_A', 100 / 32767, 'A'),
-    (1 << 3, 'servo_stats.q_A', 100 / 32767, 'A'),
-    (1 << 4, 'servo_stats.adc_cur1_raw', 1, 'counts'),
-    (1 << 5, 'servo_stats.adc_cur2_raw', 1, 'counts'),
-    (1 << 6, 'servo_stats.adc_cur3_raw', 1, 'counts'),
-    (1 << 7, 'servo_stats.cur1_A', 100 / 32767, 'A'),
-    (1 << 8, 'servo_stats.cur2_A', 100 / 32767, 'A'),
-    (1 << 9, 'servo_stats.cur3_A', 100 / 32767, 'A'),
-    (1 << 10, 'servo_control.torque_Nm', 30 / 32767, 'Nm'),
-    (1 << 11, 'motor_position.sources[0].raw', 1, 'counts'),
-    (1 << 12, 'motor_position.sources[1].raw', 1, 'counts'),
-    (1 << 13, 'motor_position.sources[2].raw', 1, 'counts'),
-    (1 << 14, 'servo_stats.final_timer', 1, 'counts'),
-    (1 << 15, 'servo_control.d_V', 64 / 32767, 'V'),
-    (1 << 16, 'servo_control.q_V', 64 / 32767, 'V'),
-    (1 << 17, 'servo_control.pwm.a', 1 / 32767, 'duty'),
-    (1 << 18, 'servo_control.pwm.b', 1 / 32767, 'duty'),
-    (1 << 19, 'servo_control.pwm.c', 1 / 32767, 'duty'),
-    (1 << 20, 'servo_stats.torque_Nm', 30 / 32767, 'Nm'),
-    (1 << 21, 'servo_stats.power_W', 3000 / 32767, 'W'),
-]
-
-
-class PlotConfig:
-    struct = None
-    fields = []
-
-    @staticmethod
-    def parse_emit_debug(emit_debug):
-        result = PlotConfig()
-
-        structdef = ''
-        fields = []
-
-        for emit_debug_option in EMIT_DEBUG:
-            if emit_debug_option[0] & emit_debug != 0:
-                structdef += 'h'
-                fields.append(emit_debug_option)
-
-        result.struct = struct.Struct('<b' + structdef)
-        result.fields = fields
-
-        return result
-
-    @staticmethod
-    def parse_struct(structdef):
-        result = PlotConfig()
-        result.struct = struct.Struct('<b' + structdef)
-
-        return result
+from highrate_defs import EMIT_DEBUG, PlotConfig
 
 def main():
     parser = argparse.ArgumentParser()
