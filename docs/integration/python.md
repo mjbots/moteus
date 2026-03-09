@@ -110,9 +110,3 @@ c = moteus.Controller(id=1, query_resolution=qr)
 ## API Reference
 
 - [Python API Reference](../reference/python.md)
-
-## Related Sections
-
-- [Control Modes](../guides/control-modes.md) - Understanding different control strategies
-- [Configuration Parameters](../reference/configuration.md) - Available parameters
-- [Raspberry Pi Setup](../platforms/raspberry-pi.md) - Platform-specific configuration

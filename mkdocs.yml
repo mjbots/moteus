@@ -57,6 +57,7 @@ markdown_extensions:
   - pymdownx.details
   - attr_list
   - md_in_html
+  - def_list
   - tables
   - toc:
       permalink: true
@@ -101,6 +102,7 @@ nav:
       - integration/index.md
       - Python Client: integration/python.md
       - C++ Client: integration/cpp.md
+      - Rust Client: integration/rust.md
       - Raw CAN-FD: integration/can-fd.md
       - Host Platforms:
           - platforms/index.md
@@ -130,6 +132,7 @@ nav:
       - Theory of Operation: reference/theory.md
       - API Reference:
           - Python: reference/python.md
+          - Rust: reference/rust.md
       - Protocol:
           - protocol/index.md
           - CAN Protocol: protocol/can.md
