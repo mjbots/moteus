@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_doc", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -98,4 +98,9 @@ rust_test(
     crate = ":moteus",
     edition = "2021",
     size = "small",
+)
+
+rust_doc(
+    name = "moteus-doc",
+    crate = ":moteus",
 )
