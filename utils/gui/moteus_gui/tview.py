@@ -2426,14 +2426,17 @@ class TviewMainWindow():
 
         for d in devices:
             await d.ensure_record_active(record)
-            await d.wait_for_data(record)
-            await d.wait_for_data(record)
 
+        start_time = time.time()
+        seen_not_done = False
         while True:
-            # Now look for at least to have trajectory_done == True
             for d in devices:
                 servo_stats = await d.wait_for_data(record)
-                if getattr(servo_stats, 'trajectory_done', False):
+                done = getattr(servo_stats, 'trajectory_done', False)
+                elapsed = time.time() - start_time
+                if not done:
+                    seen_not_done = True
+                if (seen_not_done or elapsed > 0.15) and done:
                     return
 
     async def _run_user_command(self, command):
