@@ -689,7 +689,7 @@ class AuxPort {
   void ISR_PollI2c() {
     using DC = aux::I2C::DeviceConfig;
 
-    // If our periperhal is currently busy, nothing we can do.
+    // If our peripheral is currently busy, nothing we can do.
     if (i2c_->busy()) { return; }
 
     const auto now_us = timer_->read_us();
