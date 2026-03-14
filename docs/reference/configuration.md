@@ -301,6 +301,14 @@ limit on torque when in this timeout mode is `servo.max_current_A`.
 The resistance of any attached motor NTC thermistor as measured at 25C
 in ohms.
 
+## `servo.fw.enable`
+
+If true, then operation above the base speed will be permitted.  The controller will use negative D axis current to lower the effective Kv value, resulting in increased power dissipation when above the base speed.
+
+## `servo.fw.max_current_ratio`
+
+When operating in field weakening, the D axis current magnitude is limited to no more than this multiplied by `servo.max_current_A`.
+
 ## `aux[12].pins.X.mode`
 
 Selects what functionality will be used on the given pin.

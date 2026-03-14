@@ -17,6 +17,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <vector>
 
 #include "mjlib/micro/test/persistent_config_fixture.h"
@@ -25,6 +26,7 @@
 #include "fw/bldc_servo_position.h"
 #include "fw/bldc_servo_structs.h"
 #include "fw/motor_position.h"
+#include "fw/test/motor_model.h"
 #include "fw/test/spmsm_motor_simulator.h"
 
 namespace moteus {
@@ -71,6 +73,7 @@ inline std::pair<float, float> FindDCurrentRange(float voltage, float resistance
 
 class SimulatedFixture;
 
+
 // A simulation context that integrates BldcServoControl with a SPMSM
 // motor model.  Follows the CRTP pattern from
 // bldc_servo_control_test.cc.
@@ -94,14 +97,15 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   RateConfig rate_config_{30000, 15000};
 
   float torque_constant_ = 0.0f;  // Set during initialization
-  float v_per_hz_ = 0.0f;
   float flux_brake_min_voltage_ = 100.0f;  // Effectively disabled
+  float fw_id_char_at_max_current_ = 0.0f;
   float derate_temperature_ = 80.0f;
   float motor_derate_temperature_ = 100.0f;
   uint8_t isr_motor_position_epoch_ = 0;
   uint32_t pwm_counts_ = 4000;
   float old_d_V_ = 0.0f;
   float old_q_V_ = 0.0f;
+
 
   ////////////////////////////////////////////////////////////////
   // Test state
@@ -125,6 +129,9 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   // Motor simulator
   SpmsmMotorSimulator motor_sim_;
 
+  // Optional motor model (stored for lifetime management)
+  std::shared_ptr<MotorModel> motor_model_;
+
   // Simulated encoder counts per revolution (14-bit)
   static constexpr uint32_t kEncoderCpr = 16384;
 
@@ -146,7 +153,12 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   // External load torque (Nm)
   float external_torque_ = 0.0f;
 
-  SimulationContext() {
+  explicit SimulationContext(
+      std::shared_ptr<MotorModel> model = nullptr)
+      : motor_model_(std::move(model)) {
+    // Initialize control filters from base class
+    InitControlFilters(rate_config_.pwm_rate_hz);
+
     // Initialize MJ5208-like motor parameters for firmware (motor_) and
     // simulator (motor_sim_) from the same source.
     const auto& mp = Mj5208Params();
@@ -161,31 +173,33 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     motor_.rotation_current_scale = mp.kRotationCurrentScale;
     motor_.rotation_torque_scale = mp.kRotationTorqueScale;
     torque_constant_ = mp.kKt;
-    // 1 / sqrt(3) = 0.57735
-    v_per_hz_ = 0.57735f * 60.0f / mp.kKv;  // V/(rev/s), matches firmware
 
-    // Motor simulator (uses Mj5208Params defaults, but explicit for clarity)
-    SpmsmMotorSimulator::Params sim_params;
-    sim_params.lambda_m = mp.kLambdaM;
-    sim_params.Kt = mp.kKt;
-    sim_params.R = mp.kR;
-    sim_params.L = mp.kL;
-    sim_params.J = mp.kJ;
-    sim_params.B = mp.kB;
-    sim_params.pole_pairs = mp.kPolePairs;
-    sim_params.rotation_current_cutoff = mp.kRotationCurrentCutoff;
-    sim_params.rotation_current_scale = mp.kRotationCurrentScale;
-    sim_params.rotation_torque_scale = mp.kRotationTorqueScale;
-    motor_sim_ = SpmsmMotorSimulator(sim_params);
+    // Motor simulator: use provided model or default simple model.
+    if (motor_model_) {
+      motor_sim_ = SpmsmMotorSimulator(motor_model_);
+    } else {
+      SpmsmMotorSimulator::Params sim_params;
+      sim_params.lambda_m = mp.kLambdaM;
+      sim_params.Kt = mp.kKt;
+      sim_params.R = mp.kR;
+      sim_params.L = mp.kL;
+      sim_params.J = mp.kJ;
+      sim_params.B = mp.kB;
+      sim_params.pole_pairs = mp.kPolePairs;
+      sim_params.rotation_current_cutoff = mp.kRotationCurrentCutoff;
+      sim_params.rotation_current_scale = mp.kRotationCurrentScale;
+      sim_params.rotation_torque_scale = mp.kRotationTorqueScale;
+      motor_sim_ = SpmsmMotorSimulator(sim_params);
+    }
 
     // Set up position limits (wide range)
     position_config_.position_min = kNaN;
     position_config_.position_max = kNaN;
 
-    // Current control bandwidth — UpdateCurrentPidGains() computes
+    // Current control bandwidth — UpdateDerivedMotorConstants() computes
     // kp/ki from this and the motor inductance/resistance.
     config_.pid_dq_hz = 400.0f;
-    UpdateCurrentPidGains();
+    UpdateDerivedMotorConstants();
 
     pid_position_config.kp = 4.0f;
     pid_position_config.ki = 1.0f;
@@ -196,8 +210,6 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     config_.max_current_A = 40.0f;
     config_.max_velocity = 100.0f;
     config_.max_velocity_derate = 20.0f;
-    config_.default_velocity_limit = kNaN;
-    config_.default_accel_limit = kNaN;
 
     // Set up motor position configuration
     motor_position_.config()->rotor_to_output_ratio = 1.0f;
@@ -512,11 +524,10 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     if (status_.mode != cmd->mode) {
       ISR_MaybeChangeMode(cmd);
 
-      // Complete calibration immediately (simulation bypass)
-      if (status_.mode == kEnabling) {
-        status_.mode = kCalibrationComplete;
-
-        // Now switch to the commanded mode
+      // Complete calibration immediately (simulation bypass).
+      // StartCalibrating() already set mode to kCalibrationComplete,
+      // so transition from there to the commanded mode.
+      if (status_.mode == kCalibrationComplete) {
         ISR_MaybeChangeMode(cmd);
       }
     }

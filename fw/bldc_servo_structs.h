@@ -39,6 +39,41 @@ struct Vec3 {
   }
 };
 
+struct FieldWeakeningConfig {
+  bool enable = false;
+  float modulation_margin = 0.15f;
+
+  // The cutoff frequency for the low-pass filter on the FW Id
+  // command.  This limits how fast the field weakening current can
+  // change.
+  float bandwidth_hz = 100.0f;
+
+  float max_current_ratio = 0.5f;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(enable));
+    a->Visit(MJ_NVP(modulation_margin));
+    a->Visit(MJ_NVP(bandwidth_hz));
+    a->Visit(MJ_NVP(max_current_ratio));
+  }
+};
+
+struct FieldWeakeningStatus {
+  float id_A = 0.0f;
+  float speed_ratio = 0.0f;
+  // Characteristic current psi_m / L_d, computed per-cycle from the
+  // dynamic D-axis inductance.
+  float id_char = 0.0f;
+
+  template <typename Archive>
+  void Serialize(Archive* a) {
+    a->Visit(MJ_NVP(id_A));
+    a->Visit(MJ_NVP(speed_ratio));
+    a->Visit(MJ_NVP(id_char));
+  }
+};
+
 enum BldcServoMode {
   // In this mode, the entire motor driver will be disabled.
   //
@@ -166,7 +201,11 @@ struct BldcServoStatus {
   bool trajectory_done = false;
 
   float motor_max_velocity = 0.0f;
+  float motor_base_velocity = 0.0f;
   float max_power_W = 0.0f;
+  float effective_max_current_A = 0.0f;
+
+  FieldWeakeningStatus fw;
 
   float torque_error_Nm = 0.0f;
 
@@ -267,7 +306,10 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(trajectory_done));
 
     a->Visit(MJ_NVP(motor_max_velocity));
+    a->Visit(MJ_NVP(motor_base_velocity));
     a->Visit(MJ_NVP(max_power_W));
+    a->Visit(MJ_NVP(effective_max_current_A));
+    a->Visit(MJ_NVP(fw));
     a->Visit(MJ_NVP(torque_error_Nm));
 
     a->Visit(MJ_NVP(sin));
@@ -398,6 +440,7 @@ struct BldcServoMotor {
   // Invert the order of phase movement.
   uint8_t phase_invert = 0;
 
+  // Phase-to-center resistance in ohms.
   float resistance_ohm = 0.0f;
 
   // D-axis phase-to-center inductance in henries.
@@ -540,6 +583,9 @@ struct BldcServoConfig {
   // Set to true to disable bemf feedforward sanity checks.
   bool bemf_feedforward_override = false;
 
+  // Scale factor for d-axis to q-axis cross-coupling feedforward.
+  float cross_coupling_feedforward = 1.0;
+
   // If non-zero, apply a feedforward torque of the desired angular
   // acceleration multiplied by this.
   float inertia_feedforward = 0.0f;
@@ -581,6 +627,8 @@ struct BldcServoConfig {
   // below 'max_voltage'.
   float flux_brake_margin_voltage = 3.0f;
   float flux_brake_resistance_ohm = 0.025f;
+
+  FieldWeakeningConfig fw;
 
   float max_current_A =
       (g_measured_hw_family == 0 ||
@@ -649,6 +697,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(current_feedforward));
     a->Visit(MJ_NVP(bemf_feedforward));
     a->Visit(MJ_NVP(bemf_feedforward_override));
+    a->Visit(MJ_NVP(cross_coupling_feedforward));
     a->Visit(MJ_NVP(inertia_feedforward));
     a->Visit(MJ_NVP(default_velocity_limit));
     a->Visit(MJ_NVP(default_accel_limit));
@@ -662,6 +711,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(timeout_mode));
     a->Visit(MJ_NVP(flux_brake_margin_voltage));
     a->Visit(MJ_NVP(flux_brake_resistance_ohm));
+    a->Visit(MJ_NVP(fw));
     a->Visit(MJ_NVP(max_current_A));
     a->Visit(MJ_NVP(derate_current_A));
     a->Visit(MJ_NVP(max_velocity));
@@ -692,6 +742,7 @@ struct BldcServoPositionConfig {
   }
 };
 
+/// Intermediate control outputs used by BldcServoControl.
 struct BldcServoControl_Control {
   Vec3 pwm;
   Vec3 voltage;

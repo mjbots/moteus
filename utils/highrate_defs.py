@@ -45,6 +45,12 @@ EMIT_DEBUG = [
     (1 << 19, 'servo_control.pwm.c', 1 / 32767, 'duty'),
     (1 << 20, 'servo_stats.torque_Nm', 30 / 32767, 'Nm'),
     (1 << 21, 'servo_stats.power_W', 3000 / 32767, 'W'),
+    (1 << 22, 'servo_stats.pid_d.integral', 100 / 32767, 'V'),
+    (1 << 23, 'servo_stats.pid_q.integral', 100 / 32767, 'V'),
+    (1 << 24, 'servo_stats.electrical_theta', 3.14159 / 32767, 'rad'),
+    (1 << 25, 'servo_stats.motor_base_velocity', 200 / 32767, 'rev/s'),
+    (1 << 26, 'servo_control.i_d_A', 100 / 32767, 'A'),
+    (1 << 27, 'servo_control.i_q_A', 100 / 32767, 'A'),
 ]
 
 

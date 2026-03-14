@@ -96,6 +96,9 @@ function parseArgs(args) {
         'motor.d0': 1e-12,
         'motor.d1': 1e-12,
         'motor.inertia': 0,
+        'motor.poles': 0,
+        'motor.ld_scale': 0,
+        field_weakening: 'off',
     };
 
     for (let i = 0; i < args.length; i++) {
@@ -117,14 +120,18 @@ function parseArgs(args) {
                  'move_distance', 'load_inertia',
                  'motor.kv', 'motor.r', 'motor.l_d', 'motor.l_q',
                  'motor.thermal_r', 'motor.thermal_c',
-                 'motor.d0', 'motor.d1', 'motor.inertia'].includes(key)) {
+                 'motor.d0', 'motor.d1', 'motor.inertia', 'motor.poles',
+                 'motor.ld_scale'].includes(key)) {
                 if (value.toLowerCase() === 'infinity') {
                     result[key] = Infinity;
                 } else {
                     result[key] = parseFloat(value);
                 }
-            } else {
+            } else if (key in result) {
                 result[key] = value;
+            } else {
+                console.error(`Error: Unknown option: ${arg}`);
+                process.exit(1);
             }
         }
     }
@@ -185,6 +192,7 @@ Optional Parameters:
   --pwm P           PWM frequency in Hz (default: controller default)
   --max_controller_temp T    Max controller temp C (default: controller limit)
   --max_motor_temp T         Max motor temp C (default: motor limit)
+  --field_weakening on|off   Enable CVCP field weakening (default: off)
   --output FIELD    Specific output field to display
 
 Custom Motor Parameters (when --motor model):
@@ -198,6 +206,9 @@ Custom Motor Parameters (when --motor model):
   --motor.d0 D0           Linear drag coefficient (default: 1e-12)
   --motor.d1 D1           Quadratic drag coefficient (default: 1e-12)
   --motor.inertia I       Rotor inertia in kg*m^2 (default: 0)
+  --motor.poles P         Number of magnetic poles (default: 0)
+  --motor.ld_scale S      Phase-to-phase D-axis inductance scale factor
+                          in H/A (default: 0)
 
 Output Options:
   --json            Output results as JSON
@@ -304,6 +315,8 @@ function main() {
             d0: args['motor.d0'],
             d1: args['motor.d1'],
             inertia: args['motor.inertia'],
+            poles: args['motor.poles'],
+            ld_scale_pp: args['motor.ld_scale'],
             thermal: {
                 'none': {
                     R: args['motor.thermal_r'],
@@ -335,6 +348,7 @@ function main() {
         pwm: args.pwm ?? controller.getDefaultPwm(),
         move_distance: args.move_distance,
         load_inertia: args.load_inertia,
+        field_weakening: args.field_weakening,
     };
 
     // Run analysis
@@ -344,8 +358,11 @@ function main() {
     // Output results
     if (args.json) {
         const output = result ? { ...result } : null;
-        // Remove non-serializable fields
+        // Remap internal fields to public names
         if (output) {
+            if (output._infeasible_reason) {
+                output.infeasible_reason = output._infeasible_reason;
+            }
             delete output._infeasible_reason;
             delete output._limiting_factor;
         }

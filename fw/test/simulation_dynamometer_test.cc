@@ -101,6 +101,7 @@ void RunStopPositionTest(
 
     auto cmd = MakePositionCommand(kNaN, 1.0f, 0.3f);
     cmd.stop_position = stop_pos;
+    cmd.accel_limit = -1.0f;  // Disable; stop_position is incompatible with accel_limit
 
     ctx.Command(&cmd);
     ctx.RunSimulation(&cmd, 3.0f);
@@ -131,9 +132,7 @@ void RunPositionLimitsTest(
     ctx.position_config_.position_min = -limit;
     ctx.position_config_.position_max = 10.0f;
 
-    auto cmd = MakePositionCommand(kNaN, -1.5f, 0.3f);  // Move toward negative limit
-    cmd.stop_position = -10.0f;
-    cmd.accel_limit = 30.0f;
+    auto cmd = MakePositionCommand(-10.0f, -1.5f, 0.3f);  // Move toward negative limit
 
     ctx.Command(&cmd);
     ctx.RunSimulation(&cmd, 3.0f);
@@ -219,6 +218,9 @@ BOOST_AUTO_TEST_CASE(SimVelocityTrackingMultiple) {
 
 // Test stop position - move at velocity until reaching target
 BOOST_AUTO_TEST_CASE(SimStopPosition) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   auto cmd = MakePositionCommand(0.0f, 0.0f, 0.2f);
   ctx.Command(&cmd);
   ctx.RunSimulation(&cmd, 0.5f);
@@ -229,6 +231,8 @@ BOOST_AUTO_TEST_CASE(SimStopPosition) {
     cmd.position = kNaN;  // No position target
     cmd.velocity = kFixedVelocity;
     cmd.stop_position = stop_pos;
+    cmd.accel_limit = -1.0f;  // Disable; stop_position is incompatible with accel_limit
+    cmd.velocity_limit = -1.0f;  // Reset (PrepareCommand may have set it finite)
     ctx.Command(&cmd);
 
     // After 0.5s, should be moving at commanded velocity
@@ -303,6 +307,9 @@ BOOST_AUTO_TEST_CASE(SimMaxTorqueLimiting) {
 
 // Test position limits enforcement
 BOOST_AUTO_TEST_CASE(SimPositionLimits) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   for (const float position_limit : {0.1f, 1.0f, 2.0f}) {
     // Test negative limit (position_min)
     {
@@ -314,12 +321,14 @@ BOOST_AUTO_TEST_CASE(SimPositionLimits) {
 
       auto cmd = MakePositionCommand(kNaN, 1.5f, 0.65f);  // Move in positive direction first
       cmd.stop_position = 0.0f;
+      cmd.accel_limit = -1.0f;  // Disable; stop_position is incompatible with accel_limit
       ctx.Command(&cmd);
       ctx.RunSimulation(&cmd, 3.0f);
 
       // Now command to move past the negative limit
       cmd.velocity = -1.5f;
       cmd.stop_position = -10.0f;
+      cmd.accel_limit = -1.0f;
       ctx.Command(&cmd);
       ctx.RunSimulation(&cmd, 3.0f);
 
@@ -340,6 +349,7 @@ BOOST_AUTO_TEST_CASE(SimPositionLimits) {
 
       auto cmd = MakePositionCommand(kNaN, 1.5f, 0.65f);
       cmd.stop_position = 10.0f;
+      cmd.accel_limit = -1.0f;  // Disable; stop_position is incompatible with accel_limit
       ctx.Command(&cmd);
       ctx.RunSimulation(&cmd, 3.0f);
 
@@ -616,6 +626,9 @@ BOOST_AUTO_TEST_CASE(SimVelocityAccelLimits) {
 // reset.  Uses RunBasicPositionTest helper (mirrors dyno's
 // ValidatePositionReverse).
 BOOST_AUTO_TEST_CASE(SimPositionReverse) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   // Dyno uses tolerance_scale = 1.0 for reverse test
   constexpr float kToleranceScale = 1.0f;
 
@@ -639,6 +652,9 @@ BOOST_AUTO_TEST_CASE(SimPositionReverse) {
 // Uses RunBasicPositionTest helper (mirrors dyno's
 // ValidateVoltageModeControl).
 BOOST_AUTO_TEST_CASE(SimVoltageModeControl) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   // Dyno uses tolerance_scale = 1.0 for voltage mode control
   constexpr float kToleranceScale = 1.0f;
 
@@ -898,9 +914,11 @@ BOOST_AUTO_TEST_CASE(SimRezero) {
     // Update status position
     ctx.status_.position = ctx.position_.position;
 
-    // Verify position is now close to rezero value (within 0.5 rev as per dyno)
+    // Verify position is now close to rezero value (within 0.5 rev as per dyno).
+    // At exactly half a revolution, ISR_SetOutputPositionNearest has a tie-breaking
+    // ambiguity that can produce error of exactly 0.5, so use <= not <.
     BOOST_CHECK_MESSAGE(
-        std::abs(ctx.status_.position - rezero_value) < 0.5f,
+        std::abs(ctx.status_.position - rezero_value) <= 0.5f,
         "Rezero to " << rezero_value << ": position "
             << ctx.status_.position << " not within 0.5");
   }
@@ -921,6 +939,9 @@ BOOST_AUTO_TEST_CASE(SimRezero) {
 //
 // The tolerance scale 2.3 is from the dyno test.
 BOOST_AUTO_TEST_CASE(SimFixedVoltageMode) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   constexpr float kToleranceScale = 2.3f;
 
   auto setup = [&] {
@@ -939,6 +960,9 @@ BOOST_AUTO_TEST_CASE(SimFixedVoltageMode) {
 //
 // Runs the same test suite as the forward test.
 BOOST_AUTO_TEST_CASE(SimFixedVoltageModeReverse) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   // Dyno uses tolerance_scale = 2.3 for fixed voltage mode
   constexpr float kToleranceScale = 2.3f;
 
@@ -1530,6 +1554,9 @@ BOOST_AUTO_TEST_CASE(SimMaxSlip) {
 // 3. Wait to reach stop_position
 // 4. Drag DUT with fixture, check if it "sticks" (with slip) or returns (without)
 BOOST_AUTO_TEST_CASE(SimSlipStopPosition) {
+  // stop_position requires NaN accel_limit, which conflicts with bemf_feedforward.
+  ctx.config_.bemf_feedforward_override = true;
+
   for (const float slip : {kNaN, 0.04f}) {  // Match dyno: 0.04
     ctx.Reset();
     ctx.SetMotorPosition(0.0f);
@@ -1551,6 +1578,7 @@ BOOST_AUTO_TEST_CASE(SimSlipStopPosition) {
     // Phase 1: Fixture holds DUT at position 0 while DUT tries to move
     auto cmd = MakePositionCommand(kNaN, kVelocity, 0.3f);
     cmd.stop_position = 0.5f;  // "s0.5" in dyno
+    cmd.accel_limit = -1.0f;  // Disable; stop_position is incompatible with accel_limit
 
     ctx.Command(&cmd);
     fixture.HoldPosition(0.0f);  // Fixture holds at 0
@@ -1669,7 +1697,10 @@ BOOST_AUTO_TEST_CASE(SimSlipBounds) {
   // Increase motor viscous damping to simulate the higher effective damping
   // of the real dynamometer setup (two coupled motors with mechanical losses).
   // This prevents the motor from overshooting the position bound on release.
-  ctx.motor_sim_.params().B = 0.01f;  // ~300x higher than default 3e-5
+  // Increase motor viscous damping via the motor model.
+  auto* simple_model = dynamic_cast<SimpleMotorModel*>(ctx.motor_sim_.model().get());
+  BOOST_REQUIRE(simple_model != nullptr);
+  simple_model->simple_params().B = 0.01f;  // ~300x higher than default 3e-5
 
   // Configure fixture
   fixture.ConfigureRigidHold(0.65f);
@@ -1707,6 +1738,7 @@ BOOST_AUTO_TEST_CASE(SimSlipBounds) {
 
       // Release fixture and let motor return
       fixture.Stop();
+
       ctx.RunWithFixture(&cmd, &fixture, 3.0f);
 
       // Check final position
@@ -1830,6 +1862,10 @@ BOOST_AUTO_TEST_CASE(SimDqIlimit) {
   // This test verifies the integrator doesn't wind up excessively
   // by checking that stopping after high-speed operation doesn't
   // result in prolonged torque output.
+
+  // Use a high acceleration limit so the deceleration check is not
+  // bottlenecked by the trajectory planner.
+  ctx.config_.default_accel_limit = 10000.0f;
 
   // Command high velocity
   auto cmd = MakePositionCommand(kNaN, 400.0f, 0.5f);

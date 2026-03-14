@@ -121,6 +121,7 @@ FAULT_CODE_DESCRIPTIONS = {
     102: "limit: commanded max torque",
     103: "limit: servopos limit",
     104: "limit: flux braking",
+    105: "limit: field weakening",
 }
 
 

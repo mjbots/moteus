@@ -15,6 +15,9 @@
 #pragma once
 
 #include <cmath>
+#include <memory>
+
+#include "fw/test/motor_model.h"
 
 namespace moteus {
 namespace test {
@@ -75,8 +78,13 @@ class SpmsmMotorSimulator {
     double i_q = 0.0;  // Q-axis current (A)
   };
 
-  SpmsmMotorSimulator() = default;
-  explicit SpmsmMotorSimulator(const Params& params) : params_(params) {}
+  SpmsmMotorSimulator() : model_(MakeSimpleModel(Params{})) {}
+  explicit SpmsmMotorSimulator(const Params& params)
+      : params_(params), model_(MakeSimpleModel(params)) {}
+  explicit SpmsmMotorSimulator(std::shared_ptr<MotorModel> model)
+      : model_(std::move(model)) {
+    SynthesizeParams();
+  }
 
   // Step the motor simulation given phase voltages (a, b, c).
   // dt: time step (seconds)
@@ -121,9 +129,8 @@ class SpmsmMotorSimulator {
   const State& state() const { return state_; }
   State& state() { return state_; }
 
-  // Get motor parameters.
+  // Get motor parameters (read-only; to mutate, use model() accessors).
   const Params& params() const { return params_; }
-  Params& params() { return params_; }
 
   // Convenience accessors.
   float theta_electrical() const {
@@ -133,7 +140,7 @@ class SpmsmMotorSimulator {
     return static_cast<float>(state_.omega_mechanical);
   }
   float omega_electrical() const {
-    return static_cast<float>(state_.omega_mechanical * params_.pole_pairs);
+    return static_cast<float>(state_.omega_mechanical * model_->pole_pairs());
   }
   float i_d() const { return static_cast<float>(state_.i_d); }
   float i_q() const { return static_cast<float>(state_.i_q); }
@@ -181,24 +188,12 @@ class SpmsmMotorSimulator {
   }
 
   // Convert phase current to torque, applying saturation model.
-  // This matches the firmware's TorqueModel::current_to_torque.
-  // Torque = 1.5 * pole_pairs * lambda_m * I_q = Kt * I_q
+  // Delegates to the motor model.
   double current_to_torque(double current) const {
-    const double abs_current = std::abs(current);
-    const double torque_constant = 1.5 * params_.pole_pairs * params_.lambda_m;
-    const double cutoff = params_.rotation_current_cutoff;
-
-    if (abs_current < cutoff) {
-      return current * torque_constant;
-    }
-
-    // Above cutoff: T = cutoff*Kt + torque_scale * log2(1 + (I - cutoff) * current_scale)
-    const double rotation_extra =
-        params_.rotation_torque_scale *
-        std::log2(1.0 + (abs_current - cutoff) * params_.rotation_current_scale);
-    const double unsigned_torque = cutoff * torque_constant + rotation_extra;
-    return std::copysign(unsigned_torque, current);
+    return model_->current_to_torque(current);
   }
+
+  const std::shared_ptr<MotorModel>& model() const { return model_; }
 
  private:
   void StepInternal(double dt, float v_a, float v_b, float v_c, float T_load) {
@@ -218,21 +213,22 @@ class SpmsmMotorSimulator {
     const double v_q = -v_alpha * sin_t + v_beta * cos_t;
 
     // 2. Solve electrical dynamics.
-    // DQ-frame SPMSM equations:
-    //   L * di_d/dt = v_d - R*i_d + omega_e*L*i_q
-    //   L * di_q/dt = v_q - R*i_q - omega_e*L*i_d - omega_e*lambda_m
+    // DQ-frame equations with separate L_d, L_q:
+    //   L_d * di_d/dt = v_d - R*i_d + omega_e * L_q * i_q
+    //   L_q * di_q/dt = v_q - R*i_q - omega_e * L_d * i_d - omega_e * lambda_m
     //
-    // Where lambda_m is the PM flux linkage (back-EMF constant).
-    const double omega_e = state_.omega_mechanical * params_.pole_pairs;
-    const double R = params_.R;
-    const double L = params_.L;
-    const double lambda_m = params_.lambda_m;
+    // Cross-coupling terms use the other axis's inductance.
+    const double omega_e = state_.omega_mechanical * model_->pole_pairs();
+    const double R = model_->R();
+    const double L_d = model_->L_d(state_.i_d, state_.i_q);
+    const double L_q = model_->L_q(state_.i_d, state_.i_q);
+    const double lambda_m = model_->lambda_m();
 
     const double di_d_dt = (v_d - R * state_.i_d +
-                            omega_e * L * state_.i_q) / L;
+                            omega_e * L_q * state_.i_q) / L_d;
     const double di_q_dt = (v_q - R * state_.i_q -
-                            omega_e * L * state_.i_d -
-                            omega_e * lambda_m) / L;
+                            omega_e * L_d * state_.i_d -
+                            omega_e * lambda_m) / L_q;
 
     state_.i_d += di_d_dt * dt;
     state_.i_q += di_q_dt * dt;
@@ -243,14 +239,14 @@ class SpmsmMotorSimulator {
     // 4. Solve mechanical dynamics.
     // J * domega/dt = T_em + T_load - B*omega
     const double domega_dt = (T_em + static_cast<double>(T_load) -
-                              params_.B * state_.omega_mechanical) / params_.J;
+                              model_->B() * state_.omega_mechanical) / model_->J();
     state_.omega_mechanical += domega_dt * dt;
 
     // 5. Integrate position.
     // theta_mechanical = integral of omega_mechanical
     // theta_electrical = theta_mechanical * pole_pairs (mod 2*pi for transforms)
     state_.theta_mechanical += state_.omega_mechanical * dt;
-    state_.theta_electrical += state_.omega_mechanical * params_.pole_pairs * dt;
+    state_.theta_electrical += state_.omega_mechanical * model_->pole_pairs() * dt;
 
     // Wrap theta_electrical to [0, 2*pi) for DQ transforms.
     //
@@ -263,7 +259,32 @@ class SpmsmMotorSimulator {
     }
   }
 
+  static std::shared_ptr<SimpleMotorModel> MakeSimpleModel(const Params& p) {
+    SimpleMotorModel::Params sp;
+    sp.lambda_m = p.lambda_m;
+    sp.R = p.R;
+    sp.L = p.L;
+    sp.J = p.J;
+    sp.B = p.B;
+    sp.pole_pairs = p.pole_pairs;
+    sp.rotation_current_cutoff = p.rotation_current_cutoff;
+    sp.rotation_current_scale = p.rotation_current_scale;
+    sp.rotation_torque_scale = p.rotation_torque_scale;
+    return std::make_shared<SimpleMotorModel>(sp);
+  }
+
+  void SynthesizeParams() {
+    params_.lambda_m = model_->lambda_m();
+    params_.Kt = 1.5f * model_->pole_pairs() * model_->lambda_m();
+    params_.R = model_->R();
+    params_.L = model_->L_d(0, 0);
+    params_.J = model_->J();
+    params_.pole_pairs = model_->pole_pairs();
+    params_.B = model_->B();
+  }
+
   Params params_;
+  std::shared_ptr<MotorModel> model_;
   State state_;
 };
 

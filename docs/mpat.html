@@ -561,7 +561,7 @@ const fieldDefinitions = {
       },
       'model': {
         help: 'Generic motor model - for full custom motor definitions',
-        requiresSubFields: ['kv', 'r', 'l_d', 'l_q', 'd0', 'd1', 'thermal_r', 'thermal_c', 'inertia']
+        requiresSubFields: ['kv', 'r', 'l_d', 'l_q', 'd0', 'd1', 'thermal_r', 'thermal_c', 'inertia', 'poles', 'ld_scale']
       }
     }
   },
@@ -644,13 +644,24 @@ const fieldDefinitions = {
       'motor_temp': { help: 'Motor temperature in °C' },
       'supply_power': { help: 'Total electrical power consumption in W' },
       'supply_current': { help: 'Current sourced from supply in A' },
-      'phase_current': { help: 'Current applied to motor phases in A' },
+      'phase_current': { help: 'Total phase current in A (includes D and Q axis)' },
+      'd_current': { help: 'D-axis current in A (field weakening component)' },
+      'q_current': { help: 'Q-axis current in A (torque-producing component)' },
       'copper_loss': { help: 'Power dissipated in motor windings in W' },
       'iron_loss': { help: 'Power dissipated in motor stator in W' },
       'controller_loss': { help: 'Power dissipated in controller in W' },
       'mechanical_power': { help: 'Mechanical power at output of gearbox in W' },
       'efficiency': { help: 'Motor efficiency as percentage' },
       'time': { help: 'Time to complete move' },
+    }
+  },
+  'field_weakening': {
+    defaultValue: 'off',
+    description: 'Enable field weakening - extends speed range by injecting D-axis current above base speed',
+    type: 'constrained',
+    options: {
+      'off': { help: 'Field weakening disabled' },
+      'on': { help: 'CVCP field weakening enabled' }
     }
   },
   'analysis': {
@@ -710,6 +721,16 @@ const fieldDefinitions = {
     defaultValue: '0',
     description: 'Rotor inertia in kg·m²',
     type: 'numeric'
+  },
+  'motor.poles': {
+    defaultValue: '14',
+    description: 'Number of magnetic poles',
+    type: 'numeric'
+  },
+  'motor.ld_scale': {
+    defaultValue: '0',
+    description: 'Phase-to-phase D-axis inductance scale factor in H/A',
+    type: 'numeric'
   }
 };
 
@@ -737,6 +758,8 @@ const motorModelDefaults = {
   'd0': 1e-12,
   'd1': 1e-12,
   'inertia': 0,
+  'poles': 0,
+  'ld_scale_pp': 0,
   'l_q_pp': undefined,
 };
 
@@ -1035,6 +1058,8 @@ class Interpolator2D {
       supply_power = null;
       supply_current = null;
       phase_current = null;
+      d_current = null;
+      q_current = null;
       copper_loss = null;
       iron_loss = null;
       controller_loss = null;
@@ -1062,6 +1087,8 @@ class Interpolator2D {
           supply_power: { unit: 'W', precision: 2, displayName: 'Supply Power' },
           supply_current: { unit: 'A', precision: 2, displayName: 'Supply Current' },
           phase_current: { unit: 'A', precision: 2, displayName: 'Phase Current' },
+          d_current: { unit: 'A', precision: 2, displayName: 'D-axis Current' },
+          q_current: { unit: 'A', precision: 2, displayName: 'Q-axis Current' },
           copper_loss: { unit: 'W', precision: 2, displayName: 'Copper Loss' },
           iron_loss: { unit: 'W', precision: 2, displayName: 'Iron Loss' },
           controller_loss: { unit: 'W', precision: 2, displayName: 'Controller Loss' },
@@ -1150,6 +1177,21 @@ class Controller {
     return this.props['maxVoltage'];
   }
 
+  getAbsVoltageMargin() {
+    return 0;
+  }
+
+  supportsFieldWeakening() {
+    return false;
+  }
+
+  // Maximum voltage ratio from PWM constraints (without SVPWM).
+  // Matches firmware max_voltage_ratio for moteus controllers.
+  // Default assumes an ideal inverter; subclasses should override.
+  getMaxVoltageRatio(config) {
+    return 1.0;
+  }
+
   getMaxSpeed(voltage, motor, config) {
     return voltage * motor.getKv() * this.getSpeedFactor(config) / 60.0 / config.gear_reduction;
   }
@@ -1233,6 +1275,31 @@ class MoteusController extends Controller {
   getMaxCurrent() {
     return this.props['maxCurrent'];
   }
+
+  getMaxCpsr() {
+    return 3.0;
+  }
+
+  getMaxFieldWeakeningCurrentRatio() {
+    return 0.5;
+  }
+
+  supportsFieldWeakening() {
+    return true;
+  }
+
+  // Moteus uses the actual PWM-derived max voltage ratio.
+  // Matches firmware max_voltage_ratio.
+  getMaxVoltageRatio(config) {
+    const current_sample_time = 0.60e-6;
+    const min_pwm = current_sample_time / (0.5 / config.pwm);
+    const max_pwm = 1.0 - min_pwm;
+    return ((max_pwm - 0.5) * 2.0);
+  }
+
+  getAbsVoltageMargin() {
+    return 6.0;
+  }
 }
 
 class OdriveController extends Controller {
@@ -1257,6 +1324,18 @@ class OdriveController extends Controller {
           (this.props['maxVoltage'] - this.props['maxCurrentDerateVoltage']);
     }
   }
+
+  getSpeedFactor(config) {
+    return 0.90;
+  }
+
+  getMaxCpsr() {
+    return 1.0;
+  }
+
+  getMaxFieldWeakeningCurrentRatio() {
+    return 0.5;
+  }
 }
 
 class Motor {
@@ -1264,27 +1343,31 @@ class Motor {
                R, R_pp,
                L_d, L_d_pp,
                L_q, L_q_pp,
+               ld_scale, ld_scale_pp,
                thermal,
                rotationCurrentCutoff=1000,
                rotationCurrentScale=1,
                rotationTorqueScale=1,
                d0=0, d1=0,
                inertia=null,
+               poles=0,
                productInfo=null}) {
     this.nameValue = name;
     this.displayNameValue = displayName;
     this.productInfoValue = productInfo;
     this.maxTemp = maxTemp;
     this.Kv = Kv;
-    // For each of R, L_d, and L_q, accept either a phase-to-center
-    // value (no suffix) or a phase-to-phase value (_pp suffix).
-    // Internally we store phase-to-center to match the firmware
-    // convention (motor.inductance_{d,q}_H).
+    // For each of R, L_d, L_q, and ld_scale, accept either a
+    // phase-to-center value (no suffix) or a phase-to-phase value
+    // (_pp suffix).  Internally we store phase-to-center to match
+    // the firmware convention (motor.inductance_{d,q}_H etc).
     this.R = R_pp !== undefined ? R_pp / 2 : R;
     this.L_d = L_d_pp !== undefined ? L_d_pp / 2 : L_d;
     // L_q defaults to L_d when not explicitly provided (SPMSM).
     this.L_q = L_q_pp !== undefined ? L_q_pp / 2 :
                (L_q !== undefined ? L_q : this.L_d);
+    this.ld_scale = ld_scale_pp !== undefined ? ld_scale_pp / 2 :
+                    (ld_scale !== undefined ? ld_scale : 0);
     this.thermal = thermal;
     this.rotationCurrentScale = rotationCurrentScale;
     this.rotationCurrentCutoff = rotationCurrentCutoff;
@@ -1292,6 +1375,7 @@ class Motor {
     this.d0 = d0;
     this.d1 = d1;
     this.inertia = inertia;
+    this.poles = poles;
 
     this.kt = 8.3 / this.Kv;
   }
@@ -1327,15 +1411,20 @@ class Motor {
     return velocityHz * config.gear_reduction * 60 / this.getKv();
   }
 
-  getPower(current, outputVelocityHz, config) {
+  getRotorTorque(current) {
+    if (current < this.rotationCurrentCutoff) {
+      return this.kt * current;
+    }
+    return this.kt * this.rotationCurrentCutoff +
+           this.rotationTorqueScale * Math.log2(
+              1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale);
+  }
+
+  getPower(q_current, outputVelocityHz, config, d_current) {
     const velocityHz = outputVelocityHz * config.gear_reduction;
-    const torque = current < this.rotationCurrentCutoff ?
-      (this.kt * current) :
-      (this.kt * this.rotationCurrentCutoff +
-       this.rotationTorqueScale * Math.log2(
-          1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale));
+    const torque = this.getRotorTorque(q_current);
     const Pmech = 2 * Math.PI * torque * velocityHz;
-    const Pcopper = 1.5 * current * current * this.R;
+    const Pcopper = 1.5 * (q_current * q_current + d_current * d_current) * this.R;
     const ironDrag = this.d0 + this.d1 * velocityHz;
     const Piron = velocityHz == 0 ? 0 : (2 * Math.PI * velocityHz * ironDrag);
     return {
@@ -1362,6 +1451,8 @@ class Motor {
     // and (Pcopper + Piron) < thermalW
     // and (Ptotal) < maxControllerPower
 
+    // Upper bound for q-axis current (ignoring d-axis copper loss
+    // for the bound, since i_d depends on i_q).
     const thermalLimit = LimitedValue.min(
       new LimitedValue(thermalW, 'max_motor_temperature'),
       new LimitedValue(maxControllerPower, 'max_controller_power'));
@@ -1377,32 +1468,46 @@ class Motor {
 
     // Bisect between 0 and ImaxPossible to find a current which is as large
     // as possible while satisfying both of our inequalities.
+    // i_d depends on i_q (via current-dependent base speed), so we
+    // compute it inside the loop.
     const valid = (I) => {
-      const r = this.getPower(I, velocityHz, config);
+      const i_d = this.getFieldWeakeningCurrent(velocityHz, config, I);
+      const r = this.getPower(I, velocityHz, config, i_d);
       return (((r.Pcopper + r.Piron) < thermalW) &&
-              (r.Ptotal < maxControllerPower));
+              (r.Ptotal < maxControllerPower) &&
+              this.isVoltageFeasible(I, velocityHz, config));
     };
 
     const resultCurrent = bisectMaxTrue(ImaxPossible.value, valid, 0.01);
-    const r = this.getPower(resultCurrent, velocityHz, config);
+    const i_d = this.getFieldWeakeningCurrent(velocityHz, config, resultCurrent);
+    const r = this.getPower(resultCurrent, velocityHz, config, i_d);
     const motorThermal = Math.abs((r.Pcopper + r.Piron) - thermalW);
     const controllerPower = Math.abs(r.Ptotal - maxControllerPower);
     const maxDelta = Math.abs(resultCurrent - ImaxPossible.value);
+    const V_phase = this.getPhaseVoltage(resultCurrent, i_d, velocityHz, config);
+    const kSvpwmRatio = 2.0 / Math.sqrt(3);
+    const V_max = config.controller.getMaxVoltageRatio(config) *
+        kSvpwmRatio * 0.5 * config.voltage;
+    const voltageDelta = Math.abs(V_phase - V_max);
     const resultReason = LimitedValue.min(
       new LimitedValue(motorThermal, 'max_motor_temperature'),
       LimitedValue.min(
         new LimitedValue(controllerPower, 'max_controller_power'),
-        new LimitedValue(maxDelta, ImaxPossible.limitingFactor)));
+        LimitedValue.min(
+          new LimitedValue(voltageDelta, 'back_emf'),
+          new LimitedValue(maxDelta, ImaxPossible.limitingFactor))));
     return new LimitedValue(resultCurrent, resultReason.limitingFactor);
   }
 
   getVelocityFromThermalPowerAndTorque(thermalW, torque, maxControllerPower, config) {
     const current = this.getCurrentFromTorque(torque, config);
 
-    // The copper loss does not change with velocity.
-    const Pcopper = 1.5 * current * current * this.R;
+    // The Q axis portion of copper loss does not change with
+    // velocity.  The D axis can if field weakening is enabled, and we
+    // handle that later.
+    const Pcopper_q = 1.5 * current * current * this.R;
 
-    if (Pcopper > thermalW) {
+    if (Pcopper_q > thermalW) {
       // The torque alone is more thermal load than the motor can
       // pull.
       return null;
@@ -1417,27 +1522,109 @@ class Motor {
     if (controllerTemp == null || controllerTemp > config.controller.getMaxTemp()) {
       return null;
     }
-    const Piron_motor = thermalW - Pcopper;
 
     const d0 = this.d0;
     const d1 = this.d1;
     const pi = Math.PI;
 
-    // First find the rotor velocity as limited by motor temperature.
-    const vMotorTemp =
-          new LimitedValue(
-            (-2 * pi * d0 + Math.sqrt(Math.pow(2 * pi * d0, 2) + 4 * 2 * pi * d1 * Piron_motor)) / (2 * 2 * pi * d1),
-            'max_motor_temp');
+    // When field weakening is enabled, i_d varies with velocity above
+    // base speed, so we use numerical bisection instead of the
+    // analytical solution.
+    const fwEnabled = this.isFieldWeakeningEnabled(config);
 
-    // Then the rotor velocity limited by controller maximum power.
-    const vControllerPower =
-          new LimitedValue(
-            (-pi * torque - d0 * pi + Math.sqrt(Math.pow(pi * torque, 2) + 2 * d0 * pi * pi * torque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper) * d1 * pi)) / (2 * d1 * pi),
-            'max_controller_power');
+    if (fwEnabled) {
+      const maxVelLimited = this.getElectricalMaxVelocity(config);
+      const maxVel = maxVelLimited.value;
+      const maxControllerTemp = config.controller.getMaxTemp();
+      const valid = (vel) => {
+        const outputVel = vel / config.gear_reduction;
+        const i_d = this.getFieldWeakeningCurrent(outputVel, config, current);
+        const Pcopper_d = 1.5 * i_d * i_d * this.R;
+        const totalPcopper = Pcopper_q + Pcopper_d;
+        const rotorVelocityHz = vel;
+        const ironDrag = d0 + d1 * rotorVelocityHz;
+        const Piron = rotorVelocityHz == 0 ? 0 : (2 * pi * rotorVelocityHz * ironDrag);
+        const motorThermalOk = (totalPcopper + Piron) < thermalW;
+        const Pmech = 2 * pi * this.getRotorTorque(current) * rotorVelocityHz;
+        const Ptotal = Pmech + totalPcopper + Piron;
+        const controllerPowerOk = Ptotal < maxControllerPower;
+        // Controller temperature check: include the d-axis FW current
+        // in phase_current since it also dissipates in the controller.
+        const phaseCurrent = Math.sqrt(current * current + i_d * i_d);
+        const controllerLossW = config.controller.getThermalPower({
+          ...config,
+          phase_current: phaseCurrent,
+        });
+        const controllerTemp = config.controller.getTemperature(
+            controllerLossW, config);
+        const controllerTempOk =
+            controllerTemp != null && controllerTemp < maxControllerTemp;
+        return motorThermalOk && controllerPowerOk && controllerTempOk &&
+          this.isVoltageFeasible(current, outputVel, config);
+      };
 
-    const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
-    return new LimitedValue(rotorResult.value / config.gear_reduction,
-                            rotorResult.limitingFactor);
+      const maxRotorVel = maxVel * config.gear_reduction;
+      const resultRotorVel = bisectMaxTrue(maxRotorVel, valid, 0.01);
+      if (resultRotorVel == null) return null;
+
+      // Determine limiting factor
+      const outputVel = resultRotorVel / config.gear_reduction;
+      const i_d = this.getFieldWeakeningCurrent(outputVel, config, current);
+      const Pcopper_d = 1.5 * i_d * i_d * this.R;
+      const totalPcopper = Pcopper_q + Pcopper_d;
+      const ironDrag = d0 + d1 * resultRotorVel;
+      const Piron = resultRotorVel == 0 ? 0 : (2 * pi * resultRotorVel * ironDrag);
+      const motorThermalDelta = Math.abs((totalPcopper + Piron) - thermalW);
+      const Pmech = 2 * pi * this.getRotorTorque(current) * resultRotorVel;
+      const controllerDelta = Math.abs((Pmech + totalPcopper + Piron) - maxControllerPower);
+      const maxVelDelta = Math.abs(resultRotorVel - maxRotorVel);
+      const V_phase = this.getPhaseVoltage(current, i_d, outputVel, config);
+      const kSvpwmRatio = 2.0 / Math.sqrt(3);
+      const V_max = config.controller.getMaxVoltageRatio(config) *
+          kSvpwmRatio * 0.5 * config.voltage;
+      const voltageDelta = Math.abs(V_phase - V_max);
+      const phaseCurrent = Math.sqrt(current * current + i_d * i_d);
+      const controllerLossW = config.controller.getThermalPower({
+        ...config,
+        phase_current: phaseCurrent,
+      });
+      const controllerTemp = config.controller.getTemperature(
+          controllerLossW, config);
+      const controllerTempDelta = (controllerTemp == null) ?
+          Infinity : Math.abs(controllerTemp - maxControllerTemp);
+      const limitingFactor = LimitedValue.min(
+        new LimitedValue(motorThermalDelta, 'max_motor_temp'),
+        LimitedValue.min(
+          new LimitedValue(controllerDelta, 'max_controller_power'),
+          LimitedValue.min(
+            new LimitedValue(controllerTempDelta, 'max_controller_temp'),
+            LimitedValue.min(
+              new LimitedValue(voltageDelta, 'back_emf'),
+              new LimitedValue(maxVelDelta, maxVelLimited.limitingFactor))))).limitingFactor;
+
+      return new LimitedValue(resultRotorVel / config.gear_reduction, limitingFactor);
+    } else {
+      // We are not using field weakening, so we can use an analytical
+      // solution.
+
+      const Piron_motor = thermalW - Pcopper_q;
+
+      // First find the rotor velocity as limited by motor temperature.
+      const vMotorTemp =
+            new LimitedValue(
+              (-2 * pi * d0 + Math.sqrt(Math.pow(2 * pi * d0, 2) + 4 * 2 * pi * d1 * Piron_motor)) / (2 * 2 * pi * d1),
+              'max_motor_temp');
+
+      // Then the rotor velocity limited by controller maximum power.
+      const vControllerPower =
+            new LimitedValue(
+              (-pi * torque - d0 * pi + Math.sqrt(Math.pow(pi * torque, 2) + 2 * d0 * pi * pi * torque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper_q) * d1 * pi)) / (2 * d1 * pi),
+              'max_controller_power');
+
+      const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
+      return new LimitedValue(rotorResult.value / config.gear_reduction,
+                              rotorResult.limitingFactor);
+    }
   }
 
   getCurrentFromTorque(outputTorque, config) {
@@ -1459,26 +1646,219 @@ class Motor {
   }
 
   getTorqueFromCurrent(currentA, config) {
-    if (currentA < this.rotationCurrentCutoff) {
-      return currentA * this.kt * config.gear_reduction;
-    }
-    return (this.rotationCurrentCutoff * this.kt +
-            this.rotationTorqueScale *
-            (Math.log2(Math.max(1.0 + (currentA - this.rotationCurrentCutoff) *
-            this.rotationCurrentScale, 0.00001)))) * config.gear_reduction;
+    return this.getRotorTorque(currentA) * config.gear_reduction;
   }
 
+  // Back-EMF constant in V/(rotor rev/s).
+  // Matches firmware: v_per_hz = 0.57735 * 60 / Kv = (1/sqrt(3)) * 60 / Kv.
+  getVPerHz() {
+    return 60.0 / this.Kv / Math.sqrt(3);
+  }
+
+  // Permanent magnet flux linkage (Wb).
+  // See also: firmware UpdateEffectiveInductance() in bldc_servo_control.h.
+  getLambdaM() {
+    return this.getVPerHz() / (Math.PI * this.poles);
+  }
+
+  // Characteristic current lambda_m / L_d.
+  // See also: firmware UpdateEffectiveInductance() in bldc_servo_control.h.
+  getCharacteristicCurrent(i_d = 0) {
+    const L_eff = this.getEffectiveInductance(i_d);
+    return L_eff > 0 ? this.getLambdaM() / L_eff : 0;
+  }
+
+  getEffectiveInductance(i_d) {
+    return this.L_d + this.ld_scale * Math.min(i_d, 0);
+  }
+
+  isFieldWeakeningEnabled(config) {
+    return config.field_weakening === 'on' &&
+        config.controller.supportsFieldWeakening() &&
+        this.L_d > 0 && this.poles > 0;
+  }
+
+  getBaseVelocity(config, i_q = 0) {
+    if (!this.isFieldWeakeningEnabled(config)) {
+      return config.controller.getSpeedFactor(config) * config.voltage * this.Kv / 60.0 / config.gear_reduction;
+    }
+
+    // With id = 0 the voltage limit at the base speed is:
+    //   V_eff² = (R·iq + vel·v_per_hz)² + (π·poles·L_q·vel·iq)²
+    // which is quadratic in vel:  a·vel² + b·vel + c = 0
+    //
+    // The sign of iq matters: when regenerating (iq < 0), the
+    // resistive drop opposes back-EMF, raising the base velocity.
+    //
+    // Matches firmware ISR_CalculateDerivedQuantities() base velocity
+    // quadratic.  The margin provides headroom for the firmware's
+    // modulation controller to converge before hitting the voltage
+    // limit.
+    // V_eff matches firmware: max_voltage_ratio * target_modulation * 0.5 * bus_V
+    // where target_modulation = 1 - fw.modulation_margin = 0.85.
+    const kFieldWeakeningMargin = 0.85;
+    const V_eff = config.controller.getMaxVoltageRatio(config) *
+        kFieldWeakeningMargin * 0.5 * config.voltage;
+    const v_per_hz = this.getVPerHz();
+    const omega_L_iq = Math.PI * this.poles * this.L_q * i_q;
+
+    const a = v_per_hz * v_per_hz + omega_L_iq * omega_L_iq;
+    const b = 2 * this.R * i_q * v_per_hz;
+    const c = this.R * this.R * i_q * i_q - V_eff * V_eff;
+
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant < 0) return 0;
+
+    const vel_rotor_hz = (-b + Math.sqrt(discriminant)) / (2 * a);
+    if (vel_rotor_hz <= 0) return 0;
+
+    return vel_rotor_hz / config.gear_reduction;
+  }
+
+  // The electrical max velocity: back-EMF, field weakening CPSR, and
+  // the board voltage ceiling.  Does not account for thermal limits.
+  getElectricalMaxVelocity(config) {
+    const baseVelocity = this.getBaseVelocity(config);
+    if (!this.isFieldWeakeningEnabled(config)) {
+      return new LimitedValue(baseVelocity, 'back_emf');
+    }
+    const fwRatio = config.controller.getMaxFieldWeakeningCurrentRatio();
+    const Imax = Math.min(
+      fwRatio * config.voltage / this.R,
+      config.controller.getMaxCurrent(config.voltage) * fwRatio
+    );
+    // Evaluate id_char at max FW current to account for L_d saturation.
+    // Mirrors firmware CPSR calculation in BldcServoControl::ISR_CalculateDerivedQuantities().
+    const I_char = this.getCharacteristicCurrent(-Imax);
+    if (I_char <= 0) return new LimitedValue(baseVelocity, 'back_emf');
+
+    const id_ratio = Imax / I_char;
+    const maxCpsr = config.controller.getMaxCpsr();
+    const cpsr = (id_ratio >= 1.0) ? maxCpsr : Math.min(maxCpsr, 1.0 / (1.0 - id_ratio));
+
+    const absVoltageMargin = config.controller.getAbsVoltageMargin();
+    const absMaxVelocity = (config.controller.getMaxVoltage() - absVoltageMargin)
+        * this.Kv / 60.0 / config.gear_reduction;
+    return LimitedValue.min(
+        new LimitedValue(cpsr * baseVelocity, 'back_emf'),
+        new LimitedValue(absMaxVelocity, 'board_maxv'));
+  }
+
+  // Max velocity combining electrical (back-EMF, CPSR, board voltage)
+  // and thermal limits.  If the config has all the fields needed to
+  // compute thermal-limited velocity (torque, time, motor_cooling,
+  // ambient_temp, max_motor_temp, pwm, controller_cooling), the result
+  // is the min of electrical and thermal.  Otherwise only the
+  // electrical limit is used.
   getMaxVelocity(config) {
-    return config.controller.getSpeedFactor(config) * config.voltage * this.Kv / 60.0 / config.gear_reduction;
+    const electrical = this.getElectricalMaxVelocity(config);
+
+    const thermalInputs = [
+      'torque', 'time', 'motor_cooling', 'ambient_temp',
+      'max_motor_temp', 'pwm', 'controller_cooling',
+    ];
+    for (const field of thermalInputs) {
+      if (config[field] == null) return electrical;
+    }
+
+    const [R, C] = this.getThermalProperties(config.motor_cooling);
+    if (R == null || C == null) return electrical;
+
+    const deltaT = config.max_motor_temp - config.ambient_temp;
+    const thermalW = (config.time == Infinity) ?
+          deltaT / R :
+          deltaT / (R * (1.0 - Math.exp(-config.time / (R * C))));
+
+    const thermalVelocity = this.getVelocityFromThermalPowerAndTorque(
+        thermalW,
+        config.torque,
+        config.controller.getMaxPower(config.voltage, config.pwm),
+        config);
+    if (thermalVelocity == null) return electrical;
+
+    return LimitedValue.min(electrical, thermalVelocity);
+  }
+
+  getFieldWeakeningCurrent(velocityHz, config, i_q) {
+    if (!this.isFieldWeakeningEnabled(config)) return 0;
+    const baseVelocity = this.getBaseVelocity(config, i_q);
+    if (baseVelocity <= 0) return 0;
+    const speed_ratio = Math.abs(velocityHz) / baseVelocity;
+    if (speed_ratio <= 1.0) return 0;
+    // Fixed-point iteration for inductance saturation:
+    // i_d depends on id_char which depends on L_d(i_d).
+    // With ld_scale=0, converges in one iteration.
+    let i_d = 0;
+    for (let iter = 0; iter < 10; iter++) {
+      const I_char = this.getCharacteristicCurrent(i_d);
+      const i_d_new = -I_char * (1.0 - 1.0 / speed_ratio);
+      if (Math.abs(i_d_new - i_d) < 1e-6) break;
+      i_d = i_d_new;
+    }
+    // Limit i_d to the maximum field weakening current (Imax).
+    // This matches the firmware which uses max_current_A * fw.max_current_ratio.
+    const fwRatio = config.controller.getMaxFieldWeakeningCurrentRatio();
+    const Imax = Math.min(
+      fwRatio * config.voltage / this.R,
+      config.controller.getMaxCurrent(config.voltage) * fwRatio
+    );
+    i_d = Math.max(i_d, -Imax);
+    // The CVCP formula assumes back-EMF dominates the voltage.
+    // When base velocity is very low (high resistive drop), the
+    // formula can produce i_d values that increase voltage rather
+    // than reduce it.  In that case, don't apply field weakening.
+    if (this.getPhaseVoltage(i_q, i_d, velocityHz, config) >=
+        this.getPhaseVoltage(i_q, 0, velocityHz, config)) {
+      return 0;
+    }
+    return i_d;
+  }
+
+  getPhaseVoltage(i_q, i_d, velocityHz, config) {
+    const omega_e = 2 * Math.PI * Math.abs(velocityHz) * config.gear_reduction * (this.poles / 2);
+    const lambda_m = this.getLambdaM();
+    // V_q uses effective L_d for the d-axis coupling (saturated).
+    // V_d uses base L_q for the q-axis coupling (static).
+    // This mirrors the firmware cross-coupling feedforward convention.
+    const L_d_eff = this.getEffectiveInductance(i_d);
+    const V_q = this.R * i_q + omega_e * L_d_eff * i_d + omega_e * lambda_m;
+    const V_d = this.R * i_d - omega_e * this.L_q * i_q;
+    return Math.sqrt(V_q * V_q + V_d * V_d);
+  }
+
+  getMaxPhaseVoltage(config) {
+    return 0.5 * config.controller.getSpeedFactor(config) * config.voltage;
+  }
+
+  isVoltageFeasible(i_q, velocityHz, config) {
+    if (this.L_d > 0 && this.poles > 0) {
+      const i_d = this.getFieldWeakeningCurrent(velocityHz, config, i_q);
+      const V_phase = this.getPhaseVoltage(i_q, i_d, velocityHz, config);
+      // Matches firmware max_V = max_voltage_ratio * kSvpwmRatio * 0.5 * bus_V.
+      const kSvpwmRatio = 2.0 / Math.sqrt(3);
+      const V_max = config.controller.getMaxVoltageRatio(config) *
+          kSvpwmRatio * 0.5 * config.voltage;
+      return V_phase <= V_max;
+    }
+    // Fallback for motors without inductance/poles data.
+    const backEmf = this.getBackEmf(velocityHz, config);
+    return backEmf <= this.getMaxPhaseVoltage(config) * 2;
   }
 
   getOperatingPoint(config) {
     const result = new OperatingPoint({});
     result.velocity = config.velocity;
     result.torque = this.getTorqueFromCurrent(config.phase_current, config);
-    result.phase_current = config.phase_current;
 
-    const r = this.getPower(config.phase_current, config.velocity, config);
+    const i_q = config.phase_current;
+    const i_d = this.getFieldWeakeningCurrent(config.velocity, config, i_q);
+    const total_phase_current = Math.sqrt(i_d * i_d + i_q * i_q);
+
+    result.q_current = i_q;
+    result.d_current = i_d;
+    result.phase_current = total_phase_current;
+
+    const r = this.getPower(i_q, config.velocity, config, i_d);
     result.copper_loss = r.Pcopper;
     result.iron_loss = r.Piron;
     result.mechanical_power = r.Pmech;
@@ -1581,8 +1961,10 @@ class MJ5208 extends Motor {
       Kv: 304,
       R: 0.047,
       L_d: 28.6e-6,
+      ld_scale: -1.49e-6,
       mass_kg: 0.192,
       inertia: 5.6e-5,
+      poles: 14,
       rotationCurrentCutoff: 22.5,
       rotationCurrentScale: 0.02494,
       rotationTorqueScale: 0.6638,
@@ -1606,8 +1988,10 @@ class MAD8318 extends Motor {
       Kv: 120,
       R: 0.015,
       L_d: 9.75e-6,
+      ld_scale_pp: -4.94e-7,
       mass_kg: 0.646,
       inertia: 0.00603,
+      poles: 42,
       rotationCurrentCutoff: 31.07,
       rotationCurrentScale: 0.004214,
       rotationTorqueScale: 12.087,
@@ -1631,8 +2015,10 @@ class GBM5208 extends Motor {
       Kv: 25.5,
       R: 7.545,
       L_d: 2254.5e-6,
+      ld_scale_pp: 0.0,
       mass_kg: 0.193,
       inertia: 5.6e-6,  // assumed to be basically the same as mj5208
+      poles: 22,
       // We'll assume saturation isn't relevant for this gimbal wound motor.
       thermal: {
         // Assume this is basically the same as the mj5208, since mounting a
@@ -1656,8 +2042,10 @@ class BE8108 extends Motor {
       Kv: 135,
       R: 0.0910,
       L_d: 39.2e-6,
+      ld_scale_pp: -8.74e-7,
       mass: 0.230,
       inertia: 0.000110,
+      poles: 42,
       rotationCurrentCutoff: 20.50,
       rotationCurrentScale: 0.04212,
       rotationTorqueScale: 1.0255,
@@ -1681,8 +2069,10 @@ class Hoverboard350 extends Motor {
       Kv: 18.2,
       R: 0.216,
       L_d: 530e-6,
+      ld_scale_pp: 0.0,
       mass_kg: 4.26,
       inertia: 0.008,
+      poles: 30,
       // No clue about saturation here yet, it is hard to mount in the dyno.
       thermal: {
         'none': {R: 2.41, C: 946.1},
@@ -1705,8 +2095,10 @@ class HT1105 extends Motor {
       Kv: 1180,
       R: 6.435,
       L_d: 298.5e-6,
+      ld_scale_pp: 0.0,
       mass_kg: 0.008,
       inertia: 5.1e-7,
+      poles: 12,
       // i suspect due to its gimbal winding, no real saturation effects were
       // measured here all the way up to 2A of phase current.
       thermal: {
@@ -1730,8 +2122,10 @@ class DCWS500Spindle extends Motor {
       Kv: 320,
       R: 0.123,
       L_d: 175e-6,
+      ld_scale_pp: -6.46e-6,
       mass_kg: 1.302,
       inertia: 3.8e-5,
+      poles: 4,
       // I do not have a saturation model for this.
       thermal: {
         'none': {R: 0.808, C: 2680},
@@ -1857,9 +2251,6 @@ class OdrivePro extends OdriveController {
     });
   }
 
-  getSpeedFactor(config) {
-    return 0.90;
-  }
 }
 
 class OdriveS1 extends OdriveController {
@@ -1988,8 +2379,22 @@ function evaluateOperatingPoint(config) {
   if (op == null) {
     return null;
   }
-  if (Math.abs(config.velocity) > config.motor.getMaxVelocity(config)) {
+  if (!config.motor.isVoltageFeasible(op.q_current, config.velocity, config)) {
     op._infeasible_reason = `back_emf`;
+  }
+
+  // Check if velocity exceeds maximum (including CPSR limit with field weakening)
+  const maxVelocity = config.motor.getMaxVelocity(config);
+  if (config.velocity > maxVelocity.value) {
+    op._infeasible_reason = maxVelocity.limitingFactor;
+  }
+
+  if (config.motor.isFieldWeakeningEnabled(config)) {
+    const absVoltageMargin = config.controller.getAbsVoltageMargin();
+    const absMaxVoltage = config.controller.getMaxVoltage() - absVoltageMargin;
+    if (config.motor.getBackEmf(config.velocity, config) > absMaxVoltage) {
+      op._infeasible_reason = 'board_maxv';
+    }
   }
 
   if ((config.voltage - config.controller.getMaxVoltage()) > 0.001) {
@@ -2007,7 +2412,7 @@ function evaluateOperatingPoint(config) {
 
   const thermalPower = config.controller.getThermalPower({
     ...config,
-    'phase_current': motorCurrent});
+    'phase_current': op.phase_current});
   op['controller_loss'] = thermalPower;
   op['controller_temp'] = config.controller.getTemperature(thermalPower, config);
   if (op['controller_temp'] == null) {
@@ -2059,7 +2464,7 @@ function evaluateMaxTorque(config) {
     }
   }
 
-  if (config.velocity > config.motor.getMaxVelocity(config)) {
+  if (config.velocity > config.motor.getMaxVelocity(config).value) {
     return null;
   }
 
@@ -2075,7 +2480,10 @@ function evaluateMaxTorque(config) {
         deltaT / R :
         deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
 
-  const supplyVoltageMargin = Math.max(0, 0.5 * (config.controller.getSpeedFactor(config) * config.voltage - config.motor.getBackEmf(config.velocity, config)));
+  const fwEnabled = config.motor.isFieldWeakeningEnabled(config);
+  let supplyVoltageMargin = fwEnabled ?
+    Infinity :
+    Math.max(0, 0.5 * (config.controller.getSpeedFactor(config) * config.voltage - config.motor.getBackEmf(config.velocity, config)));
 
   if (supplyVoltageMargin < 0.0) {
     return null;
@@ -2124,38 +2532,13 @@ function evaluateMaxVelocity(config) {
     }
   }
 
-  const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
-  if (R== null || C == null) {
-    return null;
-  }
-
   if (config.voltage > config.controller.getMaxVoltage()) {
     return null;
   }
 
-  // Check each of our possible limits in turn.
-  let resultVelocity = new LimitedValue(config.motor.getMaxVelocity(config), 'back_emf');
-
-  const timePeriodS = config.time;
-  const deltaT = config.max_motor_temp - config.ambient_temp;
-
-  const thermalW = (timePeriodS == Infinity) ?
-        deltaT / R :
-        deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
-
-  const thermalVelocity =
-        config.motor.getVelocityFromThermalPowerAndTorque(
-          thermalW,
-          config.torque,
-          config.controller.getMaxPower(config.voltage, config.pwm),
-          config);
-  if (thermalVelocity == null) {
-    return null;
-  }
-  resultVelocity = LimitedValue.min(resultVelocity, thermalVelocity);
-
-  // The controller loss is not dependent upon output speed in our
-  // model.
+  // getMaxVelocity combines electrical (back-EMF / CPSR / board
+  // voltage) and thermal limits using the configured time period.
+  const resultVelocity = config.motor.getMaxVelocity(config);
 
   const op = evaluateOperatingPoint({
     ...config,
@@ -2222,7 +2605,7 @@ function evaluateMinMovementTime(config) {
   var mechanical_energy = 0.0;
   var peak_supply_power = 0.0;
 
-  const maxVel = config.motor.getMaxVelocity(config);
+  const maxVel = config.motor.getMaxVelocity(config).value;
   const maxE = 0.5 * totalInertia * Math.pow(2 * Math.PI * maxVel, 2);
 
   while (position < 0.5 * moveAmount) {
@@ -3179,7 +3562,10 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     // Generate feasibility data for all time periods for boundary contours
     const feasibilityData = generateFeasibilityBoundaries(speeds, torques, baseConfig);
 
-    return { speeds, torques, zValues, hoverText, feasibilityData };
+    // Generate field weakening boundary
+    const fieldWeakeningData = generateFieldWeakeningBoundary(speeds, torques, baseConfig);
+
+    return { speeds, torques, zValues, hoverText, feasibilityData, fieldWeakeningData };
   };
 
   const generateFeasibilityBoundaries = (speeds, torques, baseConfig) => {
@@ -3229,6 +3615,52 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     }
 
     return boundaries;
+  };
+
+  const generateFieldWeakeningBoundary = (speeds, torques, baseConfig) => {
+    const motor = baseConfig.motor;
+    if (!motor || !motor.isFieldWeakeningEnabled(baseConfig)) return null;
+
+    const boundaryResolution = Math.max(50, speeds.length);
+    const speedStep = (speeds[speeds.length - 1] - speeds[0]) / (boundaryResolution - 1);
+    const torqueStep = (torques[torques.length - 1] - torques[0]) / (boundaryResolution - 1);
+
+    const boundarySpeeds = [];
+    const boundaryTorques = [];
+    for (let i = 0; i < boundaryResolution; i++) {
+      boundarySpeeds.push(speeds[0] + i * speedStep);
+      boundaryTorques.push(torques[0] + i * torqueStep);
+    }
+
+    const fwGrid = [];
+    for (let torqueIndex = 0; torqueIndex < boundaryResolution; torqueIndex++) {
+      const row = [];
+      const torque = boundaryTorques[torqueIndex];
+      const i_q = motor.getCurrentFromTorque(torque, baseConfig);
+
+      for (let speedIndex = 0; speedIndex < boundaryResolution; speedIndex++) {
+        const speed = boundarySpeeds[speedIndex];
+
+        // Check feasibility at 2s (most permissive duration)
+        const config = { ...baseConfig, velocity: speed, torque: torque, time: 2 };
+        const result = evaluateOperatingPoint(config);
+        if (!result || result._infeasible_reason) {
+          // Use NaN so the contour line is not drawn through infeasible regions
+          row.push(NaN);
+          continue;
+        }
+
+        const i_d = motor.getFieldWeakeningCurrent(speed, baseConfig, i_q);
+        row.push(i_d !== 0 ? 1 : 0);
+      }
+      fwGrid.push(row);
+    }
+
+    return {
+      speeds: boundarySpeeds,
+      torques: boundaryTorques,
+      grid: fwGrid
+    };
   };
 
   const createHeatmap = (data, colorField) => {
@@ -3303,6 +3735,32 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
         };
         contourTraces.push(contourTrace);
       });
+    }
+
+    // Create field weakening boundary contour
+    if (data.fieldWeakeningData) {
+      const fwTrace = {
+        x: data.fieldWeakeningData.speeds,
+        y: data.fieldWeakeningData.torques,
+        z: data.fieldWeakeningData.grid,
+        type: 'contour',
+        contours: {
+          start: 0.5,
+          end: 0.5,
+          size: 1,
+          coloring: 'none'
+        },
+        line: {
+          color: '#009688',
+          width: 2,
+          dash: 'dash'
+        },
+        showscale: false,
+        hoverinfo: 'skip',
+        name: 'Field weakening',
+        showlegend: true
+      };
+      contourTraces.push(fwTrace);
     }
 
     const layout = {
@@ -3905,6 +4363,8 @@ function reifyObjects(dict) {
         d0: reified['motor.d0'] ?? motorModelDefaults.d0,
         d1: reified['motor.d1'] ?? motorModelDefaults.d1,
         inertia: reified['motor.inertia'] ?? motorModelDefaults.inertia,
+        poles: reified['motor.poles'] ?? 0,
+        ld_scale_pp: reified['motor.ld_scale'] ?? motorModelDefaults.ld_scale_pp,
         thermal: {
           'none': {
             R: reified['motor.thermal_r'],

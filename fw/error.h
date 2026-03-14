@@ -65,6 +65,7 @@ enum class errc {
   kLimitMaxTorque = 102,
   kLimitPositionBounds = 103,   // servopos.position_min / servopos.position_max
   kLimitFluxBraking = 104,      // flux braking is active
+  kLimitFieldWeakening = 105,   // field weakening is active
 };
 
 mjlib::micro::error_code make_error_code(errc);

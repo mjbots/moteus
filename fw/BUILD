@@ -236,6 +236,7 @@ cc_test(
 cc_test(
     name = "slow_test",
     srcs = [
+        "test/motor_model.h",
         "test/simulation_fixture.h",
         "test/simulation_dynamometer_test.cc",
         "test/simulation_test.cc",
