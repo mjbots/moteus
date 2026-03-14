@@ -139,6 +139,8 @@ struct BldcServoStatus {
   float motor_temp_C = 0.0f;
   float filt_motor_temp_C = std::numeric_limits<float>::quiet_NaN();
 
+  float inductance_d_H = 0.0f;
+
   float d_A = 0.0f;
   float q_A = 0.0f;
 
@@ -240,6 +242,8 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(filt_fet_temp_C));
     a->Visit(MJ_NVP(motor_temp_C));
     a->Visit(MJ_NVP(filt_motor_temp_C));
+
+    a->Visit(MJ_NVP(inductance_d_H));
 
     a->Visit(MJ_NVP(d_A));
     a->Visit(MJ_NVP(q_A));
@@ -401,6 +405,10 @@ struct BldcServoMotor {
   // Q-axis phase-to-center inductance in henries.
   float inductance_q_H = 0.0f;
 
+  // D-axis inductance linear scale factor (H/A).
+  // Effective L_d = inductance_d_H + inductance_d_scale * min(i_d, 0)
+  float inductance_d_scale = 0.0f;
+
   float Kv = 0.0f;
 
   // Electrical phase offset in radians as a function of encoder
@@ -434,6 +442,7 @@ struct BldcServoMotor {
     a->Visit(MJ_NVP(resistance_ohm));
     a->Visit(MJ_NVP(inductance_d_H));
     a->Visit(MJ_NVP(inductance_q_H));
+    a->Visit(MJ_NVP(inductance_d_scale));
     a->Visit(MJ_NVP(Kv));
     a->Visit(MJ_NVP(offset));
     a->Visit(MJ_NVP(rotation_current_cutoff_A));

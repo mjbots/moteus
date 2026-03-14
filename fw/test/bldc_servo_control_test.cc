@@ -959,3 +959,46 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoControl) {
   BOOST_CHECK(ctx.status_.mode == BldcServoMode::kFault);
   BOOST_CHECK(ctx.status_.fault == errc::kMotorDriverFault);
 }
+
+BOOST_AUTO_TEST_CASE(BldcServoControlDynamicInductance) {
+  Context ctx;
+  ctx.status_.filt_bus_V = 24.0f;
+  ctx.status_.filt_1ms_bus_V = 24.0f;
+  ctx.status_.filt_fet_temp_C = 25.0f;
+  ctx.status_.max_power_W = 500.0f;
+  ctx.position_.epoch = 0;
+  ctx.isr_motor_position_epoch_ = 0;
+  ctx.position_.theta_valid = true;
+  ctx.motor_.poles = 14;
+  ctx.motor_.resistance_ohm = 0.1f;
+  ctx.motor_.inductance_d_H = 20e-6f;
+  ctx.motor_.inductance_d_scale = -2e-6f;  // H/A
+  ctx.config_.max_current_A = 40.0f;
+  ctx.config_.max_velocity = 100.0f;
+  ctx.config_.max_velocity_derate = 20.0f;
+  ctx.motor_position_config_val.output.sign = 1;
+  ctx.UpdateCurrentPidGains();
+
+  SinCos sc;
+  sc.s = 0.0f;
+  sc.c = 1.0f;
+
+  // Negative i_d should increase effective inductance (scale is negative,
+  // min(i_d,0) is negative, so product is positive).
+  ctx.ISR_DoCurrent(sc, -10.0f, 0.0f, 0.0f, false);
+  BOOST_CHECK(ctx.status_.mode != kFault);
+  // effective_L = 20e-6 + (-2e-6)*(-10) = 40e-6
+  BOOST_TEST(ctx.status_.inductance_d_H == 40e-6f, tt::tolerance(1e-9f));
+
+  // Positive i_d should use base inductance (min(i_d,0) = 0).
+  ctx.ISR_DoCurrent(sc, 5.0f, 0.0f, 0.0f, false);
+  BOOST_CHECK(ctx.status_.mode != kFault);
+  BOOST_TEST(ctx.status_.inductance_d_H == 20e-6f, tt::tolerance(1e-9f));
+
+  // Zero scale should always yield base inductance.
+  ctx.motor_.inductance_d_scale = 0.0f;
+  ctx.UpdateCurrentPidGains();
+  ctx.ISR_DoCurrent(sc, -10.0f, 0.0f, 0.0f, false);
+  BOOST_CHECK(ctx.status_.mode != kFault);
+  BOOST_TEST(ctx.status_.inductance_d_H == 20e-6f, tt::tolerance(1e-9f));
+}

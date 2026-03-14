@@ -266,14 +266,22 @@ class BldcServoControl {
     return self().motor_.Kv != 0.0f;
   }
 
+  void UpdateEffectiveInductance(float i_d_A) MOTEUS_CCM_ATTRIBUTE {
+    const float effective_L =
+        self().motor_.inductance_d_H +
+        self().motor_.inductance_d_scale * std::min(i_d_A, 0.0f);
+    self().status_.inductance_d_H = effective_L;
+    pid_d_config_.kp = pid_dq_w_ * effective_L;
+  }
+
   void UpdateCurrentPidGains() {
-    const float w = k2Pi * self().config_.pid_dq_hz;
-    pid_d_config_.kp = w * self().motor_.inductance_d_H;
-    pid_d_config_.ki = w * self().motor_.resistance_ohm;
+    pid_dq_w_ = k2Pi * self().config_.pid_dq_hz;
+    pid_d_config_.ki = pid_dq_w_ * self().motor_.resistance_ohm;
     pid_d_config_.max_desired_rate = self().config_.max_current_desired_rate;
-    pid_q_config_.kp = w * self().motor_.inductance_q_H;
-    pid_q_config_.ki = w * self().motor_.resistance_ohm;
+    pid_q_config_.kp = pid_dq_w_ * self().motor_.inductance_q_H;
+    pid_q_config_.ki = pid_dq_w_ * self().motor_.resistance_ohm;
     pid_q_config_.max_desired_rate = self().config_.max_current_desired_rate;
+    UpdateEffectiveInductance(0.0f);
   }
 
   float current_to_torque(float current) const MOTEUS_CCM_ATTRIBUTE {
@@ -699,6 +707,8 @@ class BldcServoControl {
 
     self().control_.i_d_A = i_d_A;
     self().control_.i_q_A = i_q_A;
+
+    UpdateEffectiveInductance(i_d_A);
 
     const float max_V =
         self().rate_config_.max_voltage_ratio * kSvpwmRatio *
@@ -1361,6 +1371,7 @@ class BldcServoControl {
 
   SimplePI::Config pid_d_config_;
   SimplePI::Config pid_q_config_;
+  float pid_dq_w_ = 0.0f;
 };
 
 }  // namespace moteus

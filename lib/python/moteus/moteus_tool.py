@@ -1386,6 +1386,12 @@ class Stream:
             if ld_result is not None:
                 inductance_d, inductance_d_scale = ld_result
             await self.check_for_fault()
+        elif await self.is_config_supported("motor.inductance_d_scale"):
+            # Not measuring saturation this run — report the value
+            # already configured on the controller so the calibration
+            # report reflects reality.
+            inductance_d_scale = await self.read_config_double(
+                "motor.inductance_d_scale")
 
         # Rezero the servo since we just spun it a lot.
         await self.command("d rezero")
@@ -2395,6 +2401,9 @@ class Stream:
             return None
 
         await self.command(f"conf set motor.inductance_d_H {fit.B}")
+        if await self.is_config_supported("motor.inductance_d_scale"):
+            await self.command(
+                f"conf set motor.inductance_d_scale {fit.C}")
         return (fit.B, fit.C)
 
     async def stop_and_idle(self):
