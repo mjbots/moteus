@@ -117,6 +117,7 @@ mod command_ext;
 mod command_types;
 mod controller;
 mod device_address;
+pub mod diagnostic;
 mod error;
 pub mod move_to;
 
@@ -129,9 +130,13 @@ pub use command_ext::{CommandExt, MaybeQuery, WithQuery};
 pub use command_types::Command;
 pub use controller::{Controller, GpioResult};
 pub use device_address::DeviceAddress;
+pub use diagnostic::DiagnosticStream;
 pub use error::Error;
 pub use move_to::{move_to, MoveToOptions, ServoResult, Setpoint};
 
+// Async diagnostic stream (tokio feature)
+#[cfg(feature = "tokio")]
+pub use diagnostic::AsyncDiagnosticStream;
 #[cfg(feature = "tokio")]
 pub use move_to::async_move_to;
 
