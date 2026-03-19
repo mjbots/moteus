@@ -1491,16 +1491,16 @@ struct AuxPwmWrite {
                       const Command& command,
                       const Format& format) {
     const Resolution kResolutions[] = {
-      std::isfinite(command.aux1_pwm1) ? format.aux1_pwm1 : kIgnore,
-      std::isfinite(command.aux1_pwm2) ? format.aux1_pwm2 : kIgnore,
-      std::isfinite(command.aux1_pwm3) ? format.aux1_pwm3 : kIgnore,
-      std::isfinite(command.aux1_pwm4) ? format.aux1_pwm4 : kIgnore,
-      std::isfinite(command.aux1_pwm5) ? format.aux1_pwm5 : kIgnore,
-      std::isfinite(command.aux2_pwm1) ? format.aux2_pwm1 : kIgnore,
-      std::isfinite(command.aux2_pwm2) ? format.aux2_pwm2 : kIgnore,
-      std::isfinite(command.aux2_pwm3) ? format.aux2_pwm3 : kIgnore,
-      std::isfinite(command.aux2_pwm4) ? format.aux2_pwm4 : kIgnore,
-      std::isfinite(command.aux2_pwm5) ? format.aux2_pwm5 : kIgnore,
+      ::isfinite(command.aux1_pwm1) ? format.aux1_pwm1 : kIgnore,
+      ::isfinite(command.aux1_pwm2) ? format.aux1_pwm2 : kIgnore,
+      ::isfinite(command.aux1_pwm3) ? format.aux1_pwm3 : kIgnore,
+      ::isfinite(command.aux1_pwm4) ? format.aux1_pwm4 : kIgnore,
+      ::isfinite(command.aux1_pwm5) ? format.aux1_pwm5 : kIgnore,
+      ::isfinite(command.aux2_pwm1) ? format.aux2_pwm1 : kIgnore,
+      ::isfinite(command.aux2_pwm2) ? format.aux2_pwm2 : kIgnore,
+      ::isfinite(command.aux2_pwm3) ? format.aux2_pwm3 : kIgnore,
+      ::isfinite(command.aux2_pwm4) ? format.aux2_pwm4 : kIgnore,
+      ::isfinite(command.aux2_pwm5) ? format.aux2_pwm5 : kIgnore,
     };
 
     WriteCombiner combiner(
