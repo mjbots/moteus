@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "moteus-derive",
+    "moteus-protocol",
+    "moteus",
+]
+resolver = "2"

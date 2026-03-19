@@ -18,3 +18,4 @@ site/
 .venv-docs/
 
 .claude/
+lib/rust/target/
