@@ -39,7 +39,7 @@
 #if defined(TARGET_STM32G4)
 #include "fw/fdcan.h"
 #include "fw/fdcan_micro_server.h"
-#include "fw/stm32g4_async_uart.h"
+#include "fw/multi_transport_datagram_server.h"
 #include "fw/stm32g4_flash.h"
 #else
 #error "Unknown target"
@@ -57,7 +57,6 @@ namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
 
 #if defined(TARGET_STM32G4)
-using HardwareUart = Stm32G4AsyncUart;
 using Stm32Flash = Stm32G4Flash;
 #else
 #error "Unknown target"
@@ -190,19 +189,7 @@ int main(void) {
   // Turn on our power light.
   DigitalOut power_led(g_hw_pins.power_led, 0);
 
-  micro::SizedPool<22000> pool;
-
-  std::optional<HardwareUart> rs485;
-  if (g_hw_pins.uart_tx != NC) {
-    rs485.emplace(&pool, &timer, []() {
-      HardwareUart::Options options;
-      options.tx = g_hw_pins.uart_tx;
-      options.rx = g_hw_pins.uart_rx;
-      options.dir = g_hw_pins.uart_dir;
-      options.baud_rate = 3000000;
-      return options;
-                                 }());
-  }
+  micro::SizedPool<24000> pool;
 
   FDCan fdcan([]() {
       FDCan::Options options;
@@ -227,8 +214,11 @@ int main(void) {
       return options;
     }());
   FDCanMicroServer fdcan_micro_server(&fdcan);
+
+  MultiTransportDatagramServer multi_transport(&fdcan_micro_server);
+
   multiplex::MicroServer multiplex_protocol(
-      &pool, &fdcan_micro_server,
+      &pool, &multi_transport,
       []() {
         multiplex::MicroServer::Options options;
         options.max_tunnel_streams = 3;
@@ -257,6 +247,7 @@ int main(void) {
       &command_manager,
       &telemetry_manager,
       &multiplex_protocol,
+      &multi_transport,
       &clock,
       &system_info,
       &timer,
@@ -276,7 +267,7 @@ int main(void) {
   uint8_t old_multiplex_id = 255;
 
   const auto maybe_update_filters =
-      [&can_config, &fdcan, &fdcan_micro_server, &old_can_config,
+      [&can_config, &fdcan, &multi_transport, &old_can_config,
        &old_multiplex_id, &multiplex_protocol]() {
         // We only update our config if it has actually changed.
         // Re-initializing the CAN-FD controller can cause packets to
@@ -320,7 +311,8 @@ int main(void) {
         filter_config.global_ext_action = FDCan::FilterAction::kReject;
         fdcan.ConfigureFilters(filter_config);
 
-        fdcan_micro_server.SetPrefix(can_config.prefix);
+        // Set prefix on both CAN-FD and UART transports
+        multi_transport.SetPrefix(can_config.prefix);
       };
 
   persistent_config.Register("id", multiplex_protocol.config(), maybe_update_filters);
@@ -336,11 +328,8 @@ int main(void) {
   auto old_time = timer.read_us();
 
   for (;;) {
-    if (rs485) {
-      rs485->Poll();
-    }
 #if defined(TARGET_STM32G4)
-    fdcan_micro_server.Poll();
+    multi_transport.Poll();
 #endif
     moteus_controller.Poll();
     multiplex_protocol.Poll();
@@ -359,7 +348,7 @@ int main(void) {
       system_info.PollMillisecond();
       moteus_controller.PollMillisecond();
       board_debug.PollMillisecond();
-      system_info.SetCanResetCount(fdcan_micro_server.can_reset_count());
+      system_info.SetCanResetCount(multi_transport.can_reset_count());
       timer.AdvanceMsSinceBoot();
 
       old_time += 1000;

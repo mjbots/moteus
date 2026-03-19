@@ -21,6 +21,8 @@
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
 #include "fw/motor_position.h"
+#include "fw/multi_transport_datagram_server.h"
+#include "fw/uart_fdcanusb_micro_server.h"
 
 namespace micro = mjlib::micro;
 namespace multiplex = mjlib::multiplex;
@@ -462,6 +464,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        micro::CommandManager* command_manager,
        micro::TelemetryManager* telemetry_manager,
        multiplex::MicroServer* multiplex_protocol,
+       MultiTransportDatagramServer* multi_transport,
        ClockManager* clock_manager,
        SystemInfo* system_info,
        MillisecondTimer* timer,
@@ -475,6 +478,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    g_measured_hw_family != 3 ?
                    AuxPort::kDefaultOnboardSpi :
                    AuxPort::kDefaultOnboardMa600,
+                   (g_measured_hw_family == 2 ||
+                    g_measured_hw_family == 3) ?
+                   AuxPort::kDefaultUartSerial : AuxPort::kDefaultUartDisabled,
                    {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6, DMA1_Channel7}),
         aux2_port_("aux2", "ic_pz2", GetAux2HardwareConfig(),
                    &aux_adc_.aux_info[1],
@@ -482,6 +488,9 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    multiplex_protocol->MakeTunnel(3),
                    timer,
                    AuxPort::kNoDefaultSpi,
+                   (g_measured_hw_family == 0 ||
+                    g_measured_hw_family == 1) ?
+                   AuxPort::kDefaultUartSerial : AuxPort::kDefaultUartDisabled,
                    {DMA1_Channel8, DMA2_Channel1, DMA2_Channel2, DMA2_Channel3, DMA2_Channel4}),
         motor_position_(persistent_config, telemetry_manager,
                         aux1_port_.status(),
@@ -518,7 +527,6 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
             options.debug_dac = g_hw_pins.debug_dac;
             options.debug_out = g_hw_pins.debug1;
             options.debug_out2 = g_hw_pins.debug2;
-            options.debug_uart_out = g_hw_pins.uart_tx;
 
             options.lptim_trigger_dma = DMA2_Channel5;
 
@@ -527,7 +535,24 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         clock_manager_(clock_manager),
         system_info_(system_info),
         firmware_(firmware),
-        uuid_(uuid) {}
+        uuid_(uuid),
+        multi_transport_(multi_transport) {
+    // Register for notifications when the UART servers change in aux
+    // ports.  aux1 takes priority over aux2 when both are available.
+    aux1_port_.SetUartServerChangedCallback([this](auto* server) {
+      // server is aux1's new state (nullptr if destroyed)
+      auto* const active =
+          server ? server : aux2_port_.uart_micro_server();
+      multi_transport_->SetActiveUartServer(active);
+    });
+
+    aux2_port_.SetUartServerChangedCallback([this](auto* server) {
+      // aux1 always takes priority if available
+      auto* const aux1 = aux1_port_.uart_micro_server();
+      auto* const active = aux1 ? aux1 : server;
+      multi_transport_->SetActiveUartServer(active);
+    });
+  }
 
   void Start() {
     bldc_.Start();
@@ -1245,6 +1270,8 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   bool command_valid_ = false;
   bool discard_all_ = false;
   BldcServo::CommandData command_;
+
+  MultiTransportDatagramServer* multi_transport_ = nullptr;
 };
 
 MoteusController::MoteusController(micro::Pool* pool,
@@ -1252,14 +1279,15 @@ MoteusController::MoteusController(micro::Pool* pool,
                                    micro::CommandManager* command_manager,
                                    micro::TelemetryManager* telemetry_manager,
                                    multiplex::MicroServer* multiplex_protocol,
+                                   MultiTransportDatagramServer* multi_transport,
                                    ClockManager* clock_manager,
                                    SystemInfo* system_info,
                                    MillisecondTimer* timer,
                                    FirmwareInfo* firmware,
                                    Uuid* uuid)
     : impl_(pool, pool, persistent_config, command_manager, telemetry_manager,
-            multiplex_protocol, clock_manager, system_info, timer, firmware,
-            uuid) {}
+            multiplex_protocol, multi_transport, clock_manager, system_info,
+            timer, firmware, uuid) {}
 
 MoteusController::~MoteusController() {}
 
