@@ -34,12 +34,6 @@
 #include "fw/thermistor.h"
 #include "fw/torque_model.h"
 
-#if defined(TARGET_STM32G4)
-#include "fw/stm32g4_async_uart.h"
-#else
-#error "Unknown target"
-#endif
-
 #ifdef wait_us
 #undef wait_us
 #endif
@@ -49,12 +43,6 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
-#if defined(TARGET_STM32G4)
-using HardwareUart = Stm32G4AsyncUart;
-#else
-#error "Unknown target"
-#endif
-
 
 RateConfig MakeRateConfig(int pwm_rate_hz_in) {
   const int board_min_pwm_rate_hz =

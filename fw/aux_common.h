@@ -91,15 +91,17 @@ struct UartEncoder {
     enum Mode {
       kDisabled,
       kAksim2,
-      kTunnel,
-      kDebug,
+      kTunnel,   // client controls arbitrary stream
+      kDebug,    // full control-rate debug output
       kCuiAmt21,
+      kSerial,   // fdcanusb ASCII protocol for serial control
+      kBoardDefault,
 
       kNumModes,
     };
-    Mode mode = kDisabled;
+    Mode mode = kBoardDefault;
 
-    int32_t baud_rate = 115200;
+    int32_t baud_rate = 1000000;
     int32_t poll_rate_us = 100;
     uint8_t cui_amt21_address = 0x54;
 
@@ -404,10 +406,11 @@ struct Pin {
     kAnalogInput,
     kPwmOutput,
     kBissC,
+    kBoardDefault,
 
     kLength,
   };
-  Mode mode = kNC;
+  Mode mode = kBoardDefault;
 
   // Not every mode supports pullup or pulldown.
   enum Pull {
@@ -577,6 +580,8 @@ struct IsEnum<moteus::aux::UartEncoder::Config::Mode> {
         { M::kTunnel, "tunnel" },
         { M::kDebug, "debug" },
         { M::kCuiAmt21, "cui_amt21" },
+        { M::kSerial, "serial" },
+        { M::kBoardDefault, "board_default" },
       }};
   }
 };
@@ -624,6 +629,7 @@ struct IsEnum<moteus::aux::Pin::Mode> {
         { P::kAnalogInput, "analog_in" },
         { P::kPwmOutput, "pwm_out" },
         { P::kBissC, "bissc" },
+        { P::kBoardDefault, "board_default" },
       }};
   }
 };

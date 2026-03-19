@@ -284,9 +284,6 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.vsense_adc_scale =
         (hv <= 5 ? 0.00884f : 0.017947f);
 
-    result.uart_tx = PC_10_ALT0;
-    result.uart_rx = PC_11_ALT0;
-
     result.drv8323_enable = PA_3;
     result.drv8323_hiz = PB_7;
     result.drv8323_cs = PC_4;
@@ -344,9 +341,6 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.msense = PA_8;         // ADC5_IN1
 
     result.vsense_adc_scale = 0.017947f;
-
-    result.uart_tx = NC;
-    result.uart_rx = NC;
 
     result.as5047_cs = PB_2;
 

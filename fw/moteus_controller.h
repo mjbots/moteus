@@ -27,6 +27,8 @@
 
 namespace moteus {
 
+class MultiTransportDatagramServer;
+
 /// Glues together the various pieces of hardware that make a moteus
 /// controller board.
 class MoteusController {
@@ -36,6 +38,7 @@ class MoteusController {
                    mjlib::micro::CommandManager* command_manager,
                    mjlib::micro::TelemetryManager* telemetry_manager,
                    mjlib::multiplex::MicroServer* multiplex_protocol,
+                   MultiTransportDatagramServer*,
                    ClockManager*,
                    SystemInfo*,
                    MillisecondTimer*,
