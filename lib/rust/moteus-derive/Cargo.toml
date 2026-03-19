@@ -1,0 +1,17 @@
+[package]
+name = "moteus-derive"
+version = "1.0.0"
+edition = "2021"
+description = "Derive macros for the moteus brushless motor controller client library"
+license = "Apache-2.0"
+repository = "https://github.com/mjbots/moteus"
+keywords = ["moteus", "robotics", "motor-control", "can-fd"]
+categories = ["science::robotics", "hardware-support"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = ["full"] }

@@ -1,0 +1,24 @@
+[package]
+name = "moteus"
+version = "1.0.0"
+edition = "2021"
+description = "Rust client library for moteus brushless motor controllers"
+license = "Apache-2.0"
+repository = "https://github.com/mjbots/moteus"
+keywords = ["moteus", "robotics", "motor-control", "can-fd"]
+categories = ["science::robotics", "hardware-support"]
+
+[features]
+default = ["serialport"]
+clap = ["dep:clap"]
+serialport = ["dep:serialport"]
+tokio = ["dep:tokio", "dep:tokio-serial"]
+
+[dependencies]
+moteus-derive = { path = "../moteus-derive", version = "1.0.0" }
+moteus-protocol = { path = "../moteus-protocol", version = "1.0.0" }
+
+clap = { version = "4.5", features = ["derive"], optional = true }
+tokio = { version = "1.0", features = ["net", "io-util", "time", "rt", "rt-multi-thread", "macros", "sync"], optional = true }
+serialport = { version = "4", optional = true }
+tokio-serial = { version = "5.4", optional = true }
