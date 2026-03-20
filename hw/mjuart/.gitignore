@@ -1,0 +1,6 @@
+mjuart-backups/
+~*.lck
+mjuart.xml
+mjuart.xlsx
+fp-info-cache
+_autosave*

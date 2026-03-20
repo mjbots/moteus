@@ -1,0 +1,163 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "d28d024b-17bc-4fc4-908b-c084ed36f862")
+	(paper "A4")
+	(title_block
+		(title "mjuart r1")
+		(company "mjbots Robotic Systems, LLC - info@mjbots.com")
+		(comment 1 "Licensed under the Apache 2.0 License")
+	)
+	(lib_symbols)
+	(wire
+		(pts
+			(xy 86.36 80.01) (xy 97.79 80.01)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2667e324-9e47-48f1-8b94-9fbee6cc1ba6")
+	)
+	(wire
+		(pts
+			(xy 86.36 76.2) (xy 97.79 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8cd5ec13-4cf2-4dcc-a94b-96be92457872")
+	)
+	(sheet
+		(at 97.79 60.96)
+		(size 31.75 48.26)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "4c5cddc7-9d6d-49ad-96b2-94b5996391b1")
+		(property "Sheetname" "ft231x"
+			(at 97.79 60.2484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "ft231x.kicad_sch"
+			(at 97.79 109.8046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(pin "USBDN" input
+			(at 97.79 76.2 180)
+			(uuid "03396314-1134-44bd-83cc-fa06a095c703")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "USBDP" input
+			(at 97.79 80.01 180)
+			(uuid "1ce8d4c1-9761-4d50-9120-2569f837a156")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(instances
+			(project "mjuart"
+				(path "/d28d024b-17bc-4fc4-908b-c084ed36f862"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 55.88 60.96)
+		(size 30.48 48.26)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "5ccc2784-7db3-4e0a-92a2-b493a685914d")
+		(property "Sheetname" "Power Input"
+			(at 55.88 60.2484 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "power_input.kicad_sch"
+			(at 55.88 109.8046 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(pin "USBDN" input
+			(at 86.36 76.2 0)
+			(uuid "b8a1d444-5987-489b-a3af-085eda78a078")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(pin "USBDP" input
+			(at 86.36 80.01 0)
+			(uuid "97fa81c4-87f5-4146-a8d7-aa87694e0754")
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify right)
+			)
+		)
+		(instances
+			(project "mjuart"
+				(path "/d28d024b-17bc-4fc4-908b-c084ed36f862"
+					(page "2")
+				)
+			)
+		)
+	)
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)
