@@ -856,7 +856,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "uart:S4B-ZR-SM4A-TFLFSN"
+		(symbol "mjuart:S4B-ZR-SM4A-TFLFSN"
 			(pin_names
 				(offset 0.254)
 			)
@@ -2266,7 +2266,7 @@
 		)
 	)
 	(symbol
-		(lib_id "uart:S4B-ZR-SM4A-TFLFSN")
+		(lib_id "mjuart:S4B-ZR-SM4A-TFLFSN")
 		(at 144.78 66.04 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2293,7 +2293,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_ZH_S4B-ZR-SM4A-TF_1x04-1MP_P1.50mm_Horizontal"
+		(property "Footprint" "footprints:CONN_S4B-ZR-SM4A-TF_JST"
 			(at 144.78 66.04 0)
 			(effects
 				(font

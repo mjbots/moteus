@@ -471,7 +471,7 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "fdcanusb:USB4110-GF-A"
+		(symbol "mjuart:USB4110-GF-A"
 			(pin_names
 				(offset 0.254)
 			)
@@ -2231,7 +2231,7 @@
 		)
 	)
 	(symbol
-		(lib_id "fdcanusb:USB4110-GF-A")
+		(lib_id "mjuart:USB4110-GF-A")
 		(at 77.47 85.09 0)
 		(unit 1)
 		(exclude_from_sim no)
@@ -2282,6 +2282,7 @@
 				(font
 					(size 1.27 1.27)
 				)
+				(hide yes)
 			)
 		)
 		(property "MPN" "USB4110-GF-A"
