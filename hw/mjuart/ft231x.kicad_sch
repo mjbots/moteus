@@ -2041,9 +2041,9 @@
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "44ba0163-03d5-415f-b606-0f23e3e53528")
 		(property "Reference" "J4"
 			(at 137.16 93.9801 0)
@@ -2165,7 +2165,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-CAP-0603-0.1uF"
 			(at 67.31 62.23 0)
 			(effects
 				(font
@@ -2195,9 +2195,9 @@
 		(mirror y)
 		(unit 1)
 		(exclude_from_sim no)
-		(in_bom yes)
+		(in_bom no)
 		(on_board yes)
-		(dnp no)
+		(dnp yes)
 		(uuid "83ca7c12-d43f-4bff-8fb7-f192aa8c0318")
 		(property "Reference" "J3"
 			(at 195.58 71.1201 0)
@@ -2314,6 +2314,24 @@
 			)
 		)
 		(property "Description" ""
+			(at 144.78 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "S4B-ZR-SM4A-TF(LF)(SN)"
+			(at 144.78 66.04 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MF" "JST"
 			(at 144.78 66.04 0)
 			(effects
 				(font

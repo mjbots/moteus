@@ -1618,7 +1618,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-CAP-0603-0.01uF"
 			(at 129.54 74.93 0)
 			(effects
 				(font
@@ -1694,7 +1694,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-RES-0603-27"
 			(at 177.8 106.68 0)
 			(effects
 				(font
@@ -1746,7 +1746,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47pF"
+		(property "Value" "22pF"
 			(at 160.02 120.6499 0)
 			(effects
 				(font
@@ -1781,7 +1781,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-CAP-0603-22pF"
 			(at 156.21 119.38 0)
 			(effects
 				(font
@@ -1859,7 +1859,16 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "GRT188C81E475KE13D"
+			(at 158.75 74.93 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MF" "Murata"
 			(at 158.75 74.93 0)
 			(effects
 				(font
@@ -2197,7 +2206,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-CAP-0603-0.1uF"
 			(at 146.05 74.93 0)
 			(effects
 				(font
@@ -2390,7 +2399,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-RES-0603-27"
 			(at 165.1 111.76 0)
 			(effects
 				(font
@@ -2442,7 +2451,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "47pF"
+		(property "Value" "22pF"
 			(at 146.05 120.6499 0)
 			(effects
 				(font
@@ -2477,7 +2486,7 @@
 				)
 			)
 		)
-		(property "MPN" ""
+		(property "MPN" "MF-CAP-0603-22pF"
 			(at 142.24 119.38 0)
 			(effects
 				(font
