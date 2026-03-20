@@ -1229,6 +1229,17 @@
 			(uuid "c91b2802-3de5-4e7e-8fc7-53342fa48e32")
 		)
 		(embedded_fonts no)
+		(model "${KIPRJMOD}/3d/S4B-ZR-SM4A-TF.STEP"
+			(offset
+				(xyz 0 -0.3 0)
+			)
+			(scale
+				(xyz 1 1 1)
+			)
+			(rotate
+				(xyz -90 -0 180)
+			)
+		)
 	)
 	(footprint "footprints:FB_MI0805K400R-10"
 		(layer "F.Cu")
