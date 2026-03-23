@@ -27,8 +27,8 @@ test_suite(
 )
 
 template_file(
-    name = "setup.py",
-    src = "setup.py.TPL",
+    name = "pyproject.toml",
+    src = "pyproject.toml.TPL",
     substitutions = {
         "{{VERSION}}" : '"{}"'.format(VERSION),
     },
@@ -36,7 +36,7 @@ template_file(
 
 genrule(
     name = "bdist_wheel",
-    srcs = ["setup.py", "README.md", "//utils/gui/moteus_gui:tview",
+    srcs = ["pyproject.toml", "README.md", "//utils/gui/moteus_gui:tview",
             # We separately list :datafiles because bazel does not have
             # any way for py_library/binary rules to carry around non-.py
             # dependencies for "compile-time" use.  This lets us get
@@ -53,11 +53,10 @@ genrule(
         "RELOUT=$$(realpath --relative-to $$(dirname $(location README.md)) " +
         "          $$(dirname $(location moteus_gui-{ver}.tar.gz))) && " +
         "SRCROOT=$$(dirname $(location README.md)) && " +
-        "ln -s $$(realpath $(location setup.py)) $$SRCROOT/setup.py && " +
+        "ln -s $$(realpath $(location pyproject.toml)) $$SRCROOT/pyproject.toml && " +
         "ln -s $$(realpath $(location //utils/gui/moteus_gui:version.py)) $$SRCROOT/moteus_gui/version.py && " +
         "cd $$SRCROOT && " +
-        "python3 setup.py sdist --dist-dir $$RELOUT 1>/dev/null && " +
-        "python3 setup.py bdist_wheel --dist-dir $$RELOUT 1> /dev/null " +
+        "python3 -m build --no-isolation --outdir $$RELOUT 1>/dev/null " +
         ""
     ).format(ver=VERSION),
 )
