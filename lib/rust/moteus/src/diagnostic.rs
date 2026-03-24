@@ -23,7 +23,7 @@
 //! ```ignore
 //! use moteus::{BlockingController, DiagnosticStream};
 //!
-//! let mut ctrl = BlockingController::new(1)?;
+//! let mut ctrl = BlockingController::new(1);
 //! let mut stream = DiagnosticStream::new(&mut ctrl);
 //!
 //! // Stop any telemetry spew and flush pending data
@@ -43,7 +43,7 @@
 //! ```ignore
 //! use moteus::{AsyncController, AsyncDiagnosticStream};
 //!
-//! let mut ctrl = AsyncController::new(1).await?;
+//! let mut ctrl = AsyncController::new(1);
 //! let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 //!
 //! stream.write_message(b"tel stop").await?;
@@ -189,7 +189,7 @@ use crate::blocking_controller::BlockingController;
 /// ```ignore
 /// use moteus::{BlockingController, DiagnosticStream};
 ///
-/// let mut ctrl = BlockingController::new(1)?;
+/// let mut ctrl = BlockingController::new(1);
 /// let mut stream = DiagnosticStream::new(&mut ctrl);
 ///
 /// // Always stop telemetry and flush before using diagnostic commands
@@ -393,7 +393,7 @@ use crate::async_controller::AsyncController;
 /// ```ignore
 /// use moteus::{AsyncController, AsyncDiagnosticStream};
 ///
-/// let mut ctrl = AsyncController::new(1).await?;
+/// let mut ctrl = AsyncController::new(1);
 /// let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 ///
 /// stream.write_message(b"tel stop").await?;

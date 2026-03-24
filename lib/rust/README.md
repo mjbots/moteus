@@ -14,8 +14,7 @@ This library is split into two crates:
 
 ## Minimum Supported Rust Version (MSRV)
 
-This library requires **Rust 1.62.0** or later. This is due to the use of
-`#[default]` attribute on enum variants for `#[derive(Default)]`.
+This library requires **Rust 1.75.0** or later.
 
 ## Quick Start - Auto-Discovery (Recommended)
 
@@ -26,14 +25,14 @@ use moteus::{BlockingController, command::PositionCommand};
 
 fn main() -> Result<(), moteus::Error> {
     // Auto-discovers transport (fdcanusb, socketcan, etc.)
-    let mut ctrl = BlockingController::new(1)?;
+    let mut ctrl = BlockingController::new(1);
 
     // Clear any faults
     ctrl.set_stop()?;
 
     // Command position mode
     loop {
-        let result = ctrl.set_position(PositionCommand::new().position(f64::NAN))?;
+        let result = ctrl.set_position(PositionCommand::new().position(f32::NAN))?;
         println!("Position: {}", result.position);
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
@@ -74,7 +73,7 @@ use moteus::{BlockingController, transport::socketcan::SocketCan};
 
 fn main() -> Result<(), moteus::Error> {
     let transport = SocketCan::new("can0")?;
-    let mut ctrl = BlockingController::new(1)?
+    let mut ctrl = BlockingController::new(1)
         .transport(transport);
 
     // Use the controller...
@@ -95,7 +94,7 @@ fn main() -> Result<(), moteus::Error> {
         .socketcan_interfaces(vec!["can0"])
         .timeout_ms(200);
 
-    let mut ctrl = BlockingController::with_options(1, &opts)?;
+    let mut ctrl = BlockingController::with_options(1, &opts);
     ctrl.set_stop()?;
     Ok(())
 }
@@ -168,7 +167,7 @@ let ctrl = Controller::new(1)
     .query_format(QueryFormat::comprehensive());
 
 // Use with auto-discovered transport
-let ctrl = BlockingController::with_controller(ctrl)?;
+let ctrl = BlockingController::with_controller(ctrl);
 ```
 
 ## Query Format Overrides
@@ -210,7 +209,7 @@ tools/bazel test //lib/rust:host
 
 ### Testing Against MSRV
 
-To verify compatibility with the minimum supported Rust version (1.62.0):
+To verify compatibility with the minimum supported Rust version (1.75.0):
 
 ```bash
 tools/bazel test //lib/rust:host --extra_toolchains=@rust_msrv//:all
