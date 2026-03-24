@@ -394,6 +394,17 @@ impl Value {
     /// Integer minimum values (e.g., -128 for Int8) are mapped to NaN.
     /// Integer values are multiplied by the appropriate scaling factor.
     /// Float values are returned directly.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use moteus_protocol::multiplex::Value;
+    /// use moteus_protocol::scaling;
+    ///
+    /// let raw = Value::Int16(5000);
+    /// let position = raw.to_f32(&scaling::POSITION);
+    /// assert!((position - 0.5).abs() < 0.001); // 5000 * 0.0001 = 0.5 rev
+    /// ```
     pub fn to_f32(&self, scaling: &Scaling) -> f32 {
         use crate::scaling::{nanify_i16, nanify_i32, nanify_i8};
 
@@ -467,6 +478,8 @@ pub enum Subframe<'a> {
 ///
 /// Handles all opcode families: WRITE (0x00-0x0f), READ (0x10-0x1f),
 /// REPLY (0x20-0x2f), ERROR (0x30-0x31), STREAM (0x40-0x42), NOP (0x50).
+///
+/// See [`parse_frame`] for a convenience wrapper.
 pub struct FrameParser<'a> {
     data: &'a [u8],
     offset: usize,
@@ -786,6 +799,23 @@ impl<'a> Iterator for FrameParser<'a> {
 }
 
 /// Creates a parser that iterates over all subframes in a multiplex protocol frame.
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::multiplex::{parse_frame, Subframe};
+///
+/// // A response frame with mode=10 (position) at register 0
+/// let data = [0x21, 0x00, 0x0a];
+/// for subframe in parse_frame(&data) {
+///     match subframe {
+///         Subframe::Register { register, value, .. } => {
+///             println!("Register 0x{:03x} = {:?}", register, value);
+///         }
+///         _ => {}
+///     }
+/// }
+/// ```
 pub fn parse_frame(data: &[u8]) -> FrameParser<'_> {
     FrameParser::new(data)
 }
