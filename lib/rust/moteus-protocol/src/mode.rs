@@ -58,6 +58,29 @@ pub enum Mode {
     Brake = 15,
 }
 
+impl core::fmt::Display for Mode {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Mode::Stopped => write!(f, "stopped"),
+            Mode::Fault => write!(f, "fault"),
+            Mode::Enabling => write!(f, "enabling"),
+            Mode::Calibrating => write!(f, "calibrating"),
+            Mode::CalibrationComplete => write!(f, "calibration complete"),
+            Mode::Pwm => write!(f, "pwm"),
+            Mode::Voltage => write!(f, "voltage"),
+            Mode::VoltageFoc => write!(f, "voltage foc"),
+            Mode::VoltageDq => write!(f, "voltage dq"),
+            Mode::Current => write!(f, "current"),
+            Mode::Position => write!(f, "position"),
+            Mode::Timeout => write!(f, "timeout"),
+            Mode::ZeroVelocity => write!(f, "zero velocity"),
+            Mode::StayWithin => write!(f, "stay within"),
+            Mode::MeasureInd => write!(f, "measure inductance"),
+            Mode::Brake => write!(f, "brake"),
+        }
+    }
+}
+
 impl Mode {
     /// Returns `true` if the controller is in an error state.
     pub fn is_error(&self) -> bool {
@@ -99,6 +122,16 @@ pub enum HomeState {
     Rotor = 1,
     /// Position is absolute (output-referenced)
     Output = 2,
+}
+
+impl core::fmt::Display for HomeState {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            HomeState::Relative => write!(f, "relative"),
+            HomeState::Rotor => write!(f, "rotor"),
+            HomeState::Output => write!(f, "output"),
+        }
+    }
 }
 
 #[cfg(test)]
