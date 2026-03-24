@@ -55,7 +55,7 @@
 use crate::command_types::Command;
 use crate::error::{Error, Result};
 use crate::transport::transaction::{FrameFilter, Request};
-use moteus_protocol::{CanFdFrame, Multiplex};
+use moteus_protocol::{CanFdFrame, multiplex};
 
 /// Default diagnostic channel.
 pub const DEFAULT_CHANNEL: u8 = 1;
@@ -96,7 +96,7 @@ pub fn make_diagnostic_write_frame(
         source_id as i8, dest_id as i8, 0, false);
 
     // Write header: CLIENT_TO_SERVER, channel, length
-    frame.data[0] = Multiplex::CLIENT_TO_SERVER;
+    frame.data[0] = multiplex::CLIENT_TO_SERVER;
     frame.data[1] = channel;
     frame.data[2] = data.len() as u8;
 
@@ -125,7 +125,7 @@ pub fn make_diagnostic_read_frame(
         source_id as i8, dest_id as i8, 0, true);
 
     // Write header: CLIENT_POLL_SERVER, channel, max_length
-    frame.data[0] = Multiplex::CLIENT_POLL_SERVER;
+    frame.data[0] = multiplex::CLIENT_POLL_SERVER;
     frame.data[1] = channel;
     frame.data[2] = max_length;
     frame.size = 3;
@@ -145,7 +145,7 @@ pub fn parse_diagnostic_response(frame: &CanFdFrame, channel: u8) -> Option<Diag
     }
 
     // Check for SERVER_TO_CLIENT response
-    if data[0] != Multiplex::SERVER_TO_CLIENT {
+    if data[0] != multiplex::SERVER_TO_CLIENT {
         return None;
     }
 
@@ -573,7 +573,7 @@ mod tests {
         let frame = make_diagnostic_write_frame(1, 0, 1, b"hello");
 
         assert_eq!(frame.arbitration_id, moteus_protocol::calculate_arbitration_id(0, 1, 0, false));
-        assert_eq!(frame.data[0], Multiplex::CLIENT_TO_SERVER);
+        assert_eq!(frame.data[0], multiplex::CLIENT_TO_SERVER);
         assert_eq!(frame.data[1], 1); // channel
         assert_eq!(frame.data[2], 5); // length
         assert_eq!(&frame.data[3..8], b"hello");
@@ -585,7 +585,7 @@ mod tests {
         let frame = make_diagnostic_read_frame(1, 0, 1, 48);
 
         assert_eq!(frame.arbitration_id, moteus_protocol::calculate_arbitration_id(0, 1, 0, true));
-        assert_eq!(frame.data[0], Multiplex::CLIENT_POLL_SERVER);
+        assert_eq!(frame.data[0], multiplex::CLIENT_POLL_SERVER);
         assert_eq!(frame.data[1], 1); // channel
         assert_eq!(frame.data[2], 48); // max_length
         assert_eq!(frame.size, 3);
@@ -595,7 +595,7 @@ mod tests {
     fn test_parse_diagnostic_response() {
         let mut frame = CanFdFrame::new();
         frame.arbitration_id = 0x8100; // Source ID 1
-        frame.data[0] = Multiplex::SERVER_TO_CLIENT;
+        frame.data[0] = multiplex::SERVER_TO_CLIENT;
         frame.data[1] = 1; // channel
         frame.data[2] = 5; // length
         frame.data[3..8].copy_from_slice(b"hello");
@@ -609,7 +609,7 @@ mod tests {
     #[test]
     fn test_parse_diagnostic_response_wrong_channel() {
         let mut frame = CanFdFrame::new();
-        frame.data[0] = Multiplex::SERVER_TO_CLIENT;
+        frame.data[0] = multiplex::SERVER_TO_CLIENT;
         frame.data[1] = 2; // different channel
         frame.data[2] = 5;
         frame.size = 8;

@@ -21,7 +21,7 @@
 
 use crate::device_address::DeviceAddress;
 use crate::transport::transaction::FrameFilter;
-use moteus_protocol::{CanFdFrame, Multiplex, calculate_arbitration_id};
+use moteus_protocol::{CanFdFrame, multiplex, calculate_arbitration_id};
 
 /// A moteus Command representing a routed protocol message.
 ///
@@ -146,7 +146,7 @@ impl Command {
             if f.size < 3 {
                 return false;
             }
-            f.data[0] == Multiplex::SERVER_TO_CLIENT
+            f.data[0] == multiplex::SERVER_TO_CLIENT
         })
     }
 
