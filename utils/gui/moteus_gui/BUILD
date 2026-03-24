@@ -31,6 +31,7 @@ filegroup(
     name = "datafiles",
     srcs = [
         "__init__.py",
+        "registernoop.py",
         "version.py",
 
         "tview_main_window.ui",
