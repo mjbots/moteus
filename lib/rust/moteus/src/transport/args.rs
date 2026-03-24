@@ -67,6 +67,7 @@
 //! ```
 
 use crate::transport::factory::TransportOptions;
+use std::time::Duration;
 
 /// Type of a command-line argument.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -196,9 +197,10 @@ impl TransportOptions {
         }
 
         if let Some(value) = matches.get_one::<String>("timeout-ms") {
-            opts.timeout_ms = value
+            let ms: u32 = value
                 .parse()
                 .map_err(|_| format!("invalid timeout: {}", value))?;
+            opts.timeout = Duration::from_millis(ms as u64);
         }
 
         // Extract registered factory args into extra
@@ -285,7 +287,7 @@ impl TransportArgs {
     /// Create new transport args with default values.
     pub fn new() -> Self {
         Self {
-            timeout_ms: crate::transport::factory::DEFAULT_TIMEOUT_MS,
+            timeout_ms: 100,
             ..Default::default()
         }
     }
@@ -297,7 +299,7 @@ impl TransportArgs {
             socketcan_interfaces: self.can_chan,
             disable_brs: self.can_disable_brs,
             force_transport: self.force_transport,
-            timeout_ms: self.timeout_ms,
+            timeout: Duration::from_millis(self.timeout_ms as u64),
             extra: Default::default(),
         }
     }
@@ -338,7 +340,7 @@ mod tests {
         assert_eq!(opts.socketcan_interfaces, vec!["can0", "can1"]);
         assert!(opts.disable_brs);
         assert_eq!(opts.force_transport, Some("socketcan".to_string()));
-        assert_eq!(opts.timeout_ms, 200);
+        assert_eq!(opts.timeout, Duration::from_millis(200));
     }
 
     #[test]

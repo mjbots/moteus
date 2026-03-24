@@ -48,7 +48,7 @@ use tokio_serial::SerialStream;
 pub struct AsyncFdcanusb {
     reader: BufReader<ReadHalf<SerialStream>>,
     writer: WriteHalf<SerialStream>,
-    timeout_ms: u32,
+    timeout: std::time::Duration,
     disable_brs: bool,
     line_buffer: String,
     pending_frames: Vec<CanFdFrame>,
@@ -62,7 +62,7 @@ impl AsyncFdcanusb {
     /// # Arguments
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
     pub async fn open(path: &str) -> Result<Self> {
-        Self::open_with_options(path, 100, false).await
+        Self::open_with_options(path, crate::transport::factory::DEFAULT_TIMEOUT, false).await
     }
 
     /// Opens an async FdCanUSB transport with BRS option.
@@ -71,16 +71,16 @@ impl AsyncFdcanusb {
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
     /// * `disable_brs` - Whether to disable bit rate switching
     pub async fn open_with_brs(path: &str, disable_brs: bool) -> Result<Self> {
-        Self::open_with_options(path, 100, disable_brs).await
+        Self::open_with_options(path, crate::transport::factory::DEFAULT_TIMEOUT, disable_brs).await
     }
 
     /// Opens an async FdCanUSB transport with full options.
     ///
     /// # Arguments
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
-    /// * `timeout_ms` - Communication timeout in milliseconds
+    /// * `timeout` - Communication timeout
     /// * `disable_brs` - Whether to disable bit rate switching
-    pub async fn open_with_options(path: &str, timeout_ms: u32, disable_brs: bool) -> Result<Self> {
+    pub async fn open_with_options(path: &str, timeout: std::time::Duration, disable_brs: bool) -> Result<Self> {
         let builder = tokio_serial::new(path, 9600);
         let port = SerialStream::open(&builder).map_err(|e| Error::Io(e.into()))?;
 
@@ -90,7 +90,7 @@ impl AsyncFdcanusb {
         Ok(Self {
             reader,
             writer,
-            timeout_ms,
+            timeout,
             disable_brs,
             line_buffer: String::new(),
             pending_frames: Vec::new(),
@@ -121,7 +121,7 @@ impl AsyncFdcanusb {
     /// Waits for an OK response with timeout.
     /// Any received frames (rcv lines) are buffered for later retrieval.
     async fn wait_for_ok(&mut self) -> Result<()> {
-        let timeout = std::time::Duration::from_millis(self.timeout_ms as u64);
+        let timeout = self.timeout;
 
         loop {
             self.line_buffer.clear();
@@ -168,7 +168,7 @@ impl AsyncFdcanusb {
             return Ok(frames);
         }
 
-        let timeout = std::time::Duration::from_millis(self.timeout_ms as u64);
+        let timeout = self.timeout;
         let deadline = tokio::time::Instant::now() + timeout;
 
         while frames.len() < expected_count {

@@ -92,7 +92,7 @@ use moteus::{BlockingController, TransportOptions};
 fn main() -> Result<(), moteus::Error> {
     let opts = TransportOptions::new()
         .socketcan_interfaces(vec!["can0"])
-        .timeout_ms(200);
+        .timeout(std::time::Duration::from_millis(200));
 
     let mut ctrl = BlockingController::with_options(1, &opts);
     ctrl.set_stop()?;

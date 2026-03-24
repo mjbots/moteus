@@ -72,6 +72,7 @@ use crate::error::{Error, Result};
 use crate::transport::device::{TransportDevice, TransportDeviceInfo};
 use moteus_protocol::{CanFdFrame, Register, Resolution};
 use std::collections::HashMap;
+use std::time::Duration;
 
 // Re-export transaction types
 pub use transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
@@ -103,11 +104,11 @@ pub trait TransportOps {
     /// Flushes any pending unsolicited frames.
     fn flush_read(&mut self, channel: Option<usize>) -> Result<()>;
 
-    /// Sets the communication timeout in milliseconds.
-    fn set_timeout(&mut self, timeout_ms: u32);
+    /// Sets the communication timeout.
+    fn set_timeout(&mut self, timeout: Duration);
 
-    /// Returns the current timeout in milliseconds.
-    fn timeout(&self) -> u32;
+    /// Returns the current timeout.
+    fn timeout(&self) -> Duration;
 }
 
 // =============================================================================
@@ -456,8 +457,8 @@ pub struct Transport {
     /// Each unique address maps to exactly one transport device, matching
     /// the Python library's `Dict[DeviceAddress, TransportDevice]`.
     routing_table: HashMap<DeviceAddress, usize>,
-    /// Timeout in milliseconds.
-    timeout_ms: u32,
+    /// Communication timeout.
+    timeout: Duration,
 }
 
 /// Compute the deduplicated parent indices from a list of devices.
@@ -485,7 +486,7 @@ impl Transport {
             devices,
             parent_indices,
             routing_table: HashMap::new(),
-            timeout_ms: 100,
+            timeout: factory::DEFAULT_TIMEOUT,
         }
     }
 
@@ -968,17 +969,17 @@ impl Transport {
         }
     }
 
-    /// Sets the communication timeout in milliseconds.
-    pub fn set_timeout(&mut self, timeout_ms: u32) {
-        self.timeout_ms = timeout_ms;
+    /// Sets the communication timeout.
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout;
         for device in &mut self.devices {
-            device.set_timeout(timeout_ms);
+            device.set_timeout(timeout);
         }
     }
 
-    /// Returns the current timeout in milliseconds.
-    pub fn timeout(&self) -> u32 {
-        self.timeout_ms
+    /// Returns the current timeout.
+    pub fn timeout(&self) -> Duration {
+        self.timeout
     }
 }
 
@@ -999,11 +1000,11 @@ impl TransportOps for Transport {
         Transport::flush_read(self, channel)
     }
 
-    fn set_timeout(&mut self, timeout_ms: u32) {
-        Transport::set_timeout(self, timeout_ms)
+    fn set_timeout(&mut self, timeout: Duration) {
+        Transport::set_timeout(self, timeout)
     }
 
-    fn timeout(&self) -> u32 {
+    fn timeout(&self) -> Duration {
         Transport::timeout(self)
     }
 }
@@ -1016,13 +1017,13 @@ impl TransportOps for Transport {
 ///
 /// Useful for testing frame construction without hardware.
 pub struct NullTransport {
-    timeout_ms: u32,
+    timeout: Duration,
 }
 
 impl NullTransport {
     /// Creates a new null transport.
     pub fn new() -> Self {
-        NullTransport { timeout_ms: 100 }
+        NullTransport { timeout: factory::DEFAULT_TIMEOUT }
     }
 }
 
@@ -1053,12 +1054,12 @@ impl TransportOps for NullTransport {
         Ok(())
     }
 
-    fn set_timeout(&mut self, timeout_ms: u32) {
-        self.timeout_ms = timeout_ms;
+    fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout;
     }
 
-    fn timeout(&self) -> u32 {
-        self.timeout_ms
+    fn timeout(&self) -> Duration {
+        self.timeout
     }
 }
 
@@ -1089,7 +1090,7 @@ mod tests {
 
     struct MockDevice {
         info: TransportDeviceInfo,
-        timeout_ms: u32,
+        timeout: Duration,
         responses: Vec<CanFdFrame>,
         /// Shared log of frames sent to this device, accessible after
         /// the device has been moved into a Transport.
@@ -1100,7 +1101,7 @@ mod tests {
         fn new(id: usize) -> Self {
             Self {
                 info: TransportDeviceInfo::new(id, format!("mock{}", id)),
-                timeout_ms: 100,
+                timeout: Duration::from_millis(100),
                 responses: Vec::new(),
                 log: MockDeviceLog::new(),
             }
@@ -1144,12 +1145,12 @@ mod tests {
             &self.info
         }
 
-        fn set_timeout(&mut self, timeout_ms: u32) {
-            self.timeout_ms = timeout_ms;
+        fn set_timeout(&mut self, timeout: Duration) {
+            self.timeout = timeout;
         }
 
-        fn timeout(&self) -> u32 {
-            self.timeout_ms
+        fn timeout(&self) -> Duration {
+            self.timeout
         }
     }
 
@@ -1186,9 +1187,9 @@ mod tests {
     #[test]
     fn test_null_transport_timeout() {
         let mut transport = NullTransport::new();
-        assert_eq!(transport.timeout(), 100);
-        transport.set_timeout(500);
-        assert_eq!(transport.timeout(), 500);
+        assert_eq!(transport.timeout(), Duration::from_millis(100));
+        transport.set_timeout(Duration::from_millis(500));
+        assert_eq!(transport.timeout(), Duration::from_millis(500));
     }
 
     #[test]
@@ -1229,10 +1230,10 @@ mod tests {
 
         let mut transport = Transport::from_devices(vec![device0, device1]);
 
-        assert_eq!(transport.timeout(), 100);
+        assert_eq!(transport.timeout(), Duration::from_millis(100));
 
-        transport.set_timeout(500);
-        assert_eq!(transport.timeout(), 500);
+        transport.set_timeout(Duration::from_millis(500));
+        assert_eq!(transport.timeout(), Duration::from_millis(500));
     }
 
     #[test]

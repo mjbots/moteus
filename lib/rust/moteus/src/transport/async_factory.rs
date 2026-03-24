@@ -118,7 +118,7 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
             for (idx, info) in infos.iter().enumerate() {
                 match AsyncFdcanusb::open_with_options(
                     &info.path,
-                    options.timeout_ms,
+                    options.timeout,
                     options.disable_brs,
                 )
                 .await
@@ -204,7 +204,7 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
 
             let mut devices: Vec<Box<dyn AsyncTransportDevice>> = Vec::new();
             for (idx, interface) in interfaces.iter().enumerate() {
-                match AsyncSocketCan::with_options(interface, options.timeout_ms, options.disable_brs).await {
+                match AsyncSocketCan::with_options(interface, options.timeout, options.disable_brs).await {
                     Ok(mut transport) => {
                         transport.info = TransportDeviceInfo::new(idx, "AsyncSocketCan")
                             .with_serial(interface)

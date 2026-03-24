@@ -400,8 +400,8 @@ impl AsyncController {
     /// Polls the controller until trajectory_complete is true or timeout.
     ///
     /// # Arguments
-    /// * `poll_interval_ms` - How often to poll (milliseconds)
-    /// * `timeout_ms` - Maximum time to wait (milliseconds)
+    /// * `poll_interval` - How often to poll
+    /// * `timeout` - Maximum time to wait
     ///
     /// # Cancel safety
     ///
@@ -409,13 +409,13 @@ impl AsyncController {
     /// trajectory until any configured watchdog timeout activates.
     pub fn wait_for_trajectory_complete(
         &mut self,
-        poll_interval_ms: u64,
-        timeout_ms: u64,
+        poll_interval: std::time::Duration,
+        timeout: std::time::Duration,
     ) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
             let start = std::time::Instant::now();
-            let timeout_dur = std::time::Duration::from_millis(timeout_ms);
-            let interval = std::time::Duration::from_millis(poll_interval_ms);
+            let timeout_dur = timeout;
+            let interval = poll_interval;
 
             loop {
                 let mut requests = [Request::from_command(self.controller.make_query())];
@@ -977,8 +977,8 @@ impl AsyncController {
     ///
     /// # Arguments
     /// * `cmd` - Position command built with the builder pattern
-    /// * `poll_interval_ms` - How often to poll (milliseconds)
-    /// * `timeout_ms` - Maximum time to wait (milliseconds)
+    /// * `poll_interval` - How often to poll
+    /// * `timeout` - Maximum time to wait
     ///
     /// # Cancel safety
     ///
@@ -990,24 +990,25 @@ impl AsyncController {
     /// ```ignore
     /// use moteus::AsyncController;
     /// use moteus::command::PositionCommand;
+    /// use std::time::Duration;
     ///
     /// let mut ctrl = AsyncController::new(1);
     /// let result = ctrl.set_position_wait_complete(
     ///     &PositionCommand::new().position(0.5).stop_position(0.5),
-    ///     25,   // poll every 25ms
-    ///     5000, // timeout after 5 seconds
+    ///     Duration::from_millis(25),   // poll every 25ms
+    ///     Duration::from_secs(5),      // timeout after 5 seconds
     /// ).await?;
     /// ```
     pub fn set_position_wait_complete<'a>(
         &'a mut self,
         cmd: &'a PositionCommand,
-        poll_interval_ms: u64,
-        timeout_ms: u64,
+        poll_interval: std::time::Duration,
+        timeout: std::time::Duration,
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
             let start = std::time::Instant::now();
-            let timeout_dur = std::time::Duration::from_millis(timeout_ms);
-            let interval = std::time::Duration::from_millis(poll_interval_ms);
+            let timeout_dur = timeout;
+            let interval = poll_interval;
 
             // We need trajectory_complete in the response
             let mut query_format = self.controller.query_format.clone();

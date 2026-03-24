@@ -59,10 +59,11 @@
 //!
 //! ```rust,ignore
 //! use moteus::{BlockingController, transport::factory::TransportOptions};
+//! use std::time::Duration;
 //!
 //! let opts = TransportOptions::new()
 //!     .socketcan_interfaces(vec!["can0"])
-//!     .timeout_ms(200);
+//!     .timeout(Duration::from_millis(200));
 //!
 //! let mut ctrl = BlockingController::with_options(1, &opts);
 //! ```

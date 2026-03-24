@@ -43,7 +43,7 @@ static GLOBAL_TRANSPORT: OnceLock<Arc<Mutex<Transport>>> = OnceLock::new();
 /// let transport = get_singleton_transport(None)?;
 ///
 /// // Or with custom options
-/// let opts = TransportOptions::new().timeout_ms(200);
+/// let opts = TransportOptions::new().timeout(std::time::Duration::from_millis(200));
 /// let transport = get_singleton_transport(Some(&opts))?;
 /// ```
 pub fn get_singleton_transport(
@@ -88,7 +88,7 @@ pub fn create_default_transport(options: &TransportOptions) -> Result<Transport>
     }
 
     let mut router = Transport::new(all_devices);
-    router.set_timeout(options.timeout_ms);
+    router.set_timeout(options.timeout);
 
     Ok(router)
 }
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_transport_options_default() {
         let opts = TransportOptions::new();
-        assert_eq!(opts.timeout_ms, 100);
+        assert_eq!(opts.timeout, std::time::Duration::from_millis(100));
         assert!(!opts.disable_brs);
         assert!(opts.fdcanusb_paths.is_empty());
         assert!(opts.socketcan_interfaces.is_empty());

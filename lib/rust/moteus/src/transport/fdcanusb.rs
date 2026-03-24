@@ -131,7 +131,7 @@ impl FdcanusbProtocol {
 pub struct Fdcanusb<S: std::io::Read + std::io::Write> {
     reader: BufReader<S>,
     writer: S,
-    timeout_ms: u32,
+    timeout: Duration,
     disable_brs: bool,
     line_buffer: String,
     /// Buffer for frames received during wait_for_ok.
@@ -151,7 +151,7 @@ impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
         Fdcanusb {
             reader,
             writer: stream,
-            timeout_ms: 100,
+            timeout: crate::transport::factory::DEFAULT_TIMEOUT,
             disable_brs: false,
             line_buffer: String::new(),
             pending_frames: Vec::new(),
@@ -164,12 +164,12 @@ impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
     /// This is primarily useful for testing with mock streams.
     /// For normal use, prefer [`Fdcanusb::new`] which opens the serial port
     /// directly from a device path.
-    pub fn from_stream_with_options(stream: S, timeout_ms: u32, disable_brs: bool) -> Self {
+    pub fn from_stream_with_options(stream: S, timeout: Duration, disable_brs: bool) -> Self {
         let reader = BufReader::new(stream.clone());
         Fdcanusb {
             reader,
             writer: stream,
-            timeout_ms,
+            timeout,
             disable_brs,
             line_buffer: String::new(),
             pending_frames: Vec::new(),
@@ -200,7 +200,7 @@ impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
     /// Waits for an OK response.
     /// Any received frames (rcv lines) are buffered for later retrieval.
     fn wait_for_ok(&mut self) -> Result<()> {
-        let deadline = Instant::now() + Duration::from_millis(self.timeout_ms as u64);
+        let deadline = Instant::now() + self.timeout;
 
         loop {
             if Instant::now() > deadline {
@@ -238,7 +238,7 @@ impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
             return Ok(frames);
         }
 
-        let deadline = Instant::now() + Duration::from_millis(self.timeout_ms as u64);
+        let deadline = Instant::now() + self.timeout;
 
         while frames.len() < expected_count {
             if Instant::now() > deadline {
@@ -313,7 +313,7 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
         }
 
         // Try to read one frame with a short timeout
-        let deadline = Instant::now() + Duration::from_millis(self.timeout_ms as u64);
+        let deadline = Instant::now() + self.timeout;
 
         while Instant::now() < deadline {
             self.line_buffer.clear();
@@ -356,12 +356,12 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
         &self.info
     }
 
-    fn set_timeout(&mut self, timeout_ms: u32) {
-        self.timeout_ms = timeout_ms;
+    fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = timeout;
     }
 
-    fn timeout(&self) -> u32 {
-        self.timeout_ms
+    fn timeout(&self) -> Duration {
+        self.timeout
     }
 }
 
@@ -551,9 +551,9 @@ impl Fdcanusb<LinuxSerialPort> {
     }
 
     /// Opens an fdcanusb device with explicit timeout and BRS settings.
-    pub fn with_options(path: &str, timeout_ms: u32, disable_brs: bool) -> Result<Self> {
+    pub fn with_options(path: &str, timeout: Duration, disable_brs: bool) -> Result<Self> {
         let port = LinuxSerialPort::open(path)?;
-        Ok(Self::from_stream_with_options(port, timeout_ms, disable_brs))
+        Ok(Self::from_stream_with_options(port, timeout, disable_brs))
     }
 }
 
