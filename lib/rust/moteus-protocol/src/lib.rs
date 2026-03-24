@@ -23,8 +23,7 @@
 //!
 //! ## Features
 //!
-//! - `std` (default): Enables `std::error::Error` implementations
-//! - `alloc`: Enables types that require allocation (e.g., `Vec`-based results)
+//! - `std` (default): When disabled, the crate is built as `no_std`
 //!
 //! ## Example
 //!
