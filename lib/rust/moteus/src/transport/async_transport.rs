@@ -85,10 +85,10 @@ pub trait AsyncTransportOps: Send {
     fn write<'a>(&'a mut self, frame: &'a CanFdFrame) -> BoxFuture<'a, Result<()>>;
 
     /// Receives an unsolicited frame, if available.
-    fn read<'a>(&'a mut self, channel: Option<usize>) -> BoxFuture<'a, Result<Option<CanFdFrame>>>;
+    fn read(&mut self, channel: Option<usize>) -> BoxFuture<'_, Result<Option<CanFdFrame>>>;
 
     /// Flushes any pending unsolicited frames.
-    fn flush_read<'a>(&'a mut self, channel: Option<usize>) -> BoxFuture<'a, Result<()>>;
+    fn flush_read(&mut self, channel: Option<usize>) -> BoxFuture<'_, Result<()>>;
 }
 
 // =============================================================================
