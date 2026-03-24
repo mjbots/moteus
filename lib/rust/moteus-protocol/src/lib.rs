@@ -50,7 +50,7 @@
 
 mod frame;
 mod mode;
-mod multiplex;
+pub mod multiplex;
 mod register;
 mod resolution;
 mod scaling;
@@ -61,7 +61,7 @@ pub mod query;
 pub use frame::{CanFdFrame, Toggle, calculate_arbitration_id, parse_arbitration_id};
 pub use mode::{HomeState, Mode};
 pub use multiplex::{
-    FrameParser, Multiplex, Subframe, SubframeType, Value, WriteCanData, WriteCombiner,
+    FrameParser, Subframe, SubframeType, Value, WriteCanData, WriteCombiner,
     parse_frame,
 };
 pub use register::Register;

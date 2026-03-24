@@ -25,7 +25,7 @@
 
 use crate::frame::CanFdFrame;
 use crate::mode::Mode;
-use crate::multiplex::{Multiplex, WriteCanData, WriteCombiner};
+use crate::multiplex::{self, WriteCanData, WriteCombiner};
 use crate::register::Register;
 use crate::resolution::Resolution;
 use moteus_derive::Setters;
@@ -117,7 +117,7 @@ impl PositionCommand {
         let mut writer = WriteCanData::new(frame);
 
         // Write mode
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::Position as i8);
 
@@ -240,7 +240,7 @@ impl VFOCCommand {
         let mut writer = WriteCanData::new(frame);
 
         // Write mode
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::VoltageFoc as i8);
 
@@ -337,7 +337,7 @@ impl CurrentCommand {
         let mut writer = WriteCanData::new(frame);
 
         // Write mode
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::Current as i8);
 
@@ -423,7 +423,7 @@ impl StayWithinCommand {
         let mut writer = WriteCanData::new(frame);
 
         // Write mode
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::StayWithin as i8);
 
@@ -507,7 +507,7 @@ impl ZeroVelocityCommand {
         let mut writer = WriteCanData::new(frame);
 
         // Write mode
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::ZeroVelocity as i8);
 
@@ -535,7 +535,7 @@ impl StopCommand {
     pub fn serialize(frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::Stopped as i8);
     }
@@ -549,7 +549,7 @@ impl BrakeCommand {
     pub fn serialize(frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_u8(Register::Mode.address() as u8);
         writer.write_i8(Mode::Brake as i8);
     }
@@ -571,7 +571,7 @@ impl OutputNearestCommand {
     pub fn serialize(&self, frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_FLOAT | 0x01);
+        writer.write_u8(multiplex::WRITE_FLOAT | 0x01);
         writer.write_varuint(Register::SetOutputNearest.address() as u32);
         writer.write_f32(self.position as f32);
     }
@@ -593,7 +593,7 @@ impl OutputExactCommand {
     pub fn serialize(&self, frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_FLOAT | 0x01);
+        writer.write_u8(multiplex::WRITE_FLOAT | 0x01);
         writer.write_varuint(Register::SetOutputExact.address() as u32);
         writer.write_f32(self.position as f32);
     }
@@ -607,7 +607,7 @@ impl RequireReindexCommand {
     pub fn serialize(frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_varuint(Register::RequireReindex.address() as u32);
         writer.write_i8(1);
     }
@@ -621,7 +621,7 @@ impl RecapturePositionVelocityCommand {
     pub fn serialize(frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_INT8 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT8 | 0x01);
         writer.write_varuint(Register::RecapturePositionVelocity.address() as u32);
         writer.write_i8(1);
     }
@@ -766,7 +766,7 @@ impl SetTrimCommand {
     pub fn serialize(&self, frame: &mut CanFdFrame) {
         let mut writer = WriteCanData::new(frame);
 
-        writer.write_u8(Multiplex::WRITE_INT32 | 0x01);
+        writer.write_u8(multiplex::WRITE_INT32 | 0x01);
         writer.write_varuint(Register::ClockTrim.address() as u32);
         writer.write_i32(self.trim);
     }
