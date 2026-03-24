@@ -329,7 +329,7 @@ dependencies = [
 
 [[package]]
 name = "moteus"
-version = "1.0.0"
+version = "0.5.0"
 dependencies = [
  "clap",
  "moteus-derive",
@@ -341,7 +341,7 @@ dependencies = [
 
 [[package]]
 name = "moteus-derive"
-version = "1.0.0"
+version = "0.5.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -350,7 +350,7 @@ dependencies = [
 
 [[package]]
 name = "moteus-protocol"
-version = "1.0.0"
+version = "0.5.0"
 dependencies = [
  "moteus-derive",
  "num_enum",

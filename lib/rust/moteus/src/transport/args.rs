@@ -122,7 +122,7 @@ impl ArgSpec {
         }
 
         if let Some(values) = self.possible_values {
-            arg = arg.value_parser(values.iter().copied().collect::<Vec<_>>());
+            arg = arg.value_parser(values.to_vec());
         }
 
         arg

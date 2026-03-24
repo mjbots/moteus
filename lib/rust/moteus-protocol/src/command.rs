@@ -573,7 +573,7 @@ impl OutputNearestCommand {
 
         writer.write_u8(multiplex::WRITE_FLOAT | 0x01);
         writer.write_varuint(Register::SetOutputNearest.address() as u32);
-        writer.write_f32(self.position as f32);
+        writer.write_f32(self.position);
     }
 }
 
@@ -595,7 +595,7 @@ impl OutputExactCommand {
 
         writer.write_u8(multiplex::WRITE_FLOAT | 0x01);
         writer.write_varuint(Register::SetOutputExact.address() as u32);
-        writer.write_f32(self.position as f32);
+        writer.write_f32(self.position);
     }
 }
 

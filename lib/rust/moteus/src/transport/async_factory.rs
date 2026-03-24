@@ -313,12 +313,11 @@ pub async fn create_async_transports(
             // Check if this is a socketcan device that duplicates an fdcanusb
             let should_skip = socketcan_infos.iter().any(|info| {
                 // For SocketCan devices, the interface name is stored in serial_number
-                device
+                (device
                     .info()
                     .serial_number
-                    .as_ref()
-                    .map_or(false, |s| s == &info.interface)
-                    && info.fdcanusb_serial.as_ref().map_or(false, |serial| {
+                    .as_ref() == Some(&info.interface))
+                    && info.fdcanusb_serial.as_ref().is_some_and(|serial| {
                         fdcanusb_serials.contains(serial)
                     })
             });

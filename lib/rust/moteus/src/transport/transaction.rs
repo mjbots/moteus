@@ -154,21 +154,17 @@ impl std::fmt::Debug for ResponseCollector {
 /// let any_filter = FrameFilter::Any;
 /// assert!(any_filter.matches(&frame));
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum FrameFilter {
     /// Match frames from a specific source CAN ID.
     BySource(u8),
     /// Accept all frames.
+    #[default]
     Any,
     /// Custom filter function.
     Custom(Arc<dyn Fn(&CanFdFrame) -> bool + Send + Sync>),
 }
 
-impl Default for FrameFilter {
-    fn default() -> Self {
-        FrameFilter::Any
-    }
-}
 
 impl FrameFilter {
     /// Creates a filter that matches frames from a specific source.

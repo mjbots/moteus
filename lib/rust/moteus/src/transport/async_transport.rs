@@ -552,6 +552,7 @@ impl AsyncTransport {
         // Group requests by destination device, matching Python's _cycle_batch.
         let mut device_groups: HashMap<usize, DeviceWork> = HashMap::new();
 
+        #[allow(clippy::needless_range_loop, clippy::manual_map)]
         for i in 0..requests.len() {
             // Explicit channel bypasses routing table
             if let Some(device_idx) = requests[i].channel {
@@ -566,10 +567,7 @@ impl AsyncTransport {
                 continue;
             }
 
-            let dest_id = match &requests[i].frame {
-                Some(frame) => Some((frame.arbitration_id & 0x7F) as u8),
-                None => None,
-            };
+            let dest_id = requests[i].frame.as_ref().map(|frame| (frame.arbitration_id & 0x7F) as u8);
 
             if let Some(dest_id) = dest_id {
                 // Determine if this is a true broadcast (0x7F and no UUID)

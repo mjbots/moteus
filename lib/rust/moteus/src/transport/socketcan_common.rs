@@ -131,6 +131,7 @@ pub(crate) mod linux {
     }
 
     /// Converts a `CanFdFrame` to a raw kernel `CanFdFrameRaw`, with DLC padding.
+    #[allow(clippy::field_reassign_with_default)]
     pub fn frame_to_raw(frame: &moteus_protocol::CanFdFrame, disable_brs: bool) -> CanFdFrameRaw {
         let mut padded = frame.clone();
         padded.pad_to_dlc();
