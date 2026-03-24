@@ -30,6 +30,7 @@ pub const MAX_EXTRA: usize = 16;
 ///
 /// Specifies which registers to query and at what resolution.
 /// Setting a field to `Resolution::Ignore` means that register will not be queried.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct QueryFormat {
     pub mode: Resolution,
@@ -266,6 +267,7 @@ pub struct ExtraValue {
 }
 
 /// Result of parsing a query response.
+#[non_exhaustive]
 #[derive(Debug, Clone, Default)]
 pub struct QueryResult {
     pub mode: Mode,

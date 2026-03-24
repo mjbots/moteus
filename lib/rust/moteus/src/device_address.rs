@@ -51,6 +51,7 @@ use core::fmt;
 /// // With transport device routing
 /// let addr = DeviceAddress::can_id(1).with_transport_device(0);
 /// ```
+#[non_exhaustive]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct DeviceAddress {
     /// CAN bus ID (1-127), if known.

@@ -35,6 +35,7 @@ use crate::transport::device::TransportDevice;
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// Options for configuring transport creation.
+#[non_exhaustive]
 #[derive(Debug, Clone, Default)]
 pub struct TransportOptions {
     /// Explicit fdcanusb device paths to use.

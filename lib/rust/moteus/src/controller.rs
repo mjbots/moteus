@@ -605,6 +605,7 @@ impl Controller {
 }
 
 /// Result of reading GPIO digital inputs.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpioResult {
     /// AUX1 GPIO input state (bit N = pin N)

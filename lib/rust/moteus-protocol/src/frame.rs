@@ -32,6 +32,7 @@ pub enum Toggle {
 /// arbitration ID, payload data, and CAN-FD options. Moteus-specific routing
 /// (destination, source, can_prefix) is handled by the higher-level `Command`
 /// type in the `moteus` crate.
+#[non_exhaustive]
 #[derive(Clone)]
 pub struct CanFdFrame {
     /// Channel index identifying which transport device this frame was
