@@ -371,4 +371,81 @@ BOOST_AUTO_TEST_CASE(SimVelocityAcrossBusVoltages) {
   }
 }
 
+// Test that position control error fault triggers when error exceeds threshold
+BOOST_AUTO_TEST_CASE(SimPositionControlErrorFault) {
+  ctx.config_.fault_position_error = 0.02f;
+
+  auto cmd = MakePositionCommand(0.0f, 0.0f, 1.0f);
+  ctx.Command(&cmd);
+
+  // Let it settle at position 0
+  ctx.RunSimulation(&cmd, 0.2f);
+  BOOST_TEST(ctx.status_.mode == kPosition);
+
+  // Apply a large external torque to push motor away from target
+  ctx.external_torque_ = 0.5f;
+
+  // Run until fault triggers
+  ctx.RunSimulation(&cmd, 1.0f);
+
+  BOOST_CHECK(ctx.status_.mode == kFault);
+  BOOST_CHECK(ctx.status_.fault == errc::kPositionControlError);
+}
+
+// Test that NaN position error threshold (default) does not trigger fault
+BOOST_AUTO_TEST_CASE(SimPositionControlErrorFaultDisabled) {
+  // fault_position_error defaults to NaN
+
+  auto cmd = MakePositionCommand(0.0f, 0.0f, 1.0f);
+  ctx.Command(&cmd);
+  ctx.RunSimulation(&cmd, 0.2f);
+
+  // Apply same external torque
+  ctx.external_torque_ = 0.5f;
+  ctx.RunSimulation(&cmd, 0.5f);
+
+  // Should NOT have faulted
+  BOOST_CHECK(ctx.status_.mode != kFault);
+}
+
+// Test that velocity control error fault triggers when error rate exceeds threshold
+BOOST_AUTO_TEST_CASE(SimVelocityControlErrorFault) {
+  ctx.config_.fault_velocity_error = 0.5f;
+
+  // Command constant velocity
+  auto cmd = MakePositionCommand(kNaN, 2.0f, 1.0f);
+  cmd.accel_limit = 10.0f;
+  ctx.Command(&cmd);
+
+  // Let it get up to speed
+  ctx.RunSimulation(&cmd, 0.5f);
+  BOOST_TEST(ctx.status_.mode == kPosition);
+
+  // Apply a large opposing torque to create velocity error
+  ctx.external_torque_ = -1.0f;
+
+  // Run until fault triggers
+  ctx.RunSimulation(&cmd, 1.0f);
+
+  BOOST_CHECK(ctx.status_.mode == kFault);
+  BOOST_CHECK(ctx.status_.fault == errc::kVelocityControlError);
+}
+
+// Test that NaN velocity error threshold (default) does not trigger fault
+BOOST_AUTO_TEST_CASE(SimVelocityControlErrorFaultDisabled) {
+  // fault_velocity_error defaults to NaN
+
+  auto cmd = MakePositionCommand(kNaN, 2.0f, 1.0f);
+  cmd.accel_limit = 10.0f;
+  ctx.Command(&cmd);
+  ctx.RunSimulation(&cmd, 0.5f);
+
+  // Apply opposing torque
+  ctx.external_torque_ = -1.0f;
+  ctx.RunSimulation(&cmd, 0.5f);
+
+  // Should NOT have faulted
+  BOOST_CHECK(ctx.status_.mode != kFault);
+}
+
 BOOST_AUTO_TEST_SUITE_END()

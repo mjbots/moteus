@@ -110,6 +110,8 @@ FAULT_CODE_DESCRIPTIONS = {
     46: "timing violation",
     47: "bemf feedforward without accel",
     48: "invalid limits",
+    49: "position control error",
+    50: "velocity control error",
     96: "limit: servo.max_velocity",
     97: "limit: servo.max_power_W",
     98: "limit: max system voltage",

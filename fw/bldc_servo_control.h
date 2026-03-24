@@ -889,6 +889,21 @@ class BldcServoControl {
          feedforward_Nm +
          inertia_feedforward_Nm);
 
+    if (std::isfinite(self().config_.fault_position_error) &&
+        std::abs(self().status_.pid_position.error) >
+        self().config_.fault_position_error) {
+      self().status_.mode = kFault;
+      self().status_.fault = errc::kPositionControlError;
+      return;
+    }
+    if (std::isfinite(self().config_.fault_velocity_error) &&
+        std::abs(self().status_.pid_position.error_rate) >
+        self().config_.fault_velocity_error) {
+      self().status_.mode = kFault;
+      self().status_.fault = errc::kVelocityControlError;
+      return;
+    }
+
     const auto limited_torque_Nm_pair =
         LimitCode(unlimited_torque_Nm, -max_torque_Nm, max_torque_Nm,
                   errc::kLimitMaxTorque, errc::kSuccess);
