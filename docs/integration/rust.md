@@ -44,8 +44,8 @@ use std::time::Duration;
 use moteus::{BlockingController, command::PositionCommand};
 
 fn main() -> Result<(), moteus::Error> {
-    // Auto-discovers transport (fdcanusb, socketcan, etc.)
-    let mut ctrl = BlockingController::new(1)?;
+    // Auto-discovers transport on first use
+    let mut ctrl = BlockingController::new(1);
 
     // Clear any faults
     ctrl.set_stop()?;
@@ -54,7 +54,7 @@ fn main() -> Result<(), moteus::Error> {
     loop {
         let result = ctrl.set_position(
             PositionCommand::new()
-                .position(f64::NAN)
+                .position(f32::NAN)
                 .velocity(1.0)
                 .accel_limit(0.5)
         )?;
@@ -66,7 +66,7 @@ fn main() -> Result<(), moteus::Error> {
 }
 ```
 
-The `BlockingController` automatically discovers an available transport (fdcanusb, socketcan) on construction.
+The `BlockingController` automatically discovers an available transport (fdcanusb, socketcan) on the first operation that needs it.
 
 ## Async Usage — AsyncController
 
@@ -78,15 +78,15 @@ use moteus::command::PositionCommand;
 
 #[tokio::main]
 async fn main() -> Result<(), moteus::Error> {
-    // Auto-discovers transport (fdcanusb, socketcan, etc.)
-    let mut ctrl = AsyncController::new(1).await?;
+    // Auto-discovers transport on first use
+    let mut ctrl = AsyncController::new(1);
 
     ctrl.set_stop().await?;
 
     loop {
         let result = ctrl.set_position(
             PositionCommand::new()
-                .position(f64::NAN)
+                .position(f32::NAN)
                 .velocity(0.5)
         ).await?;
 
@@ -140,7 +140,7 @@ use moteus::query::QueryFormat;
 let mut query_format = QueryFormat::default();
 query_format.power = Resolution::Float;
 
-let mut ctrl = BlockingController::new(1)?;
+let mut ctrl = BlockingController::new(1);
 ctrl.controller.query_format = query_format;
 ```
 
@@ -156,7 +156,7 @@ query_format.extra[0] = ExtraQuery {
     resolution: Resolution::Float,
 };
 
-let mut ctrl = BlockingController::new(1)?;
+let mut ctrl = BlockingController::new(1);
 ctrl.controller.query_format = query_format;
 ```
 
@@ -173,7 +173,7 @@ let opts = TransportOptions::new()
     .socketcan_interfaces(vec!["can0"])
     .timeout_ms(200);
 
-let mut ctrl = BlockingController::with_options(1, &opts)?;
+let mut ctrl = BlockingController::with_options(1, &opts);
 ```
 
 ### Explicit Transport
@@ -185,7 +185,7 @@ use moteus::BlockingController;
 use moteus::transport::socketcan::SocketCan;
 
 let transport = SocketCan::new("can0")?;
-let mut ctrl = BlockingController::new(1)?
+let mut ctrl = BlockingController::new(1)
     .transport(transport);
 ```
 

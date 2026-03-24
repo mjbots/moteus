@@ -28,8 +28,8 @@
 //! use moteus::{BlockingController, command::PositionCommand};
 //!
 //! fn main() -> Result<(), moteus::Error> {
-//!     // Auto-discovers transport (fdcanusb, socketcan, etc.)
-//!     let mut ctrl = BlockingController::new(1)?;
+//!     // Auto-discovers transport on first use
+//!     let mut ctrl = BlockingController::new(1);
 //!
 //!     // Clear any faults
 //!     ctrl.set_stop()?;
@@ -49,7 +49,7 @@
 //! use moteus::{BlockingController, transport::socketcan::SocketCan};
 //!
 //! let transport = SocketCan::new("can0")?;
-//! let mut ctrl = BlockingController::new(1)?
+//! let mut ctrl = BlockingController::new(1)
 //!     .transport(transport);
 //! ```
 //!
@@ -64,7 +64,7 @@
 //!     .socketcan_interfaces(vec!["can0"])
 //!     .timeout_ms(200);
 //!
-//! let mut ctrl = BlockingController::with_options(1, &opts)?;
+//! let mut ctrl = BlockingController::with_options(1, &opts);
 //! ```
 //!
 //! ## Low-Level Protocol Access
@@ -102,7 +102,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
-//!     let mut ctrl = AsyncController::new(1).await?;
+//!     let mut ctrl = AsyncController::new(1);
 //!
 //!     ctrl.set_stop().await?;
 //!     let result = ctrl.set_position(PositionCommand::new().position(0.5)).await?;
