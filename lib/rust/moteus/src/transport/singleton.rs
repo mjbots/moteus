@@ -34,6 +34,10 @@ static GLOBAL_TRANSPORT: OnceLock<Arc<Mutex<Transport>>> = OnceLock::new();
 /// # Arguments
 /// * `options` - Optional transport options. Ignored if transport is already initialized.
 ///
+/// # Errors
+///
+/// Returns an error if no CAN-FD devices are found.
+///
 /// # Example
 ///
 /// ```no_run
@@ -82,6 +86,10 @@ pub fn get_singleton_transport(
 ///
 /// # Arguments
 /// * `options` - Transport options for configuration
+///
+/// # Errors
+///
+/// Returns an error if no CAN-FD devices are found.
 pub fn create_default_transport(options: &TransportOptions) -> Result<Transport> {
     let all_devices = create_transports(options)?;
 

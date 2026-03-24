@@ -93,15 +93,31 @@ pub use transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
 /// - Using `Box<dyn TransportOps>` for polymorphism
 pub trait TransportOps {
     /// Executes a cycle: sends frames and collects responses.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     fn cycle(&mut self, requests: &mut [Request]) -> Result<()>;
 
     /// Sends a frame without waiting for a response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     fn write(&mut self, frame: &CanFdFrame) -> Result<()>;
 
     /// Receives an unsolicited frame, if available.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     fn read(&mut self, channel: Option<usize>) -> Result<Option<CanFdFrame>>;
 
     /// Flushes any pending unsolicited frames.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     fn flush_read(&mut self, channel: Option<usize>) -> Result<()>;
 
     /// Sets the communication timeout.
@@ -911,6 +927,10 @@ impl Transport {
     /// This is the primary method for communicating with moteus controllers.
     /// Each request contains a frame to send and a collector for responses.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -937,6 +957,10 @@ impl Transport {
     ///
     /// This is a fire-and-forget operation. The frame is routed to the
     /// appropriate device based on the destination CAN ID.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn write(&mut self, frame: &CanFdFrame) -> Result<()> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);
@@ -965,6 +989,10 @@ impl Transport {
     ///
     /// # Arguments
     /// * `channel` - Optional channel index to read from. If None, reads from any channel.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn read(&mut self, channel: Option<usize>) -> Result<Option<CanFdFrame>> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);
@@ -999,6 +1027,10 @@ impl Transport {
     ///
     /// # Arguments
     /// * `channel` - Optional channel index to flush. If None, flushes all channels.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn flush_read(&mut self, channel: Option<usize>) -> Result<()> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);

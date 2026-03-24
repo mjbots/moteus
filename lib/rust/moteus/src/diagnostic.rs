@@ -252,6 +252,10 @@ impl<'a> DiagnosticStream<'a> {
     }
 
     /// Writes raw data to the diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub fn write(&mut self, data: &[u8]) -> Result<()> {
         // Split into chunks if necessary
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
@@ -265,6 +269,10 @@ impl<'a> DiagnosticStream<'a> {
     }
 
     /// Writes a message (with newline) to the diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub fn write_message(&mut self, data: &[u8]) -> Result<()> {
         let mut msg = data.to_vec();
         msg.push(b'\n');
@@ -274,6 +282,10 @@ impl<'a> DiagnosticStream<'a> {
     /// Reads data from the diagnostic stream.
     ///
     /// Returns up to `max_bytes` of available data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub fn read(&mut self, max_bytes: usize) -> Result<Vec<u8>> {
         let read_size = std::cmp::min(max_bytes, MAX_DIAGNOSTIC_READ) as u8;
         let frame =
@@ -306,6 +318,10 @@ impl<'a> DiagnosticStream<'a> {
     /// Flushes any pending read data.
     ///
     /// This should be called after `tel stop` to clear any buffered telemetry.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub fn flush_read(&mut self) -> Result<()> {
         self.read_buffer.clear();
 
@@ -326,6 +342,10 @@ impl<'a> DiagnosticStream<'a> {
     /// Reads a single line from the diagnostic stream.
     ///
     /// Lines are terminated by '\n' or '\r'. Empty lines are skipped.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub fn readline(&mut self) -> Result<Vec<u8>> {
         loop {
             // Check for newline in buffer
@@ -380,7 +400,11 @@ impl<'a> DiagnosticStream<'a> {
     /// Sends a command and reads the response until "OK".
     ///
     /// Returns all lines received before the "OK" terminator.
-    /// Returns an error if "ERR" is received.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not
+    /// respond. Returns `Error::Protocol` if the device replies with "ERR".
     pub fn command(&mut self, data: &[u8]) -> Result<Vec<u8>> {
         self.write_message(data)?;
         self.read_until_ok()
@@ -390,6 +414,10 @@ impl<'a> DiagnosticStream<'a> {
     ///
     /// This is useful for commands like `conf get` which return a
     /// single value without a trailing "OK".
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub fn command_oneline(&mut self, data: &[u8]) -> Result<Vec<u8>> {
         self.write_message(data)?;
         self.readline()
@@ -472,6 +500,10 @@ impl<'a> AsyncDiagnosticStream<'a> {
     }
 
     /// Writes raw data to the diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub async fn write(&mut self, data: &[u8]) -> Result<()> {
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
             let frame =
@@ -484,6 +516,10 @@ impl<'a> AsyncDiagnosticStream<'a> {
     }
 
     /// Writes a message (with newline) to the diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub async fn write_message(&mut self, data: &[u8]) -> Result<()> {
         let mut msg = data.to_vec();
         msg.push(b'\n');
@@ -491,6 +527,10 @@ impl<'a> AsyncDiagnosticStream<'a> {
     }
 
     /// Reads data from the diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub async fn read(&mut self, max_bytes: usize) -> Result<Vec<u8>> {
         let read_size = std::cmp::min(max_bytes, MAX_DIAGNOSTIC_READ) as u8;
         let frame =
@@ -521,6 +561,10 @@ impl<'a> AsyncDiagnosticStream<'a> {
     }
 
     /// Flushes any pending read data.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub async fn flush_read(&mut self) -> Result<()> {
         self.read_buffer.clear();
 
@@ -539,6 +583,10 @@ impl<'a> AsyncDiagnosticStream<'a> {
     }
 
     /// Reads a single line from the diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub async fn readline(&mut self) -> Result<Vec<u8>> {
         loop {
             // Check for newline in buffer
@@ -591,7 +639,11 @@ impl<'a> AsyncDiagnosticStream<'a> {
     /// Sends a command and reads the response until "OK".
     ///
     /// Returns all lines received before the "OK" terminator.
-    /// Returns an error if "ERR" is received.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not
+    /// respond. Returns `Error::Protocol` if the device replies with "ERR".
     pub async fn command(&mut self, data: &[u8]) -> Result<Vec<u8>> {
         self.write_message(data).await?;
         self.read_until_ok().await
@@ -601,6 +653,10 @@ impl<'a> AsyncDiagnosticStream<'a> {
     ///
     /// This is useful for commands like `conf get` which return a
     /// single value without a trailing "OK".
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if communication fails or the device does not respond.
     pub async fn command_oneline(&mut self, data: &[u8]) -> Result<Vec<u8>> {
         self.write_message(data).await?;
         self.readline().await
