@@ -82,7 +82,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
         // The `cycle` method accepts a list of commands, each created
         // by calling one of the `make_*` methods on Controller.
 
-        let now = start.elapsed().as_secs_f64();
+        let now = start.elapsed().as_secs_f32();
 
         // Construct a position command for each servo with a sinusoidal
         // velocity starting from the current position.
@@ -90,9 +90,9 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
             .iter()
             .enumerate()
             .map(|(i, servo)| {
-                let velocity = 0.1 * (now + i as f64).sin();
+                let velocity = 0.1 * (now + i as f32).sin();
                 Request::new(servo.make_position_command(
-                    &PositionCommand::new().position(f64::NAN).velocity(velocity),
+                    &PositionCommand::new().position(f32::NAN).velocity(velocity),
                     true, // query
                 ).into_frame())
             })
@@ -169,7 +169,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
         // The `cycle` method accepts a list of commands, each created
         // by calling one of the `make_*` methods on Controller.
 
-        let now = start.elapsed().as_secs_f64();
+        let now = start.elapsed().as_secs_f32();
 
         // Construct a position command for each servo with a sinusoidal
         // velocity starting from the current position.
@@ -177,9 +177,9 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
             .iter()
             .enumerate()
             .map(|(i, servo)| {
-                let velocity = 0.1 * (now + i as f64).sin();
+                let velocity = 0.1 * (now + i as f32).sin();
                 Request::new(servo.make_position_command(
-                    &PositionCommand::new().position(f64::NAN).velocity(velocity),
+                    &PositionCommand::new().position(f32::NAN).velocity(velocity),
                     true, // query
                 ).into_frame())
             })

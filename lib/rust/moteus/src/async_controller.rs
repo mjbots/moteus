@@ -709,7 +709,7 @@ impl AsyncController {
     /// # Cancel safety
     ///
     /// Cancel safe.
-    pub fn set_output_nearest(&mut self, position: f64) -> BoxFuture<'_, Result<QueryResult>> {
+    pub fn set_output_nearest(&mut self, position: f32) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
             let mut requests = vec![Request::from_command(self.controller.make_set_output_nearest(position, true))];
             self.transport.cycle(&mut requests).await?;
@@ -728,7 +728,7 @@ impl AsyncController {
     /// # Cancel safety
     ///
     /// Cancel safe.
-    pub fn set_output_exact(&mut self, position: f64) -> BoxFuture<'_, Result<QueryResult>> {
+    pub fn set_output_exact(&mut self, position: f32) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
             let mut requests = vec![Request::from_command(self.controller.make_set_output_exact(position, true))];
             self.transport.cycle(&mut requests).await?;

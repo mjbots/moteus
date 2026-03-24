@@ -110,7 +110,7 @@ async fn main() -> Result<(), moteus::Error> {
             .iter()
             .map(|c| {
                 Request::new(c.make_position_command(
-                    &PositionCommand::new().position(f64::NAN).velocity(0.0),
+                    &PositionCommand::new().position(f32::NAN).velocity(0.0),
                     true,
                 ).into_frame())
             })

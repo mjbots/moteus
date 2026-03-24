@@ -77,33 +77,33 @@ impl Default for PositionFormat {
 #[derive(Debug, Clone, Default, Setters)]
 pub struct PositionCommand {
     /// Target position in revolutions
-    pub position: Option<f64>,
+    pub position: Option<f32>,
     /// Target velocity in revolutions/second
-    pub velocity: Option<f64>,
+    pub velocity: Option<f32>,
     /// Feedforward torque in Nm
-    pub feedforward_torque: Option<f64>,
+    pub feedforward_torque: Option<f32>,
     /// Kp scale factor (0-1)
-    pub kp_scale: Option<f64>,
+    pub kp_scale: Option<f32>,
     /// Kd scale factor (0-1)
-    pub kd_scale: Option<f64>,
+    pub kd_scale: Option<f32>,
     /// Maximum torque in Nm
-    pub maximum_torque: Option<f64>,
+    pub maximum_torque: Option<f32>,
     /// Stop position for trajectory mode
-    pub stop_position: Option<f64>,
+    pub stop_position: Option<f32>,
     /// Watchdog timeout in seconds
-    pub watchdog_timeout: Option<f64>,
+    pub watchdog_timeout: Option<f32>,
     /// Velocity limit in revolutions/second
-    pub velocity_limit: Option<f64>,
+    pub velocity_limit: Option<f32>,
     /// Acceleration limit in revolutions/second^2
-    pub accel_limit: Option<f64>,
+    pub accel_limit: Option<f32>,
     /// Fixed voltage override
-    pub fixed_voltage_override: Option<f64>,
+    pub fixed_voltage_override: Option<f32>,
     /// Current limit scale factor
-    pub ilimit_scale: Option<f64>,
+    pub ilimit_scale: Option<f32>,
     /// Fixed current override in A
-    pub fixed_current_override: Option<f64>,
+    pub fixed_current_override: Option<f32>,
     /// Ignore position bounds flag
-    pub ignore_position_bounds: Option<f64>,
+    pub ignore_position_bounds: Option<f32>,
 }
 
 impl PositionCommand {
@@ -161,28 +161,28 @@ impl PositionCommand {
             writer.write_pwm(self.kd_scale.unwrap_or(1.0), format.kd_scale);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_torque(self.maximum_torque.unwrap_or(f64::NAN), format.maximum_torque);
+            writer.write_torque(self.maximum_torque.unwrap_or(f32::NAN), format.maximum_torque);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_position(self.stop_position.unwrap_or(f64::NAN), format.stop_position);
+            writer.write_position(self.stop_position.unwrap_or(f32::NAN), format.stop_position);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_time(self.watchdog_timeout.unwrap_or(f64::NAN), format.watchdog_timeout);
+            writer.write_time(self.watchdog_timeout.unwrap_or(f32::NAN), format.watchdog_timeout);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_velocity(self.velocity_limit.unwrap_or(f64::NAN), format.velocity_limit);
+            writer.write_velocity(self.velocity_limit.unwrap_or(f32::NAN), format.velocity_limit);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_accel(self.accel_limit.unwrap_or(f64::NAN), format.accel_limit);
+            writer.write_accel(self.accel_limit.unwrap_or(f32::NAN), format.accel_limit);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_voltage(self.fixed_voltage_override.unwrap_or(f64::NAN), format.fixed_voltage_override);
+            writer.write_voltage(self.fixed_voltage_override.unwrap_or(f32::NAN), format.fixed_voltage_override);
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.ilimit_scale.unwrap_or(1.0), format.ilimit_scale);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_current(self.fixed_current_override.unwrap_or(f64::NAN), format.fixed_current_override);
+            writer.write_current(self.fixed_current_override.unwrap_or(f32::NAN), format.fixed_current_override);
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_int(self.ignore_position_bounds.unwrap_or(0.0) as i32, format.ignore_position_bounds);
@@ -212,11 +212,11 @@ impl Default for VFOCFormat {
 #[derive(Debug, Clone, Setters)]
 pub struct VFOCCommand {
     /// Electrical angle in radians
-    pub theta: f64,
+    pub theta: f32,
     /// Voltage to apply
-    pub voltage: f64,
+    pub voltage: f32,
     /// Electrical angle rate in radians/second
-    pub theta_rate: Option<f64>,
+    pub theta_rate: Option<f32>,
 }
 
 impl Default for VFOCCommand {
@@ -267,7 +267,7 @@ impl VFOCCommand {
 
         if combiner.maybe_write(&mut writer) {
             // Theta is stored as PWM-scaled (divided by PI)
-            writer.write_pwm(self.theta / core::f64::consts::PI, format.theta);
+            writer.write_pwm(self.theta / core::f32::consts::PI, format.theta);
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_voltage(self.voltage, format.voltage);
@@ -278,7 +278,7 @@ impl VFOCCommand {
         combiner.maybe_write(&mut writer);
         combiner.maybe_write(&mut writer);
         if combiner.maybe_write(&mut writer) {
-            writer.write_velocity(self.theta_rate.unwrap_or(0.0) / core::f64::consts::PI, format.theta_rate);
+            writer.write_velocity(self.theta_rate.unwrap_or(0.0) / core::f32::consts::PI, format.theta_rate);
         }
     }
 }
@@ -303,9 +303,9 @@ impl Default for CurrentFormat {
 #[derive(Debug, Clone)]
 pub struct CurrentCommand {
     /// D-axis current in Amps
-    pub d_a: f64,
+    pub d_a: f32,
     /// Q-axis current in Amps
-    pub q_a: f64,
+    pub q_a: f32,
 }
 
 impl Default for CurrentCommand {
@@ -321,13 +321,13 @@ impl CurrentCommand {
     }
 
     /// Sets the D-axis current in Amps.
-    pub fn d_current(mut self, v: f64) -> Self {
+    pub fn d_current(mut self, v: f32) -> Self {
         self.d_a = v;
         self
     }
 
     /// Sets the Q-axis current in Amps (torque-producing).
-    pub fn q_current(mut self, v: f64) -> Self {
+    pub fn q_current(mut self, v: f32) -> Self {
         self.q_a = v;
         self
     }
@@ -393,23 +393,23 @@ impl Default for StayWithinFormat {
 #[derive(Debug, Clone, Default, Setters)]
 pub struct StayWithinCommand {
     /// Lower position bound in revolutions
-    pub lower_bound: Option<f64>,
+    pub lower_bound: Option<f32>,
     /// Upper position bound in revolutions
-    pub upper_bound: Option<f64>,
+    pub upper_bound: Option<f32>,
     /// Feedforward torque in Nm
-    pub feedforward_torque: Option<f64>,
+    pub feedforward_torque: Option<f32>,
     /// Kp scale factor
-    pub kp_scale: Option<f64>,
+    pub kp_scale: Option<f32>,
     /// Kd scale factor
-    pub kd_scale: Option<f64>,
+    pub kd_scale: Option<f32>,
     /// Maximum torque in Nm
-    pub maximum_torque: Option<f64>,
+    pub maximum_torque: Option<f32>,
     /// Watchdog timeout in seconds
-    pub watchdog_timeout: Option<f64>,
+    pub watchdog_timeout: Option<f32>,
     /// Current limit scale
-    pub ilimit_scale: Option<f64>,
+    pub ilimit_scale: Option<f32>,
     /// Ignore position bounds flag
-    pub ignore_position_bounds: Option<f64>,
+    pub ignore_position_bounds: Option<f32>,
 }
 
 impl StayWithinCommand {
@@ -446,10 +446,10 @@ impl StayWithinCommand {
         );
 
         if combiner.maybe_write(&mut writer) {
-            writer.write_position(self.lower_bound.unwrap_or(f64::NAN), format.lower_bound);
+            writer.write_position(self.lower_bound.unwrap_or(f32::NAN), format.lower_bound);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_position(self.upper_bound.unwrap_or(f64::NAN), format.upper_bound);
+            writer.write_position(self.upper_bound.unwrap_or(f32::NAN), format.upper_bound);
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_torque(self.feedforward_torque.unwrap_or(0.0), format.feedforward_torque);
@@ -464,7 +464,7 @@ impl StayWithinCommand {
             writer.write_torque(self.maximum_torque.unwrap_or(0.0), format.maximum_torque);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_time(self.watchdog_timeout.unwrap_or(f64::NAN), format.watchdog_timeout);
+            writer.write_time(self.watchdog_timeout.unwrap_or(f32::NAN), format.watchdog_timeout);
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.ilimit_scale.unwrap_or(1.0), format.ilimit_scale);
@@ -493,7 +493,7 @@ impl Default for ZeroVelocityFormat {
 #[derive(Debug, Clone, Default, Setters)]
 pub struct ZeroVelocityCommand {
     /// Kd scale factor for damping
-    pub kd_scale: Option<f64>,
+    pub kd_scale: Option<f32>,
 }
 
 impl ZeroVelocityCommand {
@@ -558,12 +558,12 @@ impl BrakeCommand {
 /// Output position setting command.
 pub struct OutputNearestCommand {
     /// Position to set
-    pub position: f64,
+    pub position: f32,
 }
 
 impl OutputNearestCommand {
     /// Creates a new output nearest command.
-    pub fn new(position: f64) -> Self {
+    pub fn new(position: f32) -> Self {
         OutputNearestCommand { position }
     }
 
@@ -580,12 +580,12 @@ impl OutputNearestCommand {
 /// Set output position to exact value.
 pub struct OutputExactCommand {
     /// Position to set
-    pub position: f64,
+    pub position: f32,
 }
 
 impl OutputExactCommand {
     /// Creates a new output exact command.
-    pub fn new(position: f64) -> Self {
+    pub fn new(position: f32) -> Self {
         OutputExactCommand { position }
     }
 
@@ -667,25 +667,25 @@ impl Default for AuxPwmFormat {
 #[derive(Debug, Clone, Default, Setters)]
 pub struct AuxPwmCommand {
     /// AUX1 PWM channel 1 duty cycle (0.0-1.0)
-    pub aux1_pwm1: Option<f64>,
+    pub aux1_pwm1: Option<f32>,
     /// AUX1 PWM channel 2 duty cycle (0.0-1.0)
-    pub aux1_pwm2: Option<f64>,
+    pub aux1_pwm2: Option<f32>,
     /// AUX1 PWM channel 3 duty cycle (0.0-1.0)
-    pub aux1_pwm3: Option<f64>,
+    pub aux1_pwm3: Option<f32>,
     /// AUX1 PWM channel 4 duty cycle (0.0-1.0)
-    pub aux1_pwm4: Option<f64>,
+    pub aux1_pwm4: Option<f32>,
     /// AUX1 PWM channel 5 duty cycle (0.0-1.0)
-    pub aux1_pwm5: Option<f64>,
+    pub aux1_pwm5: Option<f32>,
     /// AUX2 PWM channel 1 duty cycle (0.0-1.0)
-    pub aux2_pwm1: Option<f64>,
+    pub aux2_pwm1: Option<f32>,
     /// AUX2 PWM channel 2 duty cycle (0.0-1.0)
-    pub aux2_pwm2: Option<f64>,
+    pub aux2_pwm2: Option<f32>,
     /// AUX2 PWM channel 3 duty cycle (0.0-1.0)
-    pub aux2_pwm3: Option<f64>,
+    pub aux2_pwm3: Option<f32>,
     /// AUX2 PWM channel 4 duty cycle (0.0-1.0)
-    pub aux2_pwm4: Option<f64>,
+    pub aux2_pwm4: Option<f32>,
     /// AUX2 PWM channel 5 duty cycle (0.0-1.0)
-    pub aux2_pwm5: Option<f64>,
+    pub aux2_pwm5: Option<f32>,
 }
 
 impl AuxPwmCommand {

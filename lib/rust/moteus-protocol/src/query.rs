@@ -266,25 +266,25 @@ pub struct ExtraValue {
     /// Register number
     pub register: u16,
     /// Register value
-    pub value: f64,
+    pub value: f32,
 }
 
 /// Result of parsing a query response.
 #[derive(Debug, Clone, Default)]
 pub struct QueryResult {
     pub mode: Mode,
-    pub position: f64,
-    pub velocity: f64,
-    pub torque: f64,
-    pub q_current: f64,
-    pub d_current: f64,
-    pub abs_position: f64,
-    pub power: f64,
-    pub motor_temperature: f64,
+    pub position: f32,
+    pub velocity: f32,
+    pub torque: f32,
+    pub q_current: f32,
+    pub d_current: f32,
+    pub abs_position: f32,
+    pub power: f32,
+    pub motor_temperature: f32,
     pub trajectory_complete: bool,
     pub home_state: HomeState,
-    pub voltage: f64,
-    pub temperature: f64,
+    pub voltage: f32,
+    pub temperature: f32,
     pub fault: i8,
 
     pub aux1_gpio: i8,
@@ -304,18 +304,18 @@ impl QueryResult {
     pub fn new() -> Self {
         QueryResult {
             mode: Mode::Stopped,
-            position: f64::NAN,
-            velocity: f64::NAN,
-            torque: f64::NAN,
-            q_current: f64::NAN,
-            d_current: f64::NAN,
-            abs_position: f64::NAN,
-            power: f64::NAN,
-            motor_temperature: f64::NAN,
+            position: f32::NAN,
+            velocity: f32::NAN,
+            torque: f32::NAN,
+            q_current: f32::NAN,
+            d_current: f32::NAN,
+            abs_position: f32::NAN,
+            power: f32::NAN,
+            motor_temperature: f32::NAN,
             trajectory_complete: false,
             home_state: HomeState::Relative,
-            voltage: f64::NAN,
-            temperature: f64::NAN,
+            voltage: f32::NAN,
+            temperature: f32::NAN,
             fault: 0,
             aux1_gpio: 0,
             aux2_gpio: 0,
@@ -347,28 +347,28 @@ impl QueryResult {
                     result.mode = Mode::try_from(value.to_i32() as u8).unwrap_or(Mode::Stopped);
                 }
                 r if r == Register::Position.address() => {
-                    result.position = value.to_f64(&scaling::POSITION);
+                    result.position = value.to_f32(&scaling::POSITION);
                 }
                 r if r == Register::Velocity.address() => {
-                    result.velocity = value.to_f64(&scaling::VELOCITY);
+                    result.velocity = value.to_f32(&scaling::VELOCITY);
                 }
                 r if r == Register::Torque.address() => {
-                    result.torque = value.to_f64(&scaling::TORQUE);
+                    result.torque = value.to_f32(&scaling::TORQUE);
                 }
                 r if r == Register::QCurrent.address() => {
-                    result.q_current = value.to_f64(&scaling::CURRENT);
+                    result.q_current = value.to_f32(&scaling::CURRENT);
                 }
                 r if r == Register::DCurrent.address() => {
-                    result.d_current = value.to_f64(&scaling::CURRENT);
+                    result.d_current = value.to_f32(&scaling::CURRENT);
                 }
                 r if r == Register::AbsPosition.address() => {
-                    result.abs_position = value.to_f64(&scaling::POSITION);
+                    result.abs_position = value.to_f32(&scaling::POSITION);
                 }
                 r if r == Register::Power.address() => {
-                    result.power = value.to_f64(&scaling::POWER);
+                    result.power = value.to_f32(&scaling::POWER);
                 }
                 r if r == Register::MotorTemperature.address() => {
-                    result.motor_temperature = value.to_f64(&scaling::TEMPERATURE);
+                    result.motor_temperature = value.to_f32(&scaling::TEMPERATURE);
                 }
                 r if r == Register::TrajectoryComplete.address() => {
                     result.trajectory_complete = value.to_i32() != 0;
@@ -377,10 +377,10 @@ impl QueryResult {
                     result.home_state = HomeState::try_from(value.to_i32() as u8).unwrap_or(HomeState::Relative);
                 }
                 r if r == Register::Voltage.address() => {
-                    result.voltage = value.to_f64(&scaling::VOLTAGE);
+                    result.voltage = value.to_f32(&scaling::VOLTAGE);
                 }
                 r if r == Register::Temperature.address() => {
-                    result.temperature = value.to_f64(&scaling::TEMPERATURE);
+                    result.temperature = value.to_f32(&scaling::TEMPERATURE);
                 }
                 r if r == Register::Fault.address() => {
                     result.fault = value.to_i32() as i8;
@@ -395,13 +395,13 @@ impl QueryResult {
                     result.aux1_pwm_input_period_us = value.to_i32();
                 }
                 r if r == Register::Aux1PwmInputDutyCycle.address() => {
-                    result.aux1_pwm_input_duty_cycle = value.to_f64(&scaling::PWM) as f32;
+                    result.aux1_pwm_input_duty_cycle = value.to_f32(&scaling::PWM);
                 }
                 r if r == Register::Aux2PwmInputPeriod.address() => {
                     result.aux2_pwm_input_period_us = value.to_i32();
                 }
                 r if r == Register::Aux2PwmInputDutyCycle.address() => {
-                    result.aux2_pwm_input_duty_cycle = value.to_f64(&scaling::PWM) as f32;
+                    result.aux2_pwm_input_duty_cycle = value.to_f32(&scaling::PWM);
                 }
                 _ => {
                     if let Some(slot) = result.extra.iter().position(|e| e.is_none()) {
@@ -420,7 +420,7 @@ impl QueryResult {
     }
 
     /// Gets an extra value by register number.
-    pub fn get_extra(&self, register: u16) -> Option<f64> {
+    pub fn get_extra(&self, register: u16) -> Option<f32> {
         for entry in &self.extra {
             match entry {
                 Some(ev) if ev.register == register => return Some(ev.value),
@@ -433,7 +433,7 @@ impl QueryResult {
 }
 
 /// Parses a generic register value based on register number.
-fn parse_generic(register: u16, value: Value) -> f64 {
+fn parse_generic(register: u16, value: Value) -> f32 {
     use crate::scaling;
 
     // Determine scaling based on register
@@ -509,7 +509,7 @@ fn parse_generic(register: u16, value: Value) -> f64 {
         _ => &scaling::INT,
     };
 
-    value.to_f64(scaling)
+    value.to_f32(scaling)
 }
 
 #[cfg(test)]

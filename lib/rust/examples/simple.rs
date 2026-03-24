@@ -59,7 +59,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
         //
         // The return type of `set_position` is a QueryResult type which
         // contains the current state of the servo.
-        let state = c.set_position(PositionCommand::new().position(f64::NAN))?;
+        let state = c.set_position(PositionCommand::new().position(f32::NAN))?;
 
         // Print out everything.
         println!("{:?}", state);
@@ -97,7 +97,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
         //
         // The return type of `set_position` is a QueryResult type which
         // contains the current state of the servo.
-        let state = c.set_position(PositionCommand::new().position(f64::NAN)).await?;
+        let state = c.set_position(PositionCommand::new().position(f32::NAN)).await?;
 
         // Print out everything.
         println!("{:?}", state);

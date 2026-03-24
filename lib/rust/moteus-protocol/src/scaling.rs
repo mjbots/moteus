@@ -24,9 +24,9 @@
 /// The actual wire value is `physical_value / scale`.
 #[derive(Debug, Clone, Copy)]
 pub struct Scaling {
-    pub(crate) int8: f64,
-    pub(crate) int16: f64,
-    pub(crate) int32: f64,
+    pub(crate) int8: f32,
+    pub(crate) int16: f32,
+    pub(crate) int32: f32,
 }
 
 /// Position scaling: revolutions
@@ -66,7 +66,7 @@ pub const INT: Scaling = Scaling { int8: 1.0, int16: 1.0, int32: 1.0 };
 ///
 /// Non-finite values are mapped to the minimum value (which represents NaN in the protocol).
 #[inline]
-pub fn saturate_i8(value: f64, scale: f64) -> i8 {
+pub fn saturate_i8(value: f32, scale: f32) -> i8 {
     if !value.is_finite() {
         return i8::MIN;
     }
@@ -82,7 +82,7 @@ pub fn saturate_i8(value: f64, scale: f64) -> i8 {
 
 /// Saturates a value to i16 range.
 #[inline]
-pub fn saturate_i16(value: f64, scale: f64) -> i16 {
+pub fn saturate_i16(value: f32, scale: f32) -> i16 {
     if !value.is_finite() {
         return i16::MIN;
     }
@@ -98,12 +98,12 @@ pub fn saturate_i16(value: f64, scale: f64) -> i16 {
 
 /// Saturates a value to i32 range.
 #[inline]
-pub fn saturate_i32(value: f64, scale: f64) -> i32 {
+pub fn saturate_i32(value: f32, scale: f32) -> i32 {
     if !value.is_finite() {
         return i32::MIN;
     }
     let scaled = value / scale;
-    let max = i32::MAX as f64;
+    let max = i32::MAX as f32;
     if scaled < -max {
         -(i32::MAX)
     } else if scaled > max {
@@ -115,31 +115,31 @@ pub fn saturate_i32(value: f64, scale: f64) -> i32 {
 
 /// Converts an integer value to NaN if it's the minimum representable value.
 #[inline]
-pub fn nanify_i8(value: i8) -> f64 {
+pub fn nanify_i8(value: i8) -> f32 {
     if value == i8::MIN {
-        f64::NAN
+        f32::NAN
     } else {
-        value as f64
+        value as f32
     }
 }
 
 /// Converts an i16 value, handling NaN.
 #[inline]
-pub fn nanify_i16(value: i16) -> f64 {
+pub fn nanify_i16(value: i16) -> f32 {
     if value == i16::MIN {
-        f64::NAN
+        f32::NAN
     } else {
-        value as f64
+        value as f32
     }
 }
 
 /// Converts an i32 value, handling NaN.
 #[inline]
-pub fn nanify_i32(value: i32) -> f64 {
+pub fn nanify_i32(value: i32) -> f32 {
     if value == i32::MIN {
-        f64::NAN
+        f32::NAN
     } else {
-        value as f64
+        value as f32
     }
 }
 
@@ -152,8 +152,8 @@ mod tests {
         assert_eq!(saturate_i8(0.5, 0.01), 50);
         assert_eq!(saturate_i8(2.0, 0.01), 127); // Clamped
         assert_eq!(saturate_i8(-2.0, 0.01), -127); // Clamped
-        assert_eq!(saturate_i8(f64::NAN, 0.01), i8::MIN); // NaN
-        assert_eq!(saturate_i8(f64::INFINITY, 0.01), i8::MIN);
+        assert_eq!(saturate_i8(f32::NAN, 0.01), i8::MIN); // NaN
+        assert_eq!(saturate_i8(f32::INFINITY, 0.01), i8::MIN);
     }
 
     #[test]
@@ -165,8 +165,8 @@ mod tests {
     #[test]
     fn test_saturate_i32() {
         assert_eq!(saturate_i32(500.0, 0.01), 50000);
-        assert_eq!(saturate_i32(f64::NAN, 0.01), i32::MIN); // NaN
-        assert_eq!(saturate_i32(f64::INFINITY, 0.01), i32::MIN);
+        assert_eq!(saturate_i32(f32::NAN, 0.01), i32::MIN); // NaN
+        assert_eq!(saturate_i32(f32::INFINITY, 0.01), i32::MIN);
     }
 
     #[test]
