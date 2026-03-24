@@ -436,12 +436,11 @@ pub fn create_transports(
 
         for device in all_devices {
             let should_skip = socketcan_infos.iter().any(|info| {
-                device
+                (device
                     .info()
                     .serial_number
-                    .as_ref()
-                    .map_or(false, |s| s == &info.interface)
-                    && info.fdcanusb_serial.as_ref().map_or(false, |serial| {
+                    .as_ref() == Some(&info.interface))
+                    && info.fdcanusb_serial.as_ref().is_some_and(|serial| {
                         fdcanusb_serials.contains(serial)
                     })
             });

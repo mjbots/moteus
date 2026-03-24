@@ -51,7 +51,7 @@ static GLOBAL_ASYNC_TRANSPORT: OnceCell<Arc<Mutex<AsyncTransport>>> = OnceCell::
 ///
 /// # Arguments
 /// * `options` - Optional transport options. Only used on first initialization;
-///               ignored if transport is already initialized.
+///   ignored if transport is already initialized.
 ///
 /// # Example
 ///

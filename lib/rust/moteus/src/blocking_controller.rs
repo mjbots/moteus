@@ -178,7 +178,7 @@ impl BlockingController {
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
-    ///               converted to CAN ID addresses.
+    ///   converted to CAN ID addresses.
     ///
     /// # Example
     ///
@@ -203,7 +203,7 @@ impl BlockingController {
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
-    ///               converted to CAN ID addresses.
+    ///   converted to CAN ID addresses.
     /// * `options` - Transport options for device selection and configuration
     ///
     /// # Example
@@ -350,7 +350,7 @@ impl BlockingController {
     ///
     /// # Arguments
     /// * `cmd` - Position command built with the builder pattern, optionally
-    ///           with `.with_query()` to override the query format
+    ///   with `.with_query()` to override the query format
     ///
     /// # Example
     ///
