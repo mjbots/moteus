@@ -231,6 +231,10 @@ A fault code which will be set if the primary mode is 1 (Fault).
 * 48 - *invalid limits* - `servopos.position_min` or
   `servopos.position_max` are finite and outside the available
   position range
+* 49 - *position control error* - the position control error exceeded
+  the threshold configured in `servo.fault_position_error`
+* 50 - *velocity control error* - the velocity control error exceeded
+  the threshold configured in `servo.fault_velocity_error`
 
 Some non-zero codes can be presented during valid control modes
 without a fault.  These indicate which, if any, function is limiting

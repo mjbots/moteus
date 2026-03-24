@@ -479,6 +479,9 @@ struct BldcServoConfig {
   float motor_temperature_margin = 20.0f;
   float motor_fault_temperature = std::numeric_limits<float>::quiet_NaN();
 
+  float fault_position_error = std::numeric_limits<float>::quiet_NaN();
+  float fault_velocity_error = std::numeric_limits<float>::quiet_NaN();
+
   float velocity_threshold = 0.0f;
   float position_derate = 0.02f;
 
@@ -615,6 +618,8 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(motor_thermistor_ohm));
     a->Visit(MJ_NVP(motor_temperature_margin));
     a->Visit(MJ_NVP(motor_fault_temperature));
+    a->Visit(MJ_NVP(fault_position_error));
+    a->Visit(MJ_NVP(fault_velocity_error));
     a->Visit(MJ_NVP(velocity_threshold));
     a->Visit(MJ_NVP(position_derate));
     a->Visit(MJ_NVP(adc_cur_cycles));
