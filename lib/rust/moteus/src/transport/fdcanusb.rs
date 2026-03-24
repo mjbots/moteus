@@ -106,7 +106,12 @@ impl FdcanusbProtocol {
 
     /// Converts bytes to hex string.
     fn hexify(data: &[u8]) -> String {
-        data.iter().map(|b| format!("{:02X}", b)).collect()
+        use std::fmt::Write;
+        let mut s = String::with_capacity(data.len() * 2);
+        for b in data {
+            write!(s, "{:02X}", b).unwrap();
+        }
+        s
     }
 
     /// Converts hex string to bytes.

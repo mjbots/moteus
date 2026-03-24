@@ -14,9 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_rust//rust:defs.bzl", "rust_proc_macro")
+load("@rules_rust//rust:defs.bzl", "rust_clippy", "rust_proc_macro")
 
 package(default_visibility = ["//visibility:public"])
+
+rust_clippy(
+    name = "moteus-derive-clippy",
+    deps = [":moteus-derive"],
+)
 
 rust_proc_macro(
     name = "moteus-derive",

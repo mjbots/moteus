@@ -25,7 +25,21 @@ test_suite(
     tests = [
         "//lib/rust/moteus-protocol:moteus-protocol-test",
         "//lib/rust/moteus:moteus-test",
+        "//lib/rust:clippy",
     ],
+)
+
+# Clippy lint checks for all Rust crates.
+# Wrapped in sh_test so it runs as part of the test suite.
+sh_test(
+    name = "clippy",
+    srcs = ["clippy_test.sh"],
+    data = [
+        "//lib/rust/moteus-derive:moteus-derive-clippy",
+        "//lib/rust/moteus-protocol:moteus-protocol-clippy",
+        "//lib/rust/moteus:moteus-clippy",
+    ],
+    size = "small",
 )
 
 # Example: Simple single-servo control
