@@ -400,12 +400,14 @@ impl CurrentCommand {
     }
 
     /// Sets the D-axis current in Amps.
+    #[must_use]
     pub fn d_current(mut self, v: f32) -> Self {
         self.d_a = v;
         self
     }
 
     /// Sets the Q-axis current in Amps (torque-producing).
+    #[must_use]
     pub fn q_current(mut self, v: f32) -> Self {
         self.q_a = v;
         self

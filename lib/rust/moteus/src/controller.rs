@@ -134,54 +134,63 @@ impl Controller {
     }
 
     /// Sets the source CAN ID (builder pattern).
+    #[must_use]
     pub fn source_id(mut self, id: u8) -> Self {
         self.source_id = id;
         self
     }
 
     /// Sets the CAN prefix (builder pattern).
+    #[must_use]
     pub fn can_prefix(mut self, prefix: u16) -> Self {
         self.can_prefix = prefix & 0x1fff;
         self
     }
 
     /// Sets the query format (builder pattern).
+    #[must_use]
     pub fn query_format(mut self, format: QueryFormat) -> Self {
         self.query_format = format;
         self
     }
 
     /// Sets the position command format (builder pattern).
+    #[must_use]
     pub fn position_format(mut self, format: PositionFormat) -> Self {
         self.position_format = format;
         self
     }
 
     /// Sets the VFOC command format (builder pattern).
+    #[must_use]
     pub fn vfoc_format(mut self, format: VFOCFormat) -> Self {
         self.vfoc_format = format;
         self
     }
 
     /// Sets the current command format (builder pattern).
+    #[must_use]
     pub fn current_format(mut self, format: CurrentFormat) -> Self {
         self.current_format = format;
         self
     }
 
     /// Sets the stay-within command format (builder pattern).
+    #[must_use]
     pub fn stay_within_format(mut self, format: StayWithinFormat) -> Self {
         self.stay_within_format = format;
         self
     }
 
     /// Sets the zero-velocity command format (builder pattern).
+    #[must_use]
     pub fn zero_velocity_format(mut self, format: ZeroVelocityFormat) -> Self {
         self.zero_velocity_format = format;
         self
     }
 
     /// Sets the AUX PWM command format (builder pattern).
+    #[must_use]
     pub fn aux_pwm_format(mut self, format: AuxPwmFormat) -> Self {
         self.aux_pwm_format = format;
         self

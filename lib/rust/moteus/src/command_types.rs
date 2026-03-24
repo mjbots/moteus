@@ -101,6 +101,7 @@ impl Command {
     }
 
     /// Sets `reply_required` (builder pattern).
+    #[must_use]
     pub fn reply_required(mut self, required: bool) -> Self {
         self.reply_required = required;
         self

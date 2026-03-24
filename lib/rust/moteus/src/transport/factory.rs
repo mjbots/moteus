@@ -66,12 +66,14 @@ impl TransportOptions {
     }
 
     /// Set explicit fdcanusb paths.
+    #[must_use]
     pub fn fdcanusb_paths(mut self, paths: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.fdcanusb_paths = paths.into_iter().map(Into::into).collect();
         self
     }
 
     /// Set explicit socketcan interfaces.
+    #[must_use]
     pub fn socketcan_interfaces(
         mut self,
         interfaces: impl IntoIterator<Item = impl Into<String>>,
@@ -81,24 +83,28 @@ impl TransportOptions {
     }
 
     /// Disable bit rate switching.
+    #[must_use]
     pub fn disable_brs(mut self, disable: bool) -> Self {
         self.disable_brs = disable;
         self
     }
 
     /// Force a specific transport type.
+    #[must_use]
     pub fn force_transport(mut self, transport: impl Into<String>) -> Self {
         self.force_transport = Some(transport.into());
         self
     }
 
     /// Set the communication timeout.
+    #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
     }
 
     /// Set an extra transport-specific option.
+    #[must_use]
     pub fn extra(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.extra.entry(key.into()).or_default().push(value.into());
         self

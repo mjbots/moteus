@@ -89,54 +89,63 @@ impl Setpoint {
     }
 
     /// Sets a velocity override (builder pattern).
+    #[must_use]
     pub fn velocity(mut self, v: f32) -> Self {
         self.overrides.velocity = Some(v);
         self
     }
 
     /// Sets a velocity_limit override (builder pattern).
+    #[must_use]
     pub fn velocity_limit(mut self, v: f32) -> Self {
         self.overrides.velocity_limit = Some(v);
         self
     }
 
     /// Sets an accel_limit override (builder pattern).
+    #[must_use]
     pub fn accel_limit(mut self, v: f32) -> Self {
         self.overrides.accel_limit = Some(v);
         self
     }
 
     /// Sets a maximum_torque override (builder pattern).
+    #[must_use]
     pub fn maximum_torque(mut self, v: f32) -> Self {
         self.overrides.maximum_torque = Some(v);
         self
     }
 
     /// Sets a kp_scale override (builder pattern).
+    #[must_use]
     pub fn kp_scale(mut self, v: f32) -> Self {
         self.overrides.kp_scale = Some(v);
         self
     }
 
     /// Sets a kd_scale override (builder pattern).
+    #[must_use]
     pub fn kd_scale(mut self, v: f32) -> Self {
         self.overrides.kd_scale = Some(v);
         self
     }
 
     /// Sets a feedforward_torque override (builder pattern).
+    #[must_use]
     pub fn feedforward_torque(mut self, v: f32) -> Self {
         self.overrides.feedforward_torque = Some(v);
         self
     }
 
     /// Sets a stop_position override (builder pattern).
+    #[must_use]
     pub fn stop_position(mut self, v: f32) -> Self {
         self.overrides.stop_position = Some(v);
         self
     }
 
     /// Sets a watchdog_timeout override (builder pattern).
+    #[must_use]
     pub fn watchdog_timeout(mut self, v: f32) -> Self {
         self.overrides.watchdog_timeout = Some(v);
         self
@@ -188,36 +197,42 @@ impl MoveToOptions {
     }
 
     /// Sets the move duration (builder pattern).
+    #[must_use]
     pub fn duration(mut self, d: impl Into<std::time::Duration>) -> Self {
         self.duration = Some(d.into());
         self
     }
 
     /// Sets the default velocity_limit (builder pattern).
+    #[must_use]
     pub fn velocity_limit(mut self, v: f32) -> Self {
         self.velocity_limit = Some(v);
         self
     }
 
     /// Sets the default accel_limit (builder pattern).
+    #[must_use]
     pub fn accel_limit(mut self, a: f32) -> Self {
         self.accel_limit = Some(a);
         self
     }
 
     /// Sets the default maximum_torque (builder pattern).
+    #[must_use]
     pub fn maximum_torque(mut self, t: f32) -> Self {
         self.maximum_torque = Some(t);
         self
     }
 
     /// Sets the polling period (builder pattern).
+    #[must_use]
     pub fn period(mut self, p: std::time::Duration) -> Self {
         self.period = p;
         self
     }
 
     /// Sets the timeout (builder pattern).
+    #[must_use]
     pub fn timeout(mut self, t: std::time::Duration) -> Self {
         self.timeout = Some(t);
         self

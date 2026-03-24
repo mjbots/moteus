@@ -291,6 +291,7 @@ impl BlockingController {
     ///     Ok(())
     /// }
     /// ```
+    #[must_use]
     pub fn transport<T: TransportOps + Send + 'static>(mut self, t: T) -> Self {
         self.transport = TransportHolder::Explicit(Box::new(t));
         self

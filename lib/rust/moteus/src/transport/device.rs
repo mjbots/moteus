@@ -64,12 +64,14 @@ impl TransportDeviceInfo {
     }
 
     /// Set the serial number.
+    #[must_use]
     pub fn with_serial(mut self, serial: impl Into<String>) -> Self {
         self.serial_number = Some(serial.into());
         self
     }
 
     /// Set the display detail shown in parentheses.
+    #[must_use]
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
         self
