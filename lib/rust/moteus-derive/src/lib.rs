@@ -122,6 +122,7 @@ pub fn derive_setters(input: TokenStream) -> TokenStream {
                     };
 
                     let method = quote! {
+                        #[must_use]
                         pub fn #field_name(mut self, value: #param_ty) -> Self {
                             self.#field_name = #value_expr;
                             self
