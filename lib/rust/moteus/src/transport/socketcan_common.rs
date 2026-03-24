@@ -147,8 +147,7 @@ pub(crate) mod linux {
             raw.flags |= CANFD_BRS;
         }
 
-        raw.data[..padded.size as usize]
-            .copy_from_slice(&padded.data[..padded.size as usize]);
+        raw.data[..padded.size as usize].copy_from_slice(&padded.data[..padded.size as usize]);
         raw
     }
 
@@ -157,8 +156,7 @@ pub(crate) mod linux {
         let mut frame = moteus_protocol::CanFdFrame::new();
         frame.arbitration_id = raw.can_id & CAN_EFF_MASK;
         frame.size = raw.len;
-        frame.data[..raw.len as usize]
-            .copy_from_slice(&raw.data[..raw.len as usize]);
+        frame.data[..raw.len as usize].copy_from_slice(&raw.data[..raw.len as usize]);
 
         if raw.flags & CANFD_BRS != 0 {
             frame.set_brs(true);

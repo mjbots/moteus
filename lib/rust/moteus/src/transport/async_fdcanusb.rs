@@ -71,7 +71,12 @@ impl AsyncFdcanusb {
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
     /// * `disable_brs` - Whether to disable bit rate switching
     pub async fn open_with_brs(path: &str, disable_brs: bool) -> Result<Self> {
-        Self::open_with_options(path, crate::transport::factory::DEFAULT_TIMEOUT, disable_brs).await
+        Self::open_with_options(
+            path,
+            crate::transport::factory::DEFAULT_TIMEOUT,
+            disable_brs,
+        )
+        .await
     }
 
     /// Opens an async FdCanUSB transport with full options.
@@ -80,7 +85,11 @@ impl AsyncFdcanusb {
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
     /// * `timeout` - Communication timeout
     /// * `disable_brs` - Whether to disable bit rate switching
-    pub async fn open_with_options(path: &str, timeout: std::time::Duration, disable_brs: bool) -> Result<Self> {
+    pub async fn open_with_options(
+        path: &str,
+        timeout: std::time::Duration,
+        disable_brs: bool,
+    ) -> Result<Self> {
         let builder = tokio_serial::new(path, 9600);
         let port = SerialStream::open(&builder).map_err(|e| Error::Io(e.into()))?;
 
@@ -126,11 +135,8 @@ impl AsyncFdcanusb {
         loop {
             self.line_buffer.clear();
 
-            let read_result = tokio::time::timeout(
-                timeout,
-                self.reader.read_line(&mut self.line_buffer),
-            )
-            .await;
+            let read_result =
+                tokio::time::timeout(timeout, self.reader.read_line(&mut self.line_buffer)).await;
 
             match read_result {
                 Ok(Ok(0)) => {
@@ -179,11 +185,8 @@ impl AsyncFdcanusb {
 
             self.line_buffer.clear();
 
-            let read_result = tokio::time::timeout(
-                remaining,
-                self.reader.read_line(&mut self.line_buffer),
-            )
-            .await;
+            let read_result =
+                tokio::time::timeout(remaining, self.reader.read_line(&mut self.line_buffer)).await;
 
             match read_result {
                 Ok(Ok(0)) => break,
@@ -266,11 +269,8 @@ impl AsyncTransportDevice for AsyncFdcanusb {
                     break;
                 }
                 self.line_buffer.clear();
-                match tokio::time::timeout(
-                    remaining,
-                    self.reader.read_line(&mut self.line_buffer),
-                )
-                .await
+                match tokio::time::timeout(remaining, self.reader.read_line(&mut self.line_buffer))
+                    .await
                 {
                     Ok(Ok(0)) | Ok(Err(_)) | Err(_) => break,
                     Ok(Ok(_)) => continue,
@@ -335,11 +335,9 @@ impl AsyncTransportDevice for AsyncFdcanusb {
 
                 self.line_buffer.clear();
 
-                let read_result = tokio::time::timeout(
-                    remaining,
-                    self.reader.read_line(&mut self.line_buffer),
-                )
-                .await;
+                let read_result =
+                    tokio::time::timeout(remaining, self.reader.read_line(&mut self.line_buffer))
+                        .await;
 
                 match read_result {
                     Ok(Ok(0)) | Ok(Err(_)) | Err(_) => break,

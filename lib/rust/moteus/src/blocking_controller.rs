@@ -61,8 +61,8 @@ use moteus_protocol::command::{
     AuxPwmCommand, CurrentCommand, PositionCommand, StayWithinCommand, VFOCCommand,
     ZeroVelocityCommand,
 };
-use moteus_protocol::Resolution;
 use moteus_protocol::query::{QueryFormat, QueryResult};
+use moteus_protocol::Resolution;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -96,9 +96,9 @@ impl TransportHolder {
         match self {
             TransportHolder::Explicit(t) => t.cycle(requests),
             TransportHolder::Singleton(t) => {
-                let mut guard = t.lock().map_err(|_| {
-                    Error::Protocol("Transport mutex poisoned".to_string())
-                })?;
+                let mut guard = t
+                    .lock()
+                    .map_err(|_| Error::Protocol("Transport mutex poisoned".to_string()))?;
                 guard.cycle(requests)
             }
             TransportHolder::Deferred(_) => unreachable!(),
@@ -129,9 +129,10 @@ impl TransportHolder {
             TransportHolder::Deferred(Some(opts)) => opts.timeout,
             TransportHolder::Deferred(None) => crate::transport::factory::DEFAULT_TIMEOUT,
             TransportHolder::Explicit(t) => t.timeout(),
-            TransportHolder::Singleton(t) => {
-                t.lock().map(|g| g.timeout()).unwrap_or(crate::transport::factory::DEFAULT_TIMEOUT)
-            }
+            TransportHolder::Singleton(t) => t
+                .lock()
+                .map(|g| g.timeout())
+                .unwrap_or(crate::transport::factory::DEFAULT_TIMEOUT),
         }
     }
 }
@@ -308,7 +309,9 @@ impl BlockingController {
 
     /// Queries with a custom format.
     pub fn query_with_format(&mut self, format: &QueryFormat) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_query_with_format(format))];
+        let mut requests = [Request::from_command(
+            self.controller.make_query_with_format(format),
+        )];
         self.transport.cycle(&mut requests)?;
 
         requests[0]
@@ -414,7 +417,9 @@ impl BlockingController {
     ) -> Result<QueryResult> {
         let maybe = cmd.into();
         let (command, query_override) = maybe.into_parts();
-        let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+        let query_format = query_override
+            .as_ref()
+            .unwrap_or(&self.controller.query_format);
 
         let mut cmd = self.controller.prepare_command(true);
         command.serialize(cmd.frame_mut(), &self.controller.position_format);
@@ -435,7 +440,9 @@ impl BlockingController {
     ///
     /// This is a bandwidth optimization for when you don't need feedback.
     pub fn set_position_no_query(&mut self, cmd: &PositionCommand) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_position_command(cmd, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_position_command(cmd, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -493,7 +500,9 @@ impl BlockingController {
     ) -> Result<QueryResult> {
         let maybe = cmd.into();
         let (command, query_override) = maybe.into_parts();
-        let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+        let query_format = query_override
+            .as_ref()
+            .unwrap_or(&self.controller.query_format);
 
         let mut cmd = self.controller.prepare_command(true);
         command.serialize(cmd.frame_mut(), &self.controller.current_format);
@@ -512,7 +521,9 @@ impl BlockingController {
 
     /// Commands current mode without waiting for response.
     pub fn set_current_no_query(&mut self, cmd: &CurrentCommand) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_current_command(cmd, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_current_command(cmd, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -538,7 +549,9 @@ impl BlockingController {
     pub fn set_vfoc(&mut self, cmd: impl Into<MaybeQuery<VFOCCommand>>) -> Result<QueryResult> {
         let maybe = cmd.into();
         let (command, query_override) = maybe.into_parts();
-        let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+        let query_format = query_override
+            .as_ref()
+            .unwrap_or(&self.controller.query_format);
 
         let mut cmd = self.controller.prepare_command(true);
         command.serialize(cmd.frame_mut(), &self.controller.vfoc_format);
@@ -557,7 +570,9 @@ impl BlockingController {
 
     /// Commands VFOC mode without waiting for response.
     pub fn set_vfoc_no_query(&mut self, cmd: &VFOCCommand) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_vfoc_command(cmd, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_vfoc_command(cmd, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -589,7 +604,9 @@ impl BlockingController {
     ) -> Result<QueryResult> {
         let maybe = cmd.into();
         let (command, query_override) = maybe.into_parts();
-        let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+        let query_format = query_override
+            .as_ref()
+            .unwrap_or(&self.controller.query_format);
 
         let mut cmd = self.controller.prepare_command(true);
         command.serialize(cmd.frame_mut(), &self.controller.stay_within_format);
@@ -608,7 +625,9 @@ impl BlockingController {
 
     /// Commands stay-within mode without waiting for response.
     pub fn set_stay_within_no_query(&mut self, cmd: &StayWithinCommand) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_stay_within_command(cmd, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_stay_within_command(cmd, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -642,7 +661,9 @@ impl BlockingController {
     ) -> Result<QueryResult> {
         let maybe = cmd.into();
         let (command, query_override) = maybe.into_parts();
-        let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+        let query_format = query_override
+            .as_ref()
+            .unwrap_or(&self.controller.query_format);
 
         let mut cmd = self.controller.prepare_command(true);
         command.serialize(cmd.frame_mut(), &self.controller.zero_velocity_format);
@@ -661,7 +682,9 @@ impl BlockingController {
 
     /// Commands zero-velocity mode without waiting for response.
     pub fn set_zero_velocity_no_query(&mut self, cmd: &ZeroVelocityCommand) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_zero_velocity_command(cmd, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_zero_velocity_command(cmd, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -670,7 +693,9 @@ impl BlockingController {
 
     /// Sets output position to nearest value.
     pub fn set_output_nearest(&mut self, position: f32) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_set_output_nearest(position, true))];
+        let mut requests = [Request::from_command(
+            self.controller.make_set_output_nearest(position, true),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -683,7 +708,9 @@ impl BlockingController {
 
     /// Sets output position to exact value.
     pub fn set_output_exact(&mut self, position: f32) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_set_output_exact(position, true))];
+        let mut requests = [Request::from_command(
+            self.controller.make_set_output_exact(position, true),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -696,7 +723,9 @@ impl BlockingController {
 
     /// Requires re-indexing of the encoder.
     pub fn set_require_reindex(&mut self) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_require_reindex(true))];
+        let mut requests = [Request::from_command(
+            self.controller.make_require_reindex(true),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -709,7 +738,9 @@ impl BlockingController {
 
     /// Recaptures position and velocity.
     pub fn set_recapture_position_velocity(&mut self) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_recapture_position_velocity(true))];
+        let mut requests = [Request::from_command(
+            self.controller.make_recapture_position_velocity(true),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -781,7 +812,9 @@ impl BlockingController {
     /// }
     /// ```
     pub fn set_write_gpio(&mut self, aux1: Option<u8>, aux2: Option<u8>) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_write_gpio(aux1, aux2, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -792,7 +825,9 @@ impl BlockingController {
         aux1: Option<u8>,
         aux2: Option<u8>,
     ) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, true))];
+        let mut requests = [Request::from_command(
+            self.controller.make_write_gpio(aux1, aux2, true),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -828,7 +863,9 @@ impl BlockingController {
     /// }
     /// ```
     pub fn custom_query(&mut self, registers: &[(u16, Resolution)]) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_custom_query(registers))];
+        let mut requests = [Request::from_command(
+            self.controller.make_custom_query(registers),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -861,7 +898,9 @@ impl BlockingController {
     /// }
     /// ```
     pub fn set_aux_pwm(&mut self, cmd: &AuxPwmCommand) -> Result<QueryResult> {
-        let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, true))];
+        let mut requests = [Request::from_command(
+            self.controller.make_aux_pwm(cmd, true),
+        )];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -874,7 +913,9 @@ impl BlockingController {
 
     /// Sets AUX PWM outputs without waiting for response.
     pub fn set_aux_pwm_no_query(&mut self, cmd: &AuxPwmCommand) -> Result<()> {
-        let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, false))];
+        let mut requests = [Request::from_command(
+            self.controller.make_aux_pwm(cmd, false),
+        )];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -1021,8 +1062,7 @@ mod tests {
 
     #[test]
     fn test_explicit_transport() {
-        let mut ctrl = BlockingController::new(1)
-            .transport(NullTransport::new());
+        let mut ctrl = BlockingController::new(1).transport(NullTransport::new());
         assert_eq!(ctrl.controller.id, 1);
 
         // NullTransport returns no responses, so we get NoResponse error
@@ -1032,8 +1072,7 @@ mod tests {
 
     #[test]
     fn test_timeout() {
-        let mut ctrl = BlockingController::new(1)
-            .transport(NullTransport::new());
+        let mut ctrl = BlockingController::new(1).transport(NullTransport::new());
 
         // Default timeout
         assert_eq!(ctrl.timeout(), Duration::from_millis(100));
@@ -1054,8 +1093,7 @@ mod tests {
 
     #[test]
     fn test_set_position_no_query() {
-        let mut ctrl = BlockingController::new(1)
-            .transport(NullTransport::new());
+        let mut ctrl = BlockingController::new(1).transport(NullTransport::new());
 
         let result = ctrl.set_position_no_query(&PositionCommand::new().position(0.5));
         assert!(result.is_ok());

@@ -176,7 +176,11 @@ mod linux {
         }
 
         /// Creates a new async SocketCAN transport with options.
-        pub async fn with_options(interface: &str, timeout: std::time::Duration, disable_brs: bool) -> Result<Self> {
+        pub async fn with_options(
+            interface: &str,
+            timeout: std::time::Duration,
+            disable_brs: bool,
+        ) -> Result<Self> {
             let raw = SocketCanRaw::new(interface, disable_brs)?;
             let async_fd = AsyncFd::new(raw).map_err(Error::Io)?;
 
@@ -193,7 +197,11 @@ mod linux {
         /// Sends a single frame asynchronously.
         async fn send_frame(&self, frame: &CanFdFrame) -> Result<()> {
             loop {
-                let mut guard = self.async_fd.ready(Interest::WRITABLE).await.map_err(Error::Io)?;
+                let mut guard = self
+                    .async_fd
+                    .ready(Interest::WRITABLE)
+                    .await
+                    .map_err(Error::Io)?;
 
                 match guard.try_io(|inner| inner.get_ref().try_send(frame)) {
                     Ok(result) => return result.map_err(Error::Io),
@@ -281,10 +289,7 @@ mod linux {
             })
         }
 
-        fn transaction<'a>(
-            &'a mut self,
-            requests: &'a mut [Request],
-        ) -> BoxFuture<'a, Result<()>> {
+        fn transaction<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
             Box::pin(self.execute_cycle(requests))
         }
 
@@ -296,7 +301,11 @@ mod linux {
             Box::pin(async move {
                 // Wait indefinitely for a frame — caller wraps with tokio::time::timeout()
                 loop {
-                    let mut guard = self.async_fd.ready(Interest::READABLE).await.map_err(Error::Io)?;
+                    let mut guard = self
+                        .async_fd
+                        .ready(Interest::READABLE)
+                        .await
+                        .map_err(Error::Io)?;
 
                     match guard.try_io(|inner| inner.get_ref().try_recv()) {
                         Ok(Ok(frame)) => return Ok(Some(frame)),
@@ -343,7 +352,6 @@ mod linux {
             &self.info
         }
     }
-
 }
 
 #[cfg(target_os = "linux")]

@@ -19,7 +19,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Data, Fields};
+use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
 /// Derives builder-style setter methods for struct fields.
 ///
@@ -77,60 +77,67 @@ pub fn derive_setters(input: TokenStream) -> TokenStream {
     let methods = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => {
-                fields.named.iter().filter_map(|f| {
-                    let field_name = f.ident.as_ref()?;
-                    let field_ty = &f.ty;
+                fields
+                    .named
+                    .iter()
+                    .filter_map(|f| {
+                        let field_name = f.ident.as_ref()?;
+                        let field_ty = &f.ty;
 
-                    // Parse field attributes
-                    let mut skip = false;
-                    let mut use_into = false;
-                    let mut use_raw = false;
+                        // Parse field attributes
+                        let mut skip = false;
+                        let mut use_into = false;
+                        let mut use_raw = false;
 
-                    for attr in &f.attrs {
-                        if attr.path().is_ident("setters") {
-                            let _ = attr.parse_nested_meta(|meta| {
-                                if meta.path.is_ident("skip") {
-                                    skip = true;
-                                } else if meta.path.is_ident("into") {
-                                    use_into = true;
-                                } else if meta.path.is_ident("raw") {
-                                    use_raw = true;
-                                }
-                                Ok(())
-                            });
+                        for attr in &f.attrs {
+                            if attr.path().is_ident("setters") {
+                                let _ = attr.parse_nested_meta(|meta| {
+                                    if meta.path.is_ident("skip") {
+                                        skip = true;
+                                    } else if meta.path.is_ident("into") {
+                                        use_into = true;
+                                    } else if meta.path.is_ident("raw") {
+                                        use_raw = true;
+                                    }
+                                    Ok(())
+                                });
+                            }
                         }
-                    }
 
-                    if skip {
-                        return None;
-                    }
+                        if skip {
+                            return None;
+                        }
 
-                    // Auto-detect Option<T> types (unless raw is specified)
-                    let is_option = !use_raw && is_option_type(field_ty);
+                        // Auto-detect Option<T> types (unless raw is specified)
+                        let is_option = !use_raw && is_option_type(field_ty);
 
-                    let (param_ty, value_expr) = if is_option {
-                        let inner_ty = extract_option_inner_type(field_ty);
-                        if use_into {
-                            (quote! { impl Into<#inner_ty> }, quote! { Some(value.into()) })
+                        let (param_ty, value_expr) = if is_option {
+                            let inner_ty = extract_option_inner_type(field_ty);
+                            if use_into {
+                                (
+                                    quote! { impl Into<#inner_ty> },
+                                    quote! { Some(value.into()) },
+                                )
+                            } else {
+                                (quote! { #inner_ty }, quote! { Some(value) })
+                            }
+                        } else if use_into {
+                            (quote! { impl Into<#field_ty> }, quote! { value.into() })
                         } else {
-                            (quote! { #inner_ty }, quote! { Some(value) })
-                        }
-                    } else if use_into {
-                        (quote! { impl Into<#field_ty> }, quote! { value.into() })
-                    } else {
-                        (quote! { #field_ty }, quote! { value })
-                    };
+                            (quote! { #field_ty }, quote! { value })
+                        };
 
-                    let method = quote! {
-                        #[must_use]
-                        pub fn #field_name(mut self, value: #param_ty) -> Self {
-                            self.#field_name = #value_expr;
-                            self
-                        }
-                    };
+                        let method = quote! {
+                            #[must_use]
+                            pub fn #field_name(mut self, value: #param_ty) -> Self {
+                                self.#field_name = #value_expr;
+                                self
+                            }
+                        };
 
-                    Some(method)
-                }).collect::<Vec<_>>()
+                        Some(method)
+                    })
+                    .collect::<Vec<_>>()
             }
             _ => vec![],
         },

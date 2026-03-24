@@ -30,6 +30,10 @@ use std::future::Future;
 use std::pin::Pin;
 
 #[cfg(feature = "tokio")]
+use super::{
+    extract_uuid_from_response, make_uuid_prefix, make_uuid_query_frame, resolve_addresses,
+};
+#[cfg(feature = "tokio")]
 use crate::device_address::DeviceAddress;
 #[cfg(feature = "tokio")]
 use crate::error::Error;
@@ -43,8 +47,6 @@ use crate::transport::device::TransportDeviceInfo;
 use crate::transport::transaction::{FrameFilter, ResponseCollector};
 #[cfg(feature = "tokio")]
 use crate::transport::DeviceInfo;
-#[cfg(feature = "tokio")]
-use super::{extract_uuid_from_response, make_uuid_prefix, make_uuid_query_frame, resolve_addresses};
 #[cfg(feature = "tokio")]
 use std::collections::HashMap;
 #[cfg(feature = "tokio")]
@@ -187,10 +189,7 @@ struct DeviceWorkResult {
 /// Execute one device's work: recover, broadcast-with-reply one at a time,
 /// then issue remaining requests in a batch.
 #[cfg(feature = "tokio")]
-async fn run_device_work(
-    device: SharedDevice,
-    mut work: DeviceWork,
-) -> DeviceWorkResult {
+async fn run_device_work(device: SharedDevice, mut work: DeviceWork) -> DeviceWorkResult {
     let device_idx = work.device_idx;
     let mut responses: Vec<(usize, Vec<CanFdFrame>)> = Vec::new();
     let mut error: Option<Error> = None;
@@ -300,7 +299,11 @@ impl AsyncTransport {
     /// Maps a device address to a specific transport device index.
     /// Each address maps to exactly one device, matching the Python
     /// library's `Dict[DeviceAddress, TransportDevice]` routing table.
-    pub fn add_route(&mut self, address: impl Into<DeviceAddress>, device_idx: usize) -> Result<()> {
+    pub fn add_route(
+        &mut self,
+        address: impl Into<DeviceAddress>,
+        device_idx: usize,
+    ) -> Result<()> {
         if device_idx >= self.devices.len() {
             return Err(Error::Protocol(format!(
                 "Device index {} out of range (have {} devices)",
@@ -334,7 +337,12 @@ impl AsyncTransport {
     /// # Cancel safety
     ///
     /// Cancel safe.
-    async fn discover_device(&mut self, address: &DeviceAddress, source: u8, can_prefix: u16) -> Result<usize> {
+    async fn discover_device(
+        &mut self,
+        address: &DeviceAddress,
+        source: u8,
+        can_prefix: u16,
+    ) -> Result<usize> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);
         }
@@ -427,7 +435,12 @@ impl AsyncTransport {
     }
 
     /// Get from cache or discover the device for a destination address.
-    async fn get_or_discover_device(&mut self, address: &DeviceAddress, source: u8, can_prefix: u16) -> Result<usize> {
+    async fn get_or_discover_device(
+        &mut self,
+        address: &DeviceAddress,
+        source: u8,
+        can_prefix: u16,
+    ) -> Result<usize> {
         if let Some(idx) = self.get_device_for_address(address) {
             return Ok(idx);
         }
@@ -444,11 +457,7 @@ impl AsyncTransport {
     /// # Cancel safety
     ///
     /// Cancel safe.
-    pub async fn discover(
-        &mut self,
-        can_prefix: u16,
-        source: u8,
-    ) -> Result<Vec<DeviceInfo>> {
+    pub async fn discover(&mut self, can_prefix: u16, source: u8) -> Result<Vec<DeviceInfo>> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);
         }
@@ -475,10 +484,8 @@ impl AsyncTransport {
             join_set.spawn(async move {
                 let mut guard = device.lock().await;
                 let _ = guard.recover().await;
-                let mut requests = vec![
-                    Request::receive_only(FrameFilter::Any)
-                        .with_expected_replies(127)
-                ];
+                let mut requests =
+                    vec![Request::receive_only(FrameFilter::Any).with_expected_replies(127)];
                 let _ = guard.transaction(&mut requests).await;
                 let responses = requests[0].responses.take();
                 (idx, transport_device, responses)
@@ -556,18 +563,23 @@ impl AsyncTransport {
         for i in 0..requests.len() {
             // Explicit channel bypasses routing table
             if let Some(device_idx) = requests[i].channel {
-                let work = device_groups.entry(device_idx).or_insert_with(|| DeviceWork {
-                    device_idx,
-                    broadcast_with_reply: Vec::new(),
-                    other: Vec::new(),
-                });
+                let work = device_groups
+                    .entry(device_idx)
+                    .or_insert_with(|| DeviceWork {
+                        device_idx,
+                        broadcast_with_reply: Vec::new(),
+                        other: Vec::new(),
+                    });
                 let mut req = requests[i].clone();
                 req.responses = ResponseCollector::new();
                 work.other.push((i, req));
                 continue;
             }
 
-            let dest_id = requests[i].frame.as_ref().map(|frame| (frame.arbitration_id & 0x7F) as u8);
+            let dest_id = requests[i]
+                .frame
+                .as_ref()
+                .map(|frame| (frame.arbitration_id & 0x7F) as u8);
 
             if let Some(dest_id) = dest_id {
                 // Determine if this is a true broadcast (0x7F and no UUID)
@@ -582,11 +594,14 @@ impl AsyncTransport {
                     let is_bwr = requests[i].expected_reply_count > 0;
                     for &device_idx in &self.parent_indices.clone() {
                         if self.device_infos[device_idx].empty_bus_tx_safe {
-                            let work = device_groups.entry(device_idx).or_insert_with(|| DeviceWork {
-                                device_idx,
-                                broadcast_with_reply: Vec::new(),
-                                other: Vec::new(),
-                            });
+                            let work =
+                                device_groups
+                                    .entry(device_idx)
+                                    .or_insert_with(|| DeviceWork {
+                                        device_idx,
+                                        broadcast_with_reply: Vec::new(),
+                                        other: Vec::new(),
+                                    });
                             let mut req = requests[i].clone();
                             req.responses = ResponseCollector::new();
                             if is_bwr {
@@ -605,23 +620,28 @@ impl AsyncTransport {
 
                     let (source, can_prefix) = match &requests[i].frame {
                         Some(f) => {
-                            let (src, _dest, pfx) = moteus_protocol::parse_arbitration_id(f.arbitration_id);
+                            let (src, _dest, pfx) =
+                                moteus_protocol::parse_arbitration_id(f.arbitration_id);
                             (src as u8, pfx)
                         }
                         None => (0, 0),
                     };
-                    let mut target_idx = self.get_or_discover_device(&lookup_addr, source, can_prefix).await?;
+                    let mut target_idx = self
+                        .get_or_discover_device(&lookup_addr, source, can_prefix)
+                        .await?;
 
                     if let Some(parent_idx) = self.device_infos[target_idx].parent_index {
                         requests[i].child_device = Some(target_idx);
                         target_idx = parent_idx;
                     }
 
-                    let work = device_groups.entry(target_idx).or_insert_with(|| DeviceWork {
-                        device_idx: target_idx,
-                        broadcast_with_reply: Vec::new(),
-                        other: Vec::new(),
-                    });
+                    let work = device_groups
+                        .entry(target_idx)
+                        .or_insert_with(|| DeviceWork {
+                            device_idx: target_idx,
+                            broadcast_with_reply: Vec::new(),
+                            other: Vec::new(),
+                        });
                     let mut req = requests[i].clone();
                     req.responses = ResponseCollector::new();
                     work.other.push((i, req));
@@ -656,7 +676,8 @@ impl AsyncTransport {
                 }
                 Err(join_err) => {
                     if first_error.is_none() {
-                        first_error = Some(Error::Protocol(format!("task join error: {}", join_err)));
+                        first_error =
+                            Some(Error::Protocol(format!("task join error: {}", join_err)));
                     }
                 }
             }
@@ -846,10 +867,7 @@ mod tests {
                 }
             }
 
-            fn with_counter(
-                recover_count: Arc<AtomicUsize>,
-                fast_mode: Arc<AtomicBool>,
-            ) -> Self {
+            fn with_counter(recover_count: Arc<AtomicUsize>, fast_mode: Arc<AtomicBool>) -> Self {
                 Self {
                     info: TransportDeviceInfo::new(0, "CancellableMock"),
                     recover_count,
@@ -887,10 +905,7 @@ mod tests {
                 })
             }
 
-            fn write<'a>(
-                &'a mut self,
-                _frame: &'a CanFdFrame,
-            ) -> BoxFuture<'a, Result<()>> {
+            fn write<'a>(&'a mut self, _frame: &'a CanFdFrame) -> BoxFuture<'a, Result<()>> {
                 Box::pin(async { Ok(()) })
             }
 
@@ -942,10 +957,7 @@ mod tests {
                 Box::pin(async { Ok(()) })
             }
 
-            fn write<'a>(
-                &'a mut self,
-                _frame: &'a CanFdFrame,
-            ) -> BoxFuture<'a, Result<()>> {
+            fn write<'a>(&'a mut self, _frame: &'a CanFdFrame) -> BoxFuture<'a, Result<()>> {
                 Box::pin(async { Ok(()) })
             }
 
@@ -969,11 +981,9 @@ mod tests {
             let mut transport = AsyncTransport::new(vec![Box::new(device)]);
 
             let mut requests = vec![Request::new(CanFdFrame::new())];
-            let result = tokio::time::timeout(
-                Duration::from_millis(10),
-                transport.cycle(&mut requests),
-            )
-            .await;
+            let result =
+                tokio::time::timeout(Duration::from_millis(10), transport.cycle(&mut requests))
+                    .await;
             assert!(result.is_err()); // timed out
 
             // Transport still usable — devices not lost
@@ -988,8 +998,12 @@ mod tests {
                 Box::new(CancellableMockDevice::new(fast1)),
                 Box::new(CancellableMockDevice::new(fast2)),
             ]);
-            transport.add_route(crate::DeviceAddress::can_id(1), 0).unwrap();
-            transport.add_route(crate::DeviceAddress::can_id(2), 1).unwrap();
+            transport
+                .add_route(crate::DeviceAddress::can_id(1), 0)
+                .unwrap();
+            transport
+                .add_route(crate::DeviceAddress::can_id(2), 1)
+                .unwrap();
 
             // Build requests targeting different devices
             let mut frame1 = CanFdFrame::new();
@@ -998,11 +1012,9 @@ mod tests {
             frame2.arbitration_id = 0x0002; // dest=2
             let mut requests = vec![Request::new(frame1), Request::new(frame2)];
 
-            let result = tokio::time::timeout(
-                Duration::from_millis(10),
-                transport.cycle(&mut requests),
-            )
-            .await;
+            let result =
+                tokio::time::timeout(Duration::from_millis(10), transport.cycle(&mut requests))
+                    .await;
             assert!(result.is_err()); // timed out
 
             // Both devices survive
@@ -1013,19 +1025,14 @@ mod tests {
         async fn test_recover_called_after_cancellation() {
             let recover_count = Arc::new(AtomicUsize::new(0));
             let fast_mode = Arc::new(AtomicBool::new(false));
-            let device = CancellableMockDevice::with_counter(
-                recover_count.clone(),
-                fast_mode.clone(),
-            );
+            let device =
+                CancellableMockDevice::with_counter(recover_count.clone(), fast_mode.clone());
             let mut transport = AsyncTransport::new(vec![Box::new(device)]);
 
             // Cancel a cycle
             let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];
-            let _ = tokio::time::timeout(
-                Duration::from_millis(10),
-                transport.cycle(&mut requests),
-            )
-            .await;
+            let _ = tokio::time::timeout(Duration::from_millis(10), transport.cycle(&mut requests))
+                .await;
 
             // Switch to fast mode so next cycle completes
             fast_mode.store(true, Ordering::Release);

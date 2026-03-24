@@ -50,15 +50,15 @@ use crate::command_ext::MaybeQuery;
 use crate::controller::Controller;
 use crate::device_address::DeviceAddress;
 use crate::error::{Error, Result};
-use crate::transport::async_transport::{AsyncTransport, AsyncTransportOps, BoxFuture};
 use crate::transport::async_singleton::get_async_singleton_transport;
+use crate::transport::async_transport::{AsyncTransport, AsyncTransportOps, BoxFuture};
 use crate::transport::transaction::Request;
 use moteus_protocol::command::{
     AuxPwmCommand, CurrentCommand, PositionCommand, StayWithinCommand, VFOCCommand,
     ZeroVelocityCommand,
 };
-use moteus_protocol::Resolution;
 use moteus_protocol::query::{QueryFormat, QueryResult};
+use moteus_protocol::Resolution;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -87,7 +87,10 @@ impl AsyncTransportHolder {
     }
 
     /// Execute a cycle on the held transport, resolving lazily if needed.
-    pub(crate) fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
+    pub(crate) fn cycle<'a>(
+        &'a mut self,
+        requests: &'a mut [Request],
+    ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
             self.resolve().await?;
             match self {
@@ -244,7 +247,9 @@ impl AsyncController {
         format: &'a QueryFormat,
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_query_with_format(format))];
+            let mut requests = [Request::from_command(
+                self.controller.make_query_with_format(format),
+            )];
             self.transport.cycle(&mut requests).await?;
 
             requests[0]
@@ -361,7 +366,9 @@ impl AsyncController {
         let maybe = cmd.into();
         Box::pin(async move {
             let (command, query_override) = maybe.into_parts();
-            let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+            let query_format = query_override
+                .as_ref()
+                .unwrap_or(&self.controller.query_format);
 
             let mut cmd = self.controller.prepare_command(true);
             command.serialize(cmd.frame_mut(), &self.controller.position_format);
@@ -389,7 +396,9 @@ impl AsyncController {
         cmd: &'a PositionCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_position_command(cmd, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_position_command(cmd, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -466,7 +475,9 @@ impl AsyncController {
         let maybe = cmd.into();
         Box::pin(async move {
             let (command, query_override) = maybe.into_parts();
-            let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+            let query_format = query_override
+                .as_ref()
+                .unwrap_or(&self.controller.query_format);
 
             let mut cmd = self.controller.prepare_command(true);
             command.serialize(cmd.frame_mut(), &self.controller.current_format);
@@ -494,7 +505,9 @@ impl AsyncController {
         cmd: &'a CurrentCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_current_command(cmd, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_current_command(cmd, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -524,7 +537,9 @@ impl AsyncController {
         let maybe = cmd.into();
         Box::pin(async move {
             let (command, query_override) = maybe.into_parts();
-            let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+            let query_format = query_override
+                .as_ref()
+                .unwrap_or(&self.controller.query_format);
 
             let mut cmd = self.controller.prepare_command(true);
             command.serialize(cmd.frame_mut(), &self.controller.vfoc_format);
@@ -549,7 +564,9 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_vfoc_no_query<'a>(&'a mut self, cmd: &'a VFOCCommand) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_vfoc_command(cmd, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_vfoc_command(cmd, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -581,7 +598,9 @@ impl AsyncController {
         let maybe = cmd.into();
         Box::pin(async move {
             let (command, query_override) = maybe.into_parts();
-            let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+            let query_format = query_override
+                .as_ref()
+                .unwrap_or(&self.controller.query_format);
 
             let mut cmd = self.controller.prepare_command(true);
             command.serialize(cmd.frame_mut(), &self.controller.stay_within_format);
@@ -609,7 +628,9 @@ impl AsyncController {
         cmd: &'a StayWithinCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_stay_within_command(cmd, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_stay_within_command(cmd, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -642,7 +663,9 @@ impl AsyncController {
         let maybe = cmd.into();
         Box::pin(async move {
             let (command, query_override) = maybe.into_parts();
-            let query_format = query_override.as_ref().unwrap_or(&self.controller.query_format);
+            let query_format = query_override
+                .as_ref()
+                .unwrap_or(&self.controller.query_format);
 
             let mut cmd = self.controller.prepare_command(true);
             command.serialize(cmd.frame_mut(), &self.controller.zero_velocity_format);
@@ -670,7 +693,9 @@ impl AsyncController {
         cmd: &'a ZeroVelocityCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_zero_velocity_command(cmd, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_zero_velocity_command(cmd, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -685,7 +710,9 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_output_nearest(&mut self, position: f32) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_set_output_nearest(position, true))];
+            let mut requests = [Request::from_command(
+                self.controller.make_set_output_nearest(position, true),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -704,7 +731,9 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_output_exact(&mut self, position: f32) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_set_output_exact(position, true))];
+            let mut requests = [Request::from_command(
+                self.controller.make_set_output_exact(position, true),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -723,7 +752,9 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_require_reindex(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_require_reindex(true))];
+            let mut requests = [Request::from_command(
+                self.controller.make_require_reindex(true),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -742,7 +773,9 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_recapture_position_velocity(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_recapture_position_velocity(true))];
+            let mut requests = [Request::from_command(
+                self.controller.make_recapture_position_velocity(true),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -824,7 +857,9 @@ impl AsyncController {
         aux2: Option<u8>,
     ) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_write_gpio(aux1, aux2, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -841,7 +876,9 @@ impl AsyncController {
         aux2: Option<u8>,
     ) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, true))];
+            let mut requests = [Request::from_command(
+                self.controller.make_write_gpio(aux1, aux2, true),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -883,7 +920,9 @@ impl AsyncController {
         registers: &'a [(u16, Resolution)],
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_custom_query(registers))];
+            let mut requests = [Request::from_command(
+                self.controller.make_custom_query(registers),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -922,7 +961,9 @@ impl AsyncController {
         cmd: &'a AuxPwmCommand,
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, true))];
+            let mut requests = [Request::from_command(
+                self.controller.make_aux_pwm(cmd, true),
+            )];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -944,7 +985,9 @@ impl AsyncController {
         cmd: &'a AuxPwmCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, false))];
+            let mut requests = [Request::from_command(
+                self.controller.make_aux_pwm(cmd, false),
+            )];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -1065,7 +1108,6 @@ impl AsyncController {
             }
         })
     }
-
 }
 
 #[cfg(test)]
@@ -1088,16 +1130,13 @@ mod tests {
     }
 
     impl AsyncTransportOps for MockTransport {
-        fn cycle<'a>(
-            &'a mut self,
-            requests: &'a mut [Request],
-        ) -> BoxFuture<'a, Result<()>> {
+        fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
             self.call_count.set(self.call_count.get() + 1);
 
             // Return a mock response frame
             let mut response = CanFdFrame::new();
             response.arbitration_id = 0x8100; // Source=1, Dest=0
-            // Minimal valid response: mode + position
+                                              // Minimal valid response: mode + position
             response.data[0..3].copy_from_slice(&[0x21, 0x00, 0x0A]); // Mode = 10 (Position)
             response.size = 3;
 
@@ -1112,7 +1151,10 @@ mod tests {
             Box::pin(async move { Ok(()) })
         }
 
-        fn read<'a>(&'a mut self, _channel: Option<usize>) -> BoxFuture<'a, Result<Option<CanFdFrame>>> {
+        fn read<'a>(
+            &'a mut self,
+            _channel: Option<usize>,
+        ) -> BoxFuture<'a, Result<Option<CanFdFrame>>> {
             Box::pin(async move { Ok(None) })
         }
 
@@ -1140,8 +1182,7 @@ mod tests {
 
     #[test]
     fn test_explicit_transport() {
-        let ctrl = AsyncController::new(1)
-            .transport(MockTransport::new());
+        let ctrl = AsyncController::new(1).transport(MockTransport::new());
         assert_eq!(ctrl.controller.id, 1);
     }
 }
