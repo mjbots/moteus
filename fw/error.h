@@ -50,6 +50,8 @@ enum class errc {
   kTimingViolation = 46,
   kBemfFeedforwardNoAccelLimit = 47,
   kInvalidLimits = 48,
+  kPositionControlError = 49,
+  kVelocityControlError = 50,
 
   // The following are not hard faults, but instead codes that are
   // presented while in a control mode if some factor is limiting the

@@ -201,6 +201,20 @@ Torque begins to be limited when the motor temperature reaches this value.
 If the motor temperature reaches this value, a fault is triggered and
 all torque is stopped.
 
+## `servo.fault_position_error`
+
+If finite, a fault is triggered when the absolute position control
+error exceeds this value.  The position control error is the
+difference between the commanded and measured position in revolutions.
+If set to `nan` (the default), no fault is triggered.
+
+## `servo.fault_velocity_error`
+
+If finite, a fault is triggered when the absolute velocity control
+error exceeds this value.  The velocity control error is the
+difference between the commanded and measured velocity in revolutions
+per second.  If set to `nan` (the default), no fault is triggered.
+
 ## `servo.flux_brake_margin_voltage`
 
 Selects the flux braking point relative to the currently configured `servo.max_voltage`.  `flux braking point = max_voltage - flux_brake_margin_voltage`.
