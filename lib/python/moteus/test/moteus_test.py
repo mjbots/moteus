@@ -724,5 +724,184 @@ class MoveToTest(unittest.TestCase):
         asyncio.run(test())
 
 
+class MockDiagnosticResult:
+    """Mock result for diagnostic read operations."""
+    def __init__(self, data=b'', packet_number=None):
+        self.data = data
+        self.packet_number = packet_number
+
+
+class MockController:
+    """Mock controller for testing Stream class."""
+    def __init__(self, flow_control_supported=True):
+        self.flow_control_supported = flow_control_supported
+        self.max_diagnostic_write = 61
+        self.diagnostic_read_calls = []
+        self.diagnostic_read_flow_calls = []
+        self.diagnostic_write_calls = []
+        self._read_responses = []
+
+    def queue_read_response(self, data, packet_number=None):
+        self._read_responses.append(MockDiagnosticResult(data, packet_number))
+
+    async def diagnostic_read(self, max_length, channel=1):
+        self.diagnostic_read_calls.append((max_length, channel))
+        if self._read_responses:
+            return [self._read_responses.pop(0)]
+        return [MockDiagnosticResult(b'')]
+
+    async def diagnostic_read_flow(self, packet_number=0, max_length=48, channel=1):
+        self.diagnostic_read_flow_calls.append((packet_number, max_length, channel))
+        if not self.flow_control_supported:
+            # Simulate firmware that doesn't support flow control
+            return [MockDiagnosticResult(b'', packet_number=None)]
+        if self._read_responses:
+            return [self._read_responses.pop(0)]
+        return [MockDiagnosticResult(b'', packet_number=0)]
+
+    async def send_diagnostic_write(self, data, channel=1):
+        self.diagnostic_write_calls.append((data, channel))
+
+
+class StreamFlowControlTest(unittest.TestCase):
+    def test_probe_enables_flow_control_when_supported(self):
+        """Test that probing enables flow control when firmware supports it."""
+        mock_controller = MockController(flow_control_supported=True)
+        mock_controller.queue_read_response(b'test', packet_number=1)
+
+        stream = mot.Stream(mock_controller, use_flow_control=None)
+
+        async def test():
+            # First read should trigger probe
+            self.assertFalse(stream._flow_control_probed)
+            self.assertIsNone(stream._use_flow_control)
+
+            data = await stream.read(4)
+
+            # After read, flow control should be probed and enabled
+            self.assertTrue(stream._flow_control_probed)
+            self.assertTrue(stream._use_flow_control)
+            # Should have used flow control read
+            self.assertGreater(len(mock_controller.diagnostic_read_flow_calls), 0)
+
+        asyncio.run(test())
+
+    def test_probe_disables_flow_control_when_not_supported(self):
+        """Test that probing disables flow control when firmware doesn't support it."""
+        mock_controller = MockController(flow_control_supported=False)
+        # Queue a response without packet_number for non-flow read
+        mock_controller.queue_read_response(b'test', packet_number=None)
+
+        stream = mot.Stream(mock_controller, use_flow_control=None)
+
+        async def test():
+            self.assertFalse(stream._flow_control_probed)
+            self.assertIsNone(stream._use_flow_control)
+
+            # This will trigger probe, which will fail, then fall back
+            data = await stream.read(4)
+
+            # After read, flow control should be probed and disabled
+            self.assertTrue(stream._flow_control_probed)
+            self.assertFalse(stream._use_flow_control)
+
+        asyncio.run(test())
+
+    def test_explicit_flow_control_true_skips_probe(self):
+        """Test that explicit use_flow_control=True skips probing."""
+        mock_controller = MockController(flow_control_supported=True)
+        mock_controller.queue_read_response(b'test', packet_number=1)
+
+        stream = mot.Stream(mock_controller, use_flow_control=True)
+
+        async def test():
+            # Should already be set, no probing needed
+            self.assertFalse(stream._flow_control_probed)
+            self.assertTrue(stream._use_flow_control)
+
+            data = await stream.read(4)
+
+            # Still not probed (skipped), but flow control used
+            self.assertFalse(stream._flow_control_probed)
+            self.assertTrue(stream._use_flow_control)
+            # Should have used flow control read directly
+            self.assertGreater(len(mock_controller.diagnostic_read_flow_calls), 0)
+            self.assertEqual(len(mock_controller.diagnostic_read_calls), 0)
+
+        asyncio.run(test())
+
+    def test_explicit_flow_control_false_skips_probe(self):
+        """Test that explicit use_flow_control=False skips probing."""
+        mock_controller = MockController(flow_control_supported=True)
+        mock_controller.queue_read_response(b'test', packet_number=None)
+
+        stream = mot.Stream(mock_controller, use_flow_control=False)
+
+        async def test():
+            self.assertFalse(stream._flow_control_probed)
+            self.assertFalse(stream._use_flow_control)
+
+            data = await stream.read(4)
+
+            # Still not probed (skipped), and flow control not used
+            self.assertFalse(stream._flow_control_probed)
+            self.assertFalse(stream._use_flow_control)
+            # Should have used non-flow control read
+            self.assertGreater(len(mock_controller.diagnostic_read_calls), 0)
+            self.assertEqual(len(mock_controller.diagnostic_read_flow_calls), 0)
+
+        asyncio.run(test())
+
+    def test_probe_only_happens_once(self):
+        """Test that probing only happens on first read."""
+        mock_controller = MockController(flow_control_supported=True)
+        # Queue multiple responses
+        for i in range(5):
+            mock_controller.queue_read_response(b'x', packet_number=i)
+
+        stream = mot.Stream(mock_controller, use_flow_control=None)
+
+        async def test():
+            # Multiple reads
+            for _ in range(3):
+                await stream.read(1)
+
+            # Probing should have happened exactly once (first read triggers probe)
+            self.assertTrue(stream._flow_control_probed)
+            self.assertTrue(stream._use_flow_control)
+
+        asyncio.run(test())
+
+    def test_packet_number_wraps_past_127(self):
+        """Test that packet_number values > 127 are handled correctly.
+
+        The signed int8 packing in make_diagnostic_read_flow must
+        handle values 128-255 without raising.
+        """
+        mock_controller = MockController(flow_control_supported=True)
+
+        # Queue responses with packet numbers spanning the
+        # signed/unsigned boundary.  Each read sends _last_ack_packet
+        # and receives the next packet_number from the response.
+        for pn in [127, 128, 200, 255]:
+            mock_controller.queue_read_response(b'x', packet_number=pn)
+
+        stream = mot.Stream(mock_controller, use_flow_control=True)
+
+        async def test():
+            expected_send = [0, 127, 128, 200]
+            expected_ack = [127, 128, 200, 255]
+
+            for i in range(4):
+                await stream.read(1)
+                # Verify the packet_number sent in the request
+                call_pn = mock_controller.diagnostic_read_flow_calls[-1][0]
+                self.assertEqual(call_pn, expected_send[i])
+                # Verify _last_ack_packet updated from response
+                self.assertEqual(stream._last_ack_packet, expected_ack[i])
+
+        asyncio.run(test())
+
+
 if __name__ == '__main__':
     unittest.main()

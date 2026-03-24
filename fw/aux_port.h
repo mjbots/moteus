@@ -19,6 +19,7 @@
 #include "mbed.h"
 #include "PeripheralPins.h"
 
+#include "mjlib/base/inplace_function.h"
 #include "mjlib/base/tokenizer.h"
 #include "mjlib/base/visitor.h"
 #include "mjlib/micro/async_stream.h"
@@ -44,6 +45,7 @@
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
 #include "fw/strtof.h"
+#include "fw/uart_fdcanusb_micro_server.h"
 
 namespace moteus {
 
@@ -52,10 +54,21 @@ class AuxPort {
   using Config = aux::AuxConfig;
   using Status = aux::AuxStatus;
 
+  // Callback invoked when uart_micro_server changes.
+  // Called with nullptr when server is about to be destroyed.
+  // Called with new pointer after server is created.
+  using UartServerChangedCallback =
+      mjlib::base::inplace_function<void(UartFdcanusbMicroServer*)>;
+
   enum SpiDefault {
     kNoDefaultSpi,
     kDefaultOnboardSpi,
     kDefaultOnboardMa600,
+  };
+
+  enum UartDefault {
+    kDefaultUartDisabled,
+    kDefaultUartSerial,
   };
 
   AuxPort(const char* aux_name,
@@ -68,6 +81,7 @@ class AuxPort {
           mjlib::micro::AsyncStream* tunnel_stream,
           MillisecondTimer* timer,
           SpiDefault spi_default,
+          UartDefault uart_default,
           std::array<DMA_Channel_TypeDef*, 5> dma_channels)
       : pin_count_(std::max_element(
                        hw_config.pins.begin(), hw_config.pins.end(),
@@ -78,7 +92,8 @@ class AuxPort {
         adc_info_(*adc_info),
         hw_config_(hw_config),
         dma_channels_(dma_channels),
-        spi_default_(spi_default) {
+        spi_default_(spi_default),
+        uart_default_(uart_default) {
     persistent_config->Register(aux_name, &config_,
                                 std::bind(&AuxPort::HandleConfigUpdate, this));
     telemetry_manager->Register(aux_name, &status_);
@@ -432,6 +447,16 @@ class AuxPort {
 
   Status* status() { return &status_; }
   const Config* config() const { return &config_; }
+
+  // Returns the UART micro server if kSerial mode is configured, nullptr otherwise.
+  UartFdcanusbMicroServer* uart_micro_server() {
+    return uart_micro_server_ ? &*uart_micro_server_ : nullptr;
+  }
+
+  // Set callback to be notified when uart_micro_server changes.
+  void SetUartServerChangedCallback(UartServerChangedCallback callback) {
+    uart_server_changed_callback_ = callback;
+  }
 
  private:
   enum class SampleType {
@@ -850,7 +875,13 @@ class AuxPort {
     ic_pz_.reset();
     orbis_.reset();
 
+    // Notify that uart_micro_server is about to go away.
+    if (uart_server_changed_callback_) {
+      uart_server_changed_callback_(nullptr);
+    }
+
     uart_.reset();
+    uart_micro_server_.reset();
 
     start_sample_types_ = {};
     finish_sample_types_ = {};
@@ -911,6 +942,29 @@ class AuxPort {
           config_.spi.mode = aux::Spi::Config::Mode::kOnboardMa600;
           break;
         }
+      }
+    }
+
+    if (config_.uart.mode == aux::UartEncoder::Config::kBoardDefault) {
+      switch (uart_default_) {
+        case kDefaultUartDisabled: {
+          config_.uart.mode = aux::UartEncoder::Config::Mode::kDisabled;
+          break;
+        }
+        case kDefaultUartSerial: {
+          config_.uart.mode = aux::UartEncoder::Config::Mode::kSerial;
+
+          // Figure out which pins to use.
+          SetDefaultUartPins();
+          break;
+        }
+      }
+    }
+
+    // Any remaining pins that are set to board default, flip them to NC.
+    for (auto& pin : config_.pins) {
+      if (pin.mode == aux::Pin::Mode::kBoardDefault) {
+        pin.mode = aux::Pin::Mode::kNC;
       }
     }
 
@@ -1251,6 +1305,15 @@ class AuxPort {
           cui_amt21_.emplace(config_.uart, &*uart_, timer_);
           break;
         }
+        case C::kSerial: {
+          // Create the micro server wrapping the UART
+          uart_micro_server_.emplace(&*uart_);
+          // Notify that new uart_micro_server is available
+          if (uart_server_changed_callback_) {
+            uart_server_changed_callback_(&*uart_micro_server_);
+          }
+          break;
+        }
         default: {
           status_.error = aux::AuxError::kUartPinError;
           return;
@@ -1382,6 +1445,38 @@ class AuxPort {
     any_isr_enabled_ = updated_any_isr;
   }
 
+  void SetDefaultUartPins() {
+    const auto has_uart = [&](int pin_number) {
+      for (const auto& hw_pin : hw_config_.pins) {
+        if (hw_pin.number == pin_number &&
+            hw_pin.uart) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    int uart_pins = std::count_if(config_.pins.begin(),
+                                  config_.pins.end(),
+                                  [](const auto& p) {
+                                    return p.mode == aux::Pin::Mode::kUart;
+                                  });
+
+    // Find the two highest pin numbers with UART capability set to
+    // kBoardDefault, then set them to uart.
+    for (int i = pin_count_ - 1; i >= 0; i--) {
+      if (uart_pins == 2) { break; }
+
+      auto& pin = config_.pins[i];
+
+      if (pin.mode == aux::Pin::Mode::kBoardDefault &&
+          has_uart(i)) {
+        uart_pins++;
+        pin.mode = aux::Pin::Mode::kUart;
+      }
+    }
+  }
+
   void AddSampleType(SampleType stype, bool start, bool finish) {
     if (start) {
       for (size_t i = 0; ; i++) {
@@ -1455,6 +1550,7 @@ class AuxPort {
   std::optional<aux::Stm32PwmInput> pwm_input_;
   std::optional<BissC> bissc_;
   std::optional<Stm32G4DmaUart> uart_;
+  std::optional<UartFdcanusbMicroServer> uart_micro_server_;
   std::optional<Aksim2> aksim2_;
   std::optional<CuiAmt21> cui_amt21_;
   std::optional<DigitalOut> rs422_re_;
@@ -1498,9 +1594,13 @@ class AuxPort {
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 5> dma_channels_;
   const SpiDefault spi_default_;
+  const UartDefault uart_default_;
 
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> start_sample_types_ = {};
   std::array<SampleType, static_cast<int>(SampleType::kLastEntry)> finish_sample_types_ = {};
+
+  // Callback for uart_micro_server changes
+  UartServerChangedCallback uart_server_changed_callback_;
 };
 
 }

@@ -189,6 +189,35 @@ class Transport:
         for device in self._devices:
             device.close()
 
+    async def supports_flash_for_target(self, target_id):
+        """Return True if the device for the given target supports firmware flashing.
+
+        UART-based transports do not support flashing.
+
+        Arguments:
+            target_id: The CAN ID or DeviceAddress of the target device.
+
+        Returns:
+            True if the device supports flashing. Devices without a
+            supports_flash property are assumed to support flashing
+            for backward compatibility with older TransportDevice
+            implementations.
+        """
+        # Create a minimal command-like object to use for device lookup
+        class _FlashCheckCommand:
+            def __init__(self, dest):
+                self.destination = dest
+                self.source = 0
+                self.can_prefix = 0
+                self.bus = None
+                self.channel = None
+
+        devices = await self._get_devices_for_command(_FlashCheckCommand(target_id))
+        for device in devices:
+            if hasattr(device, 'supports_flash') and not device.supports_flash:
+                return False
+        return True
+
     async def _read_frames_until_timeout(self, device, end_time):
         results = []
         while True:

@@ -27,6 +27,7 @@ ALL = [
     'Stream',
     'Setpoint',
     'move_to',
+    'timeout',
     'TRANSPORT_FACTORIES',
     'INT8', 'INT16', 'INT32', 'F32', 'IGNORE',
     'reader',
@@ -35,6 +36,7 @@ ALL = [
     'Subframe', 'parse_frame',
     'ParsedRegisters', 'parse_registers', 'scale_register',
 ]
+from moteus.async_timeout import timeout
 from moteus.command import Command
 from moteus.device_info import DeviceAddress, DeviceInfo
 from moteus.fdcanusb import Fdcanusb

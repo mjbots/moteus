@@ -164,12 +164,12 @@ MOTEUS_DEPS = [
 g4_mbed_binary(
     name = "moteus",
     srcs = MOTEUS_SOURCES + [
-        "stm32g4_async_uart.h",
-        "stm32g4_async_uart.cc",
         "stm32g4_flash.h",
         "fdcan.h",
         "fdcan.cc",
         "fdcan_micro_server.h",
+        "multi_transport_datagram_server.h",
+        "uart_fdcanusb_micro_server.h",
     ],
     deps = MOTEUS_DEPS,
     linker_script = "stm32g474.ld",

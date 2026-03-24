@@ -36,6 +36,12 @@ class FdcanusbTestBase(unittest.TestCase):
         self.mock_detect = self.detect_patcher.start()
         self.mock_detect.return_value = '/dev/mock_fdcanusb'
 
+        # Mock _get_fdcanusb_properties to return is_fdcanusb=True so
+        # checksum mode is disabled by default (like a real fdcanusb)
+        self.props_patcher = unittest.mock.patch('moteus.fdcanusb_device._get_fdcanusb_properties')
+        self.mock_props = self.props_patcher.start()
+        self.mock_props.return_value = {'is_fdcanusb': True}
+
     def tearDown(self):
         pending = asyncio.all_tasks(self.loop)
         for task in pending:
@@ -47,6 +53,7 @@ class FdcanusbTestBase(unittest.TestCase):
 
         self.aioserial_patcher.stop()
         self.detect_patcher.stop()
+        self.props_patcher.stop()
         self.loop.close()
 
     def run_async(self, coro):

@@ -39,6 +39,8 @@ READ_ERROR = 0x31
 STREAM_CLIENT_DATA = 0x40
 STREAM_SERVER_DATA = 0x41
 STREAM_CLIENT_POLL = 0x42
+STREAM_SERVER_DATA_FLOW = 0x43
+STREAM_CLIENT_POLL_FLOW = 0x44
 NOP = 0x50
 
 
@@ -113,6 +115,8 @@ class SubframeType(enum.Enum):
     STREAM_CLIENT_TO_SERVER = 6
     STREAM_SERVER_TO_CLIENT = 7
     STREAM_CLIENT_POLL_SERVER = 8
+    STREAM_SERVER_TO_CLIENT_FLOW = 9
+    STREAM_CLIENT_POLL_SERVER_FLOW = 10
 
 
 class RegisterSubframe(NamedTuple):
@@ -137,7 +141,15 @@ class StreamSubframe(NamedTuple):
     data: bytes              # Stream payload (empty for POLL)
 
 
-Subframe = Union[RegisterSubframe, ErrorSubframe, StreamSubframe]
+class FlowStreamSubframe(NamedTuple):
+    """A tunneled stream subframe with flow control packet number."""
+    type: SubframeType       # STREAM_SERVER_TO_CLIENT_FLOW, STREAM_CLIENT_POLL_SERVER_FLOW
+    channel: int             # Stream channel number
+    packet_number: int       # Flow control packet number
+    data: bytes              # Stream payload
+
+
+Subframe = Union[RegisterSubframe, ErrorSubframe, StreamSubframe, FlowStreamSubframe]
 
 
 class Stream:
@@ -291,6 +303,29 @@ def parse_frame(data: bytes) -> Iterator[Subframe]:
             yield StreamSubframe(
                 type=SubframeType.STREAM_CLIENT_POLL_SERVER,
                 channel=channel,
+                data=bytes([max_length]))
+
+        elif cmd == STREAM_SERVER_DATA_FLOW:
+            # Server data with flow control: channel, packet_number, size, data
+            channel = stream.read_varuint()
+            packet_number = stream.read_int8() & 0xff
+            size = stream.read_varuint()
+            data_bytes = stream.read_bytes(size)
+            yield FlowStreamSubframe(
+                type=SubframeType.STREAM_SERVER_TO_CLIENT_FLOW,
+                channel=channel,
+                packet_number=packet_number,
+                data=data_bytes)
+
+        elif cmd == STREAM_CLIENT_POLL_FLOW:
+            # Client poll with ack: channel, packet_number, max_length
+            channel = stream.read_varuint()
+            packet_number = stream.read_int8() & 0xff
+            max_length = stream.read_varuint()
+            yield FlowStreamSubframe(
+                type=SubframeType.STREAM_CLIENT_POLL_SERVER_FLOW,
+                channel=channel,
+                packet_number=packet_number,
                 data=bytes([max_length]))
 
         elif cmd == NOP:

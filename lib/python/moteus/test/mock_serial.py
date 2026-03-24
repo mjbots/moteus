@@ -30,6 +30,9 @@ class MockSerial:
         # List of (pattern, callback) tuples
         self._write_hooks = []
 
+        # Failure injection state
+        self._response_drops_remaining = 0
+
     def add_write_hook(self, pattern, callback):
         """Add a hook that triggers when a write matches the pattern."""
         self._write_hooks.append((pattern, callback))
@@ -52,8 +55,10 @@ class MockSerial:
         if data.startswith(b'can send'):
             if self._response_queue:
                 receive_frame = self._response_queue.popleft()
-                self.read_buffer += receive_frame
-                self._notify_waiters()
+                receive_frame = self._apply_failure_injection(receive_frame)
+                if receive_frame:  # Only add if not dropped
+                    self.read_buffer += receive_frame
+                    self._notify_waiters()
 
     async def drain(self):
         pass
@@ -94,6 +99,18 @@ class MockSerial:
 
     def queue_response(self, data):
         self._response_queue.append(data)
+
+    def inject_response_drop(self, count=1):
+        """Drop next N responses entirely."""
+        self._response_drops_remaining = count
+
+    def _apply_failure_injection(self, data):
+        """Apply any pending failure injection to response data."""
+        if self._response_drops_remaining > 0:
+            self._response_drops_remaining -= 1
+            return b''
+
+        return data
 
     def _notify_waiters(self):
         waiters_to_notify = [w for w in self._read_waiters if not w.done()]
