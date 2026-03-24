@@ -43,7 +43,7 @@ MEMORY
   FLASH_ISR (rx) : ORIGIN = 0x8000000, LENGTH = 0x004000
 }
 
-MultiplexBootloader = 0x800c000;
+MultiplexBootloader = 0x800c001;
 
 SECTIONS
 {

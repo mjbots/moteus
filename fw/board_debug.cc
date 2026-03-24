@@ -961,7 +961,11 @@ class BoardDebug::Impl {
       // Ensure everything is stopped!
       MoteusEnsureOff();
 
-      MultiplexBootloader(multiplex_protocol_->config()->id, USART1, GPIOA, 8);
+      // Use indirect call to avoid linker warning about branch to
+      // absolute symbol on Thumb-only CPU (GCC 15+).
+      void (*volatile boot_fn)(uint8_t, USART_TypeDef*, GPIO_TypeDef*, int) =
+          MultiplexBootloader;
+      boot_fn(multiplex_protocol_->config()->id, USART1, GPIOA, 8);
       // We should never get here.
       MJ_ASSERT(false);
     }
