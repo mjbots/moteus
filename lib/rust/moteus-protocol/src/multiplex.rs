@@ -361,7 +361,9 @@ pub enum Value {
 impl Value {
     /// Returns the raw integer value.
     ///
-    /// Float values are cast to i32.
+    /// Float values are cast to i32.  This should only be used for
+    /// registers which are intended to hold an integer type, and thus
+    /// can not store a non-finite value.
     pub fn to_i32(&self) -> i32 {
         match *self {
             Value::Int8(v) => v as i32,
