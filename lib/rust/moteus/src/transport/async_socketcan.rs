@@ -354,32 +354,8 @@ mod linux {
 #[cfg(target_os = "linux")]
 pub use linux::AsyncSocketCan;
 
-/// Stub for non-Linux platforms.
-#[cfg(not(target_os = "linux"))]
-pub struct AsyncSocketCan {
-    _private: (),
-}
-
-#[cfg(not(target_os = "linux"))]
-impl AsyncSocketCan {
-    /// SocketCAN is only available on Linux.
-    pub async fn new(_interface: &str) -> crate::error::Result<Self> {
-        Err(crate::error::Error::Protocol(
-            "SocketCAN is only available on Linux".to_string(),
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_async_socketcan_unavailable_on_non_linux() {
-        #[cfg(not(target_os = "linux"))]
-        {
-            // This test verifies the module compiles on non-Linux
-        }
-    }
-
     #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_async_socketcan_interface_not_found() {

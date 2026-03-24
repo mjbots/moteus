@@ -173,5 +173,5 @@ pub use transport::async_fdcanusb::AsyncFdcanusb;
 pub use transport::async_transport::{AsyncTransport, SharedDevice};
 #[cfg(feature = "tokio")]
 pub use transport::async_singleton::get_async_singleton_transport;
-#[cfg(feature = "tokio")]
+#[cfg(all(feature = "tokio", target_os = "linux"))]
 pub use transport::async_socketcan::AsyncSocketCan;

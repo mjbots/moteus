@@ -264,9 +264,11 @@ impl TransportFactory for FdcanusbFactory {
 }
 
 /// Factory for socketcan devices (Linux only).
+#[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
 pub struct SocketCanFactory;
 
+#[cfg(target_os = "linux")]
 impl SocketCanFactory {
     /// Create a new socketcan factory.
     pub fn new() -> Self {
@@ -274,6 +276,7 @@ impl SocketCanFactory {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl TransportFactory for SocketCanFactory {
     fn priority(&self) -> u32 {
         11 // Lower priority than fdcanusb
@@ -294,7 +297,6 @@ impl TransportFactory for SocketCanFactory {
         }]
     }
 
-    #[cfg(target_os = "linux")]
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
         use crate::transport::discovery::detect_socketcan_interfaces;
         use crate::transport::socketcan::SocketCan;
@@ -322,11 +324,6 @@ impl TransportFactory for SocketCanFactory {
 
         Ok(devices)
     }
-
-    #[cfg(not(target_os = "linux"))]
-    fn create(&self, _options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
-        Ok(Vec::new())
-    }
 }
 
 // -- Global transport factory registry --
@@ -335,10 +332,12 @@ static REGISTRY: OnceLock<Mutex<Vec<Box<dyn TransportFactory>>>> = OnceLock::new
 
 fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
     REGISTRY.get_or_init(|| {
-        Mutex::new(vec![
+        let mut factories: Vec<Box<dyn TransportFactory>> = vec![
             Box::new(FdcanusbFactory),
-            Box::new(SocketCanFactory),
-        ])
+        ];
+        #[cfg(target_os = "linux")]
+        factories.push(Box::new(SocketCanFactory));
+        Mutex::new(factories)
     })
 }
 
