@@ -416,6 +416,7 @@ impl Request {
     ///
     /// When using a transport with multiple devices, this specifies
     /// which channel (device) to use for this request.
+    #[must_use]
     pub fn with_channel(mut self, idx: usize) -> Self {
         self.channel = Some(idx);
         self
@@ -424,12 +425,14 @@ impl Request {
     /// Sets the response filter (builder pattern).
     ///
     /// Overrides the auto-detected filter based on frame destination.
+    #[must_use]
     pub fn with_filter(mut self, f: FrameFilter) -> Self {
         self.filter = f;
         self
     }
 
     /// Sets the expected number of replies (builder pattern).
+    #[must_use]
     pub fn with_expected_replies(mut self, n: u8) -> Self {
         self.expected_reply_count = n;
         self
