@@ -162,7 +162,6 @@ mod linux {
     pub struct AsyncSocketCan {
         async_fd: AsyncFd<SocketCanRaw>,
         timeout_ms: u32,
-        disable_brs: bool,
         pub(crate) info: TransportDeviceInfo,
         needs_recovery: bool,
     }
@@ -184,7 +183,6 @@ mod linux {
             Ok(AsyncSocketCan {
                 async_fd,
                 timeout_ms,
-                disable_brs,
                 info: TransportDeviceInfo::new(0, "AsyncSocketCan")
                     .with_serial(interface.to_string())
                     .with_detail(format!("'{}'", interface)),
