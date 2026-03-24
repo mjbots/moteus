@@ -66,7 +66,7 @@ pub type SharedDevice = Arc<Mutex<Box<dyn AsyncTransportDevice>>>;
 /// Trait for async transport operations.
 ///
 /// This trait defines the common interface for async transport implementations.
-/// Most users should use the concrete [`AsyncTransport`] struct directly, which
+/// Most users should use the concrete `AsyncTransport` struct directly, which
 /// provides these methods as inherent async methods.
 ///
 /// This trait is useful for:
