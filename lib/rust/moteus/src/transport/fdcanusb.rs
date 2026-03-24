@@ -142,6 +142,17 @@ pub struct Fdcanusb<S: std::io::Read + std::io::Write> {
     pub(crate) info: TransportDeviceInfo,
 }
 
+impl<S: std::io::Read + std::io::Write> std::fmt::Debug for Fdcanusb<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Fdcanusb")
+            .field("info", &self.info)
+            .field("timeout", &self.timeout)
+            .field("disable_brs", &self.disable_brs)
+            .field("pending_frames", &self.pending_frames.len())
+            .finish()
+    }
+}
+
 impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
     /// Creates an FdCanUSB transport from a pre-opened stream.
     ///

@@ -142,6 +142,21 @@ pub struct AsyncController {
     pub(crate) transport: AsyncTransportHolder,
 }
 
+impl std::fmt::Debug for AsyncController {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let transport_state = match &self.transport {
+            AsyncTransportHolder::Deferred(_) => "Deferred",
+            AsyncTransportHolder::Explicit(_) => "Explicit",
+            AsyncTransportHolder::Singleton(_) => "Singleton",
+        };
+        f.debug_struct("AsyncController")
+            .field("id", &self.controller.id)
+            .field("address", &self.controller.address)
+            .field("transport", &transport_state)
+            .finish()
+    }
+}
+
 impl AsyncController {
     /// Creates a new async controller.
     ///

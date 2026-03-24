@@ -613,6 +613,17 @@ pub struct GpioResult {
     pub aux2: u8,
 }
 
+impl std::fmt::Debug for Controller {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Controller")
+            .field("address", &self.address)
+            .field("id", &self.id)
+            .field("source_id", &self.source_id)
+            .field("can_prefix", &self.can_prefix)
+            .finish()
+    }
+}
+
 impl Default for Controller {
     fn default() -> Self {
         Self::new(1)

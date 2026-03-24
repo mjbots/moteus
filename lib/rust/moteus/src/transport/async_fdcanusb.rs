@@ -56,6 +56,18 @@ pub struct AsyncFdcanusb {
     needs_recovery: bool,
 }
 
+impl std::fmt::Debug for AsyncFdcanusb {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncFdcanusb")
+            .field("info", &self.info)
+            .field("timeout", &self.timeout)
+            .field("disable_brs", &self.disable_brs)
+            .field("pending_frames", &self.pending_frames.len())
+            .field("needs_recovery", &self.needs_recovery)
+            .finish()
+    }
+}
+
 impl AsyncFdcanusb {
     /// Opens an async FdCanUSB transport at the specified path.
     ///
