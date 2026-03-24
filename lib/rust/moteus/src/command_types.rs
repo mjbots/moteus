@@ -62,7 +62,7 @@ pub struct Command {
     /// Optional content-level reply filter for response matching.
     ///
     /// When set, this filter is combined with routing-level checks
-    /// (prefix, source, destination) in [`Request::from_command()`] to
+    /// (prefix, source, destination) in [`crate::transport::transaction::Request::from_command()`] to
     /// build a compound filter matching Python's `_make_response_filter`.
     pub reply_filter: Option<FrameFilter>,
 

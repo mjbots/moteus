@@ -119,5 +119,6 @@ rust_doc_test(
 
 rust_doc(
     name = "moteus-doc",
-    crate = ":moteus",
+    crate = ":moteus_clap_tokio",
+    rustdoc_flags = ["-D", "warnings"],
 )

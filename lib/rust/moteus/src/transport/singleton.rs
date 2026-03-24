@@ -77,7 +77,7 @@ pub fn get_singleton_transport(
 
 /// Create a default transport with auto-detection and deduplication.
 ///
-/// This function uses [`create_transports`](crate::transport::factory::create_transports)
+/// This function uses [`create_transports`]
 /// to discover and deduplicate devices, then wraps them in a [`Transport`].
 ///
 /// # Arguments

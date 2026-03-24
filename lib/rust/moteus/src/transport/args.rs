@@ -257,10 +257,10 @@ pub fn add_transport_args(mut cmd: clap::Command) -> clap::Command {
 /// Command-line arguments for transport configuration.
 ///
 /// This struct can be used with clap's derive API via `#[command(flatten)]`.
-/// For the builder API, use [`transport_arg_specs()`] and [`add_transport_args()`].
+/// For the builder API, use [`transport_arg_specs()`].
 ///
 /// Note: This covers built-in transport args only. External factory args
-/// should be handled via [`TransportOptions::from_arg_matches()`] or
+/// should be handled via `TransportOptions::from_arg_matches()` or
 /// [`TransportOptions::from_pairs()`] with the builder API.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "clap", derive(clap::Args))]

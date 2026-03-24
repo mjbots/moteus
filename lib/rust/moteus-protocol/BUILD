@@ -69,4 +69,5 @@ rust_doc_test(
 rust_doc(
     name = "moteus-protocol-doc",
     crate = ":moteus-protocol",
+    rustdoc_flags = ["-D", "warnings"],
 )
