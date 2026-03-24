@@ -20,6 +20,7 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 /// Registers exposed for reading or writing from a moteus controller.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Register {

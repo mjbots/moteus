@@ -154,6 +154,7 @@ impl std::fmt::Debug for ResponseCollector {
 /// let any_filter = FrameFilter::Any;
 /// assert!(any_filter.matches(&frame));
 /// ```
+#[non_exhaustive]
 #[derive(Clone, Default)]
 pub enum FrameFilter {
     /// Match frames from a specific source CAN ID.
@@ -235,6 +236,7 @@ impl std::fmt::Debug for FrameFilter {
 ///     .with_channel(1)                // Route to channel 1
 ///     .with_expected_replies(2);      // Expect 2 responses
 /// ```
+#[non_exhaustive]
 #[derive(Clone)]
 pub struct Request {
     /// The frame to send, or None for receive-only.

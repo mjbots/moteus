@@ -20,6 +20,7 @@
 /// - The number of bytes used on the wire
 /// - The scaling applied to convert between wire format and physical units
 /// - The range of representable values
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[repr(i8)]
 pub enum Resolution {

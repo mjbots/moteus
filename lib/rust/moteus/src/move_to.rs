@@ -70,6 +70,7 @@ use moteus_protocol::Resolution;
 ///
 /// let sp: Setpoint = 0.5.into();
 /// ```
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct Setpoint {
     /// Target position in revolutions. Use `f32::NAN` to hold current position.
@@ -149,6 +150,7 @@ impl From<f32> for Setpoint {
 }
 
 /// Configuration for a `move_to` operation.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct MoveToOptions {
     /// Total duration of the move. When set, velocity_limit
@@ -695,11 +697,9 @@ mod tests {
         cmd.velocity_limit = Some(1.0);
         cmd.maximum_torque = Some(5.0);
 
-        let overrides = PositionCommand {
-            velocity_limit: Some(2.0),
-            kp_scale: Some(0.5),
-            ..Default::default()
-        };
+        let mut overrides = PositionCommand::new();
+        overrides.velocity_limit = Some(2.0);
+        overrides.kp_scale = Some(0.5);
 
         merge_overrides(&mut cmd, &overrides);
         assert_eq!(cmd.velocity_limit, Some(2.0)); // overridden

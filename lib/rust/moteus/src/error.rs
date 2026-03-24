@@ -17,6 +17,7 @@
 use std::fmt;
 
 /// Error type for moteus operations.
+#[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
     /// I/O error from transport layer

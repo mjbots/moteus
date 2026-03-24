@@ -19,6 +19,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 /// The operating mode of a moteus controller.
 ///
 /// This corresponds to the value in the `Register::Mode` register.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum Mode {
@@ -87,6 +88,7 @@ impl From<Mode> for i8 {
 /// The homing/rezero state of the controller.
 ///
 /// This indicates the reference frame for position values.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum HomeState {

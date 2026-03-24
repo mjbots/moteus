@@ -73,6 +73,7 @@ use crate::transport::factory::TransportOptions;
 use std::time::Duration;
 
 /// Type of a command-line argument.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ArgType {
     /// A string value (single occurrence)
@@ -86,6 +87,7 @@ pub enum ArgType {
 }
 
 /// Specification for a single command-line argument.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct ArgSpec {
     /// Argument name (without dashes), e.g., "fdcanusb"

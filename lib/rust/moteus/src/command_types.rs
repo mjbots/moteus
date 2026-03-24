@@ -39,6 +39,7 @@ use moteus_protocol::{calculate_arbitration_id, multiplex, CanFdFrame};
 /// let frame = cmd.into_frame();
 /// // frame is now a CanFdFrame ready for transport
 /// ```
+#[non_exhaustive]
 #[derive(Clone)]
 pub struct Command {
     /// Destination device ID

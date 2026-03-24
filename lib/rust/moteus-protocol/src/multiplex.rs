@@ -361,6 +361,7 @@ impl<'a> WriteCombiner<'a> {
 }
 
 /// A decoded register value from the multiplex protocol.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy)]
 pub enum Value {
     /// 8-bit signed integer
@@ -406,6 +407,7 @@ impl Value {
 }
 
 /// The type of a parsed subframe.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SubframeType {
     /// Write register values
@@ -427,6 +429,7 @@ pub enum SubframeType {
 }
 
 /// A single parsed subframe from a multiplex protocol frame.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum Subframe<'a> {
     /// A register read, write, or response subframe.
