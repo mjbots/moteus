@@ -19,6 +19,10 @@
 
 #include "mjlib/base/visitor.h"
 
+#ifndef MOTEUS_UART_DEFAULT_COMMAND_BAUD_RATE
+#define MOTEUS_UART_DEFAULT_COMMAND_BAUD_RATE 1000000
+#endif
+
 namespace moteus {
 namespace aux {
 
@@ -101,7 +105,7 @@ struct UartEncoder {
     };
     Mode mode = kBoardDefault;
 
-    int32_t baud_rate = 1000000;
+    int32_t baud_rate = MOTEUS_UART_DEFAULT_COMMAND_BAUD_RATE;
     int32_t poll_rate_us = 100;
     uint8_t cui_amt21_address = 0x54;
 

@@ -426,8 +426,17 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           //          ADC#  CHN    I2C      SPI      USART    TIMER
           { 0, PB_8,   -1,   0,    I2C1,    nullptr, USART3,  nullptr },
           { 1, PB_9,   -1,   0,    I2C1,    nullptr, USART3,  nullptr },
+          // Select which two stm32 pins are used for the
+          // non-connectorized aux2 pins for moteus-r4.  By default,
+          // the DBG1/DBG2, but if MOTEUS_R4_AUX2_RT is
+          // defined, then they will be the R and T pads.
+#ifndef MOTEUS_R4_AUX2_RT
           { 2, PC_14,  -1,   0,    nullptr, nullptr, nullptr, nullptr },
           { 3, PC_15,  -1,   0,    nullptr, nullptr, nullptr, nullptr },
+#else
+          { 2, PC_10,  -1,   0,    nullptr, nullptr, USART3, nullptr },
+          { 3, PC_11,  -1,   0,    nullptr, nullptr, USART3, nullptr },
+#endif
           { -1, NC, },
               }},
           aux_options,
