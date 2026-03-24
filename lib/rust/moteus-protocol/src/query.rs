@@ -21,7 +21,7 @@ use crate::mode::{HomeState, Mode};
 use crate::multiplex::{parse_frame, Subframe, Value, WriteCanData, WriteCombiner};
 use crate::register::Register;
 use crate::resolution::Resolution;
-use crate::scaling::Scaling;
+use crate::scaling;
 
 /// Maximum number of extra (custom) registers that can be queried.
 pub const MAX_EXTRA: usize = 16;
@@ -347,28 +347,28 @@ impl QueryResult {
                     result.mode = Mode::try_from(value.to_i32() as u8).unwrap_or(Mode::Stopped);
                 }
                 r if r == Register::Position.address() => {
-                    result.position = value.to_f64(&Scaling::POSITION);
+                    result.position = value.to_f64(&scaling::POSITION);
                 }
                 r if r == Register::Velocity.address() => {
-                    result.velocity = value.to_f64(&Scaling::VELOCITY);
+                    result.velocity = value.to_f64(&scaling::VELOCITY);
                 }
                 r if r == Register::Torque.address() => {
-                    result.torque = value.to_f64(&Scaling::TORQUE);
+                    result.torque = value.to_f64(&scaling::TORQUE);
                 }
                 r if r == Register::QCurrent.address() => {
-                    result.q_current = value.to_f64(&Scaling::CURRENT);
+                    result.q_current = value.to_f64(&scaling::CURRENT);
                 }
                 r if r == Register::DCurrent.address() => {
-                    result.d_current = value.to_f64(&Scaling::CURRENT);
+                    result.d_current = value.to_f64(&scaling::CURRENT);
                 }
                 r if r == Register::AbsPosition.address() => {
-                    result.abs_position = value.to_f64(&Scaling::POSITION);
+                    result.abs_position = value.to_f64(&scaling::POSITION);
                 }
                 r if r == Register::Power.address() => {
-                    result.power = value.to_f64(&Scaling::POWER);
+                    result.power = value.to_f64(&scaling::POWER);
                 }
                 r if r == Register::MotorTemperature.address() => {
-                    result.motor_temperature = value.to_f64(&Scaling::TEMPERATURE);
+                    result.motor_temperature = value.to_f64(&scaling::TEMPERATURE);
                 }
                 r if r == Register::TrajectoryComplete.address() => {
                     result.trajectory_complete = value.to_i32() != 0;
@@ -377,10 +377,10 @@ impl QueryResult {
                     result.home_state = HomeState::try_from(value.to_i32() as u8).unwrap_or(HomeState::Relative);
                 }
                 r if r == Register::Voltage.address() => {
-                    result.voltage = value.to_f64(&Scaling::VOLTAGE);
+                    result.voltage = value.to_f64(&scaling::VOLTAGE);
                 }
                 r if r == Register::Temperature.address() => {
-                    result.temperature = value.to_f64(&Scaling::TEMPERATURE);
+                    result.temperature = value.to_f64(&scaling::TEMPERATURE);
                 }
                 r if r == Register::Fault.address() => {
                     result.fault = value.to_i32() as i8;
@@ -395,13 +395,13 @@ impl QueryResult {
                     result.aux1_pwm_input_period_us = value.to_i32();
                 }
                 r if r == Register::Aux1PwmInputDutyCycle.address() => {
-                    result.aux1_pwm_input_duty_cycle = value.to_f64(&Scaling::PWM) as f32;
+                    result.aux1_pwm_input_duty_cycle = value.to_f64(&scaling::PWM) as f32;
                 }
                 r if r == Register::Aux2PwmInputPeriod.address() => {
                     result.aux2_pwm_input_period_us = value.to_i32();
                 }
                 r if r == Register::Aux2PwmInputDutyCycle.address() => {
-                    result.aux2_pwm_input_duty_cycle = value.to_f64(&Scaling::PWM) as f32;
+                    result.aux2_pwm_input_duty_cycle = value.to_f64(&scaling::PWM) as f32;
                 }
                 _ => {
                     if let Some(slot) = result.extra.iter().position(|e| e.is_none()) {
@@ -434,7 +434,7 @@ impl QueryResult {
 
 /// Parses a generic register value based on register number.
 fn parse_generic(register: u16, value: Value) -> f64 {
-    use crate::scaling::Scaling;
+    use crate::scaling;
 
     // Determine scaling based on register
     let reg = Register::from_address(register);
@@ -450,7 +450,7 @@ fn parse_generic(register: u16, value: Value) -> f64 {
         | Some(Register::ControlPositionError)
         | Some(Register::Encoder0Position)
         | Some(Register::Encoder1Position)
-        | Some(Register::Encoder2Position) => &Scaling::POSITION,
+        | Some(Register::Encoder2Position) => &scaling::POSITION,
 
         Some(Register::Velocity)
         | Some(Register::CommandVelocity)
@@ -459,7 +459,7 @@ fn parse_generic(register: u16, value: Value) -> f64 {
         | Some(Register::ControlVelocityError)
         | Some(Register::Encoder0Velocity)
         | Some(Register::Encoder1Velocity)
-        | Some(Register::Encoder2Velocity) => &Scaling::VELOCITY,
+        | Some(Register::Encoder2Velocity) => &scaling::VELOCITY,
 
         Some(Register::Torque)
         | Some(Register::CommandFeedforwardTorque)
@@ -470,13 +470,13 @@ fn parse_generic(register: u16, value: Value) -> f64 {
         | Some(Register::PositionKi)
         | Some(Register::PositionKd)
         | Some(Register::PositionFeedforward)
-        | Some(Register::PositionCommand) => &Scaling::TORQUE,
+        | Some(Register::PositionCommand) => &scaling::TORQUE,
 
         Some(Register::QCurrent)
         | Some(Register::DCurrent)
         | Some(Register::CommandQCurrent)
         | Some(Register::CommandDCurrent)
-        | Some(Register::CommandFixedCurrentOverride) => &Scaling::CURRENT,
+        | Some(Register::CommandFixedCurrentOverride) => &scaling::CURRENT,
 
         Some(Register::Voltage)
         | Some(Register::VoltagePhaseA)
@@ -485,17 +485,17 @@ fn parse_generic(register: u16, value: Value) -> f64 {
         | Some(Register::VFocVoltage)
         | Some(Register::VoltageDqD)
         | Some(Register::VoltageDqQ)
-        | Some(Register::CommandFixedVoltageOverride) => &Scaling::VOLTAGE,
+        | Some(Register::CommandFixedVoltageOverride) => &scaling::VOLTAGE,
 
-        Some(Register::Temperature) | Some(Register::MotorTemperature) => &Scaling::TEMPERATURE,
+        Some(Register::Temperature) | Some(Register::MotorTemperature) => &scaling::TEMPERATURE,
 
-        Some(Register::Power) => &Scaling::POWER,
+        Some(Register::Power) => &scaling::POWER,
 
         Some(Register::CommandTimeout) | Some(Register::CommandStayWithinTimeout) => {
-            &Scaling::TIME
+            &scaling::TIME
         }
 
-        Some(Register::CommandAccelLimit) => &Scaling::ACCELERATION,
+        Some(Register::CommandAccelLimit) => &scaling::ACCELERATION,
 
         Some(Register::CommandKpScale)
         | Some(Register::CommandKdScale)
@@ -504,9 +504,9 @@ fn parse_generic(register: u16, value: Value) -> f64 {
         | Some(Register::PwmPhaseB)
         | Some(Register::PwmPhaseC)
         | Some(Register::Aux1PwmInputDutyCycle)
-        | Some(Register::Aux2PwmInputDutyCycle) => &Scaling::PWM,
+        | Some(Register::Aux2PwmInputDutyCycle) => &scaling::PWM,
 
-        _ => &Scaling::INT,
+        _ => &scaling::INT,
     };
 
     value.to_f64(scaling)

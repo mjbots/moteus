@@ -53,7 +53,7 @@ mod mode;
 pub mod multiplex;
 mod register;
 mod resolution;
-mod scaling;
+pub mod scaling;
 
 pub mod command;
 pub mod query;
@@ -66,7 +66,7 @@ pub use multiplex::{
 };
 pub use register::Register;
 pub use resolution::Resolution;
-pub use scaling::{read_scaled, Scaling};
+pub use scaling::Scaling;
 
 /// The current register map version expected from moteus controllers.
 /// If the version differs, semantics of one or more registers may have changed.
