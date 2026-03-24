@@ -62,7 +62,7 @@
 use crate::command_types::Command;
 use crate::error::{Error, Result};
 use crate::transport::transaction::{FrameFilter, Request};
-use moteus_protocol::{CanFdFrame, multiplex};
+use moteus_protocol::{multiplex, CanFdFrame};
 
 /// Default diagnostic channel.
 pub const DEFAULT_CHANNEL: u8 = 1;
@@ -99,8 +99,8 @@ pub fn make_diagnostic_write_frame(
     assert!(data.len() <= MAX_DIAGNOSTIC_WRITE);
 
     let mut frame = CanFdFrame::new();
-    frame.arbitration_id = moteus_protocol::calculate_arbitration_id(
-        source_id as i8, dest_id as i8, 0, false);
+    frame.arbitration_id =
+        moteus_protocol::calculate_arbitration_id(source_id as i8, dest_id as i8, 0, false);
 
     // Write header: CLIENT_TO_SERVER, channel, length
     frame.data[0] = multiplex::CLIENT_TO_SERVER;
@@ -128,8 +128,8 @@ pub fn make_diagnostic_read_frame(
     max_length: u8,
 ) -> CanFdFrame {
     let mut frame = CanFdFrame::new();
-    frame.arbitration_id = moteus_protocol::calculate_arbitration_id(
-        source_id as i8, dest_id as i8, 0, true);
+    frame.arbitration_id =
+        moteus_protocol::calculate_arbitration_id(source_id as i8, dest_id as i8, 0, true);
 
     // Write header: CLIENT_POLL_SERVER, channel, max_length
     frame.data[0] = multiplex::CLIENT_POLL_SERVER;
@@ -245,7 +245,8 @@ impl<'a> DiagnosticStream<'a> {
     pub fn write(&mut self, data: &[u8]) -> Result<()> {
         // Split into chunks if necessary
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
-            let frame = make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
+            let frame =
+                make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
             // Write frames don't expect a reply
             let mut requests = [Request::new(frame).with_expected_replies(0)];
             self.controller.transport.cycle(&mut requests)?;
@@ -265,7 +266,8 @@ impl<'a> DiagnosticStream<'a> {
     /// Returns up to `max_bytes` of available data.
     pub fn read(&mut self, max_bytes: usize) -> Result<Vec<u8>> {
         let read_size = std::cmp::min(max_bytes, MAX_DIAGNOSTIC_READ) as u8;
-        let frame = make_diagnostic_read_frame(self.id(), self.source_id(), self.channel, read_size);
+        let frame =
+            make_diagnostic_read_frame(self.id(), self.source_id(), self.channel, read_size);
 
         let id = self.id();
         let mut requests = [Request::new(frame)
@@ -317,7 +319,11 @@ impl<'a> DiagnosticStream<'a> {
     pub fn readline(&mut self) -> Result<Vec<u8>> {
         loop {
             // Check for newline in buffer
-            if let Some(pos) = self.read_buffer.iter().position(|&b| b == b'\n' || b == b'\r') {
+            if let Some(pos) = self
+                .read_buffer
+                .iter()
+                .position(|&b| b == b'\n' || b == b'\r')
+            {
                 let line: Vec<u8> = self.read_buffer.drain(..=pos).collect();
                 // Strip trailing newline/carriage return
                 let line: Vec<u8> = line
@@ -447,7 +453,8 @@ impl<'a> AsyncDiagnosticStream<'a> {
     /// Writes raw data to the diagnostic stream.
     pub async fn write(&mut self, data: &[u8]) -> Result<()> {
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
-            let frame = make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
+            let frame =
+                make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
             // Write frames don't expect a reply
             let mut requests = [Request::new(frame).with_expected_replies(0)];
             self.controller.transport.cycle(&mut requests).await?;
@@ -465,7 +472,8 @@ impl<'a> AsyncDiagnosticStream<'a> {
     /// Reads data from the diagnostic stream.
     pub async fn read(&mut self, max_bytes: usize) -> Result<Vec<u8>> {
         let read_size = std::cmp::min(max_bytes, MAX_DIAGNOSTIC_READ) as u8;
-        let frame = make_diagnostic_read_frame(self.id(), self.source_id(), self.channel, read_size);
+        let frame =
+            make_diagnostic_read_frame(self.id(), self.source_id(), self.channel, read_size);
 
         let id = self.id();
         let mut requests = [Request::new(frame)
@@ -513,7 +521,11 @@ impl<'a> AsyncDiagnosticStream<'a> {
     pub async fn readline(&mut self) -> Result<Vec<u8>> {
         loop {
             // Check for newline in buffer
-            if let Some(pos) = self.read_buffer.iter().position(|&b| b == b'\n' || b == b'\r') {
+            if let Some(pos) = self
+                .read_buffer
+                .iter()
+                .position(|&b| b == b'\n' || b == b'\r')
+            {
                 let line: Vec<u8> = self.read_buffer.drain(..=pos).collect();
                 let line: Vec<u8> = line
                     .into_iter()
@@ -582,7 +594,10 @@ mod tests {
     fn test_make_diagnostic_write_frame() {
         let frame = make_diagnostic_write_frame(1, 0, 1, b"hello");
 
-        assert_eq!(frame.arbitration_id, moteus_protocol::calculate_arbitration_id(0, 1, 0, false));
+        assert_eq!(
+            frame.arbitration_id,
+            moteus_protocol::calculate_arbitration_id(0, 1, 0, false)
+        );
         assert_eq!(frame.data[0], multiplex::CLIENT_TO_SERVER);
         assert_eq!(frame.data[1], 1); // channel
         assert_eq!(frame.data[2], 5); // length
@@ -594,7 +609,10 @@ mod tests {
     fn test_make_diagnostic_read_frame() {
         let frame = make_diagnostic_read_frame(1, 0, 1, 48);
 
-        assert_eq!(frame.arbitration_id, moteus_protocol::calculate_arbitration_id(0, 1, 0, true));
+        assert_eq!(
+            frame.arbitration_id,
+            moteus_protocol::calculate_arbitration_id(0, 1, 0, true)
+        );
         assert_eq!(frame.data[0], multiplex::CLIENT_POLL_SERVER);
         assert_eq!(frame.data[1], 1); // channel
         assert_eq!(frame.data[2], 48); // max_length

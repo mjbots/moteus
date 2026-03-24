@@ -99,7 +99,6 @@ pub enum HomeState {
     Output = 2,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

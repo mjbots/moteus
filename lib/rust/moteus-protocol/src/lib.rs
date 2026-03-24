@@ -58,11 +58,10 @@ pub mod scaling;
 pub mod command;
 pub mod query;
 
-pub use frame::{CanFdFrame, Toggle, calculate_arbitration_id, parse_arbitration_id};
+pub use frame::{calculate_arbitration_id, parse_arbitration_id, CanFdFrame, Toggle};
 pub use mode::{HomeState, Mode};
 pub use multiplex::{
-    FrameParser, Subframe, SubframeType, Value, WriteCanData, WriteCombiner,
-    parse_frame,
+    parse_frame, FrameParser, Subframe, SubframeType, Value, WriteCanData, WriteCombiner,
 };
 pub use register::Register;
 pub use resolution::Resolution;

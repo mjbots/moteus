@@ -18,7 +18,7 @@
 # See moteus-protocol/ for the no_std protocol crate
 # See moteus/ for the full client library with transports
 
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rustfmt_test")
 
 test_suite(
     name = "host",
@@ -30,6 +30,7 @@ test_suite(
         "//lib/rust/moteus:moteus-doc-test-all-features",
         "//lib/rust:clippy",
         "//lib/rust:rustdoc",
+        "//lib/rust:fmt",
     ],
 )
 
@@ -42,6 +43,17 @@ sh_test(
         "//lib/rust/moteus-derive:moteus-derive-clippy",
         "//lib/rust/moteus-protocol:moteus-protocol-clippy",
         "//lib/rust/moteus:moteus-clippy",
+    ],
+    size = "small",
+)
+
+# Formatting check using the bazel Rust toolchain's rustfmt.
+rustfmt_test(
+    name = "fmt",
+    targets = [
+        "//lib/rust/moteus-derive",
+        "//lib/rust/moteus-protocol",
+        "//lib/rust/moteus:moteus",
     ],
     size = "small",
 )

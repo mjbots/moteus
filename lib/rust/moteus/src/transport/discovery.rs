@@ -17,7 +17,6 @@
 //! This module provides functions to detect available CAN-FD interfaces
 //! on the system.
 
-
 /// Information about a detected fdcanusb device.
 #[derive(Debug, Clone)]
 pub struct FdcanusbInfo {
@@ -70,8 +69,7 @@ pub fn detect_fdcanusbs() -> Vec<FdcanusbInfo> {
 
             if name.to_lowercase().contains("fdcanusb") {
                 let path = entry.path();
-                let resolved = fs::canonicalize(&path)
-                    .unwrap_or_else(|_| path.clone());
+                let resolved = fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
 
                 // Extract serial number from the symlink name
                 // Format: usb-mjbots_fdcanusb_SERIALNUM-ifNN
@@ -79,10 +77,7 @@ pub fn detect_fdcanusbs() -> Vec<FdcanusbInfo> {
                 let serial_number = name
                     .rsplit('_')
                     .next()
-                    .and_then(|s| {
-                        s.strip_suffix("-if00")
-                            .or_else(|| s.strip_suffix("-if01"))
-                    })
+                    .and_then(|s| s.strip_suffix("-if00").or_else(|| s.strip_suffix("-if01")))
                     .map(String::from);
 
                 result.push(FdcanusbInfo {
