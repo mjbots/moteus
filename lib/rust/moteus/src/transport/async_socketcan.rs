@@ -19,7 +19,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::transport::async_socketcan::AsyncSocketCan;
 //!
 //! #[tokio::main]

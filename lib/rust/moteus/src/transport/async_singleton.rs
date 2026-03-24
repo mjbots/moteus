@@ -20,7 +20,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::transport::async_singleton::get_async_singleton_transport;
 //!
 //! #[tokio::main]
@@ -55,7 +55,7 @@ static GLOBAL_ASYNC_TRANSPORT: OnceCell<Arc<Mutex<AsyncTransport>>> = OnceCell::
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::transport::async_singleton::get_async_singleton_transport;
 /// use moteus::transport::async_factory::AsyncTransportOptions;
 ///

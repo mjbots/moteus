@@ -547,8 +547,13 @@ impl Fdcanusb<LinuxSerialPort> {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let fdcanusb = Fdcanusb::new("/dev/ttyACM0")?;
+    /// ```no_run
+    /// use moteus::transport::fdcanusb::Fdcanusb;
+    ///
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let fdcanusb = Fdcanusb::new("/dev/ttyACM0")?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn new(path: &str) -> Result<Self> {
         let port = LinuxSerialPort::open(path)?;

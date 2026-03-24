@@ -37,10 +37,10 @@ pub struct WithQuery<C> {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use moteus::CommandExt;
-/// use moteus_protocol::command::PositionCommand;
-/// use moteus_protocol::query::QueryFormat;
+/// use moteus::command::PositionCommand;
+/// use moteus::query::QueryFormat;
 ///
 /// let cmd = PositionCommand::new()
 ///     .position(0.5)
