@@ -596,7 +596,7 @@ impl BlockingController {
     // === Output Position Methods ===
 
     /// Sets output position to nearest value.
-    pub fn set_output_nearest(&mut self, position: f64) -> Result<QueryResult> {
+    pub fn set_output_nearest(&mut self, position: f32) -> Result<QueryResult> {
         let mut requests = vec![Request::from_command(self.controller.make_set_output_nearest(position, true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
@@ -609,7 +609,7 @@ impl BlockingController {
     }
 
     /// Sets output position to exact value.
-    pub fn set_output_exact(&mut self, position: f64) -> Result<QueryResult> {
+    pub fn set_output_exact(&mut self, position: f32) -> Result<QueryResult> {
         let mut requests = vec![Request::from_command(self.controller.make_set_output_exact(position, true))];
         self.transport.cycle(&mut requests)?;
         requests[0]

@@ -60,7 +60,7 @@ use moteus_protocol::Resolution;
 /// Wraps a target position (in revolutions) with optional overrides
 /// for velocity, torque limits, and other position command fields.
 ///
-/// Use `From<f64>` to create a simple position-only setpoint:
+/// Use `From<f32>` to create a simple position-only setpoint:
 ///
 /// ```rust
 /// use moteus::move_to::Setpoint;
@@ -69,15 +69,15 @@ use moteus_protocol::Resolution;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Setpoint {
-    /// Target position in revolutions. Use `f64::NAN` to hold current position.
-    pub position: f64,
+    /// Target position in revolutions. Use `f32::NAN` to hold current position.
+    pub position: f32,
     /// Optional overrides applied on top of `MoveToOptions` defaults.
     pub overrides: PositionCommand,
 }
 
 impl Setpoint {
     /// Creates a new setpoint for the given position.
-    pub fn new(position: f64) -> Self {
+    pub fn new(position: f32) -> Self {
         Setpoint {
             position,
             overrides: PositionCommand::new(),
@@ -85,62 +85,62 @@ impl Setpoint {
     }
 
     /// Sets a velocity override (builder pattern).
-    pub fn velocity(mut self, v: f64) -> Self {
+    pub fn velocity(mut self, v: f32) -> Self {
         self.overrides.velocity = Some(v);
         self
     }
 
     /// Sets a velocity_limit override (builder pattern).
-    pub fn velocity_limit(mut self, v: f64) -> Self {
+    pub fn velocity_limit(mut self, v: f32) -> Self {
         self.overrides.velocity_limit = Some(v);
         self
     }
 
     /// Sets an accel_limit override (builder pattern).
-    pub fn accel_limit(mut self, v: f64) -> Self {
+    pub fn accel_limit(mut self, v: f32) -> Self {
         self.overrides.accel_limit = Some(v);
         self
     }
 
     /// Sets a maximum_torque override (builder pattern).
-    pub fn maximum_torque(mut self, v: f64) -> Self {
+    pub fn maximum_torque(mut self, v: f32) -> Self {
         self.overrides.maximum_torque = Some(v);
         self
     }
 
     /// Sets a kp_scale override (builder pattern).
-    pub fn kp_scale(mut self, v: f64) -> Self {
+    pub fn kp_scale(mut self, v: f32) -> Self {
         self.overrides.kp_scale = Some(v);
         self
     }
 
     /// Sets a kd_scale override (builder pattern).
-    pub fn kd_scale(mut self, v: f64) -> Self {
+    pub fn kd_scale(mut self, v: f32) -> Self {
         self.overrides.kd_scale = Some(v);
         self
     }
 
     /// Sets a feedforward_torque override (builder pattern).
-    pub fn feedforward_torque(mut self, v: f64) -> Self {
+    pub fn feedforward_torque(mut self, v: f32) -> Self {
         self.overrides.feedforward_torque = Some(v);
         self
     }
 
     /// Sets a stop_position override (builder pattern).
-    pub fn stop_position(mut self, v: f64) -> Self {
+    pub fn stop_position(mut self, v: f32) -> Self {
         self.overrides.stop_position = Some(v);
         self
     }
 
     /// Sets a watchdog_timeout override (builder pattern).
-    pub fn watchdog_timeout(mut self, v: f64) -> Self {
+    pub fn watchdog_timeout(mut self, v: f32) -> Self {
         self.overrides.watchdog_timeout = Some(v);
         self
     }
 }
 
-impl From<f64> for Setpoint {
-    fn from(position: f64) -> Self {
+impl From<f32> for Setpoint {
+    fn from(position: f32) -> Self {
         Setpoint::new(position)
     }
 }
@@ -150,17 +150,17 @@ impl From<f64> for Setpoint {
 pub struct MoveToOptions {
     /// Total duration of the move in seconds. When set, velocity_limit
     /// is computed per-servo as `|target - current| / duration`.
-    pub duration: Option<f64>,
+    pub duration: Option<f32>,
     /// Default velocity_limit applied to all servos (rev/s).
-    pub velocity_limit: Option<f64>,
+    pub velocity_limit: Option<f32>,
     /// Default accel_limit applied to all servos (rev/s^2).
-    pub accel_limit: Option<f64>,
+    pub accel_limit: Option<f32>,
     /// Default maximum_torque applied to all servos (Nm).
-    pub maximum_torque: Option<f64>,
+    pub maximum_torque: Option<f32>,
     /// Polling period in seconds (default 0.025 = 25 ms).
-    pub period_s: f64,
+    pub period_s: f32,
     /// Maximum time to wait before returning `Error::Timeout`.
-    pub timeout: Option<f64>,
+    pub timeout: Option<f32>,
 }
 
 impl Default for MoveToOptions {
@@ -183,37 +183,37 @@ impl MoveToOptions {
     }
 
     /// Sets the move duration in seconds (builder pattern).
-    pub fn duration(mut self, d: f64) -> Self {
+    pub fn duration(mut self, d: f32) -> Self {
         self.duration = Some(d);
         self
     }
 
     /// Sets the default velocity_limit (builder pattern).
-    pub fn velocity_limit(mut self, v: f64) -> Self {
+    pub fn velocity_limit(mut self, v: f32) -> Self {
         self.velocity_limit = Some(v);
         self
     }
 
     /// Sets the default accel_limit (builder pattern).
-    pub fn accel_limit(mut self, a: f64) -> Self {
+    pub fn accel_limit(mut self, a: f32) -> Self {
         self.accel_limit = Some(a);
         self
     }
 
     /// Sets the default maximum_torque (builder pattern).
-    pub fn maximum_torque(mut self, t: f64) -> Self {
+    pub fn maximum_torque(mut self, t: f32) -> Self {
         self.maximum_torque = Some(t);
         self
     }
 
     /// Sets the polling period in seconds (builder pattern).
-    pub fn period_s(mut self, p: f64) -> Self {
+    pub fn period_s(mut self, p: f32) -> Self {
         self.period_s = p;
         self
     }
 
     /// Sets the timeout in seconds (builder pattern).
-    pub fn timeout(mut self, t: f64) -> Self {
+    pub fn timeout(mut self, t: f32) -> Self {
         self.timeout = Some(t);
         self
     }
@@ -324,8 +324,8 @@ pub fn move_to(
     let velocity_limits = compute_velocity_limits(transport, servos, options, &query_format)?;
 
     let start = std::time::Instant::now();
-    let interval = std::time::Duration::from_secs_f64(options.period_s);
-    let timeout_dur = options.timeout.map(std::time::Duration::from_secs_f64);
+    let interval = std::time::Duration::from_secs_f32(options.period_s);
+    let timeout_dur = options.timeout.map(std::time::Duration::from_secs_f32);
 
     let mut count: i32 = 2;
     let mut last_results: Vec<Option<QueryResult>> = vec![None; servos.len()];
@@ -421,7 +421,7 @@ fn compute_velocity_limits(
     servos: &[(&Controller, Setpoint)],
     options: &MoveToOptions,
     query_format: &QueryFormat,
-) -> Result<Vec<Option<f64>>> {
+) -> Result<Vec<Option<f32>>> {
     let duration = match options.duration {
         Some(d) if d > 0.0 => d,
         _ => return Ok(vec![None; servos.len()]),
@@ -489,8 +489,8 @@ pub async fn async_move_to(
         async_compute_velocity_limits(transport, servos, options, &query_format).await?;
 
     let start = std::time::Instant::now();
-    let interval = std::time::Duration::from_secs_f64(options.period_s);
-    let timeout_dur = options.timeout.map(std::time::Duration::from_secs_f64);
+    let interval = std::time::Duration::from_secs_f32(options.period_s);
+    let timeout_dur = options.timeout.map(std::time::Duration::from_secs_f32);
 
     let mut count: i32 = 2;
     let mut last_results: Vec<Option<QueryResult>> = vec![None; servos.len()];
@@ -586,7 +586,7 @@ async fn async_compute_velocity_limits(
     servos: &[(&Controller, Setpoint)],
     options: &MoveToOptions,
     query_format: &QueryFormat,
-) -> Result<Vec<Option<f64>>> {
+) -> Result<Vec<Option<f32>>> {
     let duration = match options.duration {
         Some(d) if d > 0.0 => d,
         _ => return Ok(vec![None; servos.len()]),
@@ -632,7 +632,7 @@ mod tests {
     use crate::transport::NullTransport;
 
     #[test]
-    fn test_setpoint_from_f64() {
+    fn test_setpoint_from_f32() {
         let sp: Setpoint = 0.5.into();
         assert_eq!(sp.position, 0.5);
         assert!(sp.overrides.velocity.is_none());
