@@ -34,11 +34,9 @@
 //!
 //! // Build a position command frame
 //! let mut frame = CanFdFrame::new();
-//! let cmd = PositionCommand {
-//!     position: Some(0.5),
-//!     velocity: Some(1.0),
-//!     ..Default::default()
-//! };
+//! let cmd = PositionCommand::new()
+//!     .position(0.5)
+//!     .velocity(1.0);
 //! cmd.serialize(&mut frame, &Default::default());
 //!
 //! // Add a query for telemetry

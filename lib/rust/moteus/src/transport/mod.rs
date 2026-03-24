@@ -116,6 +116,7 @@ pub trait TransportOps {
 // =============================================================================
 
 /// Information about a discovered device on the CAN bus.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
     /// The CAN ID of the device.

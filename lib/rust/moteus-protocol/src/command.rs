@@ -31,6 +31,7 @@ use crate::resolution::Resolution;
 use moteus_derive::Setters;
 
 /// Format (resolution) configuration for position mode commands.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct PositionFormat {
     pub position: Resolution,
@@ -74,6 +75,7 @@ impl Default for PositionFormat {
 ///
 /// This is the primary control mode for moteus. All fields are optional;
 /// fields set to `None` will not be transmitted (using Ignore resolution).
+#[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct PositionCommand {
     /// Target position in revolutions
@@ -265,6 +267,7 @@ impl PositionCommand {
 }
 
 /// Format for VFOC mode commands.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct VFOCFormat {
     pub theta: Resolution,
@@ -283,6 +286,7 @@ impl Default for VFOCFormat {
 }
 
 /// Voltage-mode FOC command.
+#[non_exhaustive]
 #[derive(Debug, Clone, Setters)]
 pub struct VFOCCommand {
     /// Electrical angle in radians
@@ -357,6 +361,7 @@ impl VFOCCommand {
 }
 
 /// Format for current mode commands.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct CurrentFormat {
     pub d_a: Resolution,
@@ -373,6 +378,7 @@ impl Default for CurrentFormat {
 }
 
 /// DQ-axis current command.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct CurrentCommand {
     /// D-axis current in Amps
@@ -430,6 +436,7 @@ impl CurrentCommand {
 }
 
 /// Format for stay-within mode commands.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct StayWithinFormat {
     pub lower_bound: Resolution,
@@ -460,6 +467,7 @@ impl Default for StayWithinFormat {
 }
 
 /// Stay-within mode command.
+#[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct StayWithinCommand {
     /// Lower position bound in revolutions
@@ -591,6 +599,7 @@ impl StayWithinCommand {
 }
 
 /// Format for zero-velocity mode commands.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct ZeroVelocityFormat {
     pub kd_scale: Resolution,
@@ -605,6 +614,7 @@ impl Default for ZeroVelocityFormat {
 }
 
 /// Zero-velocity mode command.
+#[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct ZeroVelocityCommand {
     /// Kd scale factor for damping
@@ -740,6 +750,7 @@ impl RecapturePositionVelocityCommand {
 }
 
 /// Format for AUX PWM commands.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct AuxPwmFormat {
     pub aux1_pwm1: Resolution,
@@ -776,6 +787,7 @@ impl Default for AuxPwmFormat {
 /// Sets PWM duty cycles on the AUX1 and AUX2 ports.
 /// Each port supports up to 5 PWM channels.
 /// Values are 0.0-1.0 duty cycle.
+#[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct AuxPwmCommand {
     /// AUX1 PWM channel 1 duty cycle (0.0-1.0)

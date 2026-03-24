@@ -26,6 +26,7 @@ use std::time::Duration;
 use crate::transport::async_transport::BoxFuture;
 
 /// Information about a transport device.
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct TransportDeviceInfo {
     /// Unique identifier for this device within the router.
