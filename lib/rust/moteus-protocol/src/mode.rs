@@ -83,6 +83,20 @@ impl core::fmt::Display for Mode {
 
 impl Mode {
     /// Returns `true` if the controller is in an error state.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use moteus_protocol::Mode;
+    ///
+    /// let mode = Mode::Position;
+    /// assert!(mode.is_active());
+    /// assert!(!mode.is_error());
+    ///
+    /// let fault = Mode::Fault;
+    /// assert!(fault.is_error());
+    /// assert!(!fault.is_active());
+    /// ```
     pub fn is_error(&self) -> bool {
         matches!(self, Mode::Fault | Mode::Timeout)
     }
