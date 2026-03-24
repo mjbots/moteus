@@ -1,7 +1,8 @@
 [package]
 name = "moteus"
 version = "1.0.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 description = "Rust client library for moteus brushless motor controllers"
 license = "Apache-2.0"
 repository = "https://github.com/mjbots/moteus"
