@@ -22,52 +22,47 @@ use crate::frame::CanFdFrame;
 use crate::resolution::Resolution;
 use crate::scaling::{saturate_i8, saturate_i16, saturate_i32, Scaling};
 
-/// Multiplex protocol command byte constants.
-pub struct Multiplex;
+/// Write Int8 values
+pub const WRITE_INT8: u8 = 0x00;
+/// Write Int16 values
+pub const WRITE_INT16: u8 = 0x04;
+/// Write Int32 values
+pub const WRITE_INT32: u8 = 0x08;
+/// Write Float values
+pub const WRITE_FLOAT: u8 = 0x0c;
 
-impl Multiplex {
-    /// Write Int8 values
-    pub const WRITE_INT8: u8 = 0x00;
-    /// Write Int16 values
-    pub const WRITE_INT16: u8 = 0x04;
-    /// Write Int32 values
-    pub const WRITE_INT32: u8 = 0x08;
-    /// Write Float values
-    pub const WRITE_FLOAT: u8 = 0x0c;
+/// Read Int8 values
+pub const READ_INT8: u8 = 0x10;
+/// Read Int16 values
+pub const READ_INT16: u8 = 0x14;
+/// Read Int32 values
+pub const READ_INT32: u8 = 0x18;
+/// Read Float values
+pub const READ_FLOAT: u8 = 0x1c;
 
-    /// Read Int8 values
-    pub const READ_INT8: u8 = 0x10;
-    /// Read Int16 values
-    pub const READ_INT16: u8 = 0x14;
-    /// Read Int32 values
-    pub const READ_INT32: u8 = 0x18;
-    /// Read Float values
-    pub const READ_FLOAT: u8 = 0x1c;
+/// Reply Int8 values
+pub const REPLY_INT8: u8 = 0x20;
+/// Reply Int16 values
+pub const REPLY_INT16: u8 = 0x24;
+/// Reply Int32 values
+pub const REPLY_INT32: u8 = 0x28;
+/// Reply Float values
+pub const REPLY_FLOAT: u8 = 0x2c;
 
-    /// Reply Int8 values
-    pub const REPLY_INT8: u8 = 0x20;
-    /// Reply Int16 values
-    pub const REPLY_INT16: u8 = 0x24;
-    /// Reply Int32 values
-    pub const REPLY_INT32: u8 = 0x28;
-    /// Reply Float values
-    pub const REPLY_FLOAT: u8 = 0x2c;
+/// Write error
+pub const WRITE_ERROR: u8 = 0x30;
+/// Read error
+pub const READ_ERROR: u8 = 0x31;
 
-    /// Write error
-    pub const WRITE_ERROR: u8 = 0x30;
-    /// Read error
-    pub const READ_ERROR: u8 = 0x31;
+/// Tunneled stream: client to server
+pub const CLIENT_TO_SERVER: u8 = 0x40;
+/// Tunneled stream: server to client
+pub const SERVER_TO_CLIENT: u8 = 0x41;
+/// Tunneled stream: client poll server
+pub const CLIENT_POLL_SERVER: u8 = 0x42;
 
-    /// Tunneled stream: client to server
-    pub const CLIENT_TO_SERVER: u8 = 0x40;
-    /// Tunneled stream: server to client
-    pub const SERVER_TO_CLIENT: u8 = 0x41;
-    /// Tunneled stream: client poll server
-    pub const CLIENT_POLL_SERVER: u8 = 0x42;
-
-    /// No operation
-    pub const NOP: u8 = 0x50;
-}
+/// No operation
+pub const NOP: u8 = 0x50;
 
 /// Writer for appending data to a CAN-FD frame.
 pub struct WriteCanData<'a> {
@@ -658,8 +653,8 @@ impl<'a> FrameParser<'a> {
     /// Parses an error subframe (0x30 or 0x31).
     fn parse_error(&mut self, cmd: u8) -> Option<Subframe<'a>> {
         let subframe_type = match cmd {
-            Multiplex::WRITE_ERROR => SubframeType::WriteError,
-            Multiplex::READ_ERROR => SubframeType::ReadError,
+            WRITE_ERROR => SubframeType::WriteError,
+            READ_ERROR => SubframeType::ReadError,
             _ => return None,
         };
 
@@ -676,9 +671,9 @@ impl<'a> FrameParser<'a> {
     /// Parses a stream subframe (0x40-0x42).
     fn parse_stream(&mut self, cmd: u8) -> Option<Subframe<'a>> {
         let subframe_type = match cmd {
-            Multiplex::CLIENT_TO_SERVER => SubframeType::StreamClientToServer,
-            Multiplex::SERVER_TO_CLIENT => SubframeType::StreamServerToClient,
-            Multiplex::CLIENT_POLL_SERVER => SubframeType::StreamClientPollServer,
+            CLIENT_TO_SERVER => SubframeType::StreamClientToServer,
+            SERVER_TO_CLIENT => SubframeType::StreamServerToClient,
+            CLIENT_POLL_SERVER => SubframeType::StreamClientPollServer,
             _ => return None,
         };
 
@@ -716,7 +711,7 @@ impl<'a> Iterator for FrameParser<'a> {
             self.offset += 1;
 
             // NOP: skip silently
-            if cmd == Multiplex::NOP {
+            if cmd == NOP {
                 continue;
             }
 
