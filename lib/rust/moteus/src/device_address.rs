@@ -88,6 +88,7 @@ impl DeviceAddress {
     }
 
     /// Set the transport device index (builder pattern).
+    #[must_use]
     pub fn with_transport_device(mut self, idx: usize) -> Self {
         self.transport_device = Some(idx);
         self

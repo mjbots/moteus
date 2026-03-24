@@ -217,6 +217,7 @@ impl AsyncController {
     /// Set an explicit async transport (builder pattern).
     ///
     /// This bypasses auto-discovery and uses the provided transport directly.
+    #[must_use]
     pub fn transport<T: AsyncTransportOps + Send + 'static>(mut self, t: T) -> Self {
         self.transport = AsyncTransportHolder::Explicit(Box::new(t));
         self
@@ -225,6 +226,7 @@ impl AsyncController {
     /// Set an explicit async transport using a boxed trait object.
     ///
     /// This is useful when you have a pre-boxed transport from the async factory.
+    #[must_use]
     pub fn set_boxed_transport(mut self, t: Box<dyn AsyncTransportOps + Send>) -> Self {
         self.transport = AsyncTransportHolder::Explicit(t);
         self
