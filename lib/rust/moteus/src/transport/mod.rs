@@ -40,11 +40,11 @@
 //!
 //! When the `tokio` feature is enabled, additional async transport modules are available:
 //!
-//! - [`async_fdcanusb`]: Tokio-based async FdCanUSB transport
-//! - [`async_socketcan`]: Tokio-based async SocketCAN transport (Linux only)
-//! - [`async_factory`]: Async transport factory for device creation
-//! - [`async_transport`]: Async Transport for multi-device routing
-//! - [`async_singleton`]: Global async singleton transport
+//! - `async_fdcanusb`: Tokio-based async FdCanUSB transport
+//! - `async_socketcan`: Tokio-based async SocketCAN transport (Linux only)
+//! - `async_factory`: Async transport factory for device creation
+//! - `async_transport`: Async Transport for multi-device routing
+//! - `async_singleton`: Global async singleton transport
 
 pub mod args;
 pub mod async_transport;

@@ -179,8 +179,7 @@ pub trait TransportFactory: Send + Sync {
     /// Command-line argument specifications for this factory.
     ///
     /// Override this to declare factory-specific CLI arguments. These are
-    /// included by [`transport_arg_specs()`](super::args::transport_arg_specs)
-    /// and [`add_transport_args()`](super::args::add_transport_args).
+    /// included by [`transport_arg_specs()`](super::args::transport_arg_specs).
     fn arg_specs(&self) -> Vec<ArgSpec> {
         Vec::new()
     }

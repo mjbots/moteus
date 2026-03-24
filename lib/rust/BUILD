@@ -29,6 +29,7 @@ test_suite(
         "//lib/rust/moteus:moteus-doc-test",
         "//lib/rust/moteus:moteus-doc-test-all-features",
         "//lib/rust:clippy",
+        "//lib/rust:rustdoc",
     ],
 )
 
@@ -41,6 +42,17 @@ sh_test(
         "//lib/rust/moteus-derive:moteus-derive-clippy",
         "//lib/rust/moteus-protocol:moteus-protocol-clippy",
         "//lib/rust/moteus:moteus-clippy",
+    ],
+    size = "small",
+)
+
+# Rustdoc lint checks (warnings as errors).
+sh_test(
+    name = "rustdoc",
+    srcs = ["clippy_test.sh"],
+    data = [
+        "//lib/rust/moteus-protocol:moteus-protocol-doc",
+        "//lib/rust/moteus:moteus-doc",
     ],
     size = "small",
 )
