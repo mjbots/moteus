@@ -182,6 +182,22 @@ impl core::fmt::Debug for CanFdFrame {
 /// - bit 15     = reply expected flag
 /// - bits 14:8  = source (7 bits)
 /// - bits 7:0   = destination (8 bits)
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::{calculate_arbitration_id, parse_arbitration_id};
+///
+/// // Build an arbitration ID for source=0, dest=1, no prefix, reply expected
+/// let arb_id = calculate_arbitration_id(0, 1, 0, true);
+/// assert_eq!(arb_id, 0x8001);
+///
+/// // Parse it back
+/// let (source, dest, prefix) = parse_arbitration_id(arb_id);
+/// assert_eq!(source, 0);
+/// assert_eq!(dest, 1);
+/// assert_eq!(prefix, 0);
+/// ```
 pub fn calculate_arbitration_id(
     source: i8,
     destination: i8,
@@ -199,6 +215,17 @@ pub fn calculate_arbitration_id(
 ///
 /// Returns (source, destination, can_prefix).
 /// This is the inverse of [`calculate_arbitration_id`].
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::parse_arbitration_id;
+///
+/// // Extract routing from a received frame's arbitration ID
+/// let (source, dest, prefix) = parse_arbitration_id(0x8100);
+/// assert_eq!(source, 1);  // device 1 sent this
+/// assert_eq!(dest, 0);    // addressed to us
+/// ```
 pub fn parse_arbitration_id(arb_id: u32) -> (i8, i8, u16) {
     let source = ((arb_id >> 8) & 0x7F) as i8;
     let destination = (arb_id & 0xFF) as i8;

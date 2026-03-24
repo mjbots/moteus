@@ -30,6 +30,24 @@ pub const MAX_EXTRA: usize = 16;
 ///
 /// Specifies which registers to query and at what resolution.
 /// Setting a field to `Resolution::Ignore` means that register will not be queried.
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::Resolution;
+/// use moteus_protocol::query::QueryFormat;
+///
+/// // Default format queries position, velocity, torque, and q_current
+/// let default = QueryFormat::default();
+///
+/// // Comprehensive format includes all standard registers
+/// let full = QueryFormat::comprehensive();
+///
+/// // Or customize individual registers
+/// let mut custom = QueryFormat::default();
+/// custom.abs_position = Resolution::Float;
+/// custom.voltage = Resolution::Int16;
+/// ```
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct QueryFormat {
@@ -267,6 +285,21 @@ pub struct ExtraValue {
 }
 
 /// Result of parsing a query response.
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::CanFdFrame;
+/// use moteus_protocol::query::QueryResult;
+///
+/// // After receiving a response frame from the device...
+/// fn handle_response(frame: &CanFdFrame) {
+///     let result = QueryResult::parse(frame);
+///     if result.mode.is_error() {
+///         eprintln!("Fault code: {}", result.fault);
+///     }
+/// }
+/// ```
 #[non_exhaustive]
 #[derive(Debug, Clone, Default)]
 pub struct QueryResult {

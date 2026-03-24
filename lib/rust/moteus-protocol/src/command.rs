@@ -75,6 +75,25 @@ impl Default for PositionFormat {
 ///
 /// This is the primary control mode for moteus. All fields are optional;
 /// fields set to `None` will not be transmitted (using Ignore resolution).
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::CanFdFrame;
+/// use moteus_protocol::command::{PositionCommand, PositionFormat};
+///
+/// let mut frame = CanFdFrame::new();
+/// frame.arbitration_id = 0x8001;
+///
+/// // Build with the builder pattern -- fields are optional
+/// let cmd = PositionCommand::new()
+///     .position(0.5)
+///     .velocity(1.0)
+///     .maximum_torque(2.0);
+///
+/// cmd.serialize(&mut frame, &PositionFormat::default());
+/// assert!(frame.size > 0);
+/// ```
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct PositionCommand {
@@ -286,6 +305,8 @@ impl Default for VFOCFormat {
 }
 
 /// Voltage-mode FOC command.
+///
+/// See [`PositionCommand`] for an example of building and serializing commands.
 #[non_exhaustive]
 #[derive(Debug, Clone, Setters)]
 pub struct VFOCCommand {
@@ -378,6 +399,19 @@ impl Default for CurrentFormat {
 }
 
 /// DQ-axis current command.
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::CanFdFrame;
+/// use moteus_protocol::command::{CurrentCommand, CurrentFormat};
+///
+/// let mut frame = CanFdFrame::new();
+/// let cmd = CurrentCommand::new()
+///     .d_current(0.0)
+///     .q_current(0.5);
+/// cmd.serialize(&mut frame, &CurrentFormat::default());
+/// ```
 #[non_exhaustive]
 #[derive(Debug, Clone)]
 pub struct CurrentCommand {
@@ -469,6 +503,22 @@ impl Default for StayWithinFormat {
 }
 
 /// Stay-within mode command.
+///
+/// Unlike [`PositionCommand`] which drives to a target, this mode keeps the
+/// servo within position bounds while applying minimal control effort.
+///
+/// # Examples
+///
+/// ```
+/// use moteus_protocol::CanFdFrame;
+/// use moteus_protocol::command::{StayWithinCommand, StayWithinFormat};
+///
+/// let mut frame = CanFdFrame::new();
+/// let cmd = StayWithinCommand::new()
+///     .lower_bound(-0.5)
+///     .upper_bound(0.5);
+/// cmd.serialize(&mut frame, &StayWithinFormat::default());
+/// ```
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct StayWithinCommand {
@@ -616,6 +666,8 @@ impl Default for ZeroVelocityFormat {
 }
 
 /// Zero-velocity mode command.
+///
+/// See [`PositionCommand`] for an example of building and serializing commands.
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, Setters)]
 pub struct ZeroVelocityCommand {
