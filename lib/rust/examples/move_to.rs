@@ -32,6 +32,7 @@ use moteus::{
     async_move_to, get_singleton_transport, move_to, Controller, MoveToOptions, Request,
     TransportArgs,
 };
+use std::time::Duration;
 
 /// Move multiple servos to target positions with coordinated timing.
 #[derive(Parser)]
@@ -82,7 +83,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
     println!("Press Ctrl+C to stop");
     println!();
 
-    let opts = MoveToOptions::new().duration(move_duration);
+    let opts = MoveToOptions::new().duration(Duration::from_secs_f32(move_duration));
 
     let mut cycle = 0u64;
     loop {
@@ -138,7 +139,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     println!("Press Ctrl+C to stop");
     println!();
 
-    let move_opts = MoveToOptions::new().duration(move_duration);
+    let move_opts = MoveToOptions::new().duration(Duration::from_secs_f32(move_duration));
 
     let mut cycle = 0u64;
     loop {

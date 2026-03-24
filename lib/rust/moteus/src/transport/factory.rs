@@ -25,13 +25,14 @@
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
 
 use crate::error::Result;
 use crate::transport::args::ArgSpec;
 use crate::transport::device::TransportDevice;
 
-/// Default communication timeout in milliseconds.
-pub const DEFAULT_TIMEOUT_MS: u32 = 100;
+/// Default communication timeout.
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_millis(100);
 
 /// Options for configuring transport creation.
 #[derive(Debug, Clone, Default)]
@@ -44,8 +45,8 @@ pub struct TransportOptions {
     pub disable_brs: bool,
     /// Force a specific transport type ("fdcanusb" or "socketcan").
     pub force_transport: Option<String>,
-    /// Communication timeout in milliseconds.
-    pub timeout_ms: u32,
+    /// Communication timeout.
+    pub timeout: Duration,
     /// Extra transport-specific options for external factories.
     ///
     /// Keys are argument names, values are lists of values (to support
@@ -58,7 +59,7 @@ impl TransportOptions {
     /// Create new transport options with default values.
     pub fn new() -> Self {
         Self {
-            timeout_ms: DEFAULT_TIMEOUT_MS,
+            timeout: DEFAULT_TIMEOUT,
             ..Default::default()
         }
     }
@@ -91,8 +92,8 @@ impl TransportOptions {
     }
 
     /// Set the communication timeout.
-    pub fn timeout_ms(mut self, timeout: u32) -> Self {
-        self.timeout_ms = timeout;
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = timeout;
         self
     }
 
@@ -131,7 +132,7 @@ impl TransportOptions {
     ///     ("timeout-ms", "200"),
     /// ]).unwrap();
     /// assert_eq!(opts.socketcan_interfaces, vec!["can0"]);
-    /// assert_eq!(opts.timeout_ms, 200);
+    /// assert_eq!(opts.timeout, std::time::Duration::from_millis(200));
     /// ```
     pub fn from_pairs<'a>(
         pairs: impl IntoIterator<Item = (&'a str, &'a str)>,
@@ -146,9 +147,10 @@ impl TransportOptions {
                     opts.force_transport = Some(value.to_string());
                 }
                 "timeout-ms" => {
-                    opts.timeout_ms = value
+                    let ms: u32 = value
                         .parse()
                         .map_err(|_| format!("invalid timeout: {}", value))?;
+                    opts.timeout = Duration::from_millis(ms as u64);
                 }
                 _ => {
                     opts.extra
@@ -241,7 +243,7 @@ impl TransportFactory for FdcanusbFactory {
 
         let mut devices: Vec<Box<dyn TransportDevice>> = Vec::new();
         for (idx, info) in infos.iter().enumerate() {
-            match Fdcanusb::with_options(&info.path, options.timeout_ms, options.disable_brs) {
+            match Fdcanusb::with_options(&info.path, options.timeout, options.disable_brs) {
                 Ok(mut transport) => {
                     transport.info.id = idx;
                     transport.info.serial_number = info.serial_number.clone();
@@ -313,7 +315,7 @@ impl TransportFactory for SocketCanFactory {
 
         let mut devices: Vec<Box<dyn TransportDevice>> = Vec::new();
         for (idx, interface) in interfaces.iter().enumerate() {
-            match SocketCan::with_options(interface, options.timeout_ms, options.disable_brs) {
+            match SocketCan::with_options(interface, options.timeout, options.disable_brs) {
                 Ok(mut transport) => {
                     transport.info.id = idx;
                     devices.push(Box::new(transport));
@@ -465,12 +467,12 @@ mod tests {
             .fdcanusb_paths(vec!["/dev/ttyACM0", "/dev/ttyACM1"])
             .socketcan_interfaces(vec!["can0"])
             .disable_brs(true)
-            .timeout_ms(200);
+            .timeout(Duration::from_millis(200));
 
         assert_eq!(opts.fdcanusb_paths, vec!["/dev/ttyACM0", "/dev/ttyACM1"]);
         assert_eq!(opts.socketcan_interfaces, vec!["can0"]);
         assert!(opts.disable_brs);
-        assert_eq!(opts.timeout_ms, 200);
+        assert_eq!(opts.timeout, Duration::from_millis(200));
     }
 
     #[test]
@@ -524,7 +526,7 @@ mod tests {
         ])
         .unwrap();
         assert_eq!(opts.socketcan_interfaces, vec!["can0"]);
-        assert_eq!(opts.timeout_ms, 200);
+        assert_eq!(opts.timeout, Duration::from_millis(200));
     }
 
     #[test]

@@ -58,6 +58,7 @@ use moteus_protocol::command::{
 use moteus_protocol::Resolution;
 use moteus_protocol::query::{QueryFormat, QueryResult};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 /// Holds the transport backing a `BlockingController`.
 ///
@@ -99,31 +100,31 @@ impl TransportHolder {
     }
 
     /// Set the timeout on the held transport.
-    fn set_timeout(&mut self, timeout_ms: u32) {
+    fn set_timeout(&mut self, timeout: Duration) {
         match self {
-            TransportHolder::Deferred(Some(opts)) => opts.timeout_ms = timeout_ms,
+            TransportHolder::Deferred(Some(opts)) => opts.timeout = timeout,
             TransportHolder::Deferred(None) => {
                 let mut opts = TransportOptions::new();
-                opts.timeout_ms = timeout_ms;
+                opts.timeout = timeout;
                 *self = TransportHolder::Deferred(Some(opts));
             }
-            TransportHolder::Explicit(t) => t.set_timeout(timeout_ms),
+            TransportHolder::Explicit(t) => t.set_timeout(timeout),
             TransportHolder::Singleton(t) => {
                 if let Ok(mut guard) = t.lock() {
-                    guard.set_timeout(timeout_ms);
+                    guard.set_timeout(timeout);
                 }
             }
         }
     }
 
     /// Get the timeout from the held transport.
-    fn timeout(&self) -> u32 {
+    fn timeout(&self) -> Duration {
         match self {
-            TransportHolder::Deferred(Some(opts)) => opts.timeout_ms,
-            TransportHolder::Deferred(None) => 100,
+            TransportHolder::Deferred(Some(opts)) => opts.timeout,
+            TransportHolder::Deferred(None) => crate::transport::factory::DEFAULT_TIMEOUT,
             TransportHolder::Explicit(t) => t.timeout(),
             TransportHolder::Singleton(t) => {
-                t.lock().map(|g| g.timeout()).unwrap_or(100)
+                t.lock().map(|g| g.timeout()).unwrap_or(crate::transport::factory::DEFAULT_TIMEOUT)
             }
         }
     }
@@ -210,7 +211,7 @@ impl BlockingController {
     /// ```ignore
     /// let opts = TransportOptions::new()
     ///     .socketcan_interfaces(vec!["can0"])
-    ///     .timeout_ms(200);
+    ///     .timeout(std::time::Duration::from_millis(200));
     /// let mut ctrl = BlockingController::with_options(1, &opts);
     /// ```
     pub fn with_options(address: impl Into<DeviceAddress>, options: &TransportOptions) -> Self {
@@ -262,12 +263,12 @@ impl BlockingController {
     }
 
     /// Sets the communication timeout.
-    pub fn set_timeout(&mut self, timeout_ms: u32) {
-        self.transport.set_timeout(timeout_ms);
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.transport.set_timeout(timeout);
     }
 
-    /// Returns the current timeout in milliseconds.
-    pub fn timeout(&self) -> u32 {
+    /// Returns the current timeout.
+    pub fn timeout(&self) -> Duration {
         self.transport.timeout()
     }
 
@@ -421,16 +422,14 @@ impl BlockingController {
     /// Polls the controller until trajectory_complete is true or timeout.
     ///
     /// # Arguments
-    /// * `poll_interval_ms` - How often to poll (milliseconds)
-    /// * `timeout_ms` - Maximum time to wait (milliseconds)
+    /// * `poll_interval` - How often to poll
+    /// * `timeout` - Maximum time to wait
     pub fn wait_for_trajectory_complete(
         &mut self,
-        poll_interval_ms: u64,
-        timeout_ms: u64,
+        poll_interval: Duration,
+        timeout: Duration,
     ) -> Result<QueryResult> {
         let start = std::time::Instant::now();
-        let timeout = std::time::Duration::from_millis(timeout_ms);
-        let interval = std::time::Duration::from_millis(poll_interval_ms);
 
         loop {
             let result = self.query()?;
@@ -443,7 +442,7 @@ impl BlockingController {
                 return Err(Error::Timeout);
             }
 
-            std::thread::sleep(interval);
+            std::thread::sleep(poll_interval);
         }
     }
 
@@ -838,31 +837,30 @@ impl BlockingController {
     ///
     /// # Arguments
     /// * `cmd` - Position command built with the builder pattern
-    /// * `poll_interval_ms` - How often to poll (milliseconds)
-    /// * `timeout_ms` - Maximum time to wait (milliseconds)
+    /// * `poll_interval` - How often to poll
+    /// * `timeout` - Maximum time to wait
     ///
     /// # Example
     ///
     /// ```ignore
     /// use moteus::BlockingController;
     /// use moteus::command::PositionCommand;
+    /// use std::time::Duration;
     ///
     /// let mut ctrl = BlockingController::new(1);
     /// let result = ctrl.set_position_wait_complete(
     ///     &PositionCommand::new().position(0.5).stop_position(0.5),
-    ///     25,   // poll every 25ms
-    ///     5000, // timeout after 5 seconds
+    ///     Duration::from_millis(25),   // poll every 25ms
+    ///     Duration::from_secs(5),      // timeout after 5 seconds
     /// )?;
     /// ```
     pub fn set_position_wait_complete(
         &mut self,
         cmd: &PositionCommand,
-        poll_interval_ms: u64,
-        timeout_ms: u64,
+        poll_interval: Duration,
+        timeout: Duration,
     ) -> Result<QueryResult> {
         let start = std::time::Instant::now();
-        let timeout = std::time::Duration::from_millis(timeout_ms);
-        let interval = std::time::Duration::from_millis(poll_interval_ms);
 
         // We need trajectory_complete in the response
         let mut query_format = self.controller.query_format.clone();
@@ -915,7 +913,7 @@ impl BlockingController {
                 return Err(Error::Timeout);
             }
 
-            std::thread::sleep(interval);
+            std::thread::sleep(poll_interval);
         }
     }
 
@@ -928,7 +926,7 @@ impl BlockingController {
     pub fn flush_transport(&mut self) -> Result<()> {
         // Attempt a read with a short timeout to clear any pending data
         let old_timeout = self.transport.timeout();
-        self.transport.set_timeout(20); // 20ms timeout
+        self.transport.set_timeout(Duration::from_millis(20));
         let mut requests: [Request; 0] = [];
         let _ = self.transport.cycle(&mut requests); // Ignore any errors/responses
         self.transport.set_timeout(old_timeout);
@@ -949,7 +947,7 @@ mod tests {
 
     #[test]
     fn test_with_options_is_infallible() {
-        let opts = TransportOptions::new().timeout_ms(200);
+        let opts = TransportOptions::new().timeout(Duration::from_millis(200));
         let _ctrl = BlockingController::with_options(1, &opts);
     }
 
@@ -975,20 +973,20 @@ mod tests {
             .transport(NullTransport::new());
 
         // Default timeout
-        assert_eq!(ctrl.timeout(), 100);
+        assert_eq!(ctrl.timeout(), Duration::from_millis(100));
 
         // Set new timeout
-        ctrl.set_timeout(500);
-        assert_eq!(ctrl.timeout(), 500);
+        ctrl.set_timeout(Duration::from_millis(500));
+        assert_eq!(ctrl.timeout(), Duration::from_millis(500));
     }
 
     #[test]
     fn test_deferred_timeout() {
         // Timeout can be set before transport is resolved
         let mut ctrl = BlockingController::new(1);
-        assert_eq!(ctrl.timeout(), 100);
-        ctrl.set_timeout(500);
-        assert_eq!(ctrl.timeout(), 500);
+        assert_eq!(ctrl.timeout(), Duration::from_millis(100));
+        ctrl.set_timeout(Duration::from_millis(500));
+        assert_eq!(ctrl.timeout(), Duration::from_millis(500));
     }
 
     #[test]

@@ -148,19 +148,19 @@ impl From<f32> for Setpoint {
 /// Configuration for a `move_to` operation.
 #[derive(Debug, Clone)]
 pub struct MoveToOptions {
-    /// Total duration of the move in seconds. When set, velocity_limit
+    /// Total duration of the move. When set, velocity_limit
     /// is computed per-servo as `|target - current| / duration`.
-    pub duration: Option<f32>,
+    pub duration: Option<std::time::Duration>,
     /// Default velocity_limit applied to all servos (rev/s).
     pub velocity_limit: Option<f32>,
     /// Default accel_limit applied to all servos (rev/s^2).
     pub accel_limit: Option<f32>,
     /// Default maximum_torque applied to all servos (Nm).
     pub maximum_torque: Option<f32>,
-    /// Polling period in seconds (default 0.025 = 25 ms).
-    pub period_s: f32,
+    /// Polling period (default 25 ms).
+    pub period: std::time::Duration,
     /// Maximum time to wait before returning `Error::Timeout`.
-    pub timeout: Option<f32>,
+    pub timeout: Option<std::time::Duration>,
 }
 
 impl Default for MoveToOptions {
@@ -170,7 +170,7 @@ impl Default for MoveToOptions {
             velocity_limit: None,
             accel_limit: None,
             maximum_torque: None,
-            period_s: 0.025,
+            period: std::time::Duration::from_millis(25),
             timeout: None,
         }
     }
@@ -182,9 +182,9 @@ impl MoveToOptions {
         Self::default()
     }
 
-    /// Sets the move duration in seconds (builder pattern).
-    pub fn duration(mut self, d: f32) -> Self {
-        self.duration = Some(d);
+    /// Sets the move duration (builder pattern).
+    pub fn duration(mut self, d: impl Into<std::time::Duration>) -> Self {
+        self.duration = Some(d.into());
         self
     }
 
@@ -206,14 +206,14 @@ impl MoveToOptions {
         self
     }
 
-    /// Sets the polling period in seconds (builder pattern).
-    pub fn period_s(mut self, p: f32) -> Self {
-        self.period_s = p;
+    /// Sets the polling period (builder pattern).
+    pub fn period(mut self, p: std::time::Duration) -> Self {
+        self.period = p;
         self
     }
 
-    /// Sets the timeout in seconds (builder pattern).
-    pub fn timeout(mut self, t: f32) -> Self {
+    /// Sets the timeout (builder pattern).
+    pub fn timeout(mut self, t: std::time::Duration) -> Self {
         self.timeout = Some(t);
         self
     }
@@ -324,8 +324,8 @@ pub fn move_to(
     let velocity_limits = compute_velocity_limits(transport, servos, options, &query_format)?;
 
     let start = std::time::Instant::now();
-    let interval = std::time::Duration::from_secs_f32(options.period_s);
-    let timeout_dur = options.timeout.map(std::time::Duration::from_secs_f32);
+    let interval = options.period;
+    let timeout_dur = options.timeout;
 
     let mut count: i32 = 2;
     let mut last_results: Vec<Option<QueryResult>> = vec![None; servos.len()];
@@ -422,8 +422,14 @@ fn compute_velocity_limits(
     options: &MoveToOptions,
     query_format: &QueryFormat,
 ) -> Result<Vec<Option<f32>>> {
-    let duration = match options.duration {
-        Some(d) if d > 0.0 => d,
+    let duration_s = match options.duration {
+        Some(d) => {
+            let s = d.as_secs_f32();
+            if s <= 0.0 {
+                return Ok(vec![None; servos.len()]);
+            }
+            s
+        }
         _ => return Ok(vec![None; servos.len()]),
     };
 
@@ -453,7 +459,7 @@ fn compute_velocity_limits(
             .map(|frame| {
                 let qr = controller.parse_query(&frame);
                 let distance = (setpoint.position - qr.position).abs();
-                distance / duration
+                distance / duration_s
             });
         limits.push(vl);
     }
@@ -489,8 +495,8 @@ pub async fn async_move_to(
         async_compute_velocity_limits(transport, servos, options, &query_format).await?;
 
     let start = std::time::Instant::now();
-    let interval = std::time::Duration::from_secs_f32(options.period_s);
-    let timeout_dur = options.timeout.map(std::time::Duration::from_secs_f32);
+    let interval = options.period;
+    let timeout_dur = options.timeout;
 
     let mut count: i32 = 2;
     let mut last_results: Vec<Option<QueryResult>> = vec![None; servos.len()];
@@ -587,8 +593,14 @@ async fn async_compute_velocity_limits(
     options: &MoveToOptions,
     query_format: &QueryFormat,
 ) -> Result<Vec<Option<f32>>> {
-    let duration = match options.duration {
-        Some(d) if d > 0.0 => d,
+    let duration_s = match options.duration {
+        Some(d) => {
+            let s = d.as_secs_f32();
+            if s <= 0.0 {
+                return Ok(vec![None; servos.len()]);
+            }
+            s
+        }
         _ => return Ok(vec![None; servos.len()]),
     };
 
@@ -618,7 +630,7 @@ async fn async_compute_velocity_limits(
             .map(|frame| {
                 let qr = controller.parse_query(&frame);
                 let distance = (setpoint.position - qr.position).abs();
-                distance / duration
+                distance / duration_s
             });
         limits.push(vl);
     }
@@ -655,23 +667,23 @@ mod tests {
         let opts = MoveToOptions::new();
         assert!(opts.duration.is_none());
         assert!(opts.velocity_limit.is_none());
-        assert_eq!(opts.period_s, 0.025);
+        assert_eq!(opts.period, std::time::Duration::from_millis(25));
         assert!(opts.timeout.is_none());
     }
 
     #[test]
     fn test_move_to_options_builder() {
         let opts = MoveToOptions::new()
-            .duration(2.0)
+            .duration(std::time::Duration::from_secs(2))
             .velocity_limit(1.0)
             .accel_limit(5.0)
-            .period_s(0.05)
-            .timeout(10.0);
-        assert_eq!(opts.duration, Some(2.0));
+            .period(std::time::Duration::from_millis(50))
+            .timeout(std::time::Duration::from_secs(10));
+        assert_eq!(opts.duration, Some(std::time::Duration::from_secs(2)));
         assert_eq!(opts.velocity_limit, Some(1.0));
         assert_eq!(opts.accel_limit, Some(5.0));
-        assert_eq!(opts.period_s, 0.05);
-        assert_eq!(opts.timeout, Some(10.0));
+        assert_eq!(opts.period, std::time::Duration::from_millis(50));
+        assert_eq!(opts.timeout, Some(std::time::Duration::from_secs(10)));
     }
 
     #[test]
@@ -703,7 +715,7 @@ mod tests {
     fn test_move_to_timeout() {
         let mut transport = NullTransport::new();
         let c = Controller::new(1);
-        let opts = MoveToOptions::new().timeout(0.05);
+        let opts = MoveToOptions::new().timeout(std::time::Duration::from_millis(50));
         let result = move_to(&mut transport, &[(&c, 0.5.into())], &opts);
         assert!(matches!(result, Err(Error::Timeout)));
     }

@@ -84,7 +84,7 @@ mod linux {
     /// SocketCAN transport for Linux.
     pub struct SocketCan {
         fd: RawFd,
-        timeout_ms: u32,
+        timeout: Duration,
         disable_brs: bool,
         /// Device info for TransportDevice trait.
         pub(crate) info: TransportDeviceInfo,
@@ -96,16 +96,16 @@ mod linux {
         /// # Arguments
         /// * `interface` - CAN interface name (e.g., "can0", "vcan0")
         pub fn new(interface: &str) -> Result<Self> {
-            Self::with_options(interface, 100, false)
+            Self::with_options(interface, crate::transport::factory::DEFAULT_TIMEOUT, false)
         }
 
         /// Creates a new SocketCAN transport with custom timeout.
-        pub fn with_timeout(interface: &str, timeout_ms: u32) -> Result<Self> {
-            Self::with_options(interface, timeout_ms, false)
+        pub fn with_timeout(interface: &str, timeout: Duration) -> Result<Self> {
+            Self::with_options(interface, timeout, false)
         }
 
         /// Creates a new SocketCAN transport with custom timeout and BRS control.
-        pub fn with_options(interface: &str, timeout_ms: u32, disable_brs: bool) -> Result<Self> {
+        pub fn with_options(interface: &str, timeout: Duration, disable_brs: bool) -> Result<Self> {
             // Create socket
             let fd = unsafe { socket(PF_CAN, SOCK_RAW, CAN_RAW) };
             if fd < 0 {
@@ -163,7 +163,7 @@ mod linux {
 
             Ok(SocketCan {
                 fd,
-                timeout_ms,
+                timeout,
                 disable_brs,
                 info: TransportDeviceInfo::new(0, "SocketCan")
                     .with_serial(interface.to_string())
@@ -193,7 +193,7 @@ mod linux {
         /// Receives frames until timeout.
         fn receive_frames(&self, expected_count: usize) -> Result<Vec<CanFdFrame>> {
             let mut frames = Vec::new();
-            let deadline = Instant::now() + Duration::from_millis(self.timeout_ms as u64);
+            let deadline = Instant::now() + self.timeout;
 
             while frames.len() < expected_count {
                 if Instant::now() > deadline {
@@ -289,7 +289,7 @@ mod linux {
 
         fn read(&mut self) -> Result<Option<CanFdFrame>> {
             // Try to read one frame with timeout
-            let deadline = Instant::now() + Duration::from_millis(self.timeout_ms as u64);
+            let deadline = Instant::now() + self.timeout;
 
             let remaining = deadline.saturating_duration_since(Instant::now());
             let mut tv = timeval {
@@ -378,12 +378,12 @@ mod linux {
             &self.info
         }
 
-        fn set_timeout(&mut self, timeout_ms: u32) {
-            self.timeout_ms = timeout_ms;
+        fn set_timeout(&mut self, timeout: Duration) {
+            self.timeout = timeout;
         }
 
-        fn timeout(&self) -> u32 {
-            self.timeout_ms
+        fn timeout(&self) -> Duration {
+            self.timeout
         }
     }
 }
