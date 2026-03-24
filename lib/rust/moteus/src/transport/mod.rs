@@ -476,6 +476,26 @@ fn compute_parent_indices(devices: &[Box<dyn TransportDevice>]) -> Vec<usize> {
 }
 
 impl Transport {
+    /// Creates a transport from a single device.
+    ///
+    /// This is the simplest way to create a transport when you know
+    /// exactly which device to use.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use moteus::transport::socketcan::SocketCan;
+    /// use moteus::Transport;
+    ///
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let transport = Transport::from_device(SocketCan::new("can0")?);
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn from_device(device: impl TransportDevice + 'static) -> Self {
+        Self::new(vec![Box::new(device)])
+    }
+
     /// Creates a new transport from a list of devices.
     ///
     /// The devices will be assigned sequential IDs starting from 0.
