@@ -5,3 +5,7 @@ members = [
     "moteus",
 ]
 resolver = "2"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.75"

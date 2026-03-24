@@ -1,7 +1,8 @@
 [package]
 name = "moteus-derive"
 version = "1.0.0"
-edition = "2021"
+edition.workspace = true
+rust-version.workspace = true
 description = "Derive macros for the moteus brushless motor controller client library"
 license = "Apache-2.0"
 repository = "https://github.com/mjbots/moteus"
