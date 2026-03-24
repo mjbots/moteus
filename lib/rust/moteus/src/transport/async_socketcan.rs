@@ -161,7 +161,7 @@ mod linux {
     /// Async SocketCAN transport using tokio.
     pub struct AsyncSocketCan {
         async_fd: AsyncFd<SocketCanRaw>,
-        timeout_ms: u32,
+        timeout: std::time::Duration,
         pub(crate) info: TransportDeviceInfo,
         needs_recovery: bool,
     }
@@ -172,17 +172,17 @@ mod linux {
         /// # Arguments
         /// * `interface` - CAN interface name (e.g., "can0", "vcan0")
         pub async fn new(interface: &str) -> Result<Self> {
-            Self::with_options(interface, 100, false).await
+            Self::with_options(interface, crate::transport::factory::DEFAULT_TIMEOUT, false).await
         }
 
         /// Creates a new async SocketCAN transport with options.
-        pub async fn with_options(interface: &str, timeout_ms: u32, disable_brs: bool) -> Result<Self> {
+        pub async fn with_options(interface: &str, timeout: std::time::Duration, disable_brs: bool) -> Result<Self> {
             let raw = SocketCanRaw::new(interface, disable_brs)?;
             let async_fd = AsyncFd::new(raw).map_err(Error::Io)?;
 
             Ok(AsyncSocketCan {
                 async_fd,
-                timeout_ms,
+                timeout,
                 info: TransportDeviceInfo::new(0, "AsyncSocketCan")
                     .with_serial(interface.to_string())
                     .with_detail(format!("'{}'", interface)),
@@ -205,7 +205,7 @@ mod linux {
         /// Receives frames with timeout.
         async fn receive_frames(&self, expected_count: usize) -> Result<Vec<CanFdFrame>> {
             let mut frames = Vec::new();
-            let timeout = std::time::Duration::from_millis(self.timeout_ms as u64);
+            let timeout = self.timeout;
             let deadline = tokio::time::Instant::now() + timeout;
 
             while frames.len() < expected_count {

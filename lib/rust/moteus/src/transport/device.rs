@@ -20,6 +20,7 @@
 use crate::error::Result;
 use crate::transport::transaction::Request;
 use moteus_protocol::CanFdFrame;
+use std::time::Duration;
 
 #[cfg(feature = "tokio")]
 use crate::transport::async_transport::BoxFuture;
@@ -122,11 +123,11 @@ pub trait TransportDevice: Send {
     /// Returns information about this device.
     fn info(&self) -> &TransportDeviceInfo;
 
-    /// Sets the communication timeout in milliseconds.
-    fn set_timeout(&mut self, timeout_ms: u32);
+    /// Sets the communication timeout.
+    fn set_timeout(&mut self, timeout: Duration);
 
-    /// Returns the current timeout in milliseconds.
-    fn timeout(&self) -> u32;
+    /// Returns the current timeout.
+    fn timeout(&self) -> Duration;
 }
 
 /// An async transport device for CAN-FD communication.
