@@ -43,7 +43,7 @@ impl core::fmt::Display for Toggle {
 /// (destination, source, can_prefix) is handled by the higher-level `Command`
 /// type in the `moteus` crate.
 #[non_exhaustive]
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct CanFdFrame {
     /// Channel index identifying which transport device this frame was
     /// received from or should be sent to.
