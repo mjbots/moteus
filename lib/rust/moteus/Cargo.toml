@@ -1,6 +1,6 @@
 [package]
 name = "moteus"
-version = "1.0.0"
+version = "0.5.0"
 edition.workspace = true
 rust-version.workspace = true
 description = "Rust client library for moteus brushless motor controllers"
@@ -16,8 +16,8 @@ serialport = ["dep:serialport"]
 tokio = ["dep:tokio", "dep:tokio-serial"]
 
 [dependencies]
-moteus-derive = { path = "../moteus-derive", version = "1.0.0" }
-moteus-protocol = { path = "../moteus-protocol", version = "1.0.0" }
+moteus-derive = { path = "../moteus-derive", version = "0.5" }
+moteus-protocol = { path = "../moteus-protocol", version = "0.5" }
 
 clap = { version = "4.5", features = ["derive"], optional = true }
 tokio = { version = "1.0", features = ["net", "io-util", "time", "rt", "rt-multi-thread", "macros", "sync"], optional = true }
