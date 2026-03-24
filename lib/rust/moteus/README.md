@@ -68,12 +68,13 @@ let cmd = PositionCommand::new()
 For more control, you can specify a transport explicitly:
 
 ```rust,no_run
-use moteus::{BlockingController, TransportOptions};
+use moteus::{BlockingController, Transport};
+use moteus::transport::socketcan::SocketCan;
 
 fn main() -> Result<(), moteus::Error> {
-    let opts = TransportOptions::new()
-        .socketcan_interfaces(vec!["can0"]);
-    let mut ctrl = BlockingController::with_options(1, &opts);
+    let transport = Transport::from_device(SocketCan::new("can0")?);
+    let mut ctrl = BlockingController::new(1)
+        .transport(transport);
 
     ctrl.set_stop()?;
     Ok(())
