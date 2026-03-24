@@ -19,74 +19,48 @@
 //! and Int32 resolutions. Float values are transmitted directly
 //! without scaling.
 
-use crate::Resolution;
-
 /// Scaling factors for a register type.
 ///
-/// Each tuple contains (int8_scale, int16_scale, int32_scale).
 /// The actual wire value is `physical_value / scale`.
 #[derive(Debug, Clone, Copy)]
 pub struct Scaling {
-    /// Scale factor for Int8 resolution
-    pub int8: f64,
-    /// Scale factor for Int16 resolution
-    pub int16: f64,
-    /// Scale factor for Int32 resolution
-    pub int32: f64,
+    pub(crate) int8: f64,
+    pub(crate) int16: f64,
+    pub(crate) int32: f64,
 }
 
-impl Scaling {
-    /// Creates a new Scaling with the given factors.
-    pub const fn new(int8: f64, int16: f64, int32: f64) -> Self {
-        Scaling { int8, int16, int32 }
-    }
+/// Position scaling: revolutions
+pub const POSITION: Scaling = Scaling { int8: 0.01, int16: 0.0001, int32: 0.00001 };
 
-    /// Returns the scale factor for the given resolution.
-    pub fn for_resolution(&self, res: Resolution) -> f64 {
-        match res {
-            Resolution::Int8 => self.int8,
-            Resolution::Int16 => self.int16,
-            Resolution::Int32 => self.int32,
-            Resolution::Float => 1.0,
-            Resolution::Ignore => 1.0,
-        }
-    }
+/// Velocity scaling: revolutions/second
+pub const VELOCITY: Scaling = Scaling { int8: 0.1, int16: 0.00025, int32: 0.00001 };
 
-    // === Standard scaling types ===
+/// Acceleration scaling: revolutions/second^2
+pub const ACCELERATION: Scaling = Scaling { int8: 0.05, int16: 0.001, int32: 0.00001 };
 
-    /// Position scaling: revolutions
-    pub const POSITION: Scaling = Scaling::new(0.01, 0.0001, 0.00001);
+/// Torque scaling: Nm
+pub const TORQUE: Scaling = Scaling { int8: 0.5, int16: 0.01, int32: 0.001 };
 
-    /// Velocity scaling: revolutions/second
-    pub const VELOCITY: Scaling = Scaling::new(0.1, 0.00025, 0.00001);
+/// PWM/normalized scaling: 0-1 range
+pub const PWM: Scaling = Scaling { int8: 1.0 / 127.0, int16: 1.0 / 32767.0, int32: 1.0 / 2147483647.0 };
 
-    /// Acceleration scaling: revolutions/second^2
-    pub const ACCELERATION: Scaling = Scaling::new(0.05, 0.001, 0.00001);
+/// Voltage scaling: Volts
+pub const VOLTAGE: Scaling = Scaling { int8: 0.5, int16: 0.1, int32: 0.001 };
 
-    /// Torque scaling: Nm
-    pub const TORQUE: Scaling = Scaling::new(0.5, 0.01, 0.001);
+/// Temperature scaling: Celsius
+pub const TEMPERATURE: Scaling = Scaling { int8: 1.0, int16: 0.1, int32: 0.001 };
 
-    /// PWM/normalized scaling: 0-1 range
-    pub const PWM: Scaling = Scaling::new(1.0 / 127.0, 1.0 / 32767.0, 1.0 / 2147483647.0);
+/// Time scaling: seconds
+pub const TIME: Scaling = Scaling { int8: 0.01, int16: 0.001, int32: 0.000001 };
 
-    /// Voltage scaling: Volts
-    pub const VOLTAGE: Scaling = Scaling::new(0.5, 0.1, 0.001);
+/// Current scaling: Amps
+pub const CURRENT: Scaling = Scaling { int8: 1.0, int16: 0.1, int32: 0.001 };
 
-    /// Temperature scaling: Celsius
-    pub const TEMPERATURE: Scaling = Scaling::new(1.0, 0.1, 0.001);
+/// Power scaling: Watts
+pub const POWER: Scaling = Scaling { int8: 10.0, int16: 0.05, int32: 0.0001 };
 
-    /// Time scaling: seconds
-    pub const TIME: Scaling = Scaling::new(0.01, 0.001, 0.000001);
-
-    /// Current scaling: Amps
-    pub const CURRENT: Scaling = Scaling::new(1.0, 0.1, 0.001);
-
-    /// Power scaling: Watts
-    pub const POWER: Scaling = Scaling::new(10.0, 0.05, 0.0001);
-
-    /// Integer scaling: no scaling applied
-    pub const INT: Scaling = Scaling::new(1.0, 1.0, 1.0);
-}
+/// Integer scaling: no scaling applied
+pub const INT: Scaling = Scaling { int8: 1.0, int16: 1.0, int32: 1.0 };
 
 /// Saturates a floating-point value to the range representable by the target type.
 ///
@@ -169,17 +143,6 @@ pub fn nanify_i32(value: i32) -> f64 {
     }
 }
 
-/// Reads a scaled value from raw bytes based on resolution.
-pub fn read_scaled(value: i32, resolution: Resolution, scaling: &Scaling) -> f64 {
-    match resolution {
-        Resolution::Int8 => nanify_i8(value as i8) * scaling.int8,
-        Resolution::Int16 => nanify_i16(value as i16) * scaling.int16,
-        Resolution::Int32 => nanify_i32(value) * scaling.int32,
-        Resolution::Float => f32::from_bits(value as u32) as f64,
-        Resolution::Ignore => 0.0,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,28 +182,4 @@ mod tests {
         assert_eq!(nanify_i32(100000), 100000.0);
     }
 
-    #[test]
-    fn test_scaling_for_resolution() {
-        let scaling = Scaling::POSITION;
-        assert_eq!(scaling.for_resolution(Resolution::Int8), 0.01);
-        assert_eq!(scaling.for_resolution(Resolution::Int16), 0.0001);
-        assert_eq!(scaling.for_resolution(Resolution::Float), 1.0);
-    }
-
-    #[test]
-    fn test_read_scaled() {
-        let scaling = Scaling::POSITION;
-
-        // Int8: value 50 * 0.01 = 0.5
-        assert_eq!(read_scaled(50, Resolution::Int8, &scaling), 0.5);
-
-        // Int16: value 5000 * 0.0001 = 0.5
-        assert_eq!(read_scaled(5000, Resolution::Int16, &scaling), 0.5);
-
-        // Int32: value 50000 * 0.00001 = 0.5
-        assert_eq!(read_scaled(50000, Resolution::Int32, &scaling), 0.5);
-
-        // NaN handling: min value should produce NaN
-        assert!(read_scaled(i8::MIN as i32, Resolution::Int8, &scaling).is_nan());
-    }
 }

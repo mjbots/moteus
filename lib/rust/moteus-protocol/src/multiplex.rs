@@ -20,7 +20,9 @@
 
 use crate::frame::CanFdFrame;
 use crate::resolution::Resolution;
-use crate::scaling::{saturate_i8, saturate_i16, saturate_i32, Scaling};
+use crate::scaling::{
+    self, saturate_i8, saturate_i16, saturate_i32, Scaling,
+};
 
 /// Write Int8 values
 pub const WRITE_INT8: u8 = 0x00;
@@ -194,47 +196,47 @@ impl<'a> WriteCanData<'a> {
 
     /// Writes a position value (revolutions).
     pub fn write_position(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::POSITION, res);
+        self.write_mapped(value, &scaling::POSITION, res);
     }
 
     /// Writes a velocity value (revolutions/second).
     pub fn write_velocity(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::VELOCITY, res);
+        self.write_mapped(value, &scaling::VELOCITY, res);
     }
 
     /// Writes an acceleration value (revolutions/second^2).
     pub fn write_accel(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::ACCELERATION, res);
+        self.write_mapped(value, &scaling::ACCELERATION, res);
     }
 
     /// Writes a torque value (Nm).
     pub fn write_torque(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::TORQUE, res);
+        self.write_mapped(value, &scaling::TORQUE, res);
     }
 
     /// Writes a PWM/normalized value (0-1).
     pub fn write_pwm(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::PWM, res);
+        self.write_mapped(value, &scaling::PWM, res);
     }
 
     /// Writes a voltage value (V).
     pub fn write_voltage(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::VOLTAGE, res);
+        self.write_mapped(value, &scaling::VOLTAGE, res);
     }
 
     /// Writes a temperature value (C).
     pub fn write_temperature(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::TEMPERATURE, res);
+        self.write_mapped(value, &scaling::TEMPERATURE, res);
     }
 
     /// Writes a time value (seconds).
     pub fn write_time(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::TIME, res);
+        self.write_mapped(value, &scaling::TIME, res);
     }
 
     /// Writes a current value (A).
     pub fn write_current(&mut self, value: f64, res: Resolution) {
-        self.write_mapped(value, &Scaling::CURRENT, res);
+        self.write_mapped(value, &scaling::CURRENT, res);
     }
 }
 
@@ -966,14 +968,14 @@ mod tests {
     fn test_value_to_f64() {
         // Int8 with position scaling: 50 * 0.01 = 0.5
         let v = Value::Int8(50);
-        assert!((v.to_f64(&Scaling::POSITION) - 0.5).abs() < 1e-9);
+        assert!((v.to_f64(&scaling::POSITION) - 0.5).abs() < 1e-9);
 
         // Int8 min = NaN
         let v = Value::Int8(i8::MIN);
-        assert!(v.to_f64(&Scaling::POSITION).is_nan());
+        assert!(v.to_f64(&scaling::POSITION).is_nan());
 
         // Float passes through
         let v = Value::Float(1.5);
-        assert!((v.to_f64(&Scaling::POSITION) - 1.5).abs() < 1e-9);
+        assert!((v.to_f64(&scaling::POSITION) - 1.5).abs() < 1e-9);
     }
 }
