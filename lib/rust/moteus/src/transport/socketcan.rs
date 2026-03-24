@@ -19,11 +19,13 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::transport::socketcan::SocketCan;
 //!
-//! let mut transport = SocketCan::new("can0")?;
-//! let responses = transport.cycle(&frames)?;
+//! fn main() -> Result<(), moteus::Error> {
+//!     let mut transport = SocketCan::new("can0")?;
+//!     Ok(())
+//! }
 //! ```
 
 #[cfg(target_os = "linux")]

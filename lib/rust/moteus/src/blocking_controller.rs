@@ -22,25 +22,31 @@
 //!
 //! The controller can automatically discover and use available transports:
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::BlockingController;
 //! use moteus::command::PositionCommand;
 //!
-//! // Auto-discover transport (simplest usage)
-//! let mut ctrl = BlockingController::new(1);
-//! ctrl.set_stop()?;
+//! fn main() -> Result<(), moteus::Error> {
+//!     // Auto-discover transport (simplest usage)
+//!     let mut ctrl = BlockingController::new(1);
+//!     ctrl.set_stop()?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Explicit Transport
 //!
 //! You can also specify a transport explicitly:
 //!
-//! ```ignore
-//! use moteus::{BlockingController, transport::socketcan::SocketCan};
+//! ```no_run
+//! use moteus::{BlockingController, Transport, TransportOptions};
 //!
-//! let transport = SocketCan::new("can0")?;
-//! let mut ctrl = BlockingController::new(1)
-//!     .transport(transport);
+//! fn main() -> Result<(), moteus::Error> {
+//!     let opts = TransportOptions::new()
+//!         .socketcan_interfaces(vec!["can0"]);
+//!     let mut ctrl = BlockingController::with_options(1, &opts);
+//!     Ok(())
+//! }
 //! ```
 
 use crate::command_ext::MaybeQuery;
@@ -141,26 +147,29 @@ impl TransportHolder {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::{BlockingController, command::PositionCommand};
 ///
-/// // Create with auto-discovered transport (simplest)
-/// let mut ctrl = BlockingController::new(1);
+/// fn main() -> Result<(), moteus::Error> {
+///     // Create with auto-discovered transport (simplest)
+///     let mut ctrl = BlockingController::new(1);
 ///
-/// // Query the controller (transport is discovered here)
-/// let result = ctrl.query()?;
-/// println!("Position: {}", result.position);
+///     // Query the controller (transport is discovered here)
+///     let result = ctrl.query()?;
+///     println!("Position: {}", result.position);
 ///
-/// // Move to a position using builder pattern
-/// let result = ctrl.set_position(
-///     PositionCommand::new().position(0.5).velocity(1.0)
-/// )?;
+///     // Move to a position using builder pattern
+///     let result = ctrl.set_position(
+///         PositionCommand::new().position(0.5).velocity(1.0)
+///     )?;
 ///
-/// // Or with explicit transport
-/// use moteus::transport::socketcan::SocketCan;
-/// let transport = SocketCan::new("can0")?;
-/// let mut ctrl = BlockingController::new(1)
-///     .transport(transport);
+///     // Or with explicit transport options
+///     use moteus::TransportOptions;
+///     let opts = TransportOptions::new()
+///         .socketcan_interfaces(vec!["can0"]);
+///     let mut ctrl = BlockingController::with_options(1, &opts);
+///     Ok(())
+/// }
 /// ```
 pub struct BlockingController {
     /// Frame builder
@@ -182,7 +191,9 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// use moteus::{BlockingController, DeviceAddress};
+    ///
     /// // Using integer CAN ID
     /// let mut ctrl = BlockingController::new(1);
     ///
@@ -208,7 +219,9 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// use moteus::{BlockingController, TransportOptions};
+    ///
     /// let opts = TransportOptions::new()
     ///     .socketcan_interfaces(vec!["can0"])
     ///     .timeout(std::time::Duration::from_millis(200));
@@ -227,7 +240,7 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
     /// use moteus::{BlockingController, Controller};
     /// use moteus::query::QueryFormat;
     ///
@@ -250,12 +263,17 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// use moteus::{BlockingController, transport::socketcan::SocketCan};
+    /// ```no_run
+    /// use moteus::{BlockingController, Transport, TransportOptions};
+    /// use moteus::transport::singleton::create_default_transport;
     ///
-    /// let transport = SocketCan::new("can0")?;
-    /// let mut ctrl = BlockingController::new(1)
-    ///     .transport(transport);
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let opts = TransportOptions::new();
+    ///     let transport = create_default_transport(&opts)?;
+    ///     let mut ctrl = BlockingController::new(1)
+    ///         .transport(transport);
+    ///     Ok(())
+    /// }
     /// ```
     pub fn transport<T: TransportOps + Send + 'static>(mut self, t: T) -> Self {
         self.transport = TransportHolder::Explicit(Box::new(t));
@@ -354,36 +372,41 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::{BlockingController, CommandExt};
     /// use moteus::command::PositionCommand;
     /// use moteus::query::QueryFormat;
     ///
-    /// // Simple position command
-    /// let result = ctrl.set_position(
-    ///     PositionCommand::new().position(0.5)
-    /// )?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
     ///
-    /// // With velocity
-    /// let result = ctrl.set_position(
-    ///     PositionCommand::new().position(0.5).velocity(1.0)
-    /// )?;
+    ///     // Simple position command
+    ///     let result = ctrl.set_position(
+    ///         PositionCommand::new().position(0.5)
+    ///     )?;
     ///
-    /// // With full control
-    /// let result = ctrl.set_position(
-    ///     PositionCommand::new()
-    ///         .position(0.5)
-    ///         .velocity(1.0)
-    ///         .kp_scale(0.8)
-    ///         .maximum_torque(2.0)
-    /// )?;
+    ///     // With velocity
+    ///     let result = ctrl.set_position(
+    ///         PositionCommand::new().position(0.5).velocity(1.0)
+    ///     )?;
     ///
-    /// // With query format override
-    /// let result = ctrl.set_position(
-    ///     PositionCommand::new()
-    ///         .position(0.5)
-    ///         .with_query(QueryFormat::comprehensive())
-    /// )?;
+    ///     // With full control
+    ///     let result = ctrl.set_position(
+    ///         PositionCommand::new()
+    ///             .position(0.5)
+    ///             .velocity(1.0)
+    ///             .kp_scale(0.8)
+    ///             .maximum_torque(2.0)
+    ///     )?;
+    ///
+    ///     // With query format override
+    ///     let result = ctrl.set_position(
+    ///         PositionCommand::new()
+    ///             .position(0.5)
+    ///             .with_query(QueryFormat::comprehensive())
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_position(
         &mut self,
@@ -452,12 +475,17 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// use moteus::BlockingController;
     /// use moteus::command::CurrentCommand;
     ///
-    /// let result = ctrl.set_current(
-    ///     CurrentCommand::new().q_current(0.5).d_current(0.0)
-    /// )?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let result = ctrl.set_current(
+    ///         CurrentCommand::new().q_current(0.5).d_current(0.0)
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_current(
         &mut self,
@@ -495,12 +523,17 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// use moteus::BlockingController;
     /// use moteus::command::VFOCCommand;
     ///
-    /// let result = ctrl.set_vfoc(
-    ///     VFOCCommand::new().theta(0.0).voltage(1.0)
-    /// )?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let result = ctrl.set_vfoc(
+    ///         VFOCCommand::new().theta(0.0).voltage(1.0)
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_vfoc(&mut self, cmd: impl Into<MaybeQuery<VFOCCommand>>) -> Result<QueryResult> {
         let maybe = cmd.into();
@@ -535,15 +568,20 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// use moteus::BlockingController;
     /// use moteus::command::StayWithinCommand;
     ///
-    /// let result = ctrl.set_stay_within(
-    ///     StayWithinCommand::new()
-    ///         .lower_bound(-0.5)
-    ///         .upper_bound(0.5)
-    ///         .maximum_torque(2.0)
-    /// )?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let result = ctrl.set_stay_within(
+    ///         StayWithinCommand::new()
+    ///             .lower_bound(-0.5)
+    ///             .upper_bound(0.5)
+    ///             .maximum_torque(2.0)
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_stay_within(
         &mut self,
@@ -581,16 +619,22 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
+    /// use moteus::BlockingController;
     /// use moteus::command::ZeroVelocityCommand;
     ///
-    /// // With default kd_scale
-    /// let result = ctrl.set_zero_velocity(ZeroVelocityCommand::new())?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
     ///
-    /// // With custom kd_scale
-    /// let result = ctrl.set_zero_velocity(
-    ///     ZeroVelocityCommand::new().kd_scale(0.5)
-    /// )?;
+    ///     // With default kd_scale
+    ///     let result = ctrl.set_zero_velocity(ZeroVelocityCommand::new())?;
+    ///
+    ///     // With custom kd_scale
+    ///     let result = ctrl.set_zero_velocity(
+    ///         ZeroVelocityCommand::new().kd_scale(0.5)
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_zero_velocity(
         &mut self,
@@ -685,13 +729,18 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let mut ctrl = BlockingController::new(1);
-    /// let (aux1, aux2) = ctrl.read_gpio()?;
+    /// ```no_run
+    /// use moteus::BlockingController;
     ///
-    /// // Check individual pins
-    /// if aux1 & 0x01 != 0 {
-    ///     println!("AUX1 Pin 0 is HIGH");
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let (aux1, aux2) = ctrl.read_gpio()?;
+    ///
+    ///     // Check individual pins
+    ///     if aux1 & 0x01 != 0 {
+    ///         println!("AUX1 Pin 0 is HIGH");
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn read_gpio(&mut self) -> Result<(u8, u8)> {
@@ -717,14 +766,19 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let mut ctrl = BlockingController::new(1);
+    /// ```no_run
+    /// use moteus::BlockingController;
     ///
-    /// // Set all GPIO outputs to high
-    /// ctrl.set_write_gpio(Some(0x7f), Some(0x7f))?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
     ///
-    /// // Set only AUX1 outputs
-    /// ctrl.set_write_gpio(Some(0x1f), None)?;
+    ///     // Set all GPIO outputs to high
+    ///     ctrl.set_write_gpio(Some(0x7f), Some(0x7f))?;
+    ///
+    ///     // Set only AUX1 outputs
+    ///     ctrl.set_write_gpio(Some(0x1f), None)?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_write_gpio(&mut self, aux1: Option<u8>, aux2: Option<u8>) -> Result<()> {
         let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
@@ -761,14 +815,17 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::{BlockingController, Register, Resolution};
     ///
-    /// let mut ctrl = BlockingController::new(1);
-    /// let result = ctrl.custom_query(&[
-    ///     (Register::Position.address(), Resolution::Float),
-    ///     (Register::Velocity.address(), Resolution::Float),
-    /// ])?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let result = ctrl.custom_query(&[
+    ///         (Register::Position.address(), Resolution::Float),
+    ///         (Register::Velocity.address(), Resolution::Float),
+    ///     ])?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn custom_query(&mut self, registers: &[(u16, Resolution)]) -> Result<QueryResult> {
         let mut requests = [Request::from_command(self.controller.make_custom_query(registers))];
@@ -791,14 +848,17 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::BlockingController;
     /// use moteus::command::AuxPwmCommand;
     ///
-    /// let mut ctrl = BlockingController::new(1);
-    /// let result = ctrl.set_aux_pwm(
-    ///     &AuxPwmCommand::new().aux1_pwm1(0.5).aux1_pwm2(0.75)
-    /// )?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let result = ctrl.set_aux_pwm(
+    ///         &AuxPwmCommand::new().aux1_pwm1(0.5).aux1_pwm2(0.75)
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_aux_pwm(&mut self, cmd: &AuxPwmCommand) -> Result<QueryResult> {
         let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, true))];
@@ -842,17 +902,20 @@ impl BlockingController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::BlockingController;
     /// use moteus::command::PositionCommand;
     /// use std::time::Duration;
     ///
-    /// let mut ctrl = BlockingController::new(1);
-    /// let result = ctrl.set_position_wait_complete(
-    ///     &PositionCommand::new().position(0.5).stop_position(0.5),
-    ///     Duration::from_millis(25),   // poll every 25ms
-    ///     Duration::from_secs(5),      // timeout after 5 seconds
-    /// )?;
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let mut ctrl = BlockingController::new(1);
+    ///     let result = ctrl.set_position_wait_complete(
+    ///         &PositionCommand::new().position(0.5).stop_position(0.5),
+    ///         Duration::from_millis(25),   // poll every 25ms
+    ///         Duration::from_secs(5),      // timeout after 5 seconds
+    ///     )?;
+    ///     Ok(())
+    /// }
     /// ```
     pub fn set_position_wait_complete(
         &mut self,

@@ -34,7 +34,7 @@
 //! }
 //!
 //! let args = Args::parse();
-//! let opts = args.transport.into();
+//! let opts: moteus::TransportOptions = args.transport.into();
 //! ```
 //!
 //! # Approach 2: With any CLI parser
@@ -58,12 +58,15 @@
 //! use moteus::transport::args::{transport_arg_specs, ArgType};
 //! use moteus::TransportOptions;
 //!
-//! let mut cmd = Command::new("myapp");
-//! for spec in transport_arg_specs() {
-//!     cmd = cmd.arg(spec.to_clap_arg());
+//! fn main() -> Result<(), String> {
+//!     let mut cmd = Command::new("myapp");
+//!     for spec in transport_arg_specs() {
+//!         cmd = cmd.arg(spec.to_clap_arg());
+//!     }
+//!     let matches = cmd.get_matches();
+//!     let opts = TransportOptions::from_arg_matches(&matches)?;
+//!     Ok(())
 //! }
-//! let matches = cmd.get_matches();
-//! let opts = TransportOptions::from_arg_matches(&matches)?;
 //! ```
 
 use crate::transport::factory::TransportOptions;

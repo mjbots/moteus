@@ -21,7 +21,7 @@
 //!
 //! The controller can automatically discover and use available transports:
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::AsyncController;
 //! use moteus::command::PositionCommand;
 //!
@@ -36,7 +36,7 @@
 //!
 //! # Custom Transport Options
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::AsyncController;
 //! use moteus::transport::async_factory::AsyncTransportOptions;
 //!
@@ -113,7 +113,7 @@ impl AsyncTransportHolder {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::AsyncController;
 /// use moteus::command::PositionCommand;
 ///
@@ -181,7 +181,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::{AsyncController, Controller};
     /// use moteus::query::QueryFormat;
     ///
@@ -337,7 +337,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::{AsyncController, CommandExt};
     /// use moteus::command::PositionCommand;
     /// use moteus::query::QueryFormat;
@@ -452,7 +452,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::command::CurrentCommand;
     ///
     /// let result = ctrl.set_current(
@@ -510,7 +510,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::command::VFOCCommand;
     ///
     /// let result = ctrl.set_vfoc(
@@ -565,7 +565,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::command::StayWithinCommand;
     ///
     /// let result = ctrl.set_stay_within(
@@ -625,7 +625,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::command::ZeroVelocityCommand;
     ///
     /// let result = ctrl.set_zero_velocity(ZeroVelocityCommand::new()).await?;
@@ -767,7 +767,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::AsyncController;
     ///
     /// let mut ctrl = AsyncController::new(1);
@@ -807,7 +807,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::AsyncController;
     ///
     /// let mut ctrl = AsyncController::new(1);
@@ -869,7 +869,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::{AsyncController, Register, Resolution};
     ///
     /// let mut ctrl = AsyncController::new(1);
@@ -908,7 +908,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::AsyncController;
     /// use moteus::command::AuxPwmCommand;
     ///
@@ -987,7 +987,7 @@ impl AsyncController {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// use moteus::AsyncController;
     /// use moteus::command::PositionCommand;
     /// use std::time::Duration;

@@ -426,23 +426,22 @@ pub(crate) fn resolve_addresses(devices: &mut [DeviceInfo]) {
 ///
 /// # Example
 ///
-/// ```ignore
-/// use moteus::Transport;
-/// use moteus::transport::factory::TransportOptions;
+/// ```no_run
+/// use moteus::{Transport, TransportOptions};
+/// use moteus::transport::singleton::create_default_transport;
 ///
-/// // Create transport with auto-discovery
-/// let opts = TransportOptions::new();
-/// let mut transport = Transport::with_options(&opts)?;
+/// fn main() -> Result<(), moteus::Error> {
+///     // Create transport with auto-discovery
+///     let opts = TransportOptions::new();
+///     let mut transport = create_default_transport(&opts)?;
 ///
-/// // Discover devices
-/// let devices = transport.discover(0, 0)?;
-/// for dev in &devices {
-///     println!("Found: CAN ID {}", dev.can_id);
+///     // Discover devices
+///     let devices = transport.discover(0, 0)?;
+///     for dev in &devices {
+///         println!("Found: CAN ID {}", dev.can_id);
+///     }
+///     Ok(())
 /// }
-///
-/// // Send commands
-/// let mut requests = vec![Request::new(frame)];
-/// transport.cycle(&mut requests)?;
 /// ```
 pub struct Transport {
     /// The underlying devices.
@@ -869,11 +868,20 @@ impl Transport {
     ///
     /// # Example
     ///
-    /// ```ignore
-    /// let mut requests = vec![Request::new(frame)];
-    /// transport.cycle(&mut requests)?;
-    /// for response in requests[0].responses.take() {
-    ///     // Process response
+    /// ```no_run
+    /// use moteus::{Transport, TransportOptions, Request, CanFdFrame};
+    /// use moteus::transport::singleton::create_default_transport;
+    ///
+    /// fn main() -> Result<(), moteus::Error> {
+    ///     let opts = TransportOptions::new();
+    ///     let mut transport = create_default_transport(&opts)?;
+    ///     let frame = CanFdFrame::new();
+    ///     let mut requests = vec![Request::new(frame)];
+    ///     transport.cycle(&mut requests)?;
+    ///     for response in requests[0].responses.take() {
+    ///         // Process response
+    ///     }
+    ///     Ok(())
     /// }
     /// ```
     pub fn cycle(&mut self, requests: &mut [Request]) -> Result<()> {

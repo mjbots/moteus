@@ -20,7 +20,7 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::transport::async_fdcanusb::AsyncFdcanusb;
 //!
 //! #[tokio::main]

@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_rust//rust:defs.bzl", "rust_clippy", "rust_doc", "rust_library", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_clippy", "rust_doc", "rust_doc_test", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -58,6 +58,12 @@ rust_test(
 rust_clippy(
     name = "moteus-protocol-clippy",
     deps = [":moteus-protocol"],
+)
+
+rust_doc_test(
+    name = "moteus-protocol-doc-test",
+    crate = ":moteus-protocol",
+    size = "small",
 )
 
 rust_doc(

@@ -350,15 +350,18 @@ fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
 ///
 /// # Example
 ///
-/// ```rust,ignore
+/// ```
 /// use moteus::transport::factory::{register, TransportFactory, TransportOptions};
+/// use moteus::transport::device::TransportDevice;
 ///
 /// struct Pi3HatFactory;
 /// impl TransportFactory for Pi3HatFactory {
 ///     fn priority(&self) -> u32 { 5 }
 ///     fn name(&self) -> &'static str { "pi3hat" }
-///     fn create(&self, opts: &TransportOptions) -> moteus::Result<Vec<Box<dyn TransportDevice>>> {
-///         // ...
+///     fn create(&self, opts: &TransportOptions)
+///         -> Result<Vec<Box<dyn TransportDevice>>, moteus::Error>
+///     {
+///         Ok(vec![])  // placeholder
 ///     }
 /// }
 ///

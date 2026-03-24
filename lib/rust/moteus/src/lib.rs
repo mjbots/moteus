@@ -24,7 +24,7 @@
 //!
 //! The simplest way to use moteus is with automatic transport discovery:
 //!
-//! ```rust,ignore
+//! ```no_run
 //! use moteus::{BlockingController, command::PositionCommand};
 //!
 //! fn main() -> Result<(), moteus::Error> {
@@ -45,20 +45,26 @@
 //!
 //! For more control, you can specify a transport explicitly:
 //!
-//! ```rust,ignore
-//! use moteus::{BlockingController, transport::socketcan::SocketCan};
+//! ```no_run
+//! use moteus::{BlockingController, Transport, TransportOptions};
+//! use moteus::transport::singleton::create_default_transport;
 //!
-//! let transport = SocketCan::new("can0")?;
-//! let mut ctrl = BlockingController::new(1)
-//!     .transport(transport);
+//! fn main() -> Result<(), moteus::Error> {
+//!     let opts = TransportOptions::new()
+//!         .socketcan_interfaces(vec!["can0"]);
+//!     let transport = create_default_transport(&opts)?;
+//!     let mut ctrl = BlockingController::new(1)
+//!         .transport(transport);
+//!     Ok(())
+//! }
 //! ```
 //!
 //! ## Transport Options
 //!
 //! Configure transport auto-detection with options:
 //!
-//! ```rust,ignore
-//! use moteus::{BlockingController, transport::factory::TransportOptions};
+//! ```
+//! use moteus::{BlockingController, TransportOptions};
 //! use std::time::Duration;
 //!
 //! let opts = TransportOptions::new()

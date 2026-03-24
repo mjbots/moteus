@@ -20,22 +20,25 @@
 //!
 //! # Example (Blocking)
 //!
-//! ```ignore
+//! ```no_run
 //! use moteus::{BlockingController, DiagnosticStream};
 //!
-//! let mut ctrl = BlockingController::new(1);
-//! let mut stream = DiagnosticStream::new(&mut ctrl);
+//! fn main() -> Result<(), moteus::Error> {
+//!     let mut ctrl = BlockingController::new(1);
+//!     let mut stream = DiagnosticStream::new(&mut ctrl);
 //!
-//! // Stop any telemetry spew and flush pending data
-//! stream.write_message(b"tel stop")?;
-//! stream.flush_read()?;
+//!     // Stop any telemetry spew and flush pending data
+//!     stream.write_message(b"tel stop")?;
+//!     stream.flush_read()?;
 //!
-//! // Read a configuration value (single-line response)
-//! let value = stream.command_oneline(b"conf get servo.pid_position.kp")?;
-//! println!("kp = {}", String::from_utf8_lossy(&value));
+//!     // Read a configuration value (single-line response)
+//!     let value = stream.command_oneline(b"conf get servo.pid_position.kp")?;
+//!     println!("kp = {}", String::from_utf8_lossy(&value));
 //!
-//! // Set a configuration value (waits for "OK")
-//! stream.command(b"conf set servo.pid_position.kp 4.0")?;
+//!     // Set a configuration value (waits for "OK")
+//!     stream.command(b"conf set servo.pid_position.kp 4.0")?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Example (Async)
@@ -43,13 +46,17 @@
 //! ```ignore
 //! use moteus::{AsyncController, AsyncDiagnosticStream};
 //!
-//! let mut ctrl = AsyncController::new(1);
-//! let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
+//! #[tokio::main]
+//! async fn main() -> Result<(), moteus::Error> {
+//!     let mut ctrl = AsyncController::new(1);
+//!     let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 //!
-//! stream.write_message(b"tel stop").await?;
-//! stream.flush_read().await?;
+//!     stream.write_message(b"tel stop").await?;
+//!     stream.flush_read().await?;
 //!
-//! let value = stream.command_oneline(b"conf get servo.pid_position.kp").await?;
+//!     let value = stream.command_oneline(b"conf get servo.pid_position.kp").await?;
+//!     Ok(())
+//! }
 //! ```
 
 use crate::command_types::Command;
@@ -186,19 +193,22 @@ use crate::blocking_controller::BlockingController;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::{BlockingController, DiagnosticStream};
 ///
-/// let mut ctrl = BlockingController::new(1);
-/// let mut stream = DiagnosticStream::new(&mut ctrl);
+/// fn main() -> Result<(), moteus::Error> {
+///     let mut ctrl = BlockingController::new(1);
+///     let mut stream = DiagnosticStream::new(&mut ctrl);
 ///
-/// // Always stop telemetry and flush before using diagnostic commands
-/// stream.write_message(b"tel stop")?;
-/// stream.flush_read()?;
+///     // Always stop telemetry and flush before using diagnostic commands
+///     stream.write_message(b"tel stop")?;
+///     stream.flush_read()?;
 ///
-/// // Read a config value (single-line response)
-/// let kp = stream.command_oneline(b"conf get servo.pid_position.kp")?;
-/// println!("kp = {}", String::from_utf8_lossy(&kp));
+///     // Read a config value (single-line response)
+///     let kp = stream.command_oneline(b"conf get servo.pid_position.kp")?;
+///     println!("kp = {}", String::from_utf8_lossy(&kp));
+///     Ok(())
+/// }
 /// ```
 pub struct DiagnosticStream<'a> {
     controller: &'a mut BlockingController,
@@ -390,7 +400,7 @@ use crate::async_controller::AsyncController;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::{AsyncController, AsyncDiagnosticStream};
 ///
 /// let mut ctrl = AsyncController::new(1);

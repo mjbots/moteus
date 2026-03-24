@@ -111,7 +111,7 @@ pub trait AsyncTransportOps: Send {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::AsyncTransport;
 /// use moteus::transport::async_factory::AsyncTransportOptions;
 ///
@@ -680,7 +680,7 @@ impl AsyncTransport {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```no_run
     /// let mut requests = vec![Request::new(frame)];
     /// transport.cycle(&mut requests).await?;
     /// for response in requests[0].responses.take() {
