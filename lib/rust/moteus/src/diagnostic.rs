@@ -237,7 +237,7 @@ impl<'a> DiagnosticStream<'a> {
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
             let frame = make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
             // Write frames don't expect a reply
-            let mut requests = vec![Request::new(frame).with_expected_replies(0)];
+            let mut requests = [Request::new(frame).with_expected_replies(0)];
             self.controller.transport.cycle(&mut requests)?;
         }
         Ok(())
@@ -258,7 +258,7 @@ impl<'a> DiagnosticStream<'a> {
         let frame = make_diagnostic_read_frame(self.id(), self.source_id(), self.channel, read_size);
 
         let id = self.id();
-        let mut requests = vec![Request::new(frame)
+        let mut requests = [Request::new(frame)
             .with_filter(FrameFilter::custom(move |f| {
                 // Check source matches device ID
                 let frame_source = ((f.arbitration_id >> 8) & 0x7F) as u8;
@@ -439,7 +439,7 @@ impl<'a> AsyncDiagnosticStream<'a> {
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
             let frame = make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
             // Write frames don't expect a reply
-            let mut requests = vec![Request::new(frame).with_expected_replies(0)];
+            let mut requests = [Request::new(frame).with_expected_replies(0)];
             self.controller.transport.cycle(&mut requests).await?;
         }
         Ok(())
@@ -458,7 +458,7 @@ impl<'a> AsyncDiagnosticStream<'a> {
         let frame = make_diagnostic_read_frame(self.id(), self.source_id(), self.channel, read_size);
 
         let id = self.id();
-        let mut requests = vec![Request::new(frame)
+        let mut requests = [Request::new(frame)
             .with_filter(FrameFilter::custom(move |f| {
                 // Check source matches device ID
                 let frame_source = ((f.arbitration_id >> 8) & 0x7F) as u8;

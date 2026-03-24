@@ -275,7 +275,7 @@ impl BlockingController {
 
     /// Queries the controller for current state.
     pub fn query(&mut self) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_query())];
+        let mut requests = [Request::from_command(self.controller.make_query())];
         self.transport.cycle(&mut requests)?;
 
         requests[0]
@@ -289,7 +289,7 @@ impl BlockingController {
 
     /// Queries with a custom format.
     pub fn query_with_format(&mut self, format: &QueryFormat) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_query_with_format(format))];
+        let mut requests = [Request::from_command(self.controller.make_query_with_format(format))];
         self.transport.cycle(&mut requests)?;
 
         requests[0]
@@ -305,7 +305,7 @@ impl BlockingController {
 
     /// Sends a stop command and returns the query result.
     pub fn set_stop(&mut self) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_stop(true))];
+        let mut requests = [Request::from_command(self.controller.make_stop(true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -318,14 +318,14 @@ impl BlockingController {
 
     /// Sends a stop command without waiting for response.
     pub fn set_stop_no_query(&mut self) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_stop(false))];
+        let mut requests = [Request::from_command(self.controller.make_stop(false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
 
     /// Sends a brake command and returns the query result.
     pub fn set_brake(&mut self) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_brake(true))];
+        let mut requests = [Request::from_command(self.controller.make_brake(true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -338,7 +338,7 @@ impl BlockingController {
 
     /// Sends a brake command without waiting for response.
     pub fn set_brake_no_query(&mut self) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_brake(false))];
+        let mut requests = [Request::from_command(self.controller.make_brake(false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -396,7 +396,7 @@ impl BlockingController {
         command.serialize(cmd.frame_mut(), &self.controller.position_format);
         cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-        let mut requests = vec![Request::from_command(cmd)];
+        let mut requests = [Request::from_command(cmd)];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -411,7 +411,7 @@ impl BlockingController {
     ///
     /// This is a bandwidth optimization for when you don't need feedback.
     pub fn set_position_no_query(&mut self, cmd: &PositionCommand) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_position_command(cmd, false))];
+        let mut requests = [Request::from_command(self.controller.make_position_command(cmd, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -472,7 +472,7 @@ impl BlockingController {
         command.serialize(cmd.frame_mut(), &self.controller.current_format);
         cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-        let mut requests = vec![Request::from_command(cmd)];
+        let mut requests = [Request::from_command(cmd)];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -485,7 +485,7 @@ impl BlockingController {
 
     /// Commands current mode without waiting for response.
     pub fn set_current_no_query(&mut self, cmd: &CurrentCommand) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_current_command(cmd, false))];
+        let mut requests = [Request::from_command(self.controller.make_current_command(cmd, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -512,7 +512,7 @@ impl BlockingController {
         command.serialize(cmd.frame_mut(), &self.controller.vfoc_format);
         cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-        let mut requests = vec![Request::from_command(cmd)];
+        let mut requests = [Request::from_command(cmd)];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -525,7 +525,7 @@ impl BlockingController {
 
     /// Commands VFOC mode without waiting for response.
     pub fn set_vfoc_no_query(&mut self, cmd: &VFOCCommand) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_vfoc_command(cmd, false))];
+        let mut requests = [Request::from_command(self.controller.make_vfoc_command(cmd, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -558,7 +558,7 @@ impl BlockingController {
         command.serialize(cmd.frame_mut(), &self.controller.stay_within_format);
         cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-        let mut requests = vec![Request::from_command(cmd)];
+        let mut requests = [Request::from_command(cmd)];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -571,7 +571,7 @@ impl BlockingController {
 
     /// Commands stay-within mode without waiting for response.
     pub fn set_stay_within_no_query(&mut self, cmd: &StayWithinCommand) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_stay_within_command(cmd, false))];
+        let mut requests = [Request::from_command(self.controller.make_stay_within_command(cmd, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -605,7 +605,7 @@ impl BlockingController {
         command.serialize(cmd.frame_mut(), &self.controller.zero_velocity_format);
         cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-        let mut requests = vec![Request::from_command(cmd)];
+        let mut requests = [Request::from_command(cmd)];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -618,7 +618,7 @@ impl BlockingController {
 
     /// Commands zero-velocity mode without waiting for response.
     pub fn set_zero_velocity_no_query(&mut self, cmd: &ZeroVelocityCommand) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_zero_velocity_command(cmd, false))];
+        let mut requests = [Request::from_command(self.controller.make_zero_velocity_command(cmd, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -627,7 +627,7 @@ impl BlockingController {
 
     /// Sets output position to nearest value.
     pub fn set_output_nearest(&mut self, position: f32) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_set_output_nearest(position, true))];
+        let mut requests = [Request::from_command(self.controller.make_set_output_nearest(position, true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -640,7 +640,7 @@ impl BlockingController {
 
     /// Sets output position to exact value.
     pub fn set_output_exact(&mut self, position: f32) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_set_output_exact(position, true))];
+        let mut requests = [Request::from_command(self.controller.make_set_output_exact(position, true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -653,7 +653,7 @@ impl BlockingController {
 
     /// Requires re-indexing of the encoder.
     pub fn set_require_reindex(&mut self) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_require_reindex(true))];
+        let mut requests = [Request::from_command(self.controller.make_require_reindex(true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -666,7 +666,7 @@ impl BlockingController {
 
     /// Recaptures position and velocity.
     pub fn set_recapture_position_velocity(&mut self) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_recapture_position_velocity(true))];
+        let mut requests = [Request::from_command(self.controller.make_recapture_position_velocity(true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -696,7 +696,7 @@ impl BlockingController {
     /// }
     /// ```
     pub fn read_gpio(&mut self) -> Result<(u8, u8)> {
-        let mut requests = vec![Request::from_command(self.controller.make_read_gpio())];
+        let mut requests = [Request::from_command(self.controller.make_read_gpio())];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -728,7 +728,7 @@ impl BlockingController {
     /// ctrl.set_write_gpio(Some(0x1f), None)?;
     /// ```
     pub fn set_write_gpio(&mut self, aux1: Option<u8>, aux2: Option<u8>) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
+        let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -739,7 +739,7 @@ impl BlockingController {
         aux1: Option<u8>,
         aux2: Option<u8>,
     ) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_write_gpio(aux1, aux2, true))];
+        let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -772,7 +772,7 @@ impl BlockingController {
     /// ])?;
     /// ```
     pub fn custom_query(&mut self, registers: &[(u16, Resolution)]) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_custom_query(registers))];
+        let mut requests = [Request::from_command(self.controller.make_custom_query(registers))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -802,7 +802,7 @@ impl BlockingController {
     /// )?;
     /// ```
     pub fn set_aux_pwm(&mut self, cmd: &AuxPwmCommand) -> Result<QueryResult> {
-        let mut requests = vec![Request::from_command(self.controller.make_aux_pwm(cmd, true))];
+        let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, true))];
         self.transport.cycle(&mut requests)?;
         requests[0]
             .responses
@@ -815,7 +815,7 @@ impl BlockingController {
 
     /// Sets AUX PWM outputs without waiting for response.
     pub fn set_aux_pwm_no_query(&mut self, cmd: &AuxPwmCommand) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_aux_pwm(cmd, false))];
+        let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, false))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -824,7 +824,7 @@ impl BlockingController {
 
     /// Sets the clock trim value.
     pub fn set_trim(&mut self, trim: i32) -> Result<()> {
-        let mut requests = vec![Request::from_command(self.controller.make_set_trim(trim))];
+        let mut requests = [Request::from_command(self.controller.make_set_trim(trim))];
         self.transport.cycle(&mut requests)?;
         Ok(())
     }
@@ -883,7 +883,7 @@ impl BlockingController {
             cmd.serialize(command.frame_mut(), &self.controller.position_format);
             command.expected_reply_size = query_format.serialize(command.frame_mut());
 
-            let mut requests = vec![Request::from_command(command)];
+            let mut requests = [Request::from_command(command)];
             self.transport.cycle(&mut requests)?;
             let result = requests[0]
                 .responses
@@ -929,7 +929,7 @@ impl BlockingController {
         // Attempt a read with a short timeout to clear any pending data
         let old_timeout = self.transport.timeout();
         self.transport.set_timeout(20); // 20ms timeout
-        let mut requests: Vec<Request> = vec![];
+        let mut requests: [Request; 0] = [];
         let _ = self.transport.cycle(&mut requests); // Ignore any errors/responses
         self.transport.set_timeout(old_timeout);
         Ok(())

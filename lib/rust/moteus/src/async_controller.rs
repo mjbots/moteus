@@ -221,7 +221,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn query(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_query())];
+            let mut requests = [Request::from_command(self.controller.make_query())];
             self.transport.cycle(&mut requests).await?;
 
             requests[0]
@@ -244,7 +244,7 @@ impl AsyncController {
         format: &'a QueryFormat,
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_query_with_format(format))];
+            let mut requests = [Request::from_command(self.controller.make_query_with_format(format))];
             self.transport.cycle(&mut requests).await?;
 
             requests[0]
@@ -266,7 +266,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_stop(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_stop(true))];
+            let mut requests = [Request::from_command(self.controller.make_stop(true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -285,7 +285,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_stop_no_query(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_stop(false))];
+            let mut requests = [Request::from_command(self.controller.make_stop(false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -298,7 +298,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_brake(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_brake(true))];
+            let mut requests = [Request::from_command(self.controller.make_brake(true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -317,7 +317,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_brake_no_query(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_brake(false))];
+            let mut requests = [Request::from_command(self.controller.make_brake(false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -367,7 +367,7 @@ impl AsyncController {
             command.serialize(cmd.frame_mut(), &self.controller.position_format);
             cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-            let mut requests = vec![Request::from_command(cmd)];
+            let mut requests = [Request::from_command(cmd)];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -389,7 +389,7 @@ impl AsyncController {
         cmd: &'a PositionCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_position_command(cmd, false))];
+            let mut requests = [Request::from_command(self.controller.make_position_command(cmd, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -418,7 +418,7 @@ impl AsyncController {
             let interval = std::time::Duration::from_millis(poll_interval_ms);
 
             loop {
-                let mut requests = vec![Request::from_command(self.controller.make_query())];
+                let mut requests = [Request::from_command(self.controller.make_query())];
                 self.transport.cycle(&mut requests).await?;
 
                 let result = requests[0]
@@ -472,7 +472,7 @@ impl AsyncController {
             command.serialize(cmd.frame_mut(), &self.controller.current_format);
             cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-            let mut requests = vec![Request::from_command(cmd)];
+            let mut requests = [Request::from_command(cmd)];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -494,7 +494,7 @@ impl AsyncController {
         cmd: &'a CurrentCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_current_command(cmd, false))];
+            let mut requests = [Request::from_command(self.controller.make_current_command(cmd, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -530,7 +530,7 @@ impl AsyncController {
             command.serialize(cmd.frame_mut(), &self.controller.vfoc_format);
             cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-            let mut requests = vec![Request::from_command(cmd)];
+            let mut requests = [Request::from_command(cmd)];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -549,7 +549,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_vfoc_no_query<'a>(&'a mut self, cmd: &'a VFOCCommand) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_vfoc_command(cmd, false))];
+            let mut requests = [Request::from_command(self.controller.make_vfoc_command(cmd, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -587,7 +587,7 @@ impl AsyncController {
             command.serialize(cmd.frame_mut(), &self.controller.stay_within_format);
             cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-            let mut requests = vec![Request::from_command(cmd)];
+            let mut requests = [Request::from_command(cmd)];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -609,7 +609,7 @@ impl AsyncController {
         cmd: &'a StayWithinCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_stay_within_command(cmd, false))];
+            let mut requests = [Request::from_command(self.controller.make_stay_within_command(cmd, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -648,7 +648,7 @@ impl AsyncController {
             command.serialize(cmd.frame_mut(), &self.controller.zero_velocity_format);
             cmd.expected_reply_size = query_format.serialize(cmd.frame_mut());
 
-            let mut requests = vec![Request::from_command(cmd)];
+            let mut requests = [Request::from_command(cmd)];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -670,7 +670,7 @@ impl AsyncController {
         cmd: &'a ZeroVelocityCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_zero_velocity_command(cmd, false))];
+            let mut requests = [Request::from_command(self.controller.make_zero_velocity_command(cmd, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -685,7 +685,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_output_nearest(&mut self, position: f32) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_set_output_nearest(position, true))];
+            let mut requests = [Request::from_command(self.controller.make_set_output_nearest(position, true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -704,7 +704,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_output_exact(&mut self, position: f32) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_set_output_exact(position, true))];
+            let mut requests = [Request::from_command(self.controller.make_set_output_exact(position, true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -723,7 +723,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_require_reindex(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_require_reindex(true))];
+            let mut requests = [Request::from_command(self.controller.make_require_reindex(true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -742,7 +742,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_recapture_position_velocity(&mut self) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_recapture_position_velocity(true))];
+            let mut requests = [Request::from_command(self.controller.make_recapture_position_velocity(true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -780,7 +780,7 @@ impl AsyncController {
     /// ```
     pub fn read_gpio(&mut self) -> BoxFuture<'_, Result<(u8, u8)>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_read_gpio())];
+            let mut requests = [Request::from_command(self.controller.make_read_gpio())];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -824,7 +824,7 @@ impl AsyncController {
         aux2: Option<u8>,
     ) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
+            let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -841,7 +841,7 @@ impl AsyncController {
         aux2: Option<u8>,
     ) -> BoxFuture<'_, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_write_gpio(aux1, aux2, true))];
+            let mut requests = [Request::from_command(self.controller.make_write_gpio(aux1, aux2, true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -883,7 +883,7 @@ impl AsyncController {
         registers: &'a [(u16, Resolution)],
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_custom_query(registers))];
+            let mut requests = [Request::from_command(self.controller.make_custom_query(registers))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -922,7 +922,7 @@ impl AsyncController {
         cmd: &'a AuxPwmCommand,
     ) -> BoxFuture<'a, Result<QueryResult>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_aux_pwm(cmd, true))];
+            let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, true))];
             self.transport.cycle(&mut requests).await?;
             requests[0]
                 .responses
@@ -944,7 +944,7 @@ impl AsyncController {
         cmd: &'a AuxPwmCommand,
     ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_aux_pwm(cmd, false))];
+            let mut requests = [Request::from_command(self.controller.make_aux_pwm(cmd, false))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -962,7 +962,7 @@ impl AsyncController {
     /// Cancel safe.
     pub fn set_trim(&mut self, trim: i32) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
-            let mut requests = vec![Request::from_command(self.controller.make_set_trim(trim))];
+            let mut requests = [Request::from_command(self.controller.make_set_trim(trim))];
             self.transport.cycle(&mut requests).await?;
             Ok(())
         })
@@ -1028,7 +1028,7 @@ impl AsyncController {
                 cmd.serialize(command.frame_mut(), &self.controller.position_format);
                 command.expected_reply_size = query_format.serialize(command.frame_mut());
 
-                let mut requests = vec![Request::from_command(command)];
+                let mut requests = [Request::from_command(command)];
                 self.transport.cycle(&mut requests).await?;
                 let result = requests[0]
                     .responses
