@@ -69,14 +69,11 @@ For more control, you can specify a transport explicitly:
 
 ```rust,no_run
 use moteus::{BlockingController, TransportOptions};
-use moteus::transport::singleton::create_default_transport;
 
 fn main() -> Result<(), moteus::Error> {
     let opts = TransportOptions::new()
         .socketcan_interfaces(vec!["can0"]);
-    let transport = create_default_transport(&opts)?;
-    let mut ctrl = BlockingController::new(1)
-        .transport(transport);
+    let mut ctrl = BlockingController::with_options(1, &opts);
 
     ctrl.set_stop()?;
     Ok(())
