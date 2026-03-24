@@ -204,7 +204,9 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
 
             let mut devices: Vec<Box<dyn AsyncTransportDevice>> = Vec::new();
             for (idx, interface) in interfaces.iter().enumerate() {
-                match AsyncSocketCan::with_options(interface, options.timeout, options.disable_brs).await {
+                match AsyncSocketCan::with_options(interface, options.timeout, options.disable_brs)
+                    .await
+                {
                     Ok(mut transport) => {
                         transport.info = TransportDeviceInfo::new(idx, "AsyncSocketCan")
                             .with_serial(interface)
@@ -226,9 +228,8 @@ static ASYNC_REGISTRY: OnceLock<Mutex<Vec<Arc<dyn AsyncTransportFactory>>>> = On
 
 fn get_async_registry() -> &'static Mutex<Vec<Arc<dyn AsyncTransportFactory>>> {
     ASYNC_REGISTRY.get_or_init(|| {
-        let mut factories: Vec<Arc<dyn AsyncTransportFactory>> = vec![
-            Arc::new(AsyncFdcanusbFactory),
-        ];
+        let mut factories: Vec<Arc<dyn AsyncTransportFactory>> =
+            vec![Arc::new(AsyncFdcanusbFactory)];
         #[cfg(target_os = "linux")]
         factories.push(Arc::new(AsyncSocketCanFactory));
         Mutex::new(factories)
@@ -313,13 +314,11 @@ pub async fn create_async_transports(
             // Check if this is a socketcan device that duplicates an fdcanusb
             let should_skip = socketcan_infos.iter().any(|info| {
                 // For SocketCan devices, the interface name is stored in serial_number
-                (device
-                    .info()
-                    .serial_number
-                    .as_ref() == Some(&info.interface))
-                    && info.fdcanusb_serial.as_ref().is_some_and(|serial| {
-                        fdcanusb_serials.contains(serial)
-                    })
+                (device.info().serial_number.as_ref() == Some(&info.interface))
+                    && info
+                        .fdcanusb_serial
+                        .as_ref()
+                        .is_some_and(|serial| fdcanusb_serials.contains(serial))
             });
 
             if !should_skip {

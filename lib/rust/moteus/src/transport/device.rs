@@ -186,11 +186,9 @@ mod tests {
 
     #[test]
     fn test_transport_device_info() {
-        let info = TransportDeviceInfo::new(0, "test")
-            .with_serial("ABC123");
+        let info = TransportDeviceInfo::new(0, "test").with_serial("ABC123");
         assert_eq!(info.id, 0);
         assert_eq!(info.name, "test");
         assert_eq!(info.serial_number, Some("ABC123".to_string()));
     }
-
 }

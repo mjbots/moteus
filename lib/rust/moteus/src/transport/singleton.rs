@@ -86,9 +86,7 @@ pub fn create_default_transport(options: &TransportOptions) -> Result<Transport>
     let all_devices = create_transports(options)?;
 
     if all_devices.is_empty() {
-        return Err(Error::DeviceNotFound(
-            "No CAN-FD devices found".to_string(),
-        ));
+        return Err(Error::DeviceNotFound("No CAN-FD devices found".to_string()));
     }
 
     let mut router = Transport::new(all_devices);

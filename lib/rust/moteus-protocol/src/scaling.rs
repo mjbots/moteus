@@ -30,37 +30,81 @@ pub struct Scaling {
 }
 
 /// Position scaling: revolutions
-pub const POSITION: Scaling = Scaling { int8: 0.01, int16: 0.0001, int32: 0.00001 };
+pub const POSITION: Scaling = Scaling {
+    int8: 0.01,
+    int16: 0.0001,
+    int32: 0.00001,
+};
 
 /// Velocity scaling: revolutions/second
-pub const VELOCITY: Scaling = Scaling { int8: 0.1, int16: 0.00025, int32: 0.00001 };
+pub const VELOCITY: Scaling = Scaling {
+    int8: 0.1,
+    int16: 0.00025,
+    int32: 0.00001,
+};
 
 /// Acceleration scaling: revolutions/second^2
-pub const ACCELERATION: Scaling = Scaling { int8: 0.05, int16: 0.001, int32: 0.00001 };
+pub const ACCELERATION: Scaling = Scaling {
+    int8: 0.05,
+    int16: 0.001,
+    int32: 0.00001,
+};
 
 /// Torque scaling: Nm
-pub const TORQUE: Scaling = Scaling { int8: 0.5, int16: 0.01, int32: 0.001 };
+pub const TORQUE: Scaling = Scaling {
+    int8: 0.5,
+    int16: 0.01,
+    int32: 0.001,
+};
 
 /// PWM/normalized scaling: 0-1 range
-pub const PWM: Scaling = Scaling { int8: 1.0 / 127.0, int16: 1.0 / 32767.0, int32: 1.0 / 2147483647.0 };
+pub const PWM: Scaling = Scaling {
+    int8: 1.0 / 127.0,
+    int16: 1.0 / 32767.0,
+    int32: 1.0 / 2147483647.0,
+};
 
 /// Voltage scaling: Volts
-pub const VOLTAGE: Scaling = Scaling { int8: 0.5, int16: 0.1, int32: 0.001 };
+pub const VOLTAGE: Scaling = Scaling {
+    int8: 0.5,
+    int16: 0.1,
+    int32: 0.001,
+};
 
 /// Temperature scaling: Celsius
-pub const TEMPERATURE: Scaling = Scaling { int8: 1.0, int16: 0.1, int32: 0.001 };
+pub const TEMPERATURE: Scaling = Scaling {
+    int8: 1.0,
+    int16: 0.1,
+    int32: 0.001,
+};
 
 /// Time scaling: seconds
-pub const TIME: Scaling = Scaling { int8: 0.01, int16: 0.001, int32: 0.000001 };
+pub const TIME: Scaling = Scaling {
+    int8: 0.01,
+    int16: 0.001,
+    int32: 0.000001,
+};
 
 /// Current scaling: Amps
-pub const CURRENT: Scaling = Scaling { int8: 1.0, int16: 0.1, int32: 0.001 };
+pub const CURRENT: Scaling = Scaling {
+    int8: 1.0,
+    int16: 0.1,
+    int32: 0.001,
+};
 
 /// Power scaling: Watts
-pub const POWER: Scaling = Scaling { int8: 10.0, int16: 0.05, int32: 0.0001 };
+pub const POWER: Scaling = Scaling {
+    int8: 10.0,
+    int16: 0.05,
+    int32: 0.0001,
+};
 
 /// Integer scaling: no scaling applied
-pub const INT: Scaling = Scaling { int8: 1.0, int16: 1.0, int32: 1.0 };
+pub const INT: Scaling = Scaling {
+    int8: 1.0,
+    int16: 1.0,
+    int32: 1.0,
+};
 
 /// Saturates a floating-point value to the range representable by the target type.
 ///
@@ -181,5 +225,4 @@ mod tests {
         assert!(nanify_i32(i32::MIN).is_nan());
         assert_eq!(nanify_i32(100000), 100000.0);
     }
-
 }

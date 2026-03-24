@@ -116,13 +116,19 @@ impl QueryFormat {
 
     /// Returns the number of active extra register entries.
     pub fn extra_count(&self) -> usize {
-        self.extra.iter().filter(|(_, r)| *r != Resolution::Ignore).count()
+        self.extra
+            .iter()
+            .filter(|(_, r)| *r != Resolution::Ignore)
+            .count()
     }
 
     /// Adds an extra register to query.
     pub fn add_extra(&mut self, register: u16, resolution: Resolution) {
         // Find the first unused slot
-        let slot = self.extra.iter().position(|(_, r)| *r == Resolution::Ignore);
+        let slot = self
+            .extra
+            .iter()
+            .position(|(_, r)| *r == Resolution::Ignore);
         if let Some(idx) = slot {
             self.extra[idx] = (register, resolution);
             let count = idx + 1;
@@ -175,11 +181,8 @@ impl QueryFormat {
                 self.temperature,
                 self.fault,
             ];
-            let mut combiner = WriteCombiner::new(
-                0x10,
-                Register::MotorTemperature.address(),
-                &resolutions,
-            );
+            let mut combiner =
+                WriteCombiner::new(0x10, Register::MotorTemperature.address(), &resolutions);
             for _ in 0..resolutions.len() {
                 combiner.maybe_write(&mut writer);
             }
@@ -189,11 +192,8 @@ impl QueryFormat {
         // Third block: GPIO status (registers 0x05e-0x05f)
         {
             let resolutions = [self.aux1_gpio, self.aux2_gpio];
-            let mut combiner = WriteCombiner::new(
-                0x10,
-                Register::Aux1GpioStatus.address(),
-                &resolutions,
-            );
+            let mut combiner =
+                WriteCombiner::new(0x10, Register::Aux1GpioStatus.address(), &resolutions);
             for _ in 0..resolutions.len() {
                 combiner.maybe_write(&mut writer);
             }
@@ -208,11 +208,8 @@ impl QueryFormat {
                 self.aux2_pwm_input_period_us,
                 self.aux2_pwm_input_duty_cycle,
             ];
-            let mut combiner = WriteCombiner::new(
-                0x10,
-                Register::Aux1PwmInputPeriod.address(),
-                &resolutions,
-            );
+            let mut combiner =
+                WriteCombiner::new(0x10, Register::Aux1PwmInputPeriod.address(), &resolutions);
             for _ in 0..resolutions.len() {
                 combiner.maybe_write(&mut writer);
             }
@@ -245,8 +242,7 @@ impl QueryFormat {
                     resolutions[(reg - base_reg) as usize] = res;
                 }
 
-                let mut combiner =
-                    WriteCombiner::new(0x10, base_reg, &resolutions[..span]);
+                let mut combiner = WriteCombiner::new(0x10, base_reg, &resolutions[..span]);
                 for _ in 0..span {
                     combiner.maybe_write(&mut writer);
                 }
@@ -338,7 +334,11 @@ impl QueryResult {
 
         for subframe in parse_frame(data) {
             let (register, value) = match subframe {
-                Subframe::Register { register, value: Some(value), .. } => (register, value),
+                Subframe::Register {
+                    register,
+                    value: Some(value),
+                    ..
+                } => (register, value),
                 _ => continue,
             };
 
@@ -374,7 +374,8 @@ impl QueryResult {
                     result.trajectory_complete = value.to_i32() != 0;
                 }
                 r if r == Register::HomeState.address() => {
-                    result.home_state = HomeState::try_from(value.to_i32() as u8).unwrap_or(HomeState::Relative);
+                    result.home_state =
+                        HomeState::try_from(value.to_i32() as u8).unwrap_or(HomeState::Relative);
                 }
                 r if r == Register::Voltage.address() => {
                     result.voltage = value.to_f32(&scaling::VOLTAGE);
@@ -410,7 +411,11 @@ impl QueryResult {
                             value: parse_generic(register, value),
                         });
                     } else {
-                        debug_assert!(false, "MAX_EXTRA ({}) exceeded, register 0x{:x} dropped", MAX_EXTRA, register);
+                        debug_assert!(
+                            false,
+                            "MAX_EXTRA ({}) exceeded, register 0x{:x} dropped",
+                            MAX_EXTRA, register
+                        );
                     }
                 }
             }
@@ -491,9 +496,7 @@ fn parse_generic(register: u16, value: Value) -> f32 {
 
         Some(Register::Power) => &scaling::POWER,
 
-        Some(Register::CommandTimeout) | Some(Register::CommandStayWithinTimeout) => {
-            &scaling::TIME
-        }
+        Some(Register::CommandTimeout) | Some(Register::CommandStayWithinTimeout) => &scaling::TIME,
 
         Some(Register::CommandAccelLimit) => &scaling::ACCELERATION,
 
@@ -573,11 +576,11 @@ mod tests {
     fn test_query_result_parse() {
         // Build a simple reply: mode=10, position=0.5
         let data = [
-            0x21,             // Reply Int8, count=1
-            0x00,             // Register 0 (MODE)
-            0x0a,             // Mode::Position (10)
-            0x2d,             // Reply Float, count=1
-            0x01,             // Register 1 (POSITION)
+            0x21, // Reply Int8, count=1
+            0x00, // Register 0 (MODE)
+            0x0a, // Mode::Position (10)
+            0x2d, // Reply Float, count=1
+            0x01, // Register 1 (POSITION)
             0x00, 0x00, 0x00, 0x3f, // 0.5 as f32
         ];
 
@@ -590,15 +593,15 @@ mod tests {
     fn test_query_result_parse_extras() {
         // Reply with mode + two extra registers (0x100 as Float, 0x102 as Int16)
         let data = [
-            0x21,             // Reply Int8, count=1
-            0x00,             // Register 0 (MODE)
-            0x0a,             // Mode::Position (10)
-            0x2d,             // Reply Float, count=1
-            0x80, 0x02,       // Register 0x100 (varuint)
+            0x21, // Reply Int8, count=1
+            0x00, // Register 0 (MODE)
+            0x0a, // Mode::Position (10)
+            0x2d, // Reply Float, count=1
+            0x80, 0x02, // Register 0x100 (varuint)
             0x00, 0x00, 0xc8, 0x42, // 100.0 as f32
-            0x25,             // Reply Int16, count=1
-            0x82, 0x02,       // Register 0x102 (varuint)
-            0x39, 0x30,       // 12345 as i16
+            0x25, // Reply Int16, count=1
+            0x82, 0x02, // Register 0x102 (varuint)
+            0x39, 0x30, // 12345 as i16
         ];
 
         let result = QueryResult::parse_data(&data);

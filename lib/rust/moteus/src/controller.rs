@@ -17,11 +17,10 @@
 use crate::command_types::Command;
 use crate::device_address::DeviceAddress;
 use moteus_protocol::command::{
-    AuxPwmCommand, AuxPwmFormat, BrakeCommand, CurrentCommand, CurrentFormat,
-    OutputExactCommand, OutputNearestCommand, PositionCommand, PositionFormat,
-    RecapturePositionVelocityCommand, RequireReindexCommand, SetTrimCommand,
-    StayWithinCommand, StayWithinFormat, StopCommand, VFOCCommand, VFOCFormat,
-    ZeroVelocityCommand, ZeroVelocityFormat,
+    AuxPwmCommand, AuxPwmFormat, BrakeCommand, CurrentCommand, CurrentFormat, OutputExactCommand,
+    OutputNearestCommand, PositionCommand, PositionFormat, RecapturePositionVelocityCommand,
+    RequireReindexCommand, SetTrimCommand, StayWithinCommand, StayWithinFormat, StopCommand,
+    VFOCCommand, VFOCFormat, ZeroVelocityCommand, ZeroVelocityFormat,
 };
 use moteus_protocol::query::{QueryFormat, QueryResult};
 use moteus_protocol::{CanFdFrame, Register, Resolution, WriteCanData, WriteCombiner};
@@ -353,11 +352,7 @@ impl Controller {
     /// # Arguments
     /// * `zv_cmd` - Zero-velocity command built with the builder pattern
     /// * `query` - If true, also request telemetry
-    pub fn make_zero_velocity_command(
-        &self,
-        zv_cmd: &ZeroVelocityCommand,
-        query: bool,
-    ) -> Command {
+    pub fn make_zero_velocity_command(&self, zv_cmd: &ZeroVelocityCommand, query: bool) -> Command {
         let mut cmd = self.prepare_command(query);
         zv_cmd.serialize(cmd.frame_mut(), &self.zero_velocity_format);
         if query {
@@ -462,8 +457,16 @@ impl Controller {
 
             // Write to GPIO command registers (0x05c and 0x05d)
             let resolutions = [
-                if aux1.is_some() { Resolution::Int8 } else { Resolution::Ignore },
-                if aux2.is_some() { Resolution::Int8 } else { Resolution::Ignore },
+                if aux1.is_some() {
+                    Resolution::Int8
+                } else {
+                    Resolution::Ignore
+                },
+                if aux2.is_some() {
+                    Resolution::Int8
+                } else {
+                    Resolution::Ignore
+                },
             ];
 
             let mut combiner = WriteCombiner::new(
@@ -686,8 +689,10 @@ mod tests {
 
     #[test]
     fn test_new_controller_uuid_only() {
-        let uuid = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-                    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
+        let uuid = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x10,
+        ];
         let controller = Controller::new(DeviceAddress::uuid(uuid));
         assert_eq!(controller.id, 0x7F);
         assert!(!controller.uuid_prefix_data.is_empty());
@@ -695,8 +700,10 @@ mod tests {
 
     #[test]
     fn test_uuid_controller_frame_has_prefix() {
-        let uuid = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-                    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
+        let uuid = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x10,
+        ];
         let controller = Controller::new(DeviceAddress::uuid(uuid));
 
         let cmd = controller.make_stop(false);
@@ -713,8 +720,10 @@ mod tests {
 
     #[test]
     fn test_uuid_controller_query_frame() {
-        let uuid = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-                    0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10];
+        let uuid = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x10,
+        ];
         let controller = Controller::new(DeviceAddress::uuid(uuid));
 
         let cmd = controller.make_query();
@@ -740,8 +749,7 @@ mod tests {
 
     #[test]
     fn test_uuid_controller_with_transport_device() {
-        let addr = DeviceAddress::uuid([0x01, 0x02, 0x03, 0x04])
-            .with_transport_device(2);
+        let addr = DeviceAddress::uuid([0x01, 0x02, 0x03, 0x04]).with_transport_device(2);
         let controller = Controller::new(addr);
         assert_eq!(controller.id, 0x7F);
 

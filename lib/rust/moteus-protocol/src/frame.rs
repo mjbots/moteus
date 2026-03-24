@@ -107,12 +107,20 @@ impl CanFdFrame {
 
     /// Sets BRS toggle.
     pub fn set_brs(&mut self, enabled: bool) {
-        self.brs = if enabled { Toggle::ForceOn } else { Toggle::ForceOff };
+        self.brs = if enabled {
+            Toggle::ForceOn
+        } else {
+            Toggle::ForceOff
+        };
     }
 
     /// Sets FD CAN frame format toggle.
     pub fn set_fdcan(&mut self, enabled: bool) {
-        self.fdcan_frame = if enabled { Toggle::ForceOn } else { Toggle::ForceOff };
+        self.fdcan_frame = if enabled {
+            Toggle::ForceOn
+        } else {
+            Toggle::ForceOff
+        };
     }
 
     /// Rounds up a data length to the next valid CAN-FD DLC size.
@@ -144,7 +152,10 @@ impl core::fmt::Debug for CanFdFrame {
         let (source, destination, _) = parse_arbitration_id(self.arbitration_id);
         f.debug_struct("CanFdFrame")
             .field("channel", &self.channel)
-            .field("arbitration_id", &format_args!("0x{:08x}", self.arbitration_id))
+            .field(
+                "arbitration_id",
+                &format_args!("0x{:08x}", self.arbitration_id),
+            )
             .field("size", &self.size)
             .field("data", &format_args!("{:02x?}", self.payload()))
             .field("destination", &destination)
@@ -161,7 +172,10 @@ impl core::fmt::Debug for CanFdFrame {
 /// - bits 14:8  = source (7 bits)
 /// - bits 7:0   = destination (8 bits)
 pub fn calculate_arbitration_id(
-    source: i8, destination: i8, can_prefix: u16, reply_required: bool,
+    source: i8,
+    destination: i8,
+    can_prefix: u16,
+    reply_required: bool,
 ) -> u32 {
     let prefix = (can_prefix as u32) << 16;
     let src = ((source as u8) as u32) << 8;

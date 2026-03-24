@@ -44,13 +44,13 @@ pub use diagnostic::AsyncDiagnosticStream;
 pub use move_to::async_move_to;
 
 // Re-export transport types for convenience
-pub use transport::args::{transport_arg_specs, ArgSpec, ArgType, TransportArgs, COMMON_ARG_SPECS};
 #[cfg(feature = "clap")]
 pub use transport::args::add_transport_args;
+pub use transport::args::{transport_arg_specs, ArgSpec, ArgType, TransportArgs, COMMON_ARG_SPECS};
 pub use transport::factory::{register, TransportOptions};
-pub use transport::{make_uuid_prefix, DeviceInfo, Transport, TransportOps};
 pub use transport::singleton::{create_default_transport, get_singleton_transport};
 pub use transport::transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
+pub use transport::{make_uuid_prefix, DeviceInfo, Transport, TransportOps};
 
 // Transport traits (for polymorphism or custom transport implementations)
 // Note: Most users don't need to import these - use Transport/AsyncTransport directly
@@ -73,8 +73,8 @@ pub use transport::async_factory::{
 #[cfg(feature = "tokio")]
 pub use transport::async_fdcanusb::AsyncFdcanusb;
 #[cfg(feature = "tokio")]
-pub use transport::async_transport::{AsyncTransport, SharedDevice};
-#[cfg(feature = "tokio")]
 pub use transport::async_singleton::get_async_singleton_transport;
 #[cfg(all(feature = "tokio", target_os = "linux"))]
 pub use transport::async_socketcan::AsyncSocketCan;
+#[cfg(feature = "tokio")]
+pub use transport::async_transport::{AsyncTransport, SharedDevice};

@@ -175,9 +175,7 @@ impl DeviceInfo {
 
 impl std::fmt::Display for DeviceInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let uuid_str = self
-            .uuid_string()
-            .unwrap_or_else(|| "None".to_string());
+        let uuid_str = self.uuid_string().unwrap_or_else(|| "None".to_string());
 
         write!(
             f,
@@ -198,22 +196,22 @@ pub(crate) fn make_uuid_query_frame(source: u8, can_prefix: u16) -> (CanFdFrame,
     use moteus_protocol::{WriteCanData, WriteCombiner};
 
     let mut frame = CanFdFrame::new();
-    frame.arbitration_id = moteus_protocol::calculate_arbitration_id(
-        source as i8, 0x7F_i8, can_prefix, true);
+    frame.arbitration_id =
+        moteus_protocol::calculate_arbitration_id(source as i8, 0x7F_i8, can_prefix, true);
 
     let mut writer = WriteCanData::new(&mut frame);
 
     // Query UUID1-4 registers (0x150-0x153) as INT32 and UUID_MASK_CAPABLE (0x158) as INT8
     let resolutions = [
-        Resolution::Int32, // UUID1
-        Resolution::Int32, // UUID2
-        Resolution::Int32, // UUID3
-        Resolution::Int32, // UUID4
+        Resolution::Int32,  // UUID1
+        Resolution::Int32,  // UUID2
+        Resolution::Int32,  // UUID3
+        Resolution::Int32,  // UUID4
         Resolution::Ignore, // UUID_MASK1 (skip)
         Resolution::Ignore, // UUID_MASK2 (skip)
         Resolution::Ignore, // UUID_MASK3 (skip)
         Resolution::Ignore, // UUID_MASK4 (skip)
-        Resolution::Int8,  // UUID_MASK_CAPABLE
+        Resolution::Int8,   // UUID_MASK_CAPABLE
     ];
 
     let mut combiner = WriteCombiner::new(
@@ -302,7 +300,11 @@ pub(crate) fn extract_uuid_from_response(frame: &CanFdFrame) -> Option<[u8; 16]>
 
     for subframe in parse_frame(data) {
         let (register, value) = match subframe {
-            Subframe::Register { register, value: Some(value), .. } => (register, value),
+            Subframe::Register {
+                register,
+                value: Some(value),
+                ..
+            } => (register, value),
             _ => continue,
         };
 
@@ -366,18 +368,15 @@ pub(crate) fn resolve_addresses(devices: &mut [DeviceInfo]) {
             .iter()
             .enumerate()
             .filter(|(j, d)| {
-                *j != i && d.can_id == can_id
-                    && d.transport_device_idx == transport_idx
+                *j != i && d.can_id == can_id && d.transport_device_idx == transport_idx
             })
             .map(|(j, _)| j)
             .collect();
 
         if can_id_conflicts.is_empty() {
             // CAN ID is unique within this transport device, use it
-            devices[i].address = Some(
-                DeviceAddress::can_id(can_id)
-                    .with_transport_device(transport_idx),
-            );
+            devices[i].address =
+                Some(DeviceAddress::can_id(can_id).with_transport_device(transport_idx));
         } else if let Some(uuid) = devices[i].uuid {
             // CAN ID conflicts within same transport, need to use UUID prefix
             for prefix_len in [4usize, 8, 12, 16] {
@@ -396,8 +395,7 @@ pub(crate) fn resolve_addresses(devices: &mut [DeviceInfo]) {
 
                 if !has_conflict {
                     devices[i].address = Some(
-                        DeviceAddress::uuid(prefix.to_vec())
-                            .with_transport_device(transport_idx),
+                        DeviceAddress::uuid(prefix.to_vec()).with_transport_device(transport_idx),
                     );
                     break;
                 }
@@ -537,7 +535,11 @@ impl Transport {
     /// Maps a device address to a specific transport device index.
     /// Each address maps to exactly one device, matching the Python
     /// library's `Dict[DeviceAddress, TransportDevice]` routing table.
-    pub fn add_route(&mut self, address: impl Into<DeviceAddress>, device_idx: usize) -> Result<()> {
+    pub fn add_route(
+        &mut self,
+        address: impl Into<DeviceAddress>,
+        device_idx: usize,
+    ) -> Result<()> {
         if device_idx >= self.devices.len() {
             return Err(Error::Protocol(format!(
                 "Device index {} out of range (have {} devices)",
@@ -568,7 +570,12 @@ impl Transport {
     /// an error — the caller must use UUID-based addressing or set up
     /// the routing table manually. Matching Python's
     /// `_get_devices_for_command` discovery behavior.
-    fn discover_device(&mut self, address: &DeviceAddress, source: u8, can_prefix: u16) -> Result<usize> {
+    fn discover_device(
+        &mut self,
+        address: &DeviceAddress,
+        source: u8,
+        can_prefix: u16,
+    ) -> Result<usize> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);
         }
@@ -639,7 +646,12 @@ impl Transport {
     }
 
     /// Get from cache or discover the device for a destination address.
-    fn get_or_discover_device(&mut self, address: &DeviceAddress, source: u8, can_prefix: u16) -> Result<usize> {
+    fn get_or_discover_device(
+        &mut self,
+        address: &DeviceAddress,
+        source: u8,
+        can_prefix: u16,
+    ) -> Result<usize> {
         if let Some(idx) = self.get_device_for_address(address) {
             return Ok(idx);
         }
@@ -657,11 +669,7 @@ impl Transport {
     ///
     /// A list of `DeviceInfo` structures containing the CAN ID, UUID (if available),
     /// and transport device index for each discovered controller.
-    pub fn discover(
-        &mut self,
-        can_prefix: u16,
-        source: u8,
-    ) -> Result<Vec<DeviceInfo>> {
+    pub fn discover(&mut self, can_prefix: u16, source: u8) -> Result<Vec<DeviceInfo>> {
         if self.devices.is_empty() {
             return Err(Error::NotConnected);
         }
@@ -688,7 +696,7 @@ impl Transport {
             let mut requests = vec![
                 Request::new(query_frame.clone())
                     .with_filter(FrameFilter::Any) // Accept all responses
-                    .with_expected_replies(127)    // Max possible CAN IDs
+                    .with_expected_replies(127), // Max possible CAN IDs
             ];
 
             if device.transaction(&mut requests).is_ok() {
@@ -719,11 +727,9 @@ impl Transport {
         resolve_addresses(&mut discovered);
 
         // Sort by CAN ID, then by UUID for consistent ordering
-        discovered.sort_by(|a, b| {
-            match a.can_id.cmp(&b.can_id) {
-                std::cmp::Ordering::Equal => a.uuid.cmp(&b.uuid),
-                other => other,
-            }
+        discovered.sort_by(|a, b| match a.can_id.cmp(&b.can_id) {
+            std::cmp::Ordering::Equal => a.uuid.cmp(&b.uuid),
+            other => other,
         });
 
         Ok(discovered)
@@ -766,7 +772,10 @@ impl Transport {
                 continue;
             }
 
-            let dest_id = requests[i].frame.as_ref().map(|frame| (frame.arbitration_id & 0x7F) as u8);
+            let dest_id = requests[i]
+                .frame
+                .as_ref()
+                .map(|frame| (frame.arbitration_id & 0x7F) as u8);
 
             if let Some(dest_id) = dest_id {
                 // Determine if this is a true broadcast (0x7F and no UUID)
@@ -797,12 +806,14 @@ impl Transport {
 
                     let (source, can_prefix) = match &requests[i].frame {
                         Some(f) => {
-                            let (src, _dest, pfx) = moteus_protocol::parse_arbitration_id(f.arbitration_id);
+                            let (src, _dest, pfx) =
+                                moteus_protocol::parse_arbitration_id(f.arbitration_id);
                             (src as u8, pfx)
                         }
                         None => (0, 0),
                     };
-                    let mut target_idx = self.get_or_discover_device(&lookup_addr, source, can_prefix)?;
+                    let mut target_idx =
+                        self.get_or_discover_device(&lookup_addr, source, can_prefix)?;
 
                     // If this device has a parent, route through the parent
                     if let Some(parent_idx) = self.devices[target_idx].info().parent_index {
@@ -1049,7 +1060,9 @@ pub struct NullTransport {
 impl NullTransport {
     /// Creates a new null transport.
     pub fn new() -> Self {
-        NullTransport { timeout: factory::DEFAULT_TIMEOUT }
+        NullTransport {
+            timeout: factory::DEFAULT_TIMEOUT,
+        }
     }
 }
 
@@ -1329,10 +1342,16 @@ mod tests {
         let mut transport = Transport::from_devices(vec![device0, device1]);
 
         transport.add_route(1u8, 0).unwrap();
-        assert_eq!(transport.get_device_for_address(&DeviceAddress::can_id(1)), Some(0));
+        assert_eq!(
+            transport.get_device_for_address(&DeviceAddress::can_id(1)),
+            Some(0)
+        );
 
         transport.add_route(1u8, 1).unwrap();
-        assert_eq!(transport.get_device_for_address(&DeviceAddress::can_id(1)), Some(1));
+        assert_eq!(
+            transport.get_device_for_address(&DeviceAddress::can_id(1)),
+            Some(1)
+        );
     }
 
     #[test]
@@ -1367,7 +1386,9 @@ mod tests {
         transport.add_route(1u8, 0).unwrap();
 
         transport.clear_routes();
-        assert!(transport.get_device_for_address(&DeviceAddress::can_id(1)).is_none());
+        assert!(transport
+            .get_device_for_address(&DeviceAddress::can_id(1))
+            .is_none());
     }
 
     #[test]
@@ -1413,8 +1434,16 @@ mod tests {
         let device1 = MockDevice::new(1);
         let log1 = device1.log.clone();
 
-        let uuid_a = DeviceAddress { can_id: Some(1), uuid: Some(vec![0x01, 0x02, 0x03, 0x04]), transport_device: None };
-        let uuid_b = DeviceAddress { can_id: Some(1), uuid: Some(vec![0x05, 0x06, 0x07, 0x08]), transport_device: None };
+        let uuid_a = DeviceAddress {
+            can_id: Some(1),
+            uuid: Some(vec![0x01, 0x02, 0x03, 0x04]),
+            transport_device: None,
+        };
+        let uuid_b = DeviceAddress {
+            can_id: Some(1),
+            uuid: Some(vec![0x05, 0x06, 0x07, 0x08]),
+            transport_device: None,
+        };
 
         let mut transport = Transport::from_devices(vec![device0, device1]);
         transport.add_route(uuid_a.clone(), 0).unwrap();

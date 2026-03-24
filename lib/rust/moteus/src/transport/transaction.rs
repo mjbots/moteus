@@ -165,7 +165,6 @@ pub enum FrameFilter {
     Custom(Arc<dyn Fn(&CanFdFrame) -> bool + Send + Sync>),
 }
 
-
 impl FrameFilter {
     /// Creates a filter that matches frames from a specific source.
     pub fn by_source(source_id: u8) -> Self {
@@ -285,7 +284,11 @@ impl Request {
             FrameFilter::BySource(dest)
         };
 
-        let expected = if frame.arbitration_id & 0x8000 != 0 { 1 } else { 0 };
+        let expected = if frame.arbitration_id & 0x8000 != 0 {
+            1
+        } else {
+            0
+        };
 
         Self {
             frame: Some(frame),
@@ -437,7 +440,10 @@ impl Request {
 
     /// Returns the total number of expected replies across all requests.
     pub fn total_expected_replies(requests: &[Request]) -> usize {
-        requests.iter().map(|r| r.expected_reply_count as usize).sum()
+        requests
+            .iter()
+            .map(|r| r.expected_reply_count as usize)
+            .sum()
     }
 }
 

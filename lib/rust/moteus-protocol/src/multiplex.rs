@@ -20,9 +20,7 @@
 
 use crate::frame::CanFdFrame;
 use crate::resolution::Resolution;
-use crate::scaling::{
-    self, saturate_i8, saturate_i16, saturate_i32, Scaling,
-};
+use crate::scaling::{self, saturate_i16, saturate_i32, saturate_i8, Scaling};
 
 /// Write Int8 values
 pub const WRITE_INT8: u8 = 0x00;
@@ -261,11 +259,7 @@ impl<'a> WriteCombiner<'a> {
     /// * `base_command` - Base command (0x00 for write, 0x10 for read)
     /// * `start_register` - First register address in the sequence
     /// * `resolutions` - Resolution for each register in sequence
-    pub fn new(
-        base_command: u8,
-        start_register: u16,
-        resolutions: &'a [Resolution],
-    ) -> Self {
+    pub fn new(base_command: u8, start_register: u16, resolutions: &'a [Resolution]) -> Self {
         WriteCombiner {
             base_command,
             start_register,
@@ -379,7 +373,7 @@ impl Value {
     /// Integer values are multiplied by the appropriate scaling factor.
     /// Float values are returned directly.
     pub fn to_f32(&self, scaling: &Scaling) -> f32 {
-        use crate::scaling::{nanify_i8, nanify_i16, nanify_i32};
+        use crate::scaling::{nanify_i16, nanify_i32, nanify_i8};
 
         match *self {
             Value::Int8(v) => nanify_i8(v) * scaling.int8,
@@ -842,7 +836,12 @@ mod tests {
 
         let subframe = iter.next().unwrap();
         match subframe {
-            Subframe::Register { subframe_type, register, resolution, value } => {
+            Subframe::Register {
+                subframe_type,
+                register,
+                resolution,
+                value,
+            } => {
                 assert_eq!(subframe_type, SubframeType::Response);
                 assert_eq!(register, 0);
                 assert_eq!(resolution, Resolution::Int8);
@@ -867,7 +866,12 @@ mod tests {
         let mut iter = parse_frame(&data);
 
         match iter.next().unwrap() {
-            Subframe::Register { subframe_type, register, resolution, value } => {
+            Subframe::Register {
+                subframe_type,
+                register,
+                resolution,
+                value,
+            } => {
                 assert_eq!(subframe_type, SubframeType::Write);
                 assert_eq!(register, 0x20);
                 assert_eq!(resolution, Resolution::Int16);
@@ -877,7 +881,12 @@ mod tests {
         }
 
         match iter.next().unwrap() {
-            Subframe::Register { subframe_type, register, value, .. } => {
+            Subframe::Register {
+                subframe_type,
+                register,
+                value,
+                ..
+            } => {
                 assert_eq!(subframe_type, SubframeType::Write);
                 assert_eq!(register, 0x21);
                 assert_eq!(value.unwrap().to_i32(), 200);
@@ -899,7 +908,12 @@ mod tests {
         let mut iter = parse_frame(&data);
 
         match iter.next().unwrap() {
-            Subframe::Register { subframe_type, register, resolution, value } => {
+            Subframe::Register {
+                subframe_type,
+                register,
+                resolution,
+                value,
+            } => {
                 assert_eq!(subframe_type, SubframeType::Read);
                 assert_eq!(register, 5);
                 assert_eq!(resolution, Resolution::Float);
@@ -923,7 +937,9 @@ mod tests {
         let mut iter = parse_frame(&data);
 
         match iter.next().unwrap() {
-            Subframe::Register { register, value, .. } => {
+            Subframe::Register {
+                register, value, ..
+            } => {
                 assert_eq!(register, 0);
                 assert_eq!(value.unwrap().to_i32(), 5);
             }
@@ -936,15 +952,14 @@ mod tests {
     #[test]
     fn test_parser_multiple_blocks() {
         // Reply Int8 count=1 reg 0 value 10, then Reply Float count=1 reg 1 value 0.5
-        let data = [
-            0x21, 0x00, 0x0a,
-            0x2d, 0x01, 0x00, 0x00, 0x00, 0x3f,
-        ];
+        let data = [0x21, 0x00, 0x0a, 0x2d, 0x01, 0x00, 0x00, 0x00, 0x3f];
 
         let mut iter = parse_frame(&data);
 
         match iter.next().unwrap() {
-            Subframe::Register { register, value, .. } => {
+            Subframe::Register {
+                register, value, ..
+            } => {
                 assert_eq!(register, 0);
                 assert_eq!(value.unwrap().to_i32(), 10);
             }
@@ -952,7 +967,9 @@ mod tests {
         }
 
         match iter.next().unwrap() {
-            Subframe::Register { register, value, .. } => {
+            Subframe::Register {
+                register, value, ..
+            } => {
                 assert_eq!(register, 1);
                 let val = match value.unwrap() {
                     Value::Float(f) => f,

@@ -123,27 +123,80 @@ impl PositionCommand {
 
         // Build resolution array based on which fields are set
         let resolutions = [
-            if self.position.is_some() { format.position } else { Resolution::Ignore },
-            if self.velocity.is_some() { format.velocity } else { Resolution::Ignore },
-            if self.feedforward_torque.is_some() { format.feedforward_torque } else { Resolution::Ignore },
-            if self.kp_scale.is_some() { format.kp_scale } else { Resolution::Ignore },
-            if self.kd_scale.is_some() { format.kd_scale } else { Resolution::Ignore },
-            if self.maximum_torque.is_some() { format.maximum_torque } else { Resolution::Ignore },
-            if self.stop_position.is_some() { format.stop_position } else { Resolution::Ignore },
-            if self.watchdog_timeout.is_some() { format.watchdog_timeout } else { Resolution::Ignore },
-            if self.velocity_limit.is_some() { format.velocity_limit } else { Resolution::Ignore },
-            if self.accel_limit.is_some() { format.accel_limit } else { Resolution::Ignore },
-            if self.fixed_voltage_override.is_some() { format.fixed_voltage_override } else { Resolution::Ignore },
-            if self.ilimit_scale.is_some() { format.ilimit_scale } else { Resolution::Ignore },
-            if self.fixed_current_override.is_some() { format.fixed_current_override } else { Resolution::Ignore },
-            if self.ignore_position_bounds.is_some() { format.ignore_position_bounds } else { Resolution::Ignore },
+            if self.position.is_some() {
+                format.position
+            } else {
+                Resolution::Ignore
+            },
+            if self.velocity.is_some() {
+                format.velocity
+            } else {
+                Resolution::Ignore
+            },
+            if self.feedforward_torque.is_some() {
+                format.feedforward_torque
+            } else {
+                Resolution::Ignore
+            },
+            if self.kp_scale.is_some() {
+                format.kp_scale
+            } else {
+                Resolution::Ignore
+            },
+            if self.kd_scale.is_some() {
+                format.kd_scale
+            } else {
+                Resolution::Ignore
+            },
+            if self.maximum_torque.is_some() {
+                format.maximum_torque
+            } else {
+                Resolution::Ignore
+            },
+            if self.stop_position.is_some() {
+                format.stop_position
+            } else {
+                Resolution::Ignore
+            },
+            if self.watchdog_timeout.is_some() {
+                format.watchdog_timeout
+            } else {
+                Resolution::Ignore
+            },
+            if self.velocity_limit.is_some() {
+                format.velocity_limit
+            } else {
+                Resolution::Ignore
+            },
+            if self.accel_limit.is_some() {
+                format.accel_limit
+            } else {
+                Resolution::Ignore
+            },
+            if self.fixed_voltage_override.is_some() {
+                format.fixed_voltage_override
+            } else {
+                Resolution::Ignore
+            },
+            if self.ilimit_scale.is_some() {
+                format.ilimit_scale
+            } else {
+                Resolution::Ignore
+            },
+            if self.fixed_current_override.is_some() {
+                format.fixed_current_override
+            } else {
+                Resolution::Ignore
+            },
+            if self.ignore_position_bounds.is_some() {
+                format.ignore_position_bounds
+            } else {
+                Resolution::Ignore
+            },
         ];
 
-        let mut combiner = WriteCombiner::new(
-            0x00,
-            Register::CommandPosition.address(),
-            &resolutions,
-        );
+        let mut combiner =
+            WriteCombiner::new(0x00, Register::CommandPosition.address(), &resolutions);
 
         if combiner.maybe_write(&mut writer) {
             writer.write_position(self.position.unwrap_or(0.0), format.position);
@@ -152,7 +205,10 @@ impl PositionCommand {
             writer.write_velocity(self.velocity.unwrap_or(0.0), format.velocity);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_torque(self.feedforward_torque.unwrap_or(0.0), format.feedforward_torque);
+            writer.write_torque(
+                self.feedforward_torque.unwrap_or(0.0),
+                format.feedforward_torque,
+            );
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.kp_scale.unwrap_or(1.0), format.kp_scale);
@@ -161,31 +217,49 @@ impl PositionCommand {
             writer.write_pwm(self.kd_scale.unwrap_or(1.0), format.kd_scale);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_torque(self.maximum_torque.unwrap_or(f32::NAN), format.maximum_torque);
+            writer.write_torque(
+                self.maximum_torque.unwrap_or(f32::NAN),
+                format.maximum_torque,
+            );
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_position(self.stop_position.unwrap_or(f32::NAN), format.stop_position);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_time(self.watchdog_timeout.unwrap_or(f32::NAN), format.watchdog_timeout);
+            writer.write_time(
+                self.watchdog_timeout.unwrap_or(f32::NAN),
+                format.watchdog_timeout,
+            );
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_velocity(self.velocity_limit.unwrap_or(f32::NAN), format.velocity_limit);
+            writer.write_velocity(
+                self.velocity_limit.unwrap_or(f32::NAN),
+                format.velocity_limit,
+            );
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_accel(self.accel_limit.unwrap_or(f32::NAN), format.accel_limit);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_voltage(self.fixed_voltage_override.unwrap_or(f32::NAN), format.fixed_voltage_override);
+            writer.write_voltage(
+                self.fixed_voltage_override.unwrap_or(f32::NAN),
+                format.fixed_voltage_override,
+            );
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.ilimit_scale.unwrap_or(1.0), format.ilimit_scale);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_current(self.fixed_current_override.unwrap_or(f32::NAN), format.fixed_current_override);
+            writer.write_current(
+                self.fixed_current_override.unwrap_or(f32::NAN),
+                format.fixed_current_override,
+            );
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_int(self.ignore_position_bounds.unwrap_or(0.0) as i32, format.ignore_position_bounds);
+            writer.write_int(
+                self.ignore_position_bounds.unwrap_or(0.0) as i32,
+                format.ignore_position_bounds,
+            );
         }
     }
 }
@@ -259,11 +333,7 @@ impl VFOCCommand {
             },
         ];
 
-        let mut combiner = WriteCombiner::new(
-            0x00,
-            Register::VFocTheta.address(),
-            &resolutions,
-        );
+        let mut combiner = WriteCombiner::new(0x00, Register::VFocTheta.address(), &resolutions);
 
         if combiner.maybe_write(&mut writer) {
             // Theta is stored as PWM-scaled (divided by PI)
@@ -278,7 +348,10 @@ impl VFOCCommand {
         combiner.maybe_write(&mut writer);
         combiner.maybe_write(&mut writer);
         if combiner.maybe_write(&mut writer) {
-            writer.write_velocity(self.theta_rate.unwrap_or(0.0) / core::f32::consts::PI, format.theta_rate);
+            writer.write_velocity(
+                self.theta_rate.unwrap_or(0.0) / core::f32::consts::PI,
+                format.theta_rate,
+            );
         }
     }
 }
@@ -344,11 +417,8 @@ impl CurrentCommand {
         // Note: register order is Q then D
         let resolutions = [format.q_a, format.d_a];
 
-        let mut combiner = WriteCombiner::new(
-            0x00,
-            Register::CommandQCurrent.address(),
-            &resolutions,
-        );
+        let mut combiner =
+            WriteCombiner::new(0x00, Register::CommandQCurrent.address(), &resolutions);
 
         if combiner.maybe_write(&mut writer) {
             writer.write_current(self.q_a, format.q_a);
@@ -428,15 +498,51 @@ impl StayWithinCommand {
         writer.write_i8(Mode::StayWithin as i8);
 
         let resolutions = [
-            if self.lower_bound.is_some() { format.lower_bound } else { Resolution::Ignore },
-            if self.upper_bound.is_some() { format.upper_bound } else { Resolution::Ignore },
-            if self.feedforward_torque.is_some() { format.feedforward_torque } else { Resolution::Ignore },
-            if self.kp_scale.is_some() { format.kp_scale } else { Resolution::Ignore },
-            if self.kd_scale.is_some() { format.kd_scale } else { Resolution::Ignore },
-            if self.maximum_torque.is_some() { format.maximum_torque } else { Resolution::Ignore },
-            if self.watchdog_timeout.is_some() { format.watchdog_timeout } else { Resolution::Ignore },
-            if self.ilimit_scale.is_some() { format.ilimit_scale } else { Resolution::Ignore },
-            if self.ignore_position_bounds.is_some() { format.ignore_position_bounds } else { Resolution::Ignore },
+            if self.lower_bound.is_some() {
+                format.lower_bound
+            } else {
+                Resolution::Ignore
+            },
+            if self.upper_bound.is_some() {
+                format.upper_bound
+            } else {
+                Resolution::Ignore
+            },
+            if self.feedforward_torque.is_some() {
+                format.feedforward_torque
+            } else {
+                Resolution::Ignore
+            },
+            if self.kp_scale.is_some() {
+                format.kp_scale
+            } else {
+                Resolution::Ignore
+            },
+            if self.kd_scale.is_some() {
+                format.kd_scale
+            } else {
+                Resolution::Ignore
+            },
+            if self.maximum_torque.is_some() {
+                format.maximum_torque
+            } else {
+                Resolution::Ignore
+            },
+            if self.watchdog_timeout.is_some() {
+                format.watchdog_timeout
+            } else {
+                Resolution::Ignore
+            },
+            if self.ilimit_scale.is_some() {
+                format.ilimit_scale
+            } else {
+                Resolution::Ignore
+            },
+            if self.ignore_position_bounds.is_some() {
+                format.ignore_position_bounds
+            } else {
+                Resolution::Ignore
+            },
         ];
 
         let mut combiner = WriteCombiner::new(
@@ -452,7 +558,10 @@ impl StayWithinCommand {
             writer.write_position(self.upper_bound.unwrap_or(f32::NAN), format.upper_bound);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_torque(self.feedforward_torque.unwrap_or(0.0), format.feedforward_torque);
+            writer.write_torque(
+                self.feedforward_torque.unwrap_or(0.0),
+                format.feedforward_torque,
+            );
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.kp_scale.unwrap_or(1.0), format.kp_scale);
@@ -464,13 +573,19 @@ impl StayWithinCommand {
             writer.write_torque(self.maximum_torque.unwrap_or(0.0), format.maximum_torque);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_time(self.watchdog_timeout.unwrap_or(f32::NAN), format.watchdog_timeout);
+            writer.write_time(
+                self.watchdog_timeout.unwrap_or(f32::NAN),
+                format.watchdog_timeout,
+            );
         }
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.ilimit_scale.unwrap_or(1.0), format.ilimit_scale);
         }
         if combiner.maybe_write(&mut writer) {
-            writer.write_int(self.ignore_position_bounds.unwrap_or(0.0) as i32, format.ignore_position_bounds);
+            writer.write_int(
+                self.ignore_position_bounds.unwrap_or(0.0) as i32,
+                format.ignore_position_bounds,
+            );
         }
     }
 }
@@ -514,11 +629,8 @@ impl ZeroVelocityCommand {
         // Only write kd_scale if provided
         if let Some(kd) = self.kd_scale {
             let resolutions = [format.kd_scale];
-            let mut combiner = WriteCombiner::new(
-                0x00,
-                Register::CommandKdScale.address(),
-                &resolutions,
-            );
+            let mut combiner =
+                WriteCombiner::new(0x00, Register::CommandKdScale.address(), &resolutions);
 
             if combiner.maybe_write(&mut writer) {
                 writer.write_pwm(kd, format.kd_scale);
@@ -699,23 +811,59 @@ impl AuxPwmCommand {
         let mut writer = WriteCanData::new(frame);
 
         let resolutions = [
-            if self.aux1_pwm1.is_some() { format.aux1_pwm1 } else { Resolution::Ignore },
-            if self.aux1_pwm2.is_some() { format.aux1_pwm2 } else { Resolution::Ignore },
-            if self.aux1_pwm3.is_some() { format.aux1_pwm3 } else { Resolution::Ignore },
-            if self.aux1_pwm4.is_some() { format.aux1_pwm4 } else { Resolution::Ignore },
-            if self.aux1_pwm5.is_some() { format.aux1_pwm5 } else { Resolution::Ignore },
-            if self.aux2_pwm1.is_some() { format.aux2_pwm1 } else { Resolution::Ignore },
-            if self.aux2_pwm2.is_some() { format.aux2_pwm2 } else { Resolution::Ignore },
-            if self.aux2_pwm3.is_some() { format.aux2_pwm3 } else { Resolution::Ignore },
-            if self.aux2_pwm4.is_some() { format.aux2_pwm4 } else { Resolution::Ignore },
-            if self.aux2_pwm5.is_some() { format.aux2_pwm5 } else { Resolution::Ignore },
+            if self.aux1_pwm1.is_some() {
+                format.aux1_pwm1
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux1_pwm2.is_some() {
+                format.aux1_pwm2
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux1_pwm3.is_some() {
+                format.aux1_pwm3
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux1_pwm4.is_some() {
+                format.aux1_pwm4
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux1_pwm5.is_some() {
+                format.aux1_pwm5
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux2_pwm1.is_some() {
+                format.aux2_pwm1
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux2_pwm2.is_some() {
+                format.aux2_pwm2
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux2_pwm3.is_some() {
+                format.aux2_pwm3
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux2_pwm4.is_some() {
+                format.aux2_pwm4
+            } else {
+                Resolution::Ignore
+            },
+            if self.aux2_pwm5.is_some() {
+                format.aux2_pwm5
+            } else {
+                Resolution::Ignore
+            },
         ];
 
-        let mut combiner = WriteCombiner::new(
-            0x00,
-            Register::Aux1Pwm1.address(),
-            &resolutions,
-        );
+        let mut combiner = WriteCombiner::new(0x00, Register::Aux1Pwm1.address(), &resolutions);
 
         if combiner.maybe_write(&mut writer) {
             writer.write_pwm(self.aux1_pwm1.unwrap_or(0.0), format.aux1_pwm1);
@@ -797,7 +945,9 @@ mod tests {
     #[test]
     fn test_position_command() {
         let mut f = CanFdFrame::new();
-        PositionCommand::new().position(0.5).velocity(1.0)
+        PositionCommand::new()
+            .position(0.5)
+            .velocity(1.0)
             .serialize(&mut f, &PositionFormat::default());
         assert_eq!(bytes(&f), [1, 0, 10, 14, 32, 0, 0, 0, 63, 0, 0, 128, 63]);
     }
@@ -805,7 +955,9 @@ mod tests {
     #[test]
     fn test_vfoc_command() {
         let mut f = CanFdFrame::new();
-        VFOCCommand::new().theta(1.0).voltage(2.0)
+        VFOCCommand::new()
+            .theta(1.0)
+            .voltage(2.0)
             .serialize(&mut f, &VFOCFormat::default());
         assert_eq!(bytes(&f), [1, 0, 7, 14, 24, 131, 249, 162, 62, 0, 0, 0, 64]);
     }
@@ -813,7 +965,9 @@ mod tests {
     #[test]
     fn test_current_command() {
         let mut f = CanFdFrame::new();
-        CurrentCommand::new().q_current(1.5).d_current(0.5)
+        CurrentCommand::new()
+            .q_current(1.5)
+            .d_current(0.5)
             .serialize(&mut f, &CurrentFormat::default());
         assert_eq!(bytes(&f), [1, 0, 9, 14, 28, 0, 0, 192, 63, 0, 0, 0, 63]);
     }
@@ -821,16 +975,22 @@ mod tests {
     #[test]
     fn test_stay_within_command() {
         let mut f = CanFdFrame::new();
-        StayWithinCommand::new().lower_bound(-1.0).upper_bound(1.0).maximum_torque(0.3)
+        StayWithinCommand::new()
+            .lower_bound(-1.0)
+            .upper_bound(1.0)
+            .maximum_torque(0.3)
             .serialize(&mut f, &StayWithinFormat::default());
-        assert_eq!(bytes(&f),
-            [1, 0, 13, 14, 64, 0, 0, 128, 191, 0, 0, 128, 63, 13, 69, 154, 153, 153, 62]);
+        assert_eq!(
+            bytes(&f),
+            [1, 0, 13, 14, 64, 0, 0, 128, 191, 0, 0, 128, 63, 13, 69, 154, 153, 153, 62]
+        );
     }
 
     #[test]
     fn test_zero_velocity_command() {
         let mut f = CanFdFrame::new();
-        ZeroVelocityCommand::new().kd_scale(0.5)
+        ZeroVelocityCommand::new()
+            .kd_scale(0.5)
             .serialize(&mut f, &ZeroVelocityFormat::default());
         assert_eq!(bytes(&f), [1, 0, 12, 13, 36, 0, 0, 0, 63]);
     }
@@ -866,7 +1026,9 @@ mod tests {
     #[test]
     fn test_aux_pwm_command() {
         let mut f = CanFdFrame::new();
-        AuxPwmCommand::new().aux1_pwm1(0.75).aux2_pwm3(0.25)
+        AuxPwmCommand::new()
+            .aux1_pwm1(0.75)
+            .aux2_pwm3(0.25)
             .serialize(&mut f, &AuxPwmFormat::default());
         assert_eq!(bytes(&f), [13, 118, 0, 0, 64, 63, 13, 125, 0, 0, 128, 62]);
     }

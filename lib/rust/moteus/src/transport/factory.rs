@@ -99,10 +99,7 @@ impl TransportOptions {
 
     /// Set an extra transport-specific option.
     pub fn extra(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.extra
-            .entry(key.into())
-            .or_default()
-            .push(value.into());
+        self.extra.entry(key.into()).or_default().push(value.into());
         self
     }
 
@@ -231,7 +228,8 @@ impl TransportFactory for FdcanusbFactory {
             detect_fdcanusbs()
         } else {
             // Convert explicit paths to FdcanusbInfo (no serial number)
-            options.fdcanusb_paths
+            options
+                .fdcanusb_paths
                 .iter()
                 .map(|path| FdcanusbInfo {
                     path: path.clone(),
@@ -333,9 +331,7 @@ static REGISTRY: OnceLock<Mutex<Vec<Box<dyn TransportFactory>>>> = OnceLock::new
 
 fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
     REGISTRY.get_or_init(|| {
-        let mut factories: Vec<Box<dyn TransportFactory>> = vec![
-            Box::new(FdcanusbFactory),
-        ];
+        let mut factories: Vec<Box<dyn TransportFactory>> = vec![Box::new(FdcanusbFactory)];
         #[cfg(target_os = "linux")]
         factories.push(Box::new(SocketCanFactory));
         Mutex::new(factories)
@@ -388,9 +384,7 @@ pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
 /// It tries each factory in priority order and returns all successfully created
 /// devices. Duplicate socketcan interfaces backed by fdcanusb devices are
 /// filtered out.
-pub fn create_transports(
-    options: &TransportOptions,
-) -> Result<Vec<Box<dyn TransportDevice>>> {
+pub fn create_transports(options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
     use std::collections::HashSet;
 
     let registry = get_registry().lock().unwrap();
@@ -438,13 +432,11 @@ pub fn create_transports(
 
         for device in all_devices {
             let should_skip = socketcan_infos.iter().any(|info| {
-                (device
-                    .info()
-                    .serial_number
-                    .as_ref() == Some(&info.interface))
-                    && info.fdcanusb_serial.as_ref().is_some_and(|serial| {
-                        fdcanusb_serials.contains(serial)
-                    })
+                (device.info().serial_number.as_ref() == Some(&info.interface))
+                    && info
+                        .fdcanusb_serial
+                        .as_ref()
+                        .is_some_and(|serial| fdcanusb_serials.contains(serial))
             });
 
             if !should_skip {
@@ -521,11 +513,8 @@ mod tests {
 
     #[test]
     fn test_from_pairs_basic() {
-        let opts = TransportOptions::from_pairs([
-            ("can-chan", "can0"),
-            ("timeout-ms", "200"),
-        ])
-        .unwrap();
+        let opts =
+            TransportOptions::from_pairs([("can-chan", "can0"), ("timeout-ms", "200")]).unwrap();
         assert_eq!(opts.socketcan_interfaces, vec!["can0"]);
         assert_eq!(opts.timeout, Duration::from_millis(200));
     }
@@ -556,11 +545,8 @@ mod tests {
 
     #[test]
     fn test_from_pairs_unknown_key_goes_to_extra() {
-        let opts = TransportOptions::from_pairs([
-            ("pi3hat-cfg", "1=1,2"),
-            ("custom-opt", "value"),
-        ])
-        .unwrap();
+        let opts = TransportOptions::from_pairs([("pi3hat-cfg", "1=1,2"), ("custom-opt", "value")])
+            .unwrap();
         assert_eq!(
             opts.extra.get("pi3hat-cfg").unwrap(),
             &vec!["1=1,2".to_string()]
@@ -574,8 +560,7 @@ mod tests {
     #[test]
     fn test_from_pairs_force_transport_any_value() {
         // force-transport now accepts any value (validated dynamically at creation time)
-        let opts =
-            TransportOptions::from_pairs([("force-transport", "pi3hat")]).unwrap();
+        let opts = TransportOptions::from_pairs([("force-transport", "pi3hat")]).unwrap();
         assert_eq!(opts.force_transport, Some("pi3hat".to_string()));
     }
 

@@ -43,7 +43,9 @@ impl fmt::Display for Error {
             Error::Io(e) => write!(f, "I/O error: {}", e),
             Error::Timeout => write!(f, "Timeout waiting for response"),
             Error::NoResponse => write!(f, "No response from controller"),
-            Error::Fault { mode, code } => write!(f, "Controller fault: mode={}, code={}", mode, code),
+            Error::Fault { mode, code } => {
+                write!(f, "Controller fault: mode={}, code={}", mode, code)
+            }
             Error::InvalidResponse(msg) => write!(f, "Invalid response: {}", msg),
             Error::NotConnected => write!(f, "Transport not connected"),
             Error::DeviceNotFound(dev) => write!(f, "Device not found: {}", dev),

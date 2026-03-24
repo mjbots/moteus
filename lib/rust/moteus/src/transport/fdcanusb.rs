@@ -99,9 +99,7 @@ impl FdcanusbProtocol {
     /// Checks if a line is an error response.
     pub fn is_error_response(line: &str) -> bool {
         let trimmed = line.trim();
-        !trimmed.is_empty()
-            && !trimmed.starts_with("OK")
-            && !trimmed.starts_with("rcv")
+        !trimmed.is_empty() && !trimmed.starts_with("OK") && !trimmed.starts_with("rcv")
     }
 
     /// Converts bytes to hex string.
@@ -126,7 +124,6 @@ impl FdcanusbProtocol {
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
             .collect()
     }
-
 }
 
 /// FdCanUSB transport implementation.
@@ -347,7 +344,7 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
         while Instant::now() < deadline {
             self.line_buffer.clear();
             match self.reader.read_line(&mut self.line_buffer) {
-                Ok(0) => break, // No more data
+                Ok(0) => break,    // No more data
                 Ok(_) => continue, // Discard
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
                 Err(_) => break,
@@ -378,9 +375,9 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
 #[cfg(target_os = "linux")]
 mod linux_serial {
     use std::fs::OpenOptions;
-    use std::io::{Read, Write, Result};
-    use std::os::unix::io::{AsRawFd, RawFd};
+    use std::io::{Read, Result, Write};
     use std::os::raw::{c_int, c_void};
+    use std::os::unix::io::{AsRawFd, RawFd};
 
     // termios constants
     const NCCS: usize = 32;
@@ -441,10 +438,7 @@ mod linux_serial {
     impl LinuxSerialPort {
         /// Opens a serial port with appropriate settings for fdcanusb.
         pub fn open(path: &str) -> Result<Self> {
-            let file = OpenOptions::new()
-                .read(true)
-                .write(true)
-                .open(path)?;
+            let file = OpenOptions::new().read(true).write(true).open(path)?;
 
             let fd = file.as_raw_fd();
 
@@ -456,7 +450,8 @@ mod linux_serial {
                 }
 
                 // Raw mode - disable canonical processing, echo, signals
-                termios.c_iflag &= !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+                termios.c_iflag &=
+                    !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
                 termios.c_oflag &= !OPOST;
                 termios.c_lflag &= !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
                 termios.c_cflag &= !(CSIZE | PARENB);
