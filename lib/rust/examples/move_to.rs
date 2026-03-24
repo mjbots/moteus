@@ -47,7 +47,7 @@ struct Args {
 
     /// Period in seconds for full cycle
     #[arg(long, default_value = "5.0")]
-    period: f64,
+    period: f32,
 
     /// Use async transport instead of blocking
     #[arg(long)]

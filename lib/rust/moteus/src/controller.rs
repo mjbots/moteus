@@ -371,7 +371,7 @@ impl Controller {
     /// Builds a set-output-nearest command.
     ///
     /// Sets the output position to the nearest value matching the given position.
-    pub fn make_set_output_nearest(&self, position: f64, query: bool) -> Command {
+    pub fn make_set_output_nearest(&self, position: f32, query: bool) -> Command {
         let mut cmd = self.prepare_command(query);
         OutputNearestCommand::new(position).serialize(cmd.frame_mut());
         if query {
@@ -383,7 +383,7 @@ impl Controller {
     /// Builds a set-output-exact command.
     ///
     /// Sets the output position to exactly the given value.
-    pub fn make_set_output_exact(&self, position: f64, query: bool) -> Command {
+    pub fn make_set_output_exact(&self, position: f32, query: bool) -> Command {
         let mut cmd = self.prepare_command(query);
         OutputExactCommand::new(position).serialize(cmd.frame_mut());
         if query {
