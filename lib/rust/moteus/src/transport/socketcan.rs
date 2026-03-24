@@ -391,34 +391,8 @@ mod linux {
 #[cfg(target_os = "linux")]
 pub use linux::SocketCan;
 
-/// Stub for non-Linux platforms.
-#[cfg(not(target_os = "linux"))]
-pub struct SocketCan {
-    _private: (),
-}
-
-#[cfg(not(target_os = "linux"))]
-impl SocketCan {
-    /// SocketCAN is only available on Linux.
-    pub fn new(_interface: &str) -> crate::error::Result<Self> {
-        Err(crate::error::Error::Protocol(
-            "SocketCAN is only available on Linux".to_string(),
-        ))
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_socketcan_unavailable_on_non_linux() {
-        // This test just verifies the module compiles
-        #[cfg(not(target_os = "linux"))]
-        {
-            let result = super::SocketCan::new("can0");
-            assert!(result.is_err());
-        }
-    }
-
     #[cfg(target_os = "linux")]
     #[test]
     fn test_socketcan_interface_not_found() {

@@ -151,9 +151,11 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
 }
 
 /// Factory for async socketcan devices (Linux only).
+#[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
 pub struct AsyncSocketCanFactory;
 
+#[cfg(target_os = "linux")]
 impl AsyncSocketCanFactory {
     /// Create a new async socketcan factory.
     pub fn new() -> Self {
@@ -161,6 +163,7 @@ impl AsyncSocketCanFactory {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl AsyncTransportFactory for AsyncSocketCanFactory {
     fn priority(&self) -> u32 {
         11 // Lower priority than fdcanusb
@@ -181,7 +184,6 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
         }]
     }
 
-    #[cfg(target_os = "linux")]
     fn create<'a>(
         &'a self,
         options: &'a AsyncTransportOptions,
@@ -216,14 +218,6 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
             Ok(devices)
         })
     }
-
-    #[cfg(not(target_os = "linux"))]
-    fn create<'a>(
-        &'a self,
-        _options: &'a AsyncTransportOptions,
-    ) -> BoxFuture<'a, Result<Vec<Box<dyn AsyncTransportDevice>>>> {
-        Box::pin(async move { Ok(Vec::new()) })
-    }
 }
 
 // -- Global async transport factory registry --
@@ -232,10 +226,12 @@ static ASYNC_REGISTRY: OnceLock<Mutex<Vec<Arc<dyn AsyncTransportFactory>>>> = On
 
 fn get_async_registry() -> &'static Mutex<Vec<Arc<dyn AsyncTransportFactory>>> {
     ASYNC_REGISTRY.get_or_init(|| {
-        Mutex::new(vec![
-            Arc::new(AsyncFdcanusbFactory) as Arc<dyn AsyncTransportFactory>,
-            Arc::new(AsyncSocketCanFactory) as Arc<dyn AsyncTransportFactory>,
-        ])
+        let mut factories: Vec<Arc<dyn AsyncTransportFactory>> = vec![
+            Arc::new(AsyncFdcanusbFactory),
+        ];
+        #[cfg(target_os = "linux")]
+        factories.push(Arc::new(AsyncSocketCanFactory));
+        Mutex::new(factories)
     })
 }
 
