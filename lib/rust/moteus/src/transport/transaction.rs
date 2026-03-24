@@ -237,8 +237,8 @@ impl std::fmt::Debug for FrameFilter {
 /// let mut frame2 = CanFdFrame::new();
 /// frame2.arbitration_id = moteus_protocol::calculate_arbitration_id(0, 2, 0, true);
 /// let request = Request::new(frame2)
-///     .channel(1)                // Route to channel 1
-///     .expected_replies(2);      // Expect 2 responses
+///     .with_channel(1)                // Route to channel 1
+///     .with_expected_replies(2);      // Expect 2 responses
 /// ```
 #[derive(Clone)]
 pub struct Request {
@@ -415,7 +415,7 @@ impl Request {
     ///
     /// When using a transport with multiple devices, this specifies
     /// which channel (device) to use for this request.
-    pub fn channel(mut self, idx: usize) -> Self {
+    pub fn with_channel(mut self, idx: usize) -> Self {
         self.channel = Some(idx);
         self
     }
@@ -423,13 +423,13 @@ impl Request {
     /// Sets the response filter (builder pattern).
     ///
     /// Overrides the auto-detected filter based on frame destination.
-    pub fn filter(mut self, f: FrameFilter) -> Self {
+    pub fn with_filter(mut self, f: FrameFilter) -> Self {
         self.filter = f;
         self
     }
 
     /// Sets the expected number of replies (builder pattern).
-    pub fn expected_replies(mut self, n: u8) -> Self {
+    pub fn with_expected_replies(mut self, n: u8) -> Self {
         self.expected_reply_count = n;
         self
     }
@@ -632,9 +632,9 @@ mod tests {
         frame.arbitration_id = moteus_protocol::calculate_arbitration_id(0, 1, 0, true);
 
         let request = Request::new(frame)
-            .channel(2)
-            .filter(FrameFilter::Any)
-            .expected_replies(3);
+            .with_channel(2)
+            .with_filter(FrameFilter::Any)
+            .with_expected_replies(3);
 
         assert_eq!(request.channel, Some(2));
         assert_eq!(request.expected_reply_count, 3);
@@ -644,9 +644,9 @@ mod tests {
     #[test]
     fn test_total_expected_replies() {
         let requests = vec![
-            Request::receive_only(FrameFilter::Any).expected_replies(2),
-            Request::receive_only(FrameFilter::Any).expected_replies(3),
-            Request::receive_only(FrameFilter::Any).expected_replies(1),
+            Request::receive_only(FrameFilter::Any).with_expected_replies(2),
+            Request::receive_only(FrameFilter::Any).with_expected_replies(3),
+            Request::receive_only(FrameFilter::Any).with_expected_replies(1),
         ];
 
         assert_eq!(Request::total_expected_replies(&requests), 6);

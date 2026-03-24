@@ -667,8 +667,8 @@ impl Transport {
             // Use a large expected_replies to force waiting for the full timeout.
             let mut requests = vec![
                 Request::new(query_frame.clone())
-                    .filter(FrameFilter::Any) // Accept all responses
-                    .expected_replies(127)    // Max possible CAN IDs
+                    .with_filter(FrameFilter::Any) // Accept all responses
+                    .with_expected_replies(127)    // Max possible CAN IDs
             ];
 
             if device.transaction(&mut requests).is_ok() {
@@ -1283,8 +1283,8 @@ mod tests {
         let frame1 = CanFdFrame::new();
 
         let mut requests = vec![
-            Request::new(frame0).channel(0),
-            Request::new(frame1).channel(1),
+            Request::new(frame0).with_channel(0),
+            Request::new(frame1).with_channel(1),
         ];
 
         let result = transport.cycle(&mut requests);
@@ -1324,7 +1324,7 @@ mod tests {
         cmd_frame.arbitration_id = calculate_arbitration_id(0, 1, 0, true);
 
         // Explicit channel routes to device 1 despite routing table saying 0
-        let mut requests = vec![Request::new(cmd_frame).channel(1)];
+        let mut requests = vec![Request::new(cmd_frame).with_channel(1)];
         transport.cycle(&mut requests).unwrap();
 
         assert_eq!(log0.len(), 0);
