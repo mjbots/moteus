@@ -20,31 +20,34 @@
 //!
 //! # Example
 //!
-//! ```rust,ignore
-//! use moteus::{Controller, move_to, Setpoint, MoveToOptions};
-//! use moteus::transport::factory::TransportOptions;
-//! use moteus::Transport;
+//! ```no_run
+//! use moteus::{Controller, move_to, Setpoint, MoveToOptions, TransportOptions};
+//! use moteus::transport::singleton::create_default_transport;
+//! use std::time::Duration;
 //!
-//! let mut transport = Transport::with_options(&TransportOptions::new())?;
-//! let c1 = Controller::new(1);
-//! let c2 = Controller::new(2);
+//! fn main() -> Result<(), moteus::Error> {
+//!     let mut transport = create_default_transport(&TransportOptions::new())?;
+//!     let c1 = Controller::new(1);
+//!     let c2 = Controller::new(2);
 //!
-//! // Move servo 1 to position 0.5 over 2 seconds
-//! let results = move_to(
-//!     &mut transport,
-//!     &[(&c1, 0.5.into())],
-//!     &MoveToOptions::new().duration(2.0),
-//! )?;
+//!     // Move servo 1 to position 0.5 over 2 seconds
+//!     let results = move_to(
+//!         &mut transport,
+//!         &[(&c1, 0.5.into())],
+//!         &MoveToOptions::new().duration(Duration::from_secs(2)),
+//!     )?;
 //!
-//! // Multi-servo with custom setpoints
-//! let results = move_to(
-//!     &mut transport,
-//!     &[
-//!         (&c1, Setpoint::new(0.5).velocity_limit(0.2)),
-//!         (&c2, Setpoint::new(-0.3)),
-//!     ],
-//!     &MoveToOptions::new().duration(1.5),
-//! )?;
+//!     // Multi-servo with custom setpoints
+//!     let results = move_to(
+//!         &mut transport,
+//!         &[
+//!             (&c1, Setpoint::new(0.5).velocity_limit(0.2)),
+//!             (&c2, Setpoint::new(-0.3)),
+//!         ],
+//!         &MoveToOptions::new().duration(Duration::from_millis(1500)),
+//!     )?;
+//!     Ok(())
+//! }
 //! ```
 
 use crate::controller::Controller;

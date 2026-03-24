@@ -36,15 +36,19 @@ static GLOBAL_TRANSPORT: OnceLock<Arc<Mutex<Transport>>> = OnceLock::new();
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```no_run
 /// use moteus::transport::singleton::get_singleton_transport;
+/// use moteus::TransportOptions;
 ///
-/// // Get auto-detected transport
-/// let transport = get_singleton_transport(None)?;
+/// fn main() -> Result<(), moteus::Error> {
+///     // Get auto-detected transport
+///     let transport = get_singleton_transport(None)?;
 ///
-/// // Or with custom options
-/// let opts = TransportOptions::new().timeout(std::time::Duration::from_millis(200));
-/// let transport = get_singleton_transport(Some(&opts))?;
+///     // Or with custom options
+///     let opts = TransportOptions::new().timeout(std::time::Duration::from_millis(200));
+///     let transport = get_singleton_transport(Some(&opts))?;
+///     Ok(())
+/// }
 /// ```
 pub fn get_singleton_transport(
     options: Option<&TransportOptions>,

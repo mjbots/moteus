@@ -24,7 +24,10 @@ test_suite(
     name = "host",
     tests = [
         "//lib/rust/moteus-protocol:moteus-protocol-test",
+        "//lib/rust/moteus-protocol:moteus-protocol-doc-test",
         "//lib/rust/moteus:moteus-test",
+        "//lib/rust/moteus:moteus-doc-test",
+        "//lib/rust/moteus:moteus-doc-test-all-features",
         "//lib/rust:clippy",
     ],
 )
