@@ -26,6 +26,16 @@ pub enum Toggle {
     ForceOn,
 }
 
+impl core::fmt::Display for Toggle {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Toggle::Default => write!(f, "default"),
+            Toggle::ForceOff => write!(f, "off"),
+            Toggle::ForceOn => write!(f, "on"),
+        }
+    }
+}
+
 /// A CAN-FD frame.
 ///
 /// This structure represents a CAN-FD frame with only standard CAN fields:

@@ -37,6 +37,18 @@ pub enum Resolution {
     Ignore = 4,
 }
 
+impl core::fmt::Display for Resolution {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Resolution::Int8 => write!(f, "int8"),
+            Resolution::Int16 => write!(f, "int16"),
+            Resolution::Int32 => write!(f, "int32"),
+            Resolution::Float => write!(f, "float"),
+            Resolution::Ignore => write!(f, "ignore"),
+        }
+    }
+}
+
 impl Resolution {
     /// Returns the size in bytes for this resolution type.
     ///
