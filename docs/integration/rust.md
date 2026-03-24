@@ -17,21 +17,21 @@ Or add it directly to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-moteus = "0.1"
+moteus = "0.5"
 ```
 
 For async support with tokio, enable the `tokio` feature:
 
 ```toml
 [dependencies]
-moteus = { version = "0.1", features = ["tokio"] }
+moteus = { version = "0.5", features = ["tokio"] }
 ```
 
 For CLI argument parsing support, enable the `clap` feature:
 
 ```toml
 [dependencies]
-moteus = { version = "0.1", features = ["clap"] }
+moteus = { version = "0.5", features = ["clap"] }
 ```
 
 ## Basic Usage — BlockingController
