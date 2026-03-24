@@ -477,7 +477,7 @@ impl AsyncTransport {
                 let _ = guard.recover().await;
                 let mut requests = vec![
                     Request::receive_only(FrameFilter::Any)
-                        .expected_replies(127)
+                        .with_expected_replies(127)
                 ];
                 let _ = guard.transaction(&mut requests).await;
                 let responses = requests[0].responses.take();
@@ -1022,7 +1022,7 @@ mod tests {
             let mut transport = AsyncTransport::new(vec![Box::new(device)]);
 
             // Cancel a cycle
-            let mut requests = vec![Request::new(CanFdFrame::new()).expected_replies(0)];
+            let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];
             let _ = tokio::time::timeout(
                 Duration::from_millis(10),
                 transport.cycle(&mut requests),
@@ -1034,7 +1034,7 @@ mod tests {
 
             // Run another cycle — recover() should be called with
             // needs_recovery=true
-            let mut requests = vec![Request::new(CanFdFrame::new()).expected_replies(0)];
+            let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];
             transport.cycle(&mut requests).await.unwrap();
 
             assert!(recover_count.load(Ordering::Acquire) > 0);
@@ -1047,9 +1047,9 @@ mod tests {
             let mut transport = AsyncTransport::new(vec![Box::new(device)]);
 
             // Run two successful cycles
-            let mut requests = vec![Request::new(CanFdFrame::new()).expected_replies(0)];
+            let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];
             transport.cycle(&mut requests).await.unwrap();
-            let mut requests = vec![Request::new(CanFdFrame::new()).expected_replies(0)];
+            let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];
             transport.cycle(&mut requests).await.unwrap();
 
             // recover() was called but needs_recovery was false, so

@@ -237,7 +237,7 @@ impl<'a> DiagnosticStream<'a> {
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
             let frame = make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
             // Write frames don't expect a reply
-            let mut requests = vec![Request::new(frame).expected_replies(0)];
+            let mut requests = vec![Request::new(frame).with_expected_replies(0)];
             self.controller.transport.cycle(&mut requests)?;
         }
         Ok(())
@@ -259,7 +259,7 @@ impl<'a> DiagnosticStream<'a> {
 
         let id = self.id();
         let mut requests = vec![Request::new(frame)
-            .filter(FrameFilter::custom(move |f| {
+            .with_filter(FrameFilter::custom(move |f| {
                 // Check source matches device ID
                 let frame_source = ((f.arbitration_id >> 8) & 0x7F) as u8;
                 if frame_source != id {
@@ -268,7 +268,7 @@ impl<'a> DiagnosticStream<'a> {
                 // Check diagnostic content
                 Command::diagnostic_reply_filter().matches(f)
             }))
-            .expected_replies(1)];
+            .with_expected_replies(1)];
         self.controller.transport.cycle(&mut requests)?;
 
         let mut result = Vec::new();
@@ -439,7 +439,7 @@ impl<'a> AsyncDiagnosticStream<'a> {
         for chunk in data.chunks(MAX_DIAGNOSTIC_WRITE) {
             let frame = make_diagnostic_write_frame(self.id(), self.source_id(), self.channel, chunk);
             // Write frames don't expect a reply
-            let mut requests = vec![Request::new(frame).expected_replies(0)];
+            let mut requests = vec![Request::new(frame).with_expected_replies(0)];
             self.controller.transport.cycle(&mut requests).await?;
         }
         Ok(())
@@ -459,7 +459,7 @@ impl<'a> AsyncDiagnosticStream<'a> {
 
         let id = self.id();
         let mut requests = vec![Request::new(frame)
-            .filter(FrameFilter::custom(move |f| {
+            .with_filter(FrameFilter::custom(move |f| {
                 // Check source matches device ID
                 let frame_source = ((f.arbitration_id >> 8) & 0x7F) as u8;
                 if frame_source != id {
@@ -468,7 +468,7 @@ impl<'a> AsyncDiagnosticStream<'a> {
                 // Check diagnostic content
                 Command::diagnostic_reply_filter().matches(f)
             }))
-            .expected_replies(1)];
+            .with_expected_replies(1)];
         self.controller.transport.cycle(&mut requests).await?;
 
         let mut result = Vec::new();
