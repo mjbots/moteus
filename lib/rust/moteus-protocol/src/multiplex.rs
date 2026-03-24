@@ -70,6 +70,15 @@ pub struct WriteCanData<'a> {
     size: &'a mut u8,
 }
 
+impl<'a> core::fmt::Debug for WriteCanData<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("WriteCanData")
+            .field("offset", &(*self.size as usize))
+            .field("remaining", &(64 - *self.size as usize))
+            .finish()
+    }
+}
+
 impl<'a> WriteCanData<'a> {
     /// Creates a new writer from a frame.
     pub fn new(frame: &'a mut CanFdFrame) -> Self {
@@ -250,6 +259,18 @@ pub struct WriteCombiner<'a> {
     current_resolution: Resolution,
     offset: usize,
     reply_size: u8,
+}
+
+impl<'a> core::fmt::Debug for WriteCombiner<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("WriteCombiner")
+            .field("base_command", &self.base_command)
+            .field("start_register", &self.start_register)
+            .field("offset", &self.offset)
+            .field("current_resolution", &self.current_resolution)
+            .field("reply_size", &self.reply_size)
+            .finish()
+    }
 }
 
 impl<'a> WriteCombiner<'a> {
@@ -450,6 +471,19 @@ pub struct FrameParser<'a> {
     current_register: u16,
     current_resolution: Resolution,
     current_type: SubframeType,
+}
+
+impl<'a> core::fmt::Debug for FrameParser<'a> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("FrameParser")
+            .field("data_len", &self.data.len())
+            .field("offset", &self.offset)
+            .field("remaining", &self.remaining)
+            .field("current_register", &self.current_register)
+            .field("current_resolution", &self.current_resolution)
+            .field("current_type", &self.current_type)
+            .finish()
+    }
 }
 
 impl<'a> FrameParser<'a> {

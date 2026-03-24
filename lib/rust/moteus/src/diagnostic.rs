@@ -216,6 +216,16 @@ pub struct DiagnosticStream<'a> {
     read_buffer: Vec<u8>,
 }
 
+impl<'a> std::fmt::Debug for DiagnosticStream<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DiagnosticStream")
+            .field("device_id", &self.controller.controller.id)
+            .field("channel", &self.channel)
+            .field("read_buffer_len", &self.read_buffer.len())
+            .finish()
+    }
+}
+
 impl<'a> DiagnosticStream<'a> {
     /// Creates a new diagnostic stream for a controller.
     pub fn new(controller: &'a mut BlockingController) -> Self {
@@ -422,6 +432,17 @@ pub struct AsyncDiagnosticStream<'a> {
     controller: &'a mut AsyncController,
     channel: u8,
     read_buffer: Vec<u8>,
+}
+
+#[cfg(feature = "tokio")]
+impl<'a> std::fmt::Debug for AsyncDiagnosticStream<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AsyncDiagnosticStream")
+            .field("device_id", &self.controller.controller.id)
+            .field("channel", &self.channel)
+            .field("read_buffer_len", &self.read_buffer.len())
+            .finish()
+    }
 }
 
 #[cfg(feature = "tokio")]

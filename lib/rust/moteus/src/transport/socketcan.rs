@@ -92,6 +92,16 @@ mod linux {
         pub(crate) info: TransportDeviceInfo,
     }
 
+    impl std::fmt::Debug for SocketCan {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("SocketCan")
+                .field("info", &self.info)
+                .field("timeout", &self.timeout)
+                .field("disable_brs", &self.disable_brs)
+                .finish()
+        }
+    }
+
     impl SocketCan {
         /// Creates a new SocketCAN transport.
         ///

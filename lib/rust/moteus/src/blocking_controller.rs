@@ -179,6 +179,21 @@ pub struct BlockingController {
     pub(crate) transport: TransportHolder,
 }
 
+impl std::fmt::Debug for BlockingController {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let transport_state = match &self.transport {
+            TransportHolder::Deferred(_) => "Deferred",
+            TransportHolder::Explicit(_) => "Explicit",
+            TransportHolder::Singleton(_) => "Singleton",
+        };
+        f.debug_struct("BlockingController")
+            .field("id", &self.controller.id)
+            .field("address", &self.controller.address)
+            .field("transport", &transport_state)
+            .finish()
+    }
+}
+
 impl BlockingController {
     /// Creates a new blocking controller.
     ///
