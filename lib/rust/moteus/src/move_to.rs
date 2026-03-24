@@ -479,6 +479,11 @@ fn compute_velocity_limits(
 ///
 /// See [`move_to`] for full documentation.
 ///
+/// # Errors
+///
+/// * `Error::Fault` — if any servo enters a fault or timeout mode
+/// * `Error::Timeout` — if `options.timeout` is set and exceeded
+///
 /// # Cancel safety
 ///
 /// Cancel safe. If cancelled, servos continue their current

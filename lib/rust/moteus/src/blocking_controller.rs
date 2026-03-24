@@ -309,6 +309,11 @@ impl BlockingController {
     // === Query Methods ===
 
     /// Queries the controller for current state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn query(&mut self) -> Result<QueryResult> {
         let mut requests = [Request::from_command(self.controller.make_query())];
         self.transport.cycle(&mut requests)?;
@@ -323,6 +328,11 @@ impl BlockingController {
     }
 
     /// Queries with a custom format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn query_with_format(&mut self, format: &QueryFormat) -> Result<QueryResult> {
         let mut requests = [Request::from_command(
             self.controller.make_query_with_format(format),
@@ -341,6 +351,11 @@ impl BlockingController {
     // === Stop/Brake Methods ===
 
     /// Sends a stop command and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_stop(&mut self) -> Result<QueryResult> {
         let mut requests = [Request::from_command(self.controller.make_stop(true))];
         self.transport.cycle(&mut requests)?;
@@ -354,6 +369,10 @@ impl BlockingController {
     }
 
     /// Sends a stop command without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_stop_no_query(&mut self) -> Result<()> {
         let mut requests = [Request::from_command(self.controller.make_stop(false))];
         self.transport.cycle(&mut requests)?;
@@ -361,6 +380,11 @@ impl BlockingController {
     }
 
     /// Sends a brake command and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_brake(&mut self) -> Result<QueryResult> {
         let mut requests = [Request::from_command(self.controller.make_brake(true))];
         self.transport.cycle(&mut requests)?;
@@ -374,6 +398,10 @@ impl BlockingController {
     }
 
     /// Sends a brake command without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_brake_no_query(&mut self) -> Result<()> {
         let mut requests = [Request::from_command(self.controller.make_brake(false))];
         self.transport.cycle(&mut requests)?;
@@ -387,6 +415,11 @@ impl BlockingController {
     /// # Arguments
     /// * `cmd` - Position command built with the builder pattern, optionally
     ///   with `.with_query()` to override the query format
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -454,6 +487,10 @@ impl BlockingController {
     /// Commands position mode without waiting for response.
     ///
     /// This is a bandwidth optimization for when you don't need feedback.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_position_no_query(&mut self, cmd: &PositionCommand) -> Result<()> {
         let mut requests = [Request::from_command(
             self.controller.make_position_command(cmd, false),
@@ -469,6 +506,12 @@ impl BlockingController {
     /// # Arguments
     /// * `poll_interval` - How often to poll
     /// * `timeout` - Maximum time to wait
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    /// Returns `Error::Timeout` if the operation exceeds the timeout.
     pub fn wait_for_trajectory_complete(
         &mut self,
         poll_interval: Duration,
@@ -494,6 +537,11 @@ impl BlockingController {
     // === Current Mode Methods ===
 
     /// Commands current (torque) mode and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -535,6 +583,10 @@ impl BlockingController {
     }
 
     /// Commands current mode without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_current_no_query(&mut self, cmd: &CurrentCommand) -> Result<()> {
         let mut requests = [Request::from_command(
             self.controller.make_current_command(cmd, false),
@@ -546,6 +598,11 @@ impl BlockingController {
     // === VFOC Mode Methods ===
 
     /// Commands voltage FOC mode and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -584,6 +641,10 @@ impl BlockingController {
     }
 
     /// Commands VFOC mode without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_vfoc_no_query(&mut self, cmd: &VFOCCommand) -> Result<()> {
         let mut requests = [Request::from_command(
             self.controller.make_vfoc_command(cmd, false),
@@ -595,6 +656,11 @@ impl BlockingController {
     // === Stay-Within Mode Methods ===
 
     /// Commands stay-within mode and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -639,6 +705,10 @@ impl BlockingController {
     }
 
     /// Commands stay-within mode without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_stay_within_no_query(&mut self, cmd: &StayWithinCommand) -> Result<()> {
         let mut requests = [Request::from_command(
             self.controller.make_stay_within_command(cmd, false),
@@ -650,6 +720,11 @@ impl BlockingController {
     // === Zero-Velocity Mode Methods ===
 
     /// Commands zero-velocity mode (hold position with damping) and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -696,6 +771,10 @@ impl BlockingController {
     }
 
     /// Commands zero-velocity mode without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_zero_velocity_no_query(&mut self, cmd: &ZeroVelocityCommand) -> Result<()> {
         let mut requests = [Request::from_command(
             self.controller.make_zero_velocity_command(cmd, false),
@@ -707,6 +786,11 @@ impl BlockingController {
     // === Output Position Methods ===
 
     /// Sets output position to nearest value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_output_nearest(&mut self, position: f32) -> Result<QueryResult> {
         let mut requests = [Request::from_command(
             self.controller.make_set_output_nearest(position, true),
@@ -722,6 +806,11 @@ impl BlockingController {
     }
 
     /// Sets output position to exact value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_output_exact(&mut self, position: f32) -> Result<QueryResult> {
         let mut requests = [Request::from_command(
             self.controller.make_set_output_exact(position, true),
@@ -737,6 +826,11 @@ impl BlockingController {
     }
 
     /// Requires re-indexing of the encoder.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_require_reindex(&mut self) -> Result<QueryResult> {
         let mut requests = [Request::from_command(
             self.controller.make_require_reindex(true),
@@ -752,6 +846,11 @@ impl BlockingController {
     }
 
     /// Recaptures position and velocity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_recapture_position_velocity(&mut self) -> Result<QueryResult> {
         let mut requests = [Request::from_command(
             self.controller.make_recapture_position_velocity(true),
@@ -772,6 +871,11 @@ impl BlockingController {
     ///
     /// Returns a tuple of (aux1, aux2) where each byte represents pin states.
     /// Bit N corresponds to pin N's state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -810,6 +914,10 @@ impl BlockingController {
     /// * `aux1` - Optional value for AUX1 GPIO outputs (bit N = pin N)
     /// * `aux2` - Optional value for AUX2 GPIO outputs (bit N = pin N)
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -835,6 +943,11 @@ impl BlockingController {
     }
 
     /// Writes GPIO digital outputs and returns query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     pub fn set_write_gpio_query(
         &mut self,
         aux1: Option<u8>,
@@ -862,6 +975,11 @@ impl BlockingController {
     ///
     /// # Arguments
     /// * `registers` - Slice of (register address, resolution) tuples to query
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Example
     ///
@@ -898,6 +1016,11 @@ impl BlockingController {
     /// # Arguments
     /// * `cmd` - AUX PWM command built with the builder pattern
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Example
     ///
     /// ```no_run
@@ -927,6 +1050,10 @@ impl BlockingController {
     }
 
     /// Sets AUX PWM outputs without waiting for response.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_aux_pwm_no_query(&mut self, cmd: &AuxPwmCommand) -> Result<()> {
         let mut requests = [Request::from_command(
             self.controller.make_aux_pwm(cmd, false),
@@ -938,6 +1065,10 @@ impl BlockingController {
     // === Clock Trim Methods ===
 
     /// Sets the clock trim value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
     pub fn set_trim(&mut self, trim: i32) -> Result<()> {
         let mut requests = [Request::from_command(self.controller.make_set_trim(trim))];
         self.transport.cycle(&mut requests)?;
@@ -955,6 +1086,13 @@ impl BlockingController {
     /// * `cmd` - Position command built with the builder pattern
     /// * `poll_interval` - How often to poll
     /// * `timeout` - Maximum time to wait
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::Timeout` if the operation exceeds the
+    /// timeout. Returns `Error::Fault` if the device reports a fault or
+    /// timeout mode.
     ///
     /// # Example
     ///
@@ -1042,6 +1180,10 @@ impl BlockingController {
     ///
     /// This is useful when recovering from errors or resynchronizing
     /// with the device.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable.
     pub fn flush_transport(&mut self) -> Result<()> {
         // Attempt a read with a short timeout to clear any pending data
         let old_timeout = self.transport.timeout();
