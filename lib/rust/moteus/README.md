@@ -1,7 +1,10 @@
-# Rust bindings for moteus brushless controller
+# moteus
 
-These bindings permit communication and control of moteus brushless
-controllers from Rust.
+Rust client library for moteus brushless motor controllers.
+
+This crate provides a high-level API for communicating with moteus
+controllers over CAN-FD. It supports multiple transport backends and
+automatic device discovery.
 
 ## Crate Structure
 
@@ -12,10 +15,6 @@ This library is split into two crates:
 - **moteus**: High-level API with transport implementations for FdCanUSB
   and SocketCAN.
 
-## Minimum Supported Rust Version (MSRV)
-
-This library requires **Rust 1.75.0** or later.
-
 ## Quick Start - Auto-Discovery (Recommended)
 
 The simplest way to use moteus is with automatic transport discovery:
@@ -24,7 +23,7 @@ The simplest way to use moteus is with automatic transport discovery:
 use moteus::{BlockingController, command::PositionCommand};
 
 fn main() -> Result<(), moteus::Error> {
-    // Auto-discovers transport (fdcanusb, socketcan, etc.)
+    // Auto-discovers transport on first use
     let mut ctrl = BlockingController::new(1);
 
     // Clear any faults
@@ -69,14 +68,16 @@ let cmd = PositionCommand::new()
 For more control, you can specify a transport explicitly:
 
 ```rust,no_run
-use moteus::{BlockingController, transport::socketcan::SocketCan};
+use moteus::{BlockingController, TransportOptions};
+use moteus::transport::singleton::create_default_transport;
 
 fn main() -> Result<(), moteus::Error> {
-    let transport = SocketCan::new("can0")?;
+    let opts = TransportOptions::new()
+        .socketcan_interfaces(vec!["can0"]);
+    let transport = create_default_transport(&opts)?;
     let mut ctrl = BlockingController::new(1)
         .transport(transport);
 
-    // Use the controller...
     ctrl.set_stop()?;
     Ok(())
 }
@@ -86,21 +87,18 @@ fn main() -> Result<(), moteus::Error> {
 
 Configure transport auto-detection with options:
 
-```rust,no_run
+```rust
 use moteus::{BlockingController, TransportOptions};
+use std::time::Duration;
 
-fn main() -> Result<(), moteus::Error> {
-    let opts = TransportOptions::new()
-        .socketcan_interfaces(vec!["can0"])
-        .timeout(std::time::Duration::from_millis(200));
+let opts = TransportOptions::new()
+    .socketcan_interfaces(vec!["can0"])
+    .timeout(Duration::from_millis(200));
 
-    let mut ctrl = BlockingController::with_options(1, &opts);
-    ctrl.set_stop()?;
-    Ok(())
-}
+let mut ctrl = BlockingController::with_options(1, &opts);
 ```
 
-## Using moteus-protocol Directly
+## Low-Level Protocol Access
 
 For embedded or custom transport use cases, the `moteus-protocol` crate
 can be used directly to construct and parse CAN-FD frames:
@@ -111,7 +109,6 @@ use moteus_protocol::{CanFdFrame, command::{PositionCommand, PositionFormat}};
 // Create a position command frame using builder pattern
 let mut frame = CanFdFrame::new();
 frame.arbitration_id = 0x8001;  // dest=1, source=0
-frame.destination = 1;
 
 let cmd = PositionCommand::new()
     .position(0.5)
@@ -119,38 +116,6 @@ let cmd = PositionCommand::new()
 cmd.serialize(&mut frame, &PositionFormat::default());
 
 // frame.data and frame.size now contain the encoded command
-```
-
-## Transport Options
-
-### SocketCAN (Linux)
-
-```rust,no_run
-use moteus::transport::socketcan::SocketCan;
-
-let transport = SocketCan::new("can0")?;
-// or with custom timeout:
-let transport = SocketCan::with_timeout("can0", 200)?;
-```
-
-### FdCanUSB
-
-The FdCanUSB transport requires a serial port implementation. The
-`fdcanusb` module provides the protocol encoder/decoder:
-
-```rust
-use moteus::transport::fdcanusb::FdcanusbProtocol;
-use moteus_protocol::CanFdFrame;
-
-let frame = CanFdFrame::new();
-let cmd = FdcanusbProtocol::encode_frame(&frame, false);
-// Send `cmd` over serial port
-
-// When receiving:
-let line = "rcv 8001 0102030405060708 BF\n";
-if let Some(frame) = FdcanusbProtocol::parse_line(line) {
-    // Process received frame
-}
 ```
 
 ## Controller Configuration
@@ -200,17 +165,19 @@ ctrl.query_format.velocity = Resolution::Float;
 ctrl.query_format.torque = Resolution::Int16;
 ```
 
+## Features
+
+- `tokio`: Async I/O transports and `AsyncController` (optional)
+- `clap`: CLI argument parsing support (optional)
+
+## Supported Transports
+
+- **FdCanUSB**: USB-to-CAN adapter (serial CDC)
+- **SocketCAN**: Linux kernel CAN interface
+
 ## Building with Bazel
 
 ```bash
 tools/bazel build //lib/rust/moteus
 tools/bazel test //lib/rust:host
-```
-
-### Testing Against MSRV
-
-To verify compatibility with the minimum supported Rust version (1.75.0):
-
-```bash
-tools/bazel test //lib/rust:host --extra_toolchains=@rust_msrv//:all
 ```
