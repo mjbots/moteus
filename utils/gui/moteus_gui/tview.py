@@ -38,6 +38,9 @@ import struct
 import sys
 import time
 import traceback
+import warnings
+warnings.filterwarnings(
+    "ignore", message="Unable to import Axes3D", category=UserWarning)
 import matplotlib
 import matplotlib.figure
 
