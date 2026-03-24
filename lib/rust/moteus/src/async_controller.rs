@@ -148,7 +148,7 @@ impl AsyncController {
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
-    ///               converted to CAN ID addresses.
+    ///   converted to CAN ID addresses.
     pub fn new(address: impl Into<DeviceAddress>) -> Self {
         Self {
             controller: Controller::new(address),
@@ -163,7 +163,7 @@ impl AsyncController {
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
-    ///               converted to CAN ID addresses.
+    ///   converted to CAN ID addresses.
     /// * `options` - Async transport options for device selection and configuration
     pub fn with_options(
         address: impl Into<DeviceAddress>,
@@ -329,7 +329,7 @@ impl AsyncController {
     ///
     /// # Arguments
     /// * `cmd` - Position command built with the builder pattern, optionally
-    ///           with `.with_query()` to override the query format
+    ///   with `.with_query()` to override the query format
     ///
     /// # Cancel safety
     ///

@@ -78,9 +78,9 @@ impl Controller {
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID, UUID, or both). Integers are
-    ///               automatically converted to CAN ID addresses. UUID-only
-    ///               addresses use 0x7F (broadcast) as the CAN ID, with
-    ///               UUID mask prefix data prepended to each command frame.
+    ///   automatically converted to CAN ID addresses. UUID-only
+    ///   addresses use 0x7F (broadcast) as the CAN ID, with
+    ///   UUID mask prefix data prepended to each command frame.
     ///
     /// # Example
     ///

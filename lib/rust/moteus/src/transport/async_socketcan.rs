@@ -275,12 +275,7 @@ mod linux {
                     return Ok(());
                 }
                 // Drain stale frames from kernel buffer (non-blocking)
-                loop {
-                    match self.async_fd.get_ref().try_recv() {
-                        Ok(_) => continue,
-                        Err(_) => break,
-                    }
-                }
+                while self.async_fd.get_ref().try_recv().is_ok() {}
                 self.needs_recovery = false;
                 Ok(())
             })

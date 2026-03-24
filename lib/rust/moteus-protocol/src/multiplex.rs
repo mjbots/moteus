@@ -186,7 +186,7 @@ impl<'a> WriteCanData<'a> {
                 self.write_i32(saturate_i32(value, scaling.int32));
             }
             Resolution::Float => {
-                self.write_f32(value as f32);
+                self.write_f32(value);
             }
             Resolution::Ignore => {}
         }
