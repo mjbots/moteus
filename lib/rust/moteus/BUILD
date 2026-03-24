@@ -21,6 +21,7 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "moteus",
     srcs = glob(["src/**/*.rs"]),
+    compile_data = ["README.md"],
     crate_name = "moteus",
     edition = "2021",
     rustc_flags = ["-D", "warnings"],
@@ -36,6 +37,7 @@ rust_library(
 rust_library(
     name = "moteus_clap",
     srcs = glob(["src/**/*.rs"]),
+    compile_data = ["README.md"],
     crate_name = "moteus",
     edition = "2021",
     rustc_flags = [
@@ -55,6 +57,7 @@ rust_library(
 rust_library(
     name = "moteus_tokio",
     srcs = glob(["src/**/*.rs"]),
+    compile_data = ["README.md"],
     crate_name = "moteus",
     edition = "2021",
     rustc_flags = [
@@ -75,6 +78,7 @@ rust_library(
 rust_library(
     name = "moteus_clap_tokio",
     srcs = glob(["src/**/*.rs"]),
+    compile_data = ["README.md"],
     crate_name = "moteus",
     edition = "2021",
     rustc_flags = [
