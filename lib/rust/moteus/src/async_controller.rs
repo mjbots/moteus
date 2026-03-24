@@ -234,6 +234,11 @@ impl AsyncController {
 
     /// Queries the controller for current state.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -253,6 +258,11 @@ impl AsyncController {
     }
 
     /// Queries with a custom format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -281,6 +291,11 @@ impl AsyncController {
 
     /// Sends a stop command and returns the query result.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -300,6 +315,10 @@ impl AsyncController {
 
     /// Sends a stop command without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -312,6 +331,11 @@ impl AsyncController {
     }
 
     /// Sends a brake command and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -332,6 +356,10 @@ impl AsyncController {
 
     /// Sends a brake command without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -350,6 +378,11 @@ impl AsyncController {
     /// # Arguments
     /// * `cmd` - Position command built with the builder pattern, optionally
     ///   with `.with_query()` to override the query format
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -403,6 +436,10 @@ impl AsyncController {
 
     /// Commands position mode without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -426,6 +463,12 @@ impl AsyncController {
     /// # Arguments
     /// * `poll_interval` - How often to poll
     /// * `timeout` - Maximum time to wait
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    /// Returns `Error::Timeout` if the operation exceeds the timeout.
     ///
     /// # Cancel safety
     ///
@@ -470,6 +513,11 @@ impl AsyncController {
 
     /// Commands current (torque) mode and returns the query result.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -512,6 +560,10 @@ impl AsyncController {
 
     /// Commands current mode without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -531,6 +583,11 @@ impl AsyncController {
     // === Async VFOC Mode Methods ===
 
     /// Commands voltage FOC mode and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -574,6 +631,10 @@ impl AsyncController {
 
     /// Commands VFOC mode without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -590,6 +651,11 @@ impl AsyncController {
     // === Async Stay-Within Mode Methods ===
 
     /// Commands stay-within mode and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -635,6 +701,10 @@ impl AsyncController {
 
     /// Commands stay-within mode without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -654,6 +724,11 @@ impl AsyncController {
     // === Async Zero-Velocity Mode Methods ===
 
     /// Commands zero-velocity mode (hold position with damping) and returns the query result.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -700,6 +775,10 @@ impl AsyncController {
 
     /// Commands zero-velocity mode without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -719,6 +798,11 @@ impl AsyncController {
     // === Async Output Position Methods ===
 
     /// Sets output position to nearest value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -741,6 +825,11 @@ impl AsyncController {
 
     /// Sets output position to exact value.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -762,6 +851,11 @@ impl AsyncController {
 
     /// Requires re-indexing of the encoder.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -782,6 +876,11 @@ impl AsyncController {
     }
 
     /// Recaptures position and velocity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -808,6 +907,11 @@ impl AsyncController {
     ///
     /// Returns a tuple of (aux1, aux2) where each byte represents pin states.
     /// Bit N corresponds to pin N's state.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -849,6 +953,10 @@ impl AsyncController {
     /// * `aux1` - Optional value for AUX1 GPIO outputs (bit N = pin N)
     /// * `aux2` - Optional value for AUX2 GPIO outputs (bit N = pin N)
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -882,6 +990,11 @@ impl AsyncController {
 
     /// Writes GPIO digital outputs and returns query result.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -914,6 +1027,11 @@ impl AsyncController {
     ///
     /// # Arguments
     /// * `registers` - Slice of (register address, resolution) tuples to query
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
     ///
     /// # Cancel safety
     ///
@@ -956,6 +1074,11 @@ impl AsyncController {
     /// # Arguments
     /// * `cmd` - AUX PWM command built with the builder pattern
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::NoResponse` if the device does not reply.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -992,6 +1115,10 @@ impl AsyncController {
 
     /// Sets AUX PWM outputs without waiting for response.
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -1015,6 +1142,10 @@ impl AsyncController {
     /// # Arguments
     /// * `trim` - Clock trim value (i32)
     ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication fails.
+    ///
     /// # Cancel safety
     ///
     /// Cancel safe.
@@ -1037,6 +1168,13 @@ impl AsyncController {
     /// * `cmd` - Position command built with the builder pattern
     /// * `poll_interval` - How often to poll
     /// * `timeout` - Maximum time to wait
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the transport is unavailable or communication
+    /// fails. Returns `Error::Timeout` if the operation exceeds the
+    /// timeout. Returns `Error::Fault` if the device reports a fault or
+    /// timeout mode.
     ///
     /// # Cancel safety
     ///
