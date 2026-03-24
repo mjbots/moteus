@@ -302,6 +302,12 @@ pub enum Register {
     UuidMaskCapable = 0x158,
 }
 
+impl core::fmt::Display for Register {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(self, f)
+    }
+}
+
 impl Register {
     /// Returns the register address as a u16.
     #[inline]
