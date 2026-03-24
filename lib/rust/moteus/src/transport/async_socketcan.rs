@@ -166,6 +166,16 @@ mod linux {
         needs_recovery: bool,
     }
 
+    impl std::fmt::Debug for AsyncSocketCan {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("AsyncSocketCan")
+                .field("info", &self.info)
+                .field("timeout", &self.timeout)
+                .field("needs_recovery", &self.needs_recovery)
+                .finish()
+        }
+    }
+
     impl AsyncSocketCan {
         /// Creates a new async SocketCAN transport.
         ///

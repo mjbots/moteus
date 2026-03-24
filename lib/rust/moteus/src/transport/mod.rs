@@ -458,6 +458,19 @@ pub struct Transport {
     timeout: Duration,
 }
 
+impl std::fmt::Debug for Transport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let device_infos: Vec<&TransportDeviceInfo> =
+            self.devices.iter().map(|d| d.info()).collect();
+        f.debug_struct("Transport")
+            .field("device_count", &self.devices.len())
+            .field("devices", &device_infos)
+            .field("routes", &self.routing_table.len())
+            .field("timeout", &self.timeout)
+            .finish()
+    }
+}
+
 /// Compute the deduplicated parent indices from a list of devices.
 ///
 /// For each device, if `parent_index` is `Some(p)`, use `p`; otherwise
@@ -1053,6 +1066,7 @@ impl TransportOps for Transport {
 /// A null transport that doesn't send anything.
 ///
 /// Useful for testing frame construction without hardware.
+#[derive(Debug)]
 pub struct NullTransport {
     timeout: Duration,
 }
