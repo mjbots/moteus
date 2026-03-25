@@ -21,10 +21,6 @@
 //! to be usable on embedded systems without an allocator, as well as in
 //! standard environments.
 //!
-//! ## Features
-//!
-//! - `std` (default): When disabled, the crate is built as `no_std`
-//!
 //! ## Example
 //!
 //! ```rust
@@ -44,7 +40,7 @@
 //! query.serialize(&mut frame);
 //! ```
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 
 mod frame;
 mod mode;
