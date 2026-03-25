@@ -138,7 +138,8 @@ let ctrl = BlockingController::with_controller(ctrl);
 You can override the query format on a per-call basis:
 
 ```rust
-use moteus::{CommandExt, command::PositionCommand};
+use moteus::command_ext::CommandExt;
+use moteus::command::PositionCommand;
 use moteus::query::QueryFormat;
 
 // Override query format for this specific call

@@ -21,7 +21,8 @@
 //! # Example (Blocking)
 //!
 //! ```no_run
-//! use moteus::{BlockingController, DiagnosticStream};
+//! use moteus::BlockingController;
+//! use moteus::diagnostic::DiagnosticStream;
 //!
 //! fn main() -> Result<(), moteus::Error> {
 //!     let mut ctrl = BlockingController::new(1);
@@ -44,7 +45,8 @@
 //! # Example (Async)
 //!
 //! ```ignore
-//! use moteus::{AsyncController, AsyncDiagnosticStream};
+//! use moteus::AsyncController;
+//! use moteus::diagnostic::AsyncDiagnosticStream;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
@@ -194,7 +196,8 @@ use crate::blocking_controller::BlockingController;
 /// # Example
 ///
 /// ```no_run
-/// use moteus::{BlockingController, DiagnosticStream};
+/// use moteus::BlockingController;
+/// use moteus::diagnostic::DiagnosticStream;
 ///
 /// fn main() -> Result<(), moteus::Error> {
 ///     let mut ctrl = BlockingController::new(1);
@@ -445,7 +448,8 @@ use crate::async_controller::AsyncController;
 /// # Example
 ///
 /// ```no_run
-/// use moteus::{AsyncController, AsyncDiagnosticStream};
+/// use moteus::AsyncController;
+/// use moteus::diagnostic::AsyncDiagnosticStream;
 ///
 /// let mut ctrl = AsyncController::new(1);
 /// let mut stream = AsyncDiagnosticStream::new(&mut ctrl);

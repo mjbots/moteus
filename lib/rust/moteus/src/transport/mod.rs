@@ -934,7 +934,8 @@ impl Transport {
     /// # Example
     ///
     /// ```no_run
-    /// use moteus::{Transport, TransportOptions, Request, CanFdFrame};
+    /// use moteus::{Transport, TransportOptions, CanFdFrame};
+    /// use moteus::transport::transaction::Request;
     /// use moteus::transport::singleton::create_default_transport;
     ///
     /// fn main() -> Result<(), moteus::Error> {
