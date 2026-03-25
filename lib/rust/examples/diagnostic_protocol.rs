@@ -46,7 +46,7 @@ struct Args {
 }
 
 fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
-    let mut ctrl = BlockingController::with_options(args.id, &args.transport.clone().into());
+    let mut ctrl = BlockingController::with_options(args.id, &args.transport.clone().into())?;
     let mut stream = DiagnosticStream::new(&mut ctrl);
 
     // Applications like tview may leave the controller "spewing" on the
@@ -76,7 +76,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
 #[tokio::main]
 async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     let mut ctrl =
-        AsyncController::with_options(args.id, &args.transport.clone().into());
+        AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
     let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 
     // Stop telemetry and flush pending data.

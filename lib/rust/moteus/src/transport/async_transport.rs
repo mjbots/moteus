@@ -820,6 +820,38 @@ impl AsyncTransportOps for AsyncTransport {
     }
 }
 
+#[cfg(feature = "tokio")]
+impl<T: AsyncTransportOps + 'static> AsyncTransportOps for Arc<tokio::sync::Mutex<T>> {
+    fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
+        let arc = Arc::clone(self);
+        Box::pin(async move {
+            let mut guard = arc.lock().await;
+            guard.cycle(requests).await
+        })
+    }
+    fn write<'a>(&'a mut self, frame: &'a CanFdFrame) -> BoxFuture<'a, Result<()>> {
+        let arc = Arc::clone(self);
+        Box::pin(async move {
+            let mut guard = arc.lock().await;
+            guard.write(frame).await
+        })
+    }
+    fn read(&mut self, channel: Option<usize>) -> BoxFuture<'_, Result<Option<CanFdFrame>>> {
+        let arc = Arc::clone(self);
+        Box::pin(async move {
+            let mut guard = arc.lock().await;
+            guard.read(channel).await
+        })
+    }
+    fn flush_read(&mut self, channel: Option<usize>) -> BoxFuture<'_, Result<()>> {
+        let arc = Arc::clone(self);
+        Box::pin(async move {
+            let mut guard = arc.lock().await;
+            guard.flush_read(channel).await
+        })
+    }
+}
+
 // =============================================================================
 // Tests
 // =============================================================================

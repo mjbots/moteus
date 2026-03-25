@@ -47,7 +47,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
     // Create a controller with the specified ID and transport options.
     // By default, this picks an arbitrary CAN-FD transport, preferring
     // an attached fdcanusb if available.
-    let mut c = BlockingController::with_options(args.id, &args.transport.clone().into());
+    let mut c = BlockingController::with_options(args.id, &args.transport.clone().into())?;
 
     // Clear any faults by sending a stop command.
     c.set_stop()?;
@@ -85,7 +85,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     // By default, this picks an arbitrary CAN-FD transport, preferring
     // an attached fdcanusb if available.
     let mut c =
-        AsyncController::with_options(args.id, &args.transport.clone().into());
+        AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
 
     // Clear any faults by sending a stop command.
     c.set_stop().await?;
