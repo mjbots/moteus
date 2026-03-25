@@ -23,7 +23,8 @@
 
 use clap::Parser;
 use moteus::command::PositionCommand;
-use moteus::{AsyncController, BlockingController, TransportArgs};
+use moteus::transport::args::TransportArgs;
+use moteus::{AsyncController, BlockingController};
 use std::time::Duration;
 
 /// Command a single servo to hold position.

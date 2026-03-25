@@ -21,7 +21,8 @@
 //!   tools/bazel run //lib/rust:discover -- --can-chan can0
 
 use clap::Parser;
-use moteus::{get_singleton_transport, TransportArgs};
+use moteus::transport::args::TransportArgs;
+use moteus::transport::singleton::get_singleton_transport;
 
 /// Discover all connected moteus controllers.
 #[derive(Parser)]

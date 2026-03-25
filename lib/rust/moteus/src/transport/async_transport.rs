@@ -114,7 +114,7 @@ pub trait AsyncTransportOps: Send {
 /// # Example
 ///
 /// ```no_run
-/// use moteus::AsyncTransport;
+/// use moteus::transport::async_transport::AsyncTransport;
 /// use moteus::transport::async_factory::AsyncTransportOptions;
 ///
 /// #[tokio::main]

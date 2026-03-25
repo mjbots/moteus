@@ -25,9 +25,9 @@
 //!   tools/bazel run //lib/rust:diagnostic_protocol -- --async
 
 use clap::Parser;
-use moteus::{
-    AsyncController, AsyncDiagnosticStream, BlockingController, DiagnosticStream, TransportArgs,
-};
+use moteus::diagnostic::{AsyncDiagnosticStream, DiagnosticStream};
+use moteus::transport::args::TransportArgs;
+use moteus::{AsyncController, BlockingController};
 
 /// Demonstrate the diagnostic protocol.
 #[derive(Parser)]

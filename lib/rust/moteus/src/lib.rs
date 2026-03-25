@@ -14,67 +14,29 @@
 
 #![doc = include_str!("../README.md")]
 
-mod async_controller;
-mod blocking_controller;
-mod command_ext;
-mod command_types;
-mod controller;
-mod device_address;
+pub mod command_ext;
+pub mod command_types;
+pub mod controller;
+pub mod device_address;
 pub mod diagnostic;
-mod error;
+pub mod error;
 pub mod move_to;
-
 pub mod transport;
 
+// Core types that most users need
 #[cfg(feature = "tokio")]
 pub use async_controller::AsyncController;
 pub use blocking_controller::BlockingController;
-pub use command_ext::{CommandExt, MaybeQuery, WithQuery};
-pub use command_types::Command;
-pub use controller::{Controller, GpioResult};
+pub use controller::Controller;
 pub use device_address::DeviceAddress;
-pub use diagnostic::DiagnosticStream;
 pub use error::Error;
-pub use move_to::{move_to, MoveToOptions, ServoResult, Setpoint};
-
-// Async diagnostic stream (tokio feature)
-#[cfg(feature = "tokio")]
-pub use diagnostic::AsyncDiagnosticStream;
-#[cfg(feature = "tokio")]
-pub use move_to::async_move_to;
-
-// Re-export transport types for convenience
-#[cfg(feature = "clap")]
-pub use transport::args::add_transport_args;
-pub use transport::args::{transport_arg_specs, ArgSpec, ArgType, TransportArgs, COMMON_ARG_SPECS};
-pub use transport::factory::{register, TransportOptions};
-pub use transport::singleton::{create_default_transport, get_singleton_transport};
-pub use transport::transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
-pub use transport::{make_uuid_prefix, DeviceInfo, Transport, TransportOps};
-
-// Transport traits (for polymorphism or custom transport implementations)
-// Note: Most users don't need to import these - use Transport/AsyncTransport directly
-pub use transport::async_transport::{AsyncTransportOps, BoxFuture};
-
-// Re-export derive macros
-pub use moteus_derive::Setters;
+pub use transport::factory::TransportOptions;
+pub use transport::{Transport, TransportOps};
 
 // Re-export protocol types for convenience
-pub use moteus_protocol::{
-    calculate_arbitration_id, command, parse_arbitration_id, query, CanFdFrame, HomeState, Mode,
-    Register, Resolution, Scaling, Toggle, CURRENT_REGISTER_MAP_VERSION,
-};
+pub use moteus_protocol::{command, query, CanFdFrame, Mode, Register, Resolution};
 
-// Tokio async transport re-exports
-#[cfg(feature = "tokio")]
-pub use transport::async_factory::{
-    create_async_transports, register_async, AsyncTransportFactory, AsyncTransportOptions,
-};
-#[cfg(feature = "tokio")]
-pub use transport::async_fdcanusb::AsyncFdcanusb;
-#[cfg(feature = "tokio")]
-pub use transport::async_singleton::get_async_singleton_transport;
-#[cfg(all(feature = "tokio", target_os = "linux"))]
-pub use transport::async_socketcan::AsyncSocketCan;
-#[cfg(feature = "tokio")]
-pub use transport::async_transport::{AsyncTransport, SharedDevice};
+// These modules are public for advanced use but not re-exported at the root.
+// Access via moteus::diagnostic::DiagnosticStream, moteus::move_to::Setpoint, etc.
+mod async_controller;
+mod blocking_controller;

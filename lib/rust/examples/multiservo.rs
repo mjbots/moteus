@@ -26,8 +26,11 @@
 use clap::Parser;
 use moteus::command::PositionCommand;
 use moteus::query::QueryResult;
+use moteus::transport::args::TransportArgs;
 use moteus::transport::async_transport::AsyncTransport;
-use moteus::{get_singleton_transport, Controller, Request, TransportArgs};
+use moteus::transport::singleton::get_singleton_transport;
+use moteus::transport::transaction::Request;
+use moteus::Controller;
 use std::time::{Duration, Instant};
 
 /// Command multiple servos with auto-discovery.

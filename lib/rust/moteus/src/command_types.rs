@@ -32,7 +32,8 @@ use moteus_protocol::{calculate_arbitration_id, CanFdFrame, SERVER_TO_CLIENT};
 /// # Example
 ///
 /// ```rust
-/// use moteus::{Controller, Command};
+/// use moteus::Controller;
+/// use moteus::command_types::Command;
 ///
 /// let controller = Controller::new(1);
 /// let cmd = controller.make_stop(false);

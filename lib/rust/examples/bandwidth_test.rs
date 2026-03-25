@@ -24,8 +24,10 @@
 use clap::Parser;
 use moteus::command::{PositionCommand, PositionFormat};
 use moteus::query::QueryFormat;
+use moteus::transport::args::TransportArgs;
 use moteus::transport::async_transport::AsyncTransport;
-use moteus::{Controller, Request, Resolution, TransportArgs};
+use moteus::transport::transaction::Request;
+use moteus::{Controller, Resolution};
 use std::io::Write;
 use std::time::Instant;
 

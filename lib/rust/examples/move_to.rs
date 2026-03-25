@@ -27,11 +27,12 @@
 //!   tools/bazel run //lib/rust:move_to -- --async
 
 use clap::Parser;
+use moteus::move_to::{async_move_to, move_to, MoveToOptions};
+use moteus::transport::args::TransportArgs;
 use moteus::transport::async_transport::AsyncTransport;
-use moteus::{
-    async_move_to, get_singleton_transport, move_to, Controller, MoveToOptions, Request,
-    TransportArgs,
-};
+use moteus::transport::singleton::get_singleton_transport;
+use moteus::transport::transaction::Request;
+use moteus::Controller;
 use std::time::Duration;
 
 /// Move multiple servos to target positions with coordinated timing.

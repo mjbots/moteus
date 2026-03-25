@@ -22,7 +22,7 @@
 //!
 //! ```ignore
 //! use clap::Parser;
-//! use moteus::TransportArgs;
+//! use moteus::transport::args::TransportArgs;
 //!
 //! #[derive(Parser)]
 //! struct Args {

@@ -21,7 +21,9 @@
 //! # Example
 //!
 //! ```no_run
-//! use moteus::{Controller, move_to, Setpoint, MoveToOptions, TransportOptions};
+//! use moteus::Controller;
+//! use moteus::TransportOptions;
+//! use moteus::move_to::{move_to, Setpoint, MoveToOptions};
 //! use moteus::transport::singleton::create_default_transport;
 //! use std::time::Duration;
 //!

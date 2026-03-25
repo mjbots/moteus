@@ -393,7 +393,8 @@ impl AsyncController {
     /// # Example
     ///
     /// ```no_run
-    /// use moteus::{AsyncController, CommandExt};
+    /// use moteus::AsyncController;
+    /// use moteus::command_ext::CommandExt;
     /// use moteus::command::PositionCommand;
     /// use moteus::query::QueryFormat;
     ///
