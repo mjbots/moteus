@@ -334,12 +334,11 @@ static REGISTRY: OnceLock<Mutex<Vec<Box<dyn TransportFactory>>>> = OnceLock::new
 
 fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
     REGISTRY.get_or_init(|| {
-        let mut factories: Vec<Box<dyn TransportFactory>> = Vec::new();
         #[cfg(target_os = "linux")]
-        {
-            factories.push(Box::new(FdcanusbFactory));
-            factories.push(Box::new(SocketCanFactory));
-        }
+        let factories: Vec<Box<dyn TransportFactory>> =
+            vec![Box::new(FdcanusbFactory), Box::new(SocketCanFactory)];
+        #[cfg(not(target_os = "linux"))]
+        let factories: Vec<Box<dyn TransportFactory>> = Vec::new();
         Mutex::new(factories)
     })
 }
@@ -378,13 +377,17 @@ pub fn register(factory: Box<dyn TransportFactory>) {
 /// of registered factories (including external ones), use
 /// [`create_transports()`] which reads the global registry.
 pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
-    let mut factories: Vec<Box<dyn TransportFactory>> = Vec::new();
     #[cfg(target_os = "linux")]
     {
-        factories.push(Box::new(FdcanusbFactory::new()));
-        factories.push(Box::new(SocketCanFactory::new()));
+        vec![
+            Box::new(FdcanusbFactory::new()),
+            Box::new(SocketCanFactory::new()),
+        ]
     }
-    factories
+    #[cfg(not(target_os = "linux"))]
+    {
+        Vec::new()
+    }
 }
 
 /// Create transport devices using all registered factories.
