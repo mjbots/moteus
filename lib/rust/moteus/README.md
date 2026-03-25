@@ -23,8 +23,8 @@ The simplest way to use moteus is with automatic transport discovery:
 use moteus::{BlockingController, command::PositionCommand};
 
 fn main() -> Result<(), moteus::Error> {
-    // Auto-discovers transport on first use
-    let mut ctrl = BlockingController::new(1);
+    // Auto-discovers transport
+    let mut ctrl = BlockingController::new(1)?;
 
     // Clear any faults
     ctrl.set_stop()?;
@@ -73,8 +73,7 @@ use moteus::transport::socketcan::SocketCan;
 
 fn main() -> Result<(), moteus::Error> {
     let transport = Transport::from_device(SocketCan::new("can0")?);
-    let mut ctrl = BlockingController::new(1)
-        .transport(transport);
+    let mut ctrl = BlockingController::with_transport(1, transport);
 
     ctrl.set_stop()?;
     Ok(())
@@ -85,15 +84,18 @@ fn main() -> Result<(), moteus::Error> {
 
 Configure transport auto-detection with options:
 
-```rust
+```rust,no_run
 use moteus::{BlockingController, TransportOptions};
 use std::time::Duration;
 
-let opts = TransportOptions::new()
-    .socketcan_interfaces(vec!["can0"])
-    .timeout(Duration::from_millis(200));
+fn main() -> Result<(), moteus::Error> {
+    let opts = TransportOptions::new()
+        .socketcan_interfaces(vec!["can0"])
+        .timeout(Duration::from_millis(200));
 
-let mut ctrl = BlockingController::with_options(1, &opts);
+    let mut ctrl = BlockingController::with_options(1, &opts)?;
+    Ok(())
+}
 ```
 
 ## Low-Level Protocol Access
@@ -120,17 +122,20 @@ cmd.serialize(&mut frame, &PositionFormat::default());
 
 Use the builder pattern to configure controller settings:
 
-```rust
+```rust,no_run
 use moteus::{Controller, BlockingController, Resolution};
 use moteus::query::QueryFormat;
 
-// Configure a controller with custom settings
-let ctrl = Controller::new(1)
-    .source_id(0x10)
-    .query_format(QueryFormat::comprehensive());
+fn main() -> Result<(), moteus::Error> {
+    // Configure a controller with custom settings
+    let ctrl = Controller::new(1)
+        .source_id(0x10)
+        .query_format(QueryFormat::comprehensive());
 
-// Use with auto-discovered transport
-let ctrl = BlockingController::with_controller(ctrl);
+    // Use with auto-discovered transport
+    let ctrl = BlockingController::with_controller(ctrl)?;
+    Ok(())
+}
 ```
 
 ## Query Format Overrides

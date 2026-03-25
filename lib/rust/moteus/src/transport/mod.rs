@@ -72,6 +72,7 @@ use crate::error::{Error, Result};
 use crate::transport::device::{TransportDevice, TransportDeviceInfo};
 use moteus_protocol::{CanFdFrame, Register, Resolution};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 // Re-export transaction types
@@ -1147,6 +1148,39 @@ impl TransportOps for NullTransport {
 
     fn timeout(&self) -> Duration {
         self.timeout
+    }
+}
+
+impl<T: TransportOps> TransportOps for Arc<Mutex<T>> {
+    fn cycle(&mut self, requests: &mut [Request]) -> Result<()> {
+        self.lock()
+            .map_err(|_| Error::Protocol("Transport mutex poisoned".to_string()))?
+            .cycle(requests)
+    }
+    fn write(&mut self, frame: &CanFdFrame) -> Result<()> {
+        self.lock()
+            .map_err(|_| Error::Protocol("Transport mutex poisoned".to_string()))?
+            .write(frame)
+    }
+    fn read(&mut self, channel: Option<usize>) -> Result<Option<CanFdFrame>> {
+        self.lock()
+            .map_err(|_| Error::Protocol("Transport mutex poisoned".to_string()))?
+            .read(channel)
+    }
+    fn flush_read(&mut self, channel: Option<usize>) -> Result<()> {
+        self.lock()
+            .map_err(|_| Error::Protocol("Transport mutex poisoned".to_string()))?
+            .flush_read(channel)
+    }
+    fn set_timeout(&mut self, timeout: Duration) {
+        if let Ok(mut guard) = self.lock() {
+            guard.set_timeout(timeout);
+        }
+    }
+    fn timeout(&self) -> Duration {
+        self.lock()
+            .map(|g| g.timeout())
+            .unwrap_or(factory::DEFAULT_TIMEOUT)
     }
 }
 

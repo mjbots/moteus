@@ -25,7 +25,7 @@
 //! use moteus::diagnostic::DiagnosticStream;
 //!
 //! fn main() -> Result<(), moteus::Error> {
-//!     let mut ctrl = BlockingController::new(1);
+//!     let mut ctrl = BlockingController::new(1)?;
 //!     let mut stream = DiagnosticStream::new(&mut ctrl);
 //!
 //!     // Stop any telemetry spew and flush pending data
@@ -50,7 +50,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
-//!     let mut ctrl = AsyncController::new(1);
+//!     let mut ctrl = AsyncController::new(1).await?;
 //!     let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 //!
 //!     stream.write_message(b"tel stop").await?;
@@ -184,6 +184,7 @@ pub fn parse_diagnostic_response(frame: &CanFdFrame, channel: u8) -> Option<Diag
 // ============================================================================
 
 use crate::blocking_controller::BlockingController;
+use crate::transport::TransportOps;
 
 /// A blocking diagnostic stream for a moteus controller.
 ///
@@ -200,7 +201,7 @@ use crate::blocking_controller::BlockingController;
 /// use moteus::diagnostic::DiagnosticStream;
 ///
 /// fn main() -> Result<(), moteus::Error> {
-///     let mut ctrl = BlockingController::new(1);
+///     let mut ctrl = BlockingController::new(1)?;
 ///     let mut stream = DiagnosticStream::new(&mut ctrl);
 ///
 ///     // Always stop telemetry and flush before using diagnostic commands
@@ -213,13 +214,16 @@ use crate::blocking_controller::BlockingController;
 ///     Ok(())
 /// }
 /// ```
-pub struct DiagnosticStream<'a> {
-    controller: &'a mut BlockingController,
+pub struct DiagnosticStream<
+    'a,
+    T: TransportOps = std::sync::Arc<std::sync::Mutex<crate::transport::Transport>>,
+> {
+    controller: &'a mut BlockingController<T>,
     channel: u8,
     read_buffer: Vec<u8>,
 }
 
-impl<'a> std::fmt::Debug for DiagnosticStream<'a> {
+impl<'a, T: TransportOps> std::fmt::Debug for DiagnosticStream<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DiagnosticStream")
             .field("device_id", &self.controller.controller.id)
@@ -229,14 +233,14 @@ impl<'a> std::fmt::Debug for DiagnosticStream<'a> {
     }
 }
 
-impl<'a> DiagnosticStream<'a> {
+impl<'a, T: TransportOps> DiagnosticStream<'a, T> {
     /// Creates a new diagnostic stream for a controller.
-    pub fn new(controller: &'a mut BlockingController) -> Self {
+    pub fn new(controller: &'a mut BlockingController<T>) -> Self {
         Self::with_channel(controller, DEFAULT_CHANNEL)
     }
 
     /// Creates a new diagnostic stream with a specific channel.
-    pub fn with_channel(controller: &'a mut BlockingController, channel: u8) -> Self {
+    pub fn with_channel(controller: &'a mut BlockingController<T>, channel: u8) -> Self {
         Self {
             controller,
             channel,
@@ -433,6 +437,8 @@ impl<'a> DiagnosticStream<'a> {
 
 #[cfg(feature = "tokio")]
 use crate::async_controller::AsyncController;
+#[cfg(feature = "tokio")]
+use crate::transport::async_transport::AsyncTransportOps;
 
 /// An async diagnostic stream for a moteus controller.
 ///
@@ -451,23 +457,31 @@ use crate::async_controller::AsyncController;
 /// use moteus::AsyncController;
 /// use moteus::diagnostic::AsyncDiagnosticStream;
 ///
-/// let mut ctrl = AsyncController::new(1);
+/// # async fn example() -> Result<(), moteus::Error> {
+/// let mut ctrl = AsyncController::new(1).await?;
 /// let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 ///
 /// stream.write_message(b"tel stop").await?;
 /// stream.flush_read().await?;
 ///
 /// let kp = stream.command_oneline(b"conf get servo.pid_position.kp").await?;
+/// # Ok(())
+/// # }
 /// ```
 #[cfg(feature = "tokio")]
-pub struct AsyncDiagnosticStream<'a> {
-    controller: &'a mut AsyncController,
+pub struct AsyncDiagnosticStream<
+    'a,
+    T: AsyncTransportOps = std::sync::Arc<
+        tokio::sync::Mutex<crate::transport::async_transport::AsyncTransport>,
+    >,
+> {
+    controller: &'a mut AsyncController<T>,
     channel: u8,
     read_buffer: Vec<u8>,
 }
 
 #[cfg(feature = "tokio")]
-impl<'a> std::fmt::Debug for AsyncDiagnosticStream<'a> {
+impl<'a, T: AsyncTransportOps> std::fmt::Debug for AsyncDiagnosticStream<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AsyncDiagnosticStream")
             .field("device_id", &self.controller.controller.id)
@@ -478,14 +492,14 @@ impl<'a> std::fmt::Debug for AsyncDiagnosticStream<'a> {
 }
 
 #[cfg(feature = "tokio")]
-impl<'a> AsyncDiagnosticStream<'a> {
+impl<'a, T: AsyncTransportOps> AsyncDiagnosticStream<'a, T> {
     /// Creates a new async diagnostic stream for a controller.
-    pub fn new(controller: &'a mut AsyncController) -> Self {
+    pub fn new(controller: &'a mut AsyncController<T>) -> Self {
         Self::with_channel(controller, DEFAULT_CHANNEL)
     }
 
     /// Creates a new async diagnostic stream with a specific channel.
-    pub fn with_channel(controller: &'a mut AsyncController, channel: u8) -> Self {
+    pub fn with_channel(controller: &'a mut AsyncController<T>, channel: u8) -> Self {
         Self {
             controller,
             channel,

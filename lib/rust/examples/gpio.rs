@@ -51,7 +51,7 @@ fn display_gpio(aux_num: u8, value: u8, pin_count: u8) {
 }
 
 fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
-    let mut c = BlockingController::with_options(args.id, &args.transport.clone().into());
+    let mut c = BlockingController::with_options(args.id, &args.transport.clone().into())?;
 
     // Read GPIO digital inputs from both AUX ports. Each value is a
     // byte where bit N represents pin N's state.
@@ -71,7 +71,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
     qf.aux1_gpio = Resolution::Int8;
     qf.aux2_gpio = Resolution::Int8;
     let controller = moteus::Controller::new(args.id).query_format(qf);
-    let mut c2 = BlockingController::with_controller(controller);
+    let mut c2 = BlockingController::with_controller(controller)?;
 
     // Query the controller - response includes GPIO values.
     let result = c2.query()?;
@@ -87,7 +87,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
 #[tokio::main]
 async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     let mut c =
-        AsyncController::with_options(args.id, &args.transport.clone().into());
+        AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
 
     // Read GPIO digital inputs from both AUX ports. Each value is a
     // byte where bit N represents pin N's state.
@@ -108,7 +108,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     qf.aux2_gpio = Resolution::Int8;
     let controller = moteus::Controller::new(args.id).query_format(qf);
     let mut c2 =
-        AsyncController::with_controller(controller);
+        AsyncController::with_controller(controller).await?;
 
     // Query the controller - response includes GPIO values.
     let result = c2.query().await?;

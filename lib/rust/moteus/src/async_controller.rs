@@ -27,7 +27,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
-//!     let mut ctrl = AsyncController::new(1);
+//!     let mut ctrl = AsyncController::new(1).await?;
 //!     ctrl.set_stop().await?;  // transport discovered here
 //!     ctrl.set_position(PositionCommand::new().position(0.5)).await?;
 //!     Ok(())
@@ -40,8 +40,11 @@
 //! use moteus::AsyncController;
 //! use moteus::transport::async_factory::AsyncTransportOptions;
 //!
+//! # async fn example() -> Result<(), moteus::Error> {
 //! let opts = AsyncTransportOptions::new();
-//! let mut ctrl = AsyncController::with_options(1, &opts);
+//! let mut ctrl = AsyncController::with_options(1, &opts).await?;
+//! # Ok(())
+//! # }
 //! ```
 
 #![cfg(feature = "tokio")]
@@ -62,57 +65,10 @@ use moteus_protocol::Resolution;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Holds the async transport backing an `AsyncController`.
-///
-/// Transport resolution is lazy: when created with `Deferred`, the actual
-/// transport is not created until the first operation that requires it.
-/// This matches the Python and C++ library behavior.
-pub(crate) enum AsyncTransportHolder {
-    /// Transport not yet resolved; will auto-discover on first use.
-    Deferred(Option<crate::transport::async_factory::AsyncTransportOptions>),
-    /// User-provided explicit async transport.
-    Explicit(Box<dyn AsyncTransportOps + Send>),
-    /// Global async singleton transport.
-    Singleton(Arc<Mutex<AsyncTransport>>),
-}
-
-impl AsyncTransportHolder {
-    /// Ensure the transport is resolved, performing auto-discovery if needed.
-    async fn resolve(&mut self) -> Result<()> {
-        if let AsyncTransportHolder::Deferred(opts) = self {
-            let transport = get_async_singleton_transport(opts.as_ref()).await?;
-            *self = AsyncTransportHolder::Singleton(transport);
-        }
-        Ok(())
-    }
-
-    /// Execute a cycle on the held transport, resolving lazily if needed.
-    pub(crate) fn cycle<'a>(
-        &'a mut self,
-        requests: &'a mut [Request],
-    ) -> BoxFuture<'a, Result<()>> {
-        Box::pin(async move {
-            self.resolve().await?;
-            match self {
-                AsyncTransportHolder::Explicit(t) => t.cycle(requests).await,
-                AsyncTransportHolder::Singleton(t) => {
-                    let t = Arc::clone(t);
-                    let mut guard = t.lock().await;
-                    guard.cycle(requests).await
-                }
-                AsyncTransportHolder::Deferred(_) => unreachable!(),
-            }
-        })
-    }
-}
-
 /// An async controller for a single moteus device.
 ///
 /// This combines the frame-building capabilities of `Controller` with
 /// an async transport for actual communication.
-///
-/// Transport resolution is lazy: auto-discovery happens on the first
-/// operation that needs the transport, not at construction time.
 ///
 /// # Example
 ///
@@ -122,9 +78,9 @@ impl AsyncTransportHolder {
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), moteus::Error> {
-///     let mut ctrl = AsyncController::new(1);
+///     let mut ctrl = AsyncController::new(1).await?;
 ///
-///     // Query the controller (transport is discovered here)
+///     // Query the controller
 ///     let result = ctrl.query().await?;
 ///     println!("Position: {}", result.position);
 ///
@@ -135,67 +91,68 @@ impl AsyncTransportHolder {
 ///     Ok(())
 /// }
 /// ```
-pub struct AsyncController {
+pub struct AsyncController<T: AsyncTransportOps = Arc<Mutex<AsyncTransport>>> {
     /// Frame builder
     pub controller: Controller,
     /// Async transport
-    pub(crate) transport: AsyncTransportHolder,
+    pub(crate) transport: T,
 }
 
-impl std::fmt::Debug for AsyncController {
+impl<T: AsyncTransportOps> std::fmt::Debug for AsyncController<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let transport_state = match &self.transport {
-            AsyncTransportHolder::Deferred(_) => "Deferred",
-            AsyncTransportHolder::Explicit(_) => "Explicit",
-            AsyncTransportHolder::Singleton(_) => "Singleton",
-        };
         f.debug_struct("AsyncController")
             .field("id", &self.controller.id)
             .field("address", &self.controller.address)
-            .field("transport", &transport_state)
             .finish()
     }
 }
 
-impl AsyncController {
-    /// Creates a new async controller.
-    ///
-    /// Transport is not resolved until the first operation that needs it.
-    /// If no explicit transport is provided via `.transport()`, the global
-    /// async singleton transport will be auto-discovered on first use.
+// =============================================================================
+// Singleton constructors (use global shared transport)
+// =============================================================================
+
+impl AsyncController<Arc<Mutex<AsyncTransport>>> {
+    /// Creates a new async controller with auto-discovered transport.
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
     ///   converted to CAN ID addresses.
-    pub fn new(address: impl Into<DeviceAddress>) -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no async transport can be discovered.
+    pub async fn new(address: impl Into<DeviceAddress>) -> Result<Self> {
+        Ok(Self {
             controller: Controller::new(address),
-            transport: AsyncTransportHolder::Deferred(None),
-        }
+            transport: get_async_singleton_transport(None).await?,
+        })
     }
 
     /// Creates a controller with specific async transport options.
-    ///
-    /// Transport is not resolved until the first operation that needs it.
-    /// The options are used to configure auto-discovery when it occurs.
     ///
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
     ///   converted to CAN ID addresses.
     /// * `options` - Async transport options for device selection and configuration
-    pub fn with_options(
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if no async transport can be discovered with the given options.
+    pub async fn with_options(
         address: impl Into<DeviceAddress>,
         options: &crate::transport::async_factory::AsyncTransportOptions,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        Ok(Self {
             controller: Controller::new(address),
-            transport: AsyncTransportHolder::Deferred(Some(options.clone())),
-        }
+            transport: get_async_singleton_transport(Some(options)).await?,
+        })
     }
 
     /// Creates an async controller with a pre-configured Controller.
     ///
-    /// Transport is not resolved until the first operation that needs it.
+    /// # Errors
+    ///
+    /// Returns an error if no async transport can be discovered.
     ///
     /// # Example
     ///
@@ -203,33 +160,34 @@ impl AsyncController {
     /// use moteus::{AsyncController, Controller};
     /// use moteus::query::QueryFormat;
     ///
+    /// # async fn example() -> Result<(), moteus::Error> {
     /// let ctrl = AsyncController::with_controller(
     ///     Controller::new(1).query_format(QueryFormat::comprehensive()),
-    /// );
+    /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
-    pub fn with_controller(controller: Controller) -> Self {
-        Self {
+    pub async fn with_controller(controller: Controller) -> Result<Self> {
+        Ok(Self {
             controller,
-            transport: AsyncTransportHolder::Deferred(None),
-        }
+            transport: get_async_singleton_transport(None).await?,
+        })
     }
+}
 
-    /// Set an explicit async transport (builder pattern).
+// =============================================================================
+// Generic methods (work with any transport)
+// =============================================================================
+
+impl<T: AsyncTransportOps> AsyncController<T> {
+    /// Creates an async controller with an explicit transport.
     ///
     /// This bypasses auto-discovery and uses the provided transport directly.
-    #[must_use]
-    pub fn transport<T: AsyncTransportOps + Send + 'static>(mut self, t: T) -> Self {
-        self.transport = AsyncTransportHolder::Explicit(Box::new(t));
-        self
-    }
-
-    /// Set an explicit async transport using a boxed trait object.
-    ///
-    /// This is useful when you have a pre-boxed transport from the async factory.
-    #[must_use]
-    pub fn set_boxed_transport(mut self, t: Box<dyn AsyncTransportOps + Send>) -> Self {
-        self.transport = AsyncTransportHolder::Explicit(t);
-        self
+    pub fn with_transport(address: impl Into<DeviceAddress>, transport: T) -> Self {
+        Self {
+            controller: Controller::new(address),
+            transport,
+        }
     }
 
     // === Async Query Methods ===
@@ -925,13 +883,16 @@ impl AsyncController {
     /// ```no_run
     /// use moteus::AsyncController;
     ///
-    /// let mut ctrl = AsyncController::new(1);
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// let mut ctrl = AsyncController::new(1).await?;
     /// let (aux1, aux2) = ctrl.read_gpio().await?;
     ///
     /// // Check individual pins
     /// if aux1 & 0x01 != 0 {
     ///     println!("AUX1 Pin 0 is HIGH");
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn read_gpio(&mut self) -> BoxFuture<'_, Result<(u8, u8)>> {
         Box::pin(async move {
@@ -969,13 +930,16 @@ impl AsyncController {
     /// ```no_run
     /// use moteus::AsyncController;
     ///
-    /// let mut ctrl = AsyncController::new(1);
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// let mut ctrl = AsyncController::new(1).await?;
     ///
     /// // Set all GPIO outputs to high
     /// ctrl.set_write_gpio(Some(0x7f), Some(0x7f)).await?;
     ///
     /// // Set only AUX1 outputs
     /// ctrl.set_write_gpio(Some(0x1f), None).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_write_gpio(
         &mut self,
@@ -1045,11 +1009,14 @@ impl AsyncController {
     /// ```no_run
     /// use moteus::{AsyncController, Register, Resolution};
     ///
-    /// let mut ctrl = AsyncController::new(1);
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// let mut ctrl = AsyncController::new(1).await?;
     /// let result = ctrl.custom_query(&[
     ///     (Register::Position.address(), Resolution::Float),
     ///     (Register::Velocity.address(), Resolution::Float),
     /// ]).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn custom_query<'a>(
         &'a mut self,
@@ -1092,10 +1059,13 @@ impl AsyncController {
     /// use moteus::AsyncController;
     /// use moteus::command::AuxPwmCommand;
     ///
-    /// let mut ctrl = AsyncController::new(1);
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// let mut ctrl = AsyncController::new(1).await?;
     /// let result = ctrl.set_aux_pwm(
     ///     &AuxPwmCommand::new().aux1_pwm1(0.5).aux1_pwm2(0.75)
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_aux_pwm<'a>(
         &'a mut self,
@@ -1191,12 +1161,15 @@ impl AsyncController {
     /// use moteus::command::PositionCommand;
     /// use std::time::Duration;
     ///
-    /// let mut ctrl = AsyncController::new(1);
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// let mut ctrl = AsyncController::new(1).await?;
     /// let result = ctrl.set_position_wait_complete(
     ///     &PositionCommand::new().position(0.5).stop_position(0.5),
     ///     Duration::from_millis(25),   // poll every 25ms
     ///     Duration::from_secs(5),      // timeout after 5 seconds
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_position_wait_complete<'a>(
         &'a mut self,
@@ -1320,25 +1293,15 @@ mod tests {
     }
 
     #[test]
-    fn test_new_is_infallible() {
-        // Construction never fails — transport is resolved lazily
-        let _ctrl = AsyncController::new(1);
-    }
-
-    #[test]
-    fn test_with_options_is_infallible() {
-        let opts = crate::transport::async_factory::AsyncTransportOptions::new();
-        let _ctrl = AsyncController::with_options(1, &opts);
-    }
-
-    #[test]
-    fn test_with_controller_is_infallible() {
-        let _ctrl = AsyncController::with_controller(Controller::new(1));
+    fn test_with_transport_is_infallible() {
+        // with_transport never fails — no discovery needed
+        let ctrl = AsyncController::with_transport(1, MockTransport::new());
+        assert_eq!(ctrl.controller.id, 1);
     }
 
     #[test]
     fn test_explicit_transport() {
-        let ctrl = AsyncController::new(1).transport(MockTransport::new());
+        let ctrl = AsyncController::with_transport(1, MockTransport::new());
         assert_eq!(ctrl.controller.id, 1);
     }
 }
