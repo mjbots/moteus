@@ -194,10 +194,12 @@ pub trait TransportFactory: Send + Sync {
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>>;
 }
 
-/// Factory for fdcanusb devices (CDC serial).
+/// Factory for fdcanusb devices (CDC serial, Linux only).
+#[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
 pub struct FdcanusbFactory;
 
+#[cfg(target_os = "linux")]
 impl FdcanusbFactory {
     /// Create a new fdcanusb factory.
     pub fn new() -> Self {
@@ -205,6 +207,7 @@ impl FdcanusbFactory {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl TransportFactory for FdcanusbFactory {
     fn priority(&self) -> u32 {
         10 // Higher priority than socketcan
@@ -225,7 +228,6 @@ impl TransportFactory for FdcanusbFactory {
         }]
     }
 
-    #[cfg(target_os = "linux")]
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
         use crate::transport::discovery::{detect_fdcanusbs, FdcanusbInfo};
         use crate::transport::fdcanusb::Fdcanusb;
@@ -260,12 +262,6 @@ impl TransportFactory for FdcanusbFactory {
         }
 
         Ok(devices)
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    fn create(&self, _options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
-        // fdcanusb requires platform-specific serial port implementation
-        Ok(Vec::new())
     }
 }
 
@@ -338,9 +334,12 @@ static REGISTRY: OnceLock<Mutex<Vec<Box<dyn TransportFactory>>>> = OnceLock::new
 
 fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
     REGISTRY.get_or_init(|| {
-        let mut factories: Vec<Box<dyn TransportFactory>> = vec![Box::new(FdcanusbFactory)];
+        let mut factories: Vec<Box<dyn TransportFactory>> = Vec::new();
         #[cfg(target_os = "linux")]
-        factories.push(Box::new(SocketCanFactory));
+        {
+            factories.push(Box::new(FdcanusbFactory));
+            factories.push(Box::new(SocketCanFactory));
+        }
         Mutex::new(factories)
     })
 }
@@ -379,9 +378,12 @@ pub fn register(factory: Box<dyn TransportFactory>) {
 /// of registered factories (including external ones), use
 /// [`create_transports()`] which reads the global registry.
 pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
-    let mut factories: Vec<Box<dyn TransportFactory>> = vec![Box::new(FdcanusbFactory::new())];
+    let mut factories: Vec<Box<dyn TransportFactory>> = Vec::new();
     #[cfg(target_os = "linux")]
-    factories.push(Box::new(SocketCanFactory::new()));
+    {
+        factories.push(Box::new(FdcanusbFactory::new()));
+        factories.push(Box::new(SocketCanFactory::new()));
+    }
     factories
 }
 
@@ -487,19 +489,16 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_factory_priorities() {
         let fdcanusb = FdcanusbFactory::new();
         assert_eq!(fdcanusb.priority(), 10);
+        let socketcan = SocketCanFactory::new();
+        assert!(fdcanusb.priority() < socketcan.priority());
     }
 
     #[cfg(target_os = "linux")]
-    #[test]
-    fn test_socketcan_factory_priority() {
-        let socketcan = SocketCanFactory::new();
-        assert!(FdcanusbFactory::new().priority() < socketcan.priority());
-    }
-
     #[test]
     fn test_factory_arg_specs() {
         let fdcanusb = FdcanusbFactory::new();

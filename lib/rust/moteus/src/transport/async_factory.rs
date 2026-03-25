@@ -60,10 +60,12 @@ pub trait AsyncTransportFactory: Send + Sync {
     ) -> BoxFuture<'a, Result<Vec<Box<dyn AsyncTransportDevice>>>>;
 }
 
-/// Factory for async fdcanusb devices.
+/// Factory for async fdcanusb devices (Linux only).
+#[cfg(target_os = "linux")]
 #[derive(Debug, Default)]
 pub struct AsyncFdcanusbFactory;
 
+#[cfg(target_os = "linux")]
 impl AsyncFdcanusbFactory {
     /// Create a new async fdcanusb factory.
     pub fn new() -> Self {
@@ -71,6 +73,7 @@ impl AsyncFdcanusbFactory {
     }
 }
 
+#[cfg(target_os = "linux")]
 impl AsyncTransportFactory for AsyncFdcanusbFactory {
     fn priority(&self) -> u32 {
         10 // Higher priority than socketcan
@@ -91,7 +94,6 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
         }]
     }
 
-    #[cfg(target_os = "linux")]
     fn create<'a>(
         &'a self,
         options: &'a AsyncTransportOptions,
@@ -139,14 +141,6 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
 
             Ok(devices)
         })
-    }
-
-    #[cfg(not(target_os = "linux"))]
-    fn create<'a>(
-        &'a self,
-        _options: &'a AsyncTransportOptions,
-    ) -> BoxFuture<'a, Result<Vec<Box<dyn AsyncTransportDevice>>>> {
-        Box::pin(async move { Ok(Vec::new()) })
     }
 }
 
@@ -228,10 +222,12 @@ static ASYNC_REGISTRY: OnceLock<Mutex<Vec<Arc<dyn AsyncTransportFactory>>>> = On
 
 fn get_async_registry() -> &'static Mutex<Vec<Arc<dyn AsyncTransportFactory>>> {
     ASYNC_REGISTRY.get_or_init(|| {
-        let mut factories: Vec<Arc<dyn AsyncTransportFactory>> =
-            vec![Arc::new(AsyncFdcanusbFactory)];
+        let mut factories: Vec<Arc<dyn AsyncTransportFactory>> = Vec::new();
         #[cfg(target_os = "linux")]
-        factories.push(Arc::new(AsyncSocketCanFactory));
+        {
+            factories.push(Arc::new(AsyncFdcanusbFactory));
+            factories.push(Arc::new(AsyncSocketCanFactory));
+        }
         Mutex::new(factories)
     })
 }
@@ -251,10 +247,12 @@ pub fn register_async(factory: Arc<dyn AsyncTransportFactory>) {
 /// of registered factories (including external ones), use
 /// [`create_async_transports()`] which reads the global registry.
 pub fn get_async_factories() -> Vec<Box<dyn AsyncTransportFactory>> {
-    let mut factories: Vec<Box<dyn AsyncTransportFactory>> =
-        vec![Box::new(AsyncFdcanusbFactory::new())];
+    let mut factories: Vec<Box<dyn AsyncTransportFactory>> = Vec::new();
     #[cfg(target_os = "linux")]
-    factories.push(Box::new(AsyncSocketCanFactory::new()));
+    {
+        factories.push(Box::new(AsyncFdcanusbFactory::new()));
+        factories.push(Box::new(AsyncSocketCanFactory::new()));
+    }
     factories
 }
 
@@ -337,36 +335,30 @@ pub async fn create_async_transports(
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_async_factory_priorities() {
         let fdcanusb = AsyncFdcanusbFactory::new();
         assert_eq!(fdcanusb.priority(), 10);
+        let socketcan = AsyncSocketCanFactory::new();
+        assert!(fdcanusb.priority() < socketcan.priority());
     }
 
     #[cfg(target_os = "linux")]
-    #[test]
-    fn test_async_socketcan_factory_priority() {
-        let socketcan = AsyncSocketCanFactory::new();
-        assert!(AsyncFdcanusbFactory::new().priority() < socketcan.priority());
-    }
-
     #[test]
     fn test_async_factory_arg_specs() {
         let fdcanusb = AsyncFdcanusbFactory::new();
         let specs = fdcanusb.arg_specs();
         assert_eq!(specs.len(), 1);
         assert_eq!(specs[0].name, "fdcanusb");
-    }
 
-    #[cfg(target_os = "linux")]
-    #[test]
-    fn test_async_socketcan_factory_arg_specs() {
         let socketcan = AsyncSocketCanFactory::new();
         let specs = socketcan.arg_specs();
         assert_eq!(specs.len(), 1);
         assert_eq!(specs[0].name, "can-chan");
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn test_get_async_factories() {
         let factories = get_async_factories();
