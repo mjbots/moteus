@@ -9,10 +9,6 @@ repository = "https://github.com/mjbots/moteus"
 keywords = ["moteus", "robotics", "motor-control", "can-fd", "no-std"]
 categories = ["science::robotics", "hardware-support", "no-std", "embedded"]
 
-[features]
-default = ["std"]
-std = []
-
 [dependencies]
 moteus-derive = { path = "../moteus-derive", version = "0.5" }
 num_enum = { version = "0.7", default-features = false }

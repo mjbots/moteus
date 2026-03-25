@@ -23,22 +23,6 @@ rust_library(
     srcs = glob(["src/**/*.rs"]),
     crate_name = "moteus_protocol",
     edition = "2021",
-    crate_features = ["std"],
-    rustc_flags = ["-D", "warnings"],
-    deps = [
-        "@crate_index//:num_enum",
-    ],
-    proc_macro_deps = [
-        "//lib/rust/moteus-derive",
-    ],
-)
-
-rust_library(
-    name = "moteus-protocol-nostd",
-    srcs = glob(["src/**/*.rs"]),
-    crate_name = "moteus_protocol",
-    edition = "2021",
-    crate_features = [],
     rustc_flags = ["-D", "warnings"],
     deps = [
         "@crate_index//:num_enum",
