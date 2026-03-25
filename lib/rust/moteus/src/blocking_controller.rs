@@ -425,7 +425,8 @@ impl BlockingController {
     /// # Example
     ///
     /// ```no_run
-    /// use moteus::{BlockingController, CommandExt};
+    /// use moteus::BlockingController;
+    /// use moteus::command_ext::CommandExt;
     /// use moteus::command::PositionCommand;
     /// use moteus::query::QueryFormat;
     ///

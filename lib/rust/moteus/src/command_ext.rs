@@ -38,7 +38,7 @@ pub struct WithQuery<C> {
 /// # Example
 ///
 /// ```
-/// use moteus::CommandExt;
+/// use moteus::command_ext::CommandExt;
 /// use moteus::command::PositionCommand;
 /// use moteus::query::QueryFormat;
 ///

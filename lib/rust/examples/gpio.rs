@@ -22,7 +22,8 @@
 
 use clap::Parser;
 use moteus::query::QueryFormat;
-use moteus::{AsyncController, BlockingController, Resolution, TransportArgs};
+use moteus::transport::args::TransportArgs;
+use moteus::{AsyncController, BlockingController, Resolution};
 
 /// Demonstrate GPIO reading and writing.
 #[derive(Parser)]
@@ -66,11 +67,10 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
     println!("\nSet all GPIO outputs to HIGH");
 
     // GPIO values can also be included in general query results.
-    let controller = moteus::Controller::new(args.id).query_format(QueryFormat {
-        aux1_gpio: Resolution::Int8,
-        aux2_gpio: Resolution::Int8,
-        ..QueryFormat::default()
-    });
+    let mut qf = QueryFormat::default();
+    qf.aux1_gpio = Resolution::Int8;
+    qf.aux2_gpio = Resolution::Int8;
+    let controller = moteus::Controller::new(args.id).query_format(qf);
     let mut c2 = BlockingController::with_controller(controller);
 
     // Query the controller - response includes GPIO values.
@@ -103,11 +103,10 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     println!("\nSet all GPIO outputs to HIGH");
 
     // GPIO values can also be included in general query results.
-    let controller = moteus::Controller::new(args.id).query_format(QueryFormat {
-        aux1_gpio: Resolution::Int8,
-        aux2_gpio: Resolution::Int8,
-        ..QueryFormat::default()
-    });
+    let mut qf = QueryFormat::default();
+    qf.aux1_gpio = Resolution::Int8;
+    qf.aux2_gpio = Resolution::Int8;
+    let controller = moteus::Controller::new(args.id).query_format(qf);
     let mut c2 =
         AsyncController::with_controller(controller);
 
