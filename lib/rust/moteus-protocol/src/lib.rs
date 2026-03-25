@@ -44,7 +44,7 @@
 
 mod frame;
 mod mode;
-pub mod multiplex;
+pub(crate) mod multiplex;
 mod register;
 mod resolution;
 pub mod scaling;
@@ -56,6 +56,9 @@ pub use frame::{calculate_arbitration_id, parse_arbitration_id, CanFdFrame, Togg
 pub use mode::{HomeState, Mode};
 pub use multiplex::{
     parse_frame, FrameParser, Subframe, SubframeType, Value, WriteCanData, WriteCombiner,
+    CLIENT_POLL_SERVER, CLIENT_TO_SERVER, NOP, READ_ERROR, READ_FLOAT, READ_INT16, READ_INT32,
+    READ_INT8, REPLY_FLOAT, REPLY_INT16, REPLY_INT32, REPLY_INT8, SERVER_TO_CLIENT, WRITE_ERROR,
+    WRITE_FLOAT, WRITE_INT16, WRITE_INT32, WRITE_INT8,
 };
 pub use register::Register;
 pub use resolution::Resolution;
