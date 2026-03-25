@@ -398,7 +398,7 @@ impl Value {
     /// # Examples
     ///
     /// ```
-    /// use moteus_protocol::multiplex::Value;
+    /// use moteus_protocol::Value;
     /// use moteus_protocol::scaling;
     ///
     /// let raw = Value::Int16(5000);
@@ -803,7 +803,7 @@ impl<'a> Iterator for FrameParser<'a> {
 /// # Examples
 ///
 /// ```
-/// use moteus_protocol::multiplex::{parse_frame, Subframe};
+/// use moteus_protocol::{parse_frame, Subframe};
 ///
 /// // A response frame with mode=10 (position) at register 0
 /// let data = [0x21, 0x00, 0x0a];
