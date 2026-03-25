@@ -222,12 +222,13 @@ static ASYNC_REGISTRY: OnceLock<Mutex<Vec<Arc<dyn AsyncTransportFactory>>>> = On
 
 fn get_async_registry() -> &'static Mutex<Vec<Arc<dyn AsyncTransportFactory>>> {
     ASYNC_REGISTRY.get_or_init(|| {
-        let mut factories: Vec<Arc<dyn AsyncTransportFactory>> = Vec::new();
         #[cfg(target_os = "linux")]
-        {
-            factories.push(Arc::new(AsyncFdcanusbFactory));
-            factories.push(Arc::new(AsyncSocketCanFactory));
-        }
+        let factories: Vec<Arc<dyn AsyncTransportFactory>> = vec![
+            Arc::new(AsyncFdcanusbFactory),
+            Arc::new(AsyncSocketCanFactory),
+        ];
+        #[cfg(not(target_os = "linux"))]
+        let factories: Vec<Arc<dyn AsyncTransportFactory>> = Vec::new();
         Mutex::new(factories)
     })
 }
@@ -247,13 +248,17 @@ pub fn register_async(factory: Arc<dyn AsyncTransportFactory>) {
 /// of registered factories (including external ones), use
 /// [`create_async_transports()`] which reads the global registry.
 pub fn get_async_factories() -> Vec<Box<dyn AsyncTransportFactory>> {
-    let mut factories: Vec<Box<dyn AsyncTransportFactory>> = Vec::new();
     #[cfg(target_os = "linux")]
     {
-        factories.push(Box::new(AsyncFdcanusbFactory::new()));
-        factories.push(Box::new(AsyncSocketCanFactory::new()));
+        vec![
+            Box::new(AsyncFdcanusbFactory::new()),
+            Box::new(AsyncSocketCanFactory::new()),
+        ]
     }
-    factories
+    #[cfg(not(target_os = "linux"))]
+    {
+        Vec::new()
+    }
 }
 
 /// Create async transport devices using all registered factories.
