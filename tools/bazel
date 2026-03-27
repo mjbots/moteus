@@ -15,11 +15,13 @@
 # limitations under the License.
 
 import os
+import platform
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 
 SCRIPT_PATH = os.path.basename(__file__)
 
@@ -68,14 +70,37 @@ BAZEL_VERSION = get_workspace_var('BAZEL_VERSION')
 BAZEL_VERSION_SHA = get_workspace_var('BAZEL_VERSION_SHA')
 
 
-def download_bazel(dest):
+def normalized_arch(name):
+    value = name.strip().lower()
+    if value in ('x86_64', 'amd64'):
+        return 'x86_64'
+    if value in ('aarch64', 'arm64'):
+        return 'arm64'
+    raise RuntimeError('Unsupported Linux architecture for Bazel wrapper: {}'.format(name))
+
+
+def bazel_arch():
+    return normalized_arch(platform.machine())
+
+
+def bazel_sha(arch):
+    if arch == 'x86_64':
+        return BAZEL_VERSION_SHA.lower()
+
+    sha_url = '{}/{}/bazel-{}-linux-{}.sha256'.format(
+        BAZEL_REMOTE_SOURCE, BAZEL_VERSION, BAZEL_VERSION, arch)
+    with urllib.request.urlopen(sha_url) as response:
+        return response.read().decode('utf-8').split()[0].strip().lower()
+
+
+def download_bazel(dest, arch, expected_sha256):
     dist_tempfile = tempfile.NamedTemporaryFile(prefix='bazeldl-', delete=False)
 
-    url = '{}/{}/bazel-{}-linux-x86_64'.format(
-        BAZEL_REMOTE_SOURCE, BAZEL_VERSION, BAZEL_VERSION)
+    url = '{}/{}/bazel-{}-linux-{}'.format(
+        BAZEL_REMOTE_SOURCE, BAZEL_VERSION, BAZEL_VERSION, arch)
 
-    print('Downloading bazel {} from {}'.format(
-        BAZEL_VERSION, url),
+    print('Downloading bazel {} for linux-{} from {}'.format(
+        BAZEL_VERSION, arch, url),
           file=sys.stderr, flush=True)
 
     subprocess.check_call(['curl', '-L', url, '-o', dist_tempfile.name])
@@ -83,21 +108,23 @@ def download_bazel(dest):
     actual_sha256 = subprocess.check_output([
         'sha256sum', dist_tempfile.name]).decode('utf-8').split(' ')[0]
 
-    if actual_sha256 != BAZEL_VERSION_SHA.lower():
+    if actual_sha256 != expected_sha256:
         raise RuntimeError(
             'bazel sha256 does not match, expected {} got {}'.format(
-                BAZEL_VERSION_SHA, actual_sha256))
+                expected_sha256, actual_sha256))
 
     subprocess.check_call(["chmod", "+x", dist_tempfile.name])
     shutil.move(dist_tempfile.name, dest)
 
 
 def main():
-    bazel_bin_loc = os.path.join(BAZEL_BIN_CACHE, BAZEL_VERSION)
+    arch = bazel_arch()
+    bazel_bin_loc = os.path.join(BAZEL_BIN_CACHE, '{}-{}'.format(BAZEL_VERSION, arch))
+    expected_sha256 = bazel_sha(arch)
 
     if not os.path.exists(bazel_bin_loc):
         os.makedirs(os.path.dirname(bazel_bin_loc), exist_ok=True)
-        download_bazel(bazel_bin_loc)
+        download_bazel(bazel_bin_loc, arch, expected_sha256)
 
     os.execv(bazel_bin_loc, ['bazel', ] + sys.argv[1:])
     assert False
