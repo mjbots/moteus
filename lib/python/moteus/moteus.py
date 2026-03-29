@@ -1448,7 +1448,7 @@ async def move_to(
             result = result_by_id.get(norm['c'].id)
             if result is None or Register.POSITION not in result.values:
                 raise RuntimeError(
-                    f'Could not retrieve current position for {norm['c']}')
+                    f'Could not retrieve current position for {norm["c"]}')
 
             current_pos = result.values.get(Register.POSITION)
 
