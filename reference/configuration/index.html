@@ -2034,6 +2034,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servofault_position_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fault_position_error
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofault_velocity_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fault_velocity_error
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#servoflux_brake_margin_voltage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3258,6 +3280,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servofault_position_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fault_position_error
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofault_velocity_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fault_velocity_error
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#servoflux_brake_margin_voltage" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3989,6 +4033,16 @@ on the board.</p>
 <h2 id="servomotor_fault_temperature"><code>servo.motor_fault_temperature</code><a class="headerlink" href="#servomotor_fault_temperature" title="Permanent link">&para;</a></h2>
 <p>If the motor temperature reaches this value, a fault is triggered and
 all torque is stopped.</p>
+<h2 id="servofault_position_error"><code>servo.fault_position_error</code><a class="headerlink" href="#servofault_position_error" title="Permanent link">&para;</a></h2>
+<p>If finite, a fault is triggered when the absolute position control
+error exceeds this value.  The position control error is the
+difference between the commanded and measured position in revolutions.
+If set to <code>nan</code> (the default), no fault is triggered.</p>
+<h2 id="servofault_velocity_error"><code>servo.fault_velocity_error</code><a class="headerlink" href="#servofault_velocity_error" title="Permanent link">&para;</a></h2>
+<p>If finite, a fault is triggered when the absolute velocity control
+error exceeds this value.  The velocity control error is the
+difference between the commanded and measured velocity in revolutions
+per second.  If set to <code>nan</code> (the default), no fault is triggered.</p>
 <h2 id="servoflux_brake_margin_voltage"><code>servo.flux_brake_margin_voltage</code><a class="headerlink" href="#servoflux_brake_margin_voltage" title="Permanent link">&para;</a></h2>
 <p>Selects the flux braking point relative to the currently configured <code>servo.max_voltage</code>.  <code>flux braking point = max_voltage - flux_brake_margin_voltage</code>.</p>
 <p>When the input voltage is above the braking point, the controller

@@ -4765,6 +4765,10 @@ complete, and the controller is following the final velocity.</p>
 <li>48 - <em>invalid limits</em> - <code>servopos.position_min</code> or
   <code>servopos.position_max</code> are finite and outside the available
   position range</li>
+<li>49 - <em>position control error</em> - the position control error exceeded
+  the threshold configured in <code>servo.fault_position_error</code></li>
+<li>50 - <em>velocity control error</em> - the velocity control error exceeded
+  the threshold configured in <code>servo.fault_velocity_error</code></li>
 </ul>
 <p>Some non-zero codes can be presented during valid control modes
 without a fault.  These indicate which, if any, function is limiting
