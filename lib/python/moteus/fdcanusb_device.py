@@ -188,7 +188,7 @@ class FdcanusbDevice(TransportDevice):
         # If none is specified, use 1Mbps, which is the default for
         # UART based communication with moteus.
         self._serial = aioserial.AioSerial(
-            port=path, baudrate=baudrate or 1000000)
+            port=path, baudrate=baudrate or 921600)
 
         # Attempt to discover the USB serial number associated with
         # this device for pretty-printing.

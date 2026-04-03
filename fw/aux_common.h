@@ -19,8 +19,11 @@
 
 #include "mjlib/base/visitor.h"
 
+// The default BAUD rate for the port which is configured to accept
+// UART commands by default.  921600 is the highest that can be
+// reliably achieved with inexpensive adapters like the CP2012.
 #ifndef MOTEUS_UART_DEFAULT_COMMAND_BAUD_RATE
-#define MOTEUS_UART_DEFAULT_COMMAND_BAUD_RATE 1000000
+#define MOTEUS_UART_DEFAULT_COMMAND_BAUD_RATE 921600
 #endif
 
 namespace moteus {
