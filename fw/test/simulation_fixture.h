@@ -150,6 +150,15 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   // Simulated bus voltage
   float bus_voltage_ = 24.0f;
 
+  // Dynamic bus model parameters.
+  // When bus_resistance_ohm > 0, the bus voltage responds to motor current.
+  //   R > 0, C = 0: algebraic model (V = V_source - R * i_bus)
+  //   R > 0, C > 0: dynamic RC model (C * dV/dt = (V_source - V)/R - i_bus)
+  //   R = 0: ideal source (default, no update)
+  float bus_source_voltage_ = 0.0f;
+  float bus_resistance_ohm_ = 0.0f;
+  float bus_capacitance_F_ = 0.0f;
+
   // External load torque (Nm)
   float external_torque_ = 0.0f;
 
@@ -323,6 +332,30 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     motor_position_.ISR_Update();
     status_.velocity_filt = position_.velocity;
 
+    // 2.5. Update dynamic bus voltage model (if active).
+    //
+    // Runs before ISR_CalculateDerivedQuantities (which filters bus_V)
+    // and ISR_DoControl (which checks bus_V for over-voltage fault).
+    if (bus_resistance_ohm_ > 0.0f) {
+      const auto phase_cur = motor_sim_.phase_currents();
+      const float i_bus = prior_pwm.a * phase_cur.a +
+                          prior_pwm.b * phase_cur.b +
+                          prior_pwm.c * phase_cur.c;
+
+      if (bus_capacitance_F_ > 0.0f) {
+        // Dynamic RC model.
+        const float i_source =
+            (bus_source_voltage_ - bus_voltage_) / bus_resistance_ohm_;
+        bus_voltage_ += (i_source - i_bus) * dt / bus_capacitance_F_;
+      } else {
+        // Algebraic model (no capacitor).
+        bus_voltage_ = bus_source_voltage_ - bus_resistance_ohm_ * i_bus;
+      }
+
+      if (bus_voltage_ < 0.0f) { bus_voltage_ = 0.0f; }
+      status_.bus_V = bus_voltage_;
+    }
+
     // 3. Get phase currents from motor, transform to DQ using encoder theta
     const auto phase_cur = motor_sim_.phase_currents();
     const SinCos sin_cos = ISR_CalculateDerivedQuantities(
@@ -415,6 +448,11 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     external_torque_ = 0.0f;
     last_pwm = Vec3{0.5f, 0.5f, 0.5f};  // Neutral PWM
 
+    // Reset bus voltage to source if dynamic model is active.
+    if (bus_resistance_ohm_ > 0.0f) {
+      SetBusVoltage(bus_source_voltage_);
+    }
+
     // Reset control state to avoid stale values affecting power limiting.
     // Initialize control_.d_V and control_.q_V to small non-zero values to
     // avoid division by zero in power limiting code (scaled_power / old_V).
@@ -465,6 +503,19 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     status_.filt_bus_V = voltage;
     status_.filt_1ms_bus_V = voltage;
     status_.bus_V = voltage;
+  }
+
+  // Enable dynamic bus voltage model.
+  //
+  // Models a voltage source (source_V) behind a series resistance
+  // (resistance_ohm) with an optional bus capacitor (capacitance_F).
+  // The bus voltage will respond to regenerative energy from the motor.
+  void SetBusModel(float source_V, float resistance_ohm,
+                   float capacitance_F = 0.0f) {
+    bus_source_voltage_ = source_V;
+    bus_resistance_ohm_ = resistance_ohm;
+    bus_capacitance_F_ = capacitance_F;
+    SetBusVoltage(source_V);
   }
 
   // Sample a value over multiple steps and return statistics.

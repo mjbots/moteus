@@ -282,8 +282,6 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
 
     velocity_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 100.0f);
     temperature_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 100.0f);
-    slow_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 2.0f);
-    fast_bus_v_filter_ = ExponentialFilter(rate_config_.pwm_rate_hz, 1000.0f);
     InitControlFilters(rate_config_.pwm_rate_hz);
 
     // Ensure that our maximum current stays within the range that can
@@ -1005,9 +1003,6 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     }
     status_.bus_V = status_.adc_voltage_sense_raw * vsense_adc_scale_;
 
-    slow_bus_v_filter_(status_.bus_V, &status_.filt_bus_V);
-    fast_bus_v_filter_(status_.bus_V, &status_.filt_1ms_bus_V);
-
     const SinCos sin_cos = ISR_CalculateDerivedQuantities(
         status_.cur1_A, status_.cur3_A, status_.cur2_A,
         use_synthetic_theta);
@@ -1441,8 +1436,6 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
 
   ExponentialFilter velocity_filter_;
   ExponentialFilter temperature_filter_;
-  ExponentialFilter slow_bus_v_filter_;
-  ExponentialFilter fast_bus_v_filter_;
 
   const bool family0_rev4_and_older_ = (
       g_measured_hw_family == 0 &&

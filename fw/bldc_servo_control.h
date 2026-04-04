@@ -435,6 +435,10 @@ class BldcServoControl {
   SinCos ISR_CalculateDerivedQuantities(
       float cur_a, float cur_b, float cur_c,
       bool use_synthetic_theta) MOTEUS_CCM_ATTRIBUTE {
+    // Filter bus voltage (matches real firmware ADC filtering).
+    slow_bus_v_filter_(self().status_.bus_V, &self().status_.filt_bus_V);
+    fast_bus_v_filter_(self().status_.bus_V, &self().status_.filt_1ms_bus_V);
+
     // Compute electrical theta.
     const float electrical_theta = !use_synthetic_theta ?
         self().position_.electrical_theta :
@@ -1627,6 +1631,8 @@ class BldcServoControl {
     base_velocity_filter_ = ExponentialFilter(pwm_rate_hz, 5.0f);
     fw_id_filter_ = ExponentialFilter(
         pwm_rate_hz, self().config_.fw.bandwidth_hz);
+    slow_bus_v_filter_ = ExponentialFilter(pwm_rate_hz, 2.0f);
+    fast_bus_v_filter_ = ExponentialFilter(pwm_rate_hz, 1000.0f);
   }
 
   float v_per_hz_ = 0.0f;
@@ -1639,6 +1645,8 @@ class BldcServoControl {
   ExponentialFilter max_velocity_filter_;
   ExponentialFilter base_velocity_filter_;
   ExponentialFilter fw_id_filter_;
+  ExponentialFilter slow_bus_v_filter_;
+  ExponentialFilter fast_bus_v_filter_;
 };
 
 }  // namespace moteus
