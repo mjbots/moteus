@@ -5,7 +5,7 @@
 	(uuid "d28d024b-17bc-4fc4-908b-c084ed36f862")
 	(paper "A4")
 	(title_block
-		(title "mjuart r1")
+		(title "mjuart r2")
 		(company "mjbots Robotic Systems, LLC - info@mjbots.com")
 		(comment 1 "Licensed under the Apache 2.0 License")
 	)
