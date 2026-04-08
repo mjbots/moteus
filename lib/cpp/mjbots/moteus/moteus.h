@@ -15,6 +15,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -83,6 +84,10 @@ class Controller {
     bool default_query = true;
 
     int64_t diagnostic_retry_sleep_ns = 200000;
+
+    // Maximum number of retries for flow-controlled diagnostic reads
+    // when no response is received.
+    int diagnostic_flow_retries = 3;
 
     // Specify a transport to be used.  If left unset, a global common
     // transport will be constructed to be shared with all Controller
@@ -581,6 +586,35 @@ class Controller {
   void AsyncDiagnosticRead(std::string* response,
                            int channel,
                            CompletionCallback callback) {
+    if (!flow_control_probed_) {
+      ProbeFlowControl(
+          channel,
+          [this, response, callback](
+              int error, const std::string& probe_data) {
+            if (error == 0) {
+              *response = probe_data;
+              transport()->Post(std::bind(callback, 0));
+            } else if (!probe_data.empty()) {
+              *response = probe_data;
+              transport()->Post(std::bind(callback, 0));
+            } else {
+              transport()->Post(std::bind(callback, ETIMEDOUT));
+            }
+          });
+      return;
+    }
+
+    if (use_flow_control_) {
+      AsyncDiagnosticReadFlow(response, channel, callback);
+    } else {
+      AsyncDiagnosticReadPlain(response, channel, callback);
+    }
+  }
+
+ private:
+  void AsyncDiagnosticReadPlain(std::string* response,
+                                int channel,
+                                CompletionCallback callback) {
     DiagnosticRead::Command read;
     read.channel = channel;
     read.max_length = 48;
@@ -607,9 +641,7 @@ class Controller {
           bool any_response = false;
 
           for (const auto& frame : context->replies) {
-            if (frame.destination != options_.source ||
-                frame.source != options_.id ||
-                frame.can_prefix != options_.can_prefix) {
+            if (!IsFromTarget(frame)) {
               continue;
             }
             auto maybe_data = DiagnosticResponse::Parse(frame.data, frame.size);
@@ -628,6 +660,147 @@ class Controller {
           return;
         });
   }
+
+  using ProbeCallback =
+      std::function<void(int /* error */, const std::string& /* data */)>;
+
+  void ProbeFlowControl(int channel, ProbeCallback probe_callback) {
+    flow_control_probed_ = true;
+
+    DiagnosticReadFlow::Command probe;
+    probe.channel = channel;
+    probe.packet_number = 0;
+    probe.max_length = 48;
+
+    output_frame_ = DefaultFrame(kReplyRequired);
+    WriteCanData write_frame(output_frame_.data, &output_frame_.size);
+    DiagnosticReadFlow::Make(&write_frame, probe, {});
+
+    struct ProbeContext {
+      int channel = 0;
+      std::vector<CanFdFrame> replies;
+      ProbeCallback probe_callback;
+      Transport* transport = nullptr;
+      Controller* controller = nullptr;
+    };
+    auto ctx = std::make_shared<ProbeContext>();
+    ctx->channel = channel;
+    ctx->probe_callback = probe_callback;
+    ctx->transport = transport();
+    ctx->controller = this;
+
+    ctx->transport->Cycle(
+        &output_frame_, 1, &ctx->replies,
+        [ctx](int) {
+          auto* const c = ctx->controller;
+          std::string data;
+          bool got_flow = false;
+
+          for (const auto& frame : ctx->replies) {
+            if (!c->IsFromTarget(frame)) {
+              continue;
+            }
+            auto flow = DiagnosticFlowResponse::Parse(
+                frame.data, frame.size);
+            if (flow.channel >= 0) {
+              got_flow = true;
+              c->last_ack_packet_[ctx->channel] = flow.packet_number;
+              data += std::string(
+                  reinterpret_cast<const char*>(flow.data), flow.size);
+              continue;
+            }
+            auto plain = DiagnosticResponse::Parse(
+                frame.data, frame.size);
+            if (plain.channel >= 0) {
+              data += std::string(
+                  reinterpret_cast<const char*>(plain.data), plain.size);
+            }
+          }
+
+          c->use_flow_control_ = got_flow;
+          ctx->probe_callback(data.empty() ? ETIMEDOUT : 0, data);
+        });
+  }
+
+  void AsyncDiagnosticReadFlow(std::string* response,
+                               int channel,
+                               CompletionCallback callback) {
+    struct Context
+        : public std::enable_shared_from_this<Context> {
+      std::string* response = nullptr;
+      int channel = 0;
+      int retries_remaining = 0;
+      std::vector<CanFdFrame> replies;
+      CompletionCallback callback;
+      Controller* controller = nullptr;
+      CanFdFrame output_frame;
+
+      void Start() {
+        auto* const c = controller;
+
+        DiagnosticReadFlow::Command read;
+        read.channel = channel;
+        read.packet_number = c->last_ack_packet_[channel];
+        read.max_length = 48;
+
+        output_frame = c->DefaultFrame(kReplyRequired);
+        WriteCanData write_frame(output_frame.data, &output_frame.size);
+        DiagnosticReadFlow::Make(&write_frame, read, {});
+
+        replies.clear();
+        auto s = shared_from_this();
+        c->transport()->Cycle(
+            &output_frame, 1, &replies,
+            [s](int) { s->HandleReply(); });
+      }
+
+      void HandleReply() {
+        auto* const c = controller;
+        std::string data;
+        bool any_response = false;
+
+        for (const auto& frame : replies) {
+          if (!c->IsFromTarget(frame)) {
+            continue;
+          }
+          auto maybe_data = DiagnosticFlowResponse::Parse(
+              frame.data, frame.size);
+          if (maybe_data.channel >= 0) {
+            c->last_ack_packet_[channel] = maybe_data.packet_number;
+            data += std::string(
+                reinterpret_cast<const char*>(maybe_data.data),
+                maybe_data.size);
+            any_response = true;
+          }
+        }
+
+        if (any_response) {
+          *response = data;
+          c->transport()->Post(std::bind(callback, 0));
+          return;
+        }
+
+        if (retries_remaining > 0) {
+          retries_remaining--;
+          Start();
+          return;
+        }
+
+        c->transport()->Post(std::bind(callback, ETIMEDOUT));
+      }
+    };
+
+    auto context = std::make_shared<Context>();
+    context->response = response;
+    context->channel = channel;
+    context->retries_remaining = options_.diagnostic_flow_retries;
+    context->callback = callback;
+    context->controller = this;
+
+    context->Start();
+  }
+
+ public:
 
   void DiagnosticFlush(int channel = 1, double timeout_s = 0.2) {
     // Read until nothing is left or the timeout hits.
@@ -884,6 +1057,12 @@ class Controller {
     return &g_transport;
   };
 
+  bool IsFromTarget(const CanFdFrame& frame) const {
+    return frame.source == options_.id &&
+        frame.destination == options_.source &&
+        frame.can_prefix == options_.can_prefix;
+  }
+
   // A helper context to maintain asynchronous state while performing
   // diagnostic channel commands.
   struct AsyncDiagnosticCommandContext
@@ -945,6 +1124,26 @@ class Controller {
     }
 
     void DoRead() {
+      if (!controller->flow_control_probed_) {
+        auto s = shared_from_this();
+        controller->ProbeFlowControl(
+            1,
+            [s](int, const std::string& data) {
+              if (!data.empty()) {
+                s->current_line += data;
+                if (s->ProcessReplies()) {
+                  s->transport->Post(std::bind(s->callback, 0));
+                  return;
+                }
+              }
+              s->DoReadInner();
+            });
+        return;
+      }
+      DoReadInner();
+    }
+
+    void DoReadInner() {
       if (empty_replies >= 5) {
         // We will call this a timeout.
         transport->Post(std::bind(callback, ETIMEDOUT));
@@ -954,10 +1153,17 @@ class Controller {
         ::usleep(controller->options_.diagnostic_retry_sleep_ns / 1000);
       }
 
-      DiagnosticRead::Command read;
       output_frame_ = controller->DefaultFrame(kReplyRequired);
       WriteCanData write_frame(output_frame_.data, &output_frame_.size);
-      DiagnosticRead::Make(&write_frame, read, {});
+
+      if (controller->use_flow_control_) {
+        DiagnosticReadFlow::Command read;
+        read.packet_number = controller->last_ack_packet_[1];
+        DiagnosticReadFlow::Make(&write_frame, read, {});
+      } else {
+        DiagnosticRead::Command read;
+        DiagnosticRead::Make(&write_frame, read, {});
+      }
 
       auto s = shared_from_this();
 
@@ -970,23 +1176,42 @@ class Controller {
 
     bool ProcessReplies() {
       for (const auto& reply : replies) {
-        if (reply.source != controller->options_.id ||
-            reply.destination != controller->options_.source ||
-            reply.can_prefix != controller->options_.can_prefix) {
+        if (!controller->IsFromTarget(reply)) {
           continue;
         }
 
-        const auto parsed = DiagnosticResponse::Parse(reply.data, reply.size);
-        if (parsed.channel != 1) { continue; }
+        int8_t parsed_channel = -1;
+        const uint8_t* parsed_data = nullptr;
+        int8_t parsed_size = 0;
 
-        if (parsed.size == 0) {
+        if (controller->use_flow_control_) {
+          const auto parsed = DiagnosticFlowResponse::Parse(
+              reply.data, reply.size);
+          parsed_channel = parsed.channel;
+          parsed_data = parsed.data;
+          parsed_size = parsed.size;
+          if (parsed.channel >= 0) {
+            controller->last_ack_packet_[parsed.channel] =
+                parsed.packet_number;
+          }
+        } else {
+          const auto parsed = DiagnosticResponse::Parse(
+              reply.data, reply.size);
+          parsed_channel = parsed.channel;
+          parsed_data = parsed.data;
+          parsed_size = parsed.size;
+        }
+
+        if (parsed_channel != 1) { continue; }
+
+        if (parsed_size == 0) {
           empty_replies++;
         } else {
           empty_replies = 0;
         }
 
         current_line += std::string(
-            reinterpret_cast<const char*>(parsed.data), parsed.size);
+            reinterpret_cast<const char*>(parsed_data), parsed_size);
       }
 
       size_t first_newline = std::string::npos;
@@ -1074,9 +1299,7 @@ class Controller {
   Optional<Result> FindResult(const std::vector<CanFdFrame>& replies) const {
     // Pick off the last reply we got from our target ID.
     for (auto it = replies.rbegin(); it != replies.rend(); ++it) {
-      if (it->source == options_.id &&
-          it->destination == options_.source &&
-          it->can_prefix == options_.can_prefix) {
+      if (IsFromTarget(*it)) {
 
         Result result;
         result.frame = *it;
@@ -1144,6 +1367,10 @@ class Controller {
   // This is a member variable so we can avoid re-allocating it on
   // every call.
   std::vector<CanFdFrame> single_command_replies_;
+
+  bool flow_control_probed_ = false;
+  bool use_flow_control_ = false;
+  std::map<int, uint8_t> last_ack_packet_;
 };
 
 

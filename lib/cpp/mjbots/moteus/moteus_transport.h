@@ -21,6 +21,12 @@
 #include <linux/can/raw.h>
 #include <linux/serial.h>
 #endif
+#ifdef MJBOTS_MOTEUS_ENABLE_IOKIT
+#include <CoreFoundation/CoreFoundation.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/serial/IOSerialKeys.h>
+#endif
+#include <limits.h>
 #include <net/if.h>
 #include <poll.h>
 #include <stdarg.h>
@@ -453,6 +459,27 @@ class TimeoutTransport : public Transport {
 class Fdcanusb : public details::TimeoutTransport {
  public:
   struct Options : details::TimeoutTransport::Options {
+    // Serial baud rate.  fdcanusb ignores this since it is a USB
+    // device.  For UART connections, this must match the firmware's
+    // configured baud rate.
+    int baudrate = 921600;
+
+    // Enable UART mode (non-pipelined operation with per-frame
+    // retry logic).
+    bool uart_mode = false;
+
+    // Enable CRC-8 checksums.  When false, checksums can still be
+    // enabled dynamically if the device responds with "ERR checksum".
+    bool checksum_enabled = false;
+
+    // Maximum number of retry attempts for UART mode.
+    int max_retries = 3;
+
+    // When true, auto-detect whether the device is an fdcanusb or
+    // a UART by checking USB VID/PID.  When false or when uart_mode
+    // is explicitly set, skip detection.
+    bool auto_detect = true;
+
     Options() {}
   };
 
@@ -460,7 +487,9 @@ class Fdcanusb : public details::TimeoutTransport {
   // system.
   Fdcanusb(const std::string& device_in, const Options& options = {})
       : details::TimeoutTransport(options),
-        options_(options) {
+        options_(options),
+        uart_mode_(options.uart_mode),
+        checksum_active_(options.checksum_enabled) {
     Open(device_in);
   }
 
@@ -468,7 +497,9 @@ class Fdcanusb : public details::TimeoutTransport {
   // where the file descriptors will likely be pipes.
   Fdcanusb(int read_fd, int write_fd, const Options& options = {})
       : details::TimeoutTransport(options),
-        options_(options) {
+        options_(options),
+        uart_mode_(options.uart_mode),
+        checksum_active_(options.checksum_enabled) {
     Open(read_fd, write_fd);
   }
 
@@ -508,6 +539,167 @@ class Fdcanusb : public details::TimeoutTransport {
     return "";
   }
 
+  /// Returns true if the device at the given path is a known fdcanusb
+  /// (USB CAN-FD adapter), false if it is likely a direct UART
+  /// connection.
+  static bool DetectIsFdcanusb(const std::string& device) {
+#ifdef __linux__
+    // Resolve symlinks to get the actual device path.
+    char resolved[PATH_MAX] = {};
+    if (!::realpath(device.c_str(), resolved)) {
+      return false;
+    }
+
+    // Extract the tty device name (e.g. "ttyACM0" from "/dev/ttyACM0").
+    std::string resolved_str(resolved);
+    const auto slash = resolved_str.rfind('/');
+    if (slash == std::string::npos) { return false; }
+    const auto tty_name = resolved_str.substr(slash + 1);
+
+    // Read VID/PID from sysfs.  Non-USB devices (e.g. /dev/ttyAMA0)
+    // won't have these files, so we return false -- a real fdcanusb
+    // is always a USB device.
+    const auto read_hex = [&](const std::string& field) -> int {
+      const auto path =
+          "/sys/class/tty/" + tty_name + "/device/../" + field;
+      std::ifstream f(path);
+      if (!f.is_open()) { return -1; }
+      int value = 0;
+      f >> std::hex >> value;
+      return f.fail() ? -1 : value;
+    };
+
+    const int vid = read_hex("idVendor");
+    const int pid = read_hex("idProduct");
+    if (vid < 0 || pid < 0) { return false; }
+
+    // Known fdcanusb VID/PID pairs.
+    if (vid == 0x0483 && pid == 0x5740) { return true; }
+    if (vid == 0x1209 && pid == 0x2323) { return true; }
+
+    return false;
+
+#elif defined(MJBOTS_MOTEUS_ENABLE_IOKIT)
+    return DetectIsFdcanusbIOKit(device);
+#else
+    // On platforms without detection support, assume fdcanusb.
+    (void)device;
+    return true;
+#endif
+  }
+
+#ifdef MJBOTS_MOTEUS_ENABLE_IOKIT
+  static bool DetectIsFdcanusbIOKit(const std::string& device) {
+    // IOKit-based detection for macOS.  Consumer must link
+    // -framework IOKit -framework CoreFoundation.
+    io_iterator_t iter = 0;
+    CFMutableDictionaryRef match =
+        IOServiceMatching(kIOSerialBSDServiceValue);
+    if (!match) { return true; }
+
+    kern_return_t kr =
+        IOServiceGetMatchingServices(kIOMainPortDefault, match, &iter);
+    if (kr != KERN_SUCCESS) { return true; }
+
+    bool result = true;
+    io_service_t service;
+    while ((service = IOIteratorNext(iter)) != 0) {
+      CFTypeRef path_ref = IORegistryEntryCreateCFProperty(
+          service, CFSTR(kIOCalloutDeviceKey),
+          kCFAllocatorDefault, 0);
+      if (!path_ref) {
+        IOObjectRelease(service);
+        continue;
+      }
+
+      char path_buf[PATH_MAX] = {};
+      bool matched = false;
+      if (CFGetTypeID(path_ref) == CFStringGetTypeID()) {
+        CFStringGetCString(static_cast<CFStringRef>(path_ref),
+                           path_buf, sizeof(path_buf),
+                           kCFStringEncodingUTF8);
+        matched = (device == path_buf);
+      }
+      CFRelease(path_ref);
+
+      if (!matched) {
+        IOObjectRelease(service);
+        continue;
+      }
+
+      // Walk up to find USB device parent with VID/PID.
+      io_service_t parent = service;
+      IOObjectRetain(parent);
+      while (parent != 0) {
+        CFTypeRef vid_ref = IORegistryEntryCreateCFProperty(
+            parent, CFSTR("idVendor"), kCFAllocatorDefault, 0);
+        CFTypeRef pid_ref = IORegistryEntryCreateCFProperty(
+            parent, CFSTR("idProduct"), kCFAllocatorDefault, 0);
+        if (vid_ref && pid_ref) {
+          int vid = 0, pid = 0;
+          CFNumberGetValue(static_cast<CFNumberRef>(vid_ref),
+                           kCFNumberIntType, &vid);
+          CFNumberGetValue(static_cast<CFNumberRef>(pid_ref),
+                           kCFNumberIntType, &pid);
+          CFRelease(vid_ref);
+          CFRelease(pid_ref);
+          result = (vid == 0x0483 && pid == 0x5740) ||
+                   (vid == 0x1209 && pid == 0x2323);
+          IOObjectRelease(parent);
+          IOObjectRelease(service);
+          IOObjectRelease(iter);
+          return result;
+        }
+        if (vid_ref) { CFRelease(vid_ref); }
+        if (pid_ref) { CFRelease(pid_ref); }
+
+        io_service_t next = 0;
+        kr = IORegistryEntryGetParentEntry(parent, kIOServicePlane, &next);
+        IOObjectRelease(parent);
+        parent = (kr == KERN_SUCCESS) ? next : 0;
+      }
+
+      IOObjectRelease(service);
+      break;
+    }
+
+    IOObjectRelease(iter);
+    return result;
+  }
+#endif
+
+  static uint8_t ComputeCrc8(const char* data, size_t len) {
+    static constexpr uint8_t kCrc8Table[16] = {
+        0x00, 0x97, 0xb9, 0x2e, 0xe5, 0x72, 0x5c, 0xcb,
+        0x57, 0xc0, 0xee, 0x79, 0xb2, 0x25, 0x0b, 0x9c,
+    };
+    uint8_t crc = 0;
+    for (size_t i = 0; i < len; i++) {
+      const uint8_t b = static_cast<uint8_t>(data[i]);
+      crc = kCrc8Table[(crc ^ (b >> 4)) & 0x0f] ^ (crc << 4);
+      crc = kCrc8Table[(crc ^ (b & 0x0f)) & 0x0f] ^ (crc << 4);
+    }
+    return crc;
+  }
+
+  virtual void Cycle(const CanFdFrame* frames,
+                     size_t size,
+                     std::vector<CanFdFrame>* replies,
+                     CompletionCallback completed_callback) override {
+    auto copy = std::atomic_load(&UNPROTECTED_event_loop_);
+    FailIf(!copy, "unexpected null event loop");
+
+    if (!uart_mode_) {
+      copy->Post(
+          std::bind(&Fdcanusb::CHILD_Cycle,
+                    this, frames, size, replies, completed_callback));
+    } else {
+      copy->Post(
+          std::bind(&Fdcanusb::CHILD_CycleUart,
+                    this, frames, size, replies, completed_callback));
+    }
+  }
+
  private:
   void Open(const std::string& device_in) {
     std::string device = device_in;
@@ -515,6 +707,13 @@ class Fdcanusb : public details::TimeoutTransport {
       device = DetectFdcanusb();
       if (device.empty()) {
         throw std::runtime_error("Could not detect fdcanusb");
+      }
+    }
+
+    if (options_.auto_detect && !options_.uart_mode) {
+      if (!DetectIsFdcanusb(device)) {
+        uart_mode_ = true;
+        checksum_active_ = true;
       }
     }
 
@@ -535,6 +734,13 @@ class Fdcanusb : public details::TimeoutTransport {
       // device.
       toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
       toptions.c_oflag &= ~OPOST;
+      toptions.c_iflag &= ~(IXON | IXOFF | IXANY);
+      toptions.c_cflag |= (CLOCAL | CREAD);
+      toptions.c_cflag &= ~CRTSCTS;
+
+      const auto speed = BaudToSpeed(options_.baudrate);
+      FailIfErrno(::cfsetispeed(&toptions, speed) < 0);
+      FailIfErrno(::cfsetospeed(&toptions, speed) < 0);
 
       FailIfErrno(::tcsetattr(fd, TCSANOW, &toptions) < 0);
       FailIfErrno(::tcsetattr(fd, TCSAFLUSH, &toptions) < 0);
@@ -545,6 +751,14 @@ class Fdcanusb : public details::TimeoutTransport {
       FailIfErrno(::tcgetattr(fd, &toptions) < 0);
       toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
       toptions.c_oflag &= ~OPOST;
+      toptions.c_iflag &= ~(IXON | IXOFF | IXANY);
+      toptions.c_cflag |= (CLOCAL | CREAD);
+      toptions.c_cflag &= ~CRTSCTS;
+
+      const auto speed = BaudToSpeed(options_.baudrate);
+      FailIfErrno(::cfsetispeed(&toptions, speed) < 0);
+      FailIfErrno(::cfsetospeed(&toptions, speed) < 0);
+
       FailIfErrno(::tcsetattr(fd, TCSANOW, &toptions) < 0);
       FailIfErrno(::tcsetattr(fd, TCSAFLUSH, &toptions) < 0);
     }
@@ -624,12 +838,51 @@ class Fdcanusb : public details::TimeoutTransport {
     return true;
   }
 
-  void CHILD_ProcessLine(const std::string& line,
+  void CHILD_ProcessLine(const std::string& line_in,
                          std::vector<CanFdFrame>* replies,
                          int* ok_count,
                          std::vector<int>* expected_reply_count) {
+    std::string line = line_in;
+
+    // Validate and strip checksum if present.
+    {
+      const auto star_pos = line.rfind('*');
+      if (star_pos != std::string::npos && star_pos + 3 <= line.size()) {
+        const int hi = ParseHexNybble(line[star_pos + 1]);
+        const int lo = ParseHexNybble(line[star_pos + 2]);
+        if (hi >= 0 && lo >= 0) {
+          const uint8_t claimed = static_cast<uint8_t>((hi << 4) | lo);
+          const uint8_t computed = ComputeCrc8(line.data(), star_pos);
+          if (claimed != computed) {
+            // Invalid checksum, discard the line.
+            return;
+          }
+          // Strip checksum suffix and trailing spaces.
+          line = line.substr(0, star_pos);
+          while (!line.empty() && line.back() == ' ') {
+            line.pop_back();
+          }
+        }
+      } else if (checksum_active_) {
+        // In checksum mode, lines without a valid checksum are
+        // discarded.
+        return;
+      }
+    }
+
     if (line == "OK") {
       (*ok_count)++;
+      return;
+    }
+
+    // Handle ERR responses.
+    if (line.size() >= 3 && line.substr(0, 3) == "ERR") {
+      if (line.find("checksum") != std::string::npos) {
+        checksum_active_ = true;
+      }
+      // ERR is not counted as an OK -- the command was not
+      // processed.  The cycle will time out and the retry logic
+      // will re-send (now with checksums enabled if appropriate).
       return;
     }
 
@@ -721,6 +974,11 @@ class Fdcanusb : public details::TimeoutTransport {
     } else if (frame.fdcan_frame == CanFdFrame::kForceOn) {
       p(" F");
     }
+    if (checksum_active_) {
+      p(" ");
+      const uint8_t crc = ComputeCrc8(buf, p.size());
+      p("*%02X", crc);
+    }
     p("\n");
 
     if (p.size() > (sizeof(tx_buffer_) - tx_buffer_size_)) {
@@ -743,6 +1001,90 @@ class Fdcanusb : public details::TimeoutTransport {
       }
     }
     tx_buffer_size_ = 0;
+  }
+
+  void CHILD_CycleUart(const CanFdFrame* frames,
+                       size_t size,
+                       std::vector<CanFdFrame>* replies,
+                       CompletionCallback completed_callback) {
+    if (replies) { replies->clear(); }
+
+    // Flush any stale data.
+    CHILD_CheckReplies(replies, kFlush, 0, nullptr);
+
+    for (size_t i = 0; i < size; i++) {
+      const auto& frame = frames[i];
+      bool ok_received = false;
+
+      int64_t timeout_ns = options_.min_ok_wait_ns;
+
+      for (int attempt = 0; attempt <= options_.max_retries; attempt++) {
+        int ok_count = 0;
+
+        CHILD_SendCanFdFrame(frame);
+        CHILD_FlushTransmit();
+
+        // Wait for the OK acknowledgment.
+        CHILD_WaitForOk(&ok_count, replies, timeout_ns);
+
+        if (ok_count > 0) {
+          ok_received = true;
+          break;
+        }
+
+        // Timed out or ERR received -- increase timeout and retry.
+        timeout_ns = timeout_ns * 3 / 2;
+      }
+
+      if (ok_received && frame.reply_required) {
+        // Wait for the reply using the normal rcv timeout.
+        std::vector<int> reply_count(frame.destination + 1, 0);
+        reply_count[frame.destination] = 1;
+        CHILD_CheckReplies(replies, kWait, 0, &reply_count);
+      }
+    }
+
+    Post(std::bind(completed_callback, 0));
+  }
+
+  void CHILD_WaitForOk(int* ok_count,
+                       std::vector<CanFdFrame>* replies,
+                       int64_t timeout_ns) {
+    const auto start = GetNow();
+    const auto end_time = start + timeout_ns;
+
+    struct pollfd fds[1] = {};
+    fds[0].fd = CHILD_GetReadFd();
+    fds[0].events = POLLIN;
+
+    while (true) {
+      const auto now = GetNow();
+      fds[0].revents = 0;
+
+      const auto to_sleep_ns = std::max<int64_t>(0, end_time - now);
+
+      struct timespec tmo = {};
+      tmo.tv_sec = to_sleep_ns / 1000000000;
+      tmo.tv_nsec = to_sleep_ns % 1000000000;
+
+#ifdef __APPLE__
+      const int poll_ret = ::poll(
+          &fds[0], 1, static_cast<int>(to_sleep_ns / 1000000));
+#else
+      const int poll_ret = ::ppoll(&fds[0], 1, &tmo, nullptr);
+#endif
+
+      if (poll_ret < 0) {
+        if (errno == EINTR) { continue; }
+        FailIfErrno(true);
+      }
+      if (poll_ret == 0) { return; }
+
+      const auto consume_count = CHILD_ConsumeData(
+          replies, 1, nullptr);
+      *ok_count += consume_count.ok;
+      if (*ok_count > 0) { return; }
+    }
   }
 
   static int ParseHexNybble(char c) {
@@ -768,6 +1110,45 @@ class Fdcanusb : public details::TimeoutTransport {
     return to_read / 2;
   }
 
+  static speed_t BaudToSpeed(int baudrate) {
+    switch (baudrate) {
+      case 9600: return B9600;
+      case 19200: return B19200;
+      case 38400: return B38400;
+      case 57600: return B57600;
+      case 115200: return B115200;
+      case 230400: return B230400;
+#ifdef B460800
+      case 460800: return B460800;
+#endif
+#ifdef B500000
+      case 500000: return B500000;
+#endif
+#ifdef B576000
+      case 576000: return B576000;
+#endif
+#ifdef B921600
+      case 921600: return B921600;
+#endif
+#ifdef B1000000
+      case 1000000: return B1000000;
+#endif
+#ifdef B1500000
+      case 1500000: return B1500000;
+#endif
+#ifdef B2000000
+      case 2000000: return B2000000;
+#endif
+#ifdef B3000000
+      case 3000000: return B3000000;
+#endif
+#ifdef B4000000
+      case 4000000: return B4000000;
+#endif
+      default: return B921600;
+    }
+  }
+
   // This is set in the parent, then used in the child.
   const Options options_;
 
@@ -783,6 +1164,13 @@ class Fdcanusb : public details::TimeoutTransport {
 
   char tx_buffer_[4096] = {};
   size_t tx_buffer_size_ = 0;
+
+  // When true, non-pipelined operation with per-frame retry is used.
+  bool uart_mode_ = false;
+
+  // When true, CRC-8 checksums are appended to sent lines and
+  // validated on received lines.
+  bool checksum_active_ = false;
 };
 
 
@@ -990,13 +1378,26 @@ class FdcanusbFactory : public TransportFactory {
       }
     }
 
+    {
+      auto it = std::find(args.begin(), args.end(), "--fdcanusb-baudrate");
+      if (it != args.end()) {
+        if ((it + 1) != args.end()) {
+          options.baudrate = std::stoi(*(it + 1));
+          args.erase(it, it + 2);
+        } else {
+          throw std::runtime_error("--fdcanusb-baudrate requires a value");
+        }
+      }
+    }
+
     auto result = std::make_shared<Fdcanusb>(device, options);
     return TransportArgPair(result, args);
   }
 
   virtual std::vector<Argument> cmdline_arguments() override {
     return {
-      { "--fdcanusb", 1, "path to fdcanusb device" },
+      { "--fdcanusb", 1, "path to fdcanusb or UART device" },
+      { "--fdcanusb-baudrate", 1, "serial baud rate (default 921600)" },
       { "--can-disable-brs", 0, "do not set BRS" },
     };
   }

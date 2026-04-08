@@ -70,6 +70,8 @@ enum Multiplex : uint16_t {
   kClientToServer = 0x40,
   kServerToClient = 0x41,
   kClientPollServer = 0x42,
+  kServerToClientFlow = 0x43,
+  kClientPollServerFlow = 0x44,
 
   kNop = 0x50,
 };

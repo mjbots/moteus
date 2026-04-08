@@ -1445,6 +1445,57 @@ struct DiagnosticResponse {
   }
 };
 
+struct DiagnosticReadFlow {
+  struct Command {
+    int8_t channel = 1;
+    uint8_t packet_number = 0;
+    int8_t max_length = 48;
+  };
+
+  struct Format {};
+
+  static uint8_t Make(WriteCanData* frame, const Command& cmd, const Format&) {
+    frame->Write<int8_t>(Multiplex::kClientPollServerFlow);
+    frame->Write<int8_t>(cmd.channel);
+    frame->Write<int8_t>(static_cast<int8_t>(cmd.packet_number));
+    frame->Write<int8_t>(cmd.max_length);
+    return cmd.max_length + 4;
+  }
+};
+
+struct DiagnosticFlowResponse {
+  struct Result {
+    int8_t channel = -1;
+    uint8_t packet_number = 0;
+    uint8_t data[64] = {};
+    int8_t size = 0;
+  };
+
+  static Result Parse(const uint8_t* data, uint8_t size) {
+    MultiplexParser parser(data, size);
+    return Parse(&parser);
+  }
+
+  static Result Parse(MultiplexParser* parser) {
+    Result result;
+
+    if (parser->remaining() < 4) { return result; }
+
+    const auto action = parser->Read<int8_t>();
+    if (action != Multiplex::kServerToClientFlow) { return result; }
+    result.channel = parser->Read<int8_t>();
+    result.packet_number = parser->Read<uint8_t>();
+
+    const uint16_t size = parser->ReadVaruint();
+    if (parser->remaining() < size) { return result; }
+
+    result.size = size;
+    parser->ReadRaw(result.data, size);
+
+    return result;
+  }
+};
+
 struct ClockTrim {
   struct Command {
     int32_t trim = 0;

@@ -1196,3 +1196,497 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
     BOOST_TEST(f.expected_reply_size == 25);
   }
 }
+
+BOOST_AUTO_TEST_CASE(ComputeCrc8) {
+  // Verify CRC-8 computation against known values.
+  // CRC of "OK " is 0x00 (matches Python test suite).
+  BOOST_TEST(moteus::Fdcanusb::ComputeCrc8("OK ", 3) == 0x00);
+  BOOST_TEST(moteus::Fdcanusb::ComputeCrc8("", 0) == 0x00);
+}
+
+namespace {
+moteus::Fdcanusb::Options MakeUartOptions() {
+  moteus::Fdcanusb::Options options;
+  options.min_ok_wait_ns =   200000000;
+  options.min_rcv_wait_ns =  200000000;
+  options.rx_extra_wait_ns = 200000000;
+  options.uart_mode = true;
+  options.checksum_enabled = true;
+  options.max_retries = 1;
+  return options;
+}
+}
+
+BOOST_AUTO_TEST_CASE(UartChecksumSend) {
+  // In UART mode, sent frames should include a checksum.
+  RwPipe pipe;
+  moteus::Fdcanusb dut(pipe.read_fds[0], pipe.write_fds[1], MakeUartOptions());
+
+  std::optional<int> result_errno;
+  const auto completed = [&](int errno_in) {
+    result_errno = errno_in;
+  };
+
+  moteus::CanFdFrame frame;
+  frame.arbitration_id = 0x0001;
+  frame.data[0] = 0x20;
+  frame.size = 1;
+  frame.reply_required = false;
+
+  std::vector<moteus::CanFdFrame> replies;
+  dut.Cycle(&frame, 1, &replies, completed);
+
+  {
+    char line_buf[4096] = {};
+    const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
+    moteus::Fdcanusb::FailIfErrno(result == nullptr);
+    BOOST_TEST(line_buf == "can send 0001 20 *00\n");
+  }
+
+  pipe.Write("OK *00\r\n");
+  ::usleep(300000);
+
+  BOOST_TEST(!!result_errno);
+  BOOST_TEST(*result_errno == 0);
+}
+
+BOOST_AUTO_TEST_CASE(UartChecksumReceive) {
+  // In UART mode, received lines with valid checksums should be accepted.
+  RwPipe pipe;
+  moteus::Fdcanusb dut(pipe.read_fds[0], pipe.write_fds[1], MakeUartOptions());
+
+  std::optional<int> result_errno;
+  const auto completed = [&](int errno_in) {
+    result_errno = errno_in;
+  };
+
+  moteus::CanFdFrame frame;
+  frame.destination = 5;
+  frame.source = 2;
+  frame.can_prefix = 0x00;
+  frame.arbitration_id = 0x0205;
+  frame.reply_required = true;
+  frame.data[0] = 0x20;
+  frame.size = 1;
+
+  std::vector<moteus::CanFdFrame> replies;
+  dut.Cycle(&frame, 1, &replies, completed);
+
+  // Read and discard the sent frame.
+  {
+    char line_buf[4096] = {};
+    (void)::fgets(line_buf, sizeof(line_buf), pipe.test_read);
+  }
+
+  // Send OK and rcv with valid checksums.
+  // Compute the checksums for "OK " and "rcv 0502 1234 ".
+  {
+    char ok_line[] = "OK ";
+    uint8_t ok_crc = moteus::Fdcanusb::ComputeCrc8(ok_line, 3);
+
+    char rcv_content[] = "rcv 0502 1234 ";
+    uint8_t rcv_crc = moteus::Fdcanusb::ComputeCrc8(
+        rcv_content, strlen(rcv_content));
+
+    char buf[256];
+    snprintf(buf, sizeof(buf), "OK *%02X\r\nrcv 0502 1234 *%02X\r\n",
+             ok_crc, rcv_crc);
+    pipe.Write(buf);
+  }
+  ::usleep(300000);
+
+  BOOST_TEST(!!result_errno);
+  BOOST_TEST(*result_errno == 0);
+  BOOST_TEST(replies.size() == 1);
+  BOOST_TEST(replies[0].source == 5);
+  BOOST_TEST(replies[0].destination == 2);
+  BOOST_TEST(replies[0].data[0] == 0x12);
+  BOOST_TEST(replies[0].data[1] == 0x34);
+}
+
+BOOST_AUTO_TEST_CASE(UartInvalidChecksumDiscarded) {
+  // In UART mode, received lines with invalid checksums should be
+  // discarded.
+  RwPipe pipe;
+  moteus::Fdcanusb dut(pipe.read_fds[0], pipe.write_fds[1], MakeUartOptions());
+
+  std::optional<int> result_errno;
+  const auto completed = [&](int errno_in) {
+    result_errno = errno_in;
+  };
+
+  moteus::CanFdFrame frame;
+  frame.arbitration_id = 0x0001;
+  frame.reply_required = false;
+  frame.data[0] = 0x20;
+  frame.size = 1;
+
+  std::vector<moteus::CanFdFrame> replies;
+  dut.Cycle(&frame, 1, &replies, completed);
+
+  // Read and discard the sent frame.
+  {
+    char line_buf[4096] = {};
+    (void)::fgets(line_buf, sizeof(line_buf), pipe.test_read);
+  }
+
+  // Send OK with a bad checksum -- it should be discarded and the
+  // cycle should time out waiting for a valid OK.
+  pipe.Write("OK *FF\r\n");
+  ::usleep(300000);
+
+  // The bad checksum is discarded. On a retry, send a valid one.
+  {
+    char line_buf[4096] = {};
+    (void)::fgets(line_buf, sizeof(line_buf), pipe.test_read);
+  }
+
+  {
+    char ok_line[] = "OK ";
+    uint8_t ok_crc = moteus::Fdcanusb::ComputeCrc8(ok_line, 3);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "OK *%02X\r\n", ok_crc);
+    pipe.Write(buf);
+  }
+  ::usleep(300000);
+
+  BOOST_TEST(!!result_errno);
+  BOOST_TEST(*result_errno == 0);
+}
+
+BOOST_AUTO_TEST_CASE(UartErrChecksumEnablesChecksums) {
+  // When not initially in UART mode, an "ERR checksum" response
+  // should enable checksum mode.
+  RwPipe pipe;
+  auto options = MakeOptions();
+  moteus::Fdcanusb dut(pipe.read_fds[0], pipe.write_fds[1], options);
+
+  std::optional<int> result_errno;
+  const auto completed = [&](int errno_in) {
+    result_errno = errno_in;
+  };
+
+  moteus::CanFdFrame frame;
+  frame.arbitration_id = 0x0001;
+  frame.reply_required = false;
+  frame.data[0] = 0x20;
+  frame.size = 1;
+
+  std::vector<moteus::CanFdFrame> replies;
+  dut.Cycle(&frame, 1, &replies, completed);
+
+  // First line should be without checksum.
+  {
+    char line_buf[4096] = {};
+    const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
+    moteus::Fdcanusb::FailIfErrno(result == nullptr);
+    std::string line(line_buf);
+    BOOST_TEST(line.find('*') == std::string::npos);
+  }
+
+  // Send ERR checksum to trigger checksum mode.
+  pipe.Write("ERR checksum\r\n");
+  // Also send a valid OK so the cycle completes.
+  pipe.Write("OK\r\n");
+  ::usleep(300000);
+
+  BOOST_TEST(!!result_errno);
+  BOOST_TEST(*result_errno == 0);
+
+  // Now do another cycle - should have checksums enabled.
+  result_errno.reset();
+  dut.Cycle(&frame, 1, &replies, completed);
+
+  {
+    char line_buf[4096] = {};
+    const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
+    moteus::Fdcanusb::FailIfErrno(result == nullptr);
+    std::string line(line_buf);
+    BOOST_TEST(line.find('*') != std::string::npos);
+  }
+
+  pipe.Write("OK\r\n");
+  ::usleep(300000);
+
+  BOOST_TEST(!!result_errno);
+}
+
+BOOST_AUTO_TEST_CASE(FdcanusbFactoryBaudrate) {
+  moteus::FdcanusbFactory factory;
+
+  BOOST_TEST(factory.name() == "fdcanusb");
+
+  // --fdcanusb without a path should throw.
+  BOOST_CHECK_THROW(
+      factory.make({"--fdcanusb"}),
+      std::runtime_error);
+
+  // --fdcanusb-baudrate without a value should throw.
+  BOOST_CHECK_THROW(
+      factory.make({"--fdcanusb-baudrate"}),
+      std::runtime_error);
+
+  // is_args_set should detect --fdcanusb.
+  BOOST_TEST(factory.is_args_set({"--fdcanusb", "/dev/ttyUSB0"}));
+  BOOST_TEST(!factory.is_args_set({"--socketcan-iface", "can0"}));
+}
+
+namespace {
+// A test transport that calls a user-supplied function to generate
+// replies on each cycle, allowing tests to simulate multi-step
+// protocol exchanges.
+class DynamicTestTransport : public PostTransport {
+ public:
+  virtual void Cycle(const moteus::CanFdFrame* frames,
+                     size_t size,
+                     std::vector<moteus::CanFdFrame>* replies,
+                     moteus::CompletionCallback completed_callback) {
+    std::copy(frames, frames + size,
+              std::back_inserter(sent_frames));
+    if (replies && on_cycle) {
+      *replies = on_cycle(count);
+    }
+    count++;
+    Post(std::bind(completed_callback, 0));
+    ProcessQueue();
+  }
+
+  int count = 0;
+  std::vector<moteus::CanFdFrame> sent_frames;
+  std::function<std::vector<moteus::CanFdFrame>(int)> on_cycle;
+};
+
+moteus::CanFdFrame MakeFlowResponse(uint8_t packet_number,
+                                    const std::string& data,
+                                    int channel = 1) {
+  moteus::CanFdFrame frame;
+  frame.source = 1;
+  frame.destination = 0;
+  frame.arbitration_id = 0x100;
+  uint8_t* p = frame.data;
+  *p++ = 0x43;  // kServerToClientFlow
+  *p++ = static_cast<uint8_t>(channel);
+  *p++ = packet_number;
+  *p++ = static_cast<uint8_t>(data.size());
+  std::memcpy(p, data.data(), data.size());
+  p += data.size();
+  frame.size = p - frame.data;
+  return frame;
+}
+
+moteus::CanFdFrame MakePlainResponse(const std::string& data,
+                                     int channel = 1) {
+  moteus::CanFdFrame frame;
+  frame.source = 1;
+  frame.destination = 0;
+  frame.arbitration_id = 0x100;
+  uint8_t* p = frame.data;
+  *p++ = 0x41;  // kServerToClient
+  *p++ = static_cast<uint8_t>(channel);
+  *p++ = static_cast<uint8_t>(data.size());
+  std::memcpy(p, data.data(), data.size());
+  p += data.size();
+  frame.size = p - frame.data;
+  return frame;
+}
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlProbeEnabled) {
+  // When the controller responds with a 0x43 frame, flow control
+  // should be enabled.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int cycle) -> std::vector<moteus::CanFdFrame> {
+    // Every cycle returns a flow response.
+    return { MakeFlowResponse(cycle + 1, "hi") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  // First read probes flow control.
+  auto r1 = dut.DiagnosticRead(1);
+  BOOST_TEST(r1 == "hi");
+
+  // Second read should use flow control (0x44 frame type).
+  auto r2 = dut.DiagnosticRead(1);
+  BOOST_TEST(r2 == "hi");
+
+  // Verify the second frame sent was a flow-controlled poll (0x44).
+  BOOST_TEST(impl->sent_frames.size() == 2);
+  BOOST_TEST(impl->sent_frames[1].data[0] == 0x44);
+  // And it should carry the packet_number from the probe response.
+  BOOST_TEST(impl->sent_frames[1].data[2] == 1);
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlProbeDisabledPlainResponse) {
+  // When the controller responds with a regular 0x41 frame, flow
+  // control should be disabled.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int) -> std::vector<moteus::CanFdFrame> {
+    return { MakePlainResponse("hi") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  auto r1 = dut.DiagnosticRead(1);
+  BOOST_TEST(r1 == "hi");
+
+  auto r2 = dut.DiagnosticRead(1);
+  BOOST_TEST(r2 == "hi");
+
+  // The first was the probe (0x44), but it fell back. The second
+  // should be a plain 0x42.
+  BOOST_TEST(impl->sent_frames.size() == 2);
+  BOOST_TEST(impl->sent_frames[0].data[0] == 0x44);
+  BOOST_TEST(impl->sent_frames[1].data[0] == 0x42);
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlProbeDisabledNoResponse) {
+  // When the controller doesn't respond to the probe at all (e.g.
+  // old firmware that doesn't understand 0x44), flow control should
+  // be disabled and subsequent reads should use plain 0x42.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int cycle) -> std::vector<moteus::CanFdFrame> {
+    if (cycle == 0) {
+      // Probe gets no response.
+      return {};
+    }
+    // Subsequent plain reads succeed.
+    return { MakePlainResponse("hi") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  // First read triggers probe which gets no response.  The probe
+  // data is empty so this returns empty.
+  auto r1 = dut.DiagnosticRead(1);
+  BOOST_TEST(r1 == "");
+
+  // Second read should fall back to plain (0x42) and succeed.
+  auto r2 = dut.DiagnosticRead(1);
+  BOOST_TEST(r2 == "hi");
+
+  BOOST_TEST(impl->sent_frames.size() == 2);
+  BOOST_TEST(impl->sent_frames[0].data[0] == 0x44);
+  BOOST_TEST(impl->sent_frames[1].data[0] == 0x42);
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlArbitraryStartPacket) {
+  // The controller may have been running for a while and have a
+  // non-zero packet counter.  The client should adopt whatever
+  // packet number the controller provides.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int cycle) -> std::vector<moteus::CanFdFrame> {
+    // Simulate controller starting at packet 200.
+    return { MakeFlowResponse(200 + cycle, "data") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  // First read probes and gets packet_number=200.
+  auto r1 = dut.DiagnosticRead(1);
+  BOOST_TEST(r1 == "data");
+
+  // Second read should send packet_number=200 (from probe response).
+  auto r2 = dut.DiagnosticRead(1);
+  BOOST_TEST(r2 == "data");
+
+  BOOST_TEST(impl->sent_frames[1].data[0] == 0x44);
+  BOOST_TEST(static_cast<uint8_t>(impl->sent_frames[1].data[2]) == 200);
+
+  // Third read should send packet_number=201.
+  auto r3 = dut.DiagnosticRead(1);
+  BOOST_TEST(impl->sent_frames[2].data[0] == 0x44);
+  BOOST_TEST(static_cast<uint8_t>(impl->sent_frames[2].data[2]) == 201);
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlPacketNumberWraps) {
+  // Packet numbers should work through the 255->0 boundary.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int cycle) -> std::vector<moteus::CanFdFrame> {
+    uint8_t pkt = static_cast<uint8_t>(254 + cycle);
+    return { MakeFlowResponse(pkt, "d") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  // Probe gets packet_number=254.
+  dut.DiagnosticRead(1);
+  // Next sends 254, gets 255.
+  dut.DiagnosticRead(1);
+  BOOST_TEST(static_cast<uint8_t>(impl->sent_frames[1].data[2]) == 254);
+  // Next sends 255, gets 0 (wrapped).
+  dut.DiagnosticRead(1);
+  BOOST_TEST(static_cast<uint8_t>(impl->sent_frames[2].data[2]) == 255);
+  // Next sends 0.
+  dut.DiagnosticRead(1);
+  BOOST_TEST(static_cast<uint8_t>(impl->sent_frames[3].data[2]) == 0);
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlProbeViaDiagnosticCommand) {
+  // Probing should also happen when the first diagnostic interaction
+  // is via DiagnosticCommand rather than DiagnosticRead.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int cycle) -> std::vector<moteus::CanFdFrame> {
+    // cycle 0: write (no replies needed)
+    // cycle 1: probe read - respond with flow control
+    // cycle 2+: subsequent reads with flow control
+    if (cycle == 0) { return {}; }
+    return { MakeFlowResponse(cycle, "OK\n") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  auto result = dut.DiagnosticCommand("test");
+  BOOST_TEST(result == "");  // "OK" is consumed as the terminator.
+
+  // Verify the probe happened: cycle 0 was the write (0x40),
+  // cycle 1 should be the flow control probe (0x44).
+  BOOST_TEST(impl->sent_frames[0].data[0] == 0x40);
+  BOOST_TEST(impl->sent_frames[1].data[0] == 0x44);
+}
+
+BOOST_AUTO_TEST_CASE(FlowControlProbeDisabledViaDiagnosticCommand) {
+  // When the controller doesn't respond to the flow control probe
+  // (the normal case for old firmware), DiagnosticCommand should
+  // fall back to plain 0x42 reads and complete successfully.
+  auto impl = std::make_shared<DynamicTestTransport>();
+
+  impl->on_cycle = [](int cycle) -> std::vector<moteus::CanFdFrame> {
+    if (cycle == 0) { return {}; }  // write
+    if (cycle == 1) { return {}; }  // probe gets no response
+    // Subsequent plain reads succeed.
+    return { MakePlainResponse("OK\n") };
+  };
+
+  moteus::Controller::Options options;
+  options.transport = impl;
+  moteus::Controller dut(options);
+
+  auto result = dut.DiagnosticCommand("test");
+  BOOST_TEST(result == "");  // "OK" consumed as terminator.
+
+  // Cycle 0: write (0x40), cycle 1: probe (0x44) with no response,
+  // cycle 2: plain read (0x42) since probe failed.
+  BOOST_TEST(impl->sent_frames[0].data[0] == 0x40);
+  BOOST_TEST(impl->sent_frames[1].data[0] == 0x44);
+  BOOST_TEST(impl->sent_frames.size() >= 3);
+  BOOST_TEST(impl->sent_frames[2].data[0] == 0x42);
+}

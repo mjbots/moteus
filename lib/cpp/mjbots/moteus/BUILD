@@ -42,6 +42,7 @@ cc_test(
     ],
     copts = [
         "-Ilib/cpp",
+        "-Werror",
     ],
     deps = [
         ":moteus",
