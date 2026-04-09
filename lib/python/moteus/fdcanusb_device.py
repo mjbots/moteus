@@ -49,7 +49,7 @@ def _hexify(data):
 # CRC-8 lookup table for polynomial 0x97, indexed by nybble
 _CRC8_TABLE = [
     0x00, 0x97, 0xb9, 0x2e, 0xe5, 0x72, 0x5c, 0xcb,
-    0x57, 0xc0, 0xee, 0x79, 0xb2, 0x25, 0x0b, 0x9c,
+    0x5d, 0xca, 0xe4, 0x73, 0xb8, 0x2f, 0x01, 0x96,
 ]
 
 
@@ -57,8 +57,8 @@ def _compute_crc8(data: bytes) -> int:
     """Compute CRC-8 using polynomial 0x97, nybble-at-a-time."""
     crc = 0
     for b in data:
-        crc = _CRC8_TABLE[(crc ^ (b >> 4)) & 0x0f] ^ ((crc << 4) & 0xff)
-        crc = _CRC8_TABLE[(crc ^ (b & 0x0f)) & 0x0f] ^ ((crc << 4) & 0xff)
+        crc = _CRC8_TABLE[((crc >> 4) ^ (b >> 4)) & 0x0f] ^ ((crc << 4) & 0xff)
+        crc = _CRC8_TABLE[((crc >> 4) ^ (b & 0x0f)) & 0x0f] ^ ((crc << 4) & 0xff)
     return crc
 
 

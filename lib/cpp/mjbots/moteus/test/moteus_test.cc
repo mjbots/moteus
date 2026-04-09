@@ -1198,10 +1198,20 @@ BOOST_AUTO_TEST_CASE(ControllerNoQuery) {
 }
 
 BOOST_AUTO_TEST_CASE(ComputeCrc8) {
-  // Verify CRC-8 computation against known values.
-  // CRC of "OK " is 0x00 (matches Python test suite).
-  BOOST_TEST(moteus::Fdcanusb::ComputeCrc8("OK ", 3) == 0x00);
-  BOOST_TEST(moteus::Fdcanusb::ComputeCrc8("", 0) == 0x00);
+  const auto crc = [](const char* s) {
+    return moteus::Fdcanusb::ComputeCrc8(s, strlen(s));
+  };
+
+  BOOST_TEST(crc("") == 0x00);
+  BOOST_TEST(crc("OK ") == 0xBD);
+  BOOST_TEST(crc("can send 0001 20 ") == 0xAE);
+  BOOST_TEST(crc("rcv 0502 1234 ") == 0x3C);
+  BOOST_TEST(crc("rcv 00000100 230b0a00 ") == 0xD2);
+
+  // Verify different data produces different CRCs.
+  BOOST_TEST(crc("rcv 00000100 00 ") == 0x3E);
+  BOOST_TEST(crc("rcv 00000100 01 ") == 0xED);
+  BOOST_TEST(crc("rcv 00000100 ff ") == 0x57);
 }
 
 namespace {
@@ -1240,10 +1250,10 @@ BOOST_AUTO_TEST_CASE(UartChecksumSend) {
     char line_buf[4096] = {};
     const char* result = ::fgets(line_buf, sizeof(line_buf), pipe.test_read);
     moteus::Fdcanusb::FailIfErrno(result == nullptr);
-    BOOST_TEST(line_buf == "can send 0001 20 *00\n");
+    BOOST_TEST(line_buf == "can send 0001 20 *AE\n");
   }
 
-  pipe.Write("OK *00\r\n");
+  pipe.Write("OK *BD\r\n");
   ::usleep(300000);
 
   BOOST_TEST(!!result_errno);

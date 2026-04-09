@@ -435,15 +435,15 @@ class UartFdcanusbMicroServer : public mjlib::multiplex::MicroDatagramServer {
 
   static constexpr uint8_t kCrc8Table[16] = {
       0x00, 0x97, 0xb9, 0x2e, 0xe5, 0x72, 0x5c, 0xcb,
-      0x57, 0xc0, 0xee, 0x79, 0xb2, 0x25, 0x0b, 0x9c,
+      0x5d, 0xca, 0xe4, 0x73, 0xb8, 0x2f, 0x01, 0x96,
   };
 
   static uint8_t ComputeCrc8(const char* data, size_t len) {
     uint8_t crc = 0;
     for (size_t i = 0; i < len; i++) {
       const uint8_t b = static_cast<uint8_t>(data[i]);
-      crc = kCrc8Table[(crc ^ (b >> 4)) & 0x0f] ^ (crc << 4);
-      crc = kCrc8Table[(crc ^ (b & 0x0f)) & 0x0f] ^ (crc << 4);
+      crc = kCrc8Table[((crc >> 4) ^ (b >> 4)) & 0x0f] ^ (crc << 4);
+      crc = kCrc8Table[((crc >> 4) ^ (b & 0x0f)) & 0x0f] ^ (crc << 4);
     }
     return crc;
   }

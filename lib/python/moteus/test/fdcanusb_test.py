@@ -110,9 +110,9 @@ class FdcanusbTimeoutRetryTest(FdcanusbTestBase):
 
                 # First two attempts get no response, third succeeds
                 self.mock_serial.inject_response_drop(2)
-                self.mock_serial.queue_response(b"OK *00\n")
-                self.mock_serial.queue_response(b"OK *00\n")
-                self.mock_serial.queue_response(b"OK *00\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
 
                 await dut.send_frame(frame)
 
@@ -132,7 +132,7 @@ class FdcanusbTimeoutRetryTest(FdcanusbTestBase):
 
                 # First response has bad checksum, second is valid
                 self.mock_serial.queue_response(b"OK *FF\n")  # Invalid
-                self.mock_serial.queue_response(b"OK *00\n")  # Valid
+                self.mock_serial.queue_response(b"OK *BD\n")  # Valid
 
                 await dut.send_frame(frame)
 
@@ -150,8 +150,8 @@ class FdcanusbTimeoutRetryTest(FdcanusbTestBase):
 
                 # First attempt times out, second succeeds
                 self.mock_serial.inject_response_drop(1)
-                self.mock_serial.queue_response(b"OK *00\n")
-                self.mock_serial.queue_response(b"OK *00\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
 
                 request = TransportDevice.Request(
                     frame=frame,
@@ -219,8 +219,8 @@ class FdcanusbChecksumTest(FdcanusbTestBase):
 
                 frame = fdcanusb.Frame(arbitration_id=0x105, data=b'0123')
 
-                # Response must also have valid checksum (CRC of "OK " is 0x00)
-                self.mock_serial.queue_response(b"OK *00\n")
+                # Response must also have valid checksum
+                self.mock_serial.queue_response(b"OK *BD\n")
 
                 await dut.send_frame(frame)
 
@@ -238,7 +238,7 @@ class FdcanusbChecksumTest(FdcanusbTestBase):
             async with fdcanusb.FdcanusbDevice() as dut:
                 frame = fdcanusb.Frame(arbitration_id=0x105, data=b'0123')
 
-                self.mock_serial.queue_response(b"OK *00\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
 
                 def queue_rcv(serial, data):
                     # Send rcv with valid checksum
@@ -278,7 +278,7 @@ class FdcanusbChecksumTest(FdcanusbTestBase):
                 # mode is now enabled.
                 err_text = _append_checksum(b"ERR checksum") + b'\n'
                 self.mock_serial.queue_response(err_text)
-                self.mock_serial.queue_response(b"OK *00\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
 
                 await dut.send_frame(frame)
 
@@ -295,7 +295,7 @@ class FdcanusbChecksumTest(FdcanusbTestBase):
 
                 # Queue invalid checksum followed by valid one
                 self.mock_serial.queue_response(b"OK *FF\n")  # Invalid
-                self.mock_serial.queue_response(b"OK *00\n")  # Valid
+                self.mock_serial.queue_response(b"OK *BD\n")  # Valid
 
                 # Should eventually succeed after skipping invalid
                 await dut.send_frame(frame)
@@ -314,7 +314,7 @@ class FdcanusbChecksumTest(FdcanusbTestBase):
                 # Queue a response without a checksum, then one with a
                 # valid checksum
                 self.mock_serial.queue_response(b"OK\n")      # Missing checksum
-                self.mock_serial.queue_response(b"OK *00\n")  # Valid
+                self.mock_serial.queue_response(b"OK *BD\n")  # Valid
 
                 await dut.send_frame(frame)
 
@@ -337,7 +337,7 @@ class FdcanusbLineOverflowTest(FdcanusbTestBase):
                 # Queue a line that's too long (no newline), then a valid response
                 long_garbage = b'x' * 100
                 self.mock_serial.queue_response(long_garbage)
-                self.mock_serial.queue_response(b"OK *00\n")
+                self.mock_serial.queue_response(b"OK *BD\n")
 
                 # Should eventually succeed after discarding overflow
                 await dut.send_frame(frame)
