@@ -10,11 +10,17 @@ Open the Arduino library manager, search for "moteus" and install.  Then open on
 
 **Microcontroller**: Nearly any board compatible with the Arduino software is supported
 
-**CAN-FD**: The library only supports CAN-FD controllers and transceivers compatible with the [acan2517FD library](https://github.com/pierremolinaro/acan2517fd).
+**CAN-FD**: The library supports:
+
+ * CAN-FD controllers and transceivers compatible with the [acan2517FD library](https://github.com/pierremolinaro/acan2517fd)
+ * The onboard ACAN_T4 peripheral on Teensy 4.x boards
+ * The STM32 FDCAN HAL peripheral
+
+### ACAN2517FD
 
 There are two pieces of configuration that are board and controller specific.
 
-### Pin Assignments ###
+#### Pin Assignments
 
 The `ACAN2517FD` constructor requires that it be passed the correct pins that are used for the SPI peripheral connected to the MCP2517FD controller.  For an external controller, you can use the pins you have physically wired to the controller.  For an integrated MCP2517FD you will need to look at your board documentation.
 
@@ -26,7 +32,7 @@ The `ACAN2517FD` constructor requires that it be passed the correct pins that ar
 ACAN2517FD can(MCP2517_CS, SPI, MCP2517_INT);
 ```
 
-### CAN-FD Timing ###
+#### CAN-FD Timing
 
 You need to match the CAN-FD base clock rate that your adapter uses.  Different adapters have different base clock rates.
 
@@ -49,17 +55,31 @@ settings.mDriverReceiveFIFOSize = 2;
 const uint32_t errorCode = can.begin(settings, [] { can.isr(); });
 ```
 
+### Teensy 4.x - ACAN_T4
+
+Configuring the Teensy 4.x library merely requires selecting which CAN-FD peripheral to use.
+
+```
+MoteusTeensyCanFd canBus(ACAN_T4::can3)
+```
+
+Where one of `can1`, `can2` or `can3` are possible.
+
+### STM32 FDCAN HAL
+
+Integration for the STM32 FDCAN HAL periphal is currently undocumented, but some source examples exist.
+
 ## Caveats
 
 There are some caveats when controlling moteus from a microcontroller.
 
-### CAN-FD adapter still required
+### Operating system connected CAN-FD adapter still required
 
-While you can command and control moteus from the Arduino library, there is currently no mechanism to calibrate a new motor with a controller.  Thus you *must* have a CAN-FD adapter that is able to be connected to a computer with an operating system in order to run the [calibration process](../guides/calibration.md) and it is also much easier to use one to set the configuration and tune the PID gains.
+While you can command and control moteus from the Arduino library, there is currently no mechanism to calibrate a new motor with a controller.  Thus you *must* have a CAN-FD adapter that is able to be connected to a computer with an operating system in order to run the [calibration process](../guides/calibration.md). It is also much easier to use such an adapter with tview to set the configuration and tune the PID gains.
 
-### Teensy 4 integrated CAN-FD controller is *not* supported
+### Teensy 4.x and STM32 FDCAN HAL require an external CAN-FD transceiver
 
-There exists an unsupported PR to handle this, but at the moment, the CAN-FD controller integrated into Teensy 4 microcontrollers is not supported by the Arduino library.  External MCP2517FD controllers work just fine with any Teensy controller.
+The CAN-FD controller built into the Teensy 4.x and various STM32 peripherals is a logic level peripheral.  To operate on a CAN-FD bus, a transceiver is required in order to convert to line voltages.  Many off the shelf options are available, although beware that many require both 5V and 3V supplies.
 
 ### Termination
 
