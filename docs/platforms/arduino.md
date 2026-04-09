@@ -16,7 +16,9 @@ Open the Arduino library manager, search for "moteus" and install.  Then open on
  * The onboard ACAN_T4 peripheral on Teensy 4.x boards
  * The STM32 FDCAN HAL peripheral
 
-### ACAN2517FD
+**UART**: The library can drive a moteus configured as a UART server from nearly any microcontroller.
+
+### CAN-FD: ACAN2517FD
 
 There are two pieces of configuration that are board and controller specific.
 
@@ -55,7 +57,7 @@ settings.mDriverReceiveFIFOSize = 2;
 const uint32_t errorCode = can.begin(settings, [] { can.isr(); });
 ```
 
-### Teensy 4.x - ACAN_T4
+### CAN-FD: Teensy 4.x - ACAN_T4
 
 Configuring the Teensy 4.x library merely requires selecting which CAN-FD peripheral to use.
 
@@ -65,9 +67,39 @@ MoteusTeensyCanFd canBus(ACAN_T4::can3)
 
 Where one of `can1`, `can2` or `can3` are possible.
 
-### STM32 FDCAN HAL
+### CAN-FD: STM32 FDCAN HAL
 
 Integration for the STM32 FDCAN HAL periphal is currently undocumented, but some source examples exist.
+
+### UART
+
+When using the UART means of control, there are two options:
+
+1. The Arduino HardwareSerial class
+2. Roll your own serial port class with a similar interface
+
+Using the Arduino serial class looks like:
+
+```
+using MyTransport = MoteusUart<HardwareSerial>;
+MyTransport uart_bus(Serial1);
+MoteusController<MyTransport> moteus1(uart_buf, []() {
+  MoteusController<MyTransport>::Options options;
+  return options;
+}());
+```
+
+Implementing a custom serial class requires the following methods:
+
+```
+class MySerial {
+  int available();
+  int read();
+  size_t write(const uint8_t* size_t);
+};
+
+using MyTransport = MoteusUart<MySerial>;
+```
 
 ## Caveats
 

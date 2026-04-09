@@ -102,6 +102,7 @@ nav:
       - Python Client: integration/python.md
       - C++ Client: integration/cpp.md
       - Raw CAN-FD: integration/can-fd.md
+      - UART: integration/uart.md
       - Host Platforms:
           - platforms/index.md
           - Raspberry Pi: platforms/raspberry-pi.md
