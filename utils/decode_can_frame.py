@@ -28,6 +28,8 @@ class Command(enum.IntEnum):
     STREAM_CLIENT_TO_SERVER = 0x40
     STREAM_SERVER_TO_CLIENT = 0x41
     STREAM_CLIENT_POLL_SERVER = 0x42
+    STREAM_SERVER_TO_CLIENT_FLOW = 0x43
+    STREAM_CLIENT_POLL_SERVER_FLOW = 0x44
     NOP = 0x50
 
 class Type(enum.IntEnum):
@@ -288,6 +290,24 @@ def main():
             print(f'{Command(cmd).name}')
             channel_data, channel = stream.read_varuint()
             print(f'  {channel_data.hex()} - channel {channel}')
+            nbytes_data, nbytes = stream.read_varuint()
+            print(f'  {nbytes_data.hex()} - at most {nbytes} bytes')
+        elif cmd == Command.STREAM_SERVER_TO_CLIENT_FLOW:
+            print(f'{Command(cmd).name}')
+            channel_data, channel = stream.read_varuint()
+            print(f'  {channel_data.hex()} - channel {channel}')
+            pkt_data, pkt = stream.read_int8()
+            print(f'  {pkt_data.hex()} - packet_number {pkt & 0xff}')
+            nbytes_data, nbytes = stream.read_varuint()
+            print(f'  {nbytes_data.hex()} - {nbytes} bytes')
+            data = stream._read_value(nbytes)
+            print(f'  {data.hex()} - {data}')
+        elif cmd == Command.STREAM_CLIENT_POLL_SERVER_FLOW:
+            print(f'{Command(cmd).name}')
+            channel_data, channel = stream.read_varuint()
+            print(f'  {channel_data.hex()} - channel {channel}')
+            pkt_data, pkt = stream.read_int8()
+            print(f'  {pkt_data.hex()} - packet_number {pkt & 0xff}')
             nbytes_data, nbytes = stream.read_varuint()
             print(f'  {nbytes_data.hex()} - at most {nbytes} bytes')
         elif cmd == Command.NOP:
