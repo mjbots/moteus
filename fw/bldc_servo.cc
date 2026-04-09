@@ -505,9 +505,6 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     // DMA trigger per PWM cycle. Update events would trigger twice per cycle.
     timer_->DIER |= TIM_DIER_CC4DE;
 
-    // Update once per up/down of the counter.
-    timer_->RCR |= 0x01;
-
     // Set up PWM.
 
     timer_->PSC = 0; // No prescaler.
