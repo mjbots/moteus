@@ -34,5 +34,3 @@ filegroup(
         "//fw:can_bootloader",
     ],
 )
-
-exports_files(["tsconfig.json"])
