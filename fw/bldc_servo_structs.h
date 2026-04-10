@@ -628,6 +628,14 @@ struct BldcServoConfig {
   float flux_brake_margin_voltage = 3.0f;
   float flux_brake_resistance_ohm = 0.025f;
 
+  // Maximum power (watts) allowed to regenerate back to the bus.
+  // When the motor is braking and the estimated regen power exceeds
+  // this limit, d-axis current is injected to dissipate the excess as
+  // I²R in the windings until a limit is reached, such as maximum
+  // current, motor temperature, or back emf.  The q-axis (braking)
+  // current is not modified.  NaN disables (default).
+  float max_regen_power_W = std::numeric_limits<float>::quiet_NaN();
+
   FieldWeakeningConfig fw;
 
   float max_current_A =
@@ -711,6 +719,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(timeout_mode));
     a->Visit(MJ_NVP(flux_brake_margin_voltage));
     a->Visit(MJ_NVP(flux_brake_resistance_ohm));
+    a->Visit(MJ_NVP(max_regen_power_W));
     a->Visit(MJ_NVP(fw));
     a->Visit(MJ_NVP(max_current_A));
     a->Visit(MJ_NVP(derate_current_A));

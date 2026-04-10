@@ -87,15 +87,21 @@ If there is nowhere for this power to go, this can cause problems.  The voltage 
 
 Here's what you should know about the facilities moteus has to deal with this, and what you can do to make your design safer.
 
-### Flux braking
+### Software protections
 
-The feature within moteus itself to deal with this is "flux braking".  The flux braking implementation will dissipate extra power in the windings of the motor when the bus voltage gets above a certain threshold.  This is controlled by the `servo.flux_brake_margin_voltage` and `servo.flux_brake_resistance_ohm` parameters documented above.
+moteus has several configurable mechanisms to limit regenerative voltage rise.  For full tuning details, see [Troubleshooting Overvoltage Fault 34](../troubleshooting/overvoltage-fault-34.md).
 
-### Design considerations for regenerative braking
+**Acceleration limits**: Setting `servo.default_accel_limit` (or per-command `accel_limit`) controls how quickly braking torque is applied.  This is the most direct way to limit the rate of regenerative power injection.
+
+**Regen power limiting**: Setting `servo.max_regen_power_W` limits how much power is allowed to flow back to the bus during braking.  Excess energy is pre-emptively dissipated in the motor windings via d-axis current injection.  For a supply that cannot absorb any regenerative energy, set this to a small number like `10` or even `0`.
+
+**Flux braking**: When bus voltage rises above `servo.max_voltage - servo.flux_brake_margin_voltage`, moteus dissipates energy in the motor windings to resist further voltage rise.  This is controlled by `servo.flux_brake_margin_voltage` and `servo.flux_brake_resistance_ohm`.
+
+### Hardware design considerations
 
 The following design considerations can be used to minimize the risk of damage to hardware in the event of overvoltage.  These are not a substitute for validation in progressively more demanding situations, but they can help you start off in a good place.
 
-- *Tightly scope the over-voltage fault / flux braking*: The configuration parameter `servo.max_voltage` can be lowered for all devices on the bus.  This will both cause a fault if the voltage exceeds this value and in conjuction with `servo.flux_brake_margin_voltage`, select the point at which moteus will attempt to dissipate energy to prevent an overvoltage scenario.  It is recommended to set this to no less than 5V above the maximum expected supply voltage.
+- *Tightly scope the over-voltage fault / flux braking*: The configuration parameter `servo.max_voltage` can be lowered for all devices on the bus.  This will both cause a fault if the voltage exceeds this value and in conjunction with `servo.flux_brake_margin_voltage`, select the point at which moteus will attempt to dissipate energy to prevent an overvoltage scenario.  It is recommended to set this to no less than 5V above the maximum expected supply voltage.
 
 - *Power from a battery, not a PSU*: When not charged, batteries are capable of sinking current to minimize over-voltage transients.  However, if the battery is fully charged, most battery management systems drastically reduce the allowable charging current.  Thus, a battery is only useful as a mitigation if it is never charged above say 75 or 80% state of charge.
 

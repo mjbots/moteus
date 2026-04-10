@@ -19,6 +19,29 @@ If you don't know what acceleration is appropriate, you can either:
 - use back of the envelope calculations of the form, "I know the system needs to change from velocity X Hz to velocity Y Hz in Z s, thus the acceleration is (Y - X) / Z"
 - select a large acceleration limit that is unlikely to cause problems, say 10000Hz/s.  Then lower it progressively until your application has issues.  Select a final value a healthy margin above where the issues started.
 
+## Limit regenerated power with `servo.max_regen_power_W`
+
+When generating power, by default moteus sends all of this energy back to the DC bus.  This can cause the voltage to rise if the supply has non-trivial impedance.  By setting `servo.max_regen_power_W`, you can limit how much regenerated power is allowed to flow back to the bus.  Any excess is pre-emptively dissipated in the motor windings by injecting d-axis current.
+
+For example, to allow no more than 50 watts of regeneration:
+
+```
+conf set servo.max_regen_power_W 50
+```
+
+Setting this to `0` will cause all regenerated energy to be dissipated in the motor windings, preventing any regenerative current from reaching the bus up to the limit of the maximum configured current and system voltage. Setting it to `nan` (the default) disables the feature entirely.
+
+This is most effective when used in conjunction with an acceleration limit.  The acceleration limit controls the rate at which braking torque is applied, and `max_regen_power_W` dissipates excess energy that makes it past the acceleration limit.
+
+### Choosing a value
+
+- If your supply cannot absorb any regenerative energy (e.g. a mains powered supply with no bus capacitance), set this to a small number like `10` or `0`.
+- If your supply can absorb some current (e.g. a battery), set this to approximately `V_bus * I_charge_max`.  For example, a 24V battery that can accept 2A of charge current: `servo.max_regen_power_W 48`.
+- If you are unsure, start with a value of `0` and increase it until you see fault 34 again, then back off by roughly 50%.
+
+### Thermal considerations
+
+The d-axis current injected by this feature dissipates power as heat in the motor windings.  At the maximum current (set by `servo.max_current_A`) with resistance R, the maximum sustained dissipation is `1.5 * I² * R`.  For a motor with R=0.05Ω and max current 40A, this is 120W.  Ensure the motor can tolerate the additional heating, particularly during sustained or repeated deceleration events.
 
 ## Lower the impedance of your input supply to regenerative power
 

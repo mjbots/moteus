@@ -1213,7 +1213,49 @@ class BldcServoControl {
         compensated_q_A :
         Limit(compensated_q_A, -kMaxUnconfiguredCurrent, kMaxUnconfiguredCurrent);
 
-    const float d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
+    // Pre-emptive regen d-axis injection.
+    //
+    // When regenerating and the estimated regen power exceeds
+    // max_regen_power_W, inject d-axis current to dissipate the
+    // excess as I^2*R in the windings.  This acts before bus voltage
+    // rises, unlike voltage-feedback flux braking.
+    const float preemptive_d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
+      if (!std::isfinite(self().config_.max_regen_power_W)) {
+        return 0.0f;
+      }
+
+      const float velocity = self().position_.velocity;
+      // Only active during regeneration (braking opposes motion).
+      if (velocity * q_A >= 0.0f) { return 0.0f; }
+
+      // P_regen = |q_A| * Kt * |ω_rotor|
+      // velocity is in output frame; convert to rotor frame.
+      // (Kt already includes the 3/2 factor for 3-phase torque.)
+      const float rotor_velocity =
+          velocity /
+          self().motor_position_config()->rotor_to_output_ratio;
+      const float regen_power =
+          std::abs(q_A) * self().torque_constant_ *
+          std::abs(rotor_velocity) * k2Pi;
+
+      const float excess =
+          regen_power - self().config_.max_regen_power_W;
+      if (excess <= 0.0f) { return 0.0f; }
+
+      // P_dissipated = 1.5 * d² * R  →  d = sqrt(P / (1.5 * R))
+      return -std::sqrt(
+          excess / (1.5f * self().motor_.resistance_ohm));
+    }();
+
+    // Voltage-feedback flux braking
+    //
+    // Alway use negative d-axis current.  The I^2*R dissipation is
+    // the same regardless of sign, but negative d_A weakens the field
+    // rather than strengthening it, which avoids consuming voltage
+    // headroom at any speed and composes naturally with field
+    // weakening.  Both are negative, and there is no discontinuity at
+    // the base-speed crossing.
+    const float fb_d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
       const auto error = (
           self().status_.filt_1ms_bus_V - self().flux_brake_min_voltage_);
 
@@ -1221,15 +1263,11 @@ class BldcServoControl {
         return 0.0f;
       }
 
-      // Always use negative d-axis current for flux braking.
-      // The I²R dissipation (proportional to d_A²) is the same
-      // regardless of sign, but negative d_A weakens the field
-      // rather than strengthening it, which avoids consuming
-      // voltage headroom at any speed and composes naturally
-      // with field weakening (both negative, no discontinuity
-      // at the base-speed crossing).
       return -(error / self().config_.flux_brake_resistance_ohm);
     }();
+
+    // Use whichever is more negative (stronger).
+    const float d_A = std::min(preemptive_d_A, fb_d_A);
 
     if (d_A != 0.0f) {
       self().status_.fault = errc::kLimitFluxBraking;

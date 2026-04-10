@@ -239,6 +239,7 @@ cc_test(
         "test/motor_model.h",
         "test/simulation_fixture.h",
         "test/simulation_dynamometer_test.cc",
+        "test/simulation_regen_test.cc",
         "test/simulation_test.cc",
         "test/spmsm_motor_simulator.h",
         "test/test_main.cc",
