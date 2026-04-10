@@ -1161,7 +1161,15 @@ class BldcServoControl {
           case kCalibrating: {
             return;
           }
-          case kCalibrationComplete:
+          case kCalibrationComplete: {
+            // We only care if the epoch changes while we are actively
+            // controlling.  By definition, if we are just exiting the
+            // pre-startup calibration phase, we are not yet actively
+            // controlling.  Thus any epoch changes that happen before
+            // then are "not our problem".
+            self().isr_motor_position_epoch_ = self().position_.epoch;
+            [[fallthrough]];
+          }
           case kPwm:
           case kVoltage:
           case kVoltageFoc:

@@ -896,6 +896,16 @@ BOOST_AUTO_TEST_CASE(BldcServoControlMaybeChangeMode) {
   ctx.ISR_MaybeChangeMode(&data);
   BOOST_CHECK(ctx.status_.mode == BldcServoMode::kFault);
 
+  // From calibration complete with epoch mismatch, epoch should be
+  // re-synced rather than faulting.
+  ctx.position_.epoch = 4;
+  ctx.isr_motor_position_epoch_ = 3;
+  ctx.status_.mode = BldcServoMode::kCalibrationComplete;
+  data.mode = BldcServoMode::kCurrent;
+  ctx.ISR_MaybeChangeMode(&data);
+  BOOST_CHECK(ctx.status_.mode == BldcServoMode::kCurrent);
+  BOOST_CHECK(ctx.isr_motor_position_epoch_ == 4);
+
   // Requesting stopped should always work.
   ctx.status_.mode = BldcServoMode::kCurrent;
   data.mode = BldcServoMode::kStopped;
