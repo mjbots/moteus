@@ -75,7 +75,7 @@ function parseArgs(args) {
         motor_cooling: 'none',
         voltage: 24,
         velocity: 0.0,
-        torque: null,
+        torque: 0.0,
         time: Infinity,
         gear_reduction: 1.0,
         ambient_temp: 25,
