@@ -64,11 +64,19 @@ def extract_core_to_temp(script_dir):
     os.makedirs(tmpdir, exist_ok=True)
     output_path = os.path.join(tmpdir, "mpat_core.mjs")
 
-    # Check if we need to re-extract (source newer than cached)
-    if os.path.exists(output_path):
+    # Re-extract if the source has changed since last extraction.
+    # We store the source mtime that was used for extraction and
+    # compare against it, rather than comparing dst >= src, because
+    # git branch switches can move mtimes in either direction.
+    mtime_record = output_path + ".src_mtime"
+    if os.path.exists(output_path) and os.path.exists(mtime_record):
         src_mtime = os.path.getmtime(mpat_html)
-        dst_mtime = os.path.getmtime(output_path)
-        if dst_mtime >= src_mtime:
+        with open(mtime_record, 'r') as f:
+            try:
+                recorded_mtime = float(f.read().strip())
+            except ValueError:
+                recorded_mtime = -1
+        if src_mtime == recorded_mtime:
             return output_path
 
     print("Extracting mpat_core.mjs...", file=sys.stderr)
@@ -77,6 +85,8 @@ def extract_core_to_temp(script_dir):
         cwd=script_dir
     )
     if result.returncode == 0 and os.path.exists(output_path):
+        with open(mtime_record, 'w') as f:
+            f.write(str(os.path.getmtime(mpat_html)))
         return output_path
     return None
 
