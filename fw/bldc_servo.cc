@@ -58,7 +58,9 @@ constexpr int kMaxVelocityFilter = 256;
 
 IRQn_Type FindUpdateIrq(TIM_TypeDef* timer) {
 #if defined(TARGET_STM32G4)
-  if (timer == TIM2) {
+  if (timer == TIM1) {
+    return TIM1_UP_TIM16_IRQn;
+  } else if (timer == TIM2) {
     return TIM2_IRQn;
   } else if (timer == TIM3) {
     return TIM3_IRQn;
@@ -654,7 +656,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   // flag is set only when counting down, giving us exactly one DMA trigger
   // per PWM cycle. Update events would trigger on both edges.
   static uint32_t GetTimerCh4DmamuxInput(TIM_TypeDef* timer) {
-    // From STM32G4 reference manual Table 91 (DMAMUX request MUX inputs)
+    // From STM32G4 reference manual Table 93 (DMAMUX request MUX inputs)
+    if (timer == TIM1) return 45;   // TIM1_CH4
     if (timer == TIM2) return 59;   // TIM2_CH4
     if (timer == TIM3) return 64;   // TIM3_CH4
     if (timer == TIM4) return 70;   // TIM4_CH4

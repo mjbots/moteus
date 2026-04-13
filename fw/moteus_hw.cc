@@ -396,6 +396,7 @@ void MoteusEnsureOff() {
 
   // We want to ensure that our primary interrupt is not running.
   // Which one it is could vary, so just turn them all off.
+  NVIC_DisableIRQ(TIM1_UP_TIM16_IRQn);
   NVIC_DisableIRQ(TIM2_IRQn);
   NVIC_DisableIRQ(TIM3_IRQn);
   NVIC_DisableIRQ(TIM4_IRQn);
