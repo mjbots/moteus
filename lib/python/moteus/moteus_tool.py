@@ -860,13 +860,15 @@ def _verify_blocks(expected, message):
 
 
 class Stream:
-    def __init__(self, args, target_id, transport):
+    def __init__(self, args, target_id, transport,
+                 use_flow_control=None):
         self.args = args
         self.transport = transport
         self.controller = moteus.Controller(target_id, transport=transport,
                                             can_prefix=args.can_prefix)
         self.stream = moteus.Stream(self.controller, verbose=args.verbose,
-                                    channel=args.diagnostic_channel)
+                                    channel=args.diagnostic_channel,
+                                    use_flow_control=use_flow_control)
 
     async def do_console(self):
         console_stdin = aiostream.AioStream(sys.stdin.buffer.raw)
@@ -2247,7 +2249,11 @@ class Runner:
         return True
 
     async def run_action(self, target_id):
-        stream = Stream(self.args, target_id, self.transport)
+        # The bootloader does not support flow control frames, so
+        # disable probing when we intend to flash.
+        use_flow_control = False if self.args.flash else None
+        stream = Stream(self.args, target_id, self.transport,
+                        use_flow_control=use_flow_control)
 
         tel_stop = self.default_tel_stop()
         if self.args.tel_stop:
