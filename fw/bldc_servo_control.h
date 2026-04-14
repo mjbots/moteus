@@ -683,6 +683,7 @@ class BldcServoControl {
 
   /// Assume that the voltages are intended to be balanced around the
   /// midpoint and can be shifted accordingly.
+  __attribute__((always_inline))
   void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     self().control_.voltage = voltage;
 
