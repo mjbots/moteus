@@ -340,6 +340,14 @@ class BldcServoControl {
         self().rate_config_.max_voltage_ratio * kSvpwmRatio * 0.5f;
     fw_max_current_A_ =
         self().config_.fw.max_current_ratio * self().config_.max_current_A;
+    half_over_R_ = (self().motor_.resistance_ohm > 0.0f) ?
+        (0.5f / self().motor_.resistance_ohm) : 0.0f;
+    {
+      constexpr float kBoardVoltageMargin = 6.0f;
+      board_max_velocity_factor_ = (v_per_hz_ > 0.0f) ?
+          (0.5f * (self().config_.max_voltage - kBoardVoltageMargin) /
+           v_per_hz_) : 0.0f;
+    }
 
     pid_dq_w_ = k2Pi * self().config_.pid_dq_hz;
     pid_d_config_.ki = pid_dq_w_ * self().motor_.resistance_ohm;
@@ -544,9 +552,10 @@ class BldcServoControl {
       // So: max_velocity = base_velocity / (1 - id_ratio)
       // Note: target_modulation is already incorporated in base_velocity.
 
+      // effective_max_current_A is already <= max_current_A by
+      // construction in ISR_DoCurrentControl, so no need to re-min.
       const float fw_max_A =
-          std::min(self().config_.max_current_A,
-                   self().status_.effective_max_current_A) *
+          self().status_.effective_max_current_A *
           self().config_.fw.max_current_ratio;
 
       // Compute id_char at the effective max FW current (inductance
@@ -564,18 +573,15 @@ class BldcServoControl {
 
       constexpr float kMaxCpsr = 3.0f;
       const float Imax = std::min(
-          0.5f * self().status_.filt_bus_V / self().motor_.resistance_ohm,
+          self().half_over_R_ * self().status_.filt_bus_V,
           fw_max_A);
       const float id_ratio = Imax / id_char_at_fw_max;
       const float cpsr = (id_ratio >= 1.0f) ? kMaxCpsr :
           std::min(kMaxCpsr, 1.0f / (1.0f - id_ratio));
       const float cpsr_velocity = cpsr * self().status_.motor_base_velocity;
 
-      constexpr float kBoardVoltageMargin = 6.0f;
       const float board_max_velocity =
-          0.5f * (self().config_.max_voltage - kBoardVoltageMargin) *
-          rotor_to_output_ratio /
-          self().v_per_hz_;
+          self().board_max_velocity_factor_ * rotor_to_output_ratio;
       return std::min(cpsr_velocity, board_max_velocity);
     }();
     max_velocity_filter_(max_velocity, &self().status_.motor_max_velocity);
@@ -1692,6 +1698,8 @@ class BldcServoControl {
   float half_max_voltage_ratio_over_v_per_hz_ = 0.0f;  // max_voltage_ratio * 0.5 / v_per_hz
   float max_V_factor_ = 0.0f;               // max_voltage_ratio * kSvpwmRatio * 0.5 (multiplied by filt_bus_V for max_V)
   float fw_max_current_A_ = 0.0f;           // fw.max_current_ratio * max_current_A
+  float half_over_R_ = 0.0f;                // 0.5 / resistance_ohm (multiplied by filt_bus_V for Imax voltage limit)
+  float board_max_velocity_factor_ = 0.0f;  // 0.5 * (max_voltage - kBoardVoltageMargin) / v_per_hz (multiplied by rotor_to_output_ratio for board_max_velocity)
 
   SimplePI::Config pid_d_config_;
   SimplePI::Config pid_q_config_;
