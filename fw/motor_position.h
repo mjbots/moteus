@@ -95,6 +95,10 @@ class MotorPosition {
     // This is not serialized, but is calculated during configuration.
     bool cached_any_compensation_enabled = false;
 
+    // 1.0f / cpr.  Computed during configuration so that the ISR can
+    // avoid an f32 division in WrapCpr.
+    float cached_inv_cpr = 0.0f;
+
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(aux_number));
@@ -416,10 +420,26 @@ class MotorPosition {
     return WrapCpr(value + 1.5f * cpr, cpr) - 0.5f * cpr;
   }
 
+  // Faster variant for ISR use when an inverse cpr has been
+  // precomputed.  Callers must pass inv_cpr == 1.0f / cpr.
+  static float WrapBalancedCpr(float value, float cpr, float inv_cpr)
+      MOTEUS_CCM_ATTRIBUTE {
+    return WrapCpr(value + 1.5f * cpr, cpr, inv_cpr) - 0.5f * cpr;
+  }
+
   static float WrapCpr(float value, float cpr) MOTEUS_CCM_ATTRIBUTE {
     // We would use fmodf, but we're trying to be fast there.
 
     const int32_t divisor = static_cast<int>(value / cpr);
+    const float mod = value - divisor * cpr;
+    return (mod >= 0.0f) ? mod : (mod + cpr);
+  }
+
+  // Faster variant for ISR use when an inverse cpr has been
+  // precomputed.  Callers must pass inv_cpr == 1.0f / cpr.
+  static float WrapCpr(float value, float cpr, float inv_cpr)
+      MOTEUS_CCM_ATTRIBUTE {
+    const int32_t divisor = static_cast<int>(value * inv_cpr);
     const float mod = value - divisor * cpr;
     return (mod >= 0.0f) ? mod : (mod + cpr);
   }
@@ -570,6 +590,10 @@ class MotorPosition {
           break;
         }
       }
+
+      source_config.cached_inv_cpr =
+          (source_config.cpr != 0) ?
+          (1.0f / static_cast<float>(source_config.cpr)) : 0.0f;
     }
 
     if (config_.commutation_source < 0 ||
@@ -1095,6 +1119,7 @@ class MotorPosition {
       }
 
       const float cpr = config.cpr;
+      const float inv_cpr = config.cached_inv_cpr;
 
       if (config.debug_override >= 0) {
         status.active_theta = true;
@@ -1110,9 +1135,9 @@ class MotorPosition {
                 status.offset_value +
                 lerp(config.compensation_table,
                      config.compensation_scale / 127.0f,
-                     static_cast<float>(status.offset_value) /
-                     cpr) * cpr,
-                cpr);
+                     static_cast<float>(status.offset_value) *
+                     inv_cpr) * cpr,
+                cpr, inv_cpr);
       } else {
         status.compensated_value = status.offset_value;
       }
@@ -1141,7 +1166,7 @@ class MotorPosition {
           const float unwrapped_error =
               -(status.filtered_value - status.compensated_value);
           const float error =
-              WrapBalancedCpr(unwrapped_error, cpr);
+              WrapBalancedCpr(unwrapped_error, cpr, inv_cpr);
 
           status.integral += status.time_since_update * filter.ki * error;
           status.velocity = status.integral + filter.kp * error;
@@ -1182,7 +1207,7 @@ class MotorPosition {
         const auto err =
             WrapBalancedCpr(
                 status.filtered_value - status.compensated_value,
-                config.cpr);
+                cpr, inv_cpr);
         const float velocity_sign = status.velocity > 0.0f ? 1.0f : -1.0f;
         const float signed_err = err * velocity_sign;
         const float max_err = std::min(1.0f, 0.5f + std::abs(status.velocity) / 10.0f);
@@ -1204,13 +1229,13 @@ class MotorPosition {
           // away at the transition point.
           const float err2 = WrapBalancedCpr(
               status.filtered_value - status.compensated_value,
-              config.cpr);
+              cpr, inv_cpr);
           status.filtered_value =
               status.compensated_value + ISR_Limit(err2, -0.5f, 0.5f);
         }
       }
 
-      status.filtered_value = WrapCpr(status.filtered_value, cpr);
+      status.filtered_value = WrapCpr(status.filtered_value, cpr, inv_cpr);
     }
   }
 
