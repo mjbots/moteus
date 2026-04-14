@@ -493,9 +493,14 @@ class BldcServoControl {
     // Calculate output torque from q-axis current.
     const float rotor_to_output_ratio =
         self().motor_position_config()->rotor_to_output_ratio;
+    // Cache the reciprocal for reuse by later ISR stages.  This runs
+    // before ISR_DoControl so any downstream use sees a current value.
+    inv_rotor_to_output_ratio_ = (rotor_to_output_ratio != 0.0f) ?
+        (1.0f / rotor_to_output_ratio) : 0.0f;
     const bool is_torque_on = torque_on();
     self().status_.torque_Nm = is_torque_on ?
-        (current_to_torque(self().status_.q_A) / rotor_to_output_ratio) : 0.0f;
+        (current_to_torque(self().status_.q_A) *
+         inv_rotor_to_output_ratio_) : 0.0f;
     if (!is_torque_on) {
       self().status_.torque_error_Nm = 0.0f;
     }
@@ -956,8 +961,8 @@ class BldcServoControl {
       // Use the control velocity for improved stability.
       const float control_velocity_rotor =
           self().status_.control_velocity.value_or(
-              self().position_.velocity) /
-          self().motor_position_config()->rotor_to_output_ratio;
+              self().position_.velocity) *
+          self().inv_rotor_to_output_ratio_;
       const float omega_electrical =
           control_velocity_rotor * k2Pi * (self().motor_.poles * 0.5f);
 
@@ -1249,8 +1254,7 @@ class BldcServoControl {
       // velocity is in output frame; convert to rotor frame.
       // (Kt already includes the 3/2 factor for 3-phase torque.)
       const float rotor_velocity =
-          velocity /
-          self().motor_position_config()->rotor_to_output_ratio;
+          velocity * self().inv_rotor_to_output_ratio_;
       const float regen_power =
           std::abs(q_A) * self().torque_constant_ *
           std::abs(rotor_velocity) * k2Pi;
@@ -1292,7 +1296,7 @@ class BldcServoControl {
 
     ISR_DoCurrent(
         sin_cos, d_A, q_A,
-        velocity_command / self().motor_position_config()->rotor_to_output_ratio,
+        velocity_command * self().inv_rotor_to_output_ratio_,
         data->ignore_position_bounds);
   }
 
@@ -1709,6 +1713,13 @@ class BldcServoControl {
   // so the per-call setup (including reciprocals) stays out of the
   // ISR hot path.
   TorqueModel torque_model_;
+
+  // 1 / rotor_to_output_ratio — computed once per ISR in
+  // ISR_CalculateDerivedQuantities and reused by later stages that
+  // would otherwise divide by rotor_to_output_ratio repeatedly.
+  // Not precomputed at config time because motor_position config
+  // changes do not trigger UpdateDerivedMotorConstants.
+  float inv_rotor_to_output_ratio_ = 0.0f;
 
   SimplePI::Config pid_d_config_;
   SimplePI::Config pid_q_config_;
