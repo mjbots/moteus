@@ -103,15 +103,13 @@ float pow2f_approx(float x) __attribute__((always_inline));
 inline float pow2f_approx(float x) {
   // From: https://gist.github.com/petrsm/079de9396d63e00d5994a7cc936ae9c7
 
-  volatile union {
-    float f;
-    unsigned int i;
-  } cvt;
-
   const float pi = static_cast<int>(x);
   const float pf = x - pi;
-  cvt.i = (1 << 23) * (static_cast<int>(x) + 127);
-  const float pow2i = cvt.f;
+  // __builtin_bit_cast lets the compiler use a single VMOV between
+  // integer and float registers instead of a memory round-trip
+  // through volatile.
+  const float pow2i = __builtin_bit_cast(float,
+      static_cast<unsigned int>((1 << 23) * (static_cast<int>(x) + 127)));
   float pow2f = 7.9204240219773237e-2f;
 
   pow2f = pow2f * pf + 2.2433836478672357e-1f;
