@@ -348,6 +348,19 @@ class BldcServoControl {
           (0.5f * (self().config_.max_voltage - kBoardVoltageMargin) /
            v_per_hz_) : 0.0f;
     }
+    {
+      const auto* pos_config = self().motor_position_config();
+      const auto cs = pos_config->commutation_source;
+      const float cpr = static_cast<float>(pos_config->sources[cs].cpr);
+      commutation_inv_cpr_ = (cpr > 0.0f) ? (1.0f / cpr) : 0.0f;
+    }
+    // Cache a TorqueModel with precomputed reciprocals so the ISR
+    // can use multiplications instead of divisions.
+    torque_model_ = TorqueModel(
+        self().torque_constant_,
+        self().motor_.rotation_current_cutoff_A,
+        self().motor_.rotation_current_scale,
+        self().motor_.rotation_torque_scale);
 
     pid_dq_w_ = k2Pi * self().config_.pid_dq_hz;
     pid_d_config_.ki = pid_dq_w_ * self().motor_.resistance_ohm;
@@ -359,19 +372,11 @@ class BldcServoControl {
   }
 
   float current_to_torque(float current) const MOTEUS_CCM_ATTRIBUTE {
-    TorqueModel model(self().torque_constant_,
-                      self().motor_.rotation_current_cutoff_A,
-                      self().motor_.rotation_current_scale,
-                      self().motor_.rotation_torque_scale);
-    return model.current_to_torque(current);
+    return torque_model_.current_to_torque(current);
   }
 
   float torque_to_current(float torque) const MOTEUS_CCM_ATTRIBUTE {
-    TorqueModel model(self().torque_constant_,
-                      self().motor_.rotation_current_cutoff_A,
-                      self().motor_.rotation_current_scale,
-                      self().motor_.rotation_torque_scale);
-    return model.torque_to_current(torque);
+    return torque_model_.torque_to_current(torque);
   }
 
   bool current_control() const MOTEUS_CCM_ATTRIBUTE {
@@ -1193,10 +1198,9 @@ class BldcServoControl {
     {
       const auto* pos_config = self().motor_position_config();
       const auto commutation_source = pos_config->commutation_source;
-      const float cpr = static_cast<float>(
-          pos_config->sources[commutation_source].cpr);
       const float commutation_position =
-          self().position_.sources[commutation_source].filtered_value / cpr;
+          self().position_.sources[commutation_source].filtered_value *
+          self().commutation_inv_cpr_;
 
       auto sample =
           [&](const auto& table, float scale) {
@@ -1700,6 +1704,11 @@ class BldcServoControl {
   float fw_max_current_A_ = 0.0f;           // fw.max_current_ratio * max_current_A
   float half_over_R_ = 0.0f;                // 0.5 / resistance_ohm (multiplied by filt_bus_V for Imax voltage limit)
   float board_max_velocity_factor_ = 0.0f;  // 0.5 * (max_voltage - kBoardVoltageMargin) / v_per_hz (multiplied by rotor_to_output_ratio for board_max_velocity)
+  float commutation_inv_cpr_ = 0.0f;        // 1 / commutation source cpr (avoids u32->float convert and divide every ISR)
+  // Cached torque model — reconstructed in UpdateDerivedMotorConstants
+  // so the per-call setup (including reciprocals) stays out of the
+  // ISR hot path.
+  TorqueModel torque_model_;
 
   SimplePI::Config pid_d_config_;
   SimplePI::Config pid_q_config_;
