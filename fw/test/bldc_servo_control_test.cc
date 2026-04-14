@@ -687,7 +687,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoCurrentFieldWeakening) {
 
   // Field weakening should inject negative d-axis current.
   BOOST_TEST(ctx.status_.fw.id_A < 0.0f);
-  BOOST_TEST(ctx.status_.fw.speed_ratio > 1.0f);
 }
 
 BOOST_AUTO_TEST_CASE(BldcServoControlDoPosition) {

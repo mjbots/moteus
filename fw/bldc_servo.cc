@@ -1261,7 +1261,6 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
 
     status_.power_W = 0.0f;
     status_.fw.id_A = 0.0f;
-    status_.fw.speed_ratio = 0.0f;
   }
 
   void DoCalibrating() MOTEUS_CCM_ATTRIBUTE {

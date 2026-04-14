@@ -305,11 +305,9 @@ class BldcServoControl {
   }
 
   void UpdateFieldWeakeningIdChar() {
-    const float max_fw_A =
-        self().config_.max_current_A * self().config_.fw.max_current_ratio;
     const float L_at_max =
         self().motor_.inductance_d_H +
-        self().motor_.inductance_d_scale * (-max_fw_A);
+        self().motor_.inductance_d_scale * (-fw_max_current_A_);
     self().fw_id_char_at_max_current_ =
         (L_at_max > 0.0f && self().lambda_m_ > 0.0f) ?
         self().lambda_m_ / L_at_max : 0.0f;
@@ -322,6 +320,26 @@ class BldcServoControl {
     // See also: mpat Motor.getLambdaM()
     lambda_m_ = (v_per_hz_ > 0.0f && self().motor_.poles > 0) ?
         v_per_hz_ / (kPi * self().motor_.poles) : 0.0f;
+
+    // Precomputed constants for the FW base velocity quadratic.  See
+    // ISR_CalculateDerivedQuantities.
+    v_per_hz_squared_ = v_per_hz_ * v_per_hz_;
+    pi_poles_Lq_ =
+        kPi * self().motor_.poles * self().motor_.inductance_q_H;
+    two_R_v_per_hz_ = 2.0f * self().motor_.resistance_ohm * v_per_hz_;
+    R_squared_ =
+        self().motor_.resistance_ohm * self().motor_.resistance_ohm;
+    fw_V_eff_factor_ =
+        self().rate_config_.max_voltage_ratio *
+        (1.0f - self().config_.fw.modulation_margin) * 0.5f;
+    half_max_voltage_ratio_over_v_per_hz_ =
+        (v_per_hz_ > 0.0f) ?
+        (self().rate_config_.max_voltage_ratio * 0.5f / v_per_hz_) :
+        0.0f;
+    max_V_factor_ =
+        self().rate_config_.max_voltage_ratio * kSvpwmRatio * 0.5f;
+    fw_max_current_A_ =
+        self().config_.fw.max_current_ratio * self().config_.max_current_A;
 
     pid_dq_w_ = k2Pi * self().config_.pid_dq_hz;
     pid_d_config_.ki = pid_dq_w_ * self().motor_.resistance_ohm;
@@ -485,21 +503,14 @@ class BldcServoControl {
         // for field weakening q-axis voltage headroom. This ensures that
         // id = 0 exactly at base_velocity with no discontinuity.
         // Note: no kSvpwmRatio here to match the non-FW path formula.
-        const float target_modulation =
-            1.0f - self().config_.fw.modulation_margin;
         const float V_eff =
-            self().rate_config_.max_voltage_ratio *
-            target_modulation * 0.5f * self().status_.filt_bus_V;
+            self().fw_V_eff_factor_ * self().status_.filt_bus_V;
         const float iq = self().status_.q_A;
-        const float v2 = self().v_per_hz_ * self().v_per_hz_;
-        const float omega_L_iq =
-            kPi * self().motor_.poles * self().motor_.inductance_q_H * iq;
-        const float qa = v2 + omega_L_iq * omega_L_iq;
-        const float qb =
-            2.0f * self().motor_.resistance_ohm * iq * self().v_per_hz_;
+        const float omega_L_iq = self().pi_poles_Lq_ * iq;
+        const float qa = self().v_per_hz_squared_ + omega_L_iq * omega_L_iq;
+        const float qb = self().two_R_v_per_hz_ * iq;
         const float qc =
-            self().motor_.resistance_ohm * self().motor_.resistance_ohm *
-            iq * iq - V_eff * V_eff;
+            self().R_squared_ * iq * iq - V_eff * V_eff;
         const float disc = qb * qb - 4.0f * qa * qc;
         if (disc >= 0.0f && qa > 0.0f) {
           const float vel_rotor_hz =
@@ -510,9 +521,8 @@ class BldcServoControl {
         }
       } else {
         return rotor_to_output_ratio *
-            self().rate_config_.max_voltage_ratio *
-            0.5f * self().status_.filt_bus_V /
-            self().v_per_hz_;
+            self().half_max_voltage_ratio_over_v_per_hz_ *
+            self().status_.filt_bus_V;
       }
     }();
     base_velocity_filter_(
@@ -660,8 +670,11 @@ class BldcServoControl {
   void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     self().control_.voltage = voltage;
 
-    const float bus_V = self().status_.filt_bus_V;
-    const Vec3 pwm_in = {voltage.a / bus_V, voltage.b / bus_V, voltage.c / bus_V};
+    const float inv_bus_V = 1.0f / self().status_.filt_bus_V;
+    const Vec3 pwm_in = {
+        voltage.a * inv_bus_V,
+        voltage.b * inv_bus_V,
+        voltage.c * inv_bus_V};
 
     const float pwmmin = std::min(pwm_in.a, std::min(pwm_in.b, pwm_in.c));
     const float pwmmax = std::max(pwm_in.a, std::max(pwm_in.b, pwm_in.c));
@@ -712,9 +725,7 @@ class BldcServoControl {
       return;
     }
 
-    const float max_V =
-        self().rate_config_.max_voltage_ratio * kSvpwmRatio *
-        0.5f * self().status_.filt_bus_V;
+    const float max_V = self().max_V_factor_ * self().status_.filt_bus_V;
 
     ISR_DoBalancedVoltageControl(
         ISR_CalculatePhaseVoltage(
@@ -829,7 +840,6 @@ class BldcServoControl {
       constexpr float kIdDeadband = 1e-3f;
 
       if (!self().config_.fw.enable) {
-        self().status_.fw.speed_ratio = 0.0f;
         // Feed 0 through the filter for smooth decay when FW is disabled.
         fw_id_filter_(0.0f, &self().status_.fw.id_A);
         self().status_.fw.id_A =
@@ -850,16 +860,15 @@ class BldcServoControl {
           self().status_.control_velocity.value_or(self().position_.velocity);
       const float current_speed = std::abs(velocity_for_fw);
 
-      const float speed_ratio = (base_speed > 0.0f) ?
-          current_speed / base_speed : 0.0f;
-      self().status_.fw.speed_ratio = speed_ratio;
-
       // CVCP: id = -id_char * (1 - 1/speed_ratio)
+      //         = -id_char * (current_speed - base_speed) / current_speed
+      //
       // Note: target_modulation is incorporated in base_velocity, so
-      // the formula simplifies to this form. At speed_ratio = 1 (i.e.,
-      // at base_velocity), id = 0 with no discontinuity.
-      const float id_cvcp =
-          -self().status_.fw.id_char * std::max(0.0f, 1.0f - 1.0f / speed_ratio);
+      // the formula simplifies to this form.  At current_speed =
+      // base_speed, id = 0 with no discontinuity.
+      const float id_cvcp = (current_speed > base_speed) ?
+          -self().status_.fw.id_char *
+          (current_speed - base_speed) / current_speed : 0.0f;
       const float id_raw = Limit(id_cvcp, -abs_max_current, 0.0f);
 
       // Low-pass filter the id command to prevent oscillation at
@@ -915,9 +924,7 @@ class BldcServoControl {
 
     UpdateEffectiveInductance(i_d_A);
 
-    const float max_V =
-        self().rate_config_.max_voltage_ratio * kSvpwmRatio *
-        0.5f * self().status_.filt_bus_V;
+    const float max_V = self().max_V_factor_ * self().status_.filt_bus_V;
 
     const auto limit_to_max_voltage = [max_V](float denorm_d_V, float denorm_q_V, errc inlimit) {
       const float max_V_sq = max_V * max_V;
@@ -1354,7 +1361,6 @@ class BldcServoControl {
 
     self().status_.power_W = 0.0f;
     self().status_.fw.id_A = 0.0f;
-    self().status_.fw.speed_ratio = 0.0f;
   }
 
   void ISR_DoPositionTimeout(const SinCos& sin_cos,
@@ -1675,6 +1681,17 @@ class BldcServoControl {
 
   float v_per_hz_ = 0.0f;
   float lambda_m_ = 0.0f;
+
+  // Precomputed constants used by the FW base velocity quadratic in
+  // ISR_CalculateDerivedQuantities.
+  float v_per_hz_squared_ = 0.0f;           // v_per_hz^2
+  float pi_poles_Lq_ = 0.0f;                // kPi * poles * inductance_q_H
+  float two_R_v_per_hz_ = 0.0f;             // 2 * R * v_per_hz
+  float R_squared_ = 0.0f;                  // R^2
+  float fw_V_eff_factor_ = 0.0f;            // max_voltage_ratio * target_modulation * 0.5
+  float half_max_voltage_ratio_over_v_per_hz_ = 0.0f;  // max_voltage_ratio * 0.5 / v_per_hz
+  float max_V_factor_ = 0.0f;               // max_voltage_ratio * kSvpwmRatio * 0.5 (multiplied by filt_bus_V for max_V)
+  float fw_max_current_A_ = 0.0f;           // fw.max_current_ratio * max_current_A
 
   SimplePI::Config pid_d_config_;
   SimplePI::Config pid_q_config_;

@@ -61,7 +61,6 @@ struct FieldWeakeningConfig {
 
 struct FieldWeakeningStatus {
   float id_A = 0.0f;
-  float speed_ratio = 0.0f;
   // Characteristic current psi_m / L_d, computed per-cycle from the
   // dynamic D-axis inductance.
   float id_char = 0.0f;
@@ -69,7 +68,6 @@ struct FieldWeakeningStatus {
   template <typename Archive>
   void Serialize(Archive* a) {
     a->Visit(MJ_NVP(id_A));
-    a->Visit(MJ_NVP(speed_ratio));
     a->Visit(MJ_NVP(id_char));
   }
 };
