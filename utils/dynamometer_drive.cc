@@ -426,7 +426,7 @@ class Controller {
     double bemf_feedforward = 0.0;
   };
 
-  boost::asio::awaitable<void> ConfigurePid(const PidConstants& pid) {
+  boost::asio::awaitable<void> ConfigurePid(PidConstants pid) {
     co_await Command(
         fmt::format("conf set servo.pid_position.kp {}", pid.kp));
     co_await Command(
