@@ -477,7 +477,7 @@ class BldcServoControl {
             self().motor_position_config()->output.sign *
             MotorPosition::IntToFloat(*self().status_.control_position_raw) /
             self().motor_position_config()->rotor_to_output_ratio *
-            self().motor_.poles * 0.5f * kPi);
+            self().motor_.poles * 0.5f * k2Pi);
     self().status_.electrical_theta = electrical_theta;
 
     // Compute sin/cos for transforms.
