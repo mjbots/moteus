@@ -115,6 +115,9 @@ class TestDynoFast(unittest.TestCase):
     def test_validate_velocity_accel_limits(self):
         dyno('--validate_velocity_accel_limits', '1')
 
+    def test_validate_field_weakening_perf(self):
+        dyno('--validate_field_weakening_perf', '1')
+
 
 class TestDynoSlow(unittest.TestCase):
     def test_torque_ripple(self):
