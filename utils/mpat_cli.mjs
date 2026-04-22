@@ -89,7 +89,8 @@ function parseArgs(args) {
         // Custom motor parameters
         'motor.kv': null,
         'motor.r': null,
-        'motor.l': null,
+        'motor.l_d': null,
+        'motor.l_q': null,
         'motor.thermal_r': null,
         'motor.thermal_c': null,
         'motor.d0': 1e-12,
@@ -114,7 +115,8 @@ function parseArgs(args) {
             if (['voltage', 'velocity', 'torque', 'time', 'gear_reduction',
                  'ambient_temp', 'max_controller_temp', 'max_motor_temp', 'pwm',
                  'move_distance', 'load_inertia',
-                 'motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c',
+                 'motor.kv', 'motor.r', 'motor.l_d', 'motor.l_q',
+                 'motor.thermal_r', 'motor.thermal_c',
                  'motor.d0', 'motor.d1', 'motor.inertia'].includes(key)) {
                 if (value.toLowerCase() === 'infinity') {
                     result[key] = Infinity;
@@ -188,7 +190,9 @@ Optional Parameters:
 Custom Motor Parameters (when --motor model):
   --motor.kv KV           Motor Kv rating (RPM/V)
   --motor.r R             Phase-to-phase resistance in ohms
-  --motor.l L             Phase-to-phase inductance in henries
+  --motor.l_d L           Phase-to-phase D-axis inductance in henries
+  --motor.l_q L           Phase-to-phase Q-axis inductance in henries
+                          (optional; defaults to L_d)
   --motor.thermal_r R     Thermal resistance in C/W
   --motor.thermal_c C     Thermal capacitance in J/C
   --motor.d0 D0           Linear drag coefficient (default: 1e-12)
@@ -210,7 +214,7 @@ Examples:
 
   # Custom motor model
   ./mpat.py --analysis max_torque --controller moteus-x1 --motor model \\
-            --motor.kv 200 --motor.r 0.05 --motor.l 0.00001 \\
+            --motor.kv 200 --motor.r 0.05 --motor.l_d 0.00001 \\
             --motor.thermal_r 1.0 --motor.thermal_c 100 \\
             --voltage 48 --velocity 10
 `);
@@ -282,7 +286,7 @@ function main() {
 
     if (args.motor === 'model') {
         // Custom motor model
-        const required = ['motor.kv', 'motor.r', 'motor.l', 'motor.thermal_r', 'motor.thermal_c'];
+        const required = ['motor.kv', 'motor.r', 'motor.l_d', 'motor.thermal_r', 'motor.thermal_c'];
         for (const field of required) {
             if (args[field] === null) {
                 console.error(`Error: --${field} is required for custom motor model`);
@@ -295,7 +299,8 @@ function main() {
             maxTemp: 80,
             Kv: args['motor.kv'],
             R_pp: args['motor.r'],
-            L_pp: args['motor.l'],
+            L_d_pp: args['motor.l_d'],
+            L_q_pp: args['motor.l_q'] ?? undefined,
             d0: args['motor.d0'],
             d1: args['motor.d1'],
             inertia: args['motor.inertia'],
