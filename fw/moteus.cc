@@ -37,6 +37,7 @@
 #include "fw/uuid.h"
 
 #if defined(TARGET_STM32G4)
+#include "fw/custom_protocol.h"
 #include "fw/fdcan.h"
 #include "fw/fdcan_micro_server.h"
 #include "fw/multi_transport_datagram_server.h"
@@ -216,6 +217,10 @@ int main(void) {
     }());
   FDCanMicroServer fdcan_micro_server(&fdcan);
 
+  CustomProtocol custom_protocol;
+  fdcan_micro_server.SetCustomHandler(
+      CustomProtocol::CallbackTrampoline, &custom_protocol);
+
   MultiTransportDatagramServer multi_transport(&fdcan_micro_server);
 
   multiplex::MicroServer multiplex_protocol(
@@ -314,8 +319,8 @@ int main(void) {
         FDCan::FilterConfig filter_config;
         filter_config.begin = std::begin(filters);
         filter_config.end = std::end(filters);
-        filter_config.global_std_action = FDCan::FilterAction::kReject;
-        filter_config.global_ext_action = FDCan::FilterAction::kReject;
+        filter_config.global_std_action = FDCan::FilterAction::kAccept;
+        filter_config.global_ext_action = FDCan::FilterAction::kAccept;
         fdcan.ConfigureFilters(filter_config);
 
         // Set prefix on both CAN-FD and UART transports

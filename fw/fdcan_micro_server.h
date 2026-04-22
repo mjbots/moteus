@@ -26,7 +26,15 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
   static constexpr uint32_t kBrsFlag = 0x01;
   static constexpr uint32_t kFdcanFlag = 0x02;
 
+  using CustomCanCallback = bool(*)(uint32_t can_id, int dlc,
+                                    const char* data, void* context);
+
   FDCanMicroServer(FDCan* can) : fdcan_(can) {}
+
+  void SetCustomHandler(CustomCanCallback cb, void* context = nullptr) {
+    custom_handler_ = cb;
+    custom_handler_context_ = context;
+  }
 
   void SetPrefix(uint32_t can_prefix) {
     can_prefix_ = can_prefix;
@@ -90,6 +98,15 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
     const bool got_data = fdcan_->Poll(&fdcan_header_, current_read_data_);
     if (!got_data) { return; }
 
+    if (custom_handler_) {
+      const int dlc = FDCan::ParseDlc(fdcan_header_.DataLength);
+      if (custom_handler_(fdcan_header_.Identifier, dlc,
+                          current_read_data_.data(),
+                          custom_handler_context_)) {
+        return;
+      }
+    }
+
     // We could check the prefix here as below:
     //
     //   const uint16_t prefix = (fdcan_header_.Identifier >> 16) & 0x1fff;
@@ -141,6 +158,9 @@ class FDCanMicroServer : public mjlib::multiplex::MicroDatagramServer {
 
  private:
   FDCan* const fdcan_;
+
+  CustomCanCallback custom_handler_ = nullptr;
+  void* custom_handler_context_ = nullptr;
 
   mjlib::micro::SizeCallback current_read_callback_;
   Header* current_read_header_ = nullptr;

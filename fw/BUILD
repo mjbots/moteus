@@ -142,6 +142,7 @@ MOTEUS_SOURCES = [
     "uuid.h",
     "uuid.cc",
     "moteus.cc",
+    "custom_protocol.h",
 ]
 
 MOTEUS_DEPS = [
