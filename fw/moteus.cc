@@ -188,7 +188,7 @@ int main(void) {
   }
 
   // Turn on our power light.
-  DigitalOut power_led(g_hw_pins.power_led, 0);
+  DigitalOut power_led(g_hw_pins.power_led, 1);
 
   micro::SizedPool<24000> pool;
 
@@ -199,7 +199,7 @@ int main(void) {
       options.rd = g_hw_pins.can_rd;
 
       options.slow_bitrate = 1000000;
-      options.fast_bitrate = 5000000;
+      options.fast_bitrate = 2000000;
 
       options.fdcan_frame = true;
       options.bitrate_switch = true;

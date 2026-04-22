@@ -412,7 +412,7 @@ class BoardDebug::Impl {
       bool* const led_state = (which_led == "1") ? &data_.led1 : &data_.led2;
       const bool value = (state != "0");
 
-      *led = !value;  // Our LEDs are active low.
+      *led = value;  // Our LEDs are active low.
       *led_state = value;
       WriteOk(response);
 
@@ -1124,8 +1124,8 @@ class BoardDebug::Impl {
   Data data_;
   base::inplace_function<void()> data_update_;
 
-  DigitalOut led1_{g_hw_pins.debug_led1, 1};
-  DigitalOut led2_{g_hw_pins.power_led};
+  DigitalOut led1_{g_hw_pins.debug_led1, 0};
+  DigitalOut led2_{g_hw_pins.power_led, 1};
 
   multiplex::MicroServer* multiplex_protocol_;
   BldcServo* const bldc_;

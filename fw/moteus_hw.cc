@@ -120,8 +120,8 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
         (family_detect_a.read() ? 1 : 0) |
         (family_detect_b.read() ? 2 : 0);
   }
-  const uint8_t family_code = (family_pullup | family_pulldown << 2);
-
+  uint8_t family_code = (family_pullup | family_pulldown << 2);
+  family_code = 0x03;
   {
     // Family 2 boards can be identified by the external pull down on
     // PB10 and PB11 being floating.
@@ -240,6 +240,7 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
       } else {
         // Unknown version.
         result.hw_version = -1;
+        result.hw_version = 1;
       }
     } else if (result.family == 2) {
       // We don't have any uniformly specified versions yet.
