@@ -29,7 +29,7 @@
 #include "fw/board_debug.h"
 #include "fw/clock_manager.h"
 #include "fw/firmware_info.h"
-#include "fw/git_info.h"
+// #include "fw/git_info.h"
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_controller.h"
 #include "fw/moteus_hw.h"
@@ -227,10 +227,6 @@ int main(void) {
         return options;
       }());
 
-  CustomProtocol custom_protocol(&multiplex_protocol);
-  fdcan_micro_server.SetCustomHandler(
-      CustomProtocol::CallbackTrampoline, &custom_protocol);
-
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
   micro::AsyncExclusive<micro::AsyncWriteStream> write_stream(serial);
@@ -264,8 +260,13 @@ int main(void) {
       &pool, &command_manager, &telemetry_manager, &multiplex_protocol,
       moteus_controller.bldc_servo());
 
-  GitInfo git_info;
-  telemetry_manager.Register("git", &git_info);
+  CustomProtocol custom_protocol(&multiplex_protocol,
+                                 moteus_controller.bldc_servo());
+  fdcan_micro_server.SetCustomHandler(
+      CustomProtocol::CallbackTrampoline, &custom_protocol);
+
+  // GitInfo git_info;
+  // telemetry_manager.Register("git", &git_info);
 
   CanConfig can_config, old_can_config;
 
