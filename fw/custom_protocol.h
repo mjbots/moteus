@@ -126,14 +126,19 @@ private:
     if (bldc_servo_ == nullptr) {
       return false;
     }
+
+    if (bldc_servo_->status().mode != BldcServo::Mode::kStopped) {
+      static BldcServo::CommandData command;
+
+      command.mode = BldcServo::Mode::kStopped;
+      bldc_servo_->Command(command);
+    }
     char reply[4] = {0};
-    custom_command_.mode = custom_command_private_.mode = BldcServo::Mode::kStopped;
-    bldc_servo_->Command(custom_command_);
     SendFrame(kSend << dir_offset |
                   (multiplex_protocol_->config()->id << node_offset) |
                   CAN_CMD_MOTOR_DISABLE,
               4, reply);
-    return false;
+    return true;
   }
 
   bool HandleMotorEnable(int dlc, const char *data) {
@@ -143,17 +148,17 @@ private:
     if (bldc_servo_->status().mode == BldcServo::Mode::kFault) {
       return false;
     }
+    static BldcServo::CommandData command;
+    command.mode = BldcServo::Mode::kPosition;
+    command.position = std::numeric_limits<float>::quiet_NaN();
+    command.velocity = 0.0f;
+    command.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    bldc_servo_->Command(command);
 
-    BldcServo::CommandData command;
-    custom_command_.mode = custom_command_private_.mode = BldcServo::Mode::kPosition;
-    custom_command_.position = custom_command_private_.position = std::numeric_limits<float>::quiet_NaN();
-    custom_command_.velocity = custom_command_private_.velocity = 0.0f;
-    custom_command_.timeout_s = custom_command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
-    bldc_servo_->Command(custom_command_);
-
-    if (bldc_servo_->status().fault != errc::kSuccess) {
+    if (bldc_servo_->status().mode != BldcServo::Mode::kPosition) {
       int32_t fault_value = static_cast<int32_t>(bldc_servo_->status().fault);
-      char reply[4] = {0};
+      // 防止出现错误码为kSuccess但模式为kFault时错误地返回成功状态
+      char reply[4] = {0xFF};
       reply[0] = fault_value & 0xFF;
       reply[1] = (fault_value >> 8) & 0xFF;
       reply[2] = (fault_value >> 16) & 0xFF;
@@ -247,7 +252,6 @@ private:
   mjlib::multiplex::MicroServer *const multiplex_protocol_;
   BldcServo *const bldc_servo_;
   FDCan *const fdcan_;
-  BldcServo::CommandData custom_command_;
   BldcServo::CommandData custom_command_private_;
 };
 
