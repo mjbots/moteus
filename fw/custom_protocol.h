@@ -116,16 +116,18 @@ private:
     }
     const auto current_mode = bldc_servo_->status().mode;
     if (current_mode == BldcServo::Mode::kStopped) {
+      char buf[8] = {0};
       SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
                     CAN_CMD_MOTOR_DISABLE,
-                8, 0);
+                8, buf);
       return true;
     } else {
       custom_command_.mode = BldcServo::Mode::kStopped;
       bldc_servo_->Command(custom_command_);
+      char buf[8] = {0};
       SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
                     CAN_CMD_MOTOR_DISABLE,
-                8, 0);
+                8, buf);
       return true;
     }
     return false;
@@ -137,23 +139,27 @@ private:
     }
     const auto current_mode = bldc_servo_->status().mode;
     if (current_mode == BldcServo::Mode::kPosition) {
+      char buf[8] = {0};
       SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
                     CAN_CMD_MOTOR_ENABLE,
-                8, 0);
+                8, buf);
       return true;
     }
     if (current_mode == BldcServo::Mode::kStopped ||
         current_mode == BldcServo::Mode::kFault) {
+      char buf[8] = {1};
+      buf[0] = 1;
       SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
                     CAN_CMD_MOTOR_ENABLE,
-                8, 1);
+                8, buf);
       return false;
     } else {
       custom_command_.mode = BldcServo::Mode::kPosition;
       bldc_servo_->Command(custom_command_);
+      char buf[8] = {0};
       SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
                     CAN_CMD_MOTOR_ENABLE,
-                8, 0);
+                8, buf);
       return true;
     }
     return false;
