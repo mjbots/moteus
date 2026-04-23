@@ -184,6 +184,20 @@ class BldcServoControl {
   using Control = BldcServoControl_Control;
   using CommandData = BldcServoCommandData;
 
+  // State pulled from BldcServoConfig or the motor struct by the
+  // Impl's config-update path.  Lives in the base because only
+  // BldcServoControl reads it; derived Impls (production and test
+  // fixtures) just write it during initialization / config changes.
+  float torque_constant_ = 0.0f;
+  float flux_brake_min_voltage_ = 0.0f;
+  float derate_temperature_ = 0.0f;
+  float motor_derate_temperature_ = 0.0f;
+
+  // ISR epoch counter — set by the Impl (or tests) and compared
+  // against position_.epoch inside the control loop to detect new
+  // position data.
+  uint8_t isr_motor_position_epoch_ = 0;
+
   BldcServoControl() {}
 
   /// Process a command, applying defaults and transforming positions.
@@ -357,7 +371,7 @@ class BldcServoControl {
     // Cache a TorqueModel with precomputed reciprocals so the ISR
     // can use multiplications instead of divisions.
     torque_model_ = TorqueModel(
-        self().torque_constant_,
+        torque_constant_,
         self().motor_.rotation_current_cutoff_A,
         self().motor_.rotation_current_scale,
         self().motor_.rotation_torque_scale);
@@ -706,7 +720,7 @@ class BldcServoControl {
 
   Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos,
                                  float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
-    if (self().position_.epoch != self().isr_motor_position_epoch_) {
+    if (self().position_.epoch != isr_motor_position_epoch_) {
       self().status_.mode = kFault;
       self().status_.fault = errc::kConfigChanged;
 
@@ -813,7 +827,7 @@ class BldcServoControl {
     };
 
     float derate_fraction =
-        (self().status_.filt_fet_temp_C - self().derate_temperature_) /
+        (self().status_.filt_fet_temp_C - derate_temperature_) /
         self().config_.temperature_margin;
     errc derate_fault = errc::kLimitMaxCurrent;
     if (derate_fraction > 0.0f) {
@@ -821,7 +835,7 @@ class BldcServoControl {
     }
     if (std::isfinite(self().config_.motor_fault_temperature)) {
       const float motor_derate =
-          ((self().status_.filt_motor_temp_C - self().motor_derate_temperature_) /
+          ((self().status_.filt_motor_temp_C - motor_derate_temperature_) /
            self().config_.motor_temperature_margin);
       if (motor_derate > derate_fraction) {
         derate_fraction = motor_derate;
@@ -916,8 +930,8 @@ class BldcServoControl {
         almost_i_d_A_pair.second : almost_i_q_A_pair.second;
 
     // Apply our power limits by limiting the maximum current command.
-    const float used_d_power_W = 1.5f * self().old_d_V_ * almost_i_d_A;
-    const float used_q_power_W = 1.5f * self().old_q_V_ * almost_i_q_A;
+    const float used_d_power_W = 1.5f * old_d_V_ * almost_i_d_A;
+    const float used_q_power_W = 1.5f * old_q_V_ * almost_i_q_A;
     const float used_power = used_q_power_W + used_d_power_W;
 
     const auto [i_d_A, i_q_A, limit_code] = [&]() {
@@ -1257,7 +1271,7 @@ class BldcServoControl {
       const float rotor_velocity =
           velocity * self().inv_rotor_to_output_ratio_;
       const float regen_power =
-          std::abs(q_A) * self().torque_constant_ *
+          std::abs(q_A) * torque_constant_ *
           std::abs(rotor_velocity) * k2Pi;
 
       const float excess =
@@ -1279,7 +1293,7 @@ class BldcServoControl {
     // the base-speed crossing.
     const float fb_d_A = [&]() MOTEUS_CCM_ATTRIBUTE {
       const auto error = (
-          self().status_.filt_1ms_bus_V - self().flux_brake_min_voltage_);
+          self().status_.filt_1ms_bus_V - flux_brake_min_voltage_);
 
       if (error <= 0.0f) {
         return 0.0f;
@@ -1454,7 +1468,7 @@ class BldcServoControl {
   }
 
   void ISR_StartCalibrating() MOTEUS_CCM_ATTRIBUTE {
-    self().isr_motor_position_epoch_ = self().position_.epoch;
+    isr_motor_position_epoch_ = self().position_.epoch;
     self().status_.mode = kEnabling;
     self().StartCalibrating();
   }
@@ -1508,7 +1522,7 @@ class BldcServoControl {
             // pre-startup calibration phase, we are not yet actively
             // controlling.  Thus any epoch changes that happen before
             // then are "not our problem".
-            self().isr_motor_position_epoch_ = self().position_.epoch;
+            isr_motor_position_epoch_ = self().position_.epoch;
             [[fallthrough]];
           }
           case kPwm:
@@ -1556,8 +1570,8 @@ class BldcServoControl {
 
   void ISR_DoControl(const SinCos& sin_cos,
                      CommandData* data) MOTEUS_CCM_ATTRIBUTE {
-    self().old_d_V_ = self().control_.d_V;
-    self().old_q_V_ = self().control_.q_V;
+    old_d_V_ = self().control_.d_V;
+    old_q_V_ = self().control_.q_V;
 
     self().control_.Clear();
 
@@ -1732,6 +1746,11 @@ class BldcServoControl {
   ExponentialFilter fw_id_filter_;
   ExponentialFilter slow_bus_v_filter_;
   ExponentialFilter fast_bus_v_filter_;
+
+  // Previous ISR's applied d/q voltages, used for the power
+  // accounting that runs one step behind the current command.
+  float old_d_V_ = 0.0f;
+  float old_q_V_ = 0.0f;
 };
 
 }  // namespace moteus

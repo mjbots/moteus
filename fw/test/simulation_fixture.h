@@ -96,14 +96,6 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
 
   RateConfig rate_config_{30000, 15000};
 
-  float torque_constant_ = 0.0f;  // Set during initialization
-  float flux_brake_min_voltage_ = 100.0f;  // Effectively disabled
-  float derate_temperature_ = 80.0f;
-  float motor_derate_temperature_ = 100.0f;
-  uint8_t isr_motor_position_epoch_ = 0;
-  uint32_t pwm_counts_ = 4000;
-  float old_d_V_ = 0.0f;
-  float old_q_V_ = 0.0f;
 
 
   ////////////////////////////////////////////////////////////////
@@ -164,6 +156,11 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   explicit SimulationContext(
       std::shared_ptr<MotorModel> model = nullptr)
       : motor_model_(std::move(model)) {
+    // Non-default base-class state for this fixture.
+    flux_brake_min_voltage_ = 100.0f;  // Effectively disabled
+    derate_temperature_ = 80.0f;
+    motor_derate_temperature_ = 100.0f;
+
     // Initialize control filters from base class
     InitControlFilters(rate_config_.pwm_rate_hz);
 

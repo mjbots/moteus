@@ -1313,10 +1313,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   Config config_;
   PositionConfig position_config_;
 
-  // This copy of the current epoch is intended to be accessed from the ISR.
-  uint8_t isr_motor_position_epoch_ = 0;
-
-  // This copy is only accessed from the main loop.
+  // Counterpart to isr_motor_position_epoch_ (inherited from
+  // BldcServoControl), only accessed from the main loop.
   uint8_t main_motor_position_epoch_ = 0;
 
   TIM_TypeDef* timer_ = nullptr;
@@ -1409,16 +1407,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   // 40000Hz.
   uint8_t debug_buf_[7] = {};
 
-  float torque_constant_ = 0.01f;
-  float flux_brake_min_voltage_ = 0.0f;
-  float derate_temperature_ = 0.0f;
-  float motor_derate_temperature_ = 0.0f;
-
   float adc_scale_ = 0.0f;
   float pwm_derate_ = 1.0f;
-
-  float old_d_V_ = 0.0f;
-  float old_q_V_ = 0.0f;
 
   float vsense_adc_scale_ = 0.0f;
 

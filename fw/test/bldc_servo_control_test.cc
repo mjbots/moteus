@@ -41,15 +41,6 @@ struct Context : public BldcServoControl<Context> {
 
   RateConfig rate_config_{30000, 15000};
 
-  float torque_constant_ = 0.1f;
-  float flux_brake_min_voltage_ = 0.0f;
-  float derate_temperature_ = 50.0f;
-  float motor_derate_temperature_ = 80.0f;
-  uint8_t isr_motor_position_epoch_ = 0;
-  uint32_t pwm_counts_ = 4000;
-  float old_d_V_ = 0.0f;
-  float old_q_V_ = 0.0f;
-
   // HW mock state for verification.
   int pwm_control_count = 0;
   Vec3 last_pwm;
@@ -114,6 +105,11 @@ struct Context : public BldcServoControl<Context> {
   }
 
   Context() {
+    // Non-default base-class state for this fixture.
+    torque_constant_ = 0.1f;
+    derate_temperature_ = 50.0f;
+    motor_derate_temperature_ = 80.0f;
+
     position_config_.position_min = NaN;
     position_config_.position_max = NaN;
     motor_.resistance_ohm = 0.048f;
