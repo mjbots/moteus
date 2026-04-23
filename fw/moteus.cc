@@ -217,11 +217,6 @@ int main(void) {
     }());
   FDCanMicroServer fdcan_micro_server(&fdcan);
 
-  CustomProtocol custom_protocol;
-  custom_protocol.set_node_id(multiplex_protocol.config()->id);
-  fdcan_micro_server.SetCustomHandler(
-      CustomProtocol::CallbackTrampoline, &custom_protocol);
-
   MultiTransportDatagramServer multi_transport(&fdcan_micro_server);
 
   multiplex::MicroServer multiplex_protocol(
@@ -231,6 +226,10 @@ int main(void) {
         options.max_tunnel_streams = 3;
         return options;
       }());
+
+  CustomProtocol custom_protocol(&multiplex_protocol);
+  fdcan_micro_server.SetCustomHandler(
+      CustomProtocol::CallbackTrampoline, &custom_protocol);
 
   micro::AsyncStream* serial = multiplex_protocol.MakeTunnel(1);
 
@@ -275,7 +274,7 @@ int main(void) {
 
   const auto maybe_update_filters =
       [&can_config, &fdcan, &multi_transport, &old_can_config,
-       &old_multiplex_id, &multiplex_protocol, &custom_protocol]() {
+       &old_multiplex_id, &multiplex_protocol]() {
         // Prevent the ID from being set to an unusable value.
         if (multiplex_protocol.config()->id < 1 ||
             multiplex_protocol.config()->id > 126) {
@@ -291,7 +290,6 @@ int main(void) {
         }
         old_can_config = can_config;
         old_multiplex_id = multiplex_protocol.config()->id;
-        custom_protocol.set_node_id(old_multiplex_id);
 
         FDCan::Filter filters[4] = {};
         filters[0].id1 = (can_config.prefix << 16) | old_multiplex_id;
