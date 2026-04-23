@@ -127,7 +127,7 @@ private:
       return false;
     }
     char reply[4] = {0};
-    custom_command_.mode = BldcServo::Mode::kStopped;
+    custom_command_.mode = custom_command_private_.mode = BldcServo::Mode::kStopped;
     bldc_servo_->Command(custom_command_);
     SendFrame(kSend << dir_offset |
                   (multiplex_protocol_->config()->id << node_offset) |
@@ -145,10 +145,10 @@ private:
     }
 
     BldcServo::CommandData command;
-    custom_command_.mode = BldcServo::Mode::kPosition;
-    custom_command_.position = std::numeric_limits<float>::quiet_NaN();
-    custom_command_.velocity = 0.0f;
-    custom_command_.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    custom_command_.mode = custom_command_private_.mode = BldcServo::Mode::kPosition;
+    custom_command_.position = custom_command_private_.position = std::numeric_limits<float>::quiet_NaN();
+    custom_command_.velocity = custom_command_private_.velocity = 0.0f;
+    custom_command_.timeout_s = custom_command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
     bldc_servo_->Command(custom_command_);
 
     if (bldc_servo_->status().fault != errc::kSuccess) {
