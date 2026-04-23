@@ -308,9 +308,9 @@ class BldcServoControl {
     const float L_at_max =
         self().motor_.inductance_d_H +
         self().motor_.inductance_d_scale * (-fw_max_current_A_);
-    self().fw_id_char_at_max_current_ =
-        (L_at_max > 0.0f && self().lambda_m_ > 0.0f) ?
-        self().lambda_m_ / L_at_max : 0.0f;
+    fw_id_char_at_max_current_ =
+        (L_at_max > 0.0f && lambda_m_ > 0.0f) ?
+        lambda_m_ / L_at_max : 0.0f;
   }
 
   void UpdateDerivedMotorConstants() {
@@ -553,7 +553,7 @@ class BldcServoControl {
     // of current derating (temperature, etc.).
     const float max_velocity = [&]() {
       if (!self().config_.fw.enable ||
-          self().fw_id_char_at_max_current_ <= 0.0f) {
+          fw_id_char_at_max_current_ <= 0.0f) {
         return self().status_.motor_base_velocity;
       }
       // CPSR (Constant Power Speed Ratio):
@@ -1707,6 +1707,7 @@ class BldcServoControl {
   float half_max_voltage_ratio_over_v_per_hz_ = 0.0f;  // max_voltage_ratio * 0.5 / v_per_hz
   float max_V_factor_ = 0.0f;               // max_voltage_ratio * kSvpwmRatio * 0.5 (multiplied by filt_bus_V for max_V)
   float fw_max_current_A_ = 0.0f;           // fw.max_current_ratio * max_current_A
+  float fw_id_char_at_max_current_ = 0.0f;  // lambda_m / L_d(-fw_max_current_A_)
   float half_over_R_ = 0.0f;                // 0.5 / resistance_ohm (multiplied by filt_bus_V for Imax voltage limit)
   float board_max_velocity_factor_ = 0.0f;  // 0.5 * (max_voltage - kBoardVoltageMargin) / v_per_hz (multiplied by rotor_to_output_ratio for board_max_velocity)
   float commutation_inv_cpr_ = 0.0f;        // 1 / commutation source cpr (avoids u32->float convert and divide every ISR)

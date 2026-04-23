@@ -98,7 +98,6 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
 
   float torque_constant_ = 0.0f;  // Set during initialization
   float flux_brake_min_voltage_ = 100.0f;  // Effectively disabled
-  float fw_id_char_at_max_current_ = 0.0f;
   float derate_temperature_ = 80.0f;
   float motor_derate_temperature_ = 100.0f;
   uint8_t isr_motor_position_epoch_ = 0;

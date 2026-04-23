@@ -1411,7 +1411,6 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
 
   float torque_constant_ = 0.01f;
   float flux_brake_min_voltage_ = 0.0f;
-  float fw_id_char_at_max_current_ = 0.0f;
   float derate_temperature_ = 0.0f;
   float motor_derate_temperature_ = 0.0f;
 

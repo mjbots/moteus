@@ -43,7 +43,6 @@ struct Context : public BldcServoControl<Context> {
 
   float torque_constant_ = 0.1f;
   float flux_brake_min_voltage_ = 0.0f;
-  float fw_id_char_at_max_current_ = 0.0f;
   float derate_temperature_ = 50.0f;
   float motor_derate_temperature_ = 80.0f;
   uint8_t isr_motor_position_epoch_ = 0;
@@ -671,7 +670,7 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoCurrentFieldWeakening) {
   ctx.config_.fw.bandwidth_hz = 100.0f;
   ctx.config_.fw.modulation_margin = 0.05f;
   ctx.UpdateDerivedMotorConstants();
-  ctx.fw_id_char_at_max_current_ = ctx.status_.fw.id_char;
+  ctx.UpdateFieldWeakeningIdChar();
   ctx.motor_position_config_val.output.sign = 1;
 
   // Set speed above base velocity.
