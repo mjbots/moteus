@@ -7,6 +7,7 @@
 #include "fw/bldc_servo.h"
 #include "fw/fdcan.h"
 #include "mjlib/multiplex/micro_server.h"
+#include "fw/errc.h"
 
 namespace moteus {
 
@@ -16,6 +17,17 @@ public:
                  BldcServo *bldc_servo, FDCan *fdcan)
       : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo),
         fdcan_(fdcan) {}
+
+  enum Mask : uint8_t {
+    dir_offset = 10,
+    node_offset = 5,
+    cmd_offset = 0,
+  };
+
+  enum Dir : uint8_t {
+    kReceive = 0,
+    kSend = 1,
+  };
 
   enum CmdId : uint8_t {
     CAN_CMD_MOTOR_DISABLE = 0,
@@ -69,17 +81,17 @@ public:
   bool HandleFrame(uint32_t can_id, int dlc, const char *data) {
     static DigitalOut debug_led_canfd(PB_15, 0);
 
-    const uint8_t dir = (can_id >> 10) & 0x01;
-    if (dir != 0) {
+    const uint8_t dir = (can_id >> dir_offset) & 0x01;
+    if (dir != kReceive) {
       return false;
     }
 
-    const uint8_t node_id = (can_id >> 5) & 0x1F;
+    const uint8_t node_id = (can_id >> node_offset) & 0x1F;
     if (node_id != multiplex_protocol_->config()->id) {
       return false;
     }
 
-    const uint8_t cmd_id = (can_id >> 0) & 0x1F;
+    const uint8_t cmd_id = (can_id >> cmd_offset) & 0x1F;
     if (cmd_id >= CAN_CMD_COUNT) {
       return false;
     }
@@ -114,22 +126,13 @@ private:
     if (bldc_servo_ == nullptr) {
       return false;
     }
-    const auto current_mode = bldc_servo_->status().mode;
-    if (current_mode == BldcServo::Mode::kStopped) {
-      char buf[8] = {0};
-      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
-                    CAN_CMD_MOTOR_DISABLE,
-                8, buf);
-      return true;
-    } else {
-      custom_command_.mode = BldcServo::Mode::kStopped;
-      bldc_servo_->Command(custom_command_);
-      char buf[8] = {0};
-      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
-                    CAN_CMD_MOTOR_DISABLE,
-                8, buf);
-      return true;
-    }
+    char reply[4] = {0};
+    custom_command_.mode = BldcServo::Mode::kStopped;
+    bldc_servo_->Command(custom_command_);
+    SendFrame(kSend << dir_offset |
+                  (multiplex_protocol_->config()->id << node_offset) |
+                  CAN_CMD_MOTOR_DISABLE,
+              4, reply);
     return false;
   }
 
@@ -137,29 +140,36 @@ private:
     if (bldc_servo_ == nullptr) {
       return false;
     }
-    const auto current_mode = bldc_servo_->status().mode;
-    if (current_mode == BldcServo::Mode::kPosition) {
-      char buf[8] = {0};
-      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
-                    CAN_CMD_MOTOR_ENABLE,
-                8, buf);
-      return true;
-    }
-    if (current_mode == BldcServo::Mode::kStopped ||
-        current_mode == BldcServo::Mode::kFault) {
-      char buf[8] = {1};
-      buf[0] = 1;
-      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
-                    CAN_CMD_MOTOR_ENABLE,
-                8, buf);
+    if (bldc_servo_->status().mode == BldcServo::Mode::kFault) {
       return false;
-    } else {
-      custom_command_.mode = BldcServo::Mode::kPosition;
-      bldc_servo_->Command(custom_command_);
-      char buf[8] = {0};
-      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
+    }
+
+    BldcServo::CommandData command;
+    custom_command_.mode = BldcServo::Mode::kPosition;
+    custom_command_.position = std::numeric_limits<float>::quiet_NaN();
+    custom_command_.velocity = 0.0f;
+    custom_command_.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    bldc_servo_->Command(custom_command_);
+
+    if (bldc_servo_->status().fault != errc::kSuccess) {
+      int32_t fault_value = static_cast<int32_t>(bldc_servo_->status().fault);
+      char reply[4] = {0};
+      reply[0] = fault_value & 0xFF;
+      reply[1] = (fault_value >> 8) & 0xFF;
+      reply[2] = (fault_value >> 16) & 0xFF;
+      reply[3] = (fault_value >> 24) & 0xFF;
+      SendFrame(kSend << dir_offset |
+                    (multiplex_protocol_->config()->id << node_offset) |
                     CAN_CMD_MOTOR_ENABLE,
-                8, buf);
+                4, reply);
+      return false;
+    }
+    else {
+      char reply[8] = {0};
+      SendFrame(kSend << dir_offset |
+                    (multiplex_protocol_->config()->id << node_offset) |
+                    CAN_CMD_MOTOR_ENABLE,
+                4, reply);
       return true;
     }
     return false;
