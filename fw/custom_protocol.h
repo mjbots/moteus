@@ -13,8 +13,7 @@ namespace moteus {
 class CustomProtocol {
 public:
   CustomProtocol(mjlib::multiplex::MicroServer *multiplex_protocol,
-                 BldcServo *bldc_servo,
-                 FDCan *fdcan)
+                 BldcServo *bldc_servo, FDCan *fdcan)
       : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo),
         fdcan_(fdcan) {}
 
@@ -98,10 +97,10 @@ public:
     }
     debug_led_canfd = 1;
 
-    const bool ok = (this->*(entry.handler))(dlc, data);
+    (this->*(entry.handler))(dlc, data);
 
     debug_led_canfd = 0;
-    return ok;
+    return true;
   }
 
   static bool CallbackTrampoline(uint32_t can_id, int dlc, const char *data,
@@ -115,21 +114,49 @@ private:
     if (bldc_servo_ == nullptr) {
       return false;
     }
-    custom_command_.mode = BldcServo::Mode::kStopped;
-    bldc_servo_->Command(custom_command_);
-    return true;
+    const auto current_mode = bldc_servo_->status().mode;
+    if (current_mode == BldcServo::Mode::kStopped) {
+      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
+                    CAN_CMD_MOTOR_DISABLE,
+                8, 0);
+      return true;
+    } else {
+      custom_command_.mode = BldcServo::Mode::kStopped;
+      bldc_servo_->Command(custom_command_);
+      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
+                    CAN_CMD_MOTOR_DISABLE,
+                8, 0);
+      return true;
+    }
+    return false;
   }
 
   bool HandleMotorEnable(int dlc, const char *data) {
     if (bldc_servo_ == nullptr) {
       return false;
     }
-    custom_command_.mode = BldcServo::Mode::kPosition;
-    custom_command_.position = std::numeric_limits<float>::quiet_NaN();
-    custom_command_.velocity = 0.0f;
-    custom_command_.timeout_s = std::numeric_limits<float>::quiet_NaN();
-    bldc_servo_->Command(custom_command_);
-    return true;
+    const auto current_mode = bldc_servo_->status().mode;
+    if (current_mode == BldcServo::Mode::kPosition) {
+      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
+                    CAN_CMD_MOTOR_ENABLE,
+                8, 0);
+      return true;
+    }
+    if (current_mode == BldcServo::Mode::kStopped ||
+        current_mode == BldcServo::Mode::kFault) {
+      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
+                    CAN_CMD_MOTOR_ENABLE,
+                8, 1);
+      return false;
+    } else {
+      custom_command_.mode = BldcServo::Mode::kPosition;
+      bldc_servo_->Command(custom_command_);
+      SendFrame(1 << 10 | (multiplex_protocol_->config()->id << 5) |
+                    CAN_CMD_MOTOR_ENABLE,
+                8, 0);
+      return true;
+    }
+    return false;
   }
 
   bool HandleSetTorque(int dlc, const char *data) { return true; }
