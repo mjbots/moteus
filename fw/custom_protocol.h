@@ -5,9 +5,9 @@
 #include <mbed.h>
 
 #include "fw/bldc_servo.h"
+#include "fw/error.h"
 #include "fw/fdcan.h"
 #include "mjlib/multiplex/micro_server.h"
-#include "fw/errc.h"
 
 namespace moteus {
 
@@ -163,8 +163,7 @@ private:
                     CAN_CMD_MOTOR_ENABLE,
                 4, reply);
       return false;
-    }
-    else {
+    } else {
       char reply[8] = {0};
       SendFrame(kSend << dir_offset |
                     (multiplex_protocol_->config()->id << node_offset) |
