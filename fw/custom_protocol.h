@@ -8,7 +8,7 @@ namespace moteus {
 class CustomProtocol {
  public:
   bool HandleFrame(uint32_t can_id, int dlc, const char* data) {
-    DigitalOut debugled(PB_15, 0);
+    DigitalOut debugled(PB_15, 1);
     return false;
   }
 
