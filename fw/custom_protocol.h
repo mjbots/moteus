@@ -52,7 +52,7 @@ public:
 
   struct CmdEntry {
     int8_t expected_dlc;
-    bool (CustomProtocol::*handler)(int dlc, const uint8_t *data);
+    bool (CustomProtocol::*handler)(int dlc, const char *data);
   };
 
   bool HandleFrame(uint32_t can_id, int dlc, const char *data) {
