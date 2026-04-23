@@ -261,7 +261,8 @@ int main(void) {
       moteus_controller.bldc_servo());
 
   CustomProtocol custom_protocol(&multiplex_protocol,
-                                 moteus_controller.bldc_servo());
+                                 moteus_controller.bldc_servo(),
+                                 &fdcan);
   fdcan_micro_server.SetCustomHandler(
       CustomProtocol::CallbackTrampoline, &custom_protocol);
 

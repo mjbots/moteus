@@ -5,6 +5,7 @@
 #include <mbed.h>
 
 #include "fw/bldc_servo.h"
+#include "fw/fdcan.h"
 #include "mjlib/multiplex/micro_server.h"
 
 namespace moteus {
@@ -12,8 +13,10 @@ namespace moteus {
 class CustomProtocol {
 public:
   CustomProtocol(mjlib::multiplex::MicroServer *multiplex_protocol,
-                 BldcServo *bldc_servo)
-      : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo) {}
+                 BldcServo *bldc_servo,
+                 FDCan *fdcan)
+      : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo),
+        fdcan_(fdcan) {}
 
   enum CmdId : uint8_t {
     CAN_CMD_MOTOR_DISABLE = 0,
@@ -54,7 +57,16 @@ public:
     int8_t expected_dlc;
     bool (CustomProtocol::*handler)(int dlc, const char *data);
   };
-
+  bool SendFrame(uint32_t can_id, int dlc, const char *data) {
+    if (fdcan_ == nullptr || dlc < 0 || dlc > 64) {
+      return false;
+    }
+    FDCan::SendOptions options;
+    options.fdcan_frame = FDCan::Override::kRequire;
+    options.bitrate_switch = FDCan::Override::kRequire;
+    fdcan_->Send(can_id, std::string_view(data, dlc), options);
+    return true;
+  }
   bool HandleFrame(uint32_t can_id, int dlc, const char *data) {
     static DigitalOut debug_led_canfd(PB_15, 0);
 
@@ -103,24 +115,23 @@ private:
     if (bldc_servo_ == nullptr) {
       return false;
     }
-    BldcServo::CommandData command;
-    command.mode = BldcServo::Mode::kStopped;
-    bldc_servo_->Command(command);
+    custom_command_.mode = BldcServo::Mode::kStopped;
+    bldc_servo_->Command(custom_command_);
     return true;
   }
+
   bool HandleMotorEnable(int dlc, const char *data) {
     if (bldc_servo_ == nullptr) {
       return false;
     }
-    BldcServo::CommandData command;
-    command.mode = BldcServo::Mode::kPosition;
-    command.position = std::numeric_limits<float>::quiet_NaN();
-    command.velocity = 0.0f;
-    command.max_torque_Nm = 10.0f;
-    command.timeout_s = std::numeric_limits<float>::quiet_NaN();
-    bldc_servo_->Command(command);
+    custom_command_.mode = BldcServo::Mode::kPosition;
+    custom_command_.position = std::numeric_limits<float>::quiet_NaN();
+    custom_command_.velocity = 0.0f;
+    custom_command_.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    bldc_servo_->Command(custom_command_);
     return true;
   }
+
   bool HandleSetTorque(int dlc, const char *data) { return true; }
   bool HandleSetVelocity(int dlc, const char *data) { return true; }
   bool HandleSetPosition(int dlc, const char *data) { return true; }
@@ -193,6 +204,9 @@ private:
 
   mjlib::multiplex::MicroServer *const multiplex_protocol_;
   BldcServo *const bldc_servo_;
+  FDCan *const fdcan_;
+  BldcServo::CommandData custom_command_;
+  BldcServo::CommandData custom_command_private_;
 };
 
 } // namespace moteus
