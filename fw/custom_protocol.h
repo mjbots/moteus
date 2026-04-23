@@ -164,7 +164,7 @@ private:
                 4, reply);
       return false;
     } else {
-      char reply[8] = {0};
+      char reply[4] = {0};
       SendFrame(kSend << dir_offset |
                     (multiplex_protocol_->config()->id << node_offset) |
                     CAN_CMD_MOTOR_ENABLE,
