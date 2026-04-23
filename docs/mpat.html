@@ -1616,9 +1616,13 @@ class Motor {
               'max_motor_temp');
 
       // Then the rotor velocity limited by controller maximum power.
+      // The quadratic is in rotor-space (d0, d1, Pcopper_q are all
+      // rotor-space), so Pmech = 2*pi*T_rotor*v_rotor requires the
+      // rotor torque, not the output torque.
+      const rotorTorque = torque / config.gear_reduction;
       const vControllerPower =
             new LimitedValue(
-              (-pi * torque - d0 * pi + Math.sqrt(Math.pow(pi * torque, 2) + 2 * d0 * pi * pi * torque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper_q) * d1 * pi)) / (2 * d1 * pi),
+              (-pi * rotorTorque - d0 * pi + Math.sqrt(Math.pow(pi * rotorTorque, 2) + 2 * d0 * pi * pi * rotorTorque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper_q) * d1 * pi)) / (2 * d1 * pi),
               'max_controller_power');
 
       const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);

@@ -555,5 +555,230 @@ class MpatTest(unittest.TestCase):
                     msg=f"{ctrl} {motor}: {data['velocity']:.2f} != {expected_vel}")
 
 
+    # --- Gear reduction tests ---
+    #
+    # gear_reduction is the rotor-to-output ratio: output_vel =
+    # rotor_vel / gear_reduction and output_torque = rotor_torque *
+    # gear_reduction.  Motor parameters (Kv, R, L_d, poles, d0, d1)
+    # and phase currents are rotor-space; the CLI's --velocity and
+    # --torque are output-space.  The physics are identical at a
+    # matched rotor operating point regardless of gear ratio, so a
+    # configuration at (gear=N, out_vel=V, out_torque=N*T) should
+    # report the same rotor-space quantities as (gear=1, out_vel=N*V,
+    # out_torque=T).
+
+    def test_gear_reduction_scales_max_velocity_inversely(self):
+        """Zero-torque max_velocity (back-EMF limited) at gear=2 is
+        half the direct-drive value."""
+        direct = self.run_mpat_json(
+            "--analysis", "max_velocity",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--torque", "0",
+            "--gear_reduction", "1",
+            "--field_weakening", "off",
+            "--motor_cooling", "max")
+        geared = self.run_mpat_json(
+            "--analysis", "max_velocity",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--torque", "0",
+            "--gear_reduction", "2",
+            "--field_weakening", "off",
+            "--motor_cooling", "max")
+        self.assertIsNotNone(direct)
+        self.assertIsNotNone(geared)
+        self.assertAlmostEqual(
+            geared["velocity"], direct["velocity"] / 2.0, places=3)
+
+    def test_gear_reduction_rotor_invariance_below_base_speed(self):
+        """Matched rotor conditions via different gear ratios produce
+        identical phase currents and losses when operating below base
+        speed (no field weakening engaged)."""
+        direct = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "48",
+            "--velocity", "10",
+            "--torque", "0.1",
+            "--gear_reduction", "1",
+            "--field_weakening", "on")
+        geared = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "48",
+            "--velocity", "5",
+            "--torque", "0.2",
+            "--gear_reduction", "2",
+            "--field_weakening", "on")
+        self.assertIsNotNone(direct)
+        self.assertIsNotNone(geared)
+        # Rotor-space quantities must match exactly.
+        self.assertAlmostEqual(
+            geared["q_current"], direct["q_current"], places=6)
+        self.assertEqual(geared["d_current"], 0)
+        self.assertEqual(direct["d_current"], 0)
+        self.assertAlmostEqual(
+            geared["phase_current"], direct["phase_current"], places=6)
+        self.assertAlmostEqual(
+            geared["copper_loss"], direct["copper_loss"], places=6)
+        self.assertAlmostEqual(
+            geared["iron_loss"], direct["iron_loss"], places=6)
+
+    def test_gear_reduction_scales_output_torque(self):
+        """max_torque scales with gear_reduction at matched rotor
+        speed (output torque equals rotor torque times gear ratio)."""
+        direct = self.run_mpat_json(
+            "--analysis", "max_torque",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "48",
+            "--velocity", "10",
+            "--gear_reduction", "1",
+            "--field_weakening", "off",
+            "--motor_cooling", "max",
+            "--time", "2")
+        geared = self.run_mpat_json(
+            "--analysis", "max_torque",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "48",
+            "--velocity", "5",
+            "--gear_reduction", "2",
+            "--field_weakening", "off",
+            "--motor_cooling", "max",
+            "--time", "2")
+        self.assertIsNotNone(direct)
+        self.assertIsNotNone(geared)
+        self.assertAlmostEqual(
+            geared["torque"], 2.0 * direct["torque"], places=3)
+        # Same phase current since the rotor is at an identical
+        # operating point in both cases.
+        self.assertAlmostEqual(
+            geared["phase_current"], direct["phase_current"], places=6)
+
+    def test_gear_reduction_fw_engages_at_scaled_output_velocity(self):
+        """Field weakening onset is governed by rotor (not output)
+        speed.  At output velocity 55 Hz with gear=2 the rotor is at
+        110 Hz and FW engages; with gear=1 the rotor is only at 55 Hz
+        and FW stays dormant."""
+        direct = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "55",
+            "--torque", "0.1",
+            "--gear_reduction", "1",
+            "--field_weakening", "on")
+        geared = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "55",
+            "--torque", "0.1",
+            "--gear_reduction", "2",
+            "--field_weakening", "on")
+        self.assertFieldEqual(direct, "d_current", 0)
+        self.assertFieldLess(geared, "d_current", 0)
+
+    def test_gear_reduction_fw_rotor_invariance_above_base(self):
+        """Matched rotor conditions above base speed yield identical
+        d_current, q_current, and losses across gear ratios."""
+        direct = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "120",
+            "--torque", "0.1",
+            "--gear_reduction", "1",
+            "--field_weakening", "on")
+        geared = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "60",
+            "--torque", "0.2",
+            "--gear_reduction", "2",
+            "--field_weakening", "on")
+        self.assertIsNotNone(direct)
+        self.assertIsNotNone(geared)
+        self.assertAlmostEqual(
+            geared["q_current"], direct["q_current"], places=6)
+        self.assertAlmostEqual(
+            geared["d_current"], direct["d_current"], places=6)
+        self.assertAlmostEqual(
+            geared["phase_current"], direct["phase_current"], places=6)
+        self.assertAlmostEqual(
+            geared["copper_loss"], direct["copper_loss"], places=6)
+        self.assertAlmostEqual(
+            geared["iron_loss"], direct["iron_loss"], places=6)
+
+    def test_gear_reduction_fw_off_above_base_null_regardless_of_gear(self):
+        """With FW off, max_torque above the gear-scaled base speed
+        returns null whether gear_reduction is 1 or 2."""
+        direct = self.run_mpat_json(
+            "--analysis", "max_torque",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "120",
+            "--gear_reduction", "1",
+            "--field_weakening", "off",
+            "--motor_cooling", "max",
+            "--time", "2")
+        geared = self.run_mpat_json(
+            "--analysis", "max_torque",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "60",
+            "--gear_reduction", "2",
+            "--field_weakening", "off",
+            "--motor_cooling", "max",
+            "--time", "2")
+        self.assertIsNone(direct)
+        self.assertIsNone(geared)
+
+    def test_gear_reduction_max_velocity_rotor_invariance(self):
+        """At matched rotor conditions, max_velocity_output scales as
+        1/gear_reduction even when the non-FW analytical
+        controller-power path in Motor.getVelocityFromThermalPowerAndTorque
+        is evaluated (mad8318 at 24V, torque=3 on gear=1 is back-EMF
+        limited at ~39.76 Hz; gear=2 at output_torque=6 must yield
+        ~19.88 Hz)."""
+        direct = self.run_mpat_json(
+            "--analysis", "max_velocity",
+            "--controller", "moteus-x1",
+            "--motor", "mad8318",
+            "--voltage", "24",
+            "--torque", "3",
+            "--gear_reduction", "1",
+            "--field_weakening", "off",
+            "--motor_cooling", "max",
+            "--time", "5")
+        geared = self.run_mpat_json(
+            "--analysis", "max_velocity",
+            "--controller", "moteus-x1",
+            "--motor", "mad8318",
+            "--voltage", "24",
+            "--torque", "6",
+            "--gear_reduction", "2",
+            "--field_weakening", "off",
+            "--motor_cooling", "max",
+            "--time", "5")
+        self.assertIsNotNone(direct)
+        self.assertIsNotNone(geared)
+        self.assertAlmostEqual(
+            geared["velocity"], direct["velocity"] / 2.0, places=2)
+
+
 if __name__ == "__main__":
     unittest.main()
