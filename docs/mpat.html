@@ -1192,8 +1192,10 @@ class Controller {
     return 1.0;
   }
 
+  // Returns the no-load max speed in output-frame Hz.
   getMaxSpeed(voltage, motor, config) {
-    return voltage * motor.getKv() * this.getSpeedFactor(config) / 60.0 / config.gear_reduction;
+    const rotorHz = voltage * motor.getKv() * this.getSpeedFactor(config) / 60.0;
+    return rotorHzToOutputHz(rotorHz, config);
   }
 
   getCurrentFromThermalPower(thermalW, {voltage, pwm}) {
@@ -1338,6 +1340,32 @@ class OdriveController extends Controller {
   }
 }
 
+// Reference frames in mpat:
+//
+//   - "Rotor" / motor-shaft frame: the frame in which every stored
+//     Motor parameter (Kv, R, L_d, L_q, poles, d0, d1) lives, and
+//     in which phase currents (i_q, i_d) are defined.
+//   - "Output" frame: the load-side of the gearbox.  The CLI's
+//     --velocity and --torque, and the fields on config.velocity
+//     and config.torque, are in this frame.
+//
+// By convention every Motor method works internally in rotor frame.
+// These helpers exist so that conversions between the two frames are
+// always explicit (and greppable) at boundary crossings.  Do not
+// multiply or divide by config.gear_reduction inline.
+function outputHzToRotorHz(outputHz, config) {
+  return outputHz * config.gear_reduction;
+}
+function rotorHzToOutputHz(rotorHz, config) {
+  return rotorHz / config.gear_reduction;
+}
+function outputNmToRotorNm(outputNm, config) {
+  return outputNm / config.gear_reduction;
+}
+function rotorNmToOutputNm(rotorNm, config) {
+  return rotorNm * config.gear_reduction;
+}
+
 class Motor {
   constructor({name, displayName, maxTemp, Kv,
                R, R_pp,
@@ -1407,8 +1435,8 @@ class Motor {
     return this.productInfoValue;
   }
 
-  getBackEmf(velocityHz, config) {
-    return velocityHz * config.gear_reduction * 60 / this.getKv();
+  getBackEmf(rotorVelocityHz) {
+    return rotorVelocityHz * 60 / this.getKv();
   }
 
   getRotorTorque(current) {
@@ -1420,13 +1448,12 @@ class Motor {
               1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale);
   }
 
-  getPower(q_current, outputVelocityHz, config, d_current) {
-    const velocityHz = outputVelocityHz * config.gear_reduction;
+  getPower(q_current, rotorVelocityHz, d_current) {
     const torque = this.getRotorTorque(q_current);
-    const Pmech = 2 * Math.PI * torque * velocityHz;
+    const Pmech = 2 * Math.PI * torque * rotorVelocityHz;
     const Pcopper = 1.5 * (q_current * q_current + d_current * d_current) * this.R;
-    const ironDrag = this.d0 + this.d1 * velocityHz;
-    const Piron = velocityHz == 0 ? 0 : (2 * Math.PI * velocityHz * ironDrag);
+    const ironDrag = this.d0 + this.d1 * rotorVelocityHz;
+    const Piron = rotorVelocityHz == 0 ? 0 : (2 * Math.PI * rotorVelocityHz * ironDrag);
     return {
       torque: torque,
       Pmech: Pmech,
@@ -1436,7 +1463,7 @@ class Motor {
     };
   }
 
-  getCurrentFromThermalPowerAndVelocity(thermalW, velocityHz, maxControllerPower, supplyVoltageMargin, config) {
+  getCurrentFromThermalPowerAndVelocity(thermalW, rotorVelocityHz, maxControllerPower, supplyVoltageMargin, config) {
     // TODO: Should we model the fact that resistance tends to go up with
     // temperature?
 
@@ -1444,7 +1471,7 @@ class Motor {
     // and that phase current is measured as per moteus convention.  Thus:
     //
     // torque = Kt * I + ts * log2(1 + (I - Ic)*is)
-    // Pmech = 2 * pi * torque * velocityHz
+    // Pmech = 2 * pi * torque * rotorVelocityHz
     // Pcopper = 1.5 * I^2 * R
     // Ptotal = Pcopper + Piron + Pmech
 
@@ -1462,7 +1489,7 @@ class Motor {
       new LimitedValue(Math.sqrt(thermalLimit.value / 1.5 / this.R), thermalLimit.limitingFactor));
     // This equation is not really possible to solve directly, so lets just
     // find it numerically.  The answer is much easier if the velocity is 0.
-    if (velocityHz == 0.0) {
+    if (rotorVelocityHz == 0.0) {
       return ImaxPossible;
     }
 
@@ -1471,20 +1498,20 @@ class Motor {
     // i_d depends on i_q (via current-dependent base speed), so we
     // compute it inside the loop.
     const valid = (I) => {
-      const i_d = this.getFieldWeakeningCurrent(velocityHz, config, I);
-      const r = this.getPower(I, velocityHz, config, i_d);
+      const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, I);
+      const r = this.getPower(I, rotorVelocityHz, i_d);
       return (((r.Pcopper + r.Piron) < thermalW) &&
               (r.Ptotal < maxControllerPower) &&
-              this.isVoltageFeasible(I, velocityHz, config));
+              this.isVoltageFeasible(I, rotorVelocityHz, config));
     };
 
     const resultCurrent = bisectMaxTrue(ImaxPossible.value, valid, 0.01);
-    const i_d = this.getFieldWeakeningCurrent(velocityHz, config, resultCurrent);
-    const r = this.getPower(resultCurrent, velocityHz, config, i_d);
+    const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, resultCurrent);
+    const r = this.getPower(resultCurrent, rotorVelocityHz, i_d);
     const motorThermal = Math.abs((r.Pcopper + r.Piron) - thermalW);
     const controllerPower = Math.abs(r.Ptotal - maxControllerPower);
     const maxDelta = Math.abs(resultCurrent - ImaxPossible.value);
-    const V_phase = this.getPhaseVoltage(resultCurrent, i_d, velocityHz, config);
+    const V_phase = this.getPhaseVoltage(resultCurrent, i_d, rotorVelocityHz);
     const kSvpwmRatio = 2.0 / Math.sqrt(3);
     const V_max = config.controller.getMaxVoltageRatio(config) *
         kSvpwmRatio * 0.5 * config.voltage;
@@ -1499,8 +1526,12 @@ class Motor {
     return new LimitedValue(resultCurrent, resultReason.limitingFactor);
   }
 
-  getVelocityFromThermalPowerAndTorque(thermalW, torque, maxControllerPower, config) {
-    const current = this.getCurrentFromTorque(torque, config);
+  // Returns max output velocity (as LimitedValue) given motor and
+  // controller thermal budgets and a requested output torque.
+  // Internals work in rotor frame throughout.
+  getVelocityFromThermalPowerAndTorque(thermalW, outputTorque, maxControllerPower, config) {
+    const rotorTorque = outputNmToRotorNm(outputTorque, config);
+    const current = this.getCurrentFromTorque(outputTorque, config);
 
     // The Q axis portion of copper loss does not change with
     // velocity.  The D axis can if field weakening is enabled, and we
@@ -1534,18 +1565,16 @@ class Motor {
 
     if (fwEnabled) {
       const maxVelLimited = this.getElectricalMaxVelocity(config);
-      const maxVel = maxVelLimited.value;
+      const maxRotorVel = outputHzToRotorHz(maxVelLimited.value, config);
       const maxControllerTemp = config.controller.getMaxTemp();
-      const valid = (vel) => {
-        const outputVel = vel / config.gear_reduction;
-        const i_d = this.getFieldWeakeningCurrent(outputVel, config, current);
+      const valid = (rotorVel) => {
+        const i_d = this.getFieldWeakeningCurrent(rotorVel, config, current);
         const Pcopper_d = 1.5 * i_d * i_d * this.R;
         const totalPcopper = Pcopper_q + Pcopper_d;
-        const rotorVelocityHz = vel;
-        const ironDrag = d0 + d1 * rotorVelocityHz;
-        const Piron = rotorVelocityHz == 0 ? 0 : (2 * pi * rotorVelocityHz * ironDrag);
+        const ironDrag = d0 + d1 * rotorVel;
+        const Piron = rotorVel == 0 ? 0 : (2 * pi * rotorVel * ironDrag);
         const motorThermalOk = (totalPcopper + Piron) < thermalW;
-        const Pmech = 2 * pi * this.getRotorTorque(current) * rotorVelocityHz;
+        const Pmech = 2 * pi * this.getRotorTorque(current) * rotorVel;
         const Ptotal = Pmech + totalPcopper + Piron;
         const controllerPowerOk = Ptotal < maxControllerPower;
         // Controller temperature check: include the d-axis FW current
@@ -1560,16 +1589,14 @@ class Motor {
         const controllerTempOk =
             controllerTemp != null && controllerTemp < maxControllerTemp;
         return motorThermalOk && controllerPowerOk && controllerTempOk &&
-          this.isVoltageFeasible(current, outputVel, config);
+          this.isVoltageFeasible(current, rotorVel, config);
       };
 
-      const maxRotorVel = maxVel * config.gear_reduction;
       const resultRotorVel = bisectMaxTrue(maxRotorVel, valid, 0.01);
       if (resultRotorVel == null) return null;
 
       // Determine limiting factor
-      const outputVel = resultRotorVel / config.gear_reduction;
-      const i_d = this.getFieldWeakeningCurrent(outputVel, config, current);
+      const i_d = this.getFieldWeakeningCurrent(resultRotorVel, config, current);
       const Pcopper_d = 1.5 * i_d * i_d * this.R;
       const totalPcopper = Pcopper_q + Pcopper_d;
       const ironDrag = d0 + d1 * resultRotorVel;
@@ -1578,7 +1605,7 @@ class Motor {
       const Pmech = 2 * pi * this.getRotorTorque(current) * resultRotorVel;
       const controllerDelta = Math.abs((Pmech + totalPcopper + Piron) - maxControllerPower);
       const maxVelDelta = Math.abs(resultRotorVel - maxRotorVel);
-      const V_phase = this.getPhaseVoltage(current, i_d, outputVel, config);
+      const V_phase = this.getPhaseVoltage(current, i_d, resultRotorVel);
       const kSvpwmRatio = 2.0 / Math.sqrt(3);
       const V_max = config.controller.getMaxVoltageRatio(config) *
           kSvpwmRatio * 0.5 * config.voltage;
@@ -1602,10 +1629,10 @@ class Motor {
               new LimitedValue(voltageDelta, 'back_emf'),
               new LimitedValue(maxVelDelta, maxVelLimited.limitingFactor))))).limitingFactor;
 
-      return new LimitedValue(resultRotorVel / config.gear_reduction, limitingFactor);
+      return new LimitedValue(rotorHzToOutputHz(resultRotorVel, config), limitingFactor);
     } else {
       // We are not using field weakening, so we can use an analytical
-      // solution.
+      // solution.  All quantities here are rotor-space.
 
       const Piron_motor = thermalW - Pcopper_q;
 
@@ -1616,23 +1643,19 @@ class Motor {
               'max_motor_temp');
 
       // Then the rotor velocity limited by controller maximum power.
-      // The quadratic is in rotor-space (d0, d1, Pcopper_q are all
-      // rotor-space), so Pmech = 2*pi*T_rotor*v_rotor requires the
-      // rotor torque, not the output torque.
-      const rotorTorque = torque / config.gear_reduction;
       const vControllerPower =
             new LimitedValue(
               (-pi * rotorTorque - d0 * pi + Math.sqrt(Math.pow(pi * rotorTorque, 2) + 2 * d0 * pi * pi * rotorTorque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper_q) * d1 * pi)) / (2 * d1 * pi),
               'max_controller_power');
 
       const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
-      return new LimitedValue(rotorResult.value / config.gear_reduction,
+      return new LimitedValue(rotorHzToOutputHz(rotorResult.value, config),
                               rotorResult.limitingFactor);
     }
   }
 
   getCurrentFromTorque(outputTorque, config) {
-    const torque = outputTorque / config.gear_reduction;
+    const torque = outputNmToRotorNm(outputTorque, config);
     const cutoffTorque = this.rotationCurrentCutoff * this.kt;
     const copysign = (x, y) => Math.sign(x) === Math.sign(y) ? x : -x;
 
@@ -1650,7 +1673,7 @@ class Motor {
   }
 
   getTorqueFromCurrent(currentA, config) {
-    return this.getRotorTorque(currentA) * config.gear_reduction;
+    return rotorNmToOutputNm(this.getRotorTorque(currentA), config);
   }
 
   // Back-EMF constant in V/(rotor rev/s).
@@ -1682,9 +1705,13 @@ class Motor {
         this.L_d > 0 && this.poles > 0;
   }
 
+  // Returns the base (voltage-limit) velocity as an output-frame Hz.
+  // All math runs in rotor frame; conversion happens at the return.
   getBaseVelocity(config, i_q = 0) {
     if (!this.isFieldWeakeningEnabled(config)) {
-      return config.controller.getSpeedFactor(config) * config.voltage * this.Kv / 60.0 / config.gear_reduction;
+      const rotorVelocityHz = config.controller.getSpeedFactor(config) *
+          config.voltage * this.Kv / 60.0;
+      return rotorHzToOutputHz(rotorVelocityHz, config);
     }
 
     // With id = 0 the voltage limit at the base speed is:
@@ -1713,18 +1740,19 @@ class Motor {
     const discriminant = b * b - 4 * a * c;
     if (discriminant < 0) return 0;
 
-    const vel_rotor_hz = (-b + Math.sqrt(discriminant)) / (2 * a);
-    if (vel_rotor_hz <= 0) return 0;
+    const rotorVelocityHz = (-b + Math.sqrt(discriminant)) / (2 * a);
+    if (rotorVelocityHz <= 0) return 0;
 
-    return vel_rotor_hz / config.gear_reduction;
+    return rotorHzToOutputHz(rotorVelocityHz, config);
   }
 
-  // The electrical max velocity: back-EMF, field weakening CPSR, and
-  // the board voltage ceiling.  Does not account for thermal limits.
+  // The electrical max velocity (output-frame Hz): back-EMF, field
+  // weakening CPSR, and the board voltage ceiling.  Does not account
+  // for thermal limits.
   getElectricalMaxVelocity(config) {
-    const baseVelocity = this.getBaseVelocity(config);
+    const baseOutputVel = this.getBaseVelocity(config);
     if (!this.isFieldWeakeningEnabled(config)) {
-      return new LimitedValue(baseVelocity, 'back_emf');
+      return new LimitedValue(baseOutputVel, 'back_emf');
     }
     const fwRatio = config.controller.getMaxFieldWeakeningCurrentRatio();
     const Imax = Math.min(
@@ -1734,18 +1762,19 @@ class Motor {
     // Evaluate id_char at max FW current to account for L_d saturation.
     // Mirrors firmware CPSR calculation in BldcServoControl::ISR_CalculateDerivedQuantities().
     const I_char = this.getCharacteristicCurrent(-Imax);
-    if (I_char <= 0) return new LimitedValue(baseVelocity, 'back_emf');
+    if (I_char <= 0) return new LimitedValue(baseOutputVel, 'back_emf');
 
     const id_ratio = Imax / I_char;
     const maxCpsr = config.controller.getMaxCpsr();
     const cpsr = (id_ratio >= 1.0) ? maxCpsr : Math.min(maxCpsr, 1.0 / (1.0 - id_ratio));
 
     const absVoltageMargin = config.controller.getAbsVoltageMargin();
-    const absMaxVelocity = (config.controller.getMaxVoltage() - absVoltageMargin)
-        * this.Kv / 60.0 / config.gear_reduction;
+    const absMaxRotorVel =
+        (config.controller.getMaxVoltage() - absVoltageMargin)
+        * this.Kv / 60.0;
     return LimitedValue.min(
-        new LimitedValue(cpsr * baseVelocity, 'back_emf'),
-        new LimitedValue(absMaxVelocity, 'board_maxv'));
+        new LimitedValue(cpsr * baseOutputVel, 'back_emf'),
+        new LimitedValue(rotorHzToOutputHz(absMaxRotorVel, config), 'board_maxv'));
   }
 
   // Max velocity combining electrical (back-EMF, CPSR, board voltage)
@@ -1783,11 +1812,12 @@ class Motor {
     return LimitedValue.min(electrical, thermalVelocity);
   }
 
-  getFieldWeakeningCurrent(velocityHz, config, i_q) {
+  getFieldWeakeningCurrent(rotorVelocityHz, config, i_q) {
     if (!this.isFieldWeakeningEnabled(config)) return 0;
-    const baseVelocity = this.getBaseVelocity(config, i_q);
-    if (baseVelocity <= 0) return 0;
-    const speed_ratio = Math.abs(velocityHz) / baseVelocity;
+    const baseRotorVel = outputHzToRotorHz(
+        this.getBaseVelocity(config, i_q), config);
+    if (baseRotorVel <= 0) return 0;
+    const speed_ratio = Math.abs(rotorVelocityHz) / baseRotorVel;
     if (speed_ratio <= 1.0) return 0;
     // Fixed-point iteration for inductance saturation:
     // i_d depends on id_char which depends on L_d(i_d).
@@ -1811,15 +1841,15 @@ class Motor {
     // When base velocity is very low (high resistive drop), the
     // formula can produce i_d values that increase voltage rather
     // than reduce it.  In that case, don't apply field weakening.
-    if (this.getPhaseVoltage(i_q, i_d, velocityHz, config) >=
-        this.getPhaseVoltage(i_q, 0, velocityHz, config)) {
+    if (this.getPhaseVoltage(i_q, i_d, rotorVelocityHz) >=
+        this.getPhaseVoltage(i_q, 0, rotorVelocityHz)) {
       return 0;
     }
     return i_d;
   }
 
-  getPhaseVoltage(i_q, i_d, velocityHz, config) {
-    const omega_e = 2 * Math.PI * Math.abs(velocityHz) * config.gear_reduction * (this.poles / 2);
+  getPhaseVoltage(i_q, i_d, rotorVelocityHz) {
+    const omega_e = 2 * Math.PI * Math.abs(rotorVelocityHz) * (this.poles / 2);
     const lambda_m = this.getLambdaM();
     // V_q uses effective L_d for the d-axis coupling (saturated).
     // V_d uses base L_q for the q-axis coupling (static).
@@ -1834,10 +1864,10 @@ class Motor {
     return 0.5 * config.controller.getSpeedFactor(config) * config.voltage;
   }
 
-  isVoltageFeasible(i_q, velocityHz, config) {
+  isVoltageFeasible(i_q, rotorVelocityHz, config) {
     if (this.L_d > 0 && this.poles > 0) {
-      const i_d = this.getFieldWeakeningCurrent(velocityHz, config, i_q);
-      const V_phase = this.getPhaseVoltage(i_q, i_d, velocityHz, config);
+      const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, i_q);
+      const V_phase = this.getPhaseVoltage(i_q, i_d, rotorVelocityHz);
       // Matches firmware max_V = max_voltage_ratio * kSvpwmRatio * 0.5 * bus_V.
       const kSvpwmRatio = 2.0 / Math.sqrt(3);
       const V_max = config.controller.getMaxVoltageRatio(config) *
@@ -1845,7 +1875,7 @@ class Motor {
       return V_phase <= V_max;
     }
     // Fallback for motors without inductance/poles data.
-    const backEmf = this.getBackEmf(velocityHz, config);
+    const backEmf = this.getBackEmf(rotorVelocityHz);
     return backEmf <= this.getMaxPhaseVoltage(config) * 2;
   }
 
@@ -1855,14 +1885,15 @@ class Motor {
     result.torque = this.getTorqueFromCurrent(config.phase_current, config);
 
     const i_q = config.phase_current;
-    const i_d = this.getFieldWeakeningCurrent(config.velocity, config, i_q);
+    const rotorVelocityHz = outputHzToRotorHz(config.velocity, config);
+    const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, i_q);
     const total_phase_current = Math.sqrt(i_d * i_d + i_q * i_q);
 
     result.q_current = i_q;
     result.d_current = i_d;
     result.phase_current = total_phase_current;
 
-    const r = this.getPower(i_q, config.velocity, config, i_d);
+    const r = this.getPower(i_q, rotorVelocityHz, i_d);
     result.copper_loss = r.Pcopper;
     result.iron_loss = r.Piron;
     result.mechanical_power = r.Pmech;
@@ -2391,7 +2422,8 @@ function evaluateOperatingPoint(config) {
   if (op == null) {
     return null;
   }
-  if (!config.motor.isVoltageFeasible(op.q_current, config.velocity, config)) {
+  const rotorVelocityHz = outputHzToRotorHz(config.velocity, config);
+  if (!config.motor.isVoltageFeasible(op.q_current, rotorVelocityHz, config)) {
     op._infeasible_reason = `back_emf`;
   }
 
@@ -2404,7 +2436,7 @@ function evaluateOperatingPoint(config) {
   if (config.motor.isFieldWeakeningEnabled(config)) {
     const absVoltageMargin = config.controller.getAbsVoltageMargin();
     const absMaxVoltage = config.controller.getMaxVoltage() - absVoltageMargin;
-    if (config.motor.getBackEmf(config.velocity, config) > absMaxVoltage) {
+    if (config.motor.getBackEmf(rotorVelocityHz) > absMaxVoltage) {
       op._infeasible_reason = 'board_maxv';
     }
   }
@@ -2492,10 +2524,11 @@ function evaluateMaxTorque(config) {
         deltaT / R :
         deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
 
+  const rotorVelocityHz = outputHzToRotorHz(config.velocity, config);
   const fwEnabled = config.motor.isFieldWeakeningEnabled(config);
   let supplyVoltageMargin = fwEnabled ?
     Infinity :
-    Math.max(0, 0.5 * (config.controller.getSpeedFactor(config) * config.voltage - config.motor.getBackEmf(config.velocity, config)));
+    Math.max(0, 0.5 * (config.controller.getSpeedFactor(config) * config.voltage - config.motor.getBackEmf(rotorVelocityHz)));
 
   if (supplyVoltageMargin < 0.0) {
     return null;
@@ -2504,7 +2537,7 @@ function evaluateMaxTorque(config) {
   const motorCurrent =
         config.motor.getCurrentFromThermalPowerAndVelocity(
           thermalW,
-          config.velocity,
+          rotorVelocityHz,
           config.controller.getMaxPower(config.voltage, config.pwm),
           supplyVoltageMargin,
           config);
@@ -3662,7 +3695,8 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
           continue;
         }
 
-        const i_d = motor.getFieldWeakeningCurrent(speed, baseConfig, i_q);
+        const i_d = motor.getFieldWeakeningCurrent(
+            outputHzToRotorHz(speed, baseConfig), baseConfig, i_q);
         row.push(i_d !== 0 ? 1 : 0);
       }
       fwGrid.push(row);
