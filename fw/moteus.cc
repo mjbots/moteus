@@ -200,7 +200,7 @@ int main(void) {
       options.rd = g_hw_pins.can_rd;
 
       options.slow_bitrate = 1000000;
-      options.fast_bitrate = 5000000;
+      options.fast_bitrate = 2000000;
 
       options.fdcan_frame = true;
       options.bitrate_switch = true;
@@ -218,6 +218,7 @@ int main(void) {
   FDCanMicroServer fdcan_micro_server(&fdcan);
 
   CustomProtocol custom_protocol;
+  custom_protocol.set_node_id(multiplex_protocol.config()->id);
   fdcan_micro_server.SetCustomHandler(
       CustomProtocol::CallbackTrampoline, &custom_protocol);
 
@@ -274,7 +275,7 @@ int main(void) {
 
   const auto maybe_update_filters =
       [&can_config, &fdcan, &multi_transport, &old_can_config,
-       &old_multiplex_id, &multiplex_protocol]() {
+       &old_multiplex_id, &multiplex_protocol, &custom_protocol]() {
         // Prevent the ID from being set to an unusable value.
         if (multiplex_protocol.config()->id < 1 ||
             multiplex_protocol.config()->id > 126) {
@@ -290,6 +291,7 @@ int main(void) {
         }
         old_can_config = can_config;
         old_multiplex_id = multiplex_protocol.config()->id;
+        custom_protocol.set_node_id(old_multiplex_id);
 
         FDCan::Filter filters[4] = {};
         filters[0].id1 = (can_config.prefix << 16) | old_multiplex_id;
