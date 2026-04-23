@@ -174,34 +174,34 @@ private:
     return false;
   }
 
-  bool HandleSetTorque(int dlc, const char *data) { return true; }
-  bool HandleSetVelocity(int dlc, const char *data) { return true; }
-  bool HandleSetPosition(int dlc, const char *data) { return true; }
-  bool HandleCalibStart(int dlc, const char *data) { return true; }
-  bool HandleCalibAbort(int dlc, const char *data) { return true; }
-  bool HandleAnticoggingStart(int dlc, const char *data) { return true; }
-  bool HandleAnticoggingAbort(int dlc, const char *data) { return true; }
-  bool HandleSetHome(int dlc, const char *data) { return true; }
-  bool HandleErrorReset(int dlc, const char *data) { return true; }
-  bool HandleGetStatusword(int dlc, const char *data) { return true; }
-  bool HandleGetValue1(int dlc, const char *data) { return true; }
-  bool HandleGetValue2(int dlc, const char *data) { return true; }
-  bool HandleSetConfig(int dlc, const char *data) { return true; }
-  bool HandleGetConfig(int dlc, const char *data) { return true; }
-  bool HandleSaveAllConfig(int dlc, const char *data) { return true; }
-  bool HandleResetAllConfig(int dlc, const char *data) { return true; }
-  bool HandleSync(int dlc, const char *data) { return true; }
-  bool HandleHeartbeat(int dlc, const char *data) { return true; }
-  bool HandleStartAuto(int dlc, const char *data) { return true; }
-  bool HandleGetFwVersion(int dlc, const char *data) { return true; }
-  bool HandleDfuStart(int dlc, const char *data) { return true; }
+  bool HandleSetTorque(int dlc, const char *data) { return false; }
+  bool HandleSetVelocity(int dlc, const char *data) { return false; }
+  bool HandleSetPosition(int dlc, const char *data) { return false; }
+  bool HandleCalibStart(int dlc, const char *data) { return false; }
+  bool HandleCalibAbort(int dlc, const char *data) { return false; }
+  bool HandleAnticoggingStart(int dlc, const char *data) { return false; }
+  bool HandleAnticoggingAbort(int dlc, const char *data) { return false; }
+  bool HandleSetHome(int dlc, const char *data) { return false; }
+  bool HandleErrorReset(int dlc, const char *data) { return false; }
+  bool HandleGetStatusword(int dlc, const char *data) { return false; }
+  bool HandleGetValue1(int dlc, const char *data) { return false; }
+  bool HandleGetValue2(int dlc, const char *data) { return false; }
+  bool HandleSetConfig(int dlc, const char *data) { return false; }
+  bool HandleGetConfig(int dlc, const char *data) { return false; }
+  bool HandleSaveAllConfig(int dlc, const char *data) { return false; }
+  bool HandleResetAllConfig(int dlc, const char *data) { return false; }
+  bool HandleSync(int dlc, const char *data) { return false; }
+  bool HandleHeartbeat(int dlc, const char *data) { return false; }
+  bool HandleStartAuto(int dlc, const char *data) { return false; }
+  bool HandleGetFwVersion(int dlc, const char *data) { return false; }
+  bool HandleDfuStart(int dlc, const char *data) { return false; }
   bool HandleDfuData(int dlc, const char *data) {
     if (dlc < 1 || dlc > 8) {
       return false;
     }
-    return true;
+    return false;
   }
-  bool HandleDfuEnd(int dlc, const char *data) { return true; }
+  bool HandleDfuEnd(int dlc, const char *data) { return false; }
 
   // Dispatch table: index = cmd_id.
   //   expected_dlc:
