@@ -86,7 +86,7 @@ public:
     }
     debug_led_canfd = 1;
 
-    const bool ok = (this->*(entry.handler))(dlc, *data);
+    const bool ok = (this->*(entry.handler))(dlc, data);
 
     debug_led_canfd = 0;
     return ok;
