@@ -7,6 +7,7 @@
 #include "fw/bldc_servo.h"
 #include "fw/error.h"
 #include "fw/fdcan.h"
+#include "mjlib/micro/persistent_config.h"
 #include "mjlib/multiplex/micro_server.h"
 
 namespace moteus {
@@ -14,9 +15,10 @@ namespace moteus {
 class CustomProtocol {
 public:
   CustomProtocol(mjlib::multiplex::MicroServer *multiplex_protocol,
-                 BldcServo *bldc_servo, FDCan *fdcan)
+                 BldcServo *bldc_servo, FDCan *fdcan,
+                 mjlib::micro::PersistentConfig *persistent_config)
       : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo),
-        fdcan_(fdcan) {}
+        fdcan_(fdcan), persistent_config_(persistent_config) {}
 
   enum Mask : uint8_t {
     dir_offset = 10,
@@ -179,14 +181,63 @@ private:
     return false;
   }
 
-  bool HandleSetTorque(int dlc, const char *data) { return false; }
-  bool HandleSetVelocity(int dlc, const char *data) { return false; }
-  bool HandleSetPosition(int dlc, const char *data) { return false; }
+  bool HandleSetTorque(int dlc, const char *data) {
+    float torque;
+    std::memcpy(&torque, data, sizeof(float));
+
+    static BldcServo::CommandData command;
+    command_private_.mode = BldcServo::Mode::kTorque;
+    command_private_.torque_Nm = torque;
+    command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    // bldc_servo_->Command(command_private_);
+    return true;
+  }
+  bool HandleSetVelocity(int dlc, const char *data) {
+    float velocity;
+    std::memcpy(&velocity, data, sizeof(float));
+
+    static BldcServo::CommandData command;
+    command_private_.mode = BldcServo::Mode::kPosition;
+    command_private_.position = std::numeric_limits<float>::quiet_NaN();
+    command_private_.velocity = velocity;
+    command_private_.kp_scale = 0.0f;
+    command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    // bldc_servo_->Command(command_private_);
+    return true;
+  }
+  bool HandleSetPosition(int dlc, const char *data) {
+    float position;
+    std::memcpy(&position, data, sizeof(float));
+
+    static BldcServo::CommandData command;
+    command_private_.mode = BldcServo::Mode::kPosition;
+    command_private_.position = position;
+    command_private_.velocity = 0.0f;
+    command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
+    // bldc_servo_->Command(command_private_);
+    return true;
+  }
   bool HandleCalibStart(int dlc, const char *data) { return false; }
   bool HandleCalibAbort(int dlc, const char *data) { return false; }
   bool HandleAnticoggingStart(int dlc, const char *data) { return false; }
   bool HandleAnticoggingAbort(int dlc, const char *data) { return false; }
-  bool HandleSetHome(int dlc, const char *data) { return false; }
+  bool HandleSetHome(int dlc, const char *data) {
+    if (bldc_servo_ == nullptr) {
+      return false;
+    }
+    auto *config = bldc_servo_->motor_position_config();
+    config->output.offset = 0.0f;
+    bldc_servo_->SetOutputPositionNearest(0.0f);
+
+    const float cur_output = bldc_servo_->motor_position().position;
+    const float error = 0.0f - cur_output;
+    config->output.offset += error * config->output.sign;
+
+    bldc_servo_->SetOutputPositionNearest(0.0f);
+
+    persistent_config_->Write();
+    return true;
+  }
   bool HandleErrorReset(int dlc, const char *data) { return false; }
   bool HandleGetStatusword(int dlc, const char *data) { return false; }
   bool HandleGetValue1(int dlc, const char *data) { return false; }
@@ -252,6 +303,7 @@ private:
   mjlib::multiplex::MicroServer *const multiplex_protocol_;
   BldcServo *const bldc_servo_;
   FDCan *const fdcan_;
+  mjlib::micro::PersistentConfig *const persistent_config_;
   BldcServo::CommandData custom_command_private_;
 };
 
