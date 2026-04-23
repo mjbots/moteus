@@ -14,7 +14,8 @@ The project uses **Bazel** as its primary build system. The specific version of 
 
 Unit tests can be run with:
 
-- `tools/bazel test --config=host //:host` - Run all host based tests
+- `tools/bazel test --config=host //:host` - Run small (fast) host tests only
+- `tools/bazel test --test_size_filters= --test_tag_filters=-manual --config=host //:host` - Run full test suite including simulation regression tests (or equivalently, `./travis-ci.sh`)
 
 The project also exposes a CMake interface for client libraries but does not use CMake for the main build.
 
