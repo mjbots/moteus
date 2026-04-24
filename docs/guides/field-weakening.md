@@ -1,4 +1,6 @@
-# Field Weakening Operation
+# Field Weakening
+
+## Background
 
 moteus controllers are used to operate permanent magnet synchronous motors (PMSM).  In normal operation, the maximum no-load speed that can be achieved by a PMSM is determined by:
 
@@ -6,10 +8,10 @@ moteus controllers are used to operate permanent magnet synchronous motors (PMSM
 max_speed_hz = Kv * supply_voltage / 60
 ```
 
-With moteus, there are two further constants that are multiplied in, the space vector modulation constant, and the maximum modulation factor constant.  As of 2026, these roughly cancel out.
+With moteus, there are two further constants that are multiplied in, the space vector modulation constant, and the maximum modulation factor constant.  As of 2026, these combine to roughly:
 
 ```
-k_svpwm * k_maxmod ~= 1.0
+k_svpwm * k_maxmod ~= 0.8
 max_speed_hz = k_svpwm * k_maxmod * Kv * supply_voltage / 60
 ```
 
@@ -21,6 +23,8 @@ moteus has support for operating in the field weakening regime and thus extendin
 - **Calibration**: Field weakening relies on the specific value of the D axis inductance.  For many motors, this value can change significantly at different values of D axis current.  In order to operate stably, moteus requires a longer calibration step to measure this D axis inductance saturation scale effect.
 - **Stability**: For some motors, moteus must be calibrated at a higher `--cal-bw-hz` to operate at a speed in the field weakening regime than would be necessary if the supply voltage were high enough to not require field weakening.  Calibrating at a higher `--cal-bw-hz` will result in increased audible noise at all speeds.
 - **Hardware Limits**: Even when field weakening is enabled, moteus will restrict the maximum speed to be no more than what could be achieved if the used moteus controller was supplied with its maximum rated input voltage.  Thus if you are already operating your controller near the maximum rated board voltage, there may be minimal or no gains in speed achievable through field weakening.
+
+The [moteus performance analysis tool](https://mjbots.github.io/moteus/mpat.html) can be used to estimate the power required and performance when field weakening is enabled or disabled for a given system.
 
 ## Usage
 
@@ -62,3 +66,9 @@ When in operation, there are some diagnostic values that can be monitored:
 `servo_stats.motor_max_velocity`: This is the maximum speed moteus will permit.  Note that this is not a continuous rated speed, as temperature of the board or motor may rapidly exceed configured limits when operating at large levels of field weakening.
 
 `servo_stats.fw.id_A`: The amount of D axis current currently being used to decrease the back EMF constant.
+
+## Limitations
+
+- **Board maximum voltage**: moteus limits field weakening speed such that the back EMF produced by the motor never exceeds `servo.max_voltage` minus an appropriate margin
+- **Maximum D axis current**: `servo.fw.max_current_ratio` is multiplied by `servo.max_current_A` to determine the maximum D axis current that can be used for field weakening
+- **Thermal performance**: Field weakening operates by applying *more* power to the motor.  This means it will increase in temperature faster, reducing thermal performance.

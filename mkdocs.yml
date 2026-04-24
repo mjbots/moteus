@@ -96,6 +96,7 @@ nav:
       - Advanced Configuration:
           - Motor with Hall Effects: guides/hall-effects.md
           - Dual Encoders: guides/dual-encoders.md
+          - Field Weakening: guides/field-weakening.md
 
   - Integration:
       - integration/index.md
