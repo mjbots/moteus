@@ -260,7 +260,7 @@ private:
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
 
-    persistent_config_->Command("conf write\n", {});
+    persistent_config_->Command("conf write", {});
 
     char reply[4] = {0};
     SendFrame(kSend << dir_offset |
