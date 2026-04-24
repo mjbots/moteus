@@ -1625,6 +1625,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#limit-regenerated-power-with-servomax_regen_power_w" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limit regenerated power with servo.max_regen_power_W
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Limit regenerated power with servo.max_regen_power_W">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thermal-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thermal considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lower-the-impedance-of-your-input-supply-to-regenerative-power" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2359,6 +2398,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#limit-regenerated-power-with-servomax_regen_power_w" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limit regenerated power with servo.max_regen_power_W
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Limit regenerated power with servo.max_regen_power_W">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#thermal-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Thermal considerations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#lower-the-impedance-of-your-input-supply-to-regenerative-power" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2491,6 +2569,21 @@
 <li>use back of the envelope calculations of the form, "I know the system needs to change from velocity X Hz to velocity Y Hz in Z s, thus the acceleration is (Y - X) / Z"</li>
 <li>select a large acceleration limit that is unlikely to cause problems, say 10000Hz/s.  Then lower it progressively until your application has issues.  Select a final value a healthy margin above where the issues started.</li>
 </ul>
+<h2 id="limit-regenerated-power-with-servomax_regen_power_w">Limit regenerated power with <code>servo.max_regen_power_W</code><a class="headerlink" href="#limit-regenerated-power-with-servomax_regen_power_w" title="Permanent link">&para;</a></h2>
+<p>When generating power, by default moteus sends all of this energy back to the DC bus.  This can cause the voltage to rise if the supply has non-trivial impedance.  By setting <code>servo.max_regen_power_W</code>, you can limit how much regenerated power is allowed to flow back to the bus.  Any excess is pre-emptively dissipated in the motor windings by injecting d-axis current.</p>
+<p>For example, to allow no more than 50 watts of regeneration:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conf set servo.max_regen_power_W 50
+</span></code></pre></div>
+<p>Setting this to <code>0</code> will cause all regenerated energy to be dissipated in the motor windings, preventing any regenerative current from reaching the bus up to the limit of the maximum configured current and system voltage. Setting it to <code>nan</code> (the default) disables the feature entirely.</p>
+<p>This is most effective when used in conjunction with an acceleration limit.  The acceleration limit controls the rate at which braking torque is applied, and <code>max_regen_power_W</code> dissipates excess energy that makes it past the acceleration limit.</p>
+<h3 id="choosing-a-value">Choosing a value<a class="headerlink" href="#choosing-a-value" title="Permanent link">&para;</a></h3>
+<ul>
+<li>If your supply cannot absorb any regenerative energy (e.g. a mains powered supply with no bus capacitance), set this to a small number like <code>10</code> or <code>0</code>.</li>
+<li>If your supply can absorb some current (e.g. a battery), set this to approximately <code>V_bus * I_charge_max</code>.  For example, a 24V battery that can accept 2A of charge current: <code>servo.max_regen_power_W 48</code>.</li>
+<li>If you are unsure, start with a value of <code>0</code> and increase it until you see fault 34 again, then back off by roughly 50%.</li>
+</ul>
+<h3 id="thermal-considerations">Thermal considerations<a class="headerlink" href="#thermal-considerations" title="Permanent link">&para;</a></h3>
+<p>The d-axis current injected by this feature dissipates power as heat in the motor windings.  At the maximum current (set by <code>servo.max_current_A</code>) with resistance R, the maximum sustained dissipation is <code>1.5 * I² * R</code>.  For a motor with R=0.05Ω and max current 40A, this is 120W.  Ensure the motor can tolerate the additional heating, particularly during sustained or repeated deceleration events.</p>
 <h2 id="lower-the-impedance-of-your-input-supply-to-regenerative-power">Lower the impedance of your input supply to regenerative power<a class="headerlink" href="#lower-the-impedance-of-your-input-supply-to-regenerative-power" title="Permanent link">&para;</a></h2>
 <p>By lowering the impedance of your input supply, you decrease the rate at which the voltage rises for a given amount of regenerative energy.  There are several approaches to this.</p>
 <h3 id="increase-battery-current-rating">Increase battery current rating<a class="headerlink" href="#increase-battery-current-rating" title="Permanent link">&para;</a></h3>

@@ -2185,6 +2185,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servofwenable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fw.enable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofwmax_current_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fw.max_current_ratio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aux12pinsxmode" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3431,6 +3453,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servofwenable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fw.enable
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofwmax_current_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fw.max_current_ratio
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aux12pinsxmode" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4135,6 +4179,10 @@ limit on torque when in this timeout mode is <code>servo.max_current_A</code>.</
 <h2 id="servomotor_thermistor_ohm"><code>servo.motor_thermistor_ohm</code><a class="headerlink" href="#servomotor_thermistor_ohm" title="Permanent link">&para;</a></h2>
 <p>The resistance of any attached motor NTC thermistor as measured at 25C
 in ohms.</p>
+<h2 id="servofwenable"><code>servo.fw.enable</code><a class="headerlink" href="#servofwenable" title="Permanent link">&para;</a></h2>
+<p>If true, then operation above the base speed will be permitted.  The controller will use negative D axis current to lower the effective Kv value, resulting in increased power dissipation when above the base speed.</p>
+<h2 id="servofwmax_current_ratio"><code>servo.fw.max_current_ratio</code><a class="headerlink" href="#servofwmax_current_ratio" title="Permanent link">&para;</a></h2>
+<p>When operating in field weakening, the D axis current magnitude is limited to no more than this multiplied by <code>servo.max_current_A</code>.</p>
 <h2 id="aux12pinsxmode"><code>aux[12].pins.X.mode</code><a class="headerlink" href="#aux12pinsxmode" title="Permanent link">&para;</a></h2>
 <p>Selects what functionality will be used on the given pin.</p>
 <ul>
