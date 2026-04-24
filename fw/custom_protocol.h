@@ -10,6 +10,8 @@
 #include "mjlib/micro/command_manager.h"
 #include "mjlib/multiplex/micro_server.h"
 
+using mjlib::micro::CommandManager;
+
 namespace moteus {
 
 class CustomProtocol {
@@ -259,9 +261,22 @@ private:
     config->output.offset += error * config->output.sign;
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
-    const CommandManager::Response& response = {};
+
+    struct NullAsyncWriteStream : public mjlib::micro::AsyncWriteStream {
+      void AsyncWriteSome(const std::string_view&, const mjlib::micro::SizeCallback& callback) override {
+        callback(mjlib::micro::ErrorCode(), 0);
+      }
+    } null_stream;
+
+    bool write_success = true;
+    NullAsyncWriteStream stream;
+    CommandManager::Response response(&stream, [&write_success](mjlib::micro::ErrorCode ec, std::ptrdiff_t) {
+      if (ec) {
+        write_success = false;
+      }
+    });
     persistent_config_->Command("write", response);
-    if (response.error != CommandManager::Error::kSuccess) {
+    if (!write_success) {
       return false;
     }
 
