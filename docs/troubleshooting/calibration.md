@@ -44,7 +44,7 @@ I have observed a few less common problems associated with sense magnets.
 
 In one case, the magnet was actually glued both to the rotor and to a stationary mounting bracket, preventing the rotor from moving at all.
 
-In other cases, magnets were allowed to exceed their rated operating temperature. The magnets mjbots sells as of May 2024 are rated to 80C. If the temperature approaches that point, often above 70C, then the axis of magnetization can drift. If that is an issue, then magnets can be procured with higher rated temperatures.
+In other cases, magnets were allowed to exceed their rated operating temperature. The [magnets included with the moteus-r4, moteus-n1, and moteus-c1](https://mjbots.com/products/diametric-disc-magnet?variant=44912247013537) are rated to 70C.  If that is an issue, then magnets can be procured with higher rated temperatures, such as the [140C one from mjbots which is included with the moteus-x1](https://mjbots.com/products/diametric-disc-magnet?variant=44912246751393).
 
 Sense magnets for commutation must be rigidly affixed to the rotor, \*not\* to the output of a reducer, or any linkage that may have backlash. If the magnet is attached to a reducer, then the required angular accuracy can easily exceed what the onboard encoder is capable of measuring. Linkages with backlash have the same problem.
 
