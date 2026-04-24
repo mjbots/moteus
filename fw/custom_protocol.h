@@ -287,7 +287,8 @@ private:
               4, reply);
     return true;
   }
-  bool HandleGetStatusword(int dlc, const char *data) { return false; }
+  bool HandleGetStatusword(int dlc, const char *data) { 
+    return false; }
   bool HandleGetValue1(int dlc, const char *data) { return false; }
   bool HandleGetValue2(int dlc, const char *data) { return false; }
   bool HandleSetConfig(int dlc, const char *data) { return false; }
