@@ -10,17 +10,9 @@
 #include "mjlib/micro/command_manager.h"
 #include "mjlib/multiplex/micro_server.h"
 
-using mjlib::micro::CommandManager;
+// using mjlib::micro::CommandManager;
 
 namespace moteus {
-
-// 用于 PersistentConfig::Command 的空写入流
-class NullAsyncWriteStream : public mjlib::micro::AsyncWriteStream {
- public:
-  void AsyncWriteSome(const std::string_view&, const mjlib::micro::SizeCallback& callback) override {
-    callback(mjlib::micro::error_code(), 0);
-  }
-};
 
 class CustomProtocol {
 public:
@@ -269,33 +261,7 @@ private:
     config->output.offset += error * config->output.sign;
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
-
-<<<<<<< HEAD
-    // 使用静态的 NullAsyncWriteStream 来执行 write 命令
-    static NullAsyncWriteStream null_stream;
-    static auto null_callback = [](const mjlib::micro::error_code&) {};
-    CommandManager::Response response(&null_stream, null_callback);
-    persistent_config_->Command("write", response);
-=======
-    // 创建一个简单的 AsyncWriteStream 来捕获输出
-    struct NullAsyncWriteStream : public mjlib::micro::AsyncWriteStream {
-      void AsyncWriteSome(const std::string_view&, const mjlib::micro::SizeCallback& callback) override {
-        callback(mjlib::micro::error_code(), 0);
-      }
-    };
-
-    bool write_success = true;
-    NullAsyncWriteStream stream;
-    CommandManager::Response response(&stream, [&write_success](const mjlib::micro::error_code& ec) {
-      if (ec) {
-        write_success = false;
-      }
-    });
-    persistent_config_->Command("write", response);
-    if (!write_success) {
-      return false;
-    }
->>>>>>> parent of 663af7f (refactor(fw): 简化配置写入逻辑，移除不必要的异步流处理)
+    // persistent_config_->Command("write", response);
 
     char reply[4] = {0};
     SendFrame(kSend << dir_offset |
