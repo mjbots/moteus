@@ -7,7 +7,7 @@
 #include "fw/bldc_servo.h"
 #include "fw/error.h"
 #include "fw/fdcan.h"
-#include "mjlib/micro/persistent_config.h"
+#include "mjlib/micro/command_manager.h"
 #include "mjlib/multiplex/micro_server.h"
 
 namespace moteus {
@@ -16,9 +16,9 @@ class CustomProtocol {
 public:
   CustomProtocol(mjlib::multiplex::MicroServer *multiplex_protocol,
                  BldcServo *bldc_servo, FDCan *fdcan,
-                 mjlib::micro::PersistentConfig *persistent_config)
+                 mjlib::micro::CommandManager *command_manager)
       : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo),
-        fdcan_(fdcan), persistent_config_(persistent_config) {}
+        fdcan_(fdcan), command_manager_(command_manager) {}
 
   enum Mask : uint8_t {
     dir_offset = 10,
@@ -61,6 +61,47 @@ public:
     CAN_CMD_DFU_DATA = 30,
     CAN_CMD_DFU_END = 31,
     CAN_CMD_COUNT = 32,
+  };
+
+  enum ConfigId : uint8_t {
+    CONFIG_INVERT_MOTOR_DIR = 1,
+    CONFIG_INERTIA = 2,
+    CONFIG_TORQUE_CONSTANT = 3,
+    CONFIG_MOTOR_POLE_PAIRS = 4,
+    CONFIG_MOTOR_PHASE_RESISTANCE = 5,
+    CONFIG_MOTOR_PHASE_INDUCTANCE = 6,
+    CONFIG_CURRENT_LIMIT = 7,
+    CONFIG_VELOCITY_LIMIT = 8,
+    CONFIG_CALIB_CURRENT = 9,
+    CONFIG_CALIB_VOLTAGE = 10,
+    CONFIG_CONTROL_MODE = 11,
+    CONFIG_POS_GAIN = 12,
+    CONFIG_VEL_GAIN = 13,
+    CONFIG_VEL_INTEGRATOR_GAIN = 14,
+    CONFIG_CURRENT_CTRL_BW = 15,
+    CONFIG_ANTICOGGING_ENABLE = 16,
+    CONFIG_SYNC_TARGET_ENABLE = 17,
+    CONFIG_TARGET_VELOCITY_WINDOW = 18,
+    CONFIG_TARGET_POSITION_WINDOW = 19,
+    CONFIG_TORQUE_RAMP_RATE = 20,
+    CONFIG_VELOCITY_RAMP_RATE = 21,
+    CONFIG_POSITION_FILTER_BW = 22,
+    CONFIG_PROFILE_VELOCITY = 23,
+    CONFIG_PROFILE_ACCEL = 24,
+    CONFIG_PROFILE_DECEL = 25,
+    CONFIG_PROTECT_UNDER_VOLTAGE = 26,
+    CONFIG_PROTECT_OVER_VOLTAGE = 27,
+    CONFIG_PROTECT_OVER_CURRENT = 28,
+    CONFIG_PROTECT_I_BUS_MAX = 29,
+    CONFIG_NODE_ID = 30,
+    CONFIG_CAN_BAUDRATE = 31,
+    CONFIG_HEARTBEAT_CONSUMER_MS = 32,
+    CONFIG_HEARTBEAT_PRODUCER_MS = 33,
+    CONFIG_CALIB_VALID = 34,
+    CONFIG_ENCODER_DIR = 35,
+    CONFIG_ENCODER_OFFSET = 36,
+    CONFIG_OFFSET_LUT = 37,
+    CONFIG_COUNT = 38,
   };
 
   static constexpr int8_t kDlcAny = -1;
@@ -182,39 +223,15 @@ private:
   }
 
   bool HandleSetTorque(int dlc, const char *data) {
-    float torque;
-    std::memcpy(&torque, data, sizeof(float));
-
-    static BldcServo::CommandData command;
-    command_private_.mode = BldcServo::Mode::kTorque;
-    command_private_.torque_Nm = torque;
-    command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
-    // bldc_servo_->Command(command_private_);
+    std::memcpy(&pending_.feedforward_torque, data, sizeof(float));
     return true;
   }
   bool HandleSetVelocity(int dlc, const char *data) {
-    float velocity;
-    std::memcpy(&velocity, data, sizeof(float));
-
-    static BldcServo::CommandData command;
-    command_private_.mode = BldcServo::Mode::kPosition;
-    command_private_.position = std::numeric_limits<float>::quiet_NaN();
-    command_private_.velocity = velocity;
-    command_private_.kp_scale = 0.0f;
-    command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
-    // bldc_servo_->Command(command_private_);
+    std::memcpy(&pending_.velocity, data, sizeof(float));
     return true;
   }
   bool HandleSetPosition(int dlc, const char *data) {
-    float position;
-    std::memcpy(&position, data, sizeof(float));
-
-    static BldcServo::CommandData command;
-    command_private_.mode = BldcServo::Mode::kPosition;
-    command_private_.position = position;
-    command_private_.velocity = 0.0f;
-    command_private_.timeout_s = std::numeric_limits<float>::quiet_NaN();
-    // bldc_servo_->Command(command_private_);
+    std::memcpy(&pending_.position, data, sizeof(float));
     return true;
   }
   bool HandleCalibStart(int dlc, const char *data) { return false; }
@@ -223,6 +240,14 @@ private:
   bool HandleAnticoggingAbort(int dlc, const char *data) { return false; }
   bool HandleSetHome(int dlc, const char *data) {
     if (bldc_servo_ == nullptr) {
+      return false;
+    }
+    if (bldc_servo_->motor_position().homed < MotorPosition::Status::kRotor) {
+      char reply[4] = {0xFF};
+      SendFrame(kSend << dir_offset |
+                    (multiplex_protocol_->config()->id << node_offset) |
+                    CAN_CMD_SET_HOME,
+                4, reply);
       return false;
     }
     auto *config = bldc_servo_->motor_position_config();
@@ -235,10 +260,33 @@ private:
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
 
-    persistent_config_->Write();
+    // command_manager_->ProcessCommand("conf write\n");
+    char reply[4] = {0};
+    SendFrame(kSend << dir_offset |
+                  (multiplex_protocol_->config()->id << node_offset) |
+                  CAN_CMD_SET_HOME,
+              4, reply);
     return true;
   }
-  bool HandleErrorReset(int dlc, const char *data) { return false; }
+  bool HandleErrorReset(int dlc, const char *data) {
+    if (bldc_servo_ == nullptr) {
+      return false;
+    }
+
+    if (bldc_servo_->status().mode != BldcServo::Mode::kStopped) {
+      static BldcServo::CommandData command;
+
+      command.mode = BldcServo::Mode::kStopped;
+      bldc_servo_->Command(command);
+    }
+
+    char reply[4] = {0};
+    SendFrame(kSend << dir_offset |
+                  (multiplex_protocol_->config()->id << node_offset) |
+                  CAN_CMD_ERROR_RESET,
+              4, reply);
+    return true;
+  }
   bool HandleGetStatusword(int dlc, const char *data) { return false; }
   bool HandleGetValue1(int dlc, const char *data) { return false; }
   bool HandleGetValue2(int dlc, const char *data) { return false; }
@@ -246,7 +294,14 @@ private:
   bool HandleGetConfig(int dlc, const char *data) { return false; }
   bool HandleSaveAllConfig(int dlc, const char *data) { return false; }
   bool HandleResetAllConfig(int dlc, const char *data) { return false; }
-  bool HandleSync(int dlc, const char *data) { return false; }
+  bool HandleSync(int dlc, const char *data) {
+    if (bldc_servo_ == nullptr)
+      return false;
+    if (bldc_servo_->status().mode == BldcServo::Mode::kFault)
+      return false;
+    bldc_servo_->Command(pending_);
+    return true;
+  }
   bool HandleHeartbeat(int dlc, const char *data) { return false; }
   bool HandleStartAuto(int dlc, const char *data) { return false; }
   bool HandleGetFwVersion(int dlc, const char *data) { return false; }
@@ -303,8 +358,59 @@ private:
   mjlib::multiplex::MicroServer *const multiplex_protocol_;
   BldcServo *const bldc_servo_;
   FDCan *const fdcan_;
-  mjlib::micro::PersistentConfig *const persistent_config_;
-  BldcServo::CommandData custom_command_private_;
+  mjlib::micro::CommandManager *const command_manager_;
+  BldcServo::CommandData pending_;
+
+  // 速度                bldc_servo_->status().velocity
+  // 位置                bldc_servo_->status().position
+  // hall偏移量          bldc_servo_->motor_position().sources[0].offset_value
+  // hall值              bldc_servo_->motor_position().sources[0].raw
+  // status_code         bldc_servo_->status().mode
+  // errors_code         bldc_servo_->status().fault
+  // 板载NTC             bldc_servo_->status().fet_temp_C
+  // Iq电流              bldc_servo_->status().iq_current
+
+  uint32_t status_;
+  uint32_t errors_;
+
+  // config params
+  int32_t invert_motor_dir_;
+  float inertia_;
+  float torque_constant_;
+  int32_t motor_pole_pairs_;
+  float motor_phase_resistance_;
+  float motor_phase_inductance_;
+  float current_limit_;
+  float velocity_limit_;
+  float calib_current_;
+  float calib_voltage_;
+  int32_t control_mode_;
+  float pos_gain_;
+  float vel_gain_;
+  float vel_integrator_gain_;
+  float current_ctrl_bw_;
+  int32_t anticogging_enable_;
+  int32_t sync_target_enable_;
+  float target_velocity_window_;
+  float target_position_window_;
+  float torque_ramp_rate_;
+  float velocity_ramp_rate_;
+  float position_filter_bw_;
+  float profile_velocity_;
+  float profile_accel_;
+  float profile_decel_;
+  float protect_under_voltage_;
+  float protect_over_voltage_;
+  float protect_over_current_;
+  float protect_i_bus_max_;
+  int32_t node_id_;
+  int32_t can_baudrate_;
+  int32_t heartbeat_consumer_ms_;
+  int32_t heartbeat_producer_ms_;
+  int32_t calib_valid_;
+  int32_t encoder_dir_;
+  int32_t encoder_offset_;
+  int32_t offset_lut_;
 };
 
 } // namespace moteus
