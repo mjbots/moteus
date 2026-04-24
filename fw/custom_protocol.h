@@ -361,7 +361,7 @@ private:
   mjlib::multiplex::MicroServer *const multiplex_protocol_;
   BldcServo *const bldc_servo_;
   FDCan *const fdcan_;
-  // mjlib::micro::PersistentConfig *const persistent_config_;
+  mjlib::micro::PersistentConfig *const persistent_config_;
   BldcServo::CommandData pending_;
 
   // 速度                bldc_servo_->status().velocity
