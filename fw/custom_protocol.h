@@ -259,8 +259,11 @@ private:
     config->output.offset += error * config->output.sign;
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
-
-    persistent_config_->Command("write", {});
+    const CommandManager::Response& response = {};
+    persistent_config_->Command("write", response);
+    if (response.error != CommandManager::Error::kSuccess) {
+      return false;
+    }
 
     char reply[4] = {0};
     SendFrame(kSend << dir_offset |
