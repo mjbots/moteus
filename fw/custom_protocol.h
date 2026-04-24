@@ -16,9 +16,9 @@ class CustomProtocol {
 public:
   CustomProtocol(mjlib::multiplex::MicroServer *multiplex_protocol,
                  BldcServo *bldc_servo, FDCan *fdcan,
-                 mjlib::micro::CommandManager *command_manager)
+                 mjlib::micro::PersistentConfig *persistent_config)
       : multiplex_protocol_(multiplex_protocol), bldc_servo_(bldc_servo),
-        fdcan_(fdcan), command_manager_(command_manager) {}
+        fdcan_(fdcan), persistent_config_(persistent_config) {}
 
   enum Mask : uint8_t {
     dir_offset = 10,
@@ -223,7 +223,7 @@ private:
   }
 
   bool HandleSetTorque(int dlc, const char *data) {
-    std::memcpy(&pending_.feedforward_torque, data, sizeof(float));
+    std::memcpy(&pending_.feedforward_Nm, data, sizeof(float));
     return true;
   }
   bool HandleSetVelocity(int dlc, const char *data) {
@@ -358,7 +358,7 @@ private:
   mjlib::multiplex::MicroServer *const multiplex_protocol_;
   BldcServo *const bldc_servo_;
   FDCan *const fdcan_;
-  mjlib::micro::CommandManager *const command_manager_;
+  mjlib::micro::PersistentConfig *const persistent_config_;
   BldcServo::CommandData pending_;
 
   // 速度                bldc_servo_->status().velocity
