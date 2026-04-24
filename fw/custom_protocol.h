@@ -262,15 +262,16 @@ private:
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
 
+    // 创建一个简单的 AsyncWriteStream 来捕获输出
     struct NullAsyncWriteStream : public mjlib::micro::AsyncWriteStream {
       void AsyncWriteSome(const std::string_view&, const mjlib::micro::SizeCallback& callback) override {
-        callback(mjlib::micro::ErrorCode(), 0);
+        callback(mjlib::micro::error_code(), 0);
       }
-    } null_stream;
+    };
 
     bool write_success = true;
     NullAsyncWriteStream stream;
-    CommandManager::Response response(&stream, [&write_success](mjlib::micro::ErrorCode ec, std::ptrdiff_t) {
+    CommandManager::Response response(&stream, [&write_success](const mjlib::micro::error_code& ec) {
       if (ec) {
         write_success = false;
       }
