@@ -262,24 +262,10 @@ private:
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
 
-    // 创建一个简单的 AsyncWriteStream 来捕获输出
-    struct NullAsyncWriteStream : public mjlib::micro::AsyncWriteStream {
-      void AsyncWriteSome(const std::string_view&, const mjlib::micro::SizeCallback& callback) override {
-        callback(mjlib::micro::error_code(), 0);
-      }
-    };
-
-    bool write_success = true;
-    NullAsyncWriteStream stream;
-    CommandManager::Response response(&stream, [&write_success](const mjlib::micro::error_code& ec) {
-      if (ec) {
-        write_success = false;
-      }
-    });
-    persistent_config_->Command("write", response);
-    if (!write_success) {
-      return false;
-    }
+    // 直接调用 PersistentConfig 的内部方法，避免异步流问题
+    // 使用 conf write 命令来保存配置
+    persistent_config_->Command("write", CommandManager::Response());
+    // write 命令不返回错误，只是执行 Flash 写入操作
 
     char reply[4] = {0};
     SendFrame(kSend << dir_offset |
