@@ -14,6 +14,14 @@ using mjlib::micro::CommandManager;
 
 namespace moteus {
 
+// 用于 PersistentConfig::Command 的空写入流
+class NullAsyncWriteStream : public mjlib::micro::AsyncWriteStream {
+ public:
+  void AsyncWriteSome(const std::string_view&, const mjlib::micro::SizeCallback& callback) override {
+    callback(mjlib::micro::error_code(), 0);
+  }
+};
+
 class CustomProtocol {
 public:
   CustomProtocol(mjlib::multiplex::MicroServer *multiplex_protocol,
@@ -262,10 +270,11 @@ private:
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
 
-    // 直接调用 PersistentConfig 的内部方法，避免异步流问题
-    // 使用 conf write 命令来保存配置
-    persistent_config_->Command("write", CommandManager::Response());
-    // write 命令不返回错误，只是执行 Flash 写入操作
+    // 使用静态的 NullAsyncWriteStream 来执行 write 命令
+    static NullAsyncWriteStream null_stream;
+    static auto null_callback = [](const mjlib::micro::error_code&) {};
+    CommandManager::Response response(&null_stream, null_callback);
+    persistent_config_->Command("write", response);
 
     char reply[4] = {0};
     SendFrame(kSend << dir_offset |
