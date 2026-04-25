@@ -313,7 +313,6 @@ private:
     config->output.offset += error * config->output.sign;
 
     bldc_servo_->SetOutputPositionNearest(0.0f);
-    // persistent_config_->Command("write", response);
 
     char reply[4] = {0};
     SendFrame(kSend << dir_offset |
@@ -392,7 +391,63 @@ private:
   bool HandleCalibAbort(int dlc, const char *data) { return false; }
   bool HandleAnticoggingStart(int dlc, const char *data) { return false; }
   bool HandleAnticoggingAbort(int dlc, const char *data) { return false; }
-  bool HandleGetValue1(int dlc, const char *data) { return false; }
+  bool HandleGetValue1(int dlc, const char *data) {
+    if (bldc_servo_ == nullptr) {
+      return false;
+    }
+
+    const auto& s = bldc_servo_->status();
+    const auto& mp = bldc_servo_->motor_position();
+
+    // velocity: rev/s × 100 → int16
+    const int16_t vel_i16 =
+        static_cast<int16_t>(s.velocity * 100.0f);
+    // position: rev × 100 → int16
+    const int16_t pos_i16 =
+        static_cast<int16_t>(s.position * 100.0f);
+    // hall offset: low 16 bits of offset_value
+    const uint16_t hall_offset =
+        static_cast<uint16_t>(mp.sources[0].offset_value & 0xFFFF);
+    // hall value: raw sensor value
+    const uint16_t hall_value =
+        static_cast<uint16_t>(mp.sources[0].raw & 0xFFFF);
+    // status code: running mode
+    const uint16_t status_code =
+        static_cast<uint16_t>(s.mode);
+    // errors code
+    const uint16_t errors_code =
+        static_cast<uint16_t>(static_cast<uint32_t>(s.fault) & 0xFFFF);
+    // board NTC: °C × 10 → int16
+    const int16_t ntc_i16 =
+        static_cast<int16_t>(s.fet_temp_C * 10.0f);
+    // Iq current: A × 100 → int16
+    const int16_t iq_i16 =
+        static_cast<int16_t>(s.iq_current * 100.0f);
+
+    char reply[16] = {0};
+    reply[0]  = vel_i16 & 0xFF;
+    reply[1]  = (vel_i16 >> 8) & 0xFF;
+    reply[2]  = pos_i16 & 0xFF;
+    reply[3]  = (pos_i16 >> 8) & 0xFF;
+    reply[4]  = hall_offset & 0xFF;
+    reply[5]  = (hall_offset >> 8) & 0xFF;
+    reply[6]  = hall_value & 0xFF;
+    reply[7]  = (hall_value >> 8) & 0xFF;
+    reply[8]  = status_code & 0xFF;
+    reply[9]  = (status_code >> 8) & 0xFF;
+    reply[10] = errors_code & 0xFF;
+    reply[11] = (errors_code >> 8) & 0xFF;
+    reply[12] = ntc_i16 & 0xFF;
+    reply[13] = (ntc_i16 >> 8) & 0xFF;
+    reply[14] = iq_i16 & 0xFF;
+    reply[15] = (iq_i16 >> 8) & 0xFF;
+
+    SendFrame(kSend << dir_offset |
+                  (multiplex_protocol_->config()->id << node_offset) |
+                  CAN_CMD_GET_VALUE_1,
+              16, reply);
+    return true;
+  }
   bool HandleGetValue2(int dlc, const char *data) { return false; }
   bool HandleSetConfig(int dlc, const char *data) { return false; }
   bool HandleGetConfig(int dlc, const char *data) { return false; }
