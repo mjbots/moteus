@@ -37,6 +37,7 @@ private:
   static constexpr int8_t DlcNotUsed = -2;
 
   static constexpr uint8_t BroadcastAddress = 0x1F;
+  static constexpr uint32_t QueryAllId = 0x3FA;
 
   static constexpr uint8_t DirOffset = 10;
   static constexpr uint8_t NodeOffset = 5;
