@@ -33,16 +33,18 @@ private:
   static constexpr uint32_t FwVersionMajor = 1;
   static constexpr uint32_t FwVersionMinor = 0;
 
-  static constexpr int8_t kDlcAny = -1;
-  static constexpr int8_t kDlcNotUsed = -2;
+  static constexpr int8_t DlcAny = -1;
+  static constexpr int8_t DlcNotUsed = -2;
 
-  static constexpr uint8_t dir_offset = 10;
-  static constexpr uint8_t node_offset = 5;
-  static constexpr uint8_t cmd_offset = 0;
+  static constexpr uint8_t BroadcastAddress = 0x1F;
+
+  static constexpr uint8_t DirOffset = 10;
+  static constexpr uint8_t NodeOffset = 5;
+  static constexpr uint8_t CmdOffset = 0;
 
   enum Dir : uint8_t {
-    kReceive = 0,
-    kSend = 1,
+    Receive = 0,
+    Send = 1,
   };
 
   enum CmdId : uint8_t {
@@ -177,27 +179,27 @@ private:
   bool HandleFrame(uint32_t can_id, int dlc, const char *data) {
     static DigitalOut debug_led_canfd(PB_15, 0);
 
-    const uint8_t dir = (can_id >> dir_offset) & 0x01;
-    if (dir != kReceive) {
+    const uint8_t dir = (can_id >> DirOffset) & 0x01;
+    if (dir != Receive) {
       return false;
     }
 
-    const uint8_t node_id = (can_id >> node_offset) & 0x1F;
-    if (node_id != multiplex_protocol_->config()->id) {
+    const uint8_t node_id = (can_id >> NodeOffset) & 0x1F;
+    if ((node_id != multiplex_protocol_->config()->id) && (node_id != BroadcastAddress)) {
       return false;
     }
 
-    const uint8_t cmd_id = (can_id >> cmd_offset) & 0x1F;
+    const uint8_t cmd_id = (can_id >> CmdOffset) & 0x1F;
     if (cmd_id >= CAN_CMD_COUNT) {
       return false;
     }
 
-    const CmdEntry &entry = kCommandTable[cmd_id];
+    const CmdEntry &entry = command_table[cmd_id];
     if (entry.handler == nullptr) {
       return false;
     }
 
-    if (entry.expected_dlc == kDlcNotUsed) {
+    if (entry.expected_dlc == DlcNotUsed) {
       return false;
     }
     if (entry.expected_dlc >= 0 && dlc != entry.expected_dlc) {
@@ -223,8 +225,8 @@ private:
       bldc_servo_->Command(command);
     }
     char reply[4] = {0};
-    SendFrame(kSend << dir_offset |
-                  (multiplex_protocol_->config()->id << node_offset) |
+    SendFrame(Send << DirOffset |
+                  (multiplex_protocol_->config()->id << NodeOffset) |
                   CAN_CMD_MOTOR_DISABLE,
               4, reply);
     return true;
@@ -252,15 +254,15 @@ private:
       reply[1] = (fault_value >> 8) & 0xFF;
       reply[2] = (fault_value >> 16) & 0xFF;
       reply[3] = (fault_value >> 24) & 0xFF;
-      SendFrame(kSend << dir_offset |
-                    (multiplex_protocol_->config()->id << node_offset) |
+      SendFrame(Send << DirOffset |
+                    (multiplex_protocol_->config()->id << NodeOffset) |
                     CAN_CMD_MOTOR_ENABLE,
                 4, reply);
       return false;
     } else {
       char reply[4] = {0};
-      SendFrame(kSend << dir_offset |
-                    (multiplex_protocol_->config()->id << node_offset) |
+      SendFrame(Send << DirOffset |
+                    (multiplex_protocol_->config()->id << NodeOffset) |
                     CAN_CMD_MOTOR_ENABLE,
                 4, reply);
       return true;
@@ -298,8 +300,8 @@ private:
     }
     if (bldc_servo_->motor_position().homed < MotorPosition::Status::kRotor) {
       char reply[4] = {0xFF};
-      SendFrame(kSend << dir_offset |
-                    (multiplex_protocol_->config()->id << node_offset) |
+      SendFrame(Send << DirOffset |
+                    (multiplex_protocol_->config()->id << NodeOffset) |
                     CAN_CMD_SET_HOME,
                 4, reply);
       return false;
@@ -315,8 +317,8 @@ private:
     bldc_servo_->SetOutputPositionNearest(0.0f);
 
     char reply[4] = {0};
-    SendFrame(kSend << dir_offset |
-                  (multiplex_protocol_->config()->id << node_offset) |
+    SendFrame(Send << DirOffset |
+                  (multiplex_protocol_->config()->id << NodeOffset) |
                   CAN_CMD_SET_HOME,
               4, reply);
     return true;
@@ -335,8 +337,8 @@ private:
     }
 
     char reply[4] = {0};
-    SendFrame(kSend << dir_offset |
-                  (multiplex_protocol_->config()->id << node_offset) |
+    SendFrame(Send << DirOffset |
+                  (multiplex_protocol_->config()->id << NodeOffset) |
                   CAN_CMD_ERROR_RESET,
               4, reply);
     return true;
@@ -362,8 +364,8 @@ private:
     reply[6] = (errors_code >> 16) & 0xFF;
     reply[7] = (errors_code >> 24) & 0xFF;
 
-    SendFrame(kSend << dir_offset |
-                  (multiplex_protocol_->config()->id << node_offset) |
+    SendFrame(Send << DirOffset |
+                  (multiplex_protocol_->config()->id << NodeOffset) |
                   CAN_CMD_GET_STATUSWORD,
               8, reply);
     return true;
@@ -380,8 +382,8 @@ private:
     reply[6] = (FwVersionMinor >> 16) & 0xFF;
     reply[7] = (FwVersionMinor >> 24) & 0xFF;
 
-    SendFrame(kSend << dir_offset |
-                  (multiplex_protocol_->config()->id << node_offset) |
+    SendFrame(Send << DirOffset |
+                  (multiplex_protocol_->config()->id << NodeOffset) |
                   CAN_CMD_GET_FW_VERSION,
               8, reply);
     return true;
@@ -442,8 +444,8 @@ private:
     reply[14] = iq_i16 & 0xFF;
     reply[15] = (iq_i16 >> 8) & 0xFF;
 
-    SendFrame(kSend << dir_offset |
-                  (multiplex_protocol_->config()->id << node_offset) |
+    SendFrame(Send << DirOffset |
+                  (multiplex_protocol_->config()->id << NodeOffset) |
                   CAN_CMD_GET_VALUE_1,
               16, reply);
     return true;
@@ -462,25 +464,25 @@ private:
   // Dispatch table: index = cmd_id.
   //   expected_dlc:
   //     >= 0          : exact match required
-  //     kDlcAny  (-1) : any length accepted (handler checks)
-  //     kDlcNotUsed(-2): not accepted from host (device->host only or reserved)
+  //     DlcAny  (-1) : any length accepted (handler checks)
+  //     DlcNotUsed(-2): not accepted from host (device->host only or reserved)
   //   handler == nullptr: unknown/unused slot
-  static constexpr CmdEntry kCommandTable[CAN_CMD_COUNT] = {
+  static constexpr CmdEntry command_table[CAN_CMD_COUNT] = {
       /*  0 MOTOR_DISABLE      */ {0, &CustomProtocol::HandleMotorDisable},
       /*  1 MOTOR_ENABLE       */ {0, &CustomProtocol::HandleMotorEnable},
       /*  2 SET_TORQUE         */ {4, &CustomProtocol::HandleSetTorque},
       /*  3 SET_VELOCITY       */ {4, &CustomProtocol::HandleSetVelocity},
       /*  4 SET_POSITION       */ {4, &CustomProtocol::HandleSetPosition},
       /*  5 CALIB_START        */ {0, &CustomProtocol::HandleCalibStart},
-      /*  6 CALIB_REPORT       */ {kDlcNotUsed, nullptr},
+      /*  6 CALIB_REPORT       */ {DlcNotUsed, nullptr},
       /*  7 CALIB_ABORT        */ {0, &CustomProtocol::HandleCalibAbort},
       /*  8 ANTICOGGING_START  */ {0, &CustomProtocol::HandleAnticoggingStart},
-      /*  9 ANTICOGGING_REPORT */ {kDlcNotUsed, nullptr},
+      /*  9 ANTICOGGING_REPORT */ {DlcNotUsed, nullptr},
       /* 10 ANTICOGGING_ABORT  */ {0, &CustomProtocol::HandleAnticoggingAbort},
       /* 11 SET_HOME           */ {0, &CustomProtocol::HandleSetHome},
       /* 12 ERROR_RESET        */ {0, &CustomProtocol::HandleErrorReset},
       /* 13 GET_STATUSWORD     */ {0, &CustomProtocol::HandleGetStatusword},
-      /* 14 STATUSWORD_REPORT  */ {kDlcNotUsed, nullptr},
+      /* 14 STATUSWORD_REPORT  */ {DlcNotUsed, nullptr},
       /* 15 GET_VALUE_1        */ {0, &CustomProtocol::HandleGetValue1},
       /* 16 GET_VALUE_2        */ {0, &CustomProtocol::HandleGetValue2},
       /* 17 SET_CONFIG         */ {8, &CustomProtocol::HandleSetConfig},
@@ -489,14 +491,14 @@ private:
       /* 20 RESET_ALL_CONFIG   */ {0, &CustomProtocol::HandleResetAllConfig},
       /* 21 SYNC               */ {0, &CustomProtocol::HandleSync},
       /* 22 HEARTBEAT          */ {0, &CustomProtocol::HandleHeartbeat},
-      /* 23 reserved           */ {kDlcNotUsed, nullptr},
-      /* 24 reserved           */ {kDlcNotUsed, nullptr},
-      /* 25 reserved           */ {kDlcNotUsed, nullptr},
-      /* 26 reserved           */ {kDlcNotUsed, nullptr},
+      /* 23 reserved           */ {DlcNotUsed, nullptr},
+      /* 24 reserved           */ {DlcNotUsed, nullptr},
+      /* 25 reserved           */ {DlcNotUsed, nullptr},
+      /* 26 reserved           */ {DlcNotUsed, nullptr},
       /* 27 START_AUTO         */ {1, &CustomProtocol::HandleStartAuto},
       /* 28 GET_FW_VERSION     */ {0, &CustomProtocol::HandleGetFwVersion},
       /* 29 DFU_START          */ {0, &CustomProtocol::HandleDfuStart},
-      /* 30 DFU_DATA           */ {kDlcAny, &CustomProtocol::HandleDfuData},
+      /* 30 DFU_DATA           */ {DlcAny, &CustomProtocol::HandleDfuData},
       /* 31 DFU_END            */ {8, &CustomProtocol::HandleDfuEnd},
   };
 
