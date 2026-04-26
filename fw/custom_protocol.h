@@ -29,7 +29,6 @@ public:
   }
 
 private:
-
   static constexpr uint32_t FwVersionMajor = 1;
   static constexpr uint32_t FwVersionMinor = 0;
 
@@ -37,7 +36,6 @@ private:
   static constexpr int8_t DlcNotUsed = -2;
 
   static constexpr uint8_t BroadcastAddress = 0x1F;
-  static constexpr uint32_t QueryAllId = 0x3FA;
 
   static constexpr uint8_t DirOffset = 10;
   static constexpr uint8_t NodeOffset = 5;
@@ -166,6 +164,65 @@ private:
     bool (CustomProtocol::*handler)(int dlc, const char *data);
   };
 
+  enum ProtocolControlMode : int32_t {
+    ControlTorque = 0,
+    ControlVelocity = 1,
+    ControlFilteredPosition = 2,
+    ControlProfiledPosition = 3,
+  };
+
+  enum StatusWord : uint32_t {
+    StatusSwitchedOn = 1u << 0,
+    StatusTargetReached = 1u << 1,
+    StatusCurrentLimitActive = 1u << 2,
+  };
+
+  enum ErrorWord : uint32_t {
+    ErrorAdcSelftestFatal = 1u << 0,
+    ErrorEncoderOffline = 1u << 1,
+    ErrorOverVoltage = 1u << 16,
+    ErrorUnderVoltage = 1u << 17,
+    ErrorOverCurrent = 1u << 18,
+  };
+
+  uint32_t MakeStatusCode() const {
+    if (bldc_servo_ == nullptr) {
+      return 0;
+    }
+
+    const auto &status = bldc_servo_->status();
+    uint32_t result = 0;
+    if (status.mode == BldcServo::Mode::kPosition) {
+      result |= StatusSwitchedOn;
+    }
+    if (status.trajectory_done) {
+      result |= StatusTargetReached;
+    }
+    if (status.fault == errc::kLimitMaxCurrent) {
+      result |= StatusCurrentLimitActive;
+    }
+    return result;
+  }
+
+  uint32_t MakeErrorsCode() const {
+    if (bldc_servo_ == nullptr) {
+      return 0;
+    }
+
+    switch (bldc_servo_->status().fault) {
+    case errc::kOverVoltage:
+      return ErrorOverVoltage;
+    case errc::kUnderVoltage:
+      return ErrorUnderVoltage;
+    case errc::kLimitMaxCurrent:
+      return ErrorOverCurrent;
+    case errc::kEncoderFault:
+      return ErrorEncoderOffline;
+    default:
+      return 0;
+    }
+  }
+
   bool SendFrame(uint32_t can_id, int dlc, const char *data) {
     if (fdcan_ == nullptr || dlc < 0 || dlc > 64) {
       return false;
@@ -186,7 +243,8 @@ private:
     }
 
     const uint8_t node_id = (can_id >> NodeOffset) & 0x1F;
-    if ((node_id != multiplex_protocol_->config()->id) && (node_id != BroadcastAddress)) {
+    if ((node_id != multiplex_protocol_->config()->id) &&
+        (node_id != BroadcastAddress)) {
       return false;
     }
 
@@ -350,10 +408,8 @@ private:
       return false;
     }
 
-    const uint32_t status_code =
-        static_cast<uint32_t>(bldc_servo_->status().mode);
-    const uint32_t errors_code =
-        static_cast<uint32_t>(bldc_servo_->status().fault);
+    const uint32_t status_code = MakeStatusCode();
+    const uint32_t errors_code = MakeErrorsCode();
 
     char reply[8] = {0};
     reply[0] = status_code & 0xFF;
@@ -374,10 +430,6 @@ private:
 
   bool HandleGetFwVersion(int dlc, const char *data) {
     char reply[8] = {0};
-    reply[0] = FwVersionMajor & 0xFF;
-    reply[1] = (FwVersionMajor >> 8) & 0xFF;
-    reply[2] = (FwVersionMajor >> 16) & 0xFF;
-    reply[3] = (FwVersionMajor >> 24) & 0xFF;
     reply[4] = FwVersionMinor & 0xFF;
     reply[5] = (FwVersionMinor >> 8) & 0xFF;
     reply[6] = (FwVersionMinor >> 16) & 0xFF;
@@ -399,45 +451,37 @@ private:
       return false;
     }
 
-    const auto& s = bldc_servo_->status();
-    const auto& mp = bldc_servo_->motor_position();
+    const auto &s = bldc_servo_->status();
+    const auto &mp = bldc_servo_->motor_position();
 
     // velocity: rev/s × 100 → int16
-    const int16_t vel_i16 =
-        static_cast<int16_t>(s.velocity * 100.0f);
+    const int16_t vel_i16 = static_cast<int16_t>(s.velocity * 100.0f);
     // position: rev × 100 → int16
-    const int16_t pos_i16 =
-        static_cast<int16_t>(s.position * 100.0f);
+    const int16_t pos_i16 = static_cast<int16_t>(s.position * 100.0f);
     // hall offset: low 16 bits of offset_value
     const uint16_t hall_offset =
         static_cast<uint16_t>(mp.sources[0].offset_value & 0xFFFF);
     // hall value: raw sensor value
     const uint16_t hall_value =
         static_cast<uint16_t>(mp.sources[0].raw & 0xFFFF);
-    // status code: running mode
-    const uint16_t status_code =
-        static_cast<uint16_t>(s.mode);
-    // errors code
-    const uint16_t errors_code =
-        static_cast<uint16_t>(static_cast<uint32_t>(s.fault) & 0xFFFF);
+    const uint16_t status_code = static_cast<uint16_t>(MakeStatusCode());
+    const uint16_t errors_code = static_cast<uint16_t>(MakeErrorsCode());
     // board NTC: °C × 10 → int16
-    const int16_t ntc_i16 =
-        static_cast<int16_t>(s.fet_temp_C * 10.0f);
+    const int16_t ntc_i16 = static_cast<int16_t>(s.fet_temp_C * 10.0f);
     // Iq current: A × 100 → int16
-    const int16_t iq_i16 =
-        static_cast<int16_t>(s.iq_current * 100.0f);
+    const int16_t iq_i16 = static_cast<int16_t>(s.iq_current * 100.0f);
 
     char reply[16] = {0};
-    reply[0]  = vel_i16 & 0xFF;
-    reply[1]  = (vel_i16 >> 8) & 0xFF;
-    reply[2]  = pos_i16 & 0xFF;
-    reply[3]  = (pos_i16 >> 8) & 0xFF;
-    reply[4]  = hall_offset & 0xFF;
-    reply[5]  = (hall_offset >> 8) & 0xFF;
-    reply[6]  = hall_value & 0xFF;
-    reply[7]  = (hall_value >> 8) & 0xFF;
-    reply[8]  = status_code & 0xFF;
-    reply[9]  = (status_code >> 8) & 0xFF;
+    reply[0] = vel_i16 & 0xFF;
+    reply[1] = (vel_i16 >> 8) & 0xFF;
+    reply[2] = pos_i16 & 0xFF;
+    reply[3] = (pos_i16 >> 8) & 0xFF;
+    reply[4] = hall_offset & 0xFF;
+    reply[5] = (hall_offset >> 8) & 0xFF;
+    reply[6] = hall_value & 0xFF;
+    reply[7] = (hall_value >> 8) & 0xFF;
+    reply[8] = status_code & 0xFF;
+    reply[9] = (status_code >> 8) & 0xFF;
     reply[10] = errors_code & 0xFF;
     reply[11] = (errors_code >> 8) & 0xFF;
     reply[12] = ntc_i16 & 0xFF;
@@ -451,7 +495,7 @@ private:
               16, reply);
     return true;
   }
-  bool HandleGetValue2(int dlc, const char *data) { return false; }
+  bool HandleGetValue2(int dlc, const char *data) { return true; }
   bool HandleSetConfig(int dlc, const char *data) { return false; }
   bool HandleGetConfig(int dlc, const char *data) { return false; }
   bool HandleSaveAllConfig(int dlc, const char *data) { return false; }
