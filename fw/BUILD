@@ -96,6 +96,8 @@ MOTEUS_SOURCES = [
     "aux_adc.h",
     "aux_mbed.h",
     "aux_port.h",
+    "auto_calibrator.h",
+    "auto_calibrator.cc",
     "bissc.h",
     "mbed_util.h",
     "moteus_assert.cc",

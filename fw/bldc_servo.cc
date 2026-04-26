@@ -261,6 +261,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
 
   const Status& status() const { return status_; }
   const Config& config() const { return config_; }
+  Config* config() { return &config_; }
+  Motor* motor() { return &motor_; }
   const Control& control() const { return control_; }
   const AuxPort::Status& aux1() const { return *aux1_port_->status(); }
   const AuxPort::Status& aux2() const { return *aux2_port_->status(); }
@@ -417,6 +419,11 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     status_.control_acceleration = {};
 
     __enable_irq();
+  }
+
+  void ApplyConfig() {
+    motor_position_->ApplyConfig();
+    UpdateConfig();
   }
 
   void Fault(moteus::errc fault_code) {
@@ -1485,6 +1492,14 @@ const BldcServo::Config& BldcServo::config() const {
   return impl_->config();
 }
 
+BldcServo::Config* BldcServo::config() {
+  return impl_->config();
+}
+
+BldcServo::Motor* BldcServo::motor() {
+  return impl_->motor();
+}
+
 const BldcServo::Control& BldcServo::control() const {
   return impl_->control();
 }
@@ -1523,6 +1538,10 @@ void BldcServo::RequireReindex() {
 
 void BldcServo::RecapturePositionVelocity() {
   impl_->RecapturePositionVelocity();
+}
+
+void BldcServo::ApplyConfig() {
+  impl_->ApplyConfig();
 }
 
 void BldcServo::Fault(moteus::errc fault_code) {
