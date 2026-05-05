@@ -30,7 +30,9 @@ def main():
     parser.add_argument('--struct', '-s', default='hhh')
 
     # If specified, this takes precedence over the --struct option.
-    parser.add_argument('--emit-debug', '-e', default=None, type=int,
+    # Accept decimal, hex (0x...), octal (0o...), or binary (0b...) literals.
+    parser.add_argument('--emit-debug', '-e', default=None,
+                        type=lambda s: int(s, 0),
                         help="servo.emit_debug used to generate data")
 
     parser.add_argument('--plot-mode', default='subplots',
