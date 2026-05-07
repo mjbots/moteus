@@ -6,10 +6,20 @@ moteus controllers have both upgradeable firmware and a permissively licensed so
 
 The latest firmware can be downloaded from: [https://github.com/mjbots/moteus/releases](https://github.com/mjbots/moteus/releases)
 
-You need the file named YYYYMMDD-moteus-HASH.elf NOT the one named
-"bootloader".
+Each firmware release attaches two ELFs:
 
-Download that file and save it somewhere on your computer, then
+- `moteus-fw-<version>+g<sha>.elf` — the application firmware. **This
+  is the one you want for normal flashing.**
+- `moteus-bl-<version>+g<sha>.elf` — the CAN bootloader. Only needed
+  for advanced bootloader recovery via the SWD port (see below); the
+  bootloader is preinstalled on every moteus and you do not normally
+  flash it.
+
+`<version>` is the semver release (e.g. `1.0.0` or `1.0.0-rc.1`) and
+`<sha>` is the 10-character git short SHA of the commit the release
+was built from (build metadata under semver — informational only).
+
+Download `moteus-fw-...elf`, save it somewhere on your computer, and
 substitute its path in place of `path/to/file.elf` in the following
 command.
 

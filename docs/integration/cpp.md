@@ -17,7 +17,9 @@ include(FetchContent)
 FetchContent_Declare(
   moteus
   GIT_REPOSITORY https://github.com/mjbots/moteus.git
-  GIT_TAG        f14f789fefeae9caf185b950cf4e32df01d022ea
+  # Pin to a specific commit for a reproducible build.  The trailing
+  # comment names the corresponding C++ release tag for readers.
+  GIT_TAG        a1b2c3d4e5f6789012345678901234567890abcd  # cpp/v1.0.0
 )
 
 FetchContent_MakeAvailable(moteus)
@@ -25,6 +27,17 @@ FetchContent_MakeAvailable(moteus)
 add_executable(myproject myproject.cc)
 target_link_libraries(myproject moteus::cpp)
 ```
+
+Pin to the commit hash rather than the tag itself.  Tags are mutable
+in principle (they can be force-pushed or recreated), so a hash is the
+only reference that guarantees a reproducible fetch.  The
+`# cpp/vX.Y.Z` trailing comment keeps the version human-readable and
+is what you update — together with the hash — when bumping to a new
+release.
+
+The latest C++ release and its commit hash are listed on the
+[Releases page](https://github.com/mjbots/moteus/releases) — filter
+the page by typing `cpp/` to see only C++ releases.
 
 **bazel**: moteus does export [bazel](https://bazel.build) `BUILD` files and can be integrated into bazel projects using that mechanism as well.
 

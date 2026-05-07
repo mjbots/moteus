@@ -1,0 +1,42 @@
+name: Release
+
+# Manual trigger to bump a component's version, commit the change, and
+# create the tag.  After the tag is pushed, the matching
+# build-<component>-release workflow produces artifacts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'Component to release'
+        required: true
+        type: choice
+        options: [firmware, python, cpp]
+      bump:
+        description: 'Bump type or explicit version (patch | minor | major | 1.0.0-rc.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  cut:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Configure git
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+      - name: Cut release
+        run: python3 utils/release.py '${{ inputs.component }}' '${{ inputs.bump }}'
+      - name: Push branch and tag
+        run: |
+          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin --tags

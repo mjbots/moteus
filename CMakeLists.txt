@@ -22,10 +22,16 @@ target_include_directories(cpp
 # FetchContent_Declare(
 #   moteus
 #   GIT_REPOSITORY https://github.com/mjbots/moteus.git
-#   GIT_TAG        00112233445566778899aabbccddeeff00112233
+#   # Pin to a specific commit for a reproducible build.  The
+#   # trailing comment names the corresponding cpp/v* release tag.
+#   GIT_TAG        a1b2c3d4e5f6789012345678901234567890abcd  # cpp/v1.0.0
 # )
 #
 # FetchContent_MakeAvailable(moteus)
 #
 # add_executable(myproject myproject.cc)
 # target_link_libraries(myproject moteus::cpp)
+#
+# Hashes (rather than tag names alone) are what guarantee a
+# reproducible fetch — tags are mutable in principle.  See
+# docs/integration/cpp.md for more.

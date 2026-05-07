@@ -1,0 +1,88 @@
+name: Build firmware release
+
+on:
+  push:
+    tags:
+      - 'firmware/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        run: |
+          sudo apt update
+          sudo apt install -y python3-build python3-can python3-serial python3-setuptools \
+              python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata \
+              python3-scipy python3-usb mypy nodejs
+          wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          sudo apt install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+
+      - name: Build firmware
+        run: tools/bazel build --config=target -c opt //:target
+
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          version="${GITHUB_REF_NAME#firmware/v}"
+          sha="${GITHUB_SHA:0:10}"
+          # Filename uses semver build-metadata syntax: <version>+g<sha>.
+          # The +g<sha> identifies which commit produced this binary
+          # without affecting semver precedence (build metadata is
+          # ignored for ordering).
+          stamp="${version}+g${sha}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          mkdir -p release
+          cp bazel-bin/fw/moteus.elf         "release/moteus-fw-${stamp}.elf"
+          cp bazel-bin/fw/can_bootloader.elf "release/moteus-bl-${stamp}.elf"
+          (cd release && sha256sum * > SHA256SUMS)
+
+      # Firmware owns the repo's "Latest" badge, but only when the new
+      # release is actually the highest version shipped.  A patch on an
+      # older minor (1.0.1 cut from release/firmware-1.0.x after 1.1.0
+      # has already shipped) must not steal the badge from 1.1.0.
+      # Pre-releases never claim it.
+      - name: Decide if this release should be marked latest
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          new_ver="${{ steps.stage.outputs.version }}"
+          if [[ "$new_ver" == *-* ]]; then
+              echo "make_latest=false" >> "$GITHUB_OUTPUT"
+              exit 0
+          fi
+          highest=$(gh release list --limit 1000 \
+              --json tagName,isPrerelease,isDraft \
+              --jq '.[] | select(.tagName | startswith("firmware/v")) | select(.isPrerelease == false) | select(.isDraft == false) | .tagName' \
+              | sed 's|^firmware/v||' \
+              | grep -v "^${new_ver}\$" \
+              | sort -V | tail -1)
+          if [[ -z "$highest" ]] || \
+             [[ "$(printf '%s\n%s' "$highest" "$new_ver" | sort -V | tail -1)" == "$new_ver" ]]; then
+              echo "make_latest=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "make_latest=false (highest existing is $highest)" >&2
+              echo "make_latest=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          name: 'firmware v${{ steps.stage.outputs.version }}'
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          make_latest: ${{ steps.latest.outputs.make_latest }}
+          # Releases land as drafts so a maintainer can flash and
+          # validate the artifacts before they go public.  Publish
+          # from the GitHub UI, or from the CLI:
+          #   gh release edit firmware/vX.Y.Z --draft=false
+          draft: true
+          generate_release_notes: true

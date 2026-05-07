@@ -1,0 +1,65 @@
+name: Build python release
+
+on:
+  push:
+    tags:
+      - 'python/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        run: |
+          sudo apt update
+          sudo apt install -y python3-build python3-can python3-serial python3-setuptools \
+              python3-pyelftools python3-qtpy python3-wheel python3-importlib-metadata \
+              python3-scipy python3-usb mypy nodejs
+
+      - name: Build wheels and sdists
+        run: |
+          tools/bazel build --config=host \
+              //lib/python:bdist_wheel \
+              //utils/gui:bdist_wheel
+
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          version="${GITHUB_REF_NAME#python/v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          # PEP 440 pre-release suffixes: aN, bN, rcN, .devN.
+          # post releases are NOT pre-releases.
+          if [[ "$version" =~ (a|b|rc|\.dev)[0-9]+$ ]]; then
+              echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+              echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          mkdir -p release
+          cp "bazel-bin/lib/python/moteus-${version}-py3-none-any.whl"     release/
+          cp "bazel-bin/lib/python/moteus-${version}.tar.gz"               release/
+          cp "bazel-bin/utils/gui/moteus_gui-${version}-py3-none-any.whl"  release/
+          cp "bazel-bin/utils/gui/moteus_gui-${version}.tar.gz"            release/
+          (cd release && sha256sum * > SHA256SUMS)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          name: 'python v${{ steps.stage.outputs.version }}'
+          prerelease: ${{ steps.stage.outputs.prerelease == 'true' }}
+          # Firmware owns the "Latest" badge; python releases never claim it.
+          make_latest: false
+          # Released as a draft.  Publish via the GitHub UI or:
+          #   gh release edit python/vX.Y.Z --draft=false
+          # Promoting the draft fires the publish-python-pypi.yml workflow,
+          # which uploads the wheel + sdist to PyPI via OIDC trusted
+          # publishing.
+          draft: true
+          generate_release_notes: true

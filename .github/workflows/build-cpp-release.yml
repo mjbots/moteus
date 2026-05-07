@@ -1,0 +1,43 @@
+name: Build cpp release
+
+# The C++ client is header-only and is normally consumed via CMake
+# FetchContent pointing at the cpp/v* tag.  This workflow exists only
+# to create a GitHub Release page with auto-generated source archives
+# (Source code (tar.gz)/(zip)) so users have a downloadable artifact.
+
+on:
+  push:
+    tags:
+      - 'cpp/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - id: stage
+        run: echo "version=${GITHUB_REF_NAME#cpp/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: 'cpp v${{ steps.stage.outputs.version }}'
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # Firmware owns the "Latest" badge; cpp releases never claim it.
+          make_latest: false
+          # Released as a draft.  Publish via the GitHub UI or:
+          #   gh release edit cpp/vX.Y.Z --draft=false
+          draft: true
+          generate_release_notes: true
+          # No `files:` — GitHub auto-attaches whole-repo source archives
+          # to every Release.  To ship a tailored client-only tarball
+          # instead, add a step that runs e.g.:
+          #   tar czf moteus-cpp-${version}.tar.gz \
+          #       CMakeLists.txt LICENSE lib/cpp/mjbots/moteus
+          # and list it under `files:`.
