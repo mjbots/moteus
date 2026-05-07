@@ -248,11 +248,14 @@ BOOST_AUTO_TEST_CASE(SimVelocityAcrossBusVoltages) {
 
   // Expected velocities based on motor Kv = 304 RPM/V.
   // At back-EMF limit with SVPWM modulation, achieved velocity is
-  // approximately 4.1 rev/s per volt of bus voltage in simulation.
+  // approximately 3.6 rev/s per volt of bus voltage in simulation.
+  // The exact ratio depends on max_pwm = 1 − 2 × t_settle × pwm_rate,
+  // which is gain-dependent (csa_gain=20 → t_settle=1.5 µs at 30 kHz
+  // → max_pwm = 0.91).
   const VoltageTest tests[] = {
-      {18.0f, 73.6f},   // 18V
-      {24.0f, 98.2f},   // 24V
-      {36.0f, 148.0f},  // 36V
+      {18.0f, 64.7f},   // 18V
+      {24.0f, 86.3f},   // 24V
+      {36.0f, 129.5f},  // 36V
   };
 
   for (const auto& test : tests) {
@@ -327,12 +330,15 @@ BOOST_AUTO_TEST_CASE(SimVelocityAcrossBusVoltages) {
                << test.expected_velocity << " +/- " << test.tolerance_pct << "%");
 
     // Check 3: Velocity scales roughly linearly with bus voltage
-    // (back-EMF limited behavior). Expected ~4.5 rev/s per volt.
+    // (back-EMF limited behavior).  At csa_gain=20 / 30 kHz pwm,
+    // max_pwm ≈ 0.91 gives ~3.6 rev/s per volt; the band below
+    // covers gain settings 5–40 with a small motor-parameter
+    // tolerance.
     const float velocity_per_volt = mean_velocity / test.bus_voltage;
     BOOST_CHECK_MESSAGE(
-        velocity_per_volt >= 4.0f && velocity_per_volt <= 5.0f,
+        velocity_per_volt >= 3.5f && velocity_per_volt <= 4.5f,
         "Bus " << test.bus_voltage << "V: velocity/volt ratio out of range, "
-               << "got " << velocity_per_volt << " expected [4.0, 5.0]");
+               << "got " << velocity_per_volt << " expected [3.5, 4.5]");
 
     // Check 4: D-axis current mean should be near zero (no field weakening needed)
     // On real hardware, d_A is essentially 0. Allow small margin for simulation.
@@ -1330,16 +1336,16 @@ BOOST_AUTO_TEST_CASE(SimMj5208VoltageLimitNoise) {
   ctx.pid_position_config.ki = 1.0f;
   ctx.pid_position_config.kd = 0.05f;
 
-  // To reproduce the noise-driven failure mode, uncomment the four
-  // assignments below.  They enable the opt-in phase-current
-  // measurement noise model in SimulationContext (see the
-  // comment on ApplyCsaSettlingNoise for what each parameter
-  // means) and are from desk calibrated traces.
+  // Enable the opt-in phase-current measurement noise model with
+  // hardware-calibrated parameters (see ApplyCsaSettlingNoise).
   //
-//    ctx.csa_residual_tau_s       = 0.6e-6f;
-//    ctx.csa_settling_amplitude_A = 8.0f;
-//    ctx.csa_settling_clip        = 10.0f;
-//    ctx.csa_baseline_phase_std_A = 0.36f;
+  // Comment these four lines out to confirm the controller is still
+  // well-behaved against a noise-free simulator (max_outlier drops to
+  // ~0.5 A in that case).
+  ctx.csa_residual_tau_s       = 0.6e-6f;
+  ctx.csa_settling_amplitude_A = 8.0f;
+  ctx.csa_settling_clip        = 10.0f;
+  ctx.csa_baseline_phase_std_A = 0.36f;
 
   auto hold_cmd = MakePositionCommand(0.0f, 0.0f, 100.0f);
   hold_cmd.accel_limit = 4000.0f;
@@ -1411,13 +1417,13 @@ BOOST_AUTO_TEST_CASE(SimMj5208VoltageLimitNoise) {
       "Expected kLimitMaxVoltage to trigger during the move "
       "(peak_v=" << peak_abs_velocity << " rev/s)");
 
-  // mj5208 has no meaningful L_q saturation in this regime, and with
-  // the position-loop feedforwards disabled the controller doesn't
-  // fight the V-limiter — so the natural q_A trace during V-limit is
-  // very clean (max_outlier ~0.5 A).  That makes the noise model the
-  // dominant failure source: with the four ctx.csa_* assignments
-  // above un-commented, max_outlier on this scenario jumps to ~21 A.
-  constexpr float kMaxOutlier_A = 2.0f;
+  // The threshold below is set to pass the test in both the
+  // noise-on (committed default, ~4 A max_outlier) and noise-off
+  // (~0.5 A) configurations, so it acts as a regression guard
+  // against a future change that breaks the gain-aware
+  // kCurrentSampleTime (without that fix max_pwm jumps to 0.964
+  // and max_outlier blows up to ~21 A here).
+  constexpr float kMaxOutlier_A = 6.0f;
   BOOST_CHECK_MESSAGE(
       max_outlier < kMaxOutlier_A,
       "q_A outlier during V-limit too large (max_outlier="

@@ -14,6 +14,7 @@
 
 #include "bldc_servo.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <functional>
@@ -44,12 +45,13 @@ namespace moteus {
 
 namespace {
 
-RateConfig MakeRateConfig(int pwm_rate_hz_in) {
+RateConfig MakeRateConfig(int pwm_rate_hz_in, float current_sample_time) {
   const int board_min_pwm_rate_hz =
       (g_measured_hw_family == 0 &&
        g_measured_hw_rev == 2) ? 60000 :
       15000;
-  return RateConfig(pwm_rate_hz_in, board_min_pwm_rate_hz);
+  return RateConfig(pwm_rate_hz_in, board_min_pwm_rate_hz,
+                    current_sample_time);
 }
 
 constexpr int kCalibrateCount = 256;
@@ -185,6 +187,14 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     telemetry_manager->Register("servo_cmd", &telemetry_data_);
     telemetry_manager->Register("servo_control", &control_);
 
+    // The motor driver's csa_settling_time() depends on its
+    // csa_gain config, which is registered separately as
+    // "drv8323_conf".  Have the driver re-trigger UpdateConfig
+    // whenever its config changes so rate_config_'s min_pwm /
+    // max_pwm track csa_gain live.
+    motor_driver_->SetConfigUpdateCallback(
+        std::bind(&Impl::UpdateConfig, this));
+
     UpdateConfig();
 
     MJ_ASSERT(!g_impl_);
@@ -268,7 +278,12 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   }
 
   void UpdateConfig() {
-    rate_config_ = MakeRateConfig(config_.pwm_rate_hz);
+    // The actual sample time is the max of two unrelated
+    // contributions: the ISR/ADC chain floor (kIsrSampleTime) and
+    // the gate driver's CSA settling time at the configured gain.
+    rate_config_ = MakeRateConfig(
+        config_.pwm_rate_hz,
+        std::max(kIsrSampleTime, motor_driver_->csa_settling_time()));
     // Update the saved config to match our limits.
     config_.pwm_rate_hz = rate_config_.pwm_rate_hz;
 

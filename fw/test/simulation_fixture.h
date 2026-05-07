@@ -97,7 +97,11 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   SimplePI pid_q_{&pid_q_config_, &status_.pid_q};
   PID pid_position_{&pid_position_config, &status_.pid_position};
 
-  RateConfig rate_config_{30000, 15000};
+  // Default to the gain-aware sample time at csa_gain=20 (1.5 µs),
+  // which matches what real hardware loads at the default gain.
+  // Tests that want to exercise different csa_gain settings can
+  // overwrite rate_config_ in their setup.
+  RateConfig rate_config_{30000, 15000, 1.5e-6f};
 
 
 

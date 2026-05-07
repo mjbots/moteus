@@ -39,7 +39,7 @@ struct Context : public BldcServoControl<Context> {
   SimplePI pid_q_{&pid_q_config_, &status_.pid_q};
   PID pid_position_{&pid_position_config, &status_.pid_position};
 
-  RateConfig rate_config_{30000, 15000};
+  RateConfig rate_config_{30000, 15000, 1.5e-6f};
 
   // HW mock state for verification.
   int pwm_control_count = 0;
@@ -401,7 +401,7 @@ BOOST_AUTO_TEST_CASE(TestInterpolate) {
 }
 
 BOOST_AUTO_TEST_CASE(TestRateConfig) {
-  RateConfig rc(30000, 15000);
+  RateConfig rc(30000, 15000, 1.5e-6f);
   BOOST_TEST(rc.pwm_rate_hz == 30000);
   BOOST_TEST(rc.interrupt_divisor == 1);
   BOOST_TEST(rc.int_rate_hz == 30000);
@@ -410,7 +410,7 @@ BOOST_AUTO_TEST_CASE(TestRateConfig) {
   BOOST_TEST(rc.max_pwm < 1.0f);
 
   // High rate gets divided.
-  RateConfig rc2(60000, 15000);
+  RateConfig rc2(60000, 15000, 1.5e-6f);
   BOOST_TEST(rc2.pwm_rate_hz == 60000);
   BOOST_TEST(rc2.interrupt_divisor == 2);
   BOOST_TEST(rc2.int_rate_hz == 30000);

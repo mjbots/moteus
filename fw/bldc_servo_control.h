@@ -105,16 +105,19 @@ int MapConfig(const Array& array, int value) {
   return result - 1;
 }
 
-// This is used to determine the maximum allowable PWM value so that
-// the current sampling is guaranteed to occur while the FETs are
-// still low.  It was calibrated using the scope and trial and error.
+// The minimum interval between the center of the PWM cycle and the
+// ADC sampling instant.  This constrained by the ISR + ADC chain
+// overhead.  It was originally calibrated against a high-torque-pulse
+// test (e.g., "d pos nan 0 1 p0 d0 f1") that saturates the current
+// controller.
 //
-// The primary test is a high torque pulse with absolute position
-// limits in place of +-1.0.  Something like "d pos nan 0 1 p0 d0 f1".
-// This all but ensures the current controller will saturate.
+// As of 2026-01-21, 0.45 µs was the lowest value at which that test
+// always passed; we keep 0.60 µs as a hard floor for margin against
+// ISR/ADC timing variation.
 //
-// As of 2026-01-21, 0.45e-6 was the lowest value which always passed.
-constexpr float kCurrentSampleTime = 0.60e-6f;
+// The actual sample time used by RateConfig is the max of this
+// and the gate driver's CSA settling time.
+constexpr float kIsrSampleTime = 0.60e-6f;
 
 // All of these constants depend upon the pwm rate.
 struct RateConfig {
@@ -131,7 +134,10 @@ struct RateConfig {
 
   RateConfig() {}
 
-  RateConfig(int pwm_rate_hz_in, int board_min_pwm_rate_hz) {
+  // current_sample_time is the per-cycle low-side conduction
+  // window the ADC needs before sampling the shunt amp.
+  RateConfig(int pwm_rate_hz_in, int board_min_pwm_rate_hz,
+             float current_sample_time) {
     // Limit our PWM rate to even frequencies between 15kHz and 60kHz.
     pwm_rate_hz =
         ((std::max(board_min_pwm_rate_hz,
@@ -150,7 +156,7 @@ struct RateConfig {
     // higher than that, then set up the interrupt at half rate.
     int_rate_hz = pwm_rate_hz / interrupt_divisor;
 
-    min_pwm = kCurrentSampleTime / (0.5f / static_cast<float>(pwm_rate_hz));
+    min_pwm = current_sample_time / (0.5f / static_cast<float>(pwm_rate_hz));
     max_pwm = 1.0f - min_pwm;
     max_voltage_ratio = ((max_pwm - 0.5f) * 2.0f);
 

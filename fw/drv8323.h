@@ -31,6 +31,41 @@
 
 namespace moteus {
 
+// Determine the current-shunt amplifier settling time.  This is
+// gain-dependent because the amp's closed-loop bandwidth scales
+// inversely with gain.  The DRV8323/DRV8353 datasheet §7.5 (CSA,
+// t_SET, V_O_step = 0.5 V) gives:
+//
+//     gain (V/V) | datasheet t_SET (0.5 V step)
+//          5     |   250 ns
+//         10     |   500 ns
+//         20     |  1000 ns
+//         40     |  2000 ns
+//
+// The 0.5 V test condition is ~3× smaller than what the amp actually
+// sees in this application: the PWM ripple at the shunt is V_bus / (4
+// × L × f_pwm) × R_shunt × G, which for a typical 24 V / 30 µH / 30
+// kHz / 5 mΩ / 20 V/V combination is ~0.7 V — and worst-case
+// high-current transients can push that several times higher.
+// Empirically, with G=20 we needed ≥1.5 µs (a 500ns margin over the
+// datasheet) to suppress the residual q_A bursts that remain after
+// the limiter is switched to proportional clipping; below that the
+// loop visibly hunts at the rail boundary.  We extend the same 500ns
+// margin to the other gains as well.
+//
+// This is combined with kIsrSampleTime via std::max at the call site
+// to produce the value that RateConfig bakes into min_pwm/max_pwm.
+constexpr float CsaSettlingTime(int csa_gain) {
+  switch (csa_gain) {
+    case 5:  return 0.75e-6f;  // datasheet + 500ns
+    case 10: return 1.00e-6f;  // datasheet + 500ns
+    case 20: return 1.50e-6f;  // datasheet + 500ns
+    case 40: return 2.50e-6f;  // datasheet + 500ns
+  }
+  // Conservative fallback — covers any unrecognized csa_gain.
+  return 3.00e-6f;
+}
+
 class Drv8323 : public MotorDriver {
  public:
   struct Options {
@@ -77,6 +112,12 @@ class Drv8323 : public MotorDriver {
 
   // The current configured sense amplifier gain.
   float i_gain() override;
+
+  // The CSA settling time at the configured gain.
+  float csa_settling_time() override;
+
+  void SetConfigUpdateCallback(
+      mjlib::base::inplace_function<void()>) override;
 
   struct Status {
     // Fault Status Register 1

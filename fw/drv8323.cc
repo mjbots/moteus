@@ -208,6 +208,10 @@ class Drv8323::Impl {
     return config_.csa_gain;
   }
 
+  float csa_settling_time() {
+    return CsaSettlingTime(config_.csa_gain);
+  }
+
   void HandleConfigUpdate() {
     if (g_measured_hw_family == 0 &&
         g_measured_hw_rev == 7) {
@@ -401,6 +405,9 @@ class Drv8323::Impl {
 
     status_.fault_config = fault_config;
     status_.config_count++;
+
+    // Update a consumer who might care about our parameters.
+    if (config_update_) { config_update_(); }
   }
 
   MillisecondTimer* const timer_;
@@ -418,6 +425,7 @@ class Drv8323::Impl {
   EnableResult enable_state_ = kDisabled;
 
   mjlib::base::inplace_function<void()> status_update_;
+  mjlib::base::inplace_function<void()> config_update_;
 };
 
 Drv8323::Drv8323(micro::Pool* pool,
@@ -455,6 +463,11 @@ bool Drv8323::fault() {
 void Drv8323::PollMillisecond() { impl_->PollMillisecond(); }
 float Drv8323::max_sense_V() { return impl_->max_sense_V(); }
 float Drv8323::i_gain() { return impl_->i_gain(); }
+float Drv8323::csa_settling_time() { return impl_->csa_settling_time(); }
+void Drv8323::SetConfigUpdateCallback(
+    mjlib::base::inplace_function<void()> cb) {
+  impl_->config_update_ = std::move(cb);
+}
 const Drv8323::Status* Drv8323::status() const { return &impl_->status_; }
 
 }

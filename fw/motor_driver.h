@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "mjlib/base/inplace_function.h"
+
 namespace moteus {
 
 class MotorDriver {
@@ -43,6 +45,15 @@ class MotorDriver {
 
   /// Return the current configured sense amplifier gain.
   virtual float i_gain() = 0;
+
+  /// Return the minimum time required for the current sense
+  /// amplifiers to settle.
+  virtual float csa_settling_time() = 0;
+
+  /// Register a callback to be invoked any time the configuration of
+  /// this module is changed.  Only one callback can be active.
+  virtual void SetConfigUpdateCallback(
+      mjlib::base::inplace_function<void()>) = 0;
 };
 
 }
