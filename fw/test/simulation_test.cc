@@ -1297,4 +1297,132 @@ BOOST_AUTO_TEST_CASE(SimEnableTorqueModeAtSpeedPulseBemfFf) {
           << " Nm q_A=" << r.signed_peak_q_A << " A");
 }
 
+// Reproduces the q-axis current sense behaviour during a
+// high-acceleration position move that pushes the inverter into the
+// kLimitMaxVoltage region.  Setup matches a moteus-x1 + 18 V supply +
+// mj5208 motor (the bench rig used to calibrate the CSA noise model):
+// holding at 0 then commanding position 1.5 with accel_limit = 4000
+// Hz/s. This is near the back-EMF / DC-bus ceiling for the mj5208 at
+// 18 V, so the controller saturates the dq voltage briefly and
+// engages kLimitMaxVoltage during the move.
+BOOST_AUTO_TEST_CASE(SimMj5208VoltageLimitNoise) {
+  // Use the fixture's default mj5208 motor configuration (set in
+  // SimulationContext::Reset()).
+
+  ctx.SetBusVoltage(18.0f);
+
+  // Allow the controller's velocity headroom to span the trajectory
+  // peak; the default 100 rev/s would derate the move below the
+  // limit-trigger speed.
+  ctx.config_.max_velocity = 200.0f;
+  ctx.config_.max_velocity_derate = 20.0f;
+  ctx.config_.max_current_A = 100.0f;
+  ctx.status_.max_power_W = 1500.0f;
+
+  // Match the bench config used to capture the calibration traces.
+  ctx.config_.bemf_feedforward = 0.0f;
+  ctx.config_.bemf_feedforward_override = true;
+  ctx.config_.inertia_feedforward = 0.0f;
+  ctx.config_.pid_dq_hz = 400.0f;
+  ctx.UpdateDerivedMotorConstants();
+
+  ctx.pid_position_config.kp = 4.0f;
+  ctx.pid_position_config.ki = 1.0f;
+  ctx.pid_position_config.kd = 0.05f;
+
+  // To reproduce the noise-driven failure mode, uncomment the four
+  // assignments below.  They enable the opt-in phase-current
+  // measurement noise model in SimulationContext (see the
+  // comment on ApplyCsaSettlingNoise for what each parameter
+  // means) and are from desk calibrated traces.
+  //
+//    ctx.csa_residual_tau_s       = 0.6e-6f;
+//    ctx.csa_settling_amplitude_A = 8.0f;
+//    ctx.csa_settling_clip        = 10.0f;
+//    ctx.csa_baseline_phase_std_A = 0.36f;
+
+  auto hold_cmd = MakePositionCommand(0.0f, 0.0f, 100.0f);
+  hold_cmd.accel_limit = 4000.0f;
+  ctx.Command(&hold_cmd);
+  ctx.RunSimulation(&hold_cmd, 1.0f);
+
+  auto move_cmd = MakePositionCommand(1.5f, 0.0f, 100.0f);
+  move_cmd.accel_limit = 4000.0f;
+  ctx.Command(&move_cmd);
+
+  // Triangular profile time = 2*sqrt(1.5/4000) ~= 38.7 ms.  Capture
+  // an extra 100 ms of post-move settling.
+  const int total_steps =
+      static_cast<int>(0.15f * ctx.rate_config_.rate_hz);
+
+  int voltage_limit_count = 0;
+  std::vector<float> q_A_during_limit;
+  q_A_during_limit.reserve(total_steps);
+
+  float peak_abs_velocity = 0.0f;
+
+  for (int i = 0; i < total_steps; i++) {
+    ctx.StepSimulation(&move_cmd);
+    const float vel_abs = std::abs(ctx.motor_sim_.velocity_rev_s());
+    if (vel_abs > peak_abs_velocity) { peak_abs_velocity = vel_abs; }
+
+    if (ctx.status_.fault == errc::kLimitMaxVoltage) {
+      voltage_limit_count++;
+      q_A_during_limit.push_back(ctx.status_.q_A);
+    }
+  }
+
+  float max_step = 0.0f;
+  // Determine the worst-case |q_A| error outside a rolling mean.
+  float max_outlier = 0.0f;
+  constexpr int kOutlierWin = 7;
+  for (size_t i = 1; i < q_A_during_limit.size(); ++i) {
+    const float step = std::abs(q_A_during_limit[i] - q_A_during_limit[i - 1]);
+    if (step > max_step) { max_step = step; }
+    const size_t lo = i >= static_cast<size_t>(kOutlierWin)
+                          ? i - kOutlierWin : 0;
+    const size_t hi = std::min(q_A_during_limit.size(),
+                               i + static_cast<size_t>(kOutlierWin) + 1);
+    float win_sum = 0.0f;
+    for (size_t j = lo; j < hi; ++j) { win_sum += q_A_during_limit[j]; }
+    const float win_mean = win_sum / (hi - lo);
+    const float dev = std::abs(q_A_during_limit[i] - win_mean);
+    if (dev > max_outlier) { max_outlier = dev; }
+  }
+
+  const Stats q_limit_stats = CalcStats(q_A_during_limit);
+
+  std::cout << "Mj5208VoltageLimitNoise:"
+            << " peak_v=" << peak_abs_velocity << " rev/s"
+            << " limit_cycles=" << voltage_limit_count << "/" << total_steps
+            << " q_A stddev=" << q_limit_stats.std_dev
+            << " mean=" << q_limit_stats.mean
+            << " max_step=" << max_step
+            << " max_outlier=" << max_outlier
+            << std::endl;
+
+  BOOST_CHECK_MESSAGE(
+      ctx.status_.mode != kFault,
+      "Unexpected fault during move, fault="
+          << static_cast<int>(ctx.status_.fault));
+
+  BOOST_CHECK_MESSAGE(
+      voltage_limit_count > 0,
+      "Expected kLimitMaxVoltage to trigger during the move "
+      "(peak_v=" << peak_abs_velocity << " rev/s)");
+
+  // mj5208 has no meaningful L_q saturation in this regime, and with
+  // the position-loop feedforwards disabled the controller doesn't
+  // fight the V-limiter — so the natural q_A trace during V-limit is
+  // very clean (max_outlier ~0.5 A).  That makes the noise model the
+  // dominant failure source: with the four ctx.csa_* assignments
+  // above un-commented, max_outlier on this scenario jumps to ~21 A.
+  constexpr float kMaxOutlier_A = 2.0f;
+  BOOST_CHECK_MESSAGE(
+      max_outlier < kMaxOutlier_A,
+      "q_A outlier during V-limit too large (max_outlier="
+          << max_outlier << " A, threshold=" << kMaxOutlier_A
+          << " A).");
+}
+
 BOOST_AUTO_TEST_SUITE_END()
