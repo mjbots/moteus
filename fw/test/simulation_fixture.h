@@ -15,9 +15,12 @@
 #pragma once
 
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <random>
 #include <vector>
 
 #include "mjlib/micro/test/persistent_config_fixture.h"
@@ -158,6 +161,118 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
 
   // External load torque (Nm)
   float external_torque_ = 0.0f;
+
+  // ---- Phase-current measurement noise model ----
+  //
+  // The simulator's true-physics phase_currents() outputs perfectly
+  // clean samples; the real moteus controller doesn't.  Two
+  // modelled noise terms approximate what the on-device ADC + CSA
+  // chain produces:
+  //
+  // (1) A small *baseline* per-phase Gaussian noise that is always
+  //     present.  Captures ADC quantisation, common-mode pickup,
+  //     and the residual amp noise floor when the low-side window
+  //     is comfortable.  Calibrated against per-phase captures
+  //     taken at high kCurrentSampleTime (≥1.5 µs at gain=20),
+  //     where the Kirchhoff sum is ~0.62 A RMS — so each phase has
+  //     std ≈ 0.62 / √3 ≈ 0.36 A.
+  //
+  // (2) A *settling-residual* term that fires every cycle (not
+  //     sparsely) but with a heavy-tailed Cauchy distribution.
+  //     During sustained max-duty operation the hardware shows a
+  //     continuous high-frequency noise band on the q_A trace
+  //     (every ISR has visibly elevated noise), with occasional
+  //     very large excursions mixed in.  A sparse-spike model
+  //     captures the excursions but leaves the trace looking flat
+  //     between spikes; a Gaussian model has the right "fill" but
+  //     doesn't reach the rare large excursions.  Cauchy gives
+  //     both: typical draws are O(scale), but the 1/x² tails
+  //     produce occasional samples 10–100× larger.
+  //
+  //     The shared scaling factor is:
+  //
+  //        half_window = (1 − duty) × pwm_period / 2
+  //        residual    = exp(−half_window / τ)
+  //
+  //     and the per-cycle measurement update is:
+  //
+  //        measured  = true
+  //                  + N(0, csa_baseline_phase_std_A²)
+  //                  + residual × csa_settling_amplitude_A
+  //                              × clamp(Cauchy(0,1), ±csa_settling_clip)
+  //
+  //     Truncation at ±csa_settling_clip prevents a single bad
+  //     draw from going to infinity; the clip is set so the
+  //     truncation point is far enough out that 99 % of mass is
+  //     unaffected, but the worst-case excursion is bounded.
+  //
+  // Set csa_residual_tau_s = 0 (the default) to disable all
+  // measurement-noise terms.  Tests that want to model real
+  // hardware enable them.
+  float csa_residual_tau_s = 0.0f;
+  float csa_settling_amplitude_A = 0.0f;
+  float csa_settling_clip = 200.0f;
+  float csa_baseline_phase_std_A = 0.0f;
+
+  // Deterministic PRNG, seeded once at fixture construction.
+  std::mt19937 noise_rng_{0xCAFEF00Du};
+  std::normal_distribution<float> noise_gaussian_{0.0f, 1.0f};
+  std::cauchy_distribution<float> noise_cauchy_{0.0f, 1.0f};
+
+  SpmsmMotorSimulator::PhaseCurrent ApplyCsaSettlingNoise(
+      const SpmsmMotorSimulator::PhaseCurrent& truth,
+      const Vec3& prior_pwm) {
+    if (csa_residual_tau_s <= 0.0f &&
+        csa_baseline_phase_std_A <= 0.0f) {
+      return truth;
+    }
+    const float pwm_period =
+        1.0f / static_cast<float>(rate_config_.pwm_rate_hz);
+    const float inv_tau =
+        (csa_residual_tau_s > 0.0f) ? (1.0f / csa_residual_tau_s) : 0.0f;
+
+    // Compute the *worst-case* residual across all three phases.
+    // When any phase is at saturated duty (low half-window), the
+    // switching activity in that phase couples into the shunt-amp
+    // chain on all phases (common-mode pickup, ground bounce,
+    // shared bias / reference paths).  Using the worst-case
+    // residual as the shared noise scale better matches the
+    // hardware traces, where during V-limit the noise band
+    // appears on every phase, not just the saturated one.
+    float worst_residual = 0.0f;
+    if (csa_residual_tau_s > 0.0f) {
+      const float pwm_arr[3] = {prior_pwm.a, prior_pwm.b, prior_pwm.c};
+      for (int i = 0; i < 3; ++i) {
+        const float half_window = (1.0f - pwm_arr[i]) * pwm_period * 0.5f;
+        const float r = std::exp(-half_window * inv_tau);
+        if (r > worst_residual) { worst_residual = r; }
+      }
+    }
+
+    auto perturb = [&](float current) -> float {
+      float result = current;
+      // (1) Baseline per-phase Gaussian noise (always present).
+      if (csa_baseline_phase_std_A > 0.0f) {
+        result += csa_baseline_phase_std_A * noise_gaussian_(noise_rng_);
+      }
+      // (2) Common-mode-coupled settling residual: continuous
+      // heavy-tailed Cauchy noise scaled by the worst-case
+      // residual across phases, applied per phase with an
+      // independent random draw.
+      if (csa_settling_amplitude_A > 0.0f && worst_residual > 0.0f) {
+        float c = noise_cauchy_(noise_rng_);
+        c = std::max(-csa_settling_clip,
+                     std::min(csa_settling_clip, c));
+        result += worst_residual * csa_settling_amplitude_A * c;
+      }
+      return result;
+    };
+    SpmsmMotorSimulator::PhaseCurrent out;
+    out.a = perturb(truth.a);
+    out.b = perturb(truth.b);
+    out.c = perturb(truth.c);
+    return out;
+  }
 
   explicit SimulationContext(
       std::shared_ptr<MotorModel> model = nullptr)
@@ -383,7 +498,20 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     }
 
     // 3. Get phase currents from motor, transform to DQ using encoder theta
-    const auto phase_cur = motor_sim_.phase_currents();
+    //
+    // Apply CSA-settling noise based on the prior cycle's PWM duty:
+    // when one or more phase duties were near max_pwm, the low-side
+    // conduction window for that phase is shorter than the amp's
+    // t_SET and the ADC sample is corrupted.  Disabled by default
+    // (csa_settling_time_s = 0); tests that want to exercise the
+    // unsettled-sample regime opt in.
+    const auto phase_cur =
+        ApplyCsaSettlingNoise(motor_sim_.phase_currents(), prior_pwm);
+    // Expose the (noisy) per-phase current samples on the same status
+    // fields the real firmware populates from the ADC reads.
+    status_.cur1_A = phase_cur.a;
+    status_.cur2_A = phase_cur.b;
+    status_.cur3_A = phase_cur.c;
     const SinCos sin_cos = ISR_CalculateDerivedQuantities(
         phase_cur.a, phase_cur.b, phase_cur.c, cmd->synthetic_theta);
 
