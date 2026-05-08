@@ -244,7 +244,11 @@ class SynchronizedMotion:
         for result in results:
             pos = result.values.get(moteus.Register.POSITION, 0.0)
             vel = result.values.get(moteus.Register.VELOCITY, 0.0)
-            status_parts.append(f"ID{result.id}:p={pos:+.3f},v={vel:+.3f}")
+            mode = result.values.get(moteus.Register.MODE, 0)
+            fault = result.values.get(moteus.Register.FAULT, 0)
+            status_parts.append(
+                f"ID{result.id}:p={pos:+.3f},v={vel:+.3f},"
+                f"m={mode},f={fault}")
         if status_parts:
             print(" | ".join(status_parts))
 
