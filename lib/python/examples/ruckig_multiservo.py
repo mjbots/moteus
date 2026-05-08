@@ -49,7 +49,7 @@ import time
 import moteus
 
 try:
-    from ruckig import Ruckig, InputParameter, OutputParameter, Result
+    from ruckig import Ruckig, InputParameter, Trajectory, Result
 except ImportError:
     print("This example requires the ruckig library.")
     print("Install with: pip install ruckig")
@@ -95,13 +95,14 @@ class SynchronizedMotion:
             for servo_id in self.servo_ids
         }
 
-        self.otg = Ruckig(self.num_dofs, args.cycle_time)
+        self.otg = Ruckig(self.num_dofs)
         self.inp = InputParameter(self.num_dofs)
-        self.out = OutputParameter(self.num_dofs)
+        self.trajectory = Trajectory(self.num_dofs)
 
         self.initial_positions = None
         self.waypoints = []
         self.current_waypoint = 0
+        self.segment_start_time = 0.0
 
     async def initialize(self):
         """Stop servos, query positions, and set up trajectory generator."""
@@ -175,12 +176,17 @@ class SynchronizedMotion:
         self.inp.target_position = self.waypoints[self.current_waypoint]
         self.inp.target_velocity = [0.0] * self.num_dofs
 
+        result = self.otg.calculate(self.inp, self.trajectory)
+        if result not in (Result.Working, Result.Finished):
+            raise RuntimeError(
+                f"Initial trajectory calculation failed: {result}")
+
     async def run(self):
         """Main control loop - stream trajectory to servos."""
         print("\nStarting synchronized motion...")
         print("Press Ctrl+C to stop")
 
-        last_cycle_time = time.time()
+        self.segment_start_time = time.time()
         last_print_time = 0
 
         try:
@@ -193,8 +199,7 @@ class SynchronizedMotion:
                 self._print_status(results, last_print_time)
                 last_print_time = self._maybe_update_print_time(last_print_time)
 
-                self.out.pass_to_input(self.inp)
-                last_cycle_time = await self._maintain_timing(last_cycle_time)
+                await asyncio.sleep(self.args.cycle_time)
 
         except KeyboardInterrupt:
             print("\nStopping...")
@@ -205,22 +210,33 @@ class SynchronizedMotion:
             print("Servos stopped.")
 
     def _update_trajectory(self):
-        """Compute next trajectory point. Returns (positions,
-        velocities) or (None, None) on error."""
-        result = self.otg.update(self.inp, self.out)
+        """Sample current trajectory at the actual elapsed wall-clock time.
+        Advances to the next waypoint when the current segment is done.
+        Returns (positions, velocities) or (None, None) on error."""
+        elapsed = time.time() - self.segment_start_time
 
-        if result == Result.Working:
-            return list(self.out.new_position), list(self.out.new_velocity)
+        if elapsed >= self.trajectory.duration:
+            end_pos, end_vel, end_acc = self.trajectory.at_time(
+                self.trajectory.duration)
+            self.inp.current_position = list(end_pos)
+            self.inp.current_velocity = list(end_vel)
+            self.inp.current_acceleration = list(end_acc)
 
-        if result == Result.Finished:
             self.current_waypoint = (
                 (self.current_waypoint + 1) % len(self.waypoints))
             self.inp.target_position = self.waypoints[self.current_waypoint]
-            print(f"Reached waypoint, moving to waypoint {self.current_waypoint}")
-            return list(self.out.new_position), list(self.out.new_velocity)
 
-        print(f"Ruckig error: {result}")
-        return None, None
+            result = self.otg.calculate(self.inp, self.trajectory)
+            if result not in (Result.Working, Result.Finished):
+                print(f"Ruckig error: {result}")
+                return None, None
+
+            self.segment_start_time = time.time()
+            elapsed = 0.0
+            print(f"Reached waypoint, moving to waypoint {self.current_waypoint}")
+
+        positions, velocities, _ = self.trajectory.at_time(elapsed)
+        return list(positions), list(velocities)
 
     async def _send_commands(self, positions, velocities):
         """Send position commands to all servos."""
@@ -257,15 +273,6 @@ class SynchronizedMotion:
         if now - last_print_time >= 0.2:
             return now
         return last_print_time
-
-    async def _maintain_timing(self, last_cycle_time):
-        """Sleep to maintain cycle timing, return new cycle start time."""
-        now = time.time()
-        elapsed = now - last_cycle_time
-        sleep_time = self.args.cycle_time - elapsed
-        if sleep_time > 0:
-            await asyncio.sleep(sleep_time)
-        return time.time()
 
 
 async def main():
