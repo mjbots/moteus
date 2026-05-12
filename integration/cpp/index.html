@@ -2568,14 +2568,25 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>FetchContent_Declare(
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  moteus
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  GIT_REPOSITORY https://github.com/mjbots/moteus.git
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  GIT_TAG        f14f789fefeae9caf185b950cf4e32df01d022ea
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>)
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>FetchContent_MakeAvailable(moteus)
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  # Pin to a specific commit for a reproducible build.  The trailing
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  # comment names the corresponding C++ release tag for readers.
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  GIT_TAG        a1b2c3d4e5f6789012345678901234567890abcd  # cpp/v1.0.0
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>)
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>add_executable(myproject myproject.cc)
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>target_link_libraries(myproject moteus::cpp)
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>FetchContent_MakeAvailable(moteus)
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>add_executable(myproject myproject.cc)
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>target_link_libraries(myproject moteus::cpp)
 </span></code></pre></div>
+<p>Pin to the commit hash rather than the tag itself.  Tags are mutable
+in principle (they can be force-pushed or recreated), so a hash is the
+only reference that guarantees a reproducible fetch.  The
+<code># cpp/vX.Y.Z</code> trailing comment keeps the version human-readable and
+is what you update — together with the hash — when bumping to a new
+release.</p>
+<p>The latest C++ release and its commit hash are listed on the
+<a href="https://github.com/mjbots/moteus/releases">Releases page</a> — filter
+the page by typing <code>cpp/</code> to see only C++ releases.</p>
 <p><strong>bazel</strong>: moteus does export <a href="https://bazel.build">bazel</a> <code>BUILD</code> files and can be integrated into bazel projects using that mechanism as well.</p>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <p>Basic usage is similar, although slightly different to the <a href="../python/">python</a> library.  A minimal example follows:</p>

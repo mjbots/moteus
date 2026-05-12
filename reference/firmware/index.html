@@ -2384,9 +2384,19 @@
 <p>moteus controllers have both upgradeable firmware and a permissively licensed source code for the firmware.  This section describes how to flash new (or old) versions of the firmware, and how to build it from source.</p>
 <h2 id="flashing-over-can">Flashing over CAN<a class="headerlink" href="#flashing-over-can" title="Permanent link">&para;</a></h2>
 <p>The latest firmware can be downloaded from: <a href="https://github.com/mjbots/moteus/releases">https://github.com/mjbots/moteus/releases</a></p>
-<p>You need the file named YYYYMMDD-moteus-HASH.elf NOT the one named
-"bootloader".</p>
-<p>Download that file and save it somewhere on your computer, then
+<p>Each firmware release attaches two ELFs:</p>
+<ul>
+<li><code>moteus-fw-&lt;version&gt;+g&lt;sha&gt;.elf</code> — the application firmware. <strong>This
+  is the one you want for normal flashing.</strong></li>
+<li><code>moteus-bl-&lt;version&gt;+g&lt;sha&gt;.elf</code> — the CAN bootloader. Only needed
+  for advanced bootloader recovery via the SWD port (see below); the
+  bootloader is preinstalled on every moteus and you do not normally
+  flash it.</li>
+</ul>
+<p><code>&lt;version&gt;</code> is the semver release (e.g. <code>1.0.0</code> or <code>1.0.0-rc.1</code>) and
+<code>&lt;sha&gt;</code> is the 10-character git short SHA of the commit the release
+was built from (build metadata under semver — informational only).</p>
+<p>Download <code>moteus-fw-...elf</code>, save it somewhere on your computer, and
 substitute its path in place of <code>path/to/file.elf</code> in the following
 command.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python3 -m moteus.moteus_tool --target 1 --flash path/to/file.elf
