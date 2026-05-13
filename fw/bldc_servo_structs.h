@@ -197,6 +197,20 @@ struct BldcServoStatus {
   float control_acceleration = 0.0f;
   float timeout_s = 0.0;
   bool trajectory_done = false;
+  // When true, the trajectory generator has locked into the
+  // "slew acceleration to 0" terminal phase and will not return to
+  // bang-bang accel/decel.  Reset on new position commands or when
+  // the host retargets mid-slew (see trajectory_committed_position).
+  bool trajectory_rest_committed = false;
+  // Snapshot of `data->position` / `data->velocity` taken at the
+  // moment `trajectory_rest_committed` was set.  Used to detect
+  // mid-trajectory retargeting: when the host writes a new position
+  // or velocity that differs from the committed snapshot, the latch
+  // is cleared so the trajectory can re-plan toward the new target.
+  float trajectory_committed_position =
+      std::numeric_limits<float>::quiet_NaN();
+  float trajectory_committed_velocity =
+      std::numeric_limits<float>::quiet_NaN();
 
   float motor_max_velocity = 0.0f;
   float motor_base_velocity = 0.0f;
@@ -302,6 +316,9 @@ struct BldcServoStatus {
     a->Visit(MJ_NVP(control_acceleration));
     a->Visit(MJ_NVP(timeout_s));
     a->Visit(MJ_NVP(trajectory_done));
+    a->Visit(MJ_NVP(trajectory_rest_committed));
+    a->Visit(MJ_NVP(trajectory_committed_position));
+    a->Visit(MJ_NVP(trajectory_committed_velocity));
 
     a->Visit(MJ_NVP(motor_max_velocity));
     a->Visit(MJ_NVP(motor_base_velocity));
@@ -370,6 +387,7 @@ struct BldcServoCommandData {
 
   float velocity_limit = std::numeric_limits<float>::quiet_NaN();
   float accel_limit = std::numeric_limits<float>::quiet_NaN();
+  float jerk_limit = std::numeric_limits<float>::quiet_NaN();
 
   // If not NaN, temporarily operate in fixed voltage mode.
   float fixed_voltage_override = std::numeric_limits<float>::quiet_NaN();
@@ -421,6 +439,7 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(ilimit_scale));
     a->Visit(MJ_NVP(velocity_limit));
     a->Visit(MJ_NVP(accel_limit));
+    a->Visit(MJ_NVP(jerk_limit));
     a->Visit(MJ_NVP(fixed_voltage_override));
     a->Visit(MJ_NVP(fixed_current_override));
     a->Visit(MJ_NVP(ignore_position_bounds));
@@ -592,6 +611,10 @@ struct BldcServoConfig {
   // limits.
   float default_velocity_limit = std::numeric_limits<float>::quiet_NaN();
   float default_accel_limit = 50.0f;
+  // When set, the trajectory generator slews acceleration at no more
+  // than this rate per second.  NaN disables jerk limiting (use pure
+  // constant-acceleration profile).
+  float default_jerk_limit = std::numeric_limits<float>::quiet_NaN();
 
   // If true, then the currents in A that are calculated for the D
   // and Q phase are instead directly commanded as voltages on the
@@ -708,6 +731,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(inertia_feedforward));
     a->Visit(MJ_NVP(default_velocity_limit));
     a->Visit(MJ_NVP(default_accel_limit));
+    a->Visit(MJ_NVP(default_jerk_limit));
     a->Visit(MJ_NVP(voltage_mode_control));
     a->Visit(MJ_NVP(fixed_voltage_mode));
     a->Visit(MJ_NVP(fixed_voltage_control_V));

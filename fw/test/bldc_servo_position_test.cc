@@ -15,6 +15,7 @@
 #include "fw/bldc_servo_position.h"
 
 #include <fstream>
+#include <vector>
 
 #include <fmt/format.h>
 
@@ -1487,4 +1488,2367 @@ BOOST_AUTO_TEST_CASE(VelocityLimitOverrideHonorsApproachDirection) {
 
   // The only legitimate trajectory direction here is negative.
   BOOST_TEST(ctx.status.control_velocity.value() <= 0.0f);
+}
+
+// === Jerk-limited trajectory tests ===
+//
+// These exercise the slew-rate-limited acceleration path that
+// activates when `data.jerk_limit` is finite.  The controller adds
+// `control_acceleration` as a real state variable so the per-cycle
+// recomputation remains idempotent in (x, v, a).
+
+// Verify that the rate-of-change of control_acceleration is bounded
+// by `jerk * period_s` per cycle for a typical position move.  The
+// check straddles the termination cycle (and one cycle past it) --
+// the legacy break-before-check pattern silently masked the 1.2
+// bug where the trajectory-done snap to (a = 0) violated the bound.
+BOOST_AUTO_TEST_CASE(JerkLimitBoundsAccelChange) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 2000.0f;
+  constexpr float kJerk = 50000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = 1.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  const float dt = 1.0f / kRateHz;
+  // Slop accounts for the ULP at |a_prev| ~ a_max in the recovered
+  // Δa = a_curr - (a_curr - j_dt) -- O(a_max * eps).
+  const float bound =
+      kJerk * dt + std::max(
+          1e-5f, 4.0f * kAccel * std::numeric_limits<float>::epsilon());
+
+  float prev_a = 0.0f;
+  bool done = false;
+  // Run until trajectory completes plus one extra cycle past
+  // trajectory_done, so the Δa straddling termination AND the
+  // Δa immediately after termination are both asserted.
+  for (int i = 0; i < 200000; i++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    const float da = std::abs(a - prev_a);
+    BOOST_TEST(da <= bound);
+    prev_a = a;
+    if (done) { break; }
+    if (ctx.status.trajectory_done) { done = true; }
+  }
+  BOOST_TEST(done == true);
+}
+
+// Verify that a jerk-limited move actually reaches its target with
+// the right final velocity and without significant overshoot.
+BOOST_AUTO_TEST_CASE(JerkLimitPositionMoveCompletes,
+                     * boost::unit_test::tolerance(1e-3)) {
+  struct TestCase {
+    float xf;
+    float vf;
+    float accel;
+    float jerk;
+    float rate_hz;
+  };
+
+  TestCase test_cases[] = {
+    { 1.0f, 0.0f, 1000.0f, 20000.0f, 30000.0f },
+    { 5.0f, 0.0f, 2000.0f, 50000.0f, 30000.0f },
+    { -3.0f, 0.0f, 1500.0f, 30000.0f, 30000.0f },
+    { 0.5f, 0.0f, 500.0f,  10000.0f, 15000.0f },
+    { 2.0f, 0.5f, 1000.0f, 20000.0f, 30000.0f },
+    { 0.1f, 0.0f, 500.0f,  5000.0f,  30000.0f },
+  };
+
+  for (const auto& tc : test_cases) {
+    BOOST_TEST_CONTEXT("xf=" << tc.xf << " vf=" << tc.vf
+                       << " a=" << tc.accel << " j=" << tc.jerk
+                       << " rate=" << tc.rate_hz) {
+      Context ctx;
+      ctx.set_rate_hz(tc.rate_hz);
+      ctx.data.position = tc.xf;
+      ctx.data.velocity = tc.vf;
+      ctx.data.accel_limit = tc.accel;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_position(0.0f);
+      ctx.set_velocity(0.0f);
+
+      // Conservative cap: bang-bang time + jerk margin + an extra
+      // factor for vf!=0 cases.
+      const float t_bb = 2.0f * std::sqrt(std::abs(tc.xf) / tc.accel);
+      const float t_jerk_extra = 2.0f * tc.accel / tc.jerk;
+      const int max_steps =
+          static_cast<int>((t_bb + t_jerk_extra + 1.0f) * tc.rate_hz);
+
+      double max_overshoot = 0.0;
+      int steps = 0;
+      for (; steps < max_steps; steps++) {
+        ctx.Call();
+        const double pos =
+            ctx.from_raw(ctx.status.control_position_raw.value());
+        const double target_at_t = (steps + 1) / tc.rate_hz * tc.vf + tc.xf;
+        const double overshoot =
+            (tc.xf >= 0.0f) ? (pos - target_at_t) : (target_at_t - pos);
+        if (overshoot > max_overshoot) { max_overshoot = overshoot; }
+        if (ctx.status.trajectory_done) { break; }
+      }
+
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == tc.vf);
+      // Residual position error has two sources:
+      //   (a) kinematic floor a^2/(j*rate) -- per-cycle predicted_x
+      //       change at the rest-curve crossing
+      //   (b) float drift over the terminal slew, bounded by
+      //       (a/j)*rate*float_eps for slew of duration a/j
+      // Allow each plus a small safety factor.
+      const float kFloatEps = std::numeric_limits<float>::epsilon();
+      const float kinematic_floor =
+          tc.accel * tc.accel / (tc.jerk * tc.rate_hz);
+      const float drift_floor =
+          tc.accel / tc.jerk * tc.rate_hz * kFloatEps;
+      const float overshoot_bound =
+          10.0f * (kinematic_floor + drift_floor);
+      BOOST_CHECK_LT(max_overshoot, overshoot_bound);
+    }
+  }
+}
+
+// The same starting state and the same command must produce the
+// same per-cycle (a, v, x).  This is the idempotency property the
+// existing controller relies on.
+BOOST_AUTO_TEST_CASE(JerkLimitIdempotency) {
+  auto run = [](std::vector<float>* out_a,
+                std::vector<float>* out_v,
+                std::vector<float>* out_x) {
+    Context ctx;
+    ctx.set_rate_hz(30000.0f);
+    ctx.data.position = 1.0f;
+    ctx.data.velocity = 0.0f;
+    ctx.data.accel_limit = 2000.0f;
+    ctx.data.jerk_limit = 50000.0f;
+    ctx.data.velocity_limit = NaN;
+    ctx.set_position(0.0f);
+    ctx.set_velocity(0.0f);
+
+    for (int i = 0; i < 5000; i++) {
+      ctx.Call();
+      out_a->push_back(ctx.status.control_acceleration);
+      out_v->push_back(ctx.status.control_velocity.value());
+      out_x->push_back(ctx.from_raw(ctx.status.control_position_raw.value()));
+      if (ctx.status.trajectory_done) { break; }
+    }
+  };
+
+  std::vector<float> a1, v1, x1;
+  std::vector<float> a2, v2, x2;
+  run(&a1, &v1, &x1);
+  run(&a2, &v2, &x2);
+
+  BOOST_TEST(a1.size() == a2.size());
+  for (size_t i = 0; i < std::min(a1.size(), a2.size()); i++) {
+    BOOST_TEST(a1[i] == a2[i]);
+    BOOST_TEST(v1[i] == v2[i]);
+    BOOST_TEST(x1[i] == x2[i]);
+  }
+}
+
+// Velocity-only mode: ramp v from 0 to vf with jerk limit; verify
+// the ramp is smooth (acceleration bounded) and v does not overshoot.
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeRamp,
+                     * boost::unit_test::tolerance(1e-3)) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 1000.0f;
+  constexpr float kJerk = 20000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = NaN;
+  ctx.data.velocity = 1.5f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_velocity = 0.0f;
+
+  const float dt = 1.0f / kRateHz;
+  const float bound = kJerk * dt + 1e-3f;
+  float prev_a = 0.0f;
+  double max_v = 0.0;
+
+  for (int i = 0; i < 100000; i++) {
+    ctx.Call();
+    const double v = ctx.status.control_velocity.value();
+    if (v > max_v) { max_v = v; }
+    if (ctx.status.trajectory_done) { break; }
+    const float a = ctx.status.control_acceleration;
+    BOOST_TEST(std::abs(a - prev_a) <= bound);
+    prev_a = a;
+  }
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  // Should reach the commanded velocity with negligible overshoot.
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
+  BOOST_TEST(max_v <= 1.5f + 1e-3);
+}
+
+// Sanity-check the analytical stop-distance helper against forward
+// integration of the same 3-phase profile.
+BOOST_AUTO_TEST_CASE(JerkStopDistanceMatchesIntegration,
+                     * boost::unit_test::tolerance(1e-5)) {
+  struct Case {
+    float v;
+    float a;
+    float a_max;
+    float j;
+  };
+  Case cases[] = {
+    { 10.0f, 0.0f,    100.0f, 5000.0f },
+    { 20.0f, 0.0f,    100.0f, 5000.0f },
+    { 10.0f, 50.0f,   100.0f, 5000.0f },
+    { 10.0f, -50.0f,  100.0f, 5000.0f },
+    { 10.0f, 100.0f,  100.0f, 5000.0f },
+    { 10.0f, -100.0f, 100.0f, 5000.0f },
+    // Triangle regime: small v.
+    { 0.5f,  0.0f,    100.0f, 5000.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("v=" << c.v << " a=" << c.a
+                       << " amax=" << c.a_max << " j=" << c.j) {
+      const float stop_d = BldcServoPosition::ComputeJerkStopDistance(
+          c.v, c.a, c.a_max, c.j, 1.0f / c.j);
+
+      // Forward-integrate the same profile in tiny steps and verify
+      // we stop within a tight tolerance of `stop_d`.  Each step uses
+      // the constant-jerk closed-form integrals so the reference
+      // matches the analytical trajectory to O(j*dt^3) per step
+      // (instead of O(j*dt^2) for the previous semi-implicit Euler):
+      //
+      //   a_new = a_old + j_step * dt
+      //   v_new = v_old + a_old*dt + j_step*dt^2/2
+      //         = v_old + (a_old + a_new)/2 * dt        (trapezoid)
+      //   x_new = x_old + v_old*dt + a_old*dt^2/2 + j_step*dt^3/6
+      //
+      // To avoid overshoot at phase boundaries -- where the last step
+      // would otherwise carry a or v past the switching condition --
+      // each step's duration is clamped to the time-to-boundary.
+      double v = c.v;
+      double a = c.a;
+      double x = 0.0;
+      const double dt = 1e-5;
+      const float v3 = c.a_max * c.a_max / (2.0f * c.j);
+      const float v_after_0 =
+          c.v + (c.a * c.a - c.a_max * c.a_max) / (2.0f * c.j);
+      const bool trapezoidal = v_after_0 >= v3;
+      const float a_peak_sq =
+          0.5f * (c.a * c.a + 2.0f * c.j * c.v);
+      const float a_peak = std::sqrt(std::max(a_peak_sq, 0.0f));
+      const float a_brake =
+          trapezoidal ? c.a_max : a_peak;
+
+      // Phase A: ramp a from c.a toward -a_brake with j_step = -c.j.
+      // Stops exactly at -a_brake by clamping the final step.
+      while (a > -a_brake) {
+        const double a_old = a;
+        const double j_step = -c.j;
+        const double t = std::min(dt, (a + a_brake) / c.j);
+        a += j_step * t;
+        if (a < -a_brake) { a = -a_brake; }
+        x += v * t + a_old * 0.5 * t * t + j_step * t * t * t / 6.0;
+        v += (a_old + a) * 0.5 * t;
+      }
+      // Phase B (only trapezoidal): hold at -a_max until v == v3.
+      // j_step = 0 here, so the cubic correction vanishes and the
+      // trapezoid v-update reduces to v += a*t.  Final step lands
+      // exactly at v3.
+      if (trapezoidal) {
+        while (v > v3) {
+          const double t = std::min(dt, (v - v3) / a_brake);
+          x += v * t + a * 0.5 * t * t;
+          v += a * t;
+          if (v < v3) { v = v3; }
+        }
+      }
+      // Phase C: ramp a from -a_brake back to 0 with j_step = +c.j.
+      // Stops exactly at a = 0 by clamping the final step.
+      while (a < 0.0) {
+        const double a_old = a;
+        const double j_step = c.j;
+        const double t = std::min(dt, -a / c.j);
+        a += j_step * t;
+        if (a > 0.0) { a = 0.0; }
+        x += v * t + a_old * 0.5 * t * t + j_step * t * t * t / 6.0;
+        v += (a_old + a) * 0.5 * t;
+      }
+
+      BOOST_TEST(static_cast<double>(stop_d) == x);
+      // Final v should be near 0.
+      BOOST_TEST(v == 0.0);
+    }
+  }
+}
+
+// Compare jerk-limited vs unlimited: both should reach the target,
+// the unlimited (constant-accel) version should finish first, and
+// the jerk-limited version should have no acceleration sign
+// discontinuity exceeding |jerk*dt| per cycle.
+BOOST_AUTO_TEST_CASE(JerkLimitedTakesLongerThanTrapezoidal,
+                     * boost::unit_test::tolerance(1e-3)) {
+  auto run = [](float jerk_limit) {
+    Context ctx;
+    ctx.set_rate_hz(30000.0f);
+    ctx.data.position = 1.0f;
+    ctx.data.velocity = 0.0f;
+    ctx.data.accel_limit = 1000.0f;
+    ctx.data.jerk_limit = jerk_limit;
+    ctx.data.velocity_limit = NaN;
+    ctx.set_position(0.0f);
+    ctx.set_velocity(0.0f);
+    int steps = 0;
+    for (; steps < 200000; steps++) {
+      ctx.Call();
+      if (ctx.status.trajectory_done) { return steps + 1; }
+    }
+    return -1;
+  };
+
+  const int steps_no_jerk = run(NaN);
+  const int steps_jerk = run(20000.0f);
+
+  BOOST_TEST(steps_no_jerk > 0);
+  BOOST_TEST(steps_jerk > 0);
+  BOOST_TEST(steps_jerk >= steps_no_jerk);
+}
+
+// Reproduces a reported on-hardware failure where the second of two
+// consecutive `d pos N 0 nan a5 j2` moves never terminated and `a`
+// oscillated around the target.  This regime has a very low jerk
+// relative to acceleration (slew time = a/j = 2.5s).
+BOOST_AUTO_TEST_CASE(JerkLimitLowJerkTerminates) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 5.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = 5.0f;
+  ctx.data.jerk_limit = 2.0f;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Triangle-in-a profile: peak v ~ (5/2)^(2/3) ~ 1.84 rev/s,
+  // total trajectory time ~ 4*sqrt(v_peak/j) ~ 3.8 s, plus the
+  // final-ramp slew of |a_peak|/j ~ sqrt(j*v_peak)/j ~ 1 s.  Allow
+  // a generous 15 s window.
+  const int max_steps = static_cast<int>(15.0f * rate_hz);
+
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  // See JerkLimitTerminationSweep for the residual-bound derivation.
+  const float kFloatEps = std::numeric_limits<float>::epsilon();
+  const float kinematic_floor =
+      ctx.data.accel_limit * ctx.data.accel_limit /
+      (ctx.data.jerk_limit * rate_hz);
+  const float drift_floor =
+      ctx.data.accel_limit / ctx.data.jerk_limit * rate_hz * kFloatEps;
+  BOOST_CHECK_LT(std::abs(final_pos - 5.0),
+                 10.0f * (kinematic_floor + drift_floor));
+}
+
+// A battery of termination cases that span hostile parameter
+// regimes for the jerk-limited trajectory generator.  Each case must
+// terminate (trajectory_done = true) within a generous time budget.
+BOOST_AUTO_TEST_CASE(JerkLimitTerminationSweep) {
+  struct TestCase {
+    float xf;
+    float vf;
+    float accel;
+    float jerk;
+    float rate_hz;
+    float vel_limit;
+    float max_time_s;
+    const char* desc;
+  };
+
+  TestCase cases[] = {
+    // The user-reported low-jerk failure case.
+    { 5.0f, 0.0f, 5.0f, 2.0f, 30000.0f, NaN, 15.0f, "low j (a=5,j=2)" },
+    // Even lower jerk.
+    { 1.0f, 0.0f, 2.0f, 0.5f, 30000.0f, NaN, 15.0f, "very low j" },
+    // Very long trajectory: even more cycles of accumulated drift.
+    { 50.0f, 0.0f, 10.0f, 5.0f, 30000.0f, NaN, 20.0f, "long trajectory" },
+    // High-jerk / fast move (the canonical case).
+    { 1.0f, 0.0f, 1000.0f, 20000.0f, 30000.0f, NaN, 2.0f, "fast move" },
+    // Trajectory hitting the velocity limit (forces cruise phase).
+    { 10.0f, 0.0f, 100.0f, 5000.0f, 30000.0f, 2.0f, 10.0f, "v-limit cruise" },
+    // Non-zero final velocity (tracking a moving target).
+    { 2.0f, 0.3f, 50.0f, 1000.0f, 30000.0f, NaN, 5.0f, "vf != 0" },
+    // Backwards move.
+    { -3.0f, 0.0f, 50.0f, 1000.0f, 30000.0f, NaN, 5.0f, "backwards" },
+    // Low control rate.
+    { 1.0f, 0.0f, 100.0f, 2000.0f, 15000.0f, NaN, 3.0f, "15 kHz rate" },
+    // Tiny move that may settle in a few cycles.
+    { 0.05f, 0.0f, 100.0f, 5000.0f, 30000.0f, NaN, 2.0f, "tiny move" },
+    // Initial velocity in the same direction as target.
+    { 5.0f, 0.0f, 50.0f, 1000.0f, 30000.0f, NaN, 5.0f, "co-aligned v0" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      ctx.set_rate_hz(tc.rate_hz);
+      ctx.data.position = tc.xf;
+      ctx.data.velocity = tc.vf;
+      ctx.data.accel_limit = tc.accel;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = tc.vel_limit;
+      ctx.set_position(0.0f);
+      ctx.set_velocity(0.0f);
+
+      const int max_steps =
+          static_cast<int>(tc.max_time_s * tc.rate_hz);
+      int steps = 0;
+      for (; steps < max_steps; steps++) {
+        ctx.Call();
+        if (ctx.status.trajectory_done) { break; }
+      }
+
+      const double final_pos =
+          ctx.from_raw(ctx.status.control_position_raw.value());
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == tc.vf);
+      const double expected =
+          tc.xf + tc.vf * (steps / static_cast<double>(tc.rate_hz));
+      const float kFloatEps = std::numeric_limits<float>::epsilon();
+      const float kinematic_floor =
+          tc.accel * tc.accel / (tc.jerk * tc.rate_hz);
+      const float drift_floor =
+          tc.accel / tc.jerk * tc.rate_hz * kFloatEps;
+      BOOST_CHECK_LT(std::abs(final_pos - expected),
+                     10.0f * (kinematic_floor + drift_floor));
+    }
+  }
+}
+
+// Verify the jerk bound is respected at the velocity-limit cruise
+// transitions (entering and exiting the velocity-limited coast),
+// including the cycle straddling trajectory_done.
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityLimitJerkBound) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 2.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 10.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  const float dt = 1.0f / rate_hz;
+  const float bound =
+      jerk * dt + std::max(
+          1e-5f, 4.0f * accel * std::numeric_limits<float>::epsilon());
+
+  float prev_a = 0.0f;
+  int max_violation_count = 0;
+  float max_violation = 0.0f;
+  bool done = false;
+  // Iterate one cycle past trajectory_done so the termination
+  // discontinuity is included in the bound check.
+  for (int i = 0; i < 200000; i++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    const float da = std::abs(a - prev_a);
+    if (da > bound) {
+      max_violation_count++;
+      if (da > max_violation) { max_violation = da; }
+    }
+    prev_a = a;
+    if (done) { break; }
+    if (ctx.status.trajectory_done) { done = true; }
+  }
+  BOOST_TEST(done == true);
+  BOOST_TEST(max_violation_count == 0);
+  BOOST_TEST(max_violation == 0.0f);
+}
+
+// Verify that retargeting after completion still terminates.
+BOOST_AUTO_TEST_CASE(JerkLimitRetargetingTerminates) {
+  Context ctx;
+  ctx.set_rate_hz(30000.0f);
+  ctx.data.accel_limit = 100.0f;
+  ctx.data.jerk_limit = 2000.0f;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // First move to 1.0.
+  ctx.data.position = 1.0f;
+  ctx.data.velocity = 0.0f;
+  for (int i = 0; i < 5 * 30000; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+
+  // Retarget to -2.0 from the new resting position.  Force the
+  // controller to interpret data->position as a fresh command by
+  // setting it explicitly.
+  ctx.data.position = -2.0f;
+  ctx.data.position_relative_raw.reset();
+  ctx.data.velocity = 0.0f;
+  for (int i = 0; i < 5 * 30000; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  const float kFloatEps = std::numeric_limits<float>::epsilon();
+  const float kinematic_floor =
+      ctx.data.accel_limit * ctx.data.accel_limit /
+      (ctx.data.jerk_limit * 30000.0f);
+  const float drift_floor =
+      ctx.data.accel_limit / ctx.data.jerk_limit * 30000.0f * kFloatEps;
+  BOOST_CHECK_LT(std::abs(final_pos + 2.0),
+                 10.0f * (kinematic_floor + drift_floor));
+}
+
+// === Mid-trajectory retargeting tests ===
+//
+// The jerk-limited trajectory generator latches into a terminal
+// "slew acceleration to 0" phase once it reaches the rest-curve
+// manifold for the current target.  If the host changes the target
+// while the latch is held, the controller MUST drop the latch and
+// re-plan -- otherwise it coasts to the old predicted endpoint and
+// ignores the new command.
+//
+// These tests exercise:
+//   - Retargeting during the terminal slew (the original bug).
+//   - Retargeting in the opposite direction during the slew.
+//   - Retargeting before the latch fires (sanity).
+//   - Streaming the same target every cycle (latch must NOT clear).
+//   - Streaming with small position increments (smooth tracking).
+//   - Streaming with bit-equal floats from a coarse host resolution.
+//   - Changing the velocity target during the slew.
+
+namespace {
+
+// Step a context for up to `max_steps` cycles or until `predicate`
+// returns true.  Returns the number of cycles actually executed.
+template <typename Pred>
+int StepUntil(Context* ctx, int max_steps, Pred predicate) {
+  for (int i = 0; i < max_steps; i++) {
+    ctx->Call();
+    if (predicate()) { return i + 1; }
+  }
+  return max_steps;
+}
+
+// Set up `ctx` for a fresh position move to `target`.  Mirrors the
+// retargeting pattern used by JerkLimitRetargetingTerminates: clear
+// position_relative_raw so Call() derives a fresh value from the new
+// `data.position`.
+void Retarget(Context* ctx, float new_position, float new_velocity) {
+  ctx->data.position = new_position;
+  ctx->data.velocity = new_velocity;
+  ctx->data.position_relative_raw.reset();
+}
+
+float kRetargetRateHz = 30000.0f;
+float kRetargetAccel = 50.0f;
+float kRetargetJerk = 1000.0f;
+
+void StartRetargetMove(Context* ctx, float position) {
+  ctx->set_rate_hz(kRetargetRateHz);
+  ctx->data.accel_limit = kRetargetAccel;
+  ctx->data.jerk_limit = kRetargetJerk;
+  ctx->data.velocity_limit = NaN;
+  ctx->set_position(0.0f);
+  ctx->set_velocity(0.0f);
+  ctx->data.position = position;
+  ctx->data.velocity = 0.0f;
+}
+
+float ResidualBound(float accel, float jerk, float rate_hz) {
+  const float kFloatEps = std::numeric_limits<float>::epsilon();
+  const float kinematic_floor = accel * accel / (jerk * rate_hz);
+  const float drift_floor = accel / jerk * rate_hz * kFloatEps;
+  return 10.0f * (kinematic_floor + drift_floor);
+}
+
+}
+
+// The original bug: a retarget arriving while
+// `trajectory_rest_committed == true` must invalidate the latch so
+// the controller follows the new target.  Previously the controller
+// would silently coast to the old predicted endpoint.
+BOOST_AUTO_TEST_CASE(JerkLimitMidSlewRetargetReachesNewTarget) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  // Step until the rest-commit latch engages.  For a=50, j=1000, the
+  // slew time is a/j = 50 ms (~1500 cycles), and the trapezoidal-in-a
+  // pre-roll occupies the rest of the trajectory.  Cap at a budget
+  // that is generous but still bounded.
+  const int max_pre_steps = static_cast<int>(2.0f * kRetargetRateHz);
+  const int pre_steps = StepUntil(
+      &ctx, max_pre_steps,
+      [&]() { return ctx.status.trajectory_rest_committed; });
+
+  BOOST_TEST(ctx.status.trajectory_rest_committed == true);
+  BOOST_TEST(ctx.status.trajectory_done == false);
+  BOOST_TEST(pre_steps < max_pre_steps);
+
+  // Now retarget to 10.0 in the SAME direction, while the controller
+  // is in the terminal slew.
+  const float new_target = 10.0f;
+  Retarget(&ctx, new_target, 0.0f);
+
+  // The first cycle after retarget must drop the latch.
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_rest_committed == false);
+
+  const int max_post_steps = static_cast<int>(5.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_CHECK_LT(
+      std::abs(final_pos - new_target),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// Retarget in the OPPOSITE direction during the terminal slew.  The
+// controller has near-zero velocity and a small residual negative
+// acceleration; flipping the target requires re-engaging
+// acceleration in the opposite sign.
+BOOST_AUTO_TEST_CASE(JerkLimitMidSlewRetargetReversesDirection) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  const int max_pre_steps = static_cast<int>(2.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_pre_steps,
+            [&]() { return ctx.status.trajectory_rest_committed; });
+  BOOST_TEST(ctx.status.trajectory_rest_committed == true);
+
+  // Reverse direction.
+  const float new_target = -2.0f;
+  Retarget(&ctx, new_target, 0.0f);
+
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_rest_committed == false);
+
+  const int max_post_steps = static_cast<int>(5.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_CHECK_LT(
+      std::abs(final_pos - new_target),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// Retarget BEFORE the latch fires.  The controller should follow
+// the new target normally (the latch was never set, so there is
+// nothing to invalidate).  This is a regression guard: the new
+// invalidation code must not break the already-working early-
+// retarget path.
+BOOST_AUTO_TEST_CASE(JerkLimitEarlyRetargetReachesNewTarget) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  // Step for a fraction of the trajectory, while still in the
+  // acceleration / cruise phase.
+  for (int i = 0; i < 100; i++) {
+    ctx.Call();
+  }
+  BOOST_TEST(ctx.status.trajectory_rest_committed == false);
+  BOOST_TEST(ctx.status.trajectory_done == false);
+
+  // Retarget.
+  const float new_target = 10.0f;
+  Retarget(&ctx, new_target, 0.0f);
+
+  const int max_post_steps = static_cast<int>(5.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_CHECK_LT(
+      std::abs(final_pos - new_target),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// A host that re-sends the SAME literal `position` / `velocity`
+// every cycle (e.g. a 1 kHz "hold here" supervisor talking to a
+// 30 kHz ISR) must not interfere with the rest-commit latch.  The
+// trajectory should complete in the same number of cycles as one
+// where the host writes a single command and walks away.
+BOOST_AUTO_TEST_CASE(JerkLimitStreamingSameTargetCompletes) {
+  auto run = [](bool stream_every_cycle) {
+    Context ctx;
+    StartRetargetMove(&ctx, 5.0f);
+
+    const int max_steps = static_cast<int>(5.0f * kRetargetRateHz);
+    int steps = 0;
+    for (; steps < max_steps; steps++) {
+      if (stream_every_cycle) {
+        // Re-issue the same target.  Reset position_relative_raw so
+        // Call() derives a fresh value from data.position; this is
+        // what PrepareCommand does on every real command frame.
+        ctx.data.position = 5.0f;
+        ctx.data.velocity = 0.0f;
+        ctx.data.position_relative_raw.reset();
+      }
+      ctx.Call();
+      if (ctx.status.trajectory_done) { break; }
+    }
+    return std::make_tuple(steps + 1,
+                           ctx.from_raw(
+                               ctx.status.control_position_raw.value()),
+                           ctx.status.trajectory_done);
+  };
+
+  auto [single_steps, single_pos, single_done] = run(false);
+  auto [stream_steps, stream_pos, stream_done] = run(true);
+
+  BOOST_TEST(single_done == true);
+  BOOST_TEST(stream_done == true);
+
+  const float bound =
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz);
+  BOOST_CHECK_LT(std::abs(single_pos - 5.0), bound);
+  BOOST_CHECK_LT(std::abs(stream_pos - 5.0), bound);
+
+  // Streaming the same target should not measurably lengthen the
+  // trajectory.  Allow a one-cycle slop for the bookkeeping inside
+  // the test loop, but no more.
+  BOOST_TEST(std::abs(stream_steps - single_steps) <= 1);
+}
+
+// A host that streams with small position perturbations (host clock
+// jitter, encoder quantization, etc.) re-issues a slightly different
+// `data.position` every cycle.  This forces the latch to invalidate
+// and re-commit, but the trajectory must still terminate and the
+// final position must track the most recently commanded target.
+BOOST_AUTO_TEST_CASE(JerkLimitStreamingNoisyTargetTerminates) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  // Deterministic pseudo-random noise so the test is repeatable.
+  uint32_t rng = 0x1234abcd;
+  auto next_noise = [&]() {
+    // xorshift32, scaled to ~[-1e-6, 1e-6] rev.
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    return (static_cast<int32_t>(rng) /
+            static_cast<float>(std::numeric_limits<int32_t>::max())) * 1e-6f;
+  };
+
+  const int max_steps = static_cast<int>(5.0f * kRetargetRateHz);
+  float last_target = 5.0f;
+  for (int i = 0; i < max_steps; i++) {
+    last_target = 5.0f + next_noise();
+    Retarget(&ctx, last_target, 0.0f);
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  // Tolerance: residual is bounded by the kinematic floor plus the
+  // peak-to-peak noise (1e-6 either side -> 2e-6 total).
+  const float bound =
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz)
+      + 2e-6f;
+  BOOST_CHECK_LT(std::abs(final_pos - last_target), bound);
+}
+
+// A host that streams with monotonically advancing position commands
+// (tracking a moving target).  Verifies the controller follows the
+// advancing target and ends at the most recent commanded position.
+BOOST_AUTO_TEST_CASE(JerkLimitStreamingAdvancingTargetTracks) {
+  Context ctx;
+  StartRetargetMove(&ctx, 0.0f);
+
+  const float dt = 1.0f / kRetargetRateHz;
+  // Advance the target by 0.5 rev/s.
+  const float target_velocity = 0.5f;
+  float target_position = 0.0f;
+  const float stop_at = 2.0f;
+
+  // Stream advancing positions until we reach the stop_at threshold,
+  // then hold there long enough for the trajectory to settle.
+  const int total_steps = static_cast<int>(8.0f * kRetargetRateHz);
+  for (int i = 0; i < total_steps; i++) {
+    if (target_position < stop_at) {
+      target_position += target_velocity * dt;
+      if (target_position > stop_at) { target_position = stop_at; }
+    }
+    Retarget(&ctx, target_position, 0.0f);
+    ctx.Call();
+    if (ctx.status.trajectory_done && target_position >= stop_at) {
+      break;
+    }
+  }
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  // The trajectory should land on stop_at within the kinematic
+  // residual; the noisy streaming during ramp-up does not bias the
+  // final position because we eventually hold the last target.
+  BOOST_CHECK_LT(
+      std::abs(final_pos - stop_at),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// Changing the velocity target during the terminal slew must
+// invalidate the latch and let the controller re-plan to the new
+// (position, velocity) endpoint.  Without invalidation the
+// controller would freeze velocity at 0 even though the host now
+// wants a non-zero tracking velocity.
+BOOST_AUTO_TEST_CASE(JerkLimitMidSlewVelocityChangeReplan) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  const int max_pre_steps = static_cast<int>(2.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_pre_steps,
+            [&]() { return ctx.status.trajectory_rest_committed; });
+  BOOST_TEST(ctx.status.trajectory_rest_committed == true);
+
+  // Change the velocity target.  The position target stays at 5.0
+  // but we now want to be moving at 0.3 rev/s when we arrive.
+  ctx.data.velocity = 0.3f;
+  // Don't reset position_relative_raw: only the velocity changed in
+  // the host's intent.  The latch must still invalidate because
+  // data.velocity differs from the snapshot.
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_rest_committed == false);
+
+  const int max_post_steps = static_cast<int>(5.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  // Final velocity should match the new target velocity.
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.3f,
+             boost::test_tools::tolerance(1e-3));
+}
+
+// === Adversarial retargeting ===
+//
+// The existing mid-slew retarget tests cover the common cases.
+// These add scenarios that stress the trajectory generator's
+// stability and correctness when the host retargets aggressively:
+//   - retargets at each phase of the 7-phase profile (not just
+//     during the terminal slew);
+//   - the "stop here NOW" command (retarget to current position
+//     while a_curr is large);
+//   - alternating retargets between two distant targets;
+//   - pseudo-random retargets every K cycles;
+//   - simultaneous position + velocity retarget;
+//   - cross-mode switch (NaN out position mid-trajectory to fall
+//     into the velocity-only path, and back).
+
+// Run a trajectory toward `target_a` (5.0 rev), retarget to
+// `target_b` (10.0 rev) after `delay` cycles, and verify the
+// controller reaches target_b within the kinematic residual.
+// Parameterized across the full range of trajectory phases.
+BOOST_AUTO_TEST_CASE(JerkLimitRetargetAtEachPhase) {
+  struct TestCase {
+    int delay;
+    const char* desc;
+  };
+  // For accel=50, jerk=1000, target=5.0: slew-up to a_max takes
+  // ~1500 cycles, cruise-at-a_max ~3000 cycles, brake-slew ~3000
+  // cycles, brake-cruise ~very-brief, terminal-slew ~1500 cycles,
+  // total ~9000 cycles.  Sample the trajectory at several points.
+  TestCase cases[] = {
+    {    1, "cycle 1 (a == 0)" },
+    {  100, "early slew-up" },
+    {  750, "mid slew-up" },
+    { 1500, "a near a_max" },
+    { 3000, "cruise at a_max" },
+    { 5000, "brake slew" },
+    { 7000, "brake cruise or terminal" },
+    { 8500, "deep in terminal slew" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc << " (delay=" << tc.delay << ")") {
+      Context ctx;
+      StartRetargetMove(&ctx, 5.0f);
+
+      for (int i = 0; i < tc.delay; i++) {
+        ctx.Call();
+        if (ctx.status.trajectory_done) { break; }
+      }
+
+      const float new_target = 10.0f;
+      Retarget(&ctx, new_target, 0.0f);
+
+      const int max_post_steps = static_cast<int>(10.0f * kRetargetRateHz);
+      StepUntil(&ctx, max_post_steps,
+                [&]() { return ctx.status.trajectory_done; });
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+      const double final_pos =
+          ctx.from_raw(ctx.status.control_position_raw.value());
+      BOOST_CHECK_LT(
+          std::abs(final_pos - new_target),
+          ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+    }
+  }
+}
+
+// "Stop here NOW": host retargets to a position equal to the
+// current control_position while a_curr is large (mid-acceleration).
+// The trajectory generator must coast smoothly to a stop, slewing
+// `a` back to 0.  The final position will not exactly match the
+// retarget moment's control_position (v keeps integrating during
+// the slew), but the residual must be bounded.
+BOOST_AUTO_TEST_CASE(JerkLimitRetargetToCurrentPositionMidAccel) {
+  Context ctx;
+  StartRetargetMove(&ctx, 20.0f);
+
+  // Run until we're mid-acceleration (a substantially non-zero).
+  // For these params, a hits a_max around cycle 1500.
+  for (int i = 0; i < 1200; i++) {
+    ctx.Call();
+  }
+  BOOST_TEST(std::abs(ctx.status.control_acceleration) >
+             0.3f * kRetargetAccel);
+
+  // Retarget to where we currently are.  This is the "abort and
+  // stay close" pattern: not the same as a velocity command, since
+  // the trajectory generator will integrate v out for some cycles
+  // before a reaches 0.
+  const int64_t pos_at_retarget =
+      ctx.status.control_position_raw.value();
+  const float pos_at_retarget_f = ctx.from_raw(pos_at_retarget);
+  Retarget(&ctx, pos_at_retarget_f, 0.0f);
+
+  const int max_post_steps = static_cast<int>(10.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  // Position drifts by at most the slew-time integral of v.  For
+  // a = a_max during the slew, v gain is a_max^2/(2j) and the
+  // position integral is bounded by (a_max/j) * (v_at_retarget +
+  // a_max^2/(2j)) -- a few revolutions max for typical params.
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  const float drift_bound =
+      (kRetargetAccel * kRetargetAccel) /
+      (kRetargetJerk * kRetargetJerk) * 3.0f;  // safety factor
+  BOOST_CHECK_LT(std::abs(final_pos - pos_at_retarget_f), drift_bound);
+}
+
+// Alternating retargets between two distant positions at fixed
+// interval.  The trajectory generator should not get stuck or
+// run away in either coordinate, and (after the final retarget)
+// should converge to the last-commanded target.
+BOOST_AUTO_TEST_CASE(JerkLimitAlternatingRetargets) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  // Alternate the position target every 200 cycles for 10 flips,
+  // then let the trajectory settle.
+  const float target_a = 5.0f;
+  const float target_b = -5.0f;
+  const int interval = 200;
+  const int flips = 10;
+
+  // Track that we never accelerate without bound.
+  double max_abs_v = 0.0;
+  double max_abs_x = 0.0;
+  float current_target = target_a;
+  for (int flip = 0; flip < flips; flip++) {
+    current_target = (flip % 2 == 0) ? target_a : target_b;
+    Retarget(&ctx, current_target, 0.0f);
+    for (int i = 0; i < interval; i++) {
+      ctx.Call();
+      const double v = std::abs(ctx.status.control_velocity.value());
+      const double x = std::abs(
+          ctx.from_raw(ctx.status.control_position_raw.value()));
+      if (v > max_abs_v) { max_abs_v = v; }
+      if (x > max_abs_x) { max_abs_x = x; }
+    }
+  }
+
+  // Velocity must stay bounded.  With accel=50 and an interval of
+  // 200 cycles (6.7 ms), peak |v| is bounded by a_max * interval *
+  // dt = 50 * 200 / 30000 = 0.33 rev/s.  Allow a 4x safety factor.
+  BOOST_TEST(max_abs_v < 4.0f * kRetargetAccel * interval / kRetargetRateHz);
+  // Position must stay within the two targets' span plus a bit of
+  // overshoot bounded by the slew dynamics.
+  BOOST_TEST(max_abs_x < std::abs(target_a) + 1.0);
+
+  // Let trajectory settle on the final target.
+  const int max_settle_steps = static_cast<int>(10.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_settle_steps,
+            [&]() { return ctx.status.trajectory_done; });
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_CHECK_LT(
+      std::abs(final_pos - current_target),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// Pseudo-random retargets every K cycles for a fixed number of
+// iterations, then let the trajectory settle on the final target.
+// Verifies the trajectory generator stays stable under arbitrary
+// retargeting and converges to the last command.
+BOOST_AUTO_TEST_CASE(JerkLimitRandomRetargetingStress) {
+  Context ctx;
+  StartRetargetMove(&ctx, 0.0f);
+
+  uint32_t rng = 0xdeadbeef;
+  auto next_target = [&]() {
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    // Range: [-5, 5] rev.
+    return 10.0f * (static_cast<int32_t>(rng) /
+                    static_cast<float>(
+                        std::numeric_limits<int32_t>::max())) - 5.0f;
+  };
+
+  const int retargets = 50;
+  const int cycles_between = 300;
+  float last_target = 0.0f;
+  for (int i = 0; i < retargets; i++) {
+    last_target = next_target();
+    Retarget(&ctx, last_target, 0.0f);
+    for (int j = 0; j < cycles_between; j++) {
+      ctx.Call();
+    }
+  }
+
+  // Now hold the last target and wait for completion.
+  const int max_settle_steps = static_cast<int>(15.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_settle_steps,
+            [&]() { return ctx.status.trajectory_done; });
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_CHECK_LT(
+      std::abs(final_pos - last_target),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// Mid-trajectory simultaneous change of position AND velocity
+// targets.  The latch must invalidate on the position change (the
+// velocity change alone is independently verified by
+// JerkLimitMidSlewVelocityChangeReplan).  Final state must match
+// the new (position, velocity) endpoint.
+BOOST_AUTO_TEST_CASE(JerkLimitCombinedPositionVelocityRetarget) {
+  Context ctx;
+  StartRetargetMove(&ctx, 5.0f);
+
+  // Step until rest-commit fires.
+  const int max_pre_steps = static_cast<int>(2.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_pre_steps,
+            [&]() { return ctx.status.trajectory_rest_committed; });
+  BOOST_TEST(ctx.status.trajectory_rest_committed == true);
+
+  // Change BOTH position and target velocity.
+  const float new_pos = -3.0f;
+  const float new_vel = 0.5f;
+  Retarget(&ctx, new_pos, new_vel);
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_rest_committed == false);
+
+  const int max_post_steps = static_cast<int>(15.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == new_vel,
+             boost::test_tools::tolerance(1e-3));
+}
+
+// Cross-mode switch: start a position-mode trajectory, mid-flight
+// switch to velocity-only mode by setting data.position = NaN.
+// The trajectory generator should track the velocity command via
+// DoVelocityModeLimits and not fall back into the position path.
+BOOST_AUTO_TEST_CASE(JerkLimitCrossModePositionToVelocity) {
+  Context ctx;
+  StartRetargetMove(&ctx, 10.0f);
+
+  // Run for a bit to establish a position-mode trajectory.
+  for (int i = 0; i < 500; i++) {
+    ctx.Call();
+  }
+  BOOST_TEST(ctx.status.trajectory_done == false);
+
+  // Switch to velocity-only mode.
+  ctx.data.position = NaN;
+  ctx.data.position_relative_raw.reset();
+  ctx.data.velocity = 1.0f;
+
+  // Continue running.  The trajectory should ramp v to 1.0 rev/s
+  // via the velocity-mode rest-curve commit and terminate there.
+  const int max_post_steps = static_cast<int>(5.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.0f,
+             boost::test_tools::tolerance(1e-3));
+}
+
+// Cross-mode switch the other direction: velocity-mode in progress,
+// then host supplies a position command.  The trajectory should
+// pick up the position target on the next cycle.
+BOOST_AUTO_TEST_CASE(JerkLimitCrossModeVelocityToPosition) {
+  Context ctx;
+  ctx.set_rate_hz(kRetargetRateHz);
+  ctx.data.accel_limit = kRetargetAccel;
+  ctx.data.jerk_limit = kRetargetJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+  ctx.data.position = NaN;
+  ctx.data.velocity = 1.5f;
+
+  // Run until velocity-mode ramps to target.
+  for (int i = 0; i < 50000; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
+
+  // Now command a position move with vf=0.
+  const float new_target = 5.0f;
+  Retarget(&ctx, new_target, 0.0f);
+
+  const int max_post_steps = static_cast<int>(15.0f * kRetargetRateHz);
+  StepUntil(&ctx, max_post_steps,
+            [&]() { return ctx.status.trajectory_done; });
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  const double final_pos =
+      ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_CHECK_LT(
+      std::abs(final_pos - new_target),
+      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz));
+}
+
+// === Jerk-bound-through-termination tests ===
+//
+// The jerk-limited trajectory generator must respect |Δa| <= j*dt
+// per cycle for EVERY cycle, including the final cycle where
+// trajectory_done fires.  The legacy completion paths
+// (`final_sign != initial_sign` in DoVelocityModeLimits, and the
+// position-mode `|a| < j*dt` gate) snapped control_acceleration to
+// 0 from a potentially non-zero value, producing a single-cycle
+// jerk step that exceeded the bound by up to a_max.
+//
+// These tests differ from the existing JerkLimit*JerkBound tests in
+// that they assert on Δa AT the termination cycle, not just on the
+// cycles before it.  The earlier tests use `if (trajectory_done)
+// break;` immediately before the bound check, which silently
+// permits arbitrary jerk violations on the terminating cycle.
+
+namespace {
+
+// Run a trajectory to completion and verify |Δa| <= bound for every
+// cycle, including the cycle on which trajectory_done first becomes
+// true AND the cycle immediately after it.  Returns the number of
+// cycles executed (>= 1).
+//
+// The slop on the bound accounts for the fact that the slew step
+// `Δa = j*dt` is computed in the controller as `a_prev + j_dt`,
+// and an external observer recovers Δa via subtraction.  ULP at
+// |a_prev| ~ a_max is `a_max * eps`, so the recovered Δa can
+// disagree with the analytical j*dt by O(a_max * eps).  We use a
+// 4x safety factor for accumulated rounding.
+int RunAndCheckJerkBound(Context* ctx, int max_steps,
+                         float jerk, float accel, float period_s) {
+  const float kFloatEps = std::numeric_limits<float>::epsilon();
+  const float bound =
+      jerk * period_s + std::max(1e-5f, 4.0f * accel * kFloatEps);
+  float prev_a = ctx->status.control_acceleration;
+  bool done = false;
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx->Call();
+    const float a = ctx->status.control_acceleration;
+    const float da = std::abs(a - prev_a);
+    BOOST_TEST(da <= bound);
+    prev_a = a;
+    if (done) { steps++; break; }
+    if (ctx->status.trajectory_done) { done = true; }
+  }
+  return steps;
+}
+
+}
+
+// Regression test for the velocity-mode jerk-violation bug.  The
+// existing JerkLimitVelocityModeRamp test breaks BEFORE checking the
+// bound on the terminating cycle, so it passes even when the legacy
+// `final_sign != initial_sign` termination snaps a from a_max to 0.
+// This variant keeps checking through trajectory_done = true.
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeJerkBoundThroughTermination) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 1000.0f;
+  constexpr float kJerk = 20000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = NaN;
+  ctx.data.velocity = 1.5f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_velocity = 0.0f;
+
+  const int max_steps = 200000;
+  const int steps =
+      RunAndCheckJerkBound(&ctx, max_steps, kJerk, kAccel, 1.0f / kRateHz);
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.5f,
+             boost::test_tools::tolerance(1e-3));
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+}
+
+// Same regression test for the position-mode termination, which has
+// the analogous structure (`|a| < j*dt` snap to 0).  With the
+// strict `a == 0` termination, |Δa| at the final cycle must respect
+// the bound.
+BOOST_AUTO_TEST_CASE(JerkLimitPositionModeJerkBoundThroughTermination) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 1000.0f;
+  constexpr float kJerk = 20000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = 1.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  const int max_steps = 200000;
+  const int steps =
+      RunAndCheckJerkBound(&ctx, max_steps, kJerk, kAccel, 1.0f / kRateHz);
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+}
+
+// Parameter sweep for velocity-mode jerk-bound-through-termination.
+// Covers a range of accel/jerk ratios and target velocities,
+// including cases where peak `a` would not be a clean multiple of
+// j*dt (which is the regime where the legacy `< j*dt` gate -- as
+// opposed to the strict `== 0` gate -- snaps from a small non-zero
+// value).
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeJerkBoundSweep) {
+  struct TestCase {
+    float vf;
+    float accel;
+    float jerk;
+    float rate_hz;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {  1.5f,  1000.0f,  20000.0f, 30000.0f, "canonical" },
+    { -1.5f,  1000.0f,  20000.0f, 30000.0f, "negative target" },
+    {  0.5f,  1000.0f,  20000.0f, 30000.0f, "small target (triangle)" },
+    { 10.0f,   100.0f,   5000.0f, 30000.0f, "trapezoidal-in-a" },
+    {  2.0f,   500.0f,  10000.0f, 15000.0f, "low rate" },
+    {  3.0f,    50.0f,   1000.0f, 30000.0f, "low j, asymmetric quanta" },
+    {  0.05f,  100.0f,   2000.0f, 30000.0f, "tiny target" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      ctx.set_rate_hz(tc.rate_hz);
+      ctx.data.position = NaN;
+      ctx.data.velocity = tc.vf;
+      ctx.data.accel_limit = tc.accel;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.status.control_position_raw = ctx.to_raw(0.0f);
+      ctx.status.control_velocity = 0.0f;
+
+      const int max_steps =
+          static_cast<int>(10.0f * tc.rate_hz);
+      const int steps =
+          RunAndCheckJerkBound(
+              &ctx, max_steps, tc.jerk, tc.accel, 1.0f / tc.rate_hz);
+      BOOST_TEST(steps < max_steps);
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == tc.vf,
+                 boost::test_tools::tolerance(1e-3));
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    }
+  }
+}
+
+// Same sweep for position-mode jerk bound through termination.
+BOOST_AUTO_TEST_CASE(JerkLimitPositionModeJerkBoundSweep) {
+  struct TestCase {
+    float xf;
+    float vf;
+    float accel;
+    float jerk;
+    float rate_hz;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {  1.0f, 0.0f, 1000.0f, 20000.0f, 30000.0f, "canonical" },
+    {  5.0f, 0.0f, 2000.0f, 50000.0f, 30000.0f, "fast move" },
+    { -3.0f, 0.0f, 1500.0f, 30000.0f, 30000.0f, "negative target" },
+    {  0.5f, 0.0f,  500.0f, 10000.0f, 15000.0f, "low rate" },
+    {  5.0f, 0.0f,    5.0f,     2.0f, 30000.0f, "low j (a=5,j=2)" },
+    {  1.0f, 0.5f, 1000.0f, 20000.0f, 30000.0f, "non-zero vf" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      ctx.set_rate_hz(tc.rate_hz);
+      ctx.data.position = tc.xf;
+      ctx.data.velocity = tc.vf;
+      ctx.data.accel_limit = tc.accel;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_position(0.0f);
+      ctx.set_velocity(0.0f);
+
+      const int max_steps =
+          static_cast<int>(20.0f * tc.rate_hz);
+      const int steps =
+          RunAndCheckJerkBound(
+              &ctx, max_steps, tc.jerk, tc.accel, 1.0f / tc.rate_hz);
+      BOOST_TEST(steps < max_steps);
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == tc.vf);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    }
+  }
+}
+
+// The cycle after a jerk-limited velocity-mode trajectory
+// terminates must not re-launch a new trajectory if the host is
+// still commanding the same target velocity.  Without the
+// already-at-target early-out, the trajectory generator would
+// detect `dv == 0` as `initial_sign = -1` and start oscillating.
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeStaysAtTargetAfterCompletion) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 1000.0f;
+  constexpr float kJerk = 20000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = NaN;
+  ctx.data.velocity = 1.5f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_velocity = 0.0f;
+
+  // Run trajectory to completion.
+  for (int i = 0; i < 200000; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
+
+  // Keep streaming the same target.  control_velocity must remain
+  // exactly 1.5 (a single command-frame re-entry of the trajectory
+  // generator is unavoidable, but it must not perturb v).
+  for (int i = 0; i < 1000; i++) {
+    ctx.Call();
+    BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
+    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    BOOST_TEST(ctx.status.trajectory_done == true);
+  }
+}
+
+// Mid-trajectory retargeting in velocity-only mode: change the
+// velocity target while the controller is in the terminal slew, and
+// verify the controller follows the new target (analog of
+// JerkLimitMidSlewRetargetReachesNewTarget but for velocity mode).
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeMidSlewRetargetReachesNewTarget) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 100.0f;
+  constexpr float kJerk = 2000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = NaN;
+  ctx.data.velocity = 2.0f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_velocity = 0.0f;
+
+  // Step until rest-commit fires.
+  const int max_pre_steps = static_cast<int>(5.0f * kRateHz);
+  int pre_steps = 0;
+  for (; pre_steps < max_pre_steps; pre_steps++) {
+    ctx.Call();
+    if (ctx.status.trajectory_rest_committed) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_rest_committed == true);
+  BOOST_TEST(ctx.status.trajectory_done == false);
+  BOOST_TEST(pre_steps < max_pre_steps);
+
+  // Now retarget to a different velocity.
+  ctx.data.velocity = -1.0f;
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_rest_committed == false);
+
+  const int max_post_steps = static_cast<int>(10.0f * kRateHz);
+  for (int i = 0; i < max_post_steps; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == -1.0f,
+             boost::test_tools::tolerance(1e-3));
+}
+
+// A host that streams the same velocity command every cycle must
+// not interfere with the rest-commit latch (analog of
+// JerkLimitStreamingSameTargetCompletes but for velocity mode).
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeStreamingSameTargetCompletes) {
+  auto run = [](bool stream_every_cycle) {
+    Context ctx;
+    constexpr float kRateHz = 30000.0f;
+    constexpr float kAccel = 1000.0f;
+    constexpr float kJerk = 20000.0f;
+
+    ctx.set_rate_hz(kRateHz);
+    ctx.data.position = NaN;
+    ctx.data.velocity = 1.5f;
+    ctx.data.accel_limit = kAccel;
+    ctx.data.jerk_limit = kJerk;
+    ctx.data.velocity_limit = NaN;
+    ctx.status.control_position_raw = ctx.to_raw(0.0f);
+    ctx.status.control_velocity = 0.0f;
+
+    const int max_steps = 200000;
+    int steps = 0;
+    for (; steps < max_steps; steps++) {
+      if (stream_every_cycle) {
+        // Re-issue the same target every cycle.
+        ctx.data.velocity = 1.5f;
+      }
+      ctx.Call();
+      if (ctx.status.trajectory_done) { break; }
+    }
+    return std::make_tuple(steps + 1,
+                           ctx.status.control_velocity.value(),
+                           ctx.status.trajectory_done);
+  };
+
+  auto [single_steps, single_v, single_done] = run(false);
+  auto [stream_steps, stream_v, stream_done] = run(true);
+
+  BOOST_TEST(single_done == true);
+  BOOST_TEST(stream_done == true);
+  BOOST_TEST(single_v == 1.5f, boost::test_tools::tolerance(1e-3));
+  BOOST_TEST(stream_v == 1.5f, boost::test_tools::tolerance(1e-3));
+  // Streaming the same target should not measurably lengthen the
+  // trajectory.
+  BOOST_TEST(std::abs(stream_steps - single_steps) <= 1);
+}
+
+// Verify the jerk bound is respected even when the host retargets
+// repeatedly mid-trajectory.  The trajectory should still terminate
+// and never violate |Δa| <= j*dt + slop, even on the cycles
+// where the latch invalidates and the rest-curve check fires again.
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeRetargetJerkBoundPreserved) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 100.0f;
+  constexpr float kJerk = 2000.0f;
+
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = NaN;
+  ctx.data.velocity = 2.0f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_velocity = 0.0f;
+
+  const float dt = 1.0f / kRateHz;
+  const float kFloatEps = std::numeric_limits<float>::epsilon();
+  const float bound =
+      kJerk * dt + std::max(1e-5f, 4.0f * kAccel * kFloatEps);
+  float prev_a = 0.0f;
+
+  // Retarget every 10ms.
+  const int retarget_interval = static_cast<int>(0.01f * kRateHz);
+  const float retarget_velocities[] = { 1.0f, -0.5f, 2.5f, 0.5f, -1.5f };
+  int retarget_index = 0;
+
+  const int max_steps = static_cast<int>(5.0f * kRateHz);
+  for (int i = 0; i < max_steps; i++) {
+    if (i > 0 && (i % retarget_interval) == 0 &&
+        retarget_index < static_cast<int>(
+            sizeof(retarget_velocities) / sizeof(retarget_velocities[0]))) {
+      ctx.data.velocity = retarget_velocities[retarget_index++];
+    }
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    const float da = std::abs(a - prev_a);
+    BOOST_TEST(da <= bound);
+    prev_a = a;
+  }
+
+  // After the last retarget, the trajectory should eventually
+  // settle on the final retarget value.
+  const float final_target =
+      retarget_velocities[
+          (sizeof(retarget_velocities) /
+           sizeof(retarget_velocities[0])) - 1];
+  // Allow some settling time for the last target.
+  const int settle_steps = static_cast<int>(5.0f * kRateHz);
+  for (int i = 0; i < settle_steps; i++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    const float da = std::abs(a - prev_a);
+    BOOST_TEST(da <= bound);
+    prev_a = a;
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == final_target,
+             boost::test_tools::tolerance(1e-3));
+}
+
+// === Degenerate-startup tests ===
+//
+// Issue 1.3: when the host commands a position move whose target
+// matches the current (x, v) state, the jerk-limited trajectory
+// generator must terminate cleanly without an excursion.  The
+// legacy bang-bang path is rescued from the same edge case by its
+// "v crosses target" cross-detection -- the jerk path has no such
+// rescue and was launching a phantom +/-a_max trajectory.
+//
+// These tests also exercise the broader "trajectory restart at
+// rest" class of problems: repeated identical commands, host
+// streaming, and position-equals-current with non-zero target
+// velocity.
+
+// Position move with target == current state must terminate in a
+// single cycle and leave (x, v, a) unchanged.  This is the exact
+// scenario from the review.
+BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupTerminatesImmediately) {
+  Context ctx;
+  ctx.set_rate_hz(30000.0f);
+  ctx.data.position = 0.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = 1000.0f;
+  ctx.data.jerk_limit = 20000.0f;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  const int64_t initial_pos_raw = ctx.position.position_raw;
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+  BOOST_TEST(ctx.status.control_position_raw.value() == initial_pos_raw);
+}
+
+// Same shape, but at a non-origin position with a non-zero matching
+// velocity.  The "tracking a moving target whose position and
+// velocity we already match" path also has to terminate in one
+// cycle without launching a trajectory.
+BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupTrackingMovingTarget) {
+  Context ctx;
+  ctx.set_rate_hz(30000.0f);
+  ctx.data.position = 3.0f;
+  ctx.data.velocity = 1.5f;
+  ctx.data.accel_limit = 1000.0f;
+  ctx.data.jerk_limit = 20000.0f;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(3.0f);
+  // Match the commanded velocity, AND seed control_velocity so the
+  // controller doesn't run its first-cycle velocity-capture path.
+  ctx.set_velocity(1.5f);
+  ctx.status.control_position_raw = ctx.position.position_raw;
+  ctx.status.control_velocity = 1.5f;
+  ctx.status.control_acceleration = 0.0f;
+
+  const int64_t initial_pos_raw = ctx.position.position_raw;
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+  // Position advances by approximately v*dt per cycle while
+  // tracking.  The controller's fixed-point integration loses a
+  // small amount of precision relative to a double-precision
+  // multiply, so allow a few raw units of slack.
+  const double advance_rev =
+      ctx.from_raw(ctx.status.control_position_raw.value() -
+                   initial_pos_raw);
+  // The controller's int32 truncation in the fixed-point step
+  // computation loses up to one part in 2^32 of the per-cycle
+  // advance, which is ~5e-6 relative for a step of 5e-5 rev.
+  BOOST_TEST(advance_rev == 1.5 / 30000.0,
+             boost::test_tools::tolerance(1e-5));
+}
+
+// Streaming the same position+velocity command every cycle (the
+// pattern a 1 kHz "hold here" supervisor produces against a 30 kHz
+// ISR) must keep the controller stable: position must not drift,
+// velocity must remain at the commanded value, and acceleration
+// must stay at 0.  Without the degenerate-startup short-circuit,
+// every cycle would launch a fresh phantom +/-a_max trajectory.
+BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupRepeatedCommandsStable) {
+  Context ctx;
+  ctx.set_rate_hz(30000.0f);
+  ctx.data.position = 2.5f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = 1000.0f;
+  ctx.data.jerk_limit = 20000.0f;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(2.5f);
+  ctx.set_velocity(0.0f);
+
+  const int64_t initial_pos_raw = ctx.position.position_raw;
+  for (int i = 0; i < 1000; i++) {
+    // Re-issue the same command each cycle; reset
+    // position_relative_raw so Call() derives a fresh value from
+    // data.position (this is what PrepareCommand does for every
+    // real command frame).
+    ctx.data.position = 2.5f;
+    ctx.data.velocity = 0.0f;
+    ctx.data.position_relative_raw.reset();
+    ctx.Call();
+    BOOST_TEST(ctx.status.trajectory_done == true);
+    BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    BOOST_TEST(ctx.status.control_position_raw.value() == initial_pos_raw);
+  }
+}
+
+// Variants of the degenerate-startup scenario: each case where
+// target == current state must terminate immediately without
+// motion.  Cases that ARE legitimate trajectories must NOT
+// terminate on the first cycle (this is the regression guard).
+BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupSweep) {
+  struct TestCase {
+    float target_pos;
+    float target_vel;
+    float initial_pos;
+    float initial_vel;
+    bool expect_immediate_termination;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    // Degenerate -- should terminate in 1 cycle.
+    { 0.0f, 0.0f, 0.0f, 0.0f, true,  "all zeros" },
+    { 5.0f, 0.0f, 5.0f, 0.0f, true,  "non-origin same position" },
+    { -2.0f, 0.0f, -2.0f, 0.0f, true, "negative same position" },
+    { 1.5f, 0.5f, 1.5f, 0.5f, true,  "matching nonzero velocity" },
+    { 1.5f, -0.7f, 1.5f, -0.7f, true, "matching negative velocity" },
+    // Non-degenerate (sanity / regression for "real trajectories
+    // still run").
+    { 1.0f, 0.0f, 0.0f, 0.0f, false, "real position move" },
+    { 0.0f, 0.0f, 0.0f, 1.0f, false, "at position but moving" },
+    { 0.0f, 1.0f, 0.0f, 0.0f, false, "at position, velocity mismatch" },
+    { 1.0f, 1.0f, 1.0f, 0.0f, false, "at position, velocity wrong sign" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      ctx.set_rate_hz(30000.0f);
+      ctx.data.position = tc.target_pos;
+      ctx.data.velocity = tc.target_vel;
+      ctx.data.accel_limit = 1000.0f;
+      ctx.data.jerk_limit = 20000.0f;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_position(tc.initial_pos);
+      ctx.set_velocity(tc.initial_vel);
+      ctx.status.control_position_raw = ctx.position.position_raw;
+      ctx.status.control_velocity = tc.initial_vel;
+      ctx.status.control_acceleration = 0.0f;
+
+      ctx.Call();
+
+      if (tc.expect_immediate_termination) {
+        BOOST_TEST(ctx.status.trajectory_done == true);
+        BOOST_TEST(ctx.status.control_velocity.value() == tc.target_vel);
+        BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      } else {
+        // The trajectory must not be done after a single cycle for
+        // any of these cases (each requires real motion to settle).
+        BOOST_TEST(ctx.status.trajectory_done == false);
+      }
+    }
+  }
+}
+
+// The cycle immediately after a normal jerk-limited trajectory
+// terminates re-enters the trajectory generator with (a, v, x)
+// forced to (0, vf, xf).  Without the degenerate-startup short-
+// circuit, this would launch a phantom trajectory.  Verify that
+// the post-completion idle cycles do not perturb (x, v, a).
+BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupPostCompletionStable) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = 1.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = 1000.0f;
+  ctx.data.jerk_limit = 20000.0f;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Run trajectory to completion.
+  for (int i = 0; i < 200000; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+
+  // The exact final position depends on the trajectory's residual.
+  // Latch it now; further idle cycles must not move it.
+  const int64_t completion_pos_raw =
+      ctx.status.control_position_raw.value();
+
+  // Continue running with no new command (data.position stays at
+  // 1.0, data.position_relative_raw was reset by the termination).
+  for (int i = 0; i < 1000; i++) {
+    ctx.Call();
+    BOOST_TEST(ctx.status.trajectory_done == true);
+    BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    BOOST_TEST(
+        ctx.status.control_position_raw.value() == completion_pos_raw);
+  }
+}
+
+// === Overspeed rest-curve tests ===
+//
+// Issue 1.4: when v_curr exceeds velocity_limit (because the host
+// lowered the limit mid-motion or because a fresh trajectory
+// started at a higher v_curr), CalculateJerkLimitedAcceleration
+// used to unconditionally return -a_max.  The outer slew bounded
+// |Δa| <= j*dt so the jerk limit was respected, but with no rest-
+// curve pre-switch v continued to drop well below v_limit during
+// the subsequent slew of `a` back toward 0 -- a smoothness
+// regression relative to the symmetric approach-from-below path.
+//
+// The fix commits to target_a = 0 (the terminal slew) when
+// `|a|^2 >= 2*j*(|v| - v_limit)` -- the kinematic condition for
+// "slew a to 0 from now lands |v| at v_limit".  These tests
+// exercise both the deep-overspeed case (seed control_velocity
+// above the limit) and the mid-motion overspeed case (lower the
+// velocity_limit while a trajectory is running).
+
+namespace {
+
+// Slop on the |Δa| <= j*dt bound, identical to the formula used by
+// RunAndCheckJerkBound; the recovered Δa = a_curr - (a_curr - j*dt)
+// loses ULP at |a_curr| ~ a_max so we allow O(a_max * eps).
+float JerkBoundFor(float jerk, float accel, float period_s) {
+  const float kFloatEps = std::numeric_limits<float>::epsilon();
+  return jerk * period_s +
+      std::max(1e-5f, 4.0f * accel * kFloatEps);
+}
+
+}
+
+// Deep-overspeed regression: seed control_velocity at 2.5x v_limit
+// and verify the trajectory completes and respects the per-cycle
+// jerk bound throughout the recovery.  Smoothness (min_v staying
+// near v_limit) is checked separately in
+// JerkLimitOverspeedRestCurveSmoothEntry.
+BOOST_AUTO_TEST_CASE(JerkLimitOverspeedRestCurveDeep) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 2.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 10.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_acceleration = 0.0f;
+  ctx.status.control_velocity = 5.0f;
+
+  const float dt = 1.0f / rate_hz;
+  const float bound = JerkBoundFor(jerk, accel, dt);
+  float prev_a = 0.0f;
+  int violations = 0;
+  const int max_steps = static_cast<int>(15.0f * rate_hz);
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    if (std::abs(a - prev_a) > bound) { violations++; }
+    prev_a = a;
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(violations == 0);
+}
+
+// Same scenario as above, but with the smoothness assertion done
+// via a focused trace: capture v over the first slice of the
+// trajectory (before the final brake to 0) and verify it doesn't
+// dip below v_limit by more than the discrete-step floor.
+BOOST_AUTO_TEST_CASE(JerkLimitOverspeedRestCurveSmoothEntry) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 2.0f;
+  ctx.set_rate_hz(rate_hz);
+  // Long trajectory so we have a clear cruise phase to look at.
+  ctx.data.position = 50.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_acceleration = 0.0f;
+  ctx.status.control_velocity = 5.0f;
+
+  // First, run until v has fallen to v_limit (or just past).  Then
+  // capture min v over the next 5*(a_max/j) cycles -- enough to
+  // observe any dip the legacy slew-back-to-0 would produce.
+  const float dt = 1.0f / rate_hz;
+  // Stage 1: brake until v reaches v_limit-ish.
+  bool reached_limit = false;
+  for (int i = 0; i < 100000; i++) {
+    ctx.Call();
+    if (ctx.status.control_velocity.value() <= vel_limit) {
+      reached_limit = true;
+      break;
+    }
+  }
+  BOOST_TEST(reached_limit);
+
+  // Stage 2: observe v over a window long enough to expose any
+  // slew-back undershoot.  3 * (a_max / j) seconds is enough.
+  const int observe_cycles = static_cast<int>(3.0f * accel / jerk * rate_hz);
+  double min_v = ctx.status.control_velocity.value();
+  for (int i = 0; i < observe_cycles; i++) {
+    ctx.Call();
+    const double v = ctx.status.control_velocity.value();
+    if (v < min_v) { min_v = v; }
+  }
+
+  // Legacy behavior: min_v drops to vel_limit - a^2/(2j) = 1.0.
+  // With the fix: min_v stays within one discrete-step of v_limit.
+  // The discrete step error is bounded by a_max * dt = 100/30000 =
+  // 3.3e-3, plus a one-cycle slop.  Allow 4x for safety.
+  const float allowed_dip = 4.0f * accel * dt;
+  BOOST_TEST(min_v >= vel_limit - allowed_dip);
+}
+
+// Symmetric: negative v_curr above (in magnitude) v_limit.
+BOOST_AUTO_TEST_CASE(JerkLimitOverspeedRestCurveNegative) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 2.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = -50.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_acceleration = 0.0f;
+  ctx.status.control_velocity = -5.0f;
+
+  const float dt = 1.0f / rate_hz;
+  const float bound = JerkBoundFor(jerk, accel, dt);
+  float prev_a = 0.0f;
+  int violations = 0;
+
+  bool reached_limit = false;
+  for (int i = 0; i < 100000; i++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    if (std::abs(a - prev_a) > bound) { violations++; }
+    prev_a = a;
+    if (ctx.status.control_velocity.value() >= -vel_limit) {
+      reached_limit = true;
+      break;
+    }
+  }
+  BOOST_TEST(reached_limit);
+  BOOST_TEST(violations == 0);
+
+  // Observe the maximum (in magnitude) v over the window.  The
+  // mirror image of the positive case: |v| must not climb (more
+  // negative) below -v_limit by more than the discrete-step floor.
+  const int observe_cycles = static_cast<int>(3.0f * accel / jerk * rate_hz);
+  double max_neg_v = ctx.status.control_velocity.value();
+  for (int i = 0; i < observe_cycles; i++) {
+    ctx.Call();
+    const double v = ctx.status.control_velocity.value();
+    if (v < max_neg_v) { max_neg_v = v; }
+  }
+  const float allowed_dip = 4.0f * accel * dt;
+  BOOST_TEST(max_neg_v >= -vel_limit - allowed_dip);
+}
+
+// Mid-trajectory velocity-limit reduction: start with a normal
+// trajectory inside the limit, then mid-flight lower the limit
+// below the current control_velocity.  The controller must
+// recognize the new overspeed condition and brake smoothly into
+// the new cruise band, then continue toward the position target.
+BOOST_AUTO_TEST_CASE(JerkLimitOverspeedRestCurveLowerLimitMidFlight) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 50.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = 5.0f;  // generous initially
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Run until v_curr has reached the original v_limit cruise (5.0).
+  bool at_cruise = false;
+  for (int i = 0; i < 100000; i++) {
+    ctx.Call();
+    if (ctx.status.control_acceleration == 0.0f &&
+        ctx.status.control_velocity.value() >= 4.5f) {
+      at_cruise = true;
+      break;
+    }
+  }
+  BOOST_TEST(at_cruise);
+
+  // Now drop velocity_limit to 2.0; this puts the controller in
+  // overspeed against the new limit.
+  ctx.data.velocity_limit = 2.0f;
+
+  const float dt = 1.0f / rate_hz;
+  const float bound = JerkBoundFor(jerk, accel, dt);
+  float prev_a = ctx.status.control_acceleration;
+  int violations = 0;
+
+  // The overspeed recovery should complete within roughly
+  // 2*(a_max/j) plus the cruise-at-(-a_max) duration.  For these
+  // params: 2 * 100/5000 + 1 sec of cruise = 0.04 + 0.20 = ~0.24
+  // sec.  Use a 0.5 sec observation window -- long enough to cover
+  // any reasonable recovery, short enough to not bleed into the
+  // final position-target brake (cruise at v=2 for the remaining
+  // ~48 rev takes ~24 sec).
+  const int observe_cycles = static_cast<int>(0.5f * rate_hz);
+  double min_v_during_recovery = ctx.status.control_velocity.value();
+  for (int i = 0; i < observe_cycles; i++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    if (std::abs(a - prev_a) > bound) { violations++; }
+    prev_a = a;
+    const double v = ctx.status.control_velocity.value();
+    if (v < min_v_during_recovery) { min_v_during_recovery = v; }
+  }
+  BOOST_TEST(violations == 0);
+  // With the rest-curve pre-switch, v lands at v_limit (within a
+  // small discrete-step floor).  Legacy behavior dips to
+  // v_limit - a_max^2/(2j) = 2 - 1 = 1 -- well below this bound.
+  const float allowed_dip = 4.0f * accel * dt;
+  BOOST_TEST(min_v_during_recovery >= 2.0f - allowed_dip);
+}
+
+// Parameter sweep on the overspeed scenario: a variety of accel /
+// jerk ratios and overspeed magnitudes.  Each case must terminate
+// and respect the jerk bound throughout.
+BOOST_AUTO_TEST_CASE(JerkLimitOverspeedRestCurveSweep) {
+  struct TestCase {
+    float v_initial;
+    float v_limit;
+    float xf;
+    float accel;
+    float jerk;
+    float rate_hz;
+    const char* desc;
+  };
+  // Position targets are sized to keep cruise-at-v_limit duration
+  // within the 20 sec test budget after the overspeed recovery.
+  TestCase cases[] = {
+    {  5.0f, 2.0f,  10.0f, 100.0f, 5000.0f,  30000.0f, "canonical" },
+    { 20.0f, 2.0f,  10.0f, 100.0f, 5000.0f,  30000.0f, "10x overspeed" },
+    {  2.5f, 2.0f,  10.0f, 100.0f, 5000.0f,  30000.0f, "small overspeed" },
+    { 10.0f, 5.0f,  20.0f, 500.0f, 10000.0f, 30000.0f, "high accel/jerk" },
+    {  5.0f, 1.0f,   5.0f,  50.0f, 1000.0f,  30000.0f, "low j" },
+    { -5.0f, 2.0f, -10.0f, 100.0f, 5000.0f,  30000.0f, "negative" },
+    {  3.0f, 2.0f,  10.0f, 100.0f, 5000.0f,  15000.0f, "low rate" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      ctx.set_rate_hz(tc.rate_hz);
+      ctx.data.position = tc.xf;
+      ctx.data.velocity = 0.0f;
+      ctx.data.accel_limit = tc.accel;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = tc.v_limit;
+      ctx.set_position(0.0f);
+      ctx.set_velocity(0.0f);
+      ctx.status.control_position_raw = ctx.to_raw(0.0f);
+      ctx.status.control_acceleration = 0.0f;
+      ctx.status.control_velocity = tc.v_initial;
+
+      const float dt = 1.0f / tc.rate_hz;
+      const float bound = JerkBoundFor(tc.jerk, tc.accel, dt);
+      float prev_a = ctx.status.control_acceleration;
+      int violations = 0;
+      const int max_steps = static_cast<int>(20.0f * tc.rate_hz);
+      int steps = 0;
+      for (; steps < max_steps; steps++) {
+        ctx.Call();
+        const float a = ctx.status.control_acceleration;
+        if (std::abs(a - prev_a) > bound) { violations++; }
+        prev_a = a;
+        if (ctx.status.trajectory_done) { break; }
+      }
+      BOOST_TEST(steps < max_steps);
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(violations == 0);
+    }
+  }
+}
+
+// === Mid-motion accel_limit changes ===
+//
+// accel_limit is read fresh each cycle, so the trajectory
+// generator adapts immediately to changes.  The two interesting
+// transients are:
+//   - lowering the limit while |a| is above the new ceiling
+//     (the jerk bound wins over the new accel bound during the
+//      slew back into range);
+//   - clearing the limit to NaN, which discretely switches the
+//     trajectory generator to DoVelocityOnlyLimit (a deliberate
+//     mode switch -- the velocity-only path bypasses the
+//     jerk-limit logic by design).
+//
+// These tests pin down the current behavior so a regression
+// (intentional or otherwise) shows up.
+
+// Lower accel_limit while control_acceleration is at the old
+// |a_max|.  The slew brings `a` from the old value down toward
+// the new limit / 0 at j*dt per cycle; the commanded
+// acceleration is briefly above the new limit during that slew,
+// but the jerk bound holds and the trajectory still terminates.
+BOOST_AUTO_TEST_CASE(JerkLimitAccelLimitLoweredMidMotion) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel_old = 100.0f;
+  const float accel_new = 30.0f;
+  const float jerk = 5000.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 20.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel_old;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Run until a is near the old limit.  Slew-up takes 600 cycles
+  // for these params (accel_old/(j*dt) = 100/0.167).
+  for (int i = 0; i < 800; i++) {
+    ctx.Call();
+  }
+  BOOST_TEST(std::abs(ctx.status.control_acceleration) >=
+             0.9f * accel_old);
+
+  // Drop accel_limit to a value below the current |a|.
+  ctx.data.accel_limit = accel_new;
+
+  const float dt = 1.0f / rate_hz;
+  // Use the OLD accel for the bound slop -- it covers the
+  // transient where |a_prev| is still ~ accel_old.
+  const float bound = JerkBoundFor(jerk, accel_old, dt);
+  float prev_a = ctx.status.control_acceleration;
+  int violations = 0;
+  const int max_steps = static_cast<int>(20.0f * rate_hz);
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    if (std::abs(a - prev_a) > bound) { violations++; }
+    prev_a = a;
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  // Jerk bound preserved throughout the transition.
+  BOOST_TEST(violations == 0);
+  // At completion, a is 0 (well within the new limit).
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+}
+
+// NaN accel_limit with a finite jerk_limit means "no acceleration
+// cap, jerk shaping still applies" -- the trajectory generator
+// runs the jerk-limited path with a_max effectively infinity.
+// Verifies the jerk bound holds and the trajectory terminates.
+BOOST_AUTO_TEST_CASE(JerkLimitNoAccelLimit) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 3.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 10.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = NaN;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  const float dt = 1.0f / rate_hz;
+  // Peak |a| is bounded by sqrt(j*v_limit) = sqrt(15000) ~ 122
+  // for the v-limit triangle, plus headroom for ULP slop.
+  const float accel_for_bound = 2.0f * std::sqrt(jerk * vel_limit);
+  const float bound = JerkBoundFor(jerk, accel_for_bound, dt);
+  float prev_a = 0.0f;
+  int violations = 0;
+  const int max_steps = static_cast<int>(20.0f * rate_hz);
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    if (std::abs(a - prev_a) > bound) { violations++; }
+    prev_a = a;
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(violations == 0);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+}
+
+// Mid-motion clearing of accel_limit (set to NaN) while a
+// jerk_limit is configured.  The trajectory generator continues
+// jerk-shaping with effectively infinite a_max -- there is no
+// discrete jump in either `a` or `v` on the cycle the accel_limit
+// is cleared.
+BOOST_AUTO_TEST_CASE(JerkLimitAccelLimitClearedMidMotion) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 3.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 10.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Run into the acceleration phase.
+  for (int i = 0; i < 1000; i++) {
+    ctx.Call();
+  }
+  const float a_pre_clear = ctx.status.control_acceleration;
+  const double v_pre_clear = ctx.status.control_velocity.value();
+  BOOST_TEST(std::abs(a_pre_clear) >= 0.5f * accel);
+
+  // Clear accel_limit.  Single cycle: no discrete state jump.
+  ctx.data.accel_limit = NaN;
+  ctx.Call();
+  const float dt = 1.0f / rate_hz;
+  const float bound = JerkBoundFor(jerk, accel, dt);
+  BOOST_TEST(std::abs(ctx.status.control_acceleration - a_pre_clear)
+             <= bound);
+  // v moves by at most (a*dt) over the cycle.
+  BOOST_TEST(std::abs(ctx.status.control_velocity.value() - v_pre_clear)
+             < std::abs(a_pre_clear) * dt + 1e-4f);
+
+  // Trajectory still terminates.
+  const int max_steps = static_cast<int>(20.0f * rate_hz);
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+}
+
+// Mid-motion clearing of BOTH accel_limit and velocity_limit.
+// Hits the top-of-UpdateCommand "no limits" shortcut that
+// snaps (a, v) to (0, command_velocity) and immediately fires
+// trajectory_done.
+BOOST_AUTO_TEST_CASE(JerkLimitAllLimitsClearedMidMotion) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float accel = 100.0f;
+  const float jerk = 5000.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 10.0f;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = accel;
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  for (int i = 0; i < 1000; i++) {
+    ctx.Call();
+  }
+  BOOST_TEST(std::abs(ctx.status.control_acceleration) >=
+             0.5f * accel);
+
+  // Clear both limits.
+  ctx.data.accel_limit = NaN;
+  ctx.data.velocity_limit = NaN;
+
+  ctx.Call();
+  // No-limits shortcut: trajectory immediately "done", state
+  // snapped to (a=0, v=command_velocity=0).
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+}
+
+// Mid-motion ENABLING of accel_limit while the jerk-shaped
+// uncapped path is already producing |a| above the new cap.
+// The trajectory generator immediately treats the new value as
+// a_max; the jerk bound limits how fast it can pull `a` back
+// into [-a_max, +a_max].
+BOOST_AUTO_TEST_CASE(JerkLimitAccelLimitEnabledMidMotion) {
+  Context ctx;
+  const float rate_hz = 30000.0f;
+  const float jerk = 5000.0f;
+  const float vel_limit = 10.0f;
+  ctx.set_rate_hz(rate_hz);
+  ctx.data.position = 30.0f;  // distance large enough to allow a to grow
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = NaN;  // start uncapped
+  ctx.data.jerk_limit = jerk;
+  ctx.data.velocity_limit = vel_limit;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Run until a has grown well above the limit we're about to
+  // impose.  a slews by j*dt = 0.167 per cycle; after 500 cycles
+  // it's around 83 rev/s^2.
+  for (int i = 0; i < 500; i++) {
+    ctx.Call();
+  }
+  BOOST_TEST(ctx.status.control_acceleration > 50.0f);
+  const float a_pre_enable = ctx.status.control_acceleration;
+
+  // Impose a low accel cap.
+  const float accel_new = 30.0f;
+  ctx.data.accel_limit = accel_new;
+
+  // The cycle the cap takes effect, the slew brings `a` toward
+  // the new direction (-a_max here), bounded by j*dt -- no
+  // discrete snap.
+  const float dt = 1.0f / rate_hz;
+  // The transient ULP slop is set by the larger of (old a, new a).
+  const float bound = JerkBoundFor(jerk, a_pre_enable, dt);
+  float prev_a = a_pre_enable;
+  int violations = 0;
+  const int max_steps = static_cast<int>(30.0f * rate_hz);
+  int steps = 0;
+  for (; steps < max_steps; steps++) {
+    ctx.Call();
+    const float a = ctx.status.control_acceleration;
+    if (std::abs(a - prev_a) > bound) { violations++; }
+    prev_a = a;
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(steps < max_steps);
+  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(violations == 0);
+}
+
+// SlewAcceleration should respect the per-cycle da_limit bound.
+BOOST_AUTO_TEST_CASE(SlewAccelerationBasics) {
+  const float bound = 5.0f;
+
+  // Change exceeding the limit gets clamped to +/-da_limit.
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, 100.0f, bound) ==
+             bound);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, -100.0f, bound) ==
+             -bound);
+  // Change within the limit is passed through exactly.
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, bound / 2.0f, bound) ==
+             bound / 2.0f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(
+                 0.0f, -bound / 2.0f, bound) ==
+             -bound / 2.0f);
+  // Non-zero starting point is offset correctly.
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(10.0f, 100.0f, bound) ==
+             15.0f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(10.0f, 12.0f, bound) ==
+             12.0f);
 }
