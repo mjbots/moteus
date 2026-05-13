@@ -74,6 +74,25 @@ class MoteusTest(unittest.TestCase):
         ]))
         self.assertEqual(result.expected_reply_size, 0)
 
+    def test_make_position_jerk_limit(self):
+        dut = mot.Controller()
+        result = dut.make_position(jerk_limit=10.0)
+        self.assertEqual(result.data, bytes([
+            0x01, 0x00, 0x0a,
+            0x0d, 0x2f,
+            0x00, 0x00, 0x20, 0x41,
+        ]))
+
+    def test_make_position_acceleration(self):
+        dut = mot.Controller()
+        result = dut.make_position(acceleration=2.0, jerk_limit=10.0)
+        self.assertEqual(result.data, bytes([
+            0x01, 0x00, 0x0a,
+            0x0e, 0x2e,
+            0x00, 0x00, 0x00, 0x40,
+            0x00, 0x00, 0x20, 0x41,
+        ]))
+
     def test_make_position_query(self):
         dut = mot.Controller()
         result = dut.make_position(query=True)

@@ -60,6 +60,12 @@ const WEAKENED_SPEED: f32 = 100.0;
 /// The default position proportional gain, in Nm per revolution.
 const POSITION_KP: f32 = 4.0;
 
+/// A jerk limited move, in revolutions, short enough to complete
+/// while it is being measured.
+const JERK_MOVE: f32 = 0.02;
+const JERK_MOVE_LIMITS: &str = "a200 v100 j20000";
+const JERK_MOVE_ISRS: usize = 1500;
+
 const MODE_STOPPED: u32 = 0;
 const MODE_POSITION: u32 = 10;
 
@@ -110,8 +116,19 @@ fn measure(
     scenario: &str,
     expected_mode: u32,
 ) -> (u32, ServoStats) {
+    measure_for(machine, board, scenario, expected_mode, 300)
+}
+
+/// As measure, but over the given number of interrupts.
+fn measure_for(
+    machine: &mut Machine,
+    board: Board,
+    scenario: &str,
+    expected_mode: u32,
+    isrs: usize,
+) -> (u32, ServoStats) {
     machine.isr_samples.clear();
-    machine.run_isrs(300, 50_000_000).unwrap();
+    machine.run_isrs(isrs, 200_000 * isrs as u64).unwrap();
     let samples = &machine.isr_samples;
     let instructions = samples.iter().map(|s| s.instructions).max().unwrap();
     let min = samples.iter().map(|s| s.final_timer).min().unwrap();
@@ -182,71 +199,76 @@ const EXPECTED: &[(&str, &[(&str, u32)])] = &[
     (
         "moteus-r4",
         &[
-            ("stopped", 1782),
-            ("position", 3282),
-            ("trajectory", 3452),
-            ("trajectory, streamed", 3443),
-            ("velocity", 3279),
-            ("loaded", 3280),
-            ("field weakening enabled", 3687),
-            ("field weakening enabled, streamed", 3675),
-            ("field weakening", 3521),
+            ("stopped", 1787),
+            ("position", 3331),
+            ("trajectory", 3488),
+            ("trajectory, streamed", 3487),
+            ("velocity", 3324),
+            ("loaded", 3321),
+            ("field weakening enabled", 3724),
+            ("field weakening enabled, streamed", 3714),
+            ("field weakening enabled, jerk", 3924),
+            ("field weakening", 3581),
         ],
     ),
     (
         "moteus-n1",
         &[
-            ("stopped", 1772),
-            ("position", 3262),
-            ("trajectory", 3428),
-            ("trajectory, streamed", 3432),
-            ("velocity", 3264),
-            ("loaded", 3269),
-            ("field weakening enabled", 3663),
-            ("field weakening enabled, streamed", 3661),
-            ("field weakening", 3503),
+            ("stopped", 1774),
+            ("position", 3305),
+            ("trajectory", 3468),
+            ("trajectory, streamed", 3470),
+            ("velocity", 3307),
+            ("loaded", 3300),
+            ("field weakening enabled", 3713),
+            ("field weakening enabled, streamed", 3703),
+            ("field weakening enabled, jerk", 3898),
+            ("field weakening", 3560),
         ],
     ),
     (
         "moteus-c1",
         &[
-            ("stopped", 1776),
-            ("position", 3272),
-            ("trajectory", 3440),
-            ("trajectory, streamed", 3433),
-            ("velocity", 3272),
-            ("loaded", 3274),
-            ("field weakening enabled", 3673),
-            ("field weakening enabled, streamed", 3669),
-            ("field weakening", 3511),
+            ("stopped", 1781),
+            ("position", 3316),
+            ("trajectory", 3482),
+            ("trajectory, streamed", 3475),
+            ("velocity", 3318),
+            ("loaded", 3313),
+            ("field weakening enabled", 3710),
+            ("field weakening enabled, streamed", 3706),
+            ("field weakening enabled, jerk", 3907),
+            ("field weakening", 3566),
         ],
     ),
     (
         "moteus-x1",
         &[
-            ("stopped", 1757),
-            ("position", 3254),
-            ("trajectory", 3432),
-            ("trajectory, streamed", 3418),
-            ("velocity", 3262),
-            ("loaded", 3253),
-            ("field weakening enabled", 3648),
-            ("field weakening enabled, streamed", 3654),
-            ("field weakening", 3519),
+            ("stopped", 1762),
+            ("position", 3299),
+            ("trajectory", 3462),
+            ("trajectory, streamed", 3460),
+            ("velocity", 3305),
+            ("loaded", 3292),
+            ("field weakening enabled", 3692),
+            ("field weakening enabled, streamed", 3688),
+            ("field weakening enabled, jerk", 3889),
+            ("field weakening", 3559),
         ],
     ),
     (
         "moteus-r5",
         &[
-            ("stopped", 1776),
-            ("position", 3278),
-            ("trajectory", 3440),
-            ("trajectory, streamed", 3440),
-            ("velocity", 3268),
-            ("loaded", 3269),
-            ("field weakening enabled", 3672),
-            ("field weakening enabled, streamed", 3666),
-            ("field weakening", 3538),
+            ("stopped", 1777),
+            ("position", 3309),
+            ("trajectory", 3474),
+            ("trajectory, streamed", 3484),
+            ("velocity", 3315),
+            ("loaded", 3316),
+            ("field weakening enabled", 3713),
+            ("field weakening enabled, streamed", 3713),
+            ("field weakening enabled, jerk", 3904),
+            ("field weakening", 3573),
         ],
     ),
 ];
@@ -387,6 +409,36 @@ fn check_board(board: Board) {
     );
     assert!(trajectory < field_weakening);
 
+    // A jerk limit takes longer still, by an amount which depends on
+    // where in the trajectory it is, so measure all of a move from
+    // rest to rest.  No limit is applied yet, this is only held to
+    // EXPECTED.
+    machine.command("d stop").unwrap();
+    machine.run_isrs(100, 50_000_000).unwrap();
+    let target = ServoStats::read(&mut machine).get("position") + JERK_MOVE;
+    machine
+        .command(&format!("d pos {target} nan 0 {JERK_MOVE_LIMITS}"))
+        .unwrap();
+    wait_for_position_mode(&mut machine);
+    let (jerk, stats) = measure_for(
+        &mut machine,
+        board,
+        "fw jerk",
+        MODE_POSITION,
+        JERK_MOVE_ISRS,
+    );
+    let control_position = stats.get("control_position");
+    assert!(
+        (control_position - target).abs() < 0.01 * JERK_MOVE,
+        "control position {control_position} is not {target}"
+    );
+    let control_velocity = stats.get("control_velocity");
+    assert!(
+        control_velocity == 0.0,
+        "control velocity {control_velocity}"
+    );
+    assert!(field_weakening < jerk);
+
     // Then run fast enough that the field actually has to be weakened:
     // without it, the motor cannot exceed its base speed.
     machine
@@ -421,6 +473,7 @@ fn check_board(board: Board) {
                 "field weakening enabled, streamed",
                 field_weakening_streamed,
             ),
+            ("field weakening enabled, jerk", jerk),
             ("field weakening", weakening),
         ],
     );

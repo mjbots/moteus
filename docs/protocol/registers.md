@@ -60,6 +60,12 @@ values.
 - int16 => 1 LSB => 0.001 l/s^2
 - int32 => 1 LSB => 0.00001 l/s^2
 
+#### Jerk (measured in revolutions / s^3)
+
+- int8 => 1 LSB => 10.0 l/s^3
+- int16 => 1 LSB => 0.1 l/s^3
+- int32 => 1 LSB => 0.001 l/s^3
+
 #### PWM and kp/kd scale (unitless)
 
 - int8 => 1 LSB => (1/127) - 0.007874
@@ -469,6 +475,28 @@ Mode: Read/write
 
 If specified and non-zero, `servopos.position_min` and
 `servopos.position_max` will be ignore.
+
+### 0x02e - Acceleration
+
+Mode: Read/write
+
+The rate at which the commanded velocity (0x021) changes, so that the
+commanded trajectory is `x = x_c + v_c * t + 0.5 * a_c * t^2`.  The
+commanded velocity stops changing when it reaches the velocity limit.
+
+This is limited to the acceleration limit.  If unspecified, it is 0.
+
+### 0x02f - Jerk limit
+
+Mode: Read/write
+
+This can be used to override the global jerk limit for internally
+generated trajectories.
+
+If negative or zero, then no limit is applied.
+
+If unspecified, it is NaN / maximally negative, which implies to use
+the global configurable default `servo.default_jerk_limit`.
 
 ### 0x030 - Proportional torque
 

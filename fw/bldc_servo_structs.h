@@ -353,6 +353,10 @@ struct BldcServoCommandData {
   float position = 0.0f;  // kNaN means start at the current position.
   float velocity = 0.0f;
 
+  // The rate at which `velocity` changes, until it reaches the
+  // velocity limit.
+  float acceleration = 0.0f;
+
   // This should not be set by callers, but is used internally.
   std::optional<int64_t> position_relative_raw;
 
@@ -370,6 +374,7 @@ struct BldcServoCommandData {
 
   float velocity_limit = std::numeric_limits<float>::quiet_NaN();
   float accel_limit = std::numeric_limits<float>::quiet_NaN();
+  float jerk_limit = std::numeric_limits<float>::quiet_NaN();
 
   // If not NaN, temporarily operate in fixed voltage mode.
   float fixed_voltage_override = std::numeric_limits<float>::quiet_NaN();
@@ -411,6 +416,7 @@ struct BldcServoCommandData {
 
     a->Visit(MJ_NVP(position));
     a->Visit(MJ_NVP(velocity));
+    a->Visit(MJ_NVP(acceleration));
     a->Visit(MJ_NVP(position_relative_raw));
     a->Visit(MJ_NVP(max_torque_Nm));
     a->Visit(MJ_NVP(stop_position));
@@ -421,6 +427,7 @@ struct BldcServoCommandData {
     a->Visit(MJ_NVP(ilimit_scale));
     a->Visit(MJ_NVP(velocity_limit));
     a->Visit(MJ_NVP(accel_limit));
+    a->Visit(MJ_NVP(jerk_limit));
     a->Visit(MJ_NVP(fixed_voltage_override));
     a->Visit(MJ_NVP(fixed_current_override));
     a->Visit(MJ_NVP(ignore_position_bounds));
@@ -615,6 +622,8 @@ struct BldcServoConfig {
   // limits.
   float default_velocity_limit = std::numeric_limits<float>::quiet_NaN();
   float default_accel_limit = 50.0f;
+  // If not NaN, acceleration changes no faster than this.
+  float default_jerk_limit = std::numeric_limits<float>::quiet_NaN();
 
   // If true, then the currents in A that are calculated for the D
   // and Q phase are instead directly commanded as voltages on the
@@ -738,6 +747,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(inertia_feedforward));
     a->Visit(MJ_NVP(default_velocity_limit));
     a->Visit(MJ_NVP(default_accel_limit));
+    a->Visit(MJ_NVP(default_jerk_limit));
     a->Visit(MJ_NVP(voltage_mode_control));
     a->Visit(MJ_NVP(fixed_voltage_mode));
     a->Visit(MJ_NVP(fixed_voltage_control_V));

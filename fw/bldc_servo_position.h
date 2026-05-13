@@ -27,6 +27,345 @@ namespace moteus {
 // them in the header and also have a section definition.
 class BldcServoPosition {
  public:
+  // Jerk limited trajectories.
+  //
+  // When a jerk limit is active, control_acceleration is only ever
+  // changed by slewing it at up to `jerk` toward a target
+  // acceleration.  That target is selected anew each cycle from
+  // nothing but the current position, velocity, and acceleration by
+  // a planner:
+  //
+  //  * VelocityTargetAcceleration brings (v, a) to (v_des, 0) in
+  //    minimum time.
+  //  * DoJerkLimited, given a position, has that head toward it at
+  //    the velocity limit until stopping any later would overshoot,
+  //    and then has it stop.
+  //
+  // Because no plan is carried from cycle to cycle, a change of
+  // target or limits at any point needs no special handling.
+  //
+  // The target may itself be accelerating, in which case all of the
+  // above is relative to it.
+
+  // Commanded positions, and the measured distance to them, are
+  // quantized to this resolution.
+  static constexpr float kJerkPositionQuantum = 1.0f / 65536.0f;
+
+  // No attempt is made to get closer to the target than the
+  // deadband.  A trajectory is complete when it is at rest within
+  // the tolerance, at which point it is set to exactly the target.
+  //
+  // These are sized so that a target which alternates between
+  // adjacent quantized values neither starts a new move, nor
+  // prevents one from completing.
+  static constexpr float kJerkPositionDeadband = kJerkPositionQuantum;
+  static constexpr float kJerkPositionTolerance = 3.0f * kJerkPositionQuantum;
+
+  // Begin stopping early by this fraction of the stopping distance.
+  // A stop uses all of the available jerk and acceleration, so
+  // without margin there would be no means of correcting for
+  // accumulated floating point error, and the result would be
+  // overshoot.
+  static constexpr float kJerkStopMargin = 0.005f;
+
+  struct JerkLimits {
+    float accel = 0.0f;  // may be +infinity
+    float jerk = 0.0f;
+    float inv_jerk = 0.0f;
+    float dt = 0.0f;
+    float jerk_dt = 0.0f;
+    float jerk_dt2 = 0.0f;
+  };
+
+  struct JerkState {
+    float v = 0.0f;
+    float a = 0.0f;
+  };
+
+  struct JerkStop {
+    // The signed distance covered while coming to rest.
+    float dx = 0.0f;
+
+    // The portion of that covered while the acceleration makes its
+    // final return to zero.  Nothing can be done during it to
+    // lengthen or shorten the stop.
+    float final_dx = 0.0f;
+  };
+
+  // The limit must not be infinite, which is ensured when the
+  // command is prepared.
+  static bool JerkLimited(const BldcServoCommandData* data) {
+    return data->jerk_limit > 0.0f;
+  }
+
+  static JerkLimits MakeJerkLimits(
+      const BldcServoCommandData* data, float period_s) MOTEUS_CCM_ATTRIBUTE {
+    JerkLimits result;
+    // With no acceleration limit, acceleration is constrained only
+    // by the rate at which it can be slewed.
+    result.accel = std::isnan(data->accel_limit) ?
+        std::numeric_limits<float>::infinity() : data->accel_limit;
+    result.jerk = data->jerk_limit;
+    result.inv_jerk = 1.0f / data->jerk_limit;
+    result.dt = period_s;
+    result.jerk_dt = data->jerk_limit * period_s;
+    result.jerk_dt2 = result.jerk_dt * period_s;
+    return result;
+  }
+
+  // Move `a` toward `target_a` by no more than `da_limit`.
+  static float SlewAcceleration(
+      float a, float target_a, float da_limit) MOTEUS_CCM_ATTRIBUTE {
+    const float da = target_a - a;
+    if (da > da_limit) { return a + da_limit; }
+    if (da < -da_limit) { return a - da_limit; }
+    return target_a;
+  }
+
+  // Advance one cycle while slewing toward `target_a`.  Jerk is
+  // constant within a cycle, so the mean acceleration integrates
+  // velocity exactly.
+  static JerkState AdvanceJerk(
+      const JerkState& state, float target_a,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    JerkState result;
+    result.a = SlewAcceleration(state.a, target_a, limits.jerk_dt);
+    result.v = state.v + (state.a + result.a) * 0.5f * limits.dt;
+    return result;
+  }
+
+  // The velocity that would remain to reach `v_des`, which is itself
+  // changing at `a_des`, if the acceleration were slewed to `a_des`
+  // starting now.
+  static float JerkVelocityRemaining(
+      const JerkState& state, float v_des, float a_des,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    const float da = state.a - a_des;
+    return v_des - state.v - da * std::abs(da) * (0.5f * limits.inv_jerk);
+  }
+
+  // True if a velocity error is no more than `scale` times what can
+  // be resolved near `v_des`.  That is the largest of:
+  //
+  //  * four times the change in velocity from one cycle of jerk
+  //  * sixteen times the resolution of a float
+  //  * the velocity covered while slewing back to zero the smallest
+  //    acceleration which changes a float velocity at all in one
+  //    cycle, as anything less has no effect
+  //
+  // The last is formulated so as to not require a division.
+  static bool JerkVelocityNegligible(
+      float error, float v_des, float scale,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    const float scaled = std::abs(error) * (0.25f / scale);
+    const float resolution =
+        std::numeric_limits<float>::epsilon() * std::abs(v_des);
+    return scaled <= std::max(limits.jerk_dt2, 4.0f * resolution) ||
+        scaled * limits.jerk_dt2 <= resolution * resolution;
+  }
+
+  // True if `state` is indistinguishable from (v_des, a_des), and
+  // the acceleration can be brought to exactly `a_des` within one
+  // cycle.
+  static bool JerkAtVelocity(
+      const JerkState& state, float v_des, float a_des,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    return std::abs(state.a - a_des) <= limits.jerk_dt &&
+        JerkVelocityNegligible(v_des - state.v, v_des, 1.0f, limits);
+  }
+
+  // Bring (v, a) to (v_des, a_des), where `v_des` is itself changing
+  // at `a_des`.
+  static float VelocityTargetAcceleration(
+      const JerkState& state, float v_des, float a_des,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    // Accelerate at the limit toward `v_des` until slewing the
+    // acceleration back to `a_des` would cover what remains.
+    const float remaining =
+        JerkVelocityRemaining(state, v_des, a_des, limits);
+    if (JerkVelocityNegligible(remaining, v_des, 0.5f, limits)) {
+      return a_des;
+    }
+
+    const float target_a = std::copysign(limits.accel, remaining);
+    const auto next = AdvanceJerk(state, target_a, limits);
+    const float next_remaining = JerkVelocityRemaining(
+        next, v_des + a_des * limits.dt, a_des, limits);
+    if ((next_remaining > 0.0f) == (remaining > 0.0f)) { return target_a; }
+
+    // Another full cycle would overshoot.  Slewing to `a_des`
+    // instead leaves `remaining` unchanged, so interpolate between
+    // the two to land on the switching curve.
+    const float coast_a = SlewAcceleration(state.a, a_des, limits.jerk_dt);
+    return next.a + (coast_a - next.a) *
+        next_remaining / (next_remaining - remaining);
+  }
+
+  // Bring `state` to rest (v = 0, a = 0) in minimum time.  This is
+  // valid for any state, including those where the velocity must
+  // reverse before coming to rest.
+  //
+  // `state` is relative to a target which is accelerating at
+  // `target_a`, which leaves less acceleration available in one
+  // direction than the other.
+  static JerkStop CalculateJerkStop(
+      const JerkState& state, float target_a,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    const float inv_2j = 0.5f * limits.inv_jerk;
+
+    // Mirror the problem so that a net deceleration is required.
+    // The profile is then: ramp the acceleration down to -peak,
+    // optionally hold there, then ramp back up to zero.
+    const float sign =
+        (state.v + state.a * std::abs(state.a) * inv_2j) < 0.0f ?
+        -1.0f : 1.0f;
+    const float v = state.v * sign;
+    const float a = state.a * sign;
+
+    // The peak that brings velocity to zero with no hold phase
+    // satisfies 2 * peak^2 = a^2 + 2 * j * v.
+    const float unlimited_peak_sq =
+        std::max(0.0f, 0.5f * a * a + limits.jerk * v);
+    // A target accelerating at the limit leaves nothing, in which
+    // case assume the least that could be distinguished from that.
+    const float peak_limit =
+        std::max(limits.accel + sign * target_a, limits.jerk_dt);
+    const bool hold = unlimited_peak_sq > peak_limit * peak_limit;
+    const float peak = hold ? peak_limit : sqrtf(unlimited_peak_sq);
+
+    // Ramp down for t0, starting at (v, a) and ending at (v1, -peak).
+    const float t0 = (a + peak) * limits.inv_jerk;
+    const float x0 =
+        t0 * (v + t0 * (a * (1.0f / 3.0f) - peak * (1.0f / 6.0f)));
+    const float v1 = v + (a * a - peak * peak) * inv_2j;
+
+    // Ramp up for t2, starting at (v2, -peak) and ending at rest.
+    const float t2 = peak * limits.inv_jerk;
+    const float x2 = peak * t2 * t2 * (1.0f / 6.0f);
+
+    // Hold at -peak between them if necessary.
+    const float v2 = peak * peak * inv_2j;
+    const float x1 = hold ? (v1 * v1 - v2 * v2) / (2.0f * peak) : 0.0f;
+
+    JerkStop result;
+    result.dx = sign * (x0 + x1 + x2);
+    result.final_dx = sign * x2;
+    return result;
+  }
+
+  // The acceleration of the commanded velocity, which is zero once
+  // it has reached the velocity limit.
+  static float TargetAcceleration(
+      const BldcServoCommandData* data,
+      float velocity) MOTEUS_CCM_ATTRIBUTE {
+    const float a = data->acceleration;
+    if (a == 0.0f) { return 0.0f; }
+    const float outward = (a < 0.0f) ? -velocity : velocity;
+    return (outward >= data->velocity_limit) ? 0.0f : a;
+  }
+
+  // Having reached a target moving at `velocity`, move with it.
+  static void FollowTarget(
+      BldcServoStatus* status, float period_s,
+      const BldcServoCommandData* data,
+      float velocity) MOTEUS_CCM_ATTRIBUTE {
+    // This cycle ends where the commanded velocity will then be.
+    const float acceleration = TargetAcceleration(data, velocity);
+    status->control_acceleration = acceleration;
+    status->control_velocity = velocity + acceleration * period_s;
+    status->trajectory_done = true;
+  }
+
+  // True if, `dx` from a target which is itself moving at `vf` and
+  // accelerating at `af`, there is room to keep heading toward it.
+  static bool JerkRoomToGo(
+      const JerkState& state, float vf, float af, float dx,
+      const JerkLimits& limits) MOTEUS_CCM_ATTRIBUTE {
+    const float dir = (dx < 0.0f) ? -1.0f : 1.0f;
+
+    // There is if, after one more cycle of accelerating toward the
+    // target, we could still stop short of it with some margin.
+    const auto next = AdvanceJerk(state, dir * limits.accel, limits);
+    const float next_vf = vf + af * limits.dt;
+    const float next_dx =
+        dx - ((state.v + next.v) - (vf + next_vf)) * 0.5f * limits.dt;
+    JerkState next_relative;
+    next_relative.v = next.v - next_vf;
+    next_relative.a = next.a - af;
+    const auto stop = CalculateJerkStop(next_relative, af, limits);
+    const float margin =
+        kJerkPositionDeadband +
+        kJerkStopMargin * std::abs(stop.dx - stop.final_dx);
+    return (next_dx - stop.dx) * dir > margin;
+  }
+
+  // Advance a jerk limited trajectory by one cycle.  `dx` is the
+  // distance to the target position, or nullptr if there is none
+  // and only `velocity` is to be reached.
+  //
+  // This is out of line so that there is only one copy.
+  static void DoJerkLimited(
+      BldcServoStatus* status,
+      float period_s,
+      BldcServoCommandData* data,
+      float velocity,
+      const float* dx) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
+    const auto limits = MakeJerkLimits(data, period_s);
+    JerkState state;
+    state.v = *status->control_velocity;
+    state.a = status->control_acceleration;
+
+    // The target is the commanded velocity, which may itself be
+    // accelerating.
+    const float acceleration = TargetAcceleration(data, velocity);
+    float v_des = velocity;
+    float a_des = acceleration;
+    if (acceleration != 0.0f) {
+      // It will stop accelerating upon reaching the velocity limit.
+      // Something following it has to begin doing so sooner, so as
+      // to arrive at the limit with no acceleration.
+      const float sign = (acceleration < 0.0f) ? -1.0f : 1.0f;
+      const float until_limit = data->velocity_limit - sign * velocity;
+      if (until_limit * 2.0f * limits.jerk <= acceleration * acceleration) {
+        v_des = sign * data->velocity_limit;
+        a_des = 0.0f;
+      }
+    }
+
+    if (JerkAtVelocity(state, v_des, a_des, limits) &&
+        (!dx || std::abs(*dx) <= kJerkPositionTolerance)) {
+      if (dx) {
+        status->control_position_raw = *data->position_relative_raw;
+        data->position = std::numeric_limits<float>::quiet_NaN();
+        data->position_relative_raw.reset();
+      }
+      // This cycle ends where the target will then be.
+      status->control_acceleration = a_des;
+      status->control_velocity = v_des + a_des * limits.dt;
+      status->trajectory_done = true;
+      return;
+    }
+
+    // With a position, head toward it at the velocity limit for as
+    // long as there is room, and then match the target.  If that
+    // overshoots, we head back once it can be recovered.
+    bool unlimited = false;
+    if (dx && JerkRoomToGo(state, velocity, acceleration, *dx, limits)) {
+      const float dir = (*dx < 0.0f) ? -1.0f : 1.0f;
+      unlimited = std::isnan(data->velocity_limit);
+      v_des = unlimited ? dir : dir * data->velocity_limit;
+      a_des = 0.0f;
+    }
+
+    const auto next = AdvanceJerk(
+        state,
+        unlimited ? v_des * limits.accel :
+        VelocityTargetAcceleration(state, v_des, a_des, limits),
+        limits);
+    status->control_acceleration = next.a;
+    status->control_velocity = next.v;
+  }
+
   static void DoVelocityModeLimits(
       BldcServoStatus* status,
       const BldcServoConfig* config,
@@ -37,6 +376,11 @@ class BldcServoPosition {
     if (!std::isnan(data->velocity_limit)) {
       if (velocity > data->velocity_limit) { velocity = data->velocity_limit; }
       if (velocity < -data->velocity_limit) { velocity = -data->velocity_limit; }
+    }
+
+    if (JerkLimited(data)) {
+      DoJerkLimited(status, period_s, data, velocity, nullptr);
+      return;
     }
 
     // We may have accel or velocity limits here or both, but we don't
@@ -51,15 +395,11 @@ class BldcServoPosition {
       const float final_sign =
           (velocity > *status->control_velocity) ? 1.0f : -1.0f;
       if (final_sign != initial_sign) {
-        status->control_acceleration = 0.0f;
-        status->control_velocity = velocity;
-        status->trajectory_done = true;
+        FollowTarget(status, period_s, data, velocity);
       }
     } else {
       // We must have only a velocity limit.  This is easy.
-      status->control_acceleration = 0.0f;
-      status->control_velocity = velocity;
-      status->trajectory_done = true;
+      FollowTarget(status, period_s, data, velocity);
     }
   }
 
@@ -80,8 +420,7 @@ class BldcServoPosition {
     if (final_sign != initial_sign) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
-      status->control_velocity = velocity;
-      status->trajectory_done = true;
+      FollowTarget(status, period_s, data, velocity);
     }
   }
 
@@ -203,6 +542,11 @@ class BldcServoPosition {
         MotorPosition::WrappingSub(
             *data->position_relative_raw, *status->control_position_raw));
 
+    if (JerkLimited(data)) {
+      DoJerkLimited(status, period_s, data, velocity, &dx);
+      return;
+    }
+
     if (std::isnan(data->accel_limit)) {
       // We only have a velocity limit, not an acceleration limit.
       DoVelocityOnlyLimit(
@@ -263,9 +607,7 @@ class BldcServoPosition {
     if ((target_cross || target_near) && position_near) {
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
-      status->control_acceleration = 0.0f;
-      status->control_velocity = vf;
-      status->trajectory_done = true;
+      FollowTarget(status, period_s, data, vf);
     }
   }
 
@@ -309,26 +651,39 @@ class BldcServoPosition {
     // an int64, which calls out to a system library that is pretty
     // slow.
 
-    if (std::isnan(data->velocity_limit) &&
-        std::isnan(data->accel_limit)) {
+    const bool unlimited =
+        std::isnan(data->velocity_limit) &&
+        std::isnan(data->accel_limit) &&
+        !JerkLimited(data);
+
+    // Plan to go no faster than the motor is able to, so that
+    // velocity is approached, and followed as it changes, within the
+    // other limits.
+    const float commanded_velocity_limit = data->velocity_limit;
+    const bool planned_max_velocity =
+        JerkLimited(data) && !data->synthetic_theta;
+    if (data->velocity_limit > status->motor_max_velocity) {
+      data->velocity_limit = status->motor_max_velocity;
+    }
+
+    const float target_acceleration = TargetAcceleration(data, velocity);
+
+    if (unlimited) {
+      // This cycle ends where the commanded velocity will then be.
       status->trajectory_done = true;
-      status->control_acceleration = 0.0f;
-      status->control_velocity = velocity;
+      status->control_acceleration = target_acceleration;
+      status->control_velocity = velocity + target_acceleration * period_s;
     } else if (!!data->position_relative_raw ||
                !std::isnan(velocity)) {
       status->trajectory_done = false;
     }
 
-    if (!!data->position_relative_raw &&
-        std::isnan(data->velocity_limit) &&
-        std::isnan(data->accel_limit)) {
+    if (!!data->position_relative_raw && unlimited) {
       // With no limits, we immediately set the control position and
       // velocity.
       status->control_position_raw = *data->position_relative_raw;
       data->position = std::numeric_limits<float>::quiet_NaN();
       data->position_relative_raw.reset();
-      status->control_acceleration = 0.0f;
-      status->control_velocity = velocity;
     } else if (!status->control_position_raw) {
       status->control_position_raw = position->position_relative_raw;
 
@@ -352,7 +707,9 @@ class BldcServoPosition {
     // velocity clamp.
     const float v1 = status->control_velocity.value_or(0.0f);
 
-    if (*status->control_velocity > status->motor_max_velocity) {
+    // Otherwise, it is imposed regardless of them.
+    if (planned_max_velocity) {
+    } else if (*status->control_velocity > status->motor_max_velocity) {
       status->control_acceleration = 0.0f;
       status->control_velocity = status->motor_max_velocity;
     } else if (*status->control_velocity < -status->motor_max_velocity) {
@@ -384,8 +741,22 @@ class BldcServoPosition {
     status->control_position_raw =
         MotorPosition::WrappingAdd(*status->control_position_raw, int64_step);
 
+    // How far the target moves this cycle.
+    float tstep = velocity * period_s;
+    if (target_acceleration != 0.0f) {
+      // The commanded velocity changes at the commanded
+      // acceleration, until it reaches the velocity limit.
+      float next_velocity = velocity + target_acceleration * period_s;
+      if (next_velocity > data->velocity_limit) {
+        next_velocity = data->velocity_limit;
+      } else if (next_velocity < -data->velocity_limit) {
+        next_velocity = -data->velocity_limit;
+      }
+      data->velocity = next_velocity;
+      tstep = (velocity + next_velocity) * 0.5f * period_s;
+    }
+
     if (data->position_relative_raw && !std::isnan(velocity)) {
-      const float tstep = velocity * period_s;
       const int64_t tint64_step =
         (static_cast<int64_t>(
             static_cast<int32_t>((static_cast<float>(1ll << 32) * tstep))) <<
@@ -484,6 +855,8 @@ class BldcServoPosition {
         MotorPosition::IntToFloat(
             MotorPosition::WrappingAdd(
                 *status->control_position_raw, absolute_relative_delta));
+
+    data->velocity_limit = commanded_velocity_limit;
 
     return velocity_command;
   }

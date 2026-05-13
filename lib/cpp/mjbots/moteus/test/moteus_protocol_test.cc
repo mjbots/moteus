@@ -251,6 +251,40 @@ BOOST_AUTO_TEST_CASE(PositionMaximal) {
   BOOST_TEST(reply_size == 0);
 }
 
+BOOST_AUTO_TEST_CASE(PositionJerkLimit) {
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
+
+  moteus::PositionMode::Command cmd;
+  cmd.jerk_limit = 10.0;
+
+  moteus::PositionMode::Format fmt;
+  fmt.jerk_limit = moteus::kInt16;
+
+  const auto reply_size = moteus::PositionMode::Make(&write_frame, cmd, fmt);
+
+  BOOST_TEST(Hexify(frame) == "01000a0e200000000000000000052f6400");
+  BOOST_TEST(reply_size == 0);
+}
+
+BOOST_AUTO_TEST_CASE(PositionAcceleration) {
+  moteus::CanData frame;
+  moteus::WriteCanData write_frame(&frame);
+
+  moteus::PositionMode::Command cmd;
+  cmd.acceleration = 2.0;
+  cmd.jerk_limit = 10.0;
+
+  moteus::PositionMode::Format fmt;
+  fmt.acceleration = moteus::kInt16;
+  fmt.jerk_limit = moteus::kInt16;
+
+  const auto reply_size = moteus::PositionMode::Make(&write_frame, cmd, fmt);
+
+  BOOST_TEST(Hexify(frame) == "01000a0e200000000000000000062ed0076400");
+  BOOST_TEST(reply_size == 0);
+}
+
 BOOST_AUTO_TEST_CASE(VFOCMake) {
   moteus::CanData frame;
   moteus::WriteCanData write_frame(&frame);

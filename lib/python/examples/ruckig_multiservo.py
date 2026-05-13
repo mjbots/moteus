@@ -34,6 +34,23 @@ This is the recommended approach when you need:
 - Precise synchronization across multiple joints
 - Complex coordinated motion paths
 
+Each command gives the servo the position, velocity, and acceleration
+of the trajectory at that instant.  Until the next command arrives,
+the servo follows the parabola those describe, rather than a straight
+line, so the trajectory is tracked closely even at a modest command
+rate.
+
+The servo is also given velocity, acceleration, and jerk limits which
+are somewhat larger than those the trajectory was planned with.  With
+a jerk limit set, the servo joins each command to the next smoothly,
+instead of with a step in acceleration.  The limits need to be larger
+than those of the trajectory so that the servo has room to correct
+the small errors that arise between commands.
+
+Commanding an acceleration and a jerk limit requires firmware which
+supports them.  With older firmware, use --no-acceleration, which
+sends only the position and velocity.
+
 Requirements:
     pip install ruckig
 
@@ -47,6 +64,12 @@ import asyncio
 import time
 
 import moteus
+
+# How much larger the limits given to each servo are than those the
+# trajectory is planned with.
+SERVO_VELOCITY_HEADROOM = 2.0
+SERVO_ACCEL_HEADROOM = 2.0
+SERVO_JERK_HEADROOM = 4.0
 
 try:
     from ruckig import Ruckig, InputParameter, Trajectory, Result
@@ -77,6 +100,10 @@ def parse_args():
     parser.add_argument(
         '--base-amplitude', type=float, default=0.25,
         help='Base motion amplitude in revolutions (default: 0.25)')
+    parser.add_argument(
+        '--no-acceleration', action='store_true',
+        help='Command only position and velocity, for firmware which '
+        'does not support commanding an acceleration or a jerk limit')
     moteus.make_transport_args(parser)
     return parser.parse_args()
 
@@ -191,11 +218,11 @@ class SynchronizedMotion:
 
         try:
             while True:
-                positions, velocities = self._update_trajectory()
-                if positions is None:
+                state = self._update_trajectory()
+                if state is None:
                     break
 
-                results = await self._send_commands(positions, velocities)
+                results = await self._send_commands(*state)
                 self._print_status(results, last_print_time)
                 last_print_time = self._maybe_update_print_time(last_print_time)
 
@@ -212,7 +239,7 @@ class SynchronizedMotion:
     def _update_trajectory(self):
         """Sample current trajectory at the actual elapsed wall-clock time.
         Advances to the next waypoint when the current segment is done.
-        Returns (positions, velocities) or (None, None) on error."""
+        Returns (positions, velocities, accelerations) or None on error."""
         elapsed = time.time() - self.segment_start_time
 
         if elapsed >= self.trajectory.duration:
@@ -229,22 +256,37 @@ class SynchronizedMotion:
             result = self.otg.calculate(self.inp, self.trajectory)
             if result not in (Result.Working, Result.Finished):
                 print(f"Ruckig error: {result}")
-                return None, None
+                return None
 
             self.segment_start_time = time.time()
             elapsed = 0.0
             print(f"Reached waypoint, moving to waypoint {self.current_waypoint}")
 
-        positions, velocities, _ = self.trajectory.at_time(elapsed)
-        return list(positions), list(velocities)
+        positions, velocities, accelerations = self.trajectory.at_time(elapsed)
+        return list(positions), list(velocities), list(accelerations)
 
-    async def _send_commands(self, positions, velocities):
+    def _motion_kwargs(self, i, acceleration):
+        """The acceleration and limits to command servo index i with."""
+        if self.args.no_acceleration:
+            return {}
+
+        return {
+            'acceleration': acceleration,
+            'velocity_limit':
+                SERVO_VELOCITY_HEADROOM * self.inp.max_velocity[i],
+            'accel_limit':
+                SERVO_ACCEL_HEADROOM * self.inp.max_acceleration[i],
+            'jerk_limit': SERVO_JERK_HEADROOM * self.inp.max_jerk[i],
+        }
+
+    async def _send_commands(self, positions, velocities, accelerations):
         """Send position commands to all servos."""
         commands = [
             self.controllers[servo_id].make_position(
                 position=positions[i],
                 velocity=velocities[i],
                 query=True,
+                **self._motion_kwargs(i, accelerations[i]),
             )
             for i, servo_id in enumerate(self.servo_ids)
         ]
@@ -284,6 +326,9 @@ async def main():
     print(f"Max jerk: {args.max_jerk} rev/s^3")
     print(f"Cycle time: {args.cycle_time} s")
     print(f"Base amplitude: {args.base_amplitude} rev")
+    print("Commanding: " +
+          ("position and velocity" if args.no_acceleration else
+           "position, velocity, and acceleration"))
 
     motion = SynchronizedMotion(args)
     await motion.initialize()

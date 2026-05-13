@@ -19,20 +19,22 @@ The primary control mode for the moteus controller is an integrated position/vel
 
 Additionally, the position may be set as a "special value" (NaN for floating point and the debug interface, maximal negative for integer encodings). In that case, the position selected is "wherever you are right now".
 
-## Constant Acceleration Trajectories
+## Constant Jerk or Acceleration Trajectories
 
-Velocity and acceleration limits can be configured either globally, or
-on a per-command basis which will cause moteus to internally generate
-continuous acceleration limited trajectories to reach the given
-position and velocity.  Once the trajectory is complete, the command
-velocity is continued indefinitely.
+Velocity, acceleration, and jerk limits can be configured either
+globally, or on a per-command basis which will cause moteus to
+internally generate continuous jerk/acceleration/velocity limited
+trajectories to reach a target position and velocity.  Once the
+trajectory is complete, the command velocity is continued
+indefinitely.
 
 === "Diagnostic Protocol"
 
     ```
-    # Move to position 1 then stop.  Accelerate/decelerate at 2Hz/s
-    # and use a maximum velocity of 0.5Hz.
-    d pos 1 0 nan a2 v0.5
+    # Move to position 1 then stop.  Accelerate/decelerate at 2Hz/s,
+    # change acceleration by no more than 10Hz/s^2 and use a maximum
+    # velocity of 0.5Hz.
+    d pos 1 0 nan a2 v0.5 j10
     ```
 
 === "Python"
@@ -43,6 +45,7 @@ velocity is continued indefinitely.
         velocity=0,
         accel_limit=2,
         velocity_limit=0.5,
+        jerk_limit=10,
     )
     ```
 
@@ -52,6 +55,7 @@ velocity is continued indefinitely.
     mjbots::moteus::Controller::Options options;
     options.position_format.accel_limit = mjbots::moteus::kFloat;
     options.position_format.velocity_limit = mjbots::moteus::kFloat;
+    options.position_format.jerk_limit = mjbots::moteus::kFloat;
 
     mjbots::moteus::Controller controller(options);
 
@@ -60,6 +64,7 @@ velocity is continued indefinitely.
     cmd.velocity = 0.0;
     cmd.accel_limit = 2.0;
     cmd.velocity_limit = 0.5;
+    cmd.jerk_limit = 10.0;
 
     auto result = controller.SetPosition(cmd);
     ```
@@ -76,16 +81,38 @@ velocity is continued indefinitely.
             .position(1.0)
             .velocity(0.0)
             .accel_limit(2.0)
-            .velocity_limit(0.5),
+            .velocity_limit(0.5)
+            .jerk_limit(10.0),
     )?;
     ```
 
-Default values for acceleration and velocity limits can also be set in
-configuration.
+Default values for jerk, acceleration and velocity limits can also be
+set in configuration.
 
 * `servo.default_accel_limit`
 * `servo.default_velocity_limit`
+* `servo.default_jerk_limit`
 
+When a jerk limit is set, the velocity that the motor is able to reach
+at the present supply voltage is treated as a further velocity limit,
+so that it too is approached without exceeding the jerk limit.
+
+### Accelerating targets
+
+A position mode command may also give an acceleration, in which case
+the commanded velocity changes at that rate until it reaches the
+velocity limit.  The target is then the trajectory `x = x_c + v_c * t
++ 0.5 * a_c * t^2`, rather than a point moving at a constant velocity.
+
+When a jerk limit is set, the trajectory moteus generates joins that
+target with matching acceleration.  A host can thus send a sequence of
+position, velocity, and acceleration commands which describe segments
+of a longer trajectory, without the acceleration returning to zero
+between them.  With no limits set, the commanded trajectory is
+followed exactly.  With only velocity or acceleration limits and no
+jerk limit, the target is approached without regard for its
+acceleration, so the acceleration changes abruptly on reaching it,
+after which it is followed exactly.
 
 ## Velocity Control
 
@@ -212,16 +239,6 @@ If the system will never perform anything *but* torque control, then the PID gai
 * `servo.pid_position.kp`
 * `servo.pid_position.kd`
 * `servo.pid_position.ilimit`
-
-## Jerk Limited Trajectories
-
-moteus only supports acceleration limited internal trajectories.  To
-approximate a constant jerk trajectory, the host processor should send
-a sequence of piecewise linear constant velocity trajectories which
-approximate the desired one.  This would be done by sending commands
-consisting of at least a position and velocity at some moderate to
-high rate while disabling the internal velocity and acceleration
-limits.
 
 ## Low Speed or Precise Positioning
 

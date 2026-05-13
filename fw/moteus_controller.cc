@@ -98,6 +98,10 @@ Value ScaleAcceleration(float value, size_t type) {
   return ScaleMapping(value, 0.05f, 0.001f, 0.00001f, type);
 }
 
+Value ScaleJerk(float value, size_t type) {
+  return ScaleMapping(value, 10.0f, 0.1f, 0.001f, type);
+}
+
 Value ScaleTemperature(float value, size_t type) {
   return ScaleMapping(value, 1.0f, 0.1f, 0.001f, type);
 }
@@ -200,6 +204,10 @@ float ReadAcceleration(Value value) {
   return ReadScaleMapping(value, 0.05f, 0.001f, 0.00001f);
 }
 
+float ReadJerk(Value value) {
+  return ReadScaleMapping(value, 10.0f, 0.1f, 0.001f);
+}
+
 float ReadCurrent(Value value) {
   return ReadScaleMapping(value, 1.0f, 0.1f, 0.001f);
 }
@@ -271,6 +279,8 @@ enum class Register {
   kCommandIlimitScale = 0x02b,
   kCommandFixedCurrentOverride = 0x02c,
   kCommandIgnorePositionBounds = 0x02d,
+  kCommandAcceleration = 0x02e,
+  kCommandJerkLimit = 0x02f,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -715,6 +725,14 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
         command_.accel_limit = ReadAcceleration(value);
         return kSuccess;
       }
+      case Register::kCommandJerkLimit: {
+        command_.jerk_limit = ReadJerk(value);
+        return kSuccess;
+      }
+      case Register::kCommandAcceleration: {
+        command_.acceleration = ReadAcceleration(value);
+        return kSuccess;
+      }
       case Register::kCommandVelocityLimit: {
         command_.velocity_limit = ReadVelocity(value);
         return kSuccess;
@@ -1031,6 +1049,12 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
       }
       case Register::kCommandAccelLimit: {
         return ScaleAcceleration(command_.accel_limit, type);
+      }
+      case Register::kCommandJerkLimit: {
+        return ScaleJerk(command_.jerk_limit, type);
+      }
+      case Register::kCommandAcceleration: {
+        return ScaleAcceleration(command_.acceleration, type);
       }
       case Register::kCommandFixedVoltageOverride: {
         return ScaleVoltage(command_.fixed_voltage_override, type);

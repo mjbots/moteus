@@ -15,6 +15,7 @@
 #include "fw/bldc_servo_position.h"
 
 #include <fstream>
+#include <vector>
 
 #include <fmt/format.h>
 
@@ -1487,4 +1488,1538 @@ BOOST_AUTO_TEST_CASE(VelocityLimitOverrideHonorsApproachDirection) {
 
   // The only legitimate trajectory direction here is negative.
   BOOST_TEST(ctx.status.control_velocity.value() <= 0.0f);
+}
+
+////////////////////////////////////////////////////////////////////
+// Jerk limited trajectories
+
+namespace {
+constexpr float kInf = std::numeric_limits<float>::infinity();
+constexpr double kPositionQuantum =
+    BldcServoPosition::kJerkPositionQuantum;
+constexpr double kPositionTolerance =
+    BldcServoPosition::kJerkPositionTolerance;
+
+// Steps a Context, verifying on every cycle that the control
+// trajectory is physically consistent: acceleration changes no
+// faster than the jerk limit, and velocity and position are the
+// integrals of acceleration and velocity respectively.  Any
+// discontinuity, for instance from snapping to a target that is not
+// actually close, is recorded as a violation.
+class JerkChecker {
+ public:
+  explicit JerkChecker(Context* ctx) : ctx_(ctx) {}
+
+  void Step() {
+    const bool had_state = !!ctx_->status.control_velocity;
+    const State prev = had_state ? Capture() : State();
+
+    ctx_->Call();
+    steps_++;
+
+    const State now = Capture();
+    max_abs_a_ = std::max(max_abs_a_, std::abs(now.a));
+    max_abs_v_ = std::max(max_abs_v_, std::abs(now.v));
+    if (!had_state) { return; }
+
+    const double dt = ctx_->period_s;
+    const double jerk = ctx_->data.jerk_limit;
+    const double eps = std::numeric_limits<float>::epsilon();
+
+    Record(&jerk_violation_, std::abs(now.a - prev.a),
+           jerk * dt * (1.0 + 4.0 * eps) + 4.0 * eps * std::abs(prev.a));
+
+    const double dv = now.v - prev.v;
+    const double resolution =
+        eps * std::max(std::abs(now.v), std::abs(prev.v));
+    Record(&velocity_violation_,
+           std::abs(dv - 0.5 * (prev.a + now.a) * dt),
+           5.0 * jerk * dt * dt + 20.0 * resolution +
+           5.0 * resolution * resolution / (jerk * dt * dt));
+
+    // The distance to the target is itself only measured to within
+    // a quantum.
+    Record(&position_violation_,
+           std::abs((now.x - prev.x) - 0.5 * (prev.v + now.v) * dt),
+           kPositionTolerance + kPositionQuantum + std::abs(dv) * dt +
+           1e-9 + 8.0 * eps * std::abs(now.x - prev.x));
+  }
+
+  void Run(int cycles) {
+    for (int i = 0; i < cycles; i++) { Step(); }
+  }
+
+  // Returns the time taken.
+  double RunUntilDone(double max_time_s) {
+    const int max_steps = static_cast<int>(max_time_s * ctx_->rate_hz);
+    const int start = steps_;
+    for (int i = 0; i < max_steps; i++) {
+      Step();
+      if (ctx_->status.trajectory_done) { break; }
+    }
+    BOOST_TEST(ctx_->status.trajectory_done);
+    return (steps_ - start) * static_cast<double>(ctx_->period_s);
+  }
+
+  void CheckConsistent() const {
+    BOOST_TEST(jerk_violation_ == 0.0);
+    BOOST_TEST(velocity_violation_ == 0.0);
+    BOOST_TEST(position_violation_ == 0.0);
+  }
+
+  double x() const {
+    return ctx_->from_raw(ctx_->status.control_position_raw.value());
+  }
+  double max_abs_a() const { return max_abs_a_; }
+  double max_abs_v() const { return max_abs_v_; }
+  int steps() const { return steps_; }
+
+ private:
+  struct State {
+    double x = 0.0;
+    double v = 0.0;
+    double a = 0.0;
+  };
+
+  State Capture() const {
+    State result;
+    result.x = x();
+    result.v = ctx_->status.control_velocity.value();
+    result.a = ctx_->status.control_acceleration;
+    return result;
+  }
+
+  // Remember the largest amount by which a bound was exceeded.
+  static void Record(double* violation, double value, double bound) {
+    if (value > bound) { *violation = std::max(*violation, value - bound); }
+  }
+
+  Context* const ctx_;
+  int steps_ = 0;
+  double max_abs_a_ = 0.0;
+  double max_abs_v_ = 0.0;
+  double jerk_violation_ = 0.0;
+  double velocity_violation_ = 0.0;
+  double position_violation_ = 0.0;
+};
+
+void SetJerkLimits(Context* ctx, float accel, float jerk,
+                   float velocity_limit = NaN, float rate_hz = 30000.0f) {
+  ctx->set_rate_hz(rate_hz);
+  ctx->data.accel_limit = accel;
+  ctx->data.jerk_limit = jerk;
+  ctx->data.velocity_limit = velocity_limit;
+}
+
+// Start with the control trajectory at the given state.
+void SetControlState(Context* ctx, float position, float velocity,
+                     float acceleration = 0.0f) {
+  ctx->set_position(position);
+  ctx->set_velocity(velocity);
+  ctx->status.control_position_raw = ctx->to_raw(position);
+  ctx->status.control_velocity = velocity;
+  ctx->status.control_acceleration = acceleration;
+}
+
+void CommandPosition(Context* ctx, float position, float velocity = 0.0f) {
+  ctx->data.position = position;
+  ctx->data.velocity = velocity;
+  ctx->data.position_relative_raw.reset();
+}
+
+void CommandVelocity(Context* ctx, float velocity) {
+  CommandPosition(ctx, NaN, velocity);
+}
+
+void CheckAtRest(const Context& ctx, double position) {
+  BOOST_TEST(ctx.status.trajectory_done);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+  BOOST_TEST(
+      std::abs(ctx.from_raw(ctx.status.control_position_raw.value()) -
+               position) <= kPositionQuantum);
+}
+
+// The minimum time to change velocity by `dv` starting and ending
+// with zero acceleration.
+double IdealVelocityTime(double dv, double accel, double jerk) {
+  dv = std::abs(dv);
+  if (dv * jerk <= accel * accel) { return 2.0 * std::sqrt(dv / jerk); }
+  return dv / accel + accel / jerk;
+}
+
+// The distance covered while stopping from `v` with zero initial
+// acceleration.
+double IdealStopDistance(double v, double accel, double jerk) {
+  return 0.5 * v * IdealVelocityTime(v, accel, jerk);
+}
+
+// The minimum time for a rest to rest move.
+double IdealMoveTime(double dx, double accel, double jerk,
+                     double velocity_limit) {
+  dx = std::abs(dx);
+  const double peak_velocity =
+      (dx * jerk * jerk <= 2.0 * accel * accel * accel) ?
+      jerk * std::pow(dx / (2.0 * jerk), 2.0 / 3.0) :
+      0.5 * (-accel * accel / jerk +
+             std::sqrt(std::pow(accel, 4) / (jerk * jerk) +
+                       4.0 * accel * dx));
+  if (std::isfinite(velocity_limit) && peak_velocity > velocity_limit) {
+    return dx / velocity_limit +
+        IdealVelocityTime(velocity_limit, accel, jerk);
+  }
+  return 2.0 * IdealVelocityTime(peak_velocity, accel, jerk);
+}
+
+// How much longer than ideal a trajectory is permitted to take.
+double TimeBound(double ideal, const Context& ctx) {
+  return ideal * 1.05 + 50.0 * ctx.period_s;
+}
+}
+
+BOOST_AUTO_TEST_CASE(JerkSlewAcceleration) {
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, 100.0f, 5.0f) == 5.0f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, -100.0f, 5.0f) == -5.0f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, 2.5f, 5.0f) == 2.5f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(0.0f, -2.5f, 5.0f) == -2.5f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(10.0f, 100.0f, 5.0f) == 15.0f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(10.0f, 12.0f, 5.0f) == 12.0f);
+  BOOST_TEST(BldcServoPosition::SlewAcceleration(10.0f, kInf, 5.0f) == 15.0f);
+}
+
+BOOST_AUTO_TEST_CASE(JerkStopMatchesSimulation) {
+  struct Case {
+    double v;
+    double a;
+    double accel;
+    double jerk;
+  };
+  const Case cases[] = {
+    { 10.0,    0.0, 100.0, 5000.0 },
+    { 10.0,   50.0, 100.0, 5000.0 },
+    { 10.0,  -50.0, 100.0, 5000.0 },
+    { 10.0,  100.0, 100.0, 5000.0 },
+    { 10.0, -100.0, 100.0, 5000.0 },
+    {-10.0,   50.0, 100.0, 5000.0 },
+    // No hold phase is required.
+    {  0.5,    0.0, 100.0, 5000.0 },
+    { -0.5,   30.0, 100.0, 5000.0 },
+    // Already decelerating harder than necessary, so the velocity
+    // reverses before coming to rest.
+    {  0.5, -100.0, 100.0, 5000.0 },
+    { -0.2,   80.0, 100.0, 5000.0 },
+    {  0.0,   50.0, 100.0, 5000.0 },
+    // Exactly on the curve where slewing to zero ends at rest.
+    {  1.0, -100.0, 100.0, 5000.0 },
+    {  0.0,    0.0, 100.0, 5000.0 },
+    // No acceleration limit.
+    {  3.0,   20.0, std::numeric_limits<double>::infinity(), 500.0 },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("v=" << c.v << " a=" << c.a << " accel=" << c.accel
+                       << " jerk=" << c.jerk) {
+      // Simulate a minimum time stop with a small time step.
+      const double dt = 1e-7;
+      double x = 0.0;
+      double v = c.v;
+      double a = c.a;
+      for (int i = 0; i < 20000000; i++) {
+        const double v_rest = v + a * std::abs(a) / (2.0 * c.jerk);
+        if (std::abs(v_rest) < 1e-9 && std::abs(a) <= c.jerk * dt) { break; }
+        const double target_a = std::copysign(c.accel, -v_rest);
+        const double a_next =
+            std::clamp(target_a, a - c.jerk * dt, a + c.jerk * dt);
+        const double v_next = v + 0.5 * (a + a_next) * dt;
+        x += 0.5 * (v + v_next) * dt;
+        v = v_next;
+        a = a_next;
+      }
+      BOOST_TEST(std::abs(v) < 1e-4);
+
+      BldcServoPosition::JerkLimits limits;
+      limits.accel = c.accel;
+      limits.jerk = c.jerk;
+      limits.inv_jerk = 1.0 / c.jerk;
+      BldcServoPosition::JerkState state;
+      state.v = c.v;
+      state.a = c.a;
+      const double result =
+          BldcServoPosition::CalculateJerkStop(state, 0.0f, limits).dx;
+      BOOST_TEST(std::abs(result - x) < 1e-4 + 1e-4 * std::abs(x));
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkVelocityMode) {
+  struct Case {
+    float v0;
+    float vf;
+    float accel;
+    float jerk;
+    float rate_hz;
+  };
+  const Case cases[] = {
+    {  0.0f,   1.5f, 1000.0f, 20000.0f, 30000.0f },
+    {  0.0f,  -1.5f, 1000.0f, 20000.0f, 30000.0f },
+    {  0.0f,   0.5f, 1000.0f, 20000.0f, 30000.0f },
+    {  0.0f,  10.0f,  100.0f,  5000.0f, 30000.0f },
+    {  0.0f,   2.0f,  500.0f, 10000.0f, 15000.0f },
+    {  0.0f,   3.0f,   50.0f,  1000.0f, 30000.0f },
+    {  0.0f,  0.05f,  100.0f,  2000.0f, 30000.0f },
+    {  0.0f,  0.05f,    5.0f,     2.0f, 30000.0f },
+    {  4.0f,  -4.0f,   50.0f,   500.0f, 30000.0f },
+    { 20.0f,  19.9f,   50.0f,   500.0f, 30000.0f },
+    {  0.0f,   3.0f,    NaN,    500.0f, 30000.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("v0=" << c.v0 << " vf=" << c.vf << " accel=" << c.accel
+                       << " jerk=" << c.jerk << " rate=" << c.rate_hz) {
+      Context ctx;
+      SetJerkLimits(&ctx, c.accel, c.jerk, NaN, c.rate_hz);
+      SetControlState(&ctx, 0.0f, c.v0);
+      CommandVelocity(&ctx, c.vf);
+
+      JerkChecker checker(&ctx);
+      double max_overshoot = 0.0;
+      const double sign = (c.vf > c.v0) ? 1.0 : -1.0;
+      while (checker.steps() < 20.0f * c.rate_hz &&
+             !ctx.status.trajectory_done) {
+        checker.Step();
+        max_overshoot = std::max(
+            max_overshoot,
+            sign * (ctx.status.control_velocity.value() - c.vf));
+      }
+      checker.CheckConsistent();
+
+      BOOST_TEST(ctx.status.trajectory_done);
+      BOOST_TEST(ctx.status.control_velocity.value() == c.vf);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+
+      const double accel = std::isnan(c.accel) ? kInf : c.accel;
+      BOOST_TEST(checker.max_abs_a() <= accel);
+      BOOST_TEST(max_overshoot <=
+                 4.0 * checker.max_abs_a() * ctx.period_s);
+      BOOST_TEST(checker.steps() * ctx.period_s <=
+                 TimeBound(IdealVelocityTime(c.vf - c.v0, accel, c.jerk),
+                           ctx));
+
+      // Once complete, nothing further changes, whether or not the
+      // command is sent again.
+      for (int i = 0; i < 2000; i++) {
+        if ((i % 60) == 0) { CommandVelocity(&ctx, c.vf); }
+        ctx.Call();
+        BOOST_TEST_REQUIRE(ctx.status.trajectory_done);
+        BOOST_TEST_REQUIRE(ctx.status.control_velocity.value() == c.vf);
+        BOOST_TEST_REQUIRE(ctx.status.control_acceleration == 0.0f);
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkVelocityModeRetarget) {
+  // Changing the target at arbitrary points, including while the
+  // acceleration is being slewed back to zero and when the new
+  // target can only be reached by overshooting it, never causes a
+  // discontinuity.
+  Context ctx;
+  SetJerkLimits(&ctx, 50.0f, 500.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  JerkChecker checker(&ctx);
+
+  uint32_t rng = 0xdeadbeef;
+  auto next_random = [&]() {
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    return static_cast<int32_t>(rng) /
+        static_cast<float>(std::numeric_limits<int32_t>::max());
+  };
+
+  float target = 0.0f;
+  for (int i = 0; i < 200; i++) {
+    // A mixture of large changes and ones that are tiny relative to
+    // the velocity that slewing to zero will cover.
+    target = ((i % 3) == 0) ?
+        ctx.status.control_velocity.value() + 0.02f * next_random() :
+        10.0f * next_random();
+    CommandVelocity(&ctx, target);
+    checker.Run(1 + static_cast<int>(3000 * std::abs(next_random())));
+  }
+  checker.RunUntilDone(10.0);
+  checker.CheckConsistent();
+  BOOST_TEST(checker.max_abs_a() <= 50.0);
+  BOOST_TEST(ctx.status.control_velocity.value() == target);
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionFromRest) {
+  struct Case {
+    float xf;
+    float accel;
+    float jerk;
+    float velocity_limit;
+    float rate_hz;
+  };
+  const Case cases[] = {
+    {   1.0f, 1000.0f,  20000.0f,   NaN, 30000.0f },
+    {   5.0f, 2000.0f,  50000.0f,   NaN, 30000.0f },
+    {  -3.0f,   50.0f,   1000.0f,   NaN, 30000.0f },
+    {   0.5f,  500.0f,  10000.0f,   NaN, 15000.0f },
+    {   1.0f,  100.0f,   2000.0f,   NaN, 15000.0f },
+    {   5.0f,    5.0f,      2.0f,   NaN, 30000.0f },
+    {   1.0f,    2.0f,      0.5f,   NaN, 30000.0f },
+    {  50.0f,   10.0f,      5.0f,   NaN, 30000.0f },
+    {  0.05f,  100.0f,   5000.0f,   NaN, 30000.0f },
+    {  10.0f,  100.0f,   5000.0f,  2.0f, 30000.0f },
+    { -10.0f,  100.0f,   5000.0f,  2.0f, 30000.0f },
+    {   1.0f,    2.0f,     10.0f,  0.5f, 30000.0f },
+    {  10.0f,    NaN,    5000.0f,  3.0f, 30000.0f },
+    {   2.0f,    NaN,     500.0f,   NaN, 30000.0f },
+    {   0.3f, 8000.0f,   2000.0f,   NaN, 30000.0f },
+    // Small moves.
+    {  1e-3f,    5.0f,      2.0f,   NaN, 30000.0f },
+    { -1e-3f,    5.0f,      2.0f,   NaN, 30000.0f },
+    {  1e-2f,  100.0f,     50.0f,   NaN, 30000.0f },
+    {  1e-3f, 1000.0f,  20000.0f,   NaN, 30000.0f },
+    {  1e-2f, 5000.0f, 100000.0f,   NaN, 30000.0f },
+    { 1.9e-3f, 8000.0f,  2000.0f,   NaN, 30000.0f },
+    {  1e-4f,   50.0f,    500.0f,   NaN, 30000.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("xf=" << c.xf << " accel=" << c.accel
+                       << " jerk=" << c.jerk << " vlimit=" << c.velocity_limit
+                       << " rate=" << c.rate_hz) {
+      Context ctx;
+      SetJerkLimits(&ctx, c.accel, c.jerk, c.velocity_limit, c.rate_hz);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandPosition(&ctx, c.xf);
+
+      JerkChecker checker(&ctx);
+      const double sign = c.xf > 0.0f ? 1.0 : -1.0;
+      double max_overshoot = 0.0;
+      while (checker.steps() < 60.0f * c.rate_hz &&
+             !ctx.status.trajectory_done) {
+        checker.Step();
+        max_overshoot =
+            std::max(max_overshoot, sign * (checker.x() - c.xf));
+      }
+      checker.CheckConsistent();
+      CheckAtRest(ctx, c.xf);
+
+      const double accel = std::isnan(c.accel) ? kInf : c.accel;
+      const double velocity_limit =
+          std::isnan(c.velocity_limit) ? kInf : c.velocity_limit;
+      BOOST_TEST(checker.max_abs_a() <= accel);
+      BOOST_TEST(checker.max_abs_v() <= velocity_limit * (1.0 + 1e-4));
+      BOOST_TEST(max_overshoot <= kPositionTolerance);
+      BOOST_TEST(
+          checker.steps() * ctx.period_s <=
+          TimeBound(IdealMoveTime(c.xf, accel, c.jerk, velocity_limit), ctx));
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionMovingTarget) {
+  struct Case {
+    float xf;
+    float vf;
+    float accel;
+    float jerk;
+  };
+  const Case cases[] = {
+    {  2.0f,   0.3f,   50.0f,  1000.0f },
+    {  0.3f,   0.5f,   50.0f,  1000.0f },
+    { -0.3f,  -0.5f,   50.0f,  1000.0f },
+    {  0.3f,  -0.5f,   50.0f,  1000.0f },
+    {  0.3f,   0.1f, 1000.0f, 20000.0f },
+    {  0.3f,  0.05f,    5.0f,     2.0f },
+    {  1.0f,   0.5f, 1000.0f, 20000.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("xf=" << c.xf << " vf=" << c.vf << " accel=" << c.accel
+                       << " jerk=" << c.jerk) {
+      Context ctx;
+      SetJerkLimits(&ctx, c.accel, c.jerk);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandPosition(&ctx, c.xf, c.vf);
+
+      JerkChecker checker(&ctx);
+      const double time = checker.RunUntilDone(60.0);
+      checker.CheckConsistent();
+
+      BOOST_TEST(ctx.status.control_velocity.value() == c.vf);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      BOOST_TEST(std::abs(checker.x() - (c.xf + c.vf * time)) < 1e-4);
+
+      // Sending the same command again restarts the target from
+      // its commanded position, which is now behind us.
+      CommandPosition(&ctx, c.xf, c.vf);
+      ctx.Call();
+      BOOST_TEST(!ctx.status.trajectory_done);
+      const double time2 = checker.RunUntilDone(60.0) + ctx.period_s;
+      checker.CheckConsistent();
+      BOOST_TEST(ctx.status.control_velocity.value() == c.vf);
+      BOOST_TEST(std::abs(checker.x() - (c.xf + c.vf * time2)) < 1e-4);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionArbitraryStart) {
+  // Start with an arbitrary velocity and acceleration, as happens
+  // when position mode is entered while moving or a new command
+  // arrives mid-trajectory.  This includes cases where it is
+  // impossible to stop before the target.
+  struct Limits {
+    float accel;
+    float jerk;
+  };
+  const Limits all_limits[] = {
+    {  50.0f,  500.0f },
+    {   2.0f,   10.0f },
+    {  50.0f, 5000.0f },
+    { 200.0f, 1000.0f },
+    {   NaN,   500.0f },
+  };
+  const float velocities[] = { -5.0f, -1.0f, -0.25f, 0.0f, 0.5f, 2.0f, 5.0f };
+  const float accel_fractions[] = { -1.0f, -0.5f, 0.0f, 1.0f };
+  const float targets[] = {
+    0.0f, 0.005f, 0.02f, 0.1f, 0.2f, 0.4f, 1.6f, -0.05f, -1.0f };
+
+  for (const auto& limits : all_limits) {
+    for (const float v0 : velocities) {
+      for (const float accel_fraction : accel_fractions) {
+        for (const float target : targets) {
+          const float a0 =
+              accel_fraction * (std::isnan(limits.accel) ? 50.0f : limits.accel);
+          BOOST_TEST_CONTEXT(
+              "accel=" << limits.accel << " jerk=" << limits.jerk
+              << " v0=" << v0 << " a0=" << a0 << " target=" << target) {
+            Context ctx;
+            SetJerkLimits(&ctx, limits.accel, limits.jerk, 20.0f);
+            SetControlState(&ctx, 0.0f, v0, a0);
+            CommandPosition(&ctx, target);
+
+            JerkChecker checker(&ctx);
+            const double time = checker.RunUntilDone(60.0);
+            checker.CheckConsistent();
+            CheckAtRest(ctx, target);
+
+            // It should take no longer than coming to a stop and
+            // then making a rest to rest move.
+            const double accel = std::isnan(limits.accel) ? kInf : limits.accel;
+            const double v_rest =
+                v0 + a0 * std::abs(a0) / (2.0 * limits.jerk);
+            const double stop_time =
+                std::abs(a0) / limits.jerk +
+                IdealVelocityTime(v_rest, accel, limits.jerk);
+            const double stop_x =
+                // An upper bound on how far away we could end up.
+                std::abs(v0) * std::abs(a0) / limits.jerk +
+                std::pow(std::abs(a0), 3) / (limits.jerk * limits.jerk) +
+                IdealStopDistance(std::abs(v_rest), accel, limits.jerk);
+            BOOST_TEST(
+                time <= TimeBound(
+                    stop_time +
+                    IdealMoveTime(std::abs(target) + stop_x,
+                                  accel, limits.jerk, 20.0), ctx));
+          }
+        }
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionRetarget) {
+  struct Case {
+    // The number of cycles of a move from 0 to 5 to execute before
+    // changing the target, or -1 to wait until it is complete.
+    int delay;
+    float new_target;
+  };
+  const Case cases[] = {
+    {     1, 10.0f },
+    {   100, 10.0f },
+    {   750, 10.0f },
+    {  1500, 10.0f },
+    {  3000, 10.0f },
+    {  5000, 10.0f },
+    {  7000, 10.0f },
+    {  9000, 10.0f },
+    { 11000, 10.0f },
+    {  3000, -5.0f },
+    {  9000, -5.0f },
+    { 11000, -5.0f },
+    {    -1, -2.0f },
+    {    -1,  5.0f },
+  };
+
+  for (const auto& c : cases) {
+    // Additionally try targets just ahead of and just behind
+    // wherever the trajectory happens to be.
+    for (const float nearby : { NaN, 0.0f, 0.01f, 0.1f, -0.01f }) {
+      BOOST_TEST_CONTEXT("delay=" << c.delay << " new_target=" << c.new_target
+                         << " nearby=" << nearby) {
+        Context ctx;
+        SetJerkLimits(&ctx, 50.0f, 1000.0f);
+        SetControlState(&ctx, 0.0f, 0.0f);
+        CommandPosition(&ctx, 5.0f);
+
+        JerkChecker checker(&ctx);
+        if (c.delay < 0) {
+          checker.RunUntilDone(10.0);
+        } else {
+          checker.Run(c.delay);
+          BOOST_TEST(!ctx.status.trajectory_done);
+        }
+
+        const float new_target =
+            std::isnan(nearby) ? c.new_target :
+            static_cast<float>(checker.x()) + nearby;
+        CommandPosition(&ctx, new_target);
+        checker.RunUntilDone(20.0);
+        checker.CheckConsistent();
+        CheckAtRest(ctx, new_target);
+        BOOST_TEST(checker.max_abs_a() <= 50.0);
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionRandomRetarget) {
+  Context ctx;
+  SetJerkLimits(&ctx, 50.0f, 1000.0f, 8.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  JerkChecker checker(&ctx);
+
+  uint32_t rng = 0xdeadbeef;
+  auto next_random = [&]() {
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    return static_cast<int32_t>(rng) /
+        static_cast<float>(std::numeric_limits<int32_t>::max());
+  };
+
+  float target = 0.0f;
+  for (int i = 0; i < 300; i++) {
+    target = 5.0f * next_random();
+    // Occasionally alternate rapidly between two distant targets.
+    const int repeat = ((i % 10) == 0) ? 10 : 1;
+    for (int j = 0; j < repeat; j++) {
+      CommandPosition(&ctx, (j % 2) == 0 ? target : -target);
+      checker.Run(1 + static_cast<int>(4000 * std::abs(next_random())));
+    }
+    CommandPosition(&ctx, target);
+  }
+  checker.RunUntilDone(20.0);
+  checker.CheckConsistent();
+  CheckAtRest(ctx, target);
+  BOOST_TEST(checker.max_abs_a() <= 50.0);
+  BOOST_TEST(checker.max_abs_v() <= 8.0 * (1.0 + 1e-5));
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionStreaming) {
+  // A host which sends the same command repeatedly gets exactly the
+  // same trajectory as one that sends it once.
+  auto run = [](int resend_period) {
+    Context ctx;
+    SetJerkLimits(&ctx, 50.0f, 1000.0f);
+    SetControlState(&ctx, 0.0f, 0.0f);
+    CommandPosition(&ctx, 5.0f);
+    JerkChecker checker(&ctx);
+    while (!ctx.status.trajectory_done && checker.steps() < 300000) {
+      if (resend_period > 0 && (checker.steps() % resend_period) == 0) {
+        CommandPosition(&ctx, 5.0f);
+      }
+      checker.Step();
+    }
+    checker.CheckConsistent();
+    CheckAtRest(ctx, 5.0);
+    return checker.steps();
+  };
+
+  const int once = run(0);
+  BOOST_TEST(run(1) == once);
+  BOOST_TEST(run(60) == once);
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionStreamingNoisy) {
+  // The target has noise that causes its quantized value to
+  // alternate.
+  for (const int resend_period : { 1, 10, 60 }) {
+    BOOST_TEST_CONTEXT("resend_period=" << resend_period) {
+      Context ctx;
+      SetJerkLimits(&ctx, 50.0f, 1000.0f);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      JerkChecker checker(&ctx);
+
+      for (int i = 0; i < 300000; i++) {
+        if ((i % resend_period) == 0) {
+          const int count = i / resend_period;
+          CommandPosition(&ctx, 5.0f + (((count * 7) % 5) - 2) * 5e-7f);
+        }
+        checker.Step();
+      }
+      checker.CheckConsistent();
+      BOOST_TEST(ctx.status.trajectory_done);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+      BOOST_TEST(std::abs(checker.x() - 5.0) <= 2.0 * kPositionQuantum);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionStreamingRamp) {
+  // The host advances the target a small amount every cycle with a
+  // commanded velocity of zero.
+  Context ctx;
+  SetJerkLimits(&ctx, 50.0f, 1000.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  JerkChecker checker(&ctx);
+
+  float target = 0.0f;
+  while (target < 2.0f) {
+    target = std::min(2.0f, target + 0.5f * ctx.period_s);
+    CommandPosition(&ctx, target);
+    checker.Step();
+    // We should track without falling far behind.
+    BOOST_TEST_REQUIRE(std::abs(checker.x() - target) < 0.05);
+  }
+  checker.RunUntilDone(5.0);
+  checker.CheckConsistent();
+  CheckAtRest(ctx, 2.0);
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionHoldsAfterCompletion) {
+  for (const float target : { 0.0f, 5.0f, -0.25f }) {
+    BOOST_TEST_CONTEXT("target=" << target) {
+      Context ctx;
+      SetJerkLimits(&ctx, 5.0f, 2.0f);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandPosition(&ctx, target);
+      JerkChecker checker(&ctx);
+      checker.RunUntilDone(30.0);
+      if (target == 0.0f) { BOOST_TEST(checker.steps() == 1); }
+      CheckAtRest(ctx, target);
+
+      for (int i = 0; i < 30000; i++) {
+        if ((i % 60) == 0) { CommandPosition(&ctx, target); }
+        ctx.Call();
+        if (!ctx.status.trajectory_done ||
+            ctx.status.control_acceleration != 0.0f ||
+            ctx.status.control_velocity.value() != 0.0f) {
+          BOOST_TEST_REQUIRE(false);
+        }
+      }
+      CheckAtRest(ctx, target);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionAfterControlReset) {
+  // Complete a move, then have position control be reset, as
+  // happens after a stop or fault, with the rotor somewhere else.
+  // The same command must result in a new move.
+  Context ctx;
+  SetJerkLimits(&ctx, 50.0f, 500.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  CommandPosition(&ctx, 1.0f);
+  JerkChecker checker(&ctx);
+  checker.RunUntilDone(10.0);
+  CheckAtRest(ctx, 1.0);
+
+  ctx.status.control_position_raw = {};
+  ctx.status.control_velocity = {};
+  ctx.status.control_acceleration = {};
+  ctx.set_position(0.25f);
+
+  CommandPosition(&ctx, 1.0f);
+  const double time = checker.RunUntilDone(10.0);
+  checker.CheckConsistent();
+  CheckAtRest(ctx, 1.0);
+  BOOST_TEST(time > 0.1);
+}
+
+BOOST_AUTO_TEST_CASE(JerkPositionAlreadyThere) {
+  struct Case {
+    float target_position;
+    float target_velocity;
+    float position;
+    float velocity;
+    bool expect_done;
+  };
+  const Case cases[] = {
+    {  0.0f,  0.0f,  0.0f,  0.0f, true },
+    {  5.0f,  0.0f,  5.0f,  0.0f, true },
+    { -2.0f,  0.0f, -2.0f,  0.0f, true },
+    {  1.5f,  0.5f,  1.5f,  0.5f, true },
+    {  1.5f, -0.7f,  1.5f, -0.7f, true },
+    {  1.0f,  0.0f,  0.0f,  0.0f, false },
+    {  0.0f,  0.0f,  0.0f,  1.0f, false },
+    {  0.0f,  1.0f,  0.0f,  0.0f, false },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("target=" << c.target_position << ","
+                       << c.target_velocity << " start=" << c.position
+                       << "," << c.velocity) {
+      Context ctx;
+      SetJerkLimits(&ctx, 1000.0f, 20000.0f);
+      SetControlState(&ctx, c.position, c.velocity);
+      CommandPosition(&ctx, c.target_position, c.target_velocity);
+      ctx.Call();
+      BOOST_TEST(ctx.status.trajectory_done == c.expect_done);
+      if (c.expect_done) {
+        BOOST_TEST(ctx.status.control_velocity.value() == c.target_velocity);
+        BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkVelocityLimitOverspeed) {
+  // When started above the velocity limit, we slow smoothly to the
+  // limit and then continue on at it.
+  struct Case {
+    float v0;
+    float velocity_limit;
+    float xf;
+    float accel;
+    float jerk;
+    float rate_hz;
+  };
+  const Case cases[] = {
+    {  5.0f, 2.0f,  50.0f, 100.0f,  5000.0f, 30000.0f },
+    { -5.0f, 2.0f, -50.0f, 100.0f,  5000.0f, 30000.0f },
+    { 20.0f, 2.0f,  50.0f, 100.0f,  5000.0f, 30000.0f },
+    {  2.5f, 2.0f,  50.0f, 100.0f,  5000.0f, 30000.0f },
+    { 10.0f, 5.0f,  80.0f, 500.0f, 10000.0f, 30000.0f },
+    {  5.0f, 1.0f,  25.0f,  50.0f,  1000.0f, 30000.0f },
+    {  3.0f, 2.0f,  50.0f, 100.0f,  5000.0f, 15000.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("v0=" << c.v0 << " vlimit=" << c.velocity_limit
+                       << " accel=" << c.accel << " jerk=" << c.jerk
+                       << " rate=" << c.rate_hz) {
+      Context ctx;
+      SetJerkLimits(&ctx, c.accel, c.jerk, c.velocity_limit, c.rate_hz);
+      SetControlState(&ctx, 0.0f, c.v0);
+      CommandPosition(&ctx, c.xf);
+
+      JerkChecker checker(&ctx);
+      const double sign = c.v0 > 0.0f ? 1.0 : -1.0;
+      auto speed = [&]() {
+        return sign * ctx.status.control_velocity.value();
+      };
+
+      const double slow_time = TimeBound(
+          IdealVelocityTime(std::abs(c.v0) - c.velocity_limit,
+                            c.accel, c.jerk), ctx);
+      checker.Run(static_cast<int>(slow_time * c.rate_hz));
+      BOOST_TEST(speed() <= c.velocity_limit * (1.0 + 1e-5));
+
+      // Having reached the limit, we stay there.
+      for (int i = 0; i < static_cast<int>(1.0f * c.rate_hz); i++) {
+        checker.Step();
+        BOOST_TEST_REQUIRE(speed() <= c.velocity_limit * (1.0 + 1e-5));
+        BOOST_TEST_REQUIRE(speed() >= c.velocity_limit * (1.0 - 1e-3));
+      }
+
+      checker.RunUntilDone(60.0);
+      checker.CheckConsistent();
+      CheckAtRest(ctx, c.xf);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkLimitsChangedMidMotion) {
+  struct Case {
+    float accel;
+    float velocity_limit;
+    int delay;
+    float new_accel;
+    float new_velocity_limit;
+  };
+  const Case cases[] = {
+    // The acceleration limit is lowered while at the old one.
+    { 100.0f,   NaN,  800, 30.0f,  NaN },
+    // The acceleration limit is removed.
+    { 100.0f,  3.0f, 1000,   NaN, 3.0f },
+    // The acceleration limit is added.
+    {   NaN,  10.0f,  500, 30.0f, 10.0f },
+    // The velocity limit is lowered while cruising.
+    { 100.0f,  5.0f, 6000, 100.0f, 2.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("accel=" << c.accel << " -> " << c.new_accel
+                       << " vlimit=" << c.velocity_limit << " -> "
+                       << c.new_velocity_limit) {
+      Context ctx;
+      SetJerkLimits(&ctx, c.accel, 5000.0f, c.velocity_limit);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandPosition(&ctx, 30.0f);
+
+      JerkChecker checker(&ctx);
+      checker.Run(c.delay);
+      ctx.data.accel_limit = c.new_accel;
+      ctx.data.velocity_limit = c.new_velocity_limit;
+      checker.RunUntilDone(60.0);
+      checker.CheckConsistent();
+      CheckAtRest(ctx, 30.0);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkLimitPrecedence) {
+  // When a limit is lowered so that the trajectory is already beyond
+  // it, the limits on its derivatives still hold while it returns:
+  // jerk takes precedence over acceleration, and acceleration over
+  // velocity.
+
+  // The jerk limit is lowered while accelerating.  The acceleration
+  // can then only be removed slowly, which takes the velocity past
+  // its limit.
+  {
+    Context ctx;
+    SetJerkLimits(&ctx, 100.0f, 2000.0f, 10.0f);
+    SetControlState(&ctx, 0.0f, 0.0f);
+    CommandPosition(&ctx, 20.0f);
+
+    JerkChecker checker(&ctx);
+    while (ctx.status.control_acceleration < 60.0f) {
+      BOOST_TEST_REQUIRE(checker.steps() < 30000);
+      checker.Step();
+    }
+    ctx.data.jerk_limit = 100.0f;
+    checker.RunUntilDone(60.0);
+    // The checker holds every cycle to the jerk limit then in force.
+    checker.CheckConsistent();
+    BOOST_TEST(checker.max_abs_v() > 15.0);
+    BOOST_TEST(checker.max_abs_a() <= 100.0 * (1.0 + 1e-5));
+    CheckAtRest(ctx, 20.0);
+  }
+
+  // The acceleration limit is lowered below the current
+  // acceleration, which then falls as fast as the jerk limit allows
+  // and no faster.
+  {
+    Context ctx;
+    SetJerkLimits(&ctx, 200.0f, 2000.0f);
+    SetControlState(&ctx, 0.0f, 0.0f);
+    CommandPosition(&ctx, 20.0f);
+
+    JerkChecker checker(&ctx);
+    while (ctx.status.control_acceleration < 150.0f) {
+      BOOST_TEST_REQUIRE(checker.steps() < 30000);
+      checker.Step();
+    }
+    const float kNewAccel = 20.0f;
+    ctx.data.accel_limit = kNewAccel;
+    const double jerk_dt = 2000.0 * ctx.period_s;
+    bool within = false;
+    while (!ctx.status.trajectory_done) {
+      BOOST_TEST_REQUIRE(checker.steps() < 60 * 30000);
+      const double prev = ctx.status.control_acceleration;
+      checker.Step();
+      const double now = ctx.status.control_acceleration;
+      if (!within && now > kNewAccel) {
+        BOOST_TEST_REQUIRE(std::abs((prev - now) - jerk_dt) < 1e-3 * jerk_dt);
+      } else {
+        within = true;
+        BOOST_TEST_REQUIRE(std::abs(now) <= kNewAccel * (1.0 + 1e-5));
+      }
+    }
+    BOOST_TEST(within);
+    checker.CheckConsistent();
+    CheckAtRest(ctx, 20.0);
+  }
+
+  // The velocity limit is lowered below the current velocity, which
+  // then falls without exceeding the acceleration or jerk limits.
+  for (const float sign : { 1.0f, -1.0f }) {
+    Context ctx;
+    SetJerkLimits(&ctx, 100.0f, 1000.0f, 20.0f);
+    SetControlState(&ctx, 0.0f, 0.0f);
+    CommandPosition(&ctx, sign * 30.0f);
+
+    JerkChecker checker(&ctx);
+    auto speed = [&]() {
+      return static_cast<double>(sign * ctx.status.control_velocity.value());
+    };
+    while (speed() < 20.0f || ctx.status.control_acceleration != 0.0f) {
+      BOOST_TEST_REQUIRE(checker.steps() < 30000);
+      checker.Step();
+    }
+    const float kNewLimit = 5.0f;
+    ctx.data.velocity_limit = kNewLimit;
+    bool within = false;
+    int cycles_to_limit = 0;
+    while (!ctx.status.trajectory_done) {
+      BOOST_TEST_REQUIRE(checker.steps() < 60 * 30000);
+      const double prev = speed();
+      checker.Step();
+      BOOST_TEST_REQUIRE(std::abs(ctx.status.control_acceleration) <=
+                         100.0 * (1.0 + 1e-5));
+      if (!within && speed() > kNewLimit * (1.0 + 1e-5)) {
+        BOOST_TEST_REQUIRE(speed() <= prev);
+        cycles_to_limit++;
+      } else {
+        within = true;
+        BOOST_TEST_REQUIRE(speed() <= kNewLimit * (1.0 + 1e-5));
+      }
+    }
+    BOOST_TEST(within);
+    // It was not simply set to the new limit.
+    BOOST_TEST(cycles_to_limit * static_cast<double>(ctx.period_s) >=
+               0.99 * IdealVelocityTime(15.0, 100.0, 1000.0));
+    BOOST_TEST(cycles_to_limit * static_cast<double>(ctx.period_s) <=
+               TimeBound(IdealVelocityTime(15.0, 100.0, 1000.0), ctx));
+    checker.CheckConsistent();
+    CheckAtRest(ctx, sign * 30.0);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(AccelLimitPrecedesVelocityLimit) {
+  // Without a jerk limit, a velocity limit lowered below the current
+  // velocity is likewise returned to at the acceleration limit.
+  Context ctx;
+  SetJerkLimits(&ctx, 100.0f, NaN, 20.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  CommandPosition(&ctx, 30.0f);
+
+  int steps = 0;
+  while (ctx.status.control_velocity.value() < 20.0f) {
+    BOOST_TEST_REQUIRE(steps++ < 30000);
+    ctx.Call();
+  }
+  const float kNewLimit = 5.0f;
+  ctx.data.velocity_limit = kNewLimit;
+  const double accel_dt = 100.0 * ctx.period_s;
+  bool within = false;
+  int cycles_to_limit = 0;
+  while (!ctx.status.trajectory_done) {
+    BOOST_TEST_REQUIRE(steps++ < 60 * 30000);
+    const double prev = ctx.status.control_velocity.value();
+    ctx.Call();
+    const double now = ctx.status.control_velocity.value();
+    // The final deceleration into the target may be slightly above
+    // the limit.
+    BOOST_TEST_REQUIRE(std::abs(now - prev) <= accel_dt * 1.05);
+    if (!within && now > kNewLimit) {
+      cycles_to_limit++;
+    } else {
+      within = true;
+      BOOST_TEST_REQUIRE(now <= kNewLimit);
+    }
+  }
+  BOOST_TEST(within);
+  BOOST_TEST(std::abs(cycles_to_limit * static_cast<double>(ctx.period_s) -
+                      15.0 / 100.0) < 0.002);
+  BOOST_TEST(std::abs(ctx.from_raw(ctx.status.control_position_raw.value()) -
+                      30.0) < 1e-3);
+}
+
+BOOST_AUTO_TEST_CASE(JerkMotorMaxVelocity) {
+  // The velocity the motor is able to reach is treated as a velocity
+  // limit, which is approached without exceeding the jerk limit, and
+  // followed as it changes.
+  for (const float velocity_limit : { 500.0f, 30.0f }) {
+    BOOST_TEST_CONTEXT("velocity_limit=" << velocity_limit) {
+      Context ctx;
+      SetJerkLimits(&ctx, 200.0f, 1000.0f, velocity_limit);
+      ctx.status.motor_max_velocity = 20.0f;
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandPosition(&ctx, 60.0f);
+
+      JerkChecker checker(&ctx);
+      checker.Run(static_cast<int>(
+          TimeBound(IdealVelocityTime(20.0, 200.0, 1000.0), ctx) *
+          ctx.rate_hz));
+      auto check_at = [&](double expected) {
+        BOOST_TEST(std::abs(ctx.status.control_velocity.value() - expected) <=
+                   expected * 1e-5);
+      };
+      check_at(20.0);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+
+      // It falls, no faster than can be followed.
+      for (int i = 0; i < 3000; i++) {
+        ctx.status.motor_max_velocity -= 50.0f * ctx.period_s;
+        checker.Step();
+      }
+      checker.Run(3000);
+      check_at(ctx.status.motor_max_velocity);
+
+      // And rises again.
+      ctx.status.motor_max_velocity = 25.0f;
+      checker.Run(static_cast<int>(
+          TimeBound(IdealVelocityTime(10.0, 200.0, 1000.0), ctx) *
+          ctx.rate_hz));
+      check_at(25.0);
+
+      checker.RunUntilDone(60.0);
+      checker.CheckConsistent();
+      BOOST_TEST(checker.max_abs_v() <= 25.0 * (1.0 + 1e-5));
+      CheckAtRest(ctx, 60.0);
+      // The commanded limit is left as it was.
+      BOOST_TEST(ctx.data.velocity_limit == velocity_limit);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkLimitOnly) {
+  // A jerk limit with no other limits still results in a jerk
+  // limited trajectory.
+  Context ctx;
+  SetJerkLimits(&ctx, NaN, 500.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  CommandPosition(&ctx, 1.0f);
+
+  JerkChecker checker(&ctx);
+  ctx.Call();
+  BOOST_TEST(!ctx.status.trajectory_done);
+  const double time = checker.RunUntilDone(10.0);
+  checker.CheckConsistent();
+  CheckAtRest(ctx, 1.0);
+  BOOST_TEST(time <= TimeBound(IdealMoveTime(1.0, kInf, 500.0, kInf), ctx));
+}
+
+BOOST_AUTO_TEST_CASE(JerkAllLimitsClearedMidMotion) {
+  Context ctx;
+  SetJerkLimits(&ctx, 100.0f, 5000.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  CommandPosition(&ctx, 10.0f);
+  for (int i = 0; i < 1000; i++) { ctx.Call(); }
+  BOOST_TEST(std::abs(ctx.status.control_acceleration) >= 50.0f);
+
+  ctx.data.accel_limit = NaN;
+  ctx.data.velocity_limit = NaN;
+  ctx.data.jerk_limit = NaN;
+  ctx.Call();
+  BOOST_TEST(ctx.status.trajectory_done);
+  BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+}
+
+BOOST_AUTO_TEST_CASE(JerkModeSwitch) {
+  Context ctx;
+  SetJerkLimits(&ctx, 50.0f, 1000.0f);
+  SetControlState(&ctx, 0.0f, 0.0f);
+  JerkChecker checker(&ctx);
+
+  // Switch from position to velocity mid-move.
+  CommandPosition(&ctx, 10.0f);
+  checker.Run(5000);
+  BOOST_TEST(!ctx.status.trajectory_done);
+  CommandVelocity(&ctx, 1.0f);
+  checker.RunUntilDone(5.0);
+  BOOST_TEST(ctx.status.control_velocity.value() == 1.0f);
+
+  // And back to position while still moving.
+  CommandPosition(&ctx, 5.0f);
+  checker.RunUntilDone(15.0);
+  checker.CheckConsistent();
+  CheckAtRest(ctx, 5.0);
+}
+
+BOOST_AUTO_TEST_CASE(JerkRandomized) {
+  uint32_t rng = 12345;
+  auto uniform = [&]() {
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    return (rng >> 8) / static_cast<float>(1 << 24);
+  };
+  auto log_uniform = [&](float min, float max) {
+    return min * std::pow(max / min, uniform());
+  };
+  auto symmetric = [&]() { return 2.0f * uniform() - 1.0f; };
+
+  for (int trial = 0; trial < 1500; trial++) {
+    const float rate_hz = uniform() < 0.5f ? 30000.0f : 15000.0f;
+    const float accel = uniform() < 0.15f ? NaN : log_uniform(1.0f, 5000.0f);
+    const float typical_accel = std::isnan(accel) ? 100.0f : accel;
+    // The time to slew from zero to the full acceleration.
+    const float jerk = typical_accel / log_uniform(0.002f, 2.0f);
+    // Keep velocities small enough that stopping is quick.
+    const float typical_velocity =
+        log_uniform(0.1f, std::min(50.0f, 2.0f * typical_accel));
+    const float velocity_limit = uniform() < 0.3f ? NaN : typical_velocity;
+
+    const float v0 =
+        uniform() < 0.3f ? 0.0f : 1.5f * typical_velocity * symmetric();
+    const float a0 =
+        uniform() < 0.5f ? 0.0f :
+        symmetric() * std::min(typical_accel,
+                               std::sqrt(jerk * typical_velocity));
+    const bool position_mode = uniform() < 0.85f;
+    const float target =
+        position_mode ?
+        (uniform() < 0.5f ? -1.0f : 1.0f) *
+        log_uniform(1e-4f, 10.0f * typical_velocity) :
+        NaN;
+    const float vf =
+        !position_mode ? typical_velocity * symmetric() :
+        uniform() < 0.8f ? 0.0f : 0.5f * typical_velocity * symmetric();
+    const bool retarget = uniform() < 0.25f;
+
+    BOOST_TEST_CONTEXT(
+        "trial=" << trial << " rate=" << rate_hz << " accel=" << accel
+        << " jerk=" << jerk << " vlimit=" << velocity_limit
+        << " v0=" << v0 << " a0=" << a0 << " target=" << target
+        << " vf=" << vf << " retarget=" << retarget) {
+      Context ctx;
+      // With no velocity limit, do not let the clamp to the maximum
+      // motor velocity interfere.
+      ctx.status.motor_max_velocity = kInf;
+      SetJerkLimits(&ctx, accel, jerk, velocity_limit, rate_hz);
+      SetControlState(&ctx, 0.0f, v0, a0);
+      CommandPosition(&ctx, target, vf);
+
+      JerkChecker checker(&ctx);
+      if (retarget) {
+        checker.Run(2000);
+        CommandPosition(&ctx, -0.3f * target, -vf);
+      }
+      checker.RunUntilDone(120.0);
+      checker.CheckConsistent();
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      BOOST_TEST(ctx.status.control_velocity.value() ==
+                 (retarget ? -vf : vf));
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////
+// Accelerating targets
+
+namespace {
+void CommandAccelerating(Context* ctx, float position, float velocity,
+                         float acceleration) {
+  CommandPosition(ctx, position, velocity);
+  ctx->data.acceleration = acceleration;
+}
+
+// Verify that the control trajectory is exactly following the
+// commanded velocity as it accelerates.
+void CheckFollowing(Context* ctx, float acceleration, int cycles) {
+  for (int i = 0; i < cycles; i++) {
+    ctx->Call();
+    BOOST_TEST_REQUIRE(ctx->status.trajectory_done);
+    BOOST_TEST_REQUIRE(ctx->status.control_acceleration == acceleration);
+    BOOST_TEST_REQUIRE(ctx->status.control_velocity.value() ==
+                       ctx->data.velocity);
+  }
+}
+}
+
+BOOST_AUTO_TEST_CASE(JerkAcceleratingVelocity) {
+  struct Case {
+    float v0;
+    float a0;
+    float velocity;
+    float acceleration;
+    float accel;
+    float jerk;
+  };
+  const Case cases[] = {
+    {  0.0f,   0.0f,  0.0f,   5.0f,  50.0f,  500.0f },
+    {  0.0f,   0.0f,  0.0f,  -5.0f,  50.0f,  500.0f },
+    {  0.0f,   0.0f,  2.0f,   5.0f,  50.0f,  500.0f },
+    {  3.0f,   0.0f, -1.0f,   5.0f,  50.0f,  500.0f },
+    {  3.0f,   0.0f, -1.0f,  -5.0f,  50.0f,  500.0f },
+    {  1.0f,  30.0f,  1.0f,  30.0f,  50.0f,  500.0f },
+    {  1.0f, -30.0f,  1.5f,  30.0f,  50.0f,  500.0f },
+    {  0.0f,   0.0f,  1.0f,  45.0f,  50.0f,  500.0f },
+    {  0.0f,   0.0f,  0.5f,   1.0f,   2.0f,   10.0f },
+    {  0.0f,   0.0f,  1.0f,  20.0f,    NaN,  500.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("v0=" << c.v0 << " a0=" << c.a0 << " velocity="
+                       << c.velocity << " acceleration=" << c.acceleration
+                       << " accel=" << c.accel << " jerk=" << c.jerk) {
+      Context ctx;
+      ctx.status.motor_max_velocity = kInf;
+      SetJerkLimits(&ctx, c.accel, c.jerk);
+      SetControlState(&ctx, 0.0f, c.v0, c.a0);
+      CommandAccelerating(&ctx, NaN, c.velocity, c.acceleration);
+
+      JerkChecker checker(&ctx);
+      const double time = checker.RunUntilDone(20.0);
+      checker.CheckConsistent();
+      const double accel = std::isnan(c.accel) ? kInf : c.accel;
+      BOOST_TEST(checker.max_abs_a() <= accel);
+
+      // The commanded velocity has been accelerating all along.  It
+      // is accumulated in a float, so is not exact.
+      BOOST_TEST(std::abs(ctx.data.velocity -
+                          (c.velocity + c.acceleration * time)) <
+                 1e-3 * (1.0 + std::abs(ctx.data.velocity)));
+      CheckFollowing(&ctx, c.acceleration, 3000);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkAcceleratingVelocityLimit) {
+  // The commanded velocity stops accelerating at the velocity limit,
+  // which is reached without exceeding it.
+  for (const float acceleration : { 10.0f, -10.0f, 40.0f }) {
+    BOOST_TEST_CONTEXT("acceleration=" << acceleration) {
+      Context ctx;
+      SetJerkLimits(&ctx, 50.0f, 500.0f, 2.0f);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandAccelerating(&ctx, NaN, 0.0f, acceleration);
+
+      JerkChecker checker(&ctx);
+      checker.Run(60000);
+      checker.CheckConsistent();
+      const float limit = std::copysign(2.0f, acceleration);
+      BOOST_TEST(ctx.data.velocity == limit);
+      BOOST_TEST(ctx.status.trajectory_done);
+      BOOST_TEST(ctx.status.control_velocity.value() == limit);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      BOOST_TEST(checker.max_abs_v() <= 2.0 * (1.0 + 5e-4));
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkAcceleratingPosition) {
+  struct Case {
+    float v0;
+    float position;
+    float velocity;
+    float acceleration;
+    float accel;
+    float jerk;
+  };
+  const Case cases[] = {
+    {  0.0f,  1.0f,  0.0f,   5.0f,  50.0f,  500.0f },
+    {  0.0f,  1.0f,  0.0f,  -5.0f,  50.0f,  500.0f },
+    {  0.0f, -1.0f,  0.5f,   5.0f,  50.0f,  500.0f },
+    {  0.0f,  0.2f,  1.0f,  20.0f,  50.0f,  500.0f },
+    {  0.0f,  0.2f, -1.0f, -20.0f,  50.0f,  500.0f },
+    {  2.0f,  0.0f,  0.0f,  10.0f,  50.0f,  500.0f },
+    { -2.0f,  0.5f,  1.0f, -10.0f,  50.0f,  500.0f },
+    {  0.0f,  0.5f,  0.0f,  40.0f,  50.0f,  500.0f },
+    {  0.0f,  0.0f,  0.0f,  10.0f,  50.0f,  500.0f },
+    {  0.0f,  0.1f,  0.1f,   0.5f,   2.0f,   10.0f },
+    {  0.0f,  1.0f,  0.5f,  10.0f,    NaN,  500.0f },
+    {  0.0f,  3.0f,  0.0f, 100.0f, 1000.0f, 20000.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("v0=" << c.v0 << " position=" << c.position
+                       << " velocity=" << c.velocity << " acceleration="
+                       << c.acceleration << " accel=" << c.accel
+                       << " jerk=" << c.jerk) {
+      Context ctx;
+      ctx.status.motor_max_velocity = kInf;
+      SetJerkLimits(&ctx, c.accel, c.jerk);
+      SetControlState(&ctx, 0.0f, c.v0);
+      CommandAccelerating(&ctx, c.position, c.velocity, c.acceleration);
+
+      JerkChecker checker(&ctx);
+      const double time = checker.RunUntilDone(20.0);
+      checker.CheckConsistent();
+      const double accel = std::isnan(c.accel) ? kInf : c.accel;
+      BOOST_TEST(checker.max_abs_a() <= accel);
+
+      // We are now where the target is.
+      const double expected =
+          c.position + c.velocity * time + 0.5 * c.acceleration * time * time;
+      BOOST_TEST(std::abs(checker.x() - expected) <
+                 1e-4 * (1.0 + std::abs(expected)));
+      CheckFollowing(&ctx, c.acceleration, 3000);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkAcceleratingUnlimited) {
+  // With no limits at all, the commanded trajectory is followed
+  // exactly.
+  Context ctx;
+  ctx.set_rate_hz(30000.0f);
+  ctx.data.accel_limit = NaN;
+  ctx.data.velocity_limit = NaN;
+  ctx.data.jerk_limit = NaN;
+  SetControlState(&ctx, 0.0f, 0.0f);
+  CommandAccelerating(&ctx, 1.0f, 0.5f, 3.0f);
+
+  const int cycles = 30000;
+  for (int i = 0; i < cycles; i++) {
+    ctx.Call();
+    BOOST_TEST_REQUIRE(ctx.status.control_velocity.value() ==
+                       ctx.data.velocity);
+    BOOST_TEST_REQUIRE(ctx.status.control_acceleration == 3.0f);
+  }
+  // The commanded velocity is accumulated in a float, so drifts
+  // slightly over as long as this.
+  const double time = cycles * static_cast<double>(ctx.period_s);
+  BOOST_TEST(std::abs(ctx.data.velocity - (0.5 + 3.0 * time)) < 5e-3);
+  const double x = ctx.from_raw(ctx.status.control_position_raw.value());
+  BOOST_TEST(std::abs(x - (1.0 + 0.5 * time + 1.5 * time * time)) < 5e-3);
+}
+
+BOOST_AUTO_TEST_CASE(AcceleratingTargetWithoutJerkLimit) {
+  // With velocity or acceleration limits but no jerk limit, an
+  // accelerating target is still followed once caught, and the
+  // control acceleration reports that.
+  struct Case {
+    float accel_limit;
+    float velocity_limit;
+    float position;
+    float acceleration;
+  };
+  const Case cases[] = {
+    { 100.0f, 10.0f,   NaN,  20.0f },
+    { 100.0f, 10.0f,   NaN, -20.0f },
+    {    NaN, 10.0f,   NaN,  20.0f },
+    { 100.0f, 10.0f, 0.02f,  20.0f },
+    { 100.0f, 10.0f, -0.02f, -20.0f },
+    {    NaN, 10.0f, 0.02f,  20.0f },
+  };
+
+  for (const auto& c : cases) {
+    BOOST_TEST_CONTEXT("accel_limit=" << c.accel_limit
+                       << " position=" << c.position
+                       << " acceleration=" << c.acceleration) {
+      Context ctx;
+      SetJerkLimits(&ctx, c.accel_limit, NaN, c.velocity_limit);
+      SetControlState(&ctx, 0.0f, 0.0f);
+      CommandAccelerating(&ctx, c.position, 0.0f, c.acceleration);
+
+      // Allow for reaching the target.
+      for (int i = 0; i < 3000; i++) { ctx.Call(); }
+
+      const double sign = c.acceleration > 0.0f ? 1.0 : -1.0;
+      int following = 0;
+      while (sign * ctx.data.velocity < c.velocity_limit) {
+        BOOST_TEST_REQUIRE(following < 30000);
+        const double x0 =
+            ctx.from_raw(ctx.status.control_position_raw.value());
+        const double v0 = ctx.status.control_velocity.value();
+        ctx.Call();
+        if (sign * ctx.data.velocity >= c.velocity_limit) { break; }
+        following++;
+        BOOST_TEST_REQUIRE(ctx.status.trajectory_done);
+        BOOST_TEST_REQUIRE(ctx.status.control_acceleration == c.acceleration);
+        BOOST_TEST_REQUIRE(ctx.status.control_velocity.value() ==
+                           ctx.data.velocity);
+        // The position advances by the mean of the velocities.
+        const double x1 =
+            ctx.from_raw(ctx.status.control_position_raw.value());
+        BOOST_TEST_REQUIRE(
+            std::abs((x1 - x0) -
+                     0.5 * (v0 + ctx.status.control_velocity.value()) *
+                     ctx.period_s) < 1e-8);
+      }
+      BOOST_TEST(following > 5000);
+
+      // Once the commanded velocity reaches its limit, it stops
+      // accelerating.
+      for (int i = 0; i < 100; i++) { ctx.Call(); }
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      BOOST_TEST(ctx.status.control_velocity.value() ==
+                 static_cast<float>(sign) * c.velocity_limit);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(JerkAcceleratingStreamed) {
+  // A host sends samples of a sinusoid at 100Hz.  When those include
+  // the acceleration, it is followed far more closely.
+  const double kAmplitude = 0.5;
+  const double kOmega = 2.0 * 3.14159265358979 * 1.0;
+  const int kResendPeriod = 300;
+
+  auto run = [&](bool send_acceleration) {
+    Context ctx;
+    SetJerkLimits(&ctx, 100.0f, 2000.0f);
+    SetControlState(&ctx, 0.0f, static_cast<float>(kAmplitude * kOmega));
+    JerkChecker checker(&ctx);
+
+    double max_position_error = 0.0;
+    double max_velocity_error = 0.0;
+    for (int i = 0; i < 60000; i++) {
+      const double t = i * static_cast<double>(ctx.period_s);
+      const double x = kAmplitude * std::sin(kOmega * t);
+      const double v = kAmplitude * kOmega * std::cos(kOmega * t);
+      const double a = -kAmplitude * kOmega * kOmega * std::sin(kOmega * t);
+      if ((i % kResendPeriod) == 0) {
+        CommandAccelerating(&ctx, x, v, send_acceleration ? a : 0.0);
+      }
+      // Skip the initial transient.
+      if (i > 3000) {
+        max_position_error =
+            std::max(max_position_error, std::abs(checker.x() - x));
+        max_velocity_error = std::max(
+            max_velocity_error,
+            std::abs(ctx.status.control_velocity.value() - v));
+      }
+      checker.Step();
+    }
+    checker.CheckConsistent();
+    return std::make_pair(max_position_error, max_velocity_error);
+  };
+
+  const auto with = run(true);
+  const auto without = run(false);
+  BOOST_TEST(with.first < 2e-4);
+  BOOST_TEST(with.second < 0.02);
+  BOOST_TEST(without.first > 20.0 * with.first);
+  BOOST_TEST(without.second > 3.0 * with.second);
+}
+
+BOOST_AUTO_TEST_CASE(JerkAcceleratingRandomized) {
+  uint32_t rng = 54321;
+  auto uniform = [&]() {
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    return (rng >> 8) / static_cast<float>(1 << 24);
+  };
+  auto log_uniform = [&](float min, float max) {
+    return min * std::pow(max / min, uniform());
+  };
+  auto symmetric = [&]() { return 2.0f * uniform() - 1.0f; };
+
+  for (int trial = 0; trial < 500; trial++) {
+    const float accel = log_uniform(1.0f, 2000.0f);
+    const float jerk = accel / log_uniform(0.002f, 1.0f);
+    const float typical_velocity =
+        log_uniform(0.1f, std::min(20.0f, 2.0f * accel));
+    const float v0 = typical_velocity * symmetric();
+    const bool position_mode = uniform() < 0.7f;
+    const float target =
+        position_mode ?
+        symmetric() * log_uniform(1e-3f, 5.0f * typical_velocity) : NaN;
+    const float vf = typical_velocity * symmetric();
+    // Never so much that the velocity becomes large while catching
+    // up.
+    const float acceleration =
+        symmetric() * std::min(0.8f * accel, typical_velocity);
+
+    BOOST_TEST_CONTEXT(
+        "trial=" << trial << " accel=" << accel << " jerk=" << jerk
+        << " v0=" << v0 << " target=" << target << " vf=" << vf
+        << " acceleration=" << acceleration) {
+      Context ctx;
+      ctx.status.motor_max_velocity = kInf;
+      SetJerkLimits(&ctx, accel, jerk);
+      SetControlState(&ctx, 0.0f, v0);
+      CommandAccelerating(&ctx, target, vf, acceleration);
+
+      JerkChecker checker(&ctx);
+      checker.RunUntilDone(60.0);
+      checker.CheckConsistent();
+      BOOST_TEST(checker.max_abs_a() <= accel);
+      BOOST_TEST(ctx.status.control_acceleration == acceleration);
+    }
+  }
 }

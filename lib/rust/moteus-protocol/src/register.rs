@@ -87,7 +87,7 @@ pub enum Register {
     /// Voltage FOC theta rate
     VFocThetaRate = 0x01e,
 
-    // === Position Mode Command Registers (0x020 - 0x02d) ===
+    // === Position Mode Command Registers (0x020 - 0x02f) ===
     /// Target position in revolutions
     CommandPosition = 0x020,
     /// Target velocity in revolutions/second
@@ -116,6 +116,10 @@ pub enum Register {
     CommandFixedCurrentOverride = 0x02c,
     /// Ignore position bounds flag
     CommandIgnorePositionBounds = 0x02d,
+    /// Acceleration of the commanded velocity in revolutions/second^2
+    CommandAcceleration = 0x02e,
+    /// Jerk limit in revolutions/second^3
+    CommandJerkLimit = 0x02f,
 
     // === Position Torque Reporting Registers (0x030 - 0x034) ===
     /// Position Kp torque
@@ -333,12 +337,17 @@ mod tests {
         assert_eq!(Register::Position.address(), 0x001);
         assert_eq!(Register::Fault.address(), 0x00f);
         assert_eq!(Register::CommandPosition.address(), 0x020);
+        assert_eq!(Register::CommandJerkLimit.address(), 0x02f);
     }
 
     #[test]
     fn test_register_from_address() {
         assert_eq!(Register::from_address(0x000), Some(Register::Mode));
         assert_eq!(Register::from_address(0x001), Some(Register::Position));
+        assert_eq!(
+            Register::from_address(0x02f),
+            Some(Register::CommandJerkLimit)
+        );
         assert_eq!(Register::from_address(0xfff), None);
     }
 }

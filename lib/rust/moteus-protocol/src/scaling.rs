@@ -50,6 +50,13 @@ pub const ACCELERATION: Scaling = Scaling {
     int32: 0.00001,
 };
 
+/// Jerk scaling: revolutions/second^3
+pub const JERK: Scaling = Scaling {
+    int8: 10.0,
+    int16: 0.1,
+    int32: 0.001,
+};
+
 /// Torque scaling: Nm
 pub const TORQUE: Scaling = Scaling {
     int8: 0.5,

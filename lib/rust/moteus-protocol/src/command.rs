@@ -48,6 +48,8 @@ pub struct PositionFormat {
     pub ilimit_scale: Resolution,
     pub fixed_current_override: Resolution,
     pub ignore_position_bounds: Resolution,
+    pub acceleration: Resolution,
+    pub jerk_limit: Resolution,
 }
 
 impl Default for PositionFormat {
@@ -67,6 +69,8 @@ impl Default for PositionFormat {
             ilimit_scale: Resolution::Float,
             fixed_current_override: Resolution::Float,
             ignore_position_bounds: Resolution::Float,
+            acceleration: Resolution::Float,
+            jerk_limit: Resolution::Float,
         }
     }
 }
@@ -125,6 +129,10 @@ pub struct PositionCommand {
     pub fixed_current_override: Option<f32>,
     /// Ignore position bounds flag
     pub ignore_position_bounds: Option<f32>,
+    /// Acceleration of the target velocity in revolutions/second^2
+    pub acceleration: Option<f32>,
+    /// Jerk limit in revolutions/second^3
+    pub jerk_limit: Option<f32>,
 }
 
 impl PositionCommand {
@@ -214,6 +222,16 @@ impl PositionCommand {
             } else {
                 Resolution::Ignore
             },
+            if self.acceleration.is_some() {
+                format.acceleration
+            } else {
+                Resolution::Ignore
+            },
+            if self.jerk_limit.is_some() {
+                format.jerk_limit
+            } else {
+                Resolution::Ignore
+            },
         ];
 
         let mut combiner =
@@ -281,6 +299,12 @@ impl PositionCommand {
                 self.ignore_position_bounds.unwrap_or(0.0) as i32,
                 format.ignore_position_bounds,
             );
+        }
+        if combiner.maybe_write(&mut writer) {
+            writer.write_accel(self.acceleration.unwrap_or(0.0), format.acceleration);
+        }
+        if combiner.maybe_write(&mut writer) {
+            writer.write_jerk(self.jerk_limit.unwrap_or(f32::NAN), format.jerk_limit);
         }
     }
 }
@@ -1016,6 +1040,38 @@ mod tests {
             .velocity(1.0)
             .serialize(&mut f, &PositionFormat::default());
         assert_eq!(bytes(&f), [1, 0, 10, 14, 32, 0, 0, 0, 63, 0, 0, 128, 63]);
+    }
+
+    #[test]
+    fn test_position_command_jerk_limit() {
+        // Float: write 1 float (0x0d), register 0x2f, 10.0f32.
+        let mut f = CanFdFrame::new();
+        PositionCommand::new()
+            .jerk_limit(10.0)
+            .serialize(&mut f, &PositionFormat::default());
+        assert_eq!(bytes(&f), [1, 0, 10, 13, 47, 0, 0, 32, 65]);
+
+        // Int16: write 1 int16 (0x05), register 0x2f, 10.0 / 0.1 = 100.
+        let mut f = CanFdFrame::new();
+        let format = PositionFormat {
+            jerk_limit: Resolution::Int16,
+            ..Default::default()
+        };
+        PositionCommand::new()
+            .jerk_limit(10.0)
+            .serialize(&mut f, &format);
+        assert_eq!(bytes(&f), [1, 0, 10, 5, 47, 100, 0]);
+    }
+
+    #[test]
+    fn test_position_command_acceleration() {
+        // Two floats (0x0e) from register 0x2e: 2.0 and 10.0.
+        let mut f = CanFdFrame::new();
+        PositionCommand::new()
+            .acceleration(2.0)
+            .jerk_limit(10.0)
+            .serialize(&mut f, &PositionFormat::default());
+        assert_eq!(bytes(&f), [1, 0, 10, 14, 46, 0, 0, 0, 64, 0, 0, 32, 65]);
     }
 
     #[test]

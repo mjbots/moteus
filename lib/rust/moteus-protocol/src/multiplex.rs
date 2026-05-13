@@ -240,6 +240,11 @@ impl<'a> WriteCanData<'a> {
         self.write_mapped(value, &scaling::ACCELERATION, res);
     }
 
+    /// Writes a jerk value (revolutions/second^3).
+    pub fn write_jerk(&mut self, value: f32, res: Resolution) {
+        self.write_mapped(value, &scaling::JERK, res);
+    }
+
     /// Writes a torque value (Nm).
     pub fn write_torque(&mut self, value: f32, res: Resolution) {
         self.write_mapped(value, &scaling::TORQUE, res);

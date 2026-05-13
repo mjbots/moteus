@@ -19,8 +19,12 @@
 // For CCM functions which should remain out of line regardless of
 // the inlining budget GCC has left in a given translation unit, so
 // that CCM usage does not depend upon unrelated code.
+//
+// Cloning is disabled as well, because a clone is not placed in a
+// COMDAT group like the inline functions that otherwise populate the
+// section, which results in a section type conflict.
 #define MOTEUS_CCM_NOINLINE_ATTRIBUTE \
-  __attribute__ ((section (".ccmram"), noinline))
+  __attribute__ ((section (".ccmram"), noinline, noclone))
 #else
 #define MOTEUS_CCM_ATTRIBUTE
 #define MOTEUS_CCM_NOINLINE_ATTRIBUTE

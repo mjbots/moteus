@@ -89,6 +89,7 @@ struct Options {
   bool validate_position_lowspeed = false;
   bool validate_position_wraparound = false;
   bool validate_position_reverse = false;
+  bool validate_position_jerk_limit = false;
   bool validate_stay_within = false;
   bool validate_max_slip = false;
   bool validate_slip_stop_position = false;
@@ -127,6 +128,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_position_lowspeed));
     a->Visit(MJ_NVP(validate_position_wraparound));
     a->Visit(MJ_NVP(validate_position_reverse));
+    a->Visit(MJ_NVP(validate_position_jerk_limit));
     a->Visit(MJ_NVP(validate_stay_within));
     a->Visit(MJ_NVP(validate_max_slip));
     a->Visit(MJ_NVP(validate_slip_stop_position));
@@ -438,6 +440,7 @@ class Controller {
 
     double default_accel_limit = std::numeric_limits<double>::quiet_NaN();
     double default_velocity_limit = std::numeric_limits<double>::quiet_NaN();
+    double default_jerk_limit = std::numeric_limits<double>::quiet_NaN();
 
     bool fw_enable = false;
   };
@@ -499,6 +502,9 @@ class Controller {
     co_await Command(
         fmt::format("conf set servo.default_velocity_limit {}",
                     pid.default_velocity_limit));
+    co_await Command(
+        fmt::format("conf set servo.default_jerk_limit {}",
+                    pid.default_jerk_limit));
     co_await Command(
         fmt::format("conf set servo.fw.enable {}",
                     pid.fw_enable ? 1 : 0));
@@ -782,6 +788,8 @@ class Application {
       co_await ValidatePositionWraparound();
     } else if (options_.validate_position_reverse) {
       co_await ValidatePositionReverse();
+    } else if (options_.validate_position_jerk_limit) {
+      co_await ValidatePositionJerkLimit();
     } else if (options_.validate_stay_within) {
       co_await ValidateStayWithin();
     } else if (options_.validate_max_slip) {
@@ -1771,6 +1779,119 @@ class Application {
     }
   }
 
+  // Exercise position mode with acceleration and jerk limits
+  // configured.  RunBasicPositionTest cannot be used, as it relies
+  // upon stop positions, which are not permitted with any limits.
+  //
+  //  1. Position and velocity sweeps, where the limits are generous
+  //     enough that each move completes.
+  //  2. A slow move where the commanded acceleration is verified to
+  //     ramp rather than step.
+  boost::asio::awaitable<void> ValidatePositionJerkLimit() {
+    dut_->SetMaxFinalTimer(3850);
+
+    for (double bemf : {0.0, 1.0}) {
+      fmt::print("Testing jerk-limited bemf {}\n", bemf);
+
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
+      co_await fixture_->Command("d index 0");
+      co_await dut_->Command("d index 0");
+
+      Controller::PidConstants pid;
+      pid.kp = 1.0;
+      pid.ki = 0.0;
+      pid.kd = 0.05;
+      pid.bemf_feedforward = bemf;
+      // Acceleration slews to its limit in 0.1s.
+      pid.default_accel_limit = 50.0;
+      pid.default_jerk_limit = 500.0;
+      co_await dut_->ConfigurePid(pid);
+
+      for (const double position : {0.0, -0.2, 0.3}) {
+        fmt::print("Moving to position {}\n", position);
+        co_await dut_->Command(fmt::format("d pos {} 0 0.2", position));
+        co_await Sleep(1.0);
+        const double fixture_position =
+            pid.output_sign * options_.transducer_scale *
+            fixture_->servo_stats().position;
+        if (std::abs(fixture_position - position) > 0.05) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Fixture position {} != {}",
+                          fixture_position, position));
+        }
+      }
+
+      // The jerk limit remains at the configured default.
+      for (const double velocity : {0.0, -1.5, 3.0, 10.0, -5.0}) {
+        fmt::print("Moving at velocity {}\n", velocity);
+        co_await dut_->Command(
+            fmt::format("d pos nan {} 0.2 a30", velocity));
+        co_await Sleep(1.5);
+        const double fixture_velocity =
+            pid.output_sign * options_.transducer_scale *
+            fixture_->servo_stats().velocity;
+        if (std::abs(fixture_velocity - velocity) > 0.35) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Fixture velocity {} != {}",
+                          fixture_velocity, velocity));
+        }
+      }
+
+      co_await dut_->Command("d stop");
+      co_await Sleep(0.5);
+    }
+
+    // Now use a jerk low enough that acceleration takes 1s to reach
+    // its limit, which is slow enough to observe.
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+
+    Controller::PidConstants slow_pid;
+    slow_pid.kp = 1.0;
+    slow_pid.kd = 0.05;
+    slow_pid.default_accel_limit = 5.0;
+    slow_pid.default_jerk_limit = 5.0;
+    co_await dut_->ConfigurePid(slow_pid);
+
+    co_await dut_->Command(
+        fmt::format("d pos 5.0 0 {}", options_.max_torque_Nm));
+
+    // After 200ms, the acceleration should be around 1.0, or 20% of
+    // the limit.  Without a jerk limit it would already be at the
+    // limit.  The bounds are loose to accommodate latency in the
+    // reported status.
+    co_await Sleep(0.2);
+    const double a_sampled =
+        std::abs(dut_->servo_stats().control_acceleration);
+    fmt::print(
+        "Jerk-shaped sample at 200 ms: a = {} "
+        "(a_max = {}, ideal = {:.2f})\n",
+        a_sampled, slow_pid.default_accel_limit,
+        slow_pid.default_jerk_limit * 0.2);
+    if (a_sampled > 0.5 * slow_pid.default_accel_limit) {
+      throw mjlib::base::system_error::einval(
+          fmt::format(
+              "control_acceleration {} not jerk-shaped (a_max = {})",
+              a_sampled, slow_pid.default_accel_limit));
+    }
+    if (a_sampled < 0.05 * slow_pid.default_accel_limit) {
+      throw mjlib::base::system_error::einval(
+          fmt::format(
+              "control_acceleration {} unexpectedly small; "
+              "the trajectory does not appear to be running",
+              a_sampled));
+    }
+
+    co_await Sleep(6.0);
+    co_await dut_->Command("d stop");
+    co_await Sleep(0.2);
+
+    co_return;
+  }
+
   boost::asio::awaitable<void> ValidateStayWithin() {
     co_await dut_->Command("d stop");
     co_await fixture_->Command("d stop");
@@ -2517,7 +2638,7 @@ class Application {
     co_await dut_->Command("d stop");
     co_await dut_->Command("d index 0");
 
-    // Field weakening is allowed to use more runtime cycles.
+    // Field weakening+jerk is allowed to use more runtime cycles.
     dut_->SetMaxFinalTimer(3995);
 
     Controller::PidConstants pid;
@@ -2529,7 +2650,7 @@ class Application {
     // that the slowest runtime ISR path is taken.  This will
     // hopefully catch the worst case ISR execution time.
 
-    co_await dut_->Command("d pos 10000 nan 0 a40 v100");
+    co_await dut_->Command("d pos 10000 nan 0 a40 v100 j100");
 
     co_await Sleep(5.0);
 

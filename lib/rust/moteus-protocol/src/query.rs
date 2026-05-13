@@ -532,7 +532,11 @@ fn parse_generic(register: u16, value: Value) -> f32 {
 
         Some(Register::CommandTimeout) | Some(Register::CommandStayWithinTimeout) => &scaling::TIME,
 
-        Some(Register::CommandAccelLimit) => &scaling::ACCELERATION,
+        Some(Register::CommandAccelLimit) | Some(Register::CommandAcceleration) => {
+            &scaling::ACCELERATION
+        }
+
+        Some(Register::CommandJerkLimit) => &scaling::JERK,
 
         Some(Register::CommandKpScale)
         | Some(Register::CommandKdScale)

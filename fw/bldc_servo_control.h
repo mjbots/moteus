@@ -290,10 +290,31 @@ class BldcServoControl {
     } else if (data->accel_limit < 0.0f) {
       data->accel_limit = std::numeric_limits<float>::quiet_NaN();
     }
+    if (std::isnan(data->jerk_limit)) {
+      data->jerk_limit = self().config_.default_jerk_limit;
+    }
+    if (!(data->jerk_limit > 0.0f) || !std::isfinite(data->jerk_limit)) {
+      // A jerk limit of zero would never permit any motion, and an
+      // infinite one is no limit.
+      data->jerk_limit = std::numeric_limits<float>::quiet_NaN();
+    }
+
+    // Only a position mode command has a velocity for an acceleration
+    // to apply to, and it is subject to the acceleration limit as the
+    // velocity is to the velocity limit.
+    if (std::isnan(data->acceleration) || data->mode != kPosition) {
+      data->acceleration = 0.0f;
+    } else if (!std::isnan(data->accel_limit)) {
+      data->acceleration = Limit(data->acceleration,
+                                 -data->accel_limit,
+                                 data->accel_limit);
+    }
 
     // If we are going to limit at all, ensure that we have a velocity
     // limit, and that it is no more than the configured maximum velocity.
-    if (!std::isnan(data->velocity_limit) || !std::isnan(data->accel_limit)) {
+    if (!std::isnan(data->velocity_limit) ||
+        !std::isnan(data->accel_limit) ||
+        !std::isnan(data->jerk_limit)) {
       if (std::isnan(data->velocity_limit)) {
         data->velocity_limit = self().config_.max_velocity;
       } else {
@@ -344,9 +365,10 @@ class BldcServoControl {
 
     if (!!data->stop_position_relative_raw &&
         (std::isfinite(data->accel_limit) ||
-         std::isfinite(data->velocity_limit))) {
+         std::isfinite(data->velocity_limit) ||
+         std::isfinite(data->jerk_limit))) {
       // There is no valid use case for using a stop position along
-      // with an acceleration or velocity limit.
+      // with an acceleration, velocity, or jerk limit.
       return errc::kStopPositionDeprecated;
     }
 
@@ -1567,6 +1589,10 @@ class BldcServoControl {
       timeout_data.position = std::numeric_limits<float>::quiet_NaN();
       timeout_data.velocity_limit = self().config_.default_velocity_limit;
       timeout_data.accel_limit = self().config_.default_accel_limit;
+      timeout_data.jerk_limit =
+          std::isfinite(self().config_.default_jerk_limit) ?
+          self().config_.default_jerk_limit :
+          std::numeric_limits<float>::quiet_NaN();
       timeout_data.timeout_s = std::numeric_limits<float>::quiet_NaN();
 
       PID::ApplyOptions apply_options;

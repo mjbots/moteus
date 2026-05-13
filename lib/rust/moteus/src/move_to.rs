@@ -111,6 +111,13 @@ impl Setpoint {
         self
     }
 
+    /// Sets a jerk_limit override (builder pattern).
+    #[must_use]
+    pub fn jerk_limit(mut self, v: f32) -> Self {
+        self.overrides.jerk_limit = Some(v);
+        self
+    }
+
     /// Sets a maximum_torque override (builder pattern).
     #[must_use]
     pub fn maximum_torque(mut self, v: f32) -> Self {
@@ -171,6 +178,10 @@ pub struct MoveToOptions {
     pub velocity_limit: Option<f32>,
     /// Default accel_limit applied to all servos (rev/s^2).
     pub accel_limit: Option<f32>,
+    /// Default jerk_limit applied to all servos (rev/s^3). When set,
+    /// acceleration is slewed at no more than this rate, producing an
+    /// S-curve velocity profile.
+    pub jerk_limit: Option<f32>,
     /// Default maximum_torque applied to all servos (Nm).
     pub maximum_torque: Option<f32>,
     /// Polling period (default 25 ms).
@@ -185,6 +196,7 @@ impl Default for MoveToOptions {
             duration: None,
             velocity_limit: None,
             accel_limit: None,
+            jerk_limit: None,
             maximum_torque: None,
             period: std::time::Duration::from_millis(25),
             timeout: None,
@@ -216,6 +228,13 @@ impl MoveToOptions {
     #[must_use]
     pub fn accel_limit(mut self, a: f32) -> Self {
         self.accel_limit = Some(a);
+        self
+    }
+
+    /// Sets the default jerk_limit (builder pattern).
+    #[must_use]
+    pub fn jerk_limit(mut self, j: f32) -> Self {
+        self.jerk_limit = Some(j);
         self
     }
 
@@ -290,6 +309,12 @@ fn merge_overrides(cmd: &mut PositionCommand, overrides: &PositionCommand) {
     }
     if overrides.ignore_position_bounds.is_some() {
         cmd.ignore_position_bounds = overrides.ignore_position_bounds;
+    }
+    if overrides.acceleration.is_some() {
+        cmd.acceleration = overrides.acceleration;
+    }
+    if overrides.jerk_limit.is_some() {
+        cmd.jerk_limit = overrides.jerk_limit;
     }
 }
 
@@ -376,6 +401,9 @@ pub fn move_to(
             }
             if options.accel_limit.is_some() {
                 pos_cmd.accel_limit = options.accel_limit;
+            }
+            if options.jerk_limit.is_some() {
+                pos_cmd.jerk_limit = options.jerk_limit;
             }
             if options.maximum_torque.is_some() {
                 pos_cmd.maximum_torque = options.maximum_torque;
@@ -574,6 +602,9 @@ pub async fn async_move_to(
             if options.accel_limit.is_some() {
                 pos_cmd.accel_limit = options.accel_limit;
             }
+            if options.jerk_limit.is_some() {
+                pos_cmd.jerk_limit = options.jerk_limit;
+            }
             if options.maximum_torque.is_some() {
                 pos_cmd.maximum_torque = options.maximum_torque;
             }
@@ -742,11 +773,13 @@ mod tests {
             .duration(std::time::Duration::from_secs(2))
             .velocity_limit(1.0)
             .accel_limit(5.0)
+            .jerk_limit(50.0)
             .period(std::time::Duration::from_millis(50))
             .timeout(std::time::Duration::from_secs(10));
         assert_eq!(opts.duration, Some(std::time::Duration::from_secs(2)));
         assert_eq!(opts.velocity_limit, Some(1.0));
         assert_eq!(opts.accel_limit, Some(5.0));
+        assert_eq!(opts.jerk_limit, Some(50.0));
         assert_eq!(opts.period, std::time::Duration::from_millis(50));
         assert_eq!(opts.timeout, Some(std::time::Duration::from_secs(10)));
     }

@@ -14,6 +14,10 @@ heading to the version and date.
 ### Unreleased
 
 - Stop re-running the DRV8353 current sense amplifier auto calibration at each enable (moteus-r4.8 and later, moteus-n1, moteus-x1, moteus-r5).  On some units it left a step in one phase's current reading at zero current, which degraded low current control, most visibly on the moteus-n1 since firmware 1.1.0.
+- Added jerk limiting for internally generated trajectories.  When a jerk limit is set, acceleration changes no faster than that rate, resulting in S curve velocity profiles for both position and velocity moves.
+ - `servo.default_jerk_limit` sets the default, which is unset (`nan`) out of the box so existing behavior is unchanged.
+ - Register 0x02f or the `j` option of the diagnostic protocol `d pos` command override it for a single command.
+- Position mode accepts a commanded acceleration, register 0x02e or the `x` option of `d pos`.  The commanded velocity changes at that rate until it reaches the velocity limit, so that the commanded trajectory is a parabola.  With a jerk limit set, the trajectory which is generated joins it with matching acceleration, so that successive commands can be chained without the acceleration returning to zero in between.
 
 ### 1.2.0 - 2026-11-09
 
@@ -84,6 +88,9 @@ Erroneous release with no changelog
 
 ### Unreleased
 
+- Added the `jerk_limit` argument to `make_position`, `set_position`, and `move_to`.
+- Added the `acceleration` argument to `make_position` and `set_position`.
+- `lib/python/examples/ruckig_multiservo.py` commands the acceleration of the trajectory along with its position and velocity, and gives each servo jerk, acceleration, and velocity limits.  `--no-acceleration` restores the previous behavior for older firmware.
 - Fix "TypeError: exceptions must derive from BaseException" when using the default transport from more than one event loop, for instance by calling asyncio.run() more than once.  A new default transport is now created once the event loop of the previous one has finished.
 - The minimum supported python version is now 3.9 (moteus and moteus_gui).  Earlier versions could already not satisfy the scipy dependency (3.7), or had no working moteus_pi3hat package (3.8).
 
@@ -125,7 +132,7 @@ Erroneous release with no changelog
 
 ### Unreleased
 
-(no entries yet)
+- Added `jerk_limit` and `acceleration` to `PositionMode::Command` and `PositionMode::Format`.
 
 ### 1.0.0 - 2026-05-28
 
@@ -137,6 +144,12 @@ The `moteus`, `moteus-protocol`, and `moteus-derive` crates share one
 version and are released together.
 
 ### Unreleased
+
+- Added jerk limiting: `PositionCommand::jerk_limit`, the
+  `CommandJerkLimit` register (0x02f), and `jerk_limit` for `move_to`
+  options and setpoints.
+- Added `PositionCommand::acceleration` and the `CommandAcceleration`
+  register (0x02e).
 
 ### 0.5.5 - 2026-09-04
 
