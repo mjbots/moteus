@@ -54,35 +54,38 @@ thus *after* any scaling in position, velocity, and torque implied by
 These have the same semantics as the position mode PID controller, and
 affect the current control loop.
 
-## `servo.default_velocity_limit` / `servo.default_accel_limit`
+## `servo.default_velocity_limit` / `servo.default_accel_limit` / `servo.default_jerk_limit`
 
 Limits to be placed on trajectories generated within moteus.  If
-either is `nan`, then that limit is unset.  The limits may also be
-overriden individually on a per command basis.  The semantics of the
-limits are as follows:
+any is `nan`, then that limit is unset.  The limits may also be
+overriden individually on a per command basis.  The semantics
+depend on which limits are set.
 
-- *Neither set (both nan)* In this case, position and velocity
-  commands take immediate effect.  The control position will be
-  initialized to the command position, and the control velocity will
-  be set to the command velocity.  The control position will advance
-  at the given velocity indefinitely, or until the command stop
-  position is reached.
+- *Neither velocity_limit nor accel_limit nor jerk_limit set (all
+  nan)*: position and velocity commands take immediate effect.  The
+  control position will be initialized to the command position, and
+  the control velocity will be set to the command velocity.  The
+  control position will advance at the given velocity indefinitely, or
+  until the command stop position is reached.  `jerk_limit` is ignored
+  in this regime.
 
-- *Either set*: If x_c is the command position, v_c is the command
-  velocity, and t is the time from receipt of the command, the
-  semantics can be described as: "match the trajectory defined by x =
-  x_c + v_c * t".
+- *jerk_limit set*: Acceleration follows a triangular or trapezoidal
+  path.  Velocity follows an S curve.
 
-  If the acceleration limit is set, the above is effected by
-  commanding accelerations of either [-accel_limit, 0, accel_limit].
-  If an acceleration limit is not set, then the velocity will change
-  instantaneously.
+- *accel_limit set*: If set, the acceleration is capped at the given
+  value in either the positive or negative direction.  If no jerk
+  limit is set, then acceleration switches instantaneously between
+  [-accel_limit, 0, and accel_limit].  If a jerk limit is configured,
+  then acceleration will follow a trapezoidal trajectory.
 
-  If the velocity limit is set, then the intermediate velocities will
-  obey "-velocity_limit < velocity < +velocity_limit".  If it is not
-  set, then the velocities may grow to arbitrary magnitude.
+- *velocity_limit set*: If set, then velocity is capped at the given
+  value in either the positive or negative direction.  If neither jerk
+  nor acceleration limits are set, then velocity switches
+  instantaneously between [-velocity_limit, 0, velocity_limit].  If
+  either jerk or acceleration limits are configured, they constrain
+  changes in velocity.
 
-NOTE: This is limited internally to be no more than
+NOTE: `velocity_limit` is limited internally to be no more than
 `servo.max_velocity`.
 
 ## `servo.inertia_feedforward`
@@ -291,10 +294,11 @@ The allowable values are a subset of the top level modes.
 * 12 - "zero velocity"
 * 15 - "brake"
 
-For mode 10, `servo.default_velocity_limit` and
-`servo.default_accel_limit` are used to control the deceleration
-profile to zero speed.  The default PID gains are used.  The only
-limit on torque when in this timeout mode is `servo.max_current_A`.
+For mode 10, `servo.default_velocity_limit`,
+`servo.default_accel_limit`, and `servo.default_jerk_limit` are used
+to control the deceleration profile to zero speed.  The default PID
+gains are used.  The only limit on torque when in this timeout mode
+is `servo.max_current_A`.
 
 ## `servo.motor_thermistor_ohm`
 

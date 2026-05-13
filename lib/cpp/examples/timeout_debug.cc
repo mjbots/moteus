@@ -153,6 +153,7 @@ auto PositionFlagGet = [](char c, auto* s) {
     case 'w': return &s->watchdog_timeout;
     case 'V': return &s->velocity_limit;
     case 'A': return &s->accel_limit;
+    case 'J': return &s->jerk_limit;
     case 'O': return &s->fixed_voltage_override;
     default: return static_cast<decltype(&s->position)>(nullptr);
   }

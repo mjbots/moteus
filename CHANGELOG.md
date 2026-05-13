@@ -9,7 +9,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Unreleased
 
-(no entries yet)
+- Added jerk limiting.
 
 ### 1.0.0 - YYYY-MM-DD
 
@@ -21,10 +21,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Unreleased
 
-(no entries yet)
+- Added jerk limiting.
 
 ## cpp
 
 ### Unreleased
 
-(no entries yet)
+- Added jerk limiting.

@@ -66,6 +66,11 @@ Each optional element consists of a prefix character followed by a value.  Permi
   velocity limit for the duration of this command.
 - `a` - acceleration limit: the given value will override the global
   acceleration limit for the duration of this command.
+- `j` - jerk limit: the given value will override the global jerk
+  limit for the duration of this command.  When set, the trajectory
+  generator slews acceleration at no more than this rate per second,
+  producing a trapezoidal acceleration profile and an S-curve velocity
+  profile.
 - `o` - fixed voltage override: while in affect, treat the control as
   if `fixed_voltage_mode` were enabled with the given voltage
 - `c` - fixed current override: while in affect, treat the control

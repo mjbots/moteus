@@ -119,6 +119,7 @@ class PositionResolution:
     ilimit_scale = mp.F32
     fixed_current_override = mp.F32
     ignore_position_bounds = mp.F32
+    jerk_limit = mp.F32
 
 
 class VFOCResolution:
@@ -671,6 +672,7 @@ class Controller:
                       ilimit_scale=None,
                       fixed_current_override=None,
                       ignore_position_bounds=None,
+                      jerk_limit=None,
                       query=False,
                       query_override=None):
         """Return a moteus.Command structure with data necessary to send a
@@ -695,6 +697,7 @@ class Controller:
             pr.ilimit_scale if ilimit_scale is not None else mp.IGNORE,
             pr.fixed_current_override if fixed_current_override is not None else mp.IGNORE,
             pr.ignore_position_bounds if ignore_position_bounds is not None else mp.IGNORE,
+            pr.jerk_limit if jerk_limit is not None else mp.IGNORE,
         ]
 
         writer = Writer(data_buf)
@@ -733,6 +736,8 @@ class Controller:
             writer.write_current(fixed_current_override, pr.fixed_current_override)
         if combiner.maybe_write():
             writer.write_int(ignore_position_bounds, pr.ignore_position_bounds)
+        if combiner.maybe_write():
+            writer.write_jerk(jerk_limit, pr.jerk_limit)
 
         self._format_query(query, query_override, data_buf, result)
 
@@ -1482,6 +1487,7 @@ async def move_to(
         duration=None,
         velocity_limit=None,
         accel_limit=None,
+        jerk_limit=None,
         maximum_torque=None,
         period_s=0.025,
         timeout=None,
@@ -1539,6 +1545,10 @@ async def move_to(
                       this.
       accel_limit: Default acceleration limit. Setpoint values override
                    this.
+      jerk_limit: Default jerk limit. When set, the trajectory
+                  generator slews acceleration at no more than this
+                  rate per second, producing an S-curve velocity
+                  profile. Setpoint values override this.
       maximum_torque: Default maximum torque limit. Setpoint values
                       override this.
       period_s: Polling interval for checking completion (default
@@ -1641,6 +1651,8 @@ async def move_to(
                 cmd_kwargs['velocity_limit'] = velocity_limit
             if accel_limit is not None:
                 cmd_kwargs['accel_limit'] = accel_limit
+            if jerk_limit is not None:
+                cmd_kwargs['jerk_limit'] = jerk_limit
             if maximum_torque is not None:
                 cmd_kwargs['maximum_torque'] = maximum_torque
 

@@ -145,6 +145,7 @@ enum Register : uint16_t {
   kCommandIlimitScale = 0x02b,
   kCommandFixedCurrentOverride = 0x02c,
   kCommandIgnorePositionBounds = 0x02d,
+  kCommandJerkLimit = 0x02e,
 
   kPositionKp = 0x030,
   kPositionKi = 0x031,
@@ -674,6 +675,7 @@ struct Query {
       { R::kCommandIlimitScale, 1, MP::kPwm },
       { R::kCommandFixedCurrentOverride, 1, MP::kCurrent },
       { R::kCommandIgnorePositionBounds, 1, MP::kInt },
+      { R::kCommandJerkLimit, 1, MP::kJerk },
 
       { R::kPositionKp, 5, MP::kTorque, },
       // { R::kPositionKi, 1, MP::kTorque, },
@@ -908,6 +910,7 @@ struct PositionMode {
     double ilimit_scale = 1.0;
     double fixed_current_override = NaN;
     double ignore_position_bounds = 0.0;
+    double jerk_limit = NaN;
   };
 
   struct Format {
@@ -925,6 +928,7 @@ struct PositionMode {
     Resolution ilimit_scale = kIgnore;
     Resolution fixed_current_override = kIgnore;
     Resolution ignore_position_bounds = kIgnore;
+    Resolution jerk_limit = kIgnore;
   };
 
   static uint8_t Make(WriteCanData* frame,
@@ -951,6 +955,7 @@ struct PositionMode {
       format.ilimit_scale,
       format.fixed_current_override,
       format.ignore_position_bounds,
+      format.jerk_limit,
     };
     WriteCombiner combiner(
         frame, 0x00,
@@ -1002,6 +1007,9 @@ struct PositionMode {
     if (combiner.MaybeWrite()) {
       frame->WriteInt(command.ignore_position_bounds,
                       format.ignore_position_bounds);
+    }
+    if (combiner.MaybeWrite()) {
+      frame->WriteJerk(command.jerk_limit, format.jerk_limit);
     }
     return 0;
   }

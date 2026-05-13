@@ -24,9 +24,9 @@ The maximum phase current to apply to the motor. This can be used to limit the m
 
 Limits the maximum speed the motor is permitted to achieve before no torque is produced. This acts as a safety limit to prevent excessive speeds that could damage the motor or mechanical system.
 
-**`servo.default_velocity_limit` / `servo.default_accel_limit`**
+**`servo.default_velocity_limit` / `servo.default_accel_limit` / `servo.default_jerk_limit`**
 
-Controls how fast the motor can accelerate and spin in order to reach position and velocity targets. Bare boards ship with these unset, while development kits ship with human-eye pleasing values. Adjust these to match your application's performance requirements.
+Controls how fast the motor can accelerate and spin in order to reach position and velocity targets. Development kits ship with human-eye pleasing values. Adjust these to match your application's performance requirements.
 
 ### Gearbox Scaling
 

@@ -77,6 +77,7 @@ class Register(enum.IntEnum):
     COMMAND_ILIMIT_SCALE = 0x02b
     COMMAND_FIXED_CURRENT_OVERRIDE = 0x02c
     COMMAND_IGNORE_POSITION_BOUNDS = 0x02d
+    COMMAND_JERK_LIMIT = 0x02e
 
     POSITION_KP = 0x030
     POSITION_KI = 0x031
@@ -204,6 +205,9 @@ class Writer(mp.WriteFrame):
 
     def write_accel(self, value, resolution):
         self.write_mapped(value, 0.05, 0.001, 0.00001, resolution)
+
+    def write_jerk(self, value, resolution):
+        self.write_mapped(value, 10.0, 0.1, 0.001, resolution)
 
     def write_torque(self, value, resolution):
         self.write_mapped(value, 0.5, 0.01, 0.001, resolution)
@@ -382,6 +386,8 @@ def scale_register(register, resolution, value):
         return _scale_mapped(value, resolution, 0.1, 0.00025, 0.00001)
     elif register == Register.COMMAND_ACCEL_LIMIT:
         return _scale_mapped(value, resolution, 0.05, 0.001, 0.00001)
+    elif register == Register.COMMAND_JERK_LIMIT:
+        return _scale_mapped(value, resolution, 10.0, 0.1, 0.001)
     elif register == Register.COMMAND_FIXED_VOLTAGE_OVERRIDE:
         return _scale_mapped(value, resolution, 0.5, 0.1, 0.001)
     elif register == Register.COMMAND_ILIMIT_SCALE:
