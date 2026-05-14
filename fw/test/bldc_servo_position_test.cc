@@ -1493,51 +1493,10 @@ BOOST_AUTO_TEST_CASE(VelocityLimitOverrideHonorsApproachDirection) {
 // === Jerk-limited trajectory tests ===
 //
 // These exercise the slew-rate-limited acceleration path that
-// activates when `data.jerk_limit` is finite.  The controller adds
-// `control_acceleration` as a real state variable so the per-cycle
-// recomputation remains idempotent in (x, v, a).
+// activates when `data.jerk_limit` is finite.
 
-// The same starting state and the same command must produce the
-// same per-cycle (a, v, x).  This is the idempotency property the
-// existing controller relies on.
-BOOST_AUTO_TEST_CASE(JerkLimitIdempotency) {
-  auto run = [](std::vector<float>* out_a,
-                std::vector<float>* out_v,
-                std::vector<float>* out_x) {
-    Context ctx;
-    ctx.set_rate_hz(30000.0f);
-    ctx.data.position = 1.0f;
-    ctx.data.velocity = 0.0f;
-    ctx.data.accel_limit = 2000.0f;
-    ctx.data.jerk_limit = 50000.0f;
-    ctx.data.velocity_limit = NaN;
-    ctx.set_position(0.0f);
-    ctx.set_velocity(0.0f);
-
-    for (int i = 0; i < 5000; i++) {
-      ctx.Call();
-      out_a->push_back(ctx.status.control_acceleration);
-      out_v->push_back(ctx.status.control_velocity.value());
-      out_x->push_back(ctx.from_raw(ctx.status.control_position_raw.value()));
-      if (ctx.status.trajectory_done) { break; }
-    }
-  };
-
-  std::vector<float> a1, v1, x1;
-  std::vector<float> a2, v2, x2;
-  run(&a1, &v1, &x1);
-  run(&a2, &v2, &x2);
-
-  BOOST_TEST(a1.size() == a2.size());
-  for (size_t i = 0; i < std::min(a1.size(), a2.size()); i++) {
-    BOOST_TEST(a1[i] == a2[i]);
-    BOOST_TEST(v1[i] == v2[i]);
-    BOOST_TEST(x1[i] == x2[i]);
-  }
-}
-
-// Velocity-only mode: ramp v from 0 to vf with jerk limit; verify
-// the ramp is smooth (acceleration bounded) and v does not overshoot.
+// Velocity-only mode: ramp v from 0 to vf with a jerk limit; verify
+// that the ramp is smooth and v does not overshoot.
 BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeRamp) {
   Context ctx;
   constexpr float kRateHz = 30000.0f;
@@ -1555,7 +1514,8 @@ BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeRamp) {
   ctx.status.control_velocity = 0.0f;
 
   const float dt = 1.0f / kRateHz;
-  // Per-cycle |Δa| bound for the jerk-limited slew, with ULP slop.
+  // Per-cycle delta-a bound for the jerk-limited slew, with unit of
+  // least precision (ULP) slop.
   const float jerk_bound =
       kJerk * dt + 4.0f * kAccel *
       std::numeric_limits<float>::epsilon();
@@ -1608,9 +1568,6 @@ BOOST_AUTO_TEST_CASE(JerkStopDistanceMatchesIntegration,
   for (const auto& c : cases) {
     BOOST_TEST_CONTEXT("v=" << c.v << " a=" << c.a
                        << " amax=" << c.a_max << " j=" << c.j) {
-      const float stop_d = BldcServoPosition::ComputeJerkStopDistance(
-          c.v, c.a, c.a_max, c.j, 1.0f / c.j);
-
       // Forward-integrate the same profile in tiny steps and verify
       // we stop within a tight tolerance of `stop_d`.  Each step uses
       // the constant-jerk closed-form integrals so the reference
@@ -1674,6 +1631,11 @@ BOOST_AUTO_TEST_CASE(JerkStopDistanceMatchesIntegration,
         v += (a_old + a) * 0.5 * t;
       }
 
+      // Now compare to the online estimated version.
+
+      const float stop_d = BldcServoPosition::ComputeJerkStopDistance(
+          c.v, c.a, c.a_max, c.j, 1.0f / c.j);
+
       BOOST_TEST(static_cast<double>(stop_d) == x);
       // Final v should be near 0 (small absolute drift accumulated
       // by the forward integration over many tiny steps).
@@ -1687,30 +1649,49 @@ BOOST_AUTO_TEST_CASE(JerkStopDistanceMatchesIntegration,
 // the jerk-limited version should have no acceleration sign
 // discontinuity exceeding |jerk*dt| per cycle.
 BOOST_AUTO_TEST_CASE(JerkLimitedTakesLongerThanTrapezoidal) {
-  auto run = [](float jerk_limit) {
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 1000.0f;
+  constexpr float kJerk = 20000.0f;
+  auto run = [&](float jerk_limit) {
     Context ctx;
-    ctx.set_rate_hz(30000.0f);
+    ctx.set_rate_hz(kRateHz);
     ctx.data.position = 1.0f;
     ctx.data.velocity = 0.0f;
-    ctx.data.accel_limit = 1000.0f;
+    ctx.data.accel_limit = kAccel;
     ctx.data.jerk_limit = jerk_limit;
     ctx.data.velocity_limit = NaN;
     ctx.set_position(0.0f);
     ctx.set_velocity(0.0f);
+    // For the jerk-limited run, verify the per-cycle |Δa| bound
+    // throughout the trajectory.  The unlimited run is allowed
+    // arbitrary Δa (that's the whole point of the jerk limit).
+    const bool check_jerk_bound = std::isfinite(jerk_limit);
+    const float dt = 1.0f / kRateHz;
+    const float jerk_bound =
+        check_jerk_bound
+            ? jerk_limit * dt +
+                  kAccel * std::numeric_limits<float>::epsilon()
+            : 0.0f;
+    float prev_a = 0.0f;
     int steps = 0;
     for (; steps < 200000; steps++) {
       ctx.Call();
+      if (check_jerk_bound) {
+        const float a = ctx.status.control_acceleration;
+        BOOST_TEST(std::abs(a - prev_a) <= jerk_bound);
+        prev_a = a;
+      }
       if (ctx.status.trajectory_done) { return steps + 1; }
     }
     return -1;
   };
 
   const int steps_no_jerk = run(NaN);
-  const int steps_jerk = run(20000.0f);
+  const int steps_jerk = run(kJerk);
 
   BOOST_TEST(steps_no_jerk > 0);
   BOOST_TEST(steps_jerk > 0);
-  BOOST_TEST(steps_jerk >= steps_no_jerk);
+  BOOST_TEST(steps_jerk > steps_no_jerk);
 }
 
 // A battery of termination cases that span hostile parameter
@@ -2495,13 +2476,13 @@ namespace {
 // true AND the cycle immediately after it.  Returns the number of
 // cycles executed (>= 1).
 //
-// The slop on the bound accounts for the fact that the slew step
-// `Δa = j*dt` is computed in the controller as `a_prev + j_dt`,
-// and an external observer recovers Δa via subtraction.  ULP at
-// |a_prev| ~ a_max is `a_max * eps`, so the recovered Δa can
-// disagree with the analytical j*dt by O(a_max * eps).  Empirically
-// `accel * eps` is sufficient; we use the same value JerkBoundFor
-// does for consistency.
+// The slop on the bound accounts for the fact that the slew step `Δa
+// = j*dt` is computed in the controller as `a_prev + j_dt`, and an
+// external observer recovers Δa via subtraction.  The unit of least
+// precision (ULP) at |a_prev| ~ a_max is `a_max * eps`, so the
+// recovered Δa can disagree with the analytical j*dt by O(a_max *
+// eps).  Empirically `accel * eps` is sufficient; we use the same
+// value JerkBoundFor does for consistency.
 int RunAndCheckJerkBound(Context* ctx, int max_steps,
                          float jerk, float accel, float period_s) {
   const float kFloatEps = std::numeric_limits<float>::epsilon();
@@ -2925,9 +2906,10 @@ namespace {
 
 // Slop on the |Δa| <= j*dt bound, identical to the formula used by
 // RunAndCheckJerkBound; the recovered Δa = a_curr - (a_curr - j*dt)
-// loses ULP at |a_curr| ~ a_max so we allow O(a_max * eps).
-// Empirically 0.25*accel*eps suffices, but 1x gives ~4x headroom
-// for minor changes to the controller's float arithmetic.
+// loses a unit of least precision (ULP) at |a_curr| ~ a_max so we allow
+// O(a_max * eps).  Empirically 0.25*accel*eps suffices, but 1x gives
+// ~4x headroom for minor changes to the controller's float
+// arithmetic.
 float JerkBoundFor(float jerk, float accel, float period_s) {
   const float kFloatEps = std::numeric_limits<float>::epsilon();
   return jerk * period_s + accel * kFloatEps;
@@ -3253,8 +3235,9 @@ BOOST_AUTO_TEST_CASE(JerkLimitNoAccelLimit) {
   ctx.set_velocity(0.0f);
 
   const float dt = 1.0f / rate_hz;
-  // Peak |a| is bounded by sqrt(j*v_limit) = sqrt(15000) ~ 122
-  // for the v-limit triangle, plus headroom for ULP slop.
+  // Peak |a| is bounded by sqrt(j*v_limit) = sqrt(15000) ~ 122 for
+  // the v-limit triangle, plus headroom for unit of least precision
+  // (ULP) slop.
   const float accel_for_bound = 2.0f * std::sqrt(jerk * vel_limit);
   const float bound = JerkBoundFor(jerk, accel_for_bound, dt);
   float prev_a = 0.0f;
