@@ -2672,8 +2672,8 @@ class Application {
     co_await dut_->Command("d stop");
     co_await dut_->Command("d index 0");
 
-    // Field weakening is allowed to use more runtime cycles.
-    dut_->SetMaxFinalTimer(3970);
+    // Field weakening+jerk is allowed to use more runtime cycles.
+    dut_->SetMaxFinalTimer(4100);
 
     Controller::PidConstants pid;
     pid.fw_enable = true;
@@ -2684,7 +2684,7 @@ class Application {
     // that the slowest runtime ISR path is taken.  This will
     // hopefully catch the worst case ISR execution time.
 
-    co_await dut_->Command("d pos 10000 nan 0 a40 v100");
+    co_await dut_->Command("d pos 10000 nan 0 a40 v100 j100");
 
     co_await Sleep(5.0);
 
