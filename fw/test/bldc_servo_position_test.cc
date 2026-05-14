@@ -1913,47 +1913,88 @@ float ResidualBound(float accel, float jerk, float rate_hz) {
 // every cycle (e.g. a 1 kHz "hold here" supervisor talking to a
 // 30 kHz ISR) must not interfere with the rest-commit latch.  The
 // trajectory should complete in the same number of cycles as one
-// where the host writes a single command and walks away.
+// where the host writes a single command and walks away.  Runs in
+// both position and velocity mode -- the position mode case
+// exercises the position_relative_raw re-derivation each cycle
+// (data.position_relative_raw is reset before every Call), and the
+// velocity mode case exercises the equivalent code path for a
+// velocity-only target stream.
 BOOST_AUTO_TEST_CASE(JerkLimitStreamingSameTargetCompletes) {
-  auto run = [](bool stream_every_cycle) {
-    Context ctx;
-    StartRetargetMove(&ctx, 5.0f);
-
-    const int max_steps = static_cast<int>(5.0f * kRetargetRateHz);
-    int steps = 0;
-    for (; steps < max_steps; steps++) {
-      if (stream_every_cycle) {
-        // Re-issue the same target.  Reset position_relative_raw so
-        // Call() derives a fresh value from data.position; this is
-        // what PrepareCommand does on every real command frame.
-        ctx.data.position = 5.0f;
-        ctx.data.velocity = 0.0f;
-        ctx.data.position_relative_raw.reset();
-      }
-      ctx.Call();
-      if (ctx.status.trajectory_done) { break; }
-    }
-    return std::make_tuple(steps + 1,
-                           ctx.from_raw(
-                               ctx.status.control_position_raw.value()),
-                           ctx.status.trajectory_done);
+  struct TestCase {
+    bool position_mode;
+    const char* desc;
+  };
+  TestCase modes[] = {
+    {  true, "position mode" },
+    { false, "velocity mode" },
   };
 
-  auto [single_steps, single_pos, single_done] = run(false);
-  auto [stream_steps, stream_pos, stream_done] = run(true);
+  for (const auto& mode : modes) {
+    BOOST_TEST_CONTEXT(mode.desc) {
+      auto run = [&](bool stream_every_cycle) {
+        Context ctx;
+        if (mode.position_mode) {
+          StartRetargetMove(&ctx, 5.0f);
+        } else {
+          ctx.set_rate_hz(30000.0f);
+          ctx.data.position = NaN;
+          ctx.data.velocity = 1.5f;
+          ctx.data.accel_limit = 1000.0f;
+          ctx.data.jerk_limit = 20000.0f;
+          ctx.data.velocity_limit = NaN;
+          ctx.status.control_position_raw = ctx.to_raw(0.0f);
+          ctx.status.control_velocity = 0.0f;
+        }
 
-  BOOST_TEST(single_done == true);
-  BOOST_TEST(stream_done == true);
+        const float rate_hz = mode.position_mode ? kRetargetRateHz : 30000.0f;
+        const int max_steps = static_cast<int>(5.0f * rate_hz);
+        int steps = 0;
+        for (; steps < max_steps; steps++) {
+          if (stream_every_cycle) {
+            if (mode.position_mode) {
+              // Re-issue the same target.  Reset position_relative_raw
+              // so Call() derives a fresh value from data.position;
+              // this is what PrepareCommand does on every real
+              // command frame.
+              ctx.data.position = 5.0f;
+              ctx.data.velocity = 0.0f;
+              ctx.data.position_relative_raw.reset();
+            } else {
+              ctx.data.velocity = 1.5f;
+            }
+          }
+          ctx.Call();
+          if (ctx.status.trajectory_done) { break; }
+        }
+        return std::make_tuple(steps + 1,
+                               ctx.from_raw(
+                                   ctx.status.control_position_raw.value()),
+                               ctx.status.control_velocity.value(),
+                               ctx.status.trajectory_done);
+      };
 
-  const float bound =
-      ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz);
-  BOOST_CHECK_LT(std::abs(single_pos - 5.0), bound);
-  BOOST_CHECK_LT(std::abs(stream_pos - 5.0), bound);
+      auto [single_steps, single_pos, single_v, single_done] = run(false);
+      auto [stream_steps, stream_pos, stream_v, stream_done] = run(true);
 
-  // Streaming the same target should not measurably lengthen the
-  // trajectory.  Allow a one-cycle slop for the bookkeeping inside
-  // the test loop, but no more.
-  BOOST_TEST(std::abs(stream_steps - single_steps) <= 1);
+      BOOST_TEST(single_done == true);
+      BOOST_TEST(stream_done == true);
+
+      if (mode.position_mode) {
+        const float bound =
+            ResidualBound(kRetargetAccel, kRetargetJerk, kRetargetRateHz);
+        BOOST_CHECK_LT(std::abs(single_pos - 5.0), bound);
+        BOOST_CHECK_LT(std::abs(stream_pos - 5.0), bound);
+      } else {
+        BOOST_TEST(single_v == 1.5f, boost::test_tools::tolerance(1e-3));
+        BOOST_TEST(stream_v == 1.5f, boost::test_tools::tolerance(1e-3));
+      }
+
+      // Streaming the same target should not measurably lengthen the
+      // trajectory.  Allow a one-cycle slop for the bookkeeping inside
+      // the test loop, but no more.
+      BOOST_TEST(std::abs(stream_steps - single_steps) <= 1);
+    }
+  }
 }
 
 // Two distinct streaming patterns that exercise the latch-
@@ -2461,14 +2502,16 @@ int RunAndCheckJerkBound(Context* ctx, int max_steps,
 
 }
 
-// Parameter sweep for velocity-mode jerk-bound-through-termination.
-// Covers a range of accel/jerk ratios and target velocities,
-// including cases where peak `a` would not be a clean multiple of
-// j*dt (which is the regime where the legacy `< j*dt` gate -- as
-// opposed to the strict `== 0` gate -- snaps from a small non-zero
-// value).
-BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeJerkBoundSweep) {
+// Parameter sweep for jerk-bound-through-termination, in both
+// position and velocity modes.  Covers a range of accel/jerk ratios
+// and targets, including cases where peak `a` would not be a clean
+// multiple of j*dt (which is the regime where the legacy `< j*dt`
+// gate -- as opposed to the strict `== 0` gate -- snapped from a
+// small non-zero value).  Velocity-mode rows set `xf = NaN`;
+// position-mode rows set `xf` to the target position.
+BOOST_AUTO_TEST_CASE(JerkLimitJerkBoundSweep) {
   struct TestCase {
+    float xf;   // NaN -> velocity mode
     float vf;
     float accel;
     float jerk;
@@ -2476,29 +2519,44 @@ BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeJerkBoundSweep) {
     const char* desc;
   };
   TestCase cases[] = {
-    {  1.5f,  1000.0f,  20000.0f, 30000.0f, "canonical" },
-    { -1.5f,  1000.0f,  20000.0f, 30000.0f, "negative target" },
-    {  0.5f,  1000.0f,  20000.0f, 30000.0f, "small target (triangle)" },
-    { 10.0f,   100.0f,   5000.0f, 30000.0f, "trapezoidal-in-a" },
-    {  2.0f,   500.0f,  10000.0f, 15000.0f, "low rate" },
-    {  3.0f,    50.0f,   1000.0f, 30000.0f, "low j, asymmetric quanta" },
-    {  0.05f,  100.0f,   2000.0f, 30000.0f, "tiny target" },
+    // Velocity-mode rows.
+    {   NaN,  1.5f,  1000.0f,  20000.0f, 30000.0f, "vel: canonical" },
+    {   NaN, -1.5f,  1000.0f,  20000.0f, 30000.0f, "vel: negative target" },
+    {   NaN,  0.5f,  1000.0f,  20000.0f, 30000.0f, "vel: small (triangle)" },
+    {   NaN, 10.0f,   100.0f,   5000.0f, 30000.0f, "vel: trapezoidal-in-a" },
+    {   NaN,  2.0f,   500.0f,  10000.0f, 15000.0f, "vel: low rate" },
+    {   NaN,  3.0f,    50.0f,   1000.0f, 30000.0f, "vel: low j, asymm quanta" },
+    {   NaN,  0.05f,  100.0f,   2000.0f, 30000.0f, "vel: tiny target" },
+    // Position-mode rows.
+    {  1.0f,  0.0f, 1000.0f,  20000.0f, 30000.0f, "pos: canonical" },
+    {  5.0f,  0.0f, 2000.0f,  50000.0f, 30000.0f, "pos: fast move" },
+    { -3.0f,  0.0f, 1500.0f,  30000.0f, 30000.0f, "pos: negative target" },
+    {  0.5f,  0.0f,  500.0f,  10000.0f, 15000.0f, "pos: low rate" },
+    {  5.0f,  0.0f,    5.0f,      2.0f, 30000.0f, "pos: low j (a=5,j=2)" },
+    {  1.0f,  0.5f, 1000.0f,  20000.0f, 30000.0f, "pos: non-zero vf" },
   };
 
   for (const auto& tc : cases) {
     BOOST_TEST_CONTEXT(tc.desc) {
       Context ctx;
       ctx.set_rate_hz(tc.rate_hz);
-      ctx.data.position = NaN;
+      ctx.data.position = tc.xf;
       ctx.data.velocity = tc.vf;
       ctx.data.accel_limit = tc.accel;
       ctx.data.jerk_limit = tc.jerk;
       ctx.data.velocity_limit = NaN;
-      ctx.status.control_position_raw = ctx.to_raw(0.0f);
-      ctx.status.control_velocity = 0.0f;
+      const bool position_mode = std::isfinite(tc.xf);
+      if (position_mode) {
+        ctx.set_position(0.0f);
+        ctx.set_velocity(0.0f);
+      } else {
+        ctx.status.control_position_raw = ctx.to_raw(0.0f);
+        ctx.status.control_velocity = 0.0f;
+      }
 
+      const float max_time_s = position_mode ? 20.0f : 10.0f;
       const int max_steps =
-          static_cast<int>(10.0f * tc.rate_hz);
+          static_cast<int>(max_time_s * tc.rate_hz);
       const int steps =
           RunAndCheckJerkBound(
               &ctx, max_steps, tc.jerk, tc.accel, 1.0f / tc.rate_hz);
@@ -2511,88 +2569,6 @@ BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeJerkBoundSweep) {
   }
 }
 
-// Same sweep for position-mode jerk bound through termination.
-BOOST_AUTO_TEST_CASE(JerkLimitPositionModeJerkBoundSweep) {
-  struct TestCase {
-    float xf;
-    float vf;
-    float accel;
-    float jerk;
-    float rate_hz;
-    const char* desc;
-  };
-  TestCase cases[] = {
-    {  1.0f, 0.0f, 1000.0f, 20000.0f, 30000.0f, "canonical" },
-    {  5.0f, 0.0f, 2000.0f, 50000.0f, 30000.0f, "fast move" },
-    { -3.0f, 0.0f, 1500.0f, 30000.0f, 30000.0f, "negative target" },
-    {  0.5f, 0.0f,  500.0f, 10000.0f, 15000.0f, "low rate" },
-    {  5.0f, 0.0f,    5.0f,     2.0f, 30000.0f, "low j (a=5,j=2)" },
-    {  1.0f, 0.5f, 1000.0f, 20000.0f, 30000.0f, "non-zero vf" },
-  };
-
-  for (const auto& tc : cases) {
-    BOOST_TEST_CONTEXT(tc.desc) {
-      Context ctx;
-      ctx.set_rate_hz(tc.rate_hz);
-      ctx.data.position = tc.xf;
-      ctx.data.velocity = tc.vf;
-      ctx.data.accel_limit = tc.accel;
-      ctx.data.jerk_limit = tc.jerk;
-      ctx.data.velocity_limit = NaN;
-      ctx.set_position(0.0f);
-      ctx.set_velocity(0.0f);
-
-      const int max_steps =
-          static_cast<int>(20.0f * tc.rate_hz);
-      const int steps =
-          RunAndCheckJerkBound(
-              &ctx, max_steps, tc.jerk, tc.accel, 1.0f / tc.rate_hz);
-      BOOST_TEST(steps < max_steps);
-      BOOST_TEST(ctx.status.trajectory_done == true);
-      BOOST_TEST(ctx.status.control_velocity.value() == tc.vf);
-      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
-    }
-  }
-}
-
-// The cycle after a jerk-limited velocity-mode trajectory
-// terminates must not re-launch a new trajectory if the host is
-// still commanding the same target velocity.  Without the
-// already-at-target early-out, the trajectory generator would
-// detect `dv == 0` as `initial_sign = -1` and start oscillating.
-BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeStaysAtTargetAfterCompletion) {
-  Context ctx;
-  constexpr float kRateHz = 30000.0f;
-  constexpr float kAccel = 1000.0f;
-  constexpr float kJerk = 20000.0f;
-
-  ctx.set_rate_hz(kRateHz);
-  ctx.data.position = NaN;
-  ctx.data.velocity = 1.5f;
-  ctx.data.accel_limit = kAccel;
-  ctx.data.jerk_limit = kJerk;
-  ctx.data.velocity_limit = NaN;
-  ctx.status.control_position_raw = ctx.to_raw(0.0f);
-  ctx.status.control_velocity = 0.0f;
-
-  // Run trajectory to completion.
-  for (int i = 0; i < 200000; i++) {
-    ctx.Call();
-    if (ctx.status.trajectory_done) { break; }
-  }
-  BOOST_TEST(ctx.status.trajectory_done == true);
-  BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
-
-  // Keep streaming the same target.  control_velocity must remain
-  // exactly 1.5 (a single command-frame re-entry of the trajectory
-  // generator is unavoidable, but it must not perturb v).
-  for (int i = 0; i < 1000; i++) {
-    ctx.Call();
-    BOOST_TEST(ctx.status.control_velocity.value() == 1.5f);
-    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
-    BOOST_TEST(ctx.status.trajectory_done == true);
-  }
-}
 
 // Mid-trajectory retargeting in velocity-only mode: change the
 // velocity target while the controller is in the terminal slew, and
@@ -2637,52 +2613,6 @@ BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeMidSlewRetargetReachesNewTarget) {
   BOOST_TEST(ctx.status.trajectory_done == true);
   BOOST_TEST(ctx.status.control_velocity.value() == -1.0f,
              boost::test_tools::tolerance(1e-3));
-}
-
-// A host that streams the same velocity command every cycle must
-// not interfere with the rest-commit latch (analog of
-// JerkLimitStreamingSameTargetCompletes but for velocity mode).
-BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeStreamingSameTargetCompletes) {
-  auto run = [](bool stream_every_cycle) {
-    Context ctx;
-    constexpr float kRateHz = 30000.0f;
-    constexpr float kAccel = 1000.0f;
-    constexpr float kJerk = 20000.0f;
-
-    ctx.set_rate_hz(kRateHz);
-    ctx.data.position = NaN;
-    ctx.data.velocity = 1.5f;
-    ctx.data.accel_limit = kAccel;
-    ctx.data.jerk_limit = kJerk;
-    ctx.data.velocity_limit = NaN;
-    ctx.status.control_position_raw = ctx.to_raw(0.0f);
-    ctx.status.control_velocity = 0.0f;
-
-    const int max_steps = 200000;
-    int steps = 0;
-    for (; steps < max_steps; steps++) {
-      if (stream_every_cycle) {
-        // Re-issue the same target every cycle.
-        ctx.data.velocity = 1.5f;
-      }
-      ctx.Call();
-      if (ctx.status.trajectory_done) { break; }
-    }
-    return std::make_tuple(steps + 1,
-                           ctx.status.control_velocity.value(),
-                           ctx.status.trajectory_done);
-  };
-
-  auto [single_steps, single_v, single_done] = run(false);
-  auto [stream_steps, stream_v, stream_done] = run(true);
-
-  BOOST_TEST(single_done == true);
-  BOOST_TEST(stream_done == true);
-  BOOST_TEST(single_v == 1.5f, boost::test_tools::tolerance(1e-3));
-  BOOST_TEST(stream_v == 1.5f, boost::test_tools::tolerance(1e-3));
-  // Streaming the same target should not measurably lengthen the
-  // trajectory.
-  BOOST_TEST(std::abs(stream_steps - single_steps) <= 1);
 }
 
 // Verify the jerk bound is respected even when the host retargets
@@ -2770,38 +2700,17 @@ BOOST_AUTO_TEST_CASE(JerkLimitVelocityModeRetargetJerkBoundPreserved) {
 // velocity must remain at the commanded value, and acceleration
 // must stay at 0.  Without the degenerate-startup short-circuit,
 // every cycle would launch a fresh phantom +/-a_max trajectory.
-BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupRepeatedCommandsStable) {
-  Context ctx;
-  ctx.set_rate_hz(30000.0f);
-  ctx.data.position = 2.5f;
-  ctx.data.velocity = 0.0f;
-  ctx.data.accel_limit = 1000.0f;
-  ctx.data.jerk_limit = 20000.0f;
-  ctx.data.velocity_limit = NaN;
-  ctx.set_position(2.5f);
-  ctx.set_velocity(0.0f);
-
-  const int64_t initial_pos_raw = ctx.position.position_raw;
-  for (int i = 0; i < 1000; i++) {
-    // Re-issue the same command each cycle; reset
-    // position_relative_raw so Call() derives a fresh value from
-    // data.position (this is what PrepareCommand does for every
-    // real command frame).
-    ctx.data.position = 2.5f;
-    ctx.data.velocity = 0.0f;
-    ctx.data.position_relative_raw.reset();
-    ctx.Call();
-    BOOST_TEST(ctx.status.trajectory_done == true);
-    BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
-    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
-    BOOST_TEST(ctx.status.control_position_raw.value() == initial_pos_raw);
-  }
-}
-
 // Variants of the degenerate-startup scenario: each case where
 // target == current state must terminate immediately without
 // motion.  Cases that ARE legitimate trajectories must NOT
 // terminate on the first cycle (this is the regression guard).
+//
+// Immediate-termination cases additionally run 1000 cycles of
+// re-streaming the same command (with position_relative_raw reset
+// each cycle, mirroring what PrepareCommand does on every real
+// command frame) and verify the controller stays stable over time.
+// Without the degenerate-startup short-circuit, every cycle would
+// launch a fresh phantom +/-a_max trajectory.
 BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupSweep) {
   struct TestCase {
     float target_pos;
@@ -2815,6 +2724,7 @@ BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupSweep) {
     // Degenerate -- should terminate in 1 cycle.
     { 0.0f, 0.0f, 0.0f, 0.0f, true,  "all zeros" },
     { 5.0f, 0.0f, 5.0f, 0.0f, true,  "non-origin same position" },
+    { 2.5f, 0.0f, 2.5f, 0.0f, true,  "non-origin same position 2" },
     { -2.0f, 0.0f, -2.0f, 0.0f, true, "negative same position" },
     { 1.5f, 0.5f, 1.5f, 0.5f, true,  "matching nonzero velocity" },
     { 1.5f, -0.7f, 1.5f, -0.7f, true, "matching negative velocity" },
@@ -2858,6 +2768,28 @@ BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupSweep) {
                          initial_pos_raw);
         BOOST_TEST(advance_rev == tc.target_vel / 30000.0,
                    boost::test_tools::tolerance(1e-4));
+
+        // Now stream the same command for 1000 cycles and verify
+        // stability under host repetition.  Re-resetting
+        // position_relative_raw mimics what PrepareCommand does on
+        // every real command frame.  Only meaningful when
+        // target_vel == 0 (otherwise the controller legitimately
+        // advances control_position by v*dt per cycle, so re-sending
+        // the same target_pos would race against the position
+        // integration and the latch invalidation would trigger).
+        if (tc.target_vel == 0.0f) {
+          for (int i = 0; i < 1000; i++) {
+            ctx.data.position = tc.target_pos;
+            ctx.data.velocity = tc.target_vel;
+            ctx.data.position_relative_raw.reset();
+            ctx.Call();
+            BOOST_TEST(ctx.status.trajectory_done == true);
+            BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+            BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+            BOOST_TEST(
+                ctx.status.control_position_raw.value() == initial_pos_raw);
+          }
+        }
       } else {
         // The trajectory must not be done after a single cycle for
         // any of these cases (each requires real motion to settle).
@@ -2867,45 +2799,85 @@ BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupSweep) {
   }
 }
 
-// The cycle immediately after a normal jerk-limited trajectory
-// terminates re-enters the trajectory generator with (a, v, x)
-// forced to (0, vf, xf).  Without the degenerate-startup short-
-// circuit, this would launch a phantom trajectory.  Verify that
-// the post-completion idle cycles do not perturb (x, v, a).
-BOOST_AUTO_TEST_CASE(JerkLimitDegenerateStartupPostCompletionStable) {
-  Context ctx;
-  constexpr float kRateHz = 30000.0f;
-  ctx.set_rate_hz(kRateHz);
-  ctx.data.position = 1.0f;
-  ctx.data.velocity = 0.0f;
-  ctx.data.accel_limit = 1000.0f;
-  ctx.data.jerk_limit = 20000.0f;
-  ctx.data.velocity_limit = NaN;
-  ctx.set_position(0.0f);
-  ctx.set_velocity(0.0f);
+// After a jerk-limited trajectory terminates, the next cycle re-
+// enters the trajectory generator with (a, v, x) forced to
+// (0, vf, xf).  Without the degenerate-startup early-out (position
+// mode) and already-at-target early-out (velocity mode), the
+// generator would launch a phantom trajectory and oscillate around
+// vf.  Both modes are exercised here:
+//
+//   - position mode: idle cycles after completion (data.position_
+//     relative_raw was reset by termination; data.position stays
+//     set so the test mimics a host that keeps re-sending the same
+//     command frame).  control_position_raw must not drift.
+//
+//   - velocity mode: explicit re-streaming of the same velocity
+//     target every cycle.  control_velocity must remain at the
+//     target.
+BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStable) {
+  struct TestCase {
+    bool position_mode;
+    float target_pos;
+    float target_vel;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {  true, 1.0f, 0.0f, "position mode" },
+    { false,  NaN, 1.5f, "velocity mode" },
+  };
 
-  // Run trajectory to completion.
-  for (int i = 0; i < 200000; i++) {
-    ctx.Call();
-    if (ctx.status.trajectory_done) { break; }
-  }
-  BOOST_TEST(ctx.status.trajectory_done == true);
-  BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      constexpr float kRateHz = 30000.0f;
+      ctx.set_rate_hz(kRateHz);
+      ctx.data.position = tc.target_pos;
+      ctx.data.velocity = tc.target_vel;
+      ctx.data.accel_limit = 1000.0f;
+      ctx.data.jerk_limit = 20000.0f;
+      ctx.data.velocity_limit = NaN;
+      if (tc.position_mode) {
+        ctx.set_position(0.0f);
+        ctx.set_velocity(0.0f);
+      } else {
+        ctx.status.control_position_raw = ctx.to_raw(0.0f);
+        ctx.status.control_velocity = 0.0f;
+      }
 
-  // The exact final position depends on the trajectory's residual.
-  // Latch it now; further idle cycles must not move it.
-  const int64_t completion_pos_raw =
-      ctx.status.control_position_raw.value();
+      // Run trajectory to completion.
+      for (int i = 0; i < 200000; i++) {
+        ctx.Call();
+        if (ctx.status.trajectory_done) { break; }
+      }
+      BOOST_TEST(ctx.status.trajectory_done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == tc.target_vel);
 
-  // Continue running with no new command (data.position stays at
-  // 1.0, data.position_relative_raw was reset by the termination).
-  for (int i = 0; i < 1000; i++) {
-    ctx.Call();
-    BOOST_TEST(ctx.status.trajectory_done == true);
-    BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
-    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
-    BOOST_TEST(
-        ctx.status.control_position_raw.value() == completion_pos_raw);
+      // Latch the completion position; further cycles must not move it.
+      const int64_t completion_pos_raw =
+          ctx.status.control_position_raw.value();
+
+      // Run 1000 more cycles.  Position mode: idle (data.position is
+      // already NaN'd by termination, so no fresh command).  Velocity
+      // mode: re-stream the same target every cycle to exercise the
+      // already-at-target early-out under host repetition.
+      //
+      // Position assertion only applies to position mode -- velocity
+      // mode legitimately keeps advancing control_position_raw by
+      // target_vel*dt per cycle.
+      for (int i = 0; i < 1000; i++) {
+        if (!tc.position_mode) {
+          ctx.data.velocity = tc.target_vel;
+        }
+        ctx.Call();
+        BOOST_TEST(ctx.status.trajectory_done == true);
+        BOOST_TEST(ctx.status.control_velocity.value() == tc.target_vel);
+        BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+        if (tc.position_mode) {
+          BOOST_TEST(
+              ctx.status.control_position_raw.value() == completion_pos_raw);
+        }
+      }
+    }
   }
 }
 
