@@ -442,6 +442,9 @@ MotorDriver::EnableResult Drv8323::StartEnable(bool value) {
   return impl_->StartEnable(value);
 }
 
+void Drv8323::PowerOn() { hiz_.set(); }
+void Drv8323::PowerOff() { hiz_.clear(); }
+
 bool Drv8323::fault() {
   const bool check_fault_config = !!impl_->status_.fault_config;
   if (check_fault_config) { return true; }

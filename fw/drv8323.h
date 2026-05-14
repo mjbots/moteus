@@ -93,13 +93,8 @@ class Drv8323 : public MotorDriver {
   // Return true for success, false for failure.
   EnableResult StartEnable(bool) override;
 
-  void PowerOn() override {
-    hiz_.set();
-  }
-
-  void PowerOff() override {
-    hiz_.clear();
-  }
+  void PowerOn() override MOTEUS_CCM_ATTRIBUTE;
+  void PowerOff() override MOTEUS_CCM_ATTRIBUTE;
 
   bool fault() override MOTEUS_CCM_ATTRIBUTE;
 
