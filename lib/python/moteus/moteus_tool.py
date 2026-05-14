@@ -18,6 +18,7 @@
 
 import argparse
 import asyncio
+import codecs
 import collections
 import collections.abc
 import datetime
@@ -55,6 +56,26 @@ MAX_FLASH_BLOCK_SIZE = 32
 # For whatever reason, Windows can't reliably timeout with very
 # short intervals.
 FIND_TARGET_TIMEOUT = 0.01 if sys.platform != 'win32' else 0.05
+
+
+def _read_config_text(filename):
+    """Read a config file, handling UTF-8/UTF-16/UTF-32 BOMs that some
+    Windows tools (Notepad, PowerShell redirection) insert."""
+    with open(filename, "rb") as fp:
+        data = fp.read()
+
+    # UTF-32 BOMs must be checked before UTF-16, since the UTF-32 LE
+    # marker starts with the UTF-16 LE marker.
+    for bom, encoding in [
+        (codecs.BOM_UTF32_LE, 'utf-32'),
+        (codecs.BOM_UTF32_BE, 'utf-32'),
+        (codecs.BOM_UTF16_LE, 'utf-16'),
+        (codecs.BOM_UTF16_BE, 'utf-16'),
+        (codecs.BOM_UTF8, 'utf-8-sig'),
+    ]:
+        if data.startswith(bom):
+            return data.decode(encoding)
+    return data.decode('latin1')
 
 # By default, we will only use current mode calibration if our
 # expected maximum current is X times the sense noise in current.
@@ -1023,18 +1044,17 @@ class Stream:
     async def do_restore_config(self, config_file):
         errors = []
 
-        with open(config_file, "r") as fp:
-            for line in fp.readlines():
-                if '#' in line:
-                    line = line[0:line.index('#')]
-                line = line.rstrip()
-                if len(line) == 0:
-                    continue
+        for line in _read_config_text(config_file).splitlines():
+            if '#' in line:
+                line = line[0:line.index('#')]
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
 
-                try:
-                    await self.command(f'conf set {line}'.encode('latin1'))
-                except moteus.CommandError as ce:
-                    errors.append(line)
+            try:
+                await self.command(f'conf set {line}'.encode('latin1'))
+            except moteus.CommandError as ce:
+                errors.append(line)
 
         await self.conf_write()
 
@@ -1045,7 +1065,7 @@ class Stream:
             print()
 
     async def do_write_config(self, config_file):
-        fp = open(config_file, "rb")
+        fp = io.BytesIO(_read_config_text(config_file).encode('latin1'))
         await self.write_config_stream(fp)
 
     async def write_config_stream(self, fp):
