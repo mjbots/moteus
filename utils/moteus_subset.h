@@ -58,6 +58,8 @@ struct ServoStats {
   float velocity = 0.0f;
   float velocity_filt = 0.0f;
 
+  float control_acceleration = 0.0f;
+
   struct PidState {
     float error = 0.0;
     float command = 0.0;
@@ -90,6 +92,8 @@ struct ServoStats {
 
     a->Visit(MJ_NVP(velocity));
     a->Visit(MJ_NVP(velocity_filt));
+
+    a->Visit(MJ_NVP(control_acceleration));
 
     a->Visit(MJ_NVP(pid_q));
     a->Visit(MJ_NVP(pid_position));

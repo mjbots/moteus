@@ -89,6 +89,7 @@ struct Options {
   bool validate_position_lowspeed = false;
   bool validate_position_wraparound = false;
   bool validate_position_reverse = false;
+  bool validate_position_jerk_limit = false;
   bool validate_stay_within = false;
   bool validate_max_slip = false;
   bool validate_slip_stop_position = false;
@@ -127,6 +128,7 @@ struct Options {
     a->Visit(MJ_NVP(validate_position_lowspeed));
     a->Visit(MJ_NVP(validate_position_wraparound));
     a->Visit(MJ_NVP(validate_position_reverse));
+    a->Visit(MJ_NVP(validate_position_jerk_limit));
     a->Visit(MJ_NVP(validate_stay_within));
     a->Visit(MJ_NVP(validate_max_slip));
     a->Visit(MJ_NVP(validate_slip_stop_position));
@@ -438,6 +440,7 @@ class Controller {
 
     double default_accel_limit = std::numeric_limits<double>::quiet_NaN();
     double default_velocity_limit = std::numeric_limits<double>::quiet_NaN();
+    double default_jerk_limit = std::numeric_limits<double>::quiet_NaN();
 
     bool fw_enable = false;
   };
@@ -499,6 +502,9 @@ class Controller {
     co_await Command(
         fmt::format("conf set servo.default_velocity_limit {}",
                     pid.default_velocity_limit));
+    co_await Command(
+        fmt::format("conf set servo.default_jerk_limit {}",
+                    pid.default_jerk_limit));
     co_await Command(
         fmt::format("conf set servo.fw.enable {}",
                     pid.fw_enable ? 1 : 0));
@@ -782,6 +788,8 @@ class Application {
       co_await ValidatePositionWraparound();
     } else if (options_.validate_position_reverse) {
       co_await ValidatePositionReverse();
+    } else if (options_.validate_position_jerk_limit) {
+      co_await ValidatePositionJerkLimit();
     } else if (options_.validate_stay_within) {
       co_await ValidateStayWithin();
     } else if (options_.validate_max_slip) {
@@ -1769,6 +1777,153 @@ class Application {
 
       co_await RunBasicPositionTest(pid);
     }
+  }
+
+  // Alternate position-mode configuration with the default accel
+  // AND jerk limits configured.  This is a variant of
+  // ValidatePositionBasic that exercises the jerk-limited
+  // (S-curve) trajectory generator on every move -- with the
+  // existing dyno defaults (accel_limit = NaN), the "no limits"
+  // shortcut at the top of UpdateCommand bypasses the trajectory
+  // generator entirely, so just setting default_jerk_limit alone
+  // would not actually exercise the path.
+  //
+  // Note: we cannot reuse RunBasicPositionTest verbatim because
+  // its stop-position and position-limit sub-tests use `s{value}`
+  // commands, which are incompatible with any active limit
+  // (accel_limit, velocity_limit, or jerk_limit -- PrepareCommand
+  // returns kStopPositionDeprecated in that case).
+  //
+  // Two stages:
+  //   1. Position and velocity sweeps (the non-stop-position
+  //      portions of RunBasicPositionTest) with accel and jerk
+  //      both set generously enough that the slew time (a/j) is
+  //      a small fraction of each move's bang-bang duration.
+  //      Every move is jerk-shaped.
+  //   2. A focused slow-jerk move that samples
+  //      control_acceleration during the slew-up phase -- proves
+  //      the commanded acceleration ramps from 0 rather than
+  //      snapping to a_max as the legacy bang-bang path would.
+  boost::asio::awaitable<void> ValidatePositionJerkLimit() {
+    dut_->SetMaxFinalTimer(3850);
+
+    for (double bemf : {0.0, 1.0}) {
+      fmt::print("Testing jerk-limited bemf {}\n", bemf);
+
+      co_await dut_->Command("d stop");
+      co_await fixture_->Command("d stop");
+      co_await fixture_->Command("d index 0");
+      co_await dut_->Command("d index 0");
+
+      Controller::PidConstants pid;
+      pid.kp = 1.0;
+      pid.ki = 0.0;
+      pid.kd = 0.05;
+      pid.bemf_feedforward = bemf;
+      // The slew time a/j = 50/500 = 0.1 s -- so a small fraction of
+      // each move's natural duration.
+      pid.default_accel_limit = 50.0;
+      pid.default_jerk_limit = 500.0;
+      co_await dut_->ConfigurePid(pid);
+
+      // Position sweep (mirrors RunBasicPositionTest's first
+      // block).
+      for (const double position : {0.0, -0.2, 0.3}) {
+        fmt::print("Moving to position {}\n", position);
+        co_await dut_->Command(fmt::format("d pos {} 0 0.2", position));
+        co_await Sleep(1.0);
+        const double fixture_position =
+            pid.output_sign * options_.transducer_scale *
+            fixture_->servo_stats().position;
+        if (std::abs(fixture_position - position) > 0.05) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Fixture position {} != {}",
+                          fixture_position, position));
+        }
+      }
+
+      // Velocity sweep (mirrors RunBasicPositionVelocityTest's first
+      // block).  The `a30` override is fine; jerk_limit remains the
+      // default since the command does not override it.
+      for (const double velocity : {0.0, -1.5, 3.0, 10.0, -5.0}) {
+        fmt::print("Moving at velocity {}\n", velocity);
+        co_await dut_->Command(
+            fmt::format("d pos nan {} 0.2 a30", velocity));
+        co_await Sleep(1.5);
+        const double fixture_velocity =
+            pid.output_sign * options_.transducer_scale *
+            fixture_->servo_stats().velocity;
+        if (std::abs(fixture_velocity - velocity) > 0.35) {
+          throw mjlib::base::system_error::einval(
+              fmt::format("Fixture velocity {} != {}",
+                          fixture_velocity, velocity));
+        }
+      }
+
+      co_await dut_->Command("d stop");
+      co_await Sleep(0.5);
+    }
+
+    // Focused slow-jerk verification.  The low jerk relative to a_max
+    // (slew time a/j = 1.0 s) makes the slew-up phase last most of a
+    // second -- long enough that we can observe `a` ramping at the
+    // dyno's status sample rate before it reaches the cap.
+    co_await dut_->Command("d stop");
+    co_await fixture_->Command("d stop");
+    co_await fixture_->Command("d index 0");
+    co_await dut_->Command("d index 0");
+
+    Controller::PidConstants slow_pid;
+    slow_pid.kp = 1.0;
+    slow_pid.kd = 0.05;
+    slow_pid.default_accel_limit = 5.0;
+    slow_pid.default_jerk_limit = 5.0;  // a_max / j = 1.0 s slew
+    co_await dut_->ConfigurePid(slow_pid);
+
+    // Long-enough move that the slew-up phase lasts most of a
+    // second.
+    co_await dut_->Command(
+        fmt::format("d pos 5.0 0 {}", options_.max_torque_Nm));
+
+    // Sample at 200 ms into the slew-up.  Expected
+    // control_acceleration ~ j * 0.2 = 1.0 rev/s^2 -- 20% of the
+    // 5.0 cap.  The bound below is generous (half of a_max) so
+    // even if the dyno's status sample latency pushes the actual
+    // observation time to ~500 ms, the expected `a` would still
+    // be just at the bound.
+    co_await Sleep(0.2);
+    const double a_sampled =
+        std::abs(dut_->servo_stats().control_acceleration);
+    fmt::print(
+        "Jerk-shaped sample at 200 ms: a = {} "
+        "(a_max = {}, ideal = {:.2f})\n",
+        a_sampled, slow_pid.default_accel_limit,
+        slow_pid.default_jerk_limit * 0.2);
+    // Bound: clearly below half of a_max -- the legacy bang-bang
+    // trajectory would have a saturated at a_max by now.
+    if (a_sampled > 0.5 * slow_pid.default_accel_limit) {
+      throw mjlib::base::system_error::einval(
+          fmt::format(
+              "control_acceleration {} not jerk-shaped (a_max = {})",
+              a_sampled, slow_pid.default_accel_limit));
+    }
+    // Also: it should be non-trivially non-zero -- otherwise the
+    // trajectory hasn't started ramping at all (e.g. the move
+    // command never reached the controller).
+    if (a_sampled < 0.05 * slow_pid.default_accel_limit) {
+      throw mjlib::base::system_error::einval(
+          fmt::format(
+              "control_acceleration {} unexpectedly small; "
+              "the trajectory does not appear to be running",
+              a_sampled));
+    }
+
+    // Let the move complete before tearing down.
+    co_await Sleep(6.0);
+    co_await dut_->Command("d stop");
+    co_await Sleep(0.2);
+
+    co_return;
   }
 
   boost::asio::awaitable<void> ValidateStayWithin() {
