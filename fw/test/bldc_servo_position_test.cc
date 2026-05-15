@@ -2885,24 +2885,24 @@ BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStable) {
 }
 
 // Position mode: after a jerk-limited trajectory completes, the
-// host keeps re-sending the SAME position command every cycle (the
-// pattern produced by moteus.move_to() polling).  The latch
-// tolerance check should hold, so trajectory_done must stay true on
-// every cycle.  Regression for: a completed position move that
-// leaves a sub-LSB kinematic residual between control_position_raw
-// and the commanded float position would re-launch a tiny phantom
-// trajectory on every host poll because the unconditional
-// `trajectory_done = false` reset cleared the completed state
-// before UpdateTrajectory got a chance to re-fire the dx=0 short-
-// circuit (which would not have fired anyway because of the
-// residual).  Symptom: move_to() never returns even though the
-// motor has reached the target.
+// host keeps re-sending the SAME position command at a low rate
+// (the pattern produced by moteus.move_to() polling every ~2 ms
+// against a 30 kHz ISR).  In production data.position is NaN'd by
+// termination and stays NaN across the many ISR cycles between
+// host polls, so the latch invalidation must NOT spuriously fire
+// during the no-fresh-command gap, and the next host poll must
+// re-engage the held latch instead of launching a tiny phantom
+// trajectory.  Symptom of the bug: move_to() never returns even
+// though the motor has reached the target.
 BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStreamingSameTarget) {
   Context ctx;
   constexpr float kRateHz = 30000.0f;
   constexpr float kAccel = 5.0f;
   constexpr float kJerk = 2.0f;
   constexpr float kTarget = -0.25f;
+  // 2 ms host polling against a 30 kHz ISR (matches the value
+  // moteus.move_to() uses by default).
+  constexpr int kCyclesPerPoll = 60;
   ctx.set_rate_hz(kRateHz);
   ctx.data.position = kTarget;
   ctx.data.velocity = 0.0f;
@@ -2911,29 +2911,49 @@ BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStreamingSameTarget) {
   ctx.data.velocity_limit = NaN;
   ctx.set_position(0.0f);
   ctx.set_velocity(0.0f);
+  ctx.status.control_position_raw = ctx.to_raw(0.0f);
+  ctx.status.control_velocity = 0.0f;
 
-  // Run trajectory to completion.
-  const int max_run_steps = static_cast<int>(20.0f * kRateHz);
-  for (int i = 0; i < max_run_steps; i++) {
-    ctx.Call();
-    if (ctx.status.trajectory_done) { break; }
+  // Phase 1: poll until the trajectory completes.  Each "poll" is
+  // kCyclesPerPoll ISR cycles: one cycle that simulates a fresh
+  // command frame, then kCyclesPerPoll - 1 cycles with no host
+  // command (the gap during which the FW formerly NaN'd
+  // data.position and self-invalidated the commit latch).
+  const int kMaxPolls = 5000;  // ~10 s real time at 2 ms polling
+  int completion_poll = -1;
+  int64_t completion_pos_raw = 0;
+  for (int poll = 0; poll < kMaxPolls; poll++) {
+    for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+      if (cyc == 0) {
+        ctx.data.position = kTarget;
+        ctx.data.velocity = 0.0f;
+        ctx.data.position_relative_raw.reset();
+      }
+      ctx.Call();
+    }
+    if (ctx.status.trajectory_done) {
+      completion_poll = poll;
+      completion_pos_raw = ctx.status.control_position_raw.value();
+      break;
+    }
   }
-  BOOST_TEST(ctx.status.trajectory_done == true);
+  BOOST_TEST(completion_poll >= 0);
 
-  // Latch the completion position; further cycles of host repetition
-  // must not move it.
-  const int64_t completion_pos_raw =
-      ctx.status.control_position_raw.value();
-
-  // Re-stream the same command for 1000 cycles, mimicking the
-  // move_to() polling loop.  Each cycle resets data.position_relative_raw
-  // so Call() derives a fresh value from data.position (this is what
-  // PrepareCommand does on every real command frame).
-  for (int i = 0; i < 1000; i++) {
-    ctx.data.position = kTarget;
-    ctx.data.velocity = 0.0f;
-    ctx.data.position_relative_raw.reset();
-    ctx.Call();
+  // Phase 2: 500 more polls.  trajectory_done must stay true; (v, a)
+  // must stay at 0; control_position_raw must not drift.  Without
+  // the fix, the post-termination NaN'ing of data.position causes
+  // the latch tolerance check to invalidate on the very next ISR
+  // cycle, and each host poll then launches a tiny phantom
+  // trajectory against the float/fixed-point residual.
+  for (int poll = 0; poll < 500; poll++) {
+    for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+      if (cyc == 0) {
+        ctx.data.position = kTarget;
+        ctx.data.velocity = 0.0f;
+        ctx.data.position_relative_raw.reset();
+      }
+      ctx.Call();
+    }
     BOOST_TEST(ctx.status.trajectory_done == true);
     BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
     BOOST_TEST(ctx.status.control_acceleration == 0.0f);

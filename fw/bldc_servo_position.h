@@ -623,10 +623,19 @@ class BldcServoPosition {
     // returns target_a (= 0) whenever |a_prev| <= j*dt, so the last
     // observed Δa is bounded by j*dt and matches the per-cycle
     // jerk bound that holds throughout the trajectory.
+    //
+    // Note: data->position and data->position_relative_raw are left
+    // intact at termination.  Resetting them would invalidate the
+    // commit latch on the very next ISR cycle (because the latch
+    // tolerance check compares data->position against the snapshot
+    // and `NaN != -0.25`), and that in turn would re-launch a tiny
+    // phantom trajectory on the next host poll because the
+    // float-vs-fixed-point residual between data->position and
+    // status->control_position_raw is non-zero.  The trajectory_done
+    // flag is sufficient to gate UpdateTrajectory; it does not need
+    // a NaN'd target as a secondary signal.
     if (status->trajectory_rest_committed &&
         status->control_acceleration == 0.0f) {
-      data->position = std::numeric_limits<float>::quiet_NaN();
-      data->position_relative_raw.reset();
       status->control_acceleration = 0.0f;
       status->control_velocity = vf;
       status->trajectory_done = true;
