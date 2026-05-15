@@ -1680,7 +1680,16 @@ async def move_to(
 
             # Only check trajectory_complete for non-NaN setpoints
             if not math.isnan(norm['pos']):
-                completed.append(result.values.get(Register.TRAJECTORY_COMPLETE, 0))
+                # While the motor is transitioning from kStopped through
+                # the calibration sequence to kPosition, the position
+                # trajectory code does not run and TRAJECTORY_COMPLETE
+                # retains its prior value (often 1).  Don't trust it
+                # until the motor is actually in a position-tracking
+                # mode.
+                in_position_mode = mode in (Mode.POSITION, Mode.STAY_WITHIN)
+                trajectory_complete = result.values.get(
+                    Register.TRAJECTORY_COMPLETE, 0)
+                completed.append(in_position_mode and trajectory_complete)
 
         if count == 0 and all(completed):
             if single_servo:

@@ -551,6 +551,35 @@ class MoveToTest(unittest.TestCase):
 
         asyncio.run(test())
 
+    def test_move_to_waits_for_calibration(self):
+        """Test that move_to does not exit while the servo is still
+        transitioning from kStopped through the calibration sequence,
+        even if TRAJECTORY_COMPLETE is reporting 1 (which it does
+        because the position trajectory code does not run during
+        calibration and the field retains its prior value)."""
+
+        mock_transport = MockTransport(responses=[
+            # First two calls: still in kCalibrating with stale
+            # TRAJECTORY_COMPLETE=1.  Must not be treated as complete.
+            [MockResult(1, position=0.0, mode=3, trajectory_complete=True)],
+            [MockResult(1, position=0.0, mode=3, trajectory_complete=True)],
+            # Mode transitions to kPosition; trajectory now running.
+            [MockResult(1, position=0.5, mode=10, trajectory_complete=False)],
+            # Trajectory completes in kPosition mode.
+            [MockResult(1, position=1.0, mode=10, trajectory_complete=True)],
+        ])
+
+        controller = mot.Controller(id=1, transport=mock_transport)
+
+        async def test():
+            result = await mot.move_to(
+                controller, position=1.0, period_s=0.001)
+            self.assertEqual(result.values[mot.Register.MODE], 10)
+            self.assertEqual(result.values[mot.Register.POSITION], 1.0)
+            self.assertEqual(mock_transport.call_count, 4)
+
+        asyncio.run(test())
+
     def test_move_to_fault_raises_error(self):
         """Test that move_to raises FaultError on servo fault."""
 
