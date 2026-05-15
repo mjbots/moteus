@@ -2884,6 +2884,64 @@ BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStable) {
   }
 }
 
+// Position mode: after a jerk-limited trajectory completes, the
+// host keeps re-sending the SAME position command every cycle (the
+// pattern produced by moteus.move_to() polling).  The latch
+// tolerance check should hold, so trajectory_done must stay true on
+// every cycle.  Regression for: a completed position move that
+// leaves a sub-LSB kinematic residual between control_position_raw
+// and the commanded float position would re-launch a tiny phantom
+// trajectory on every host poll because the unconditional
+// `trajectory_done = false` reset cleared the completed state
+// before UpdateTrajectory got a chance to re-fire the dx=0 short-
+// circuit (which would not have fired anyway because of the
+// residual).  Symptom: move_to() never returns even though the
+// motor has reached the target.
+BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStreamingSameTarget) {
+  Context ctx;
+  constexpr float kRateHz = 30000.0f;
+  constexpr float kAccel = 5.0f;
+  constexpr float kJerk = 2.0f;
+  constexpr float kTarget = -0.25f;
+  ctx.set_rate_hz(kRateHz);
+  ctx.data.position = kTarget;
+  ctx.data.velocity = 0.0f;
+  ctx.data.accel_limit = kAccel;
+  ctx.data.jerk_limit = kJerk;
+  ctx.data.velocity_limit = NaN;
+  ctx.set_position(0.0f);
+  ctx.set_velocity(0.0f);
+
+  // Run trajectory to completion.
+  const int max_run_steps = static_cast<int>(20.0f * kRateHz);
+  for (int i = 0; i < max_run_steps; i++) {
+    ctx.Call();
+    if (ctx.status.trajectory_done) { break; }
+  }
+  BOOST_TEST(ctx.status.trajectory_done == true);
+
+  // Latch the completion position; further cycles of host repetition
+  // must not move it.
+  const int64_t completion_pos_raw =
+      ctx.status.control_position_raw.value();
+
+  // Re-stream the same command for 1000 cycles, mimicking the
+  // move_to() polling loop.  Each cycle resets data.position_relative_raw
+  // so Call() derives a fresh value from data.position (this is what
+  // PrepareCommand does on every real command frame).
+  for (int i = 0; i < 1000; i++) {
+    ctx.data.position = kTarget;
+    ctx.data.velocity = 0.0f;
+    ctx.data.position_relative_raw.reset();
+    ctx.Call();
+    BOOST_TEST(ctx.status.trajectory_done == true);
+    BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+    BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    BOOST_TEST(
+        ctx.status.control_position_raw.value() == completion_pos_raw);
+  }
+}
+
 // === Overspeed rest-curve tests ===
 //
 // Issue 1.4: when v_curr exceeds velocity_limit (because the host

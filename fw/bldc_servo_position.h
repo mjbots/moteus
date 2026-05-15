@@ -726,11 +726,18 @@ class BldcServoPosition {
       status->control_velocity = velocity;
     } else if (!!data->position_relative_raw ||
                !std::isnan(velocity)) {
-      if (status->trajectory_done) {
-        // A fresh trajectory is starting; clear the commit latch.
-        status->trajectory_rest_committed = false;
+      if (!status->trajectory_rest_committed) {
+        // No latch held -- either the trajectory is mid-flight or
+        // the latch was just invalidated above because the host
+        // sent a target that differs from the committed snapshot.
+        // Either way, allow UpdateTrajectory to (re-)plan.
+        status->trajectory_done = false;
       }
-      status->trajectory_done = false;
+      // If the latch is still committed, the host is re-sending the
+      // same target every cycle (move_to() polling pattern).
+      // Don't disturb the completed trajectory -- leave
+      // trajectory_done = true so UpdateTrajectory is skipped and
+      // control_position_raw is not perturbed.
     }
 
     if (!!data->position_relative_raw &&
