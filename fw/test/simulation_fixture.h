@@ -166,6 +166,25 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
   // External load torque (Nm)
   float external_torque_ = 0.0f;
 
+  // ---- Hall sensor simulation ----
+  //
+  // When hall_mode_ is true, StepSimulation populates aux1_status_.hall
+  // (in addition to spi) so motor_position can be configured to use
+  // halls for commutation.  Tests that use this must call
+  // ConfigureHallCommutation() (in the test file) which sets up
+  // motor_position config and sets hall_mode_ = true.
+  //
+  // hall_boundaries_ contains the 6 sector boundary positions, in
+  // fractions of one electrical cycle (0..1), monotonically increasing.
+  // sector i = [boundaries[i], boundaries[i+1]) (with sector 5 wrapping
+  // around through 1.0 back to boundaries[0]).
+  //
+  // Default: perfectly aligned hall sensors, sectors 60° wide.
+  bool hall_mode_ = false;
+  std::array<float, 6> hall_boundaries_{
+    0.0f, 1.0f / 6.0f, 2.0f / 6.0f,
+    3.0f / 6.0f, 4.0f / 6.0f, 5.0f / 6.0f};
+
   // ---- Phase-current measurement noise model ----
   //
   // The simulator's true-physics phase_currents() outputs perfectly
@@ -470,6 +489,43 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     aux1_status_.spi.value = static_cast<uint32_t>(wrapped_rev * kEncoderCpr) %
                              kEncoderCpr;
     aux1_status_.spi.nonce++;
+
+    // 1b. Optional hall sensor update.
+    if (hall_mode_) {
+      // Standard moteus mapping: count -> bits.
+      // count   bits (CBA)
+      //   0     001 = 1
+      //   1     011 = 3
+      //   2     010 = 2
+      //   3     110 = 6
+      //   4     100 = 4
+      //   5     101 = 5
+      static constexpr uint8_t kCountToBits[6] = {1, 3, 2, 6, 4, 5};
+
+      const float theta_e = motor_sim_.theta_electrical();
+      float frac_e = theta_e * (1.0f / static_cast<float>(k2Pi));
+      // Wrap into [0, 1).
+      frac_e -= std::floor(frac_e);
+
+      // Find sector i such that boundaries[i] <= frac_e <
+      // boundaries[i+1] (with sector 5 wrapping through 1.0 back to
+      // boundaries[0]).
+      int sector = 5;  // Default: in the wraparound region (frac < boundaries[0])
+      for (int i = 5; i >= 0; --i) {
+        if (frac_e >= hall_boundaries_[i]) {
+          sector = i;
+          break;
+        }
+      }
+
+      const uint8_t new_bits = kCountToBits[sector];
+      if (new_bits != aux1_status_.hall.bits) {
+        aux1_status_.hall.bits = new_bits;
+        aux1_status_.hall.count = static_cast<uint8_t>(sector);
+        aux1_status_.hall.nonce++;
+      }
+      aux1_status_.hall.active = true;
+    }
 
     // 2. Update motor position (uses encoder theta via PLL)
     motor_position_.ISR_Update();

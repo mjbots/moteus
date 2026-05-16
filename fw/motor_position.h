@@ -75,6 +75,31 @@ class MotorPosition {
 
     float pll_filter_hz = 400.0;
 
+    // For hall sources only: lost-tracking recovery.  When in slow
+    // mode, if the time since the most recent hall transition
+    // exceeds (hall_lost_tracking_scale * prev_inter_sample_time),
+    // capped at hall_lost_tracking_max_s, the estimator slews
+    // filtered_value exponentially toward the centre of the current
+    // sector (compensated + 0.5 ticks) with time constant
+    // hall_lost_tracking_tau_s.
+    //
+    // This bounds the commutation angle error at +/-
+    // (sector_width / 2) regardless of how stale the inter-sample
+    // velocity estimate has become, guaranteeing the motor always
+    // has at least cos(60°) = 0.5 of its commanded torque available
+    // to break free of a stall caused by misaligned hall sensors.
+    //
+    // The scaled timeout adapts to the motor's actual speed: a
+    // fast motor at 100 ticks/s recovers in ~30 ms, a slow motor
+    // at 1 tick/s waits proportionally longer (capped).  A real
+    // hall-effect motor never operates so slowly that transitions
+    // are more than ~1/s apart, hence the conservative default
+    // cap.  Set hall_lost_tracking_scale or
+    // hall_lost_tracking_tau_s to 0 to disable.
+    float hall_lost_tracking_scale = 5.0f;
+    float hall_lost_tracking_max_s = 0.5f;
+    float hall_lost_tracking_tau_s = 0.05f;
+
     // The CPR for this source is subdivided into N equal segments.
     // This table specifies a fraction of CPR that should be applied
     // when at the *center* of that offset region.  Other counts will
@@ -112,6 +137,9 @@ class MotorPosition {
       a->Visit(MJ_NVP(timeout_s));
       a->Visit(MJ_NVP(reference));
       a->Visit(MJ_NVP(pll_filter_hz));
+      a->Visit(MJ_NVP(hall_lost_tracking_scale));
+      a->Visit(MJ_NVP(hall_lost_tracking_max_s));
+      a->Visit(MJ_NVP(hall_lost_tracking_tau_s));
       a->Visit(MJ_NVP(compensation_table));
       a->Visit(MJ_NVP(compensation_scale));
     }
@@ -186,6 +214,10 @@ class MotorPosition {
     uint32_t raw = 0;
     float time_since_update = 0.0f;
     float old_delta = 0.0f;
+    // For hall sources: the inter-sample time of the previous
+    // hall transition while in slow mode.  Used to scale the
+    // lost-tracking recovery timeout to the motor's current speed.
+    float prev_time_since_update = 0.0f;
     uint8_t slow_count = std::numeric_limits<uint8_t>::max();
 
     // This will increment every time a new value is provided.
@@ -215,6 +247,7 @@ class MotorPosition {
       a->Visit(MJ_NVP(raw));
       a->Visit(MJ_NVP(time_since_update));
       a->Visit(MJ_NVP(old_delta));
+      a->Visit(MJ_NVP(prev_time_since_update));
       a->Visit(MJ_NVP(slow_count));
       a->Visit(MJ_NVP(nonce));
       a->Visit(MJ_NVP(offset_value));
@@ -1054,6 +1087,7 @@ class MotorPosition {
               // time from the previous event could result in
               // instability.
               status.time_since_update = 0.0f;
+              status.prev_time_since_update = 0.0f;
               status.slow_count = std::numeric_limits<uint8_t>::max();
               updated = false;
             } else if (ratio > 0.25f) {
@@ -1072,6 +1106,7 @@ class MotorPosition {
                 // filtered position to exactly match the compensated
                 // value at transition points.
                 reset_to_compensated = true;
+                status.prev_time_since_update = status.time_since_update;
                 status.time_since_update = 0.0f;
                 updated = false;
               }
@@ -1079,6 +1114,7 @@ class MotorPosition {
               // The inter-sample spacing was close enough to warrant
               // using the PLL filter.
               status.slow_count = 0;
+              status.prev_time_since_update = 0.0f;
             }
           }
 
@@ -1262,6 +1298,44 @@ class MotorPosition {
               cpr, inv_cpr);
           status.filtered_value =
               status.compensated_value + ISR_Limit(err2, -0.5f, 0.5f);
+        }
+
+        // Lost-tracking recovery: if no hall transition has been
+        // seen in much longer than the prior inter-sample interval
+        // (capped so a near-stopped motor still recovers in
+        // bounded time), exponentially slew filtered_value toward
+        // the centre of the current hall sector
+        // (compensated + 0.5 ticks).  This bounds the commutation
+        // angle error at +/- (sector_width / 2) of the rotor's true
+        // electrical angle regardless of how stale the inter-sample
+        // velocity estimate has become, so the motor always has at
+        // least cos(60°) = 0.5 of its commanded torque available to
+        // "unstick" itself.
+        //
+        // We do NOT decay velocity here: if the motor really is
+        // moving the velocity estimate is what keeps filtered_value
+        // advancing through the sector; the slew acts as a soft
+        // restoring force rather than overriding a legitimate
+        // motion estimate.
+        if (&config == commutation_config_ &&
+            status.slow_count >= 3 &&
+            config.hall_lost_tracking_scale > 0.0f &&
+            config.hall_lost_tracking_tau_s > 0.0f) {
+          const float scaled = config.hall_lost_tracking_scale *
+              status.prev_time_since_update;
+          const float threshold =
+              (status.prev_time_since_update > 0.0f) ?
+              std::min(scaled, config.hall_lost_tracking_max_s) :
+              config.hall_lost_tracking_max_s;
+          if (status.time_since_update > threshold) {
+            const float alpha = dt_ / config.hall_lost_tracking_tau_s;
+            const float target_err = WrapBalancedCpr(
+                (status.compensated_value + 0.5f) - status.filtered_value,
+                cpr, inv_cpr);
+            status.filtered_value = WrapCpr(
+                status.filtered_value + alpha * target_err,
+                cpr, inv_cpr);
+          }
         }
       }
 
