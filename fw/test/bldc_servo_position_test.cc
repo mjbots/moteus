@@ -3138,6 +3138,279 @@ BOOST_AUTO_TEST_CASE(JerkLimitSmallDistanceTermination) {
   }
 }
 
+// Production-pattern sweep: a sequence of host-driven moves
+// mimicking moteus.move_to() in a loop, like the user's script
+// that exposed the original bugs.  Each move must complete within
+// its budget AND leave the controller in a state where the next
+// move can also complete -- exercises the chain of trajectory
+// terminations and the small-dx interactions that result from
+// consecutive moves to the same float target.
+BOOST_AUTO_TEST_CASE(JerkLimitMoveLoopTermination) {
+  struct TestCase {
+    float a_max;
+    float jerk;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {     5.0f,      2.0f, "a=5,j=2 (user)" },
+    {    50.0f,   1000.0f, "a=50,j=1k (moderate)" },
+    {  1000.0f,  20000.0f, "a=1k,j=20k (snappy)" },
+  };
+
+  // The script's move pattern: cycle through four (p1,p2)
+  // setpoints, where one or both channels are commanded to the same
+  // target as the previous iteration.
+  struct Move {
+    float p1;
+    float p2;
+  };
+  Move moves[] = {
+    { 0.0f,  -0.25f },
+    { -0.25f, -0.25f },
+    { -0.25f, 0.0f   },
+    { 0.0f,  0.0f    },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      constexpr float kRateHz = 30000.0f;
+      constexpr int kCyclesPerPoll = 60;
+      constexpr int kMaxPollsPerMove = 50000;
+
+      Context ctx1, ctx2;
+      for (Context* c : {&ctx1, &ctx2}) {
+        c->set_rate_hz(kRateHz);
+        c->data.accel_limit = tc.a_max;
+        c->data.jerk_limit = tc.jerk;
+        c->data.velocity_limit = NaN;
+        c->data.velocity = 0.0f;
+        c->set_position(0.0f);
+        c->set_velocity(0.0f);
+        c->status.control_position_raw = c->to_raw(0.0f);
+        c->status.control_velocity = 0.0f;
+      }
+
+      // 3 loop iterations through the 4-move pattern (= 12 moves).
+      for (int loop = 0; loop < 3; loop++) {
+        for (const auto& mv : moves) {
+          int polls = 0;
+          for (; polls < kMaxPollsPerMove; polls++) {
+            for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+              if (cyc == 0) {
+                ctx1.data.position = mv.p1;
+                ctx1.data.velocity = 0.0f;
+                ctx1.data.position_relative_raw.reset();
+                ctx2.data.position = mv.p2;
+                ctx2.data.velocity = 0.0f;
+                ctx2.data.position_relative_raw.reset();
+              }
+              ctx1.Call();
+              ctx2.Call();
+            }
+            if (ctx1.status.trajectory_done &&
+                ctx2.status.trajectory_done) {
+              break;
+            }
+          }
+          BOOST_TEST(polls < kMaxPollsPerMove);
+          BOOST_TEST(ctx1.status.trajectory_done == true);
+          BOOST_TEST(ctx2.status.trajectory_done == true);
+        }
+      }
+    }
+  }
+}
+
+// Termination with a non-zero final velocity (`vf != 0`).  The
+// host issues a single command frame (no re-streaming, which would
+// have the FW reset the integrated position target back to the
+// host's literal X), and the FW must reach (x = X, v = vf, a = 0)
+// and terminate.  This exercises the position-mode termination
+// path where v_frame = v_curr - vf is the brake-curve invariant
+// instead of the simpler v_curr = 0 case.
+BOOST_AUTO_TEST_CASE(JerkLimitMovingTargetTermination) {
+  struct TestCase {
+    float a_max;
+    float jerk;
+    float vf;
+    float target;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {    50.0f,   1000.0f,  0.5f, 0.3f,  "a=50,j=1k vf=0.5" },
+    {    50.0f,   1000.0f, -0.5f, -0.3f, "a=50,j=1k vf=-0.5 (negative)" },
+    {  1000.0f,  20000.0f,  0.1f, 0.3f,  "a=1k,j=20k vf=0.1" },
+    {     5.0f,      2.0f,  0.05f, 0.3f, "a=5,j=2 vf=0.05 (slow)" },
+    // Larger dx (the trajectory must traverse enough distance to
+    // accumulate v = vf at termination).
+    {    50.0f,   1000.0f,  0.5f, 2.0f, "a=50,j=1k vf=0.5 large dx" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      constexpr float kRateHz = 30000.0f;
+      ctx.set_rate_hz(kRateHz);
+      ctx.data.position = tc.target;
+      ctx.data.velocity = tc.vf;
+      ctx.data.accel_limit = tc.a_max;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_position(0.0f);
+      ctx.set_velocity(0.0f);
+
+      const int max_steps = static_cast<int>(120.0f * kRateHz);
+      bool done = false;
+      for (int i = 0; i < max_steps; i++) {
+        ctx.Call();
+        if (ctx.status.trajectory_done) {
+          done = true;
+          break;
+        }
+      }
+      BOOST_TEST(done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == tc.vf);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    }
+  }
+}
+
+// Velocity-mode analog of JerkLimitPostCompletionStreamingSameTarget:
+// after a velocity-mode trajectory completes, the host keeps
+// re-streaming the same velocity target every 2 ms.  trajectory_done
+// must stay true.  The velocity-mode termination forces
+// control_velocity = velocity exactly so there is no analog of the
+// position-mode kinematic residual, but the latch tolerance check
+// and the trajectory_done reset path are still exercised.
+BOOST_AUTO_TEST_CASE(JerkLimitVelocityModePostCompletionStreaming) {
+  struct TestCase {
+    float a_max;
+    float jerk;
+    float vf;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {  1000.0f,  20000.0f,  1.5f,  "a=1k,j=20k vf=1.5" },
+    {  1000.0f,  20000.0f, -1.5f,  "a=1k,j=20k vf=-1.5" },
+    {    50.0f,   1000.0f,  0.5f,  "a=50,j=1k vf=0.5" },
+    {     5.0f,      2.0f,  0.05f, "a=5,j=2 vf=0.05 (slow)" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      constexpr float kRateHz = 30000.0f;
+      constexpr int kCyclesPerPoll = 60;
+      ctx.set_rate_hz(kRateHz);
+      ctx.data.position = NaN;
+      ctx.data.velocity = tc.vf;
+      ctx.data.accel_limit = tc.a_max;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.status.control_position_raw = ctx.to_raw(0.0f);
+      ctx.status.control_velocity = 0.0f;
+
+      // Phase 1: poll until trajectory completes.
+      const int kMaxPolls = 50000;
+      int completion_poll = -1;
+      for (int poll = 0; poll < kMaxPolls; poll++) {
+        for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+          if (cyc == 0) {
+            ctx.data.velocity = tc.vf;
+          }
+          ctx.Call();
+        }
+        if (ctx.status.trajectory_done) {
+          completion_poll = poll;
+          break;
+        }
+      }
+      BOOST_TEST(completion_poll >= 0);
+
+      // Phase 2: 200 more polls.  trajectory_done stays true and
+      // (v, a) stay at (vf, 0) across re-streams.
+      for (int poll = 0; poll < 200; poll++) {
+        for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+          if (cyc == 0) {
+            ctx.data.velocity = tc.vf;
+          }
+          ctx.Call();
+        }
+        BOOST_TEST(ctx.status.trajectory_done == true);
+        BOOST_TEST(ctx.status.control_velocity.value() == tc.vf);
+        BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      }
+    }
+  }
+}
+
+// Mid-flight retarget by a sub-rest-curve amount.  The trajectory
+// is in flight with a_curr non-zero; the host updates the target by
+// a tiny amount.  If the new target is within the latch tolerance
+// the latch holds (host's micro-update is treated as the same
+// command); otherwise the latch invalidates and the trajectory
+// re-plans.  Either way the trajectory must terminate.
+BOOST_AUTO_TEST_CASE(JerkLimitMidFlightTinyRetarget) {
+  struct TestCase {
+    float a_max;
+    float jerk;
+    float retarget_delta;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {    50.0f,   1000.0f,  1e-3f,    "a=50,j=1k delta=+1e-3" },
+    {    50.0f,   1000.0f, -1e-3f,    "a=50,j=1k delta=-1e-3" },
+    {    50.0f,   1000.0f,  1e-5f,    "a=50,j=1k delta=+1e-5 (sub-tol)" },
+    {  1000.0f,  20000.0f,  1e-4f,    "a=1k,j=20k delta=+1e-4 (sub-tol)" },
+    {     5.0f,      2.0f,  1e-3f,    "a=5,j=2 delta=+1e-3" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      constexpr float kRateHz = 30000.0f;
+      constexpr float kInitialTarget = 1.0f;
+      ctx.set_rate_hz(kRateHz);
+      ctx.data.position = kInitialTarget;
+      ctx.data.velocity = 0.0f;
+      ctx.data.accel_limit = tc.a_max;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_position(0.0f);
+      ctx.set_velocity(0.0f);
+
+      // Run mid-flight: ~halfway through the trajectory, |a| should
+      // be non-zero.
+      const int mid_flight_steps = static_cast<int>(0.5f * tc.a_max / tc.jerk
+                                                    * kRateHz);
+      const int mid_flight = std::max(mid_flight_steps, 100);
+      for (int i = 0; i < mid_flight; i++) {
+        ctx.Call();
+      }
+      BOOST_TEST(std::abs(ctx.status.control_acceleration) > 0.0f);
+
+      // Retarget by a tiny delta.
+      const float new_target = kInitialTarget + tc.retarget_delta;
+      ctx.data.position = new_target;
+      ctx.data.position_relative_raw.reset();
+
+      // Run until trajectory completes.
+      const int max_steps = static_cast<int>(30.0f * kRateHz);
+      bool done = false;
+      for (int i = 0; i < max_steps; i++) {
+        ctx.Call();
+        if (ctx.status.trajectory_done) {
+          done = true;
+          break;
+        }
+      }
+      BOOST_TEST(done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    }
+  }
+}
+
 // === Overspeed rest-curve tests ===
 //
 // Issue 1.4: when v_curr exceeds velocity_limit (because the host
