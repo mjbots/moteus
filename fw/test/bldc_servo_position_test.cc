@@ -3025,6 +3025,8 @@ BOOST_AUTO_TEST_CASE(JerkLimitFreshEntryNearTarget) {
         }
       }
       BOOST_TEST(completion_poll >= 0);
+      // Final position must equal the commanded target (0) exactly.
+      BOOST_TEST(ctx.from_raw(completion_pos_raw) == 0.0);
 
       // Phase 2: 500 more polls.  Trajectory must stay completed
       // (and the motor must not vibrate because control_position_raw
@@ -3134,6 +3136,10 @@ BOOST_AUTO_TEST_CASE(JerkLimitSmallDistanceTermination) {
       BOOST_TEST(done == true);
       BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
       BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      // Final position must equal the commanded target exactly
+      // (snap-at-termination forces it).
+      BOOST_TEST(
+          ctx.from_raw(ctx.status.control_position_raw.value()) == 0.0);
     }
   }
 }
@@ -3141,10 +3147,10 @@ BOOST_AUTO_TEST_CASE(JerkLimitSmallDistanceTermination) {
 // Production-pattern sweep: a sequence of host-driven moves
 // mimicking moteus.move_to() in a loop, like the user's script
 // that exposed the original bugs.  Each move must complete within
-// its budget AND leave the controller in a state where the next
-// move can also complete -- exercises the chain of trajectory
-// terminations and the small-dx interactions that result from
-// consecutive moves to the same float target.
+// its upper budget AND must take at least the kinematically-
+// required minimum time -- a spurious "trajectory_done = true on
+// the first cycle" would let move_to() exit in 4 ms instead of the
+// real ~1.4 s for a=5, j=2, dx=0.25.
 BOOST_AUTO_TEST_CASE(JerkLimitMoveLoopTermination) {
   struct TestCase {
     float a_max;
@@ -3158,8 +3164,7 @@ BOOST_AUTO_TEST_CASE(JerkLimitMoveLoopTermination) {
   };
 
   // The script's move pattern: cycle through four (p1,p2)
-  // setpoints, where one or both channels are commanded to the same
-  // target as the previous iteration.
+  // setpoints, where one channel moves and the other holds.
   struct Move {
     float p1;
     float p2;
@@ -3176,6 +3181,19 @@ BOOST_AUTO_TEST_CASE(JerkLimitMoveLoopTermination) {
       constexpr float kRateHz = 30000.0f;
       constexpr int kCyclesPerPoll = 60;
       constexpr int kMaxPollsPerMove = 50000;
+
+      // Minimum trajectory time for a move of dx=0.25 in this
+      // configuration.  Symmetric triangle-in-a profile: t_min =
+      // 4 * a_peak / j, a_peak = sqrt(j * v_peak),
+      // v_peak = (j * dx^2 / 8)^(1/3).  Cap a_peak at a_max
+      // (trapezoidal-in-a profile if a saturates).
+      const float kDx = 0.25f;
+      const float v_peak_tri = std::cbrt(tc.jerk * kDx * kDx / 8.0f);
+      const float a_peak_tri = std::sqrt(tc.jerk * v_peak_tri);
+      const float a_peak = std::min(a_peak_tri, tc.a_max);
+      const float t_min = 4.0f * a_peak / tc.jerk;
+      const int min_polls = static_cast<int>(
+          0.5f * t_min * kRateHz / kCyclesPerPoll);
 
       Context ctx1, ctx2;
       for (Context* c : {&ctx1, &ctx2}) {
@@ -3215,6 +3233,29 @@ BOOST_AUTO_TEST_CASE(JerkLimitMoveLoopTermination) {
           BOOST_TEST(polls < kMaxPollsPerMove);
           BOOST_TEST(ctx1.status.trajectory_done == true);
           BOOST_TEST(ctx2.status.trajectory_done == true);
+          // Final position must match the commanded target for
+          // each channel (with vf = 0 we expect exact equality
+          // because terminations snap control_position_raw to
+          // data->position_relative_raw).
+          BOOST_TEST(
+              ctx1.from_raw(ctx1.status.control_position_raw.value()) ==
+              static_cast<double>(mv.p1));
+          BOOST_TEST(
+              ctx2.from_raw(ctx2.status.control_position_raw.value()) ==
+              static_cast<double>(mv.p2));
+          BOOST_TEST(ctx1.status.control_velocity.value() == 0.0f);
+          BOOST_TEST(ctx2.status.control_velocity.value() == 0.0f);
+          // Each move except (0, 0) has exactly one channel moving
+          // by 0.25 rev; that channel's trajectory cannot terminate
+          // in less than t_min.  The (0, 0) move at loop=0 starts
+          // with both channels already at 0 from the test setup, so
+          // its expected time is 0.  Skip the lower bound check on
+          // that one.
+          const bool both_at_prev_target =
+              (loop == 0 && mv.p1 == 0.0f && mv.p2 == 0.0f);
+          if (!both_at_prev_target) {
+            BOOST_TEST(polls >= min_polls);
+          }
         }
       }
     }
@@ -3407,6 +3448,16 @@ BOOST_AUTO_TEST_CASE(JerkLimitMidFlightTinyRetarget) {
       BOOST_TEST(done == true);
       BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
       BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+      // Final position should be either at the new_target (latch
+      // invalidated and re-planned) or at the original target
+      // (latch tolerance absorbed the sub-LSB nudge).  Both are
+      // within |retarget_delta| of new_target.
+      const double final_pos =
+          ctx.from_raw(ctx.status.control_position_raw.value());
+      const double kFloatQuantum = 1.0 / 65536.0;
+      const double bound =
+          std::abs(static_cast<double>(tc.retarget_delta)) + kFloatQuantum;
+      BOOST_TEST(std::abs(final_pos - new_target) <= bound);
     }
   }
 }
