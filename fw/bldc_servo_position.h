@@ -180,16 +180,22 @@ class BldcServoPosition {
     // have just been forced to (0, vf, xf) -- and for a host that
     // sends position == current_position to mean "stop here".
     //
-    // We use a tolerance (half the kinematic residual `a^2/(j*rate)`
-    // = `a^2 * dt / j`) instead of strict equality on dx.  Any |dx|
-    // below this resolution is sub-rest-curve: the controller cannot
-    // brake within the distance, so the trajectory would otherwise
-    // oscillate around the target indefinitely.  v_frame and a_curr
-    // must still be 0 (no mid-flight short-circuit).  When a_max is
-    // not finite (jerk-only mode) the rest-curve floor degenerates,
-    // so we fall back to strict dx == 0.
+    // We use a tolerance (the rest-curve resolution
+    // `a^2/(j*rate) = a^2 * dt / j`, plus the float-quantization
+    // step from MotorPosition::IntToFloat = 1/65536) instead of
+    // strict equality on dx.  Any |dx| at or below this resolution
+    // is sub-rest-curve: by the time the controller slews `a` back
+    // through 0 from peak-a, v has accumulated more momentum than
+    // the brake-curve can absorb in the remaining distance, so the
+    // trajectory overshoots and oscillates around the target
+    // indefinitely.  v_frame and a_curr must still be 0 (no mid-
+    // flight short-circuit).  When a_max is not finite (jerk-only
+    // mode) the rest-curve floor degenerates, so we fall back to
+    // strict dx == 0 plus the float quantization.
+    const float kFloatQuantum = 1.0f / 65536.0f;
     const float pos_tol = std::isfinite(a_max) ?
-        (0.5f * a_max * a_max * dt * inv_j) : 0.0f;
+        (a_max * a_max * dt * inv_j + kFloatQuantum) :
+        kFloatQuantum;
     if (std::abs(dx) <= pos_tol && v_frame == 0.0f && a_curr == 0.0f) {
       status->trajectory_rest_committed = true;
       status->trajectory_committed_position = data->position;

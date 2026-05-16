@@ -3048,6 +3048,96 @@ BOOST_AUTO_TEST_CASE(JerkLimitFreshEntryNearTarget) {
   }
 }
 
+// Termination of small-distance jerk-limited moves.  Sweeps over
+// (a_max, jerk, rate, dx) in the regime where dx is small relative
+// to the rest-curve resolution `a^2/(j*rate)`.  Each case must
+// terminate within a budget that scales with the trajectory's
+// kinematic time.  Without the dx-tolerance short-circuit
+// committing immediately at sub-resolution dx, the discrete-time
+// trajectory generator oscillates around the target forever -- the
+// brake-commit condition (a_brake_next < 0) requires a_curr to
+// have slewed back to within j*dt of 0, but a_curr keeps growing
+// past that point because the controller cannot decide to brake
+// until v has accumulated enough margin -- and at small dx that
+// happens after v has already overshot.
+BOOST_AUTO_TEST_CASE(JerkLimitSmallDistanceTermination) {
+  struct TestCase {
+    float a_max;
+    float jerk;
+    float rate_hz;
+    float motor_offset;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    // a=5, j=2: the user's parameters at moveto's polling cadence.
+    {     5.0f,      2.0f, 30000.0f,  1e-3f,  "a=5,j=2 +1e-3" },
+    {     5.0f,      2.0f, 30000.0f, -1e-3f,  "a=5,j=2 -1e-3" },
+    {     5.0f,      2.0f, 30000.0f,  1e-4f,  "a=5,j=2 +1e-4" },
+    {     5.0f,      2.0f, 30000.0f, -1e-4f,  "a=5,j=2 -1e-4" },
+    {     5.0f,      2.0f, 30000.0f,  1e-5f,  "a=5,j=2 +1e-5 (sub-rest)" },
+    {     5.0f,      2.0f, 30000.0f, -1e-5f,  "a=5,j=2 -1e-5 (sub-rest)" },
+    {     5.0f,      2.0f, 30000.0f,  1e-6f,  "a=5,j=2 +1e-6 (sub-LSB)" },
+    // Larger a, smaller j: rest-curve resolution = a^2/(j*rate) =
+    // 100^2/(50*30000) = 6.67e-3.  Probe values just above and below.
+    {   100.0f,     50.0f, 30000.0f,  1e-2f,  "a=100,j=50 +1e-2 (above rest)" },
+    {   100.0f,     50.0f, 30000.0f,  1e-3f,  "a=100,j=50 +1e-3 (sub-rest)" },
+    {   100.0f,     50.0f, 30000.0f, -1e-3f,  "a=100,j=50 -1e-3 (sub-rest)" },
+    // Moderate.  Rest-curve resolution = 1000^2/(20000*30000) = 1.67e-3.
+    {  1000.0f,  20000.0f, 30000.0f,  1e-3f,  "a=1k,j=20k +1e-3" },
+    {  1000.0f,  20000.0f, 30000.0f,  1e-5f,  "a=1k,j=20k +1e-5" },
+    {  1000.0f,  20000.0f, 30000.0f,  1e-7f,  "a=1k,j=20k +1e-7" },
+    // Low control rate.
+    {    50.0f,   1000.0f, 15000.0f,  1e-4f,  "low rate, sub-rest" },
+    // Boundary: dx exactly at the rest-curve resolution (a^2/(j*rate)).
+    {    50.0f,   1000.0f, 30000.0f,  8.33e-5f, "a=50,j=1k dx=a^2/(j*rate)" },
+    // Boundary: dx exactly one float quantum (1/65536) from target.
+    {    50.0f,   1000.0f, 30000.0f,  1.6e-5f, "a=50,j=1k dx ~ 1 float quantum" },
+    // Boundary: dx exactly one raw LSB from target (well sub-quantum).
+    {    50.0f,   1000.0f, 30000.0f,  4e-15f, "a=50,j=1k dx ~ 1 raw LSB" },
+    // Very large a/j (snappy controller): dx should easily be fine.
+    {  5000.0f, 100000.0f, 30000.0f,  0.01f,  "snappy, normal dx" },
+    // Sub-rest with high a/j ratio.
+    {  5000.0f, 100000.0f, 30000.0f,  1e-5f,  "snappy, sub-rest" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      ctx.set_rate_hz(tc.rate_hz);
+      ctx.data.position = 0.0f;
+      ctx.data.velocity = 0.0f;
+      ctx.data.accel_limit = tc.a_max;
+      ctx.data.jerk_limit = tc.jerk;
+      ctx.data.velocity_limit = NaN;
+      ctx.set_position(tc.motor_offset);
+      ctx.set_velocity(0.0f);
+
+      // Budget: enough cycles for the canonical jerk-limited
+      // trajectory to complete with substantial margin.  Symmetric
+      // triangle-in-a profile reaches dx in t = 2*(6*dx/j)^(1/3).
+      // Allow 4x for safety.
+      const float dx = std::abs(tc.motor_offset);
+      const float t_est =
+          std::max(2.0f * std::cbrt(6.0f * dx / tc.jerk),
+                   2.0f * tc.a_max / tc.jerk);
+      const int max_steps =
+          static_cast<int>(4.0f * t_est * tc.rate_hz);
+
+      bool done = false;
+      for (int i = 0; i < max_steps; i++) {
+        ctx.Call();
+        if (ctx.status.trajectory_done) {
+          done = true;
+          break;
+        }
+      }
+      BOOST_TEST(done == true);
+      BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+      BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+    }
+  }
+}
+
 // === Overspeed rest-curve tests ===
 //
 // Issue 1.4: when v_curr exceeds velocity_limit (because the host
