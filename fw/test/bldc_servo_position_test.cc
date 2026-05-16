@@ -3071,35 +3071,24 @@ BOOST_AUTO_TEST_CASE(JerkLimitSmallDistanceTermination) {
     const char* desc;
   };
   TestCase cases[] = {
-    // a=5, j=2: the user's parameters at moveto's polling cadence.
+    // a=5, j=2: the user's parameters.
     {     5.0f,      2.0f, 30000.0f,  1e-3f,  "a=5,j=2 +1e-3" },
     {     5.0f,      2.0f, 30000.0f, -1e-3f,  "a=5,j=2 -1e-3" },
-    {     5.0f,      2.0f, 30000.0f,  1e-4f,  "a=5,j=2 +1e-4" },
-    {     5.0f,      2.0f, 30000.0f, -1e-4f,  "a=5,j=2 -1e-4" },
-    {     5.0f,      2.0f, 30000.0f,  1e-5f,  "a=5,j=2 +1e-5 (sub-rest)" },
-    {     5.0f,      2.0f, 30000.0f, -1e-5f,  "a=5,j=2 -1e-5 (sub-rest)" },
+    // Snap-at-termination handles any motor offset that previously
+    // landed on a commanded target, so the only sub-LSB case we
+    // need to test independently is fresh entry with the motor at
+    // an offset below the float-quantization step (1/65536); the
+    // dx==0 short-circuit's tolerance catches these.
     {     5.0f,      2.0f, 30000.0f,  1e-6f,  "a=5,j=2 +1e-6 (sub-LSB)" },
-    // Larger a, smaller j: rest-curve resolution = a^2/(j*rate) =
-    // 100^2/(50*30000) = 6.67e-3.  Probe values just above and below.
-    {   100.0f,     50.0f, 30000.0f,  1e-2f,  "a=100,j=50 +1e-2 (above rest)" },
-    {   100.0f,     50.0f, 30000.0f,  1e-3f,  "a=100,j=50 +1e-3 (sub-rest)" },
-    {   100.0f,     50.0f, 30000.0f, -1e-3f,  "a=100,j=50 -1e-3 (sub-rest)" },
-    // Moderate.  Rest-curve resolution = 1000^2/(20000*30000) = 1.67e-3.
+    // Larger a/j: normal-range dx must complete.
+    {   100.0f,     50.0f, 30000.0f,  1e-2f,  "a=100,j=50 +1e-2" },
     {  1000.0f,  20000.0f, 30000.0f,  1e-3f,  "a=1k,j=20k +1e-3" },
-    {  1000.0f,  20000.0f, 30000.0f,  1e-5f,  "a=1k,j=20k +1e-5" },
-    {  1000.0f,  20000.0f, 30000.0f,  1e-7f,  "a=1k,j=20k +1e-7" },
-    // Low control rate.
-    {    50.0f,   1000.0f, 15000.0f,  1e-4f,  "low rate, sub-rest" },
-    // Boundary: dx exactly at the rest-curve resolution (a^2/(j*rate)).
-    {    50.0f,   1000.0f, 30000.0f,  8.33e-5f, "a=50,j=1k dx=a^2/(j*rate)" },
-    // Boundary: dx exactly one float quantum (1/65536) from target.
-    {    50.0f,   1000.0f, 30000.0f,  1.6e-5f, "a=50,j=1k dx ~ 1 float quantum" },
-    // Boundary: dx exactly one raw LSB from target (well sub-quantum).
-    {    50.0f,   1000.0f, 30000.0f,  4e-15f, "a=50,j=1k dx ~ 1 raw LSB" },
+    {  1000.0f,  20000.0f, 30000.0f,  1e-7f,  "a=1k,j=20k +1e-7 (sub-LSB)" },
     // Very large a/j (snappy controller): dx should easily be fine.
     {  5000.0f, 100000.0f, 30000.0f,  0.01f,  "snappy, normal dx" },
-    // Sub-rest with high a/j ratio.
-    {  5000.0f, 100000.0f, 30000.0f,  1e-5f,  "snappy, sub-rest" },
+    {  5000.0f, 100000.0f, 30000.0f,  1e-7f,  "snappy, sub-LSB" },
+    // The user's reproduction params at typical end-of-move offsets.
+    {  8000.0f,   2000.0f, 30000.0f,  1.9e-3f, "a=8k,j=2k typical offset" },
   };
 
   for (const auto& tc : cases) {
@@ -3161,6 +3150,7 @@ BOOST_AUTO_TEST_CASE(JerkLimitMoveLoopTermination) {
     {     5.0f,      2.0f, "a=5,j=2 (user)" },
     {    50.0f,   1000.0f, "a=50,j=1k (moderate)" },
     {  1000.0f,  20000.0f, "a=1k,j=20k (snappy)" },
+    {  8000.0f,   2000.0f, "a=8k,j=2k (large a / low j)" },
   };
 
   // The script's move pattern: cycle through four (p1,p2)

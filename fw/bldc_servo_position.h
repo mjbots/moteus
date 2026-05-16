@@ -180,23 +180,18 @@ class BldcServoPosition {
     // have just been forced to (0, vf, xf) -- and for a host that
     // sends position == current_position to mean "stop here".
     //
-    // We use a tolerance (the rest-curve resolution
-    // `a^2/(j*rate) = a^2 * dt / j`, plus the float-quantization
-    // step from MotorPosition::IntToFloat = 1/65536) instead of
-    // strict equality on dx.  Any |dx| at or below this resolution
-    // is sub-rest-curve: by the time the controller slews `a` back
-    // through 0 from peak-a, v has accumulated more momentum than
-    // the brake-curve can absorb in the remaining distance, so the
-    // trajectory overshoots and oscillates around the target
-    // indefinitely.  v_frame and a_curr must still be 0 (no mid-
-    // flight short-circuit).  When a_max is not finite (jerk-only
-    // mode) the rest-curve floor degenerates, so we fall back to
-    // strict dx == 0 plus the float quantization.
+    // We use a tolerance equal to the float-quantization step from
+    // MotorPosition::IntToFloat (= 1/65536) instead of strict
+    // equality on dx.  At dx below this resolution the controller
+    // cannot distinguish the target from the current position in
+    // float space (raw int64 values may differ but IntToFloat
+    // rounds them to the same float).  v_frame and a_curr must
+    // still be 0 (no mid-flight short-circuit).  Together with the
+    // snap-at-termination below, this ensures consecutive same-
+    // target moves never see a residual that the trajectory
+    // generator can't resolve.
     const float kFloatQuantum = 1.0f / 65536.0f;
-    const float pos_tol = std::isfinite(a_max) ?
-        (a_max * a_max * dt * inv_j + kFloatQuantum) :
-        kFloatQuantum;
-    if (std::abs(dx) <= pos_tol && v_frame == 0.0f && a_curr == 0.0f) {
+    if (std::abs(dx) <= kFloatQuantum && v_frame == 0.0f && a_curr == 0.0f) {
       status->trajectory_rest_committed = true;
       status->trajectory_committed_position = data->position;
       status->trajectory_committed_velocity = data->velocity;
@@ -724,27 +719,27 @@ class BldcServoPosition {
     if (status->trajectory_rest_committed) {
       const float cp = status->trajectory_committed_position;
       const float cv = status->trajectory_committed_velocity;
-      const float a_max = data->accel_limit;
-      const float j_lim = data->jerk_limit;
-      const bool jerk_active =
-          std::isfinite(a_max) && std::isfinite(j_lim) && j_lim > 0.0f;
-      // Position tolerance: half the rest-curve kinematic residual
-      // `a^2 / (j * rate) = a^2 * dt / j`.  Velocity tolerance: half
-      // the one-cycle cruise step `a * dt`.  Both fall to zero
-      // (strict equality) when no useful jerk limit is configured;
-      // the latch is only set on the jerk-limited path anyway.
-      const float pos_tol = jerk_active ?
-          (0.5f * a_max * a_max * period_s / j_lim) : 0.0f;
-      const float vel_tol = jerk_active ?
-          (0.5f * a_max * period_s) : 0.0f;
+      // Tolerance for the latch invalidation check.  We compare
+      // data->position/velocity (the raw float fields the host
+      // wrote) against the snapshot taken when the latch fired.
+      // The host sends bit-equal floats each frame, so the only
+      // legitimate source of drift is sub-LSB rounding in the
+      // host's own arithmetic; the IntToFloat quantization step
+      // (= 1/65536) is a generous bound on that.  Using the
+      // rest-curve kinematic residual instead would be too loose:
+      // for high a_max / low j (e.g. a=8000, j=2000), it grows to
+      // ~0.5 rev, which would let a legitimate retarget of 0.25
+      // rev silently pass the "same target" test and never re-
+      // plan the trajectory.
+      const float kFloatQuantum = 1.0f / 65536.0f;
       const bool position_same =
           (std::isnan(data->position) && std::isnan(cp)) ||
           (std::isfinite(data->position) && std::isfinite(cp) &&
-           std::abs(data->position - cp) <= pos_tol);
+           std::abs(data->position - cp) <= kFloatQuantum);
       const bool velocity_same =
           (std::isnan(data->velocity) && std::isnan(cv)) ||
           (std::isfinite(data->velocity) && std::isfinite(cv) &&
-           std::abs(data->velocity - cv) <= vel_tol);
+           std::abs(data->velocity - cv) <= kFloatQuantum);
       if (!position_same || !velocity_same) {
         status->trajectory_rest_committed = false;
       }
