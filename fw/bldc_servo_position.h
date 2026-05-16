@@ -179,7 +179,18 @@ class BldcServoPosition {
     // immediately after a trajectory terminates -- when (a, v, x)
     // have just been forced to (0, vf, xf) -- and for a host that
     // sends position == current_position to mean "stop here".
-    if (dx == 0.0f && v_frame == 0.0f) {
+    //
+    // We use a tolerance (half the kinematic residual `a^2/(j*rate)`
+    // = `a^2 * dt / j`) instead of strict equality on dx.  Any |dx|
+    // below this resolution is sub-rest-curve: the controller cannot
+    // brake within the distance, so the trajectory would otherwise
+    // oscillate around the target indefinitely.  v_frame and a_curr
+    // must still be 0 (no mid-flight short-circuit).  When a_max is
+    // not finite (jerk-only mode) the rest-curve floor degenerates,
+    // so we fall back to strict dx == 0.
+    const float pos_tol = std::isfinite(a_max) ?
+        (0.5f * a_max * a_max * dt * inv_j) : 0.0f;
+    if (std::abs(dx) <= pos_tol && v_frame == 0.0f && a_curr == 0.0f) {
       status->trajectory_rest_committed = true;
       status->trajectory_committed_position = data->position;
       status->trajectory_committed_velocity = data->velocity;
@@ -634,8 +645,19 @@ class BldcServoPosition {
     // status->control_position_raw is non-zero.  The trajectory_done
     // flag is sufficient to gate UpdateTrajectory; it does not need
     // a NaN'd target as a secondary signal.
+    //
+    // We also snap control_position_raw to the host's commanded
+    // target.  Without the snap, jerk-limited terminations land
+    // with a small kinematic residual (up to a^2/(j*rate)), and a
+    // subsequent move whose target equals that residual would
+    // trigger a phantom trajectory below the rest-curve resolution
+    // -- the slew of `a` is too coarse to brake in time, so the
+    // generator oscillates indefinitely around the target.
     if (status->trajectory_rest_committed &&
         status->control_acceleration == 0.0f) {
+      if (data->position_relative_raw) {
+        status->control_position_raw = *data->position_relative_raw;
+      }
       status->control_acceleration = 0.0f;
       status->control_velocity = vf;
       status->trajectory_done = true;

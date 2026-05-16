@@ -2962,6 +2962,92 @@ BOOST_AUTO_TEST_CASE(JerkLimitPostCompletionStreamingSameTarget) {
   }
 }
 
+// Position-mode entry from kStopped with the motor at a small
+// offset from the commanded target.  This is the
+// "both servos starting at the 0 position" scenario from
+// moteus.move_to():  set_stop, then move_to(position=0).  The
+// motor's actual encoder position is at some small non-zero offset
+// (e.g. 1.9 mrev from a previous run's PID error), so the
+// trajectory generator launches a tiny move toward 0.  Verify the
+// trajectory completes within a reasonable budget AND stays stable
+// across subsequent same-target polls.
+BOOST_AUTO_TEST_CASE(JerkLimitFreshEntryNearTarget) {
+  struct TestCase {
+    float motor_offset;
+    const char* desc;
+  };
+  TestCase cases[] = {
+    {  0.0f,    "motor at target" },
+    {  1e-3f,   "motor +1e-3 from target" },
+    { -1e-3f,   "motor -1e-3 from target" },
+    {  1e-5f,   "motor +1e-5 (sub-LSB) from target" },
+    {  1.86e-3f, "motor at observed end-of-move offset" },
+  };
+
+  for (const auto& tc : cases) {
+    BOOST_TEST_CONTEXT(tc.desc) {
+      Context ctx;
+      constexpr float kRateHz = 30000.0f;
+      constexpr float kAccel = 5.0f;
+      constexpr float kJerk = 2.0f;
+      constexpr float kTarget = 0.0f;
+      constexpr int kCyclesPerPoll = 60;
+      ctx.set_rate_hz(kRateHz);
+      ctx.data.position = kTarget;
+      ctx.data.velocity = 0.0f;
+      ctx.data.accel_limit = kAccel;
+      ctx.data.jerk_limit = kJerk;
+      ctx.data.velocity_limit = NaN;
+      // Motor is at the offset; control_position_raw is left unset
+      // so that UpdateCommand's first-cycle code path initializes
+      // it from position->position_relative_raw (this is what
+      // happens on the actual hardware after kStopped).
+      ctx.set_position(tc.motor_offset);
+      ctx.set_velocity(0.0f);
+
+      // Phase 1: poll until trajectory completes.
+      const int kMaxPolls = 5000;
+      int completion_poll = -1;
+      int64_t completion_pos_raw = 0;
+      for (int poll = 0; poll < kMaxPolls; poll++) {
+        for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+          if (cyc == 0) {
+            ctx.data.position = kTarget;
+            ctx.data.velocity = 0.0f;
+            ctx.data.position_relative_raw.reset();
+          }
+          ctx.Call();
+        }
+        if (ctx.status.trajectory_done) {
+          completion_poll = poll;
+          completion_pos_raw = ctx.status.control_position_raw.value();
+          break;
+        }
+      }
+      BOOST_TEST(completion_poll >= 0);
+
+      // Phase 2: 500 more polls.  Trajectory must stay completed
+      // (and the motor must not vibrate because control_position_raw
+      // is being perturbed by re-launched phantom trajectories).
+      for (int poll = 0; poll < 500; poll++) {
+        for (int cyc = 0; cyc < kCyclesPerPoll; cyc++) {
+          if (cyc == 0) {
+            ctx.data.position = kTarget;
+            ctx.data.velocity = 0.0f;
+            ctx.data.position_relative_raw.reset();
+          }
+          ctx.Call();
+        }
+        BOOST_TEST(ctx.status.trajectory_done == true);
+        BOOST_TEST(ctx.status.control_velocity.value() == 0.0f);
+        BOOST_TEST(ctx.status.control_acceleration == 0.0f);
+        BOOST_TEST(
+            ctx.status.control_position_raw.value() == completion_pos_raw);
+      }
+    }
+  }
+}
+
 // === Overspeed rest-curve tests ===
 //
 // Issue 1.4: when v_curr exceeds velocity_limit (because the host
