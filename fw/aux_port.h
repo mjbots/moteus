@@ -201,41 +201,12 @@ class AuxPort {
           break;
         }
         case SampleType::kHall: {
-          status_.hall.active = true;
-          const auto old_bits = status_.hall.bits;
-          status_.hall.bits =
+          const uint8_t raw_bits =
               ((halla_->read() ? 1 : 0) << 0) |
               ((hallb_->read() ? 1 : 0) << 1) |
               ((hallc_->read() ? 1 : 0) << 2);
-          const auto delta = status_.hall.bits ^ old_bits;
-          // Popcount of delta's low three bits.  The conditional
-          // operator binds looser than +, so each ?: expression
-          // needs its own parentheses; otherwise the whole thing
-          // collapses to "any bit changed?" and multi-bit
-          // transitions are silently treated as single-bit ones.
-          const auto numbits_changed =
-              ((delta & 0x01) ? 1 : 0) +
-              ((delta & 0x02) ? 1 : 0) +
-              ((delta & 0x04) ? 1 : 0);
-
-          if (numbits_changed > 1) {
-            status_.hall.error++;
-          } else if (numbits_changed > 0) {
-            status_.hall.nonce += 1;
-          }
-
-          static constexpr uint8_t kHallMapping[] = {
-            0,  // invalid
-            0,  // 0b001 => 0
-            2,  // 0b010 => 2
-            1,  // 0b011 => 1
-            4,  // 0b100 => 4
-            5,  // 0b101 => 5
-            3,  // 0b110 => 3
-            0,  // invalid
-          };
-          status_.hall.count =
-              kHallMapping[status_.hall.bits ^ config_.hall.polarity];
+          aux::Hall::ApplyHallReading(
+              raw_bits, config_.hall.polarity, &status_.hall);
           break;
         }
         case SampleType::kQuad: {

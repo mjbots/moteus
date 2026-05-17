@@ -201,6 +201,59 @@ struct Hall {
       a->Visit(MJ_NVP(error));
     }
   };
+
+  // Apply one new raw hall reading to the status struct.
+  //
+  // raw_bits has the three hall lines packed in its low three bits
+  // (bit 0 = A, bit 1 = B, bit 2 = C); polarity is XORed against
+  // them to select sensor polarity.  Updates status->bits, ->count,
+  // ->nonce (on a single-bit change) and ->error (on a multi-bit
+  // change), and forces ->active = true.
+  //
+  // On the very first call after boot (status->active == false) the
+  // multi-bit-change guard is bypassed: status->bits started at the
+  // structure default of 0b000 (an invalid hall state), so comparing
+  // against it would mis-report any state with two or three bits set
+  // as a transition error and never bump the nonce, leaving
+  // downstream consumers wedged on the initial reading.  Instead we
+  // adopt the first reading verbatim and force a nonce increment.
+  static void ApplyHallReading(
+      uint8_t raw_bits, uint8_t polarity, Status* status) {
+    const bool first_sample = !status->active;
+    status->active = true;
+    const auto old_bits = status->bits;
+    status->bits = raw_bits;
+    if (first_sample) {
+      status->nonce += 1;
+    } else {
+      const auto delta = status->bits ^ old_bits;
+      // Popcount of delta's low three bits.  The conditional
+      // operator binds looser than +, so each ?: expression needs
+      // its own parentheses; otherwise the whole thing collapses
+      // to "any bit changed?" and multi-bit transitions are
+      // silently treated as single-bit ones.
+      const auto numbits_changed =
+          ((delta & 0x01) ? 1 : 0) +
+          ((delta & 0x02) ? 1 : 0) +
+          ((delta & 0x04) ? 1 : 0);
+      if (numbits_changed > 1) {
+        status->error++;
+      } else if (numbits_changed > 0) {
+        status->nonce += 1;
+      }
+    }
+    static constexpr uint8_t kHallMapping[] = {
+      0,  // invalid
+      0,  // 0b001 => 0
+      2,  // 0b010 => 2
+      1,  // 0b011 => 1
+      4,  // 0b100 => 4
+      5,  // 0b101 => 5
+      3,  // 0b110 => 3
+      0,  // invalid
+    };
+    status->count = kHallMapping[status->bits ^ polarity];
+  }
 };
 
 struct Index {
