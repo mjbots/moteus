@@ -1515,3 +1515,89 @@ BOOST_AUTO_TEST_CASE(MotorPositionReferenceSourceOutOfRange) {
 
   BOOST_TEST(ctx.dut.status().error == MotorPosition::Status::kInvalidConfig);
 }
+
+BOOST_AUTO_TEST_CASE(AuxHallApplyHallReadingFirstSample) {
+  // The structure default for Hall::Status::bits is 0b000.  On the
+  // first sample, ApplyHallReading must bypass the multi-bit-change
+  // guard and bump the nonce regardless of what was read, so
+  // downstream consumers see an update and start tracking.
+  //
+  // Without the fix in aux_common.h, three of the six valid rotor
+  // sectors (raw_bits 0b011, 0b101, 0b110) would land in the
+  // multi-bit-error branch on the first sample and never bump the
+  // nonce, leaving theta invalid on boot.
+  for (uint8_t raw : {uint8_t(0b001), uint8_t(0b010), uint8_t(0b011),
+                      uint8_t(0b100), uint8_t(0b101), uint8_t(0b110)}) {
+    aux::Hall::Status status;
+    BOOST_TEST(status.active == false);
+    BOOST_TEST(status.nonce == 0);
+    BOOST_TEST(status.error == 0);
+
+    aux::Hall::ApplyHallReading(raw, /*polarity=*/0, &status);
+    BOOST_TEST(status.active == true);
+    BOOST_TEST(status.bits == raw);
+    BOOST_TEST_MESSAGE("raw=" << int(raw));
+    BOOST_TEST(status.nonce == 1);
+    BOOST_TEST(status.error == 0);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(AuxHallApplyHallReadingSubsequentSamples) {
+  aux::Hall::Status status;
+
+  // First sample: status->active becomes true, nonce 0 -> 1.
+  aux::Hall::ApplyHallReading(0b001, 0, &status);
+  BOOST_TEST(status.nonce == 1);
+
+  // Same value: no nonce change, no error.
+  aux::Hall::ApplyHallReading(0b001, 0, &status);
+  BOOST_TEST(status.nonce == 1);
+  BOOST_TEST(status.error == 0);
+
+  // Single-bit change to an adjacent state: nonce++.
+  aux::Hall::ApplyHallReading(0b011, 0, &status);
+  BOOST_TEST(status.nonce == 2);
+  BOOST_TEST(status.error == 0);
+
+  // Multi-bit change: nonce unchanged, error++.
+  aux::Hall::ApplyHallReading(0b110, 0, &status);
+  BOOST_TEST(status.nonce == 2);
+  BOOST_TEST(status.error == 1);
+
+  // Single-bit change back: nonce++.
+  aux::Hall::ApplyHallReading(0b010, 0, &status);
+  BOOST_TEST(status.nonce == 3);
+  BOOST_TEST(status.error == 1);
+}
+
+BOOST_AUTO_TEST_CASE(AuxHallApplyHallReadingCountMapping) {
+  // Verifies the firmware bits -> sector count mapping after a
+  // successful first-sample adoption.
+  struct {
+    uint8_t bits;
+    uint8_t expected_count;
+  } cases[] = {
+    {0b001, 0},
+    {0b011, 1},
+    {0b010, 2},
+    {0b110, 3},
+    {0b100, 4},
+    {0b101, 5},
+  };
+  for (const auto& c : cases) {
+    aux::Hall::Status status;
+    aux::Hall::ApplyHallReading(c.bits, 0, &status);
+    BOOST_TEST(status.count == c.expected_count);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(AuxHallApplyHallReadingPolarity) {
+  // Polarity flips the bits before the count lookup but does not
+  // affect nonce-update logic.
+  aux::Hall::Status status;
+  aux::Hall::ApplyHallReading(0b001, /*polarity=*/0b111, &status);
+  // After XOR with polarity 0b111: 0b001 ^ 0b111 = 0b110 -> count 3.
+  BOOST_TEST(status.bits == 0b001);
+  BOOST_TEST(status.count == 3);
+  BOOST_TEST(status.nonce == 1);
+}
