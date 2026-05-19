@@ -209,14 +209,24 @@ struct Application {
       for (; last < data_.size() && data_[last].compensated_value == current_value; last++);
 
       if (last == data_.size()) {
-        return std::make_pair(static_cast<double>(current_value), 0.0);
+        // The trace ended without us leaving this sector.  The rotor
+        // is somewhere in [current_value, current_value + 1); the
+        // midpoint is the best a-priori guess and matches the
+        // firmware's mid-sector commutation interpretation.
+        return std::make_pair(
+            wrap_encoder(static_cast<double>(current_value) + 0.5),
+            0.0);
       }
 
       if (data_[first].compensated_value == data_[last].compensated_value) {
-        // We had a back and forth.  Just assume something in the
-        // middle with zero velocity.
-        return std::make_pair(static_cast<double>(current_value),
-                              static_cast<double>(0.0f));
+        // We had a back-and-forth: the rotor entered this sector
+        // and exited back through the same boundary.  In contrast
+        // to the end-of-trace case we have direct evidence the
+        // rotor lingered near that boundary -- it didn't have time
+        // to drift to mid-sector before bouncing back.  Returning
+        // the boundary (current_value) is therefore a better
+        // estimate than the sector midpoint.
+        return std::make_pair(static_cast<double>(current_value), 0.0);
       }
 
       const auto fraction =
