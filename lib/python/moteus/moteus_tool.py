@@ -121,7 +121,7 @@ class MoteusFault(RuntimeError):
             f"Controller reported fault: {int(self.fault_code)}")
 
 
-SUPPORTED_ABI_VERSION = 0x010e
+SUPPORTED_ABI_VERSION = 0x010000
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
@@ -147,6 +147,10 @@ class FirmwareUpgrade:
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        if self.new <= 0x010e and self.old >= 0x010000:
+            # Nothing to do here.
+            pass
 
         if self.new <= 0x010d and self.old >= 0x010e:
             pid_dq_hz = float(items.pop(b'servo.pid_dq_hz', 100.0))
@@ -696,6 +700,10 @@ class FirmwareUpgrade:
             items[b'servo.max_current_desired_rate'] = (
                 str(max_desired_rate).encode('utf8'))
             print(f"Upgraded servo.pid_dq to servo.pid_dq_hz={hz:.1f}")
+
+        if self.new >= 0x010000 and self.old <= 0x010e:
+            # Nothing to do.
+            pass
 
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)

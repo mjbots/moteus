@@ -182,8 +182,12 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 //   and servo.max_current_desired_rate.  PI gains are now computed
 //   automatically from the bandwidth and motor parameters.
 
+// # 0x010000
+//
+// No functional changes.  ABI release 1.0.0
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x00010e
+#define MOTEUS_FIRMWARE_VERSION 0x010000
 
 extern MoteusHwPins g_hw_pins;
 
