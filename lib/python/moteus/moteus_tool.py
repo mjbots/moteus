@@ -1570,12 +1570,19 @@ class Stream:
         aux_number = await self.read_config_int(
             f"motor_position.sources.{commutation_source}.aux_number")
 
+        # Sweep PWM phase across one electrical cycle.  The dense
+        # scan serves two purposes: calibrate_hall identifies sign,
+        # offset and polarity (which only needs all six states), and
+        # find_hall_boundary_phases locates each sector boundary to
+        # within ~2° so the firmware's motor.offset[] commutation
+        # correction table can be populated.
+        STEPS = 90
+        SETTLE_S = 0.2
         hall_cal_data = []
-        STEPS = 24
         for i in range(STEPS):
             phase = i / STEPS * 2 * math.pi
             await self.command(f"d pwm {phase} {encoder_cal_voltage}")
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(SETTLE_S)
             motor_position = await self.read_data("motor_position")
             hall_cal_data.append(
                 (phase, motor_position.sources[commutation_source].raw))
@@ -1603,8 +1610,17 @@ class Stream:
             await self.command(
                 f"conf set motor.phase_invert {1 if cal_result.phase_invert else 0}")
 
-        for i in range(64):
-            await self.command(f"conf set motor.offset.{i} 0")
+        # Compute the per-sector boundary corrections and load them
+        # into motor.offset[].
+        offset_table, boundary_phases = ce.build_hall_offset_table(
+            hall_cal_data, cal_result, poles=self.args.cal_motor_poles)
+
+        print("Hall boundary deltas (deg):",
+              [f"{math.degrees((p - k * math.pi / 3 + math.pi) % (2 * math.pi) - math.pi):+.1f}"
+               for k, p in enumerate(boundary_phases)])
+
+        for i, value in enumerate(offset_table):
+            await self.command(f"conf set motor.offset.{i} {value:.6f}")
 
         return cal_result
 

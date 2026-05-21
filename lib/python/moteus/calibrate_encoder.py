@@ -462,14 +462,19 @@ class HallCalibrationResult:
         }
 
 
+# The bits-to-sector-count mapping used by the moteus firmware
+# (kHallMapping in fw/aux_common.h).
+_HALL_BITS_TO_COUNT = [0, 0, 2, 1, 4, 5, 3, 0]
+
+# Size of the motor.offset[] commutation correction table in the
+# firmware (fw/bldc_servo.h).
+HALL_OFFSET_TABLE_SIZE = 64
+
+
 def calibrate_hall(data,
                    desired_direction=1,
                    allow_phase_invert=True):
     result = HallCalibrationResult()
-
-    hall_mapping = [
-        0, 0, 2, 1, 4, 5, 3, 0,
-    ]
 
     states_seen = [x[1] for x in data]
     counts = {}
@@ -485,12 +490,12 @@ def calibrate_hall(data,
 
     # Find the offset.
     closest_to_zero = min([(abs(_wrap_neg_pi_to_pi(x[0])), x[1]) for x in data])
-    result.offset = -hall_mapping[closest_to_zero[1]]
+    result.offset = -_HALL_BITS_TO_COUNT[closest_to_zero[1]]
 
-    start_count = hall_mapping[data[0][1]]
+    start_count = _HALL_BITS_TO_COUNT[data[0][1]]
     next_count = start_count
     for x in data[1:]:
-        next_count = hall_mapping[x[1]]
+        next_count = _HALL_BITS_TO_COUNT[x[1]]
         if next_count != start_count:
             break
 
@@ -508,3 +513,125 @@ def calibrate_hall(data,
         result.phase_invert = 1
 
     return result
+
+
+def hall_bits_to_count(raw_bits, offset, sign, polarity):
+    """Apply the basic hall calibration (polarity / offset / sign) to
+    a raw hall.bits reading and return the resulting "sector count" in
+    [0, 6) -- the same value the firmware uses for slow-mode tracking.
+    """
+    base = _HALL_BITS_TO_COUNT[raw_bits ^ polarity]
+    return ((base + offset) * sign + 6) % 6
+
+
+def find_hall_boundary_phases(samples):
+    """Given a list of (phase_rad, sector_count) samples taken at
+    monotonically increasing phases across [0, 2*pi), locate each of
+    the 6 sector boundaries.
+
+    boundary_phase[k] is the lower-phase edge of the contiguous
+    "count == k" interval in sweep order, regardless of whether the
+    count sequence is locally increasing or decreasing.  Equivalently,
+    it is the midpoint phase of the +-1 transition that lands on
+    count == k.
+
+    Returns a list of 6 boundary phases (in radians in [0, 2*pi)).
+    Raises if any sector boundary was not observed -- usually a sign
+    the step size is too coarse.
+    """
+    boundary_phase = [None] * 6
+    n = len(samples)
+    for i in range(n):
+        a_phase, a_count = samples[i]
+        b_phase, b_count = samples[(i + 1) % n]
+        # Wrap b_phase forward across the 0/2pi seam.
+        if (i + 1) == n:
+            b_phase = b_phase + 2 * math.pi
+        # Balanced delta in [-3, 3].  A single-step transition (in
+        # either direction) is one we can use; everything else is
+        # either no transition or a multi-step jump from a coarse
+        # sample interval (the latter is reported via the missing-
+        # sectors check below).
+        delta = ((b_count - a_count + 3) % 6) - 3
+        if abs(delta) != 1:
+            continue
+        midpoint = 0.5 * (a_phase + b_phase) % (2 * math.pi)
+        if boundary_phase[b_count] is None:
+            boundary_phase[b_count] = midpoint
+
+    missing = [k for k, v in enumerate(boundary_phase) if v is None]
+    if missing:
+        raise RuntimeError(
+            f"Hall transition scan missed sectors {missing}; "
+            f"reduce step size or raise encoder voltage.")
+    return boundary_phase
+
+
+def compute_hall_offset_table(boundary_phases, cpr,
+                              table_size=HALL_OFFSET_TABLE_SIZE):
+    """Compute the motor.offset[] electrical-angle correction table
+    (in radians) from per-sector boundary phases.
+
+    boundary_phases[k] is the measured rotor electrical angle (radians
+    in [0, 2*pi)) at which the firmware will report "we just entered
+    sector k".  The firmware would otherwise place this transition at
+    the ideal angle k * (2*pi/6); the per-boundary correction is
+    delta_k = boundary_phases[k] - k * pi/3, wrapped to [-pi, pi].
+
+    The motor.offset[] table is indexed by the rotor's filtered_value
+    / cpr ratio (where cpr = 3 * poles for hall sources).  Each table
+    entry's equivalent hall-sector position is filtered_value mod 6,
+    and the offset there is the linear interpolation of the
+    surrounding two boundary deltas.
+
+    Returns a list of `table_size` floats in radians.
+    """
+    deltas = []
+    for k in range(6):
+        ideal = (k / 6.0) * 2 * math.pi
+        err = ((boundary_phases[k] - ideal + math.pi)
+               % (2 * math.pi)) - math.pi
+        deltas.append(err)
+
+    out = []
+    for i in range(table_size):
+        ratio = (i + 0.5) / table_size
+        # ratio is in (0, 1) so mod is always in [0, 6) and
+        # int(mod) is always in [0, 5].
+        mod = (ratio * cpr) % 6.0
+        sector = int(mod)
+        assert sector <= 5
+        frac = mod - sector
+        next_sector = (sector + 1) % 6
+        out.append((1.0 - frac) * deltas[sector] +
+                   frac * deltas[next_sector])
+    return out
+
+
+def build_hall_offset_table(hall_cal_data, cal_result, poles,
+                            table_size=HALL_OFFSET_TABLE_SIZE):
+    """Build the motor.offset[] table from a raw hall sweep and the
+    `calibrate_hall` result.
+
+    hall_cal_data is a list of (phase_rad, raw_bits) pairs spanning
+    one electrical cycle.  The natural (pre --cal-invert) sign is
+    used internally so the table reflects the physical hall layout
+    rather than the post-flip firmware view; the same table is
+    correct regardless of cal_result.phase_invert.
+
+    Returns (offset_table, boundary_phases) where offset_table is the
+    list of `table_size` motor.offset[] values and boundary_phases is
+    the per-sector measurement that produced it (useful for logging).
+    """
+    natural_sign = (-cal_result.sign if cal_result.phase_invert
+                    else cal_result.sign)
+    sector_samples = [
+        (phase, hall_bits_to_count(
+            raw_bits, offset=cal_result.offset,
+            sign=natural_sign,
+            polarity=cal_result.polarity))
+        for (phase, raw_bits) in hall_cal_data]
+    boundary_phases = find_hall_boundary_phases(sector_samples)
+    offset_table = compute_hall_offset_table(
+        boundary_phases, cpr=3 * poles, table_size=table_size)
+    return offset_table, boundary_phases

@@ -16,6 +16,7 @@
 
 import asyncio
 import io
+import math
 import unittest
 import unittest.mock
 
@@ -2294,6 +2295,146 @@ class CalibrateEncoderTest(unittest.TestCase):
         self.assertEqual(result.offset, -4)
         self.assertEqual(result.sign, -1)
         self.assertEqual(result.phase_invert, 0)
+
+    def test_hall_bits_to_count_identity(self):
+        # With polarity=0, offset=0, sign=1 the helper must agree with
+        # the firmware's bits->count mapping verbatim.
+        cases = {1: 0, 3: 1, 2: 2, 6: 3, 4: 4, 5: 5}
+        for bits, expected in cases.items():
+            self.assertEqual(
+                ce.hall_bits_to_count(bits, offset=0, sign=1, polarity=0),
+                expected, f"bits={bits}")
+
+    def test_compute_hall_offset_table_perfect(self):
+        # When boundaries land exactly at the ideal angles, every
+        # table entry must be zero.
+        boundaries = [k / 6.0 * 2 * math.pi for k in range(6)]
+        table = ce.compute_hall_offset_table(boundaries, cpr=42)
+        self.assertEqual(len(table), 64)
+        for v in table:
+            self.assertAlmostEqual(v, 0.0, places=6)
+
+    def test_compute_hall_offset_table_misaligned(self):
+        # Two adjacent boundaries shifted in opposite directions
+        # (representative of a single misplaced sensor).  The offset
+        # table must put the boundary deltas at the corresponding
+        # table positions.
+        shifts = [0.0, 0.06, -0.06, 0.0, 0.0, 0.0]  # fractions of cycle
+        boundaries = [(k / 6.0 + s) * 2 * math.pi
+                      for k, s in enumerate(shifts)]
+        table = ce.compute_hall_offset_table(boundaries, cpr=42)
+
+        # At table index i=1 the lookup falls almost entirely on
+        # delta_1: ratio=1.5/64, filtered=ratio*cpr=63/64, so frac is
+        # 63/64 and the lerp leaks 1/64 of delta_0.
+        delta_0 = shifts[0] * 2 * math.pi
+        delta_1 = shifts[1] * 2 * math.pi
+        frac = (1.5 / 64) * 42  # 63/64 exactly
+        expected = (1.0 - frac) * delta_0 + frac * delta_1
+        self.assertAlmostEqual(table[1], expected, places=10)
+
+    def test_find_hall_boundary_phases_missing_sectors_raises(self):
+        # Provide a sweep that only ever visits sectors 0, 1, 2 (too
+        # coarse a step skips the others) and check that the missing
+        # ones are reported by name in the error.
+        samples = [(0.0, 0), (1.0, 1), (2.0, 2),
+                   (3.0, 2), (4.0, 1), (5.0, 0)]
+        with self.assertRaises(RuntimeError) as cm:
+            ce.find_hall_boundary_phases(samples)
+        msg = str(cm.exception)
+        # Sectors 3, 4, 5 were never visited.
+        self.assertIn("3", msg)
+        self.assertIn("4", msg)
+        self.assertIn("5", msg)
+
+    def test_build_hall_offset_table_invert_matches_forward(self):
+        # The motor.offset[] table reflects the physical hall layout
+        # and therefore must be the same regardless of whether
+        # --cal-invert was requested.  Build a synthetic sweep that
+        # would yield a sign=-1 natural motor, then call
+        # build_hall_offset_table for both desired_direction and
+        # verify the tables match.
+        STEPS = 60
+        # Simulate a sign=-1 motor: as sweep phase advances,
+        # bits_count decreases through the canonical kHallMapping
+        # ordering.  bits values for canonical counts 0..5 are
+        # 1, 3, 2, 6, 4, 5.
+        canon = [1, 3, 2, 6, 4, 5]
+        hall_cal_data = []
+        for i in range(STEPS):
+            phase = i / STEPS * 2 * math.pi
+            count = (6 - int(phase / (2 * math.pi / 6))) % 6
+            hall_cal_data.append((phase, canon[count]))
+
+        cal_fwd = ce.calibrate_hall(
+            hall_cal_data, desired_direction=+1, allow_phase_invert=True)
+        cal_inv = ce.calibrate_hall(
+            hall_cal_data, desired_direction=-1, allow_phase_invert=True)
+        # Sanity: the two cal_results should differ in sign and
+        # phase_invert but otherwise agree.
+        self.assertEqual(cal_fwd.sign, -cal_inv.sign)
+        self.assertEqual(cal_fwd.phase_invert, 0)
+        self.assertEqual(cal_inv.phase_invert, 1)
+
+        table_fwd, _ = ce.build_hall_offset_table(
+            hall_cal_data, cal_fwd, poles=14)
+        table_inv, _ = ce.build_hall_offset_table(
+            hall_cal_data, cal_inv, poles=14)
+        for a, b in zip(table_fwd, table_inv):
+            self.assertAlmostEqual(a, b, places=10)
+
+    def test_find_hall_boundary_phases(self):
+        # Synthesise a perfectly-aligned scan: at 90 phase samples
+        # across [0, 2pi), the hall count steps cleanly every 15
+        # samples.  All 6 boundaries should be located at the ideal
+        # midpoints.
+        STEPS = 90
+        samples = []
+        for i in range(STEPS):
+            phase = i / STEPS * 2 * math.pi
+            sector = int(phase / (2 * math.pi / 6)) % 6
+            samples.append((phase, sector))
+        boundaries = ce.find_hall_boundary_phases(samples)
+        for k in range(6):
+            ideal = k * 2 * math.pi / 6
+            # Midpoint between samples (i-1) and i where the
+            # transition into sector k occurs.  With STEPS=90 and 6
+            # sectors, each sector spans 15 samples; the boundary
+            # at k=0 is found at samples (89, 0) so its midpoint
+            # wraps to the very start, which is fine.
+            err = ((boundaries[k] - ideal + math.pi) %
+                   (2 * math.pi)) - math.pi
+            self.assertLess(abs(err), 2 * math.pi / STEPS,
+                            f"boundary {k}: got {boundaries[k]}, "
+                            f"ideal {ideal}, err {err}")
+
+    def test_find_hall_boundary_phases_reverse(self):
+        # Same perfectly-aligned scan but with sectors going DOWN
+        # (5, 4, 3, ...) instead of UP.  The function must still
+        # locate every boundary at the correct phase.  In phase-sweep
+        # order boundary_phase[k] is the lower-phase edge of the
+        # contiguous "count == k" interval in either direction.
+        STEPS = 90
+        samples = []
+        for i in range(STEPS):
+            phase = i / STEPS * 2 * math.pi
+            sector = (6 - int(phase / (2 * math.pi / 6))) % 6
+            samples.append((phase, sector))
+        boundaries = ce.find_hall_boundary_phases(samples)
+        # With this synthetic scan, sector 0 occupies phase 0
+        # exactly, sector 5 starts at phase 2*pi/6, sector 4 at
+        # 4*pi/6, etc.  Verify each boundary lies within one sample
+        # step of its true location.
+        expected = {0: 0.0, 5: 2 * math.pi / 6, 4: 4 * math.pi / 6,
+                    3: 6 * math.pi / 6, 2: 8 * math.pi / 6,
+                    1: 10 * math.pi / 6}
+        tol = 2 * math.pi / STEPS
+        for k, want in expected.items():
+            err = ((boundaries[k] - want + math.pi) %
+                   (2 * math.pi)) - math.pi
+            self.assertLess(abs(err), tol,
+                            f"boundary {k}: got {boundaries[k]}, "
+                            f"want {want}, err {err}")
 
     def test_calibrate_optimizer_failure_records_message(self):
         # When scipy.optimize.minimize reports success=False, the
