@@ -352,6 +352,12 @@ The frequency to operate the I2C bus at.  Between 50000 and 400000.
 
 What I2C mode to use.
 
+## `aux[12].i2c.pullup`
+
+Configure I2C specific 2.2k pullup resistors on the I2C specific pins.
+If set, an error is reported for the aux port if configurable I2C
+pullups are not available on this auxiliary port for this board.
+
 ## `aux[12].i2c.devices.X.type`
 
 What I2C device to expect.
