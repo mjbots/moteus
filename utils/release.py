@@ -31,6 +31,11 @@ Bump types:
 
 When current is a pre-release, `patch` graduates it (1.0.0-rc.1 -> 1.0.0).
 
+Firmware and cpp use semver pre-release suffixes (1.0.0-rc.1).  The python
+package must use normalized PEP 440 forms instead (1.0.0rc1, 1.0.0b1,
+1.0.0.dev1); a non-normalized python version is rejected because PyPI and
+the bazel wheel build name artifacts by the normalized form.
+
 For firmware, MOTEUS_FIRMWARE_VERSION is bumped during feature work
 (alongside SUPPORTED_ABI_VERSION in moteus_tool.py and any matching
 upgrade rules).  This script never modifies it; it only validates that
@@ -103,8 +108,9 @@ def compute_new_version(current, bump):
         # Works for both semver (1.0.0-rc.1) and PEP 440 (1.0.0rc1) forms.
         if not suffix:
             sys.exit(f'current {current!r} has no pre-release suffix; '
-                     f'use an explicit version to start one '
-                     f'(e.g. {major}.{minor}.{patch+1}-rc.1)')
+                     f'use an explicit version to start one (e.g. '
+                     f'{major}.{minor}.{patch+1}-rc.1, or '
+                     f'{major}.{minor}.{patch+1}rc1 for python)')
         m2 = re.match(r'^(.*?)(\d+)$', suffix)
         if not m2:
             sys.exit(f'pre-release {suffix!r} has no numeric tail to bump')
@@ -142,6 +148,37 @@ def validate_firmware_abi(constant_packed, constant_version, new_version):
         )
 
 
+def validate_python_version(version):
+    """Reject python versions that are not in normalized PEP 440 form.
+
+    `python3 -m build` (and PyPI) name the wheel and sdist using the
+    PEP 440 *normalized* version, but the genrule in lib/python/BUILD
+    declares its output filenames straight from the raw VERSION string.
+    If VERSION is a non-normalized spelling such as the semver-style
+    '1.0.0-rc1', the declared outputs ('moteus-1.0.0-rc1-*') never match
+    what build produces ('moteus-1.0.0rc1-*') and `tools/bazel test
+    //:host` fails with "declared output ... was not created by genrule".
+
+    Firmware and cpp keep using semver, so this check is python-only.
+    """
+    try:
+        from packaging.version import Version, InvalidVersion
+    except ImportError:
+        sys.exit('python releases need the `packaging` module to validate '
+                 'the version (apt install python3-packaging)')
+    try:
+        normalized = str(Version(version))
+    except InvalidVersion:
+        sys.exit(f'{version!r} is not a valid PEP 440 version')
+    if normalized != version:
+        sys.exit(
+            f'\nERROR: python version {version!r} is not normalized PEP 440.'
+            f'\n\nPyPI and the bazel wheel build name artifacts by the '
+            f'normalized form, so\nthis spelling would break the build.  Use '
+            f'{normalized!r} instead:\n\n'
+            f'    utils/release.py python {normalized}\n')
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -173,6 +210,9 @@ def main():
     print(f'Current {args.component} version: {current}')
     new = compute_new_version(current, args.bump)
     print(f'New     {args.component} version: {new}')
+
+    if args.component == 'python':
+        validate_python_version(new)
 
     tag = f'{tag_prefix}{new}'
     if git('rev-parse', '-q', '--verify', f'refs/tags/{tag}',

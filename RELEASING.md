@@ -10,8 +10,11 @@ prefixed by component:
 | python    | `tools/python.bzl` (`VERSION`)          | `python/v...`    |
 | cpp       | `CMakeLists.txt` (`project(... VERSION ...)`) | `cpp/v...`  |
 
-Pre-releases use semver suffixes (`1.0.0-rc.1`, `1.0.0-beta.1`). For firmware,
-the on-wire version (register 0x101) is the packed `MAJOR.MINOR.PATCH` only,
+Firmware and cpp pre-releases use semver suffixes (`1.0.0-rc.1`,
+`1.0.0-beta.1`); the python package uses normalized PEP 440 forms instead
+(`1.0.0rc1`, see [Python version strings](#python-version-strings)). For
+firmware, the on-wire version (register 0x101) is the packed
+`MAJOR.MINOR.PATCH` only,
 so a `-rc.N` build of `1.0.0` reports exactly the same value over CAN as the
 final `1.0.0`. They are ABI-equivalent on purpose; the build identity comes
 from `fw/git_info.h` (commit SHA + dirty flag + timestamp).
