@@ -77,7 +77,7 @@ motor_position.sources.1.aux_number 1
 motor_position.sources.1.type 2          # uart
 motor_position.sources.1.cpr 4194304     # used by moteus for all AksIM-2
 motor_position.sources.1.reference 1     # output
-motor_position.output_source 1
+motor_position.output.source 1
 ```
 
 The sign and offset of the AksIM-2 will need to be matched to the onboard encoder as per [the above section](#match).
