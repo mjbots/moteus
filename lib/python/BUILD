@@ -78,5 +78,4 @@ sh_test(
         "//lib/python/moteus:py.typed",
     ],
     size = "small",
-    tags = ["local"],
 )
