@@ -60,3 +60,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 ### Unreleased
 
 (no entries yet)
+
+#### 1.0.0
+
+* First semver based release.
