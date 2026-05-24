@@ -19,7 +19,7 @@ classifiers = [
 ]
 dependencies = [
     "asyncqt>=0.8",
-    "moteus~=0.3.92",
+    "moteus>=1.0",
     "matplotlib>=3.9",
     # For some reason, matplotlib can barf without this, but
     # doesn't actually list it as a dependency on Windows.
