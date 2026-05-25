@@ -31,6 +31,7 @@ filegroup(
     name = "datafiles",
     srcs = [
         "__init__.py",
+        "python_console_ast.py",
         "registernoop.py",
         "version.py",
 
