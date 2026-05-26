@@ -232,7 +232,7 @@ class FirmwareUpgrade:
                         0 : b'450.0',
                         1 : b'450.0',
                         2 : b'100.0',
-                        }[self.board_family or 0]
+                        }.get(self.board_family or 0, b'nan')
                 else:
                     # If it was finite, then we'll try to set it
                     # appropriately based on what the PWM rate was.
@@ -598,10 +598,14 @@ class FirmwareUpgrade:
                     0 : 450.0,
                     1 : 450.0,
                     2 : 100.0,
-                }[self.board_family or 0]
+                }.get(self.board_family or 0)
 
                 old_max_power = float(items[b'servo.max_power_W'])
-                if old_max_power == board_default:
+                # x1 (family 3) and any future board defaulted max_power_W to
+                # the built-in board limit (a non-finite value); a value equal
+                # to a known family's old default also maps to the new
+                # board-limit default.  Both become NaN.
+                if not math.isfinite(old_max_power) or old_max_power == board_default:
                     items[b'servo.max_power_W'] = b'nan'
                 else:
                     pwm_rate = float(items.get(b'servo.pwm_rate_hz', 40000))

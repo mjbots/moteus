@@ -123,6 +123,13 @@ py_test(
 )
 
 py_test(
+    name = "moteus_tool_test",
+    srcs = ["test/moteus_tool_test.py"],
+    deps = [":moteus"],
+    size = "small",
+)
+
+py_test(
     name = "protocol_test",
     srcs = ["test/protocol_test.py"],
     deps = [":moteus"],
@@ -203,6 +210,7 @@ test_suite(
         ":fdcanusb_test",
         ":ld_saturation_test",
         ":moteus_test",
+        ":moteus_tool_test",
         ":multiplex_test",
         ":protocol_test",
         ":reader_test",
