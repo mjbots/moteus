@@ -246,7 +246,7 @@ class Drv8323 : public MotorDriver {
           (g_measured_hw_rev <= 7) ? 50 :
           100) :
         g_measured_hw_family == 1 ? 150 :
-        g_measured_hw_family == 2 ? 80 :
+        g_measured_hw_family == 2 ? 60 :
         g_measured_hw_family == 3 ? 300 :
         invalid_int();
     uint16_t idriven_hs_ma =
@@ -254,8 +254,8 @@ class Drv8323 : public MotorDriver {
          ((g_measured_hw_rev <= 6) ? 740 :
           (g_measured_hw_rev <= 7) ? 100 :
           200) :
-        g_measured_hw_family == 1 ? 300 :
-        g_measured_hw_family == 2 ? 60 :
+        g_measured_hw_family == 1 ? 200 :
+        g_measured_hw_family == 2 ? 20 :
         g_measured_hw_family == 3 ? 200 :
         invalid_int();
 
@@ -275,11 +275,11 @@ class Drv8323 : public MotorDriver {
     uint16_t idriven_ls_ma =
         g_measured_hw_family == 0 ?
          ((g_measured_hw_rev <= 6) ? 740 :
-          (g_measured_hw_rev <= 7) ? 100 :
-          200) :
-        g_measured_hw_family == 1 ? 300 :
+          (g_measured_hw_rev <= 7) ? 200 :
+          600) :
+        g_measured_hw_family == 1 ? 100 :
         g_measured_hw_family == 2 ? 20 :
-        g_measured_hw_family == 3 ? 600 :
+        g_measured_hw_family == 3 ? 1200 :
         invalid_int();
 
 
@@ -295,7 +295,7 @@ class Drv8323 : public MotorDriver {
         g_measured_hw_family == 3 ? 50 :
         invalid_int();
     OcpMode ocp_mode = OcpMode::kLatchedFault;
-    uint8_t ocp_deg_us = 4;  // valid options of 2, 4, 6, 8
+    uint8_t ocp_deg_us = 4;
 
     // hw rev 6 boards and later use a FET with roughly double the
     // Rdson.  We set a threshold that will trip only if we get well
@@ -306,7 +306,7 @@ class Drv8323 : public MotorDriver {
           (g_measured_hw_rev <= 7) ? 450 :
           700) :
         g_measured_hw_family == 1 ? 700 :
-        g_measured_hw_family == 2 ? 700 :
+        g_measured_hw_family == 2 ? 940 :
         g_measured_hw_family == 3 ? 700 :
         invalid_int();
 

@@ -186,8 +186,25 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion);
 //
 // No functional changes.  ABI release 1.0.0
 
+// # 0x010100
+//
+// * The drv8323_conf reg4 calculation now maps idriven_ls_ma through the
+//   DRV8353 pull-down (idriven) table instead of the pull-up (idrivep)
+//   table.  DRV8353-board idriven_ls_ma defaults were adjusted and
+//   moteus_tool migrates stored configs so the gate-drive register
+//   output is unchanged across the upgrade.
+// * The gate-driver family routing was corrected: moteus-c1 (family 2,
+//   a DRV8323) now uses the drv8323 register path and moteus-n1
+//   (family 1, a DRV8353) uses the drv8353 register path.  These were
+//   swapped by an inadvertent "family == 1" clause in the c1-support
+//   commit.  c1's defaults are adjusted (and configs migrated) to keep
+//   its register output unchanged; n1's register output is restored to
+//   what it was before the c1-support commit.
+//
+// ABI release 1.1.0
+
 #define MOTEUS_MODEL_NUMBER 0x0000
-#define MOTEUS_FIRMWARE_VERSION 0x010000
+#define MOTEUS_FIRMWARE_VERSION 0x010100
 
 extern MoteusHwPins g_hw_pins;
 

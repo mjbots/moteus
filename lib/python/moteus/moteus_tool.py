@@ -121,11 +121,91 @@ class MoteusFault(RuntimeError):
             f"Controller reported fault: {int(self.fault_code)}")
 
 
-SUPPORTED_ABI_VERSION = 0x010000
+SUPPORTED_ABI_VERSION = 0x010100
 
 # Old firmwares used a slightly incorrect definition of Kv/v_per_hz
 # that didn't match with vendors or oscilloscope tests.
 V_PER_HZ_FUDGE_010a = 1.09
+
+
+# The DRV8323/DRV8353 gate-drive register tables, copied verbatim from
+# fw/drv8323.cc.  They are used by the 0x010100 migration to keep the
+# gate-drive register codes unchanged when idriven_ls_ma stops using the
+# wrong table and when the moteus-c1/n1 register paths are corrected.
+IDRIVEP_TABLE_DRV8323 = [
+    10, 30, 60, 80, 120, 140, 170, 190,
+    260, 330, 370, 440, 570, 680, 820, 1000,
+]
+IDRIVEP_TABLE_DRV8353 = [
+    50, 50, 100, 150, 300, 350, 400, 450,
+    550, 600, 650, 700, 850, 900, 950, 1000,
+]
+IDRIVEN_TABLE_DRV8323 = [
+    20, 60, 120, 160, 240, 280, 340, 380,
+    520, 660, 740, 880, 1140, 1360, 1640, 2000,
+]
+IDRIVEN_TABLE_DRV8353 = [
+    100, 100, 200, 300, 600, 700, 800, 900,
+    1100, 1200, 1300, 1400, 1700, 1800, 1900, 2000,
+]
+DEGLITCH_TABLE_DRV8323 = [2, 4, 6, 8]
+DEGLITCH_TABLE_DRV8353 = [1, 2, 4, 8]
+VDS_LVL_TABLE_DRV8323 = [
+    60, 130, 200, 260, 310, 450, 530, 600,
+    680, 750, 940, 1130, 1300, 1500, 1700, 1880,
+]
+VDS_LVL_TABLE_DRV8353 = [
+    60, 70, 80, 90, 100, 200, 300, 400,
+    500, 600, 700, 800, 900, 1000, 1500, 2000,
+]
+
+
+def _map_choice(table, ma):
+    '''Mirror the firmware's drv8323.cc map_choice: return the first index
+    whose table value is >= ma, else the last index.'''
+    for i, value in enumerate(table):
+        if ma <= value:
+            return i
+    return len(table) - 1
+
+
+# moteus-n1 (family 1) gate-drive defaults.  Through 0x010e n1 was (wrongly)
+# on the DRV8323 register path; 0x010100 returns it to the DRV8353 path and
+# adopts more conservative defaults.  Each entry is (field, default_value,
+# table on that firmware's path) so an "untouched" board can be recognized by
+# its register codes rather than by exact config values.
+N1_OLD_DEFAULTS = [
+    ('idrivep_hs_ma', 150, IDRIVEP_TABLE_DRV8323),
+    ('idriven_hs_ma', 300, IDRIVEN_TABLE_DRV8323),
+    ('idrivep_ls_ma', 150, IDRIVEP_TABLE_DRV8323),
+    ('idriven_ls_ma', 300, IDRIVEN_TABLE_DRV8323),
+]
+N1_NEW_DEFAULTS = [
+    ('idrivep_hs_ma', 150, IDRIVEP_TABLE_DRV8353),
+    ('idriven_hs_ma', 200, IDRIVEN_TABLE_DRV8353),
+    ('idrivep_ls_ma', 150, IDRIVEP_TABLE_DRV8353),
+    ('idriven_ls_ma', 100, IDRIVEN_TABLE_DRV8353),
+]
+
+
+def _at_drv8323_defaults(items, defaults):
+    '''True if every drv8323_conf field is present and maps to the same
+    register index as the default value -- i.e. the gate drive looks like it
+    was never modified.'''
+    for field, default, table in defaults:
+        key = b'drv8323_conf.' + field.encode('utf8')
+        if key not in items:
+            return False
+        if (_map_choice(table, int(float(items[key]))) !=
+                _map_choice(table, default)):
+            return False
+    return True
+
+
+def _set_drv8323_defaults(items, defaults):
+    for field, default, _table in defaults:
+        items[b'drv8323_conf.' + field.encode('utf8')] = str(default).encode('utf8')
+
 
 class FirmwareUpgrade:
     '''This encodes "magic" rules about upgrading firmware, largely about
@@ -133,10 +213,11 @@ class FirmwareUpgrade:
     change upon firmware changes.
     '''
 
-    def __init__(self, old, new, board_family):
+    def __init__(self, old, new, board_family, board_hwrev=None):
         self.old = old
         self.new = new
         self.board_family = board_family
+        self.board_hwrev = board_hwrev
 
         if new > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this firmware\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe provided firmare is ABI version 0x{new:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
@@ -144,9 +225,85 @@ class FirmwareUpgrade:
         if old > SUPPORTED_ABI_VERSION:
             raise RuntimeError(f"\nmoteus_tool needs to be upgraded to support this board\n\n (likely 'python -m pip install --upgrade moteus')\n\nThe board firmware is ABI version 0x{old:04x} but this moteus_tool only supports up to 0x{SUPPORTED_ABI_VERSION:04x}")
 
+    def _fixed_path_is_drv8353(self):
+        '''Whether firmware >= 0x010100 programs this board through the
+        DRV8353 gate-drive tables.  Mirrors the corrected drv8323.cc
+        boolean: family 0 rev<=6 and family 2 (moteus-c1) use the DRV8323
+        path, everything else (family 0 rev>=7, n1, x1) uses the DRV8353
+        path.'''
+        family = self.board_family or 0
+        if family == 0:
+            if self.board_hwrev is None:
+                # hwrev has been reported since 2020; if it is somehow
+                # missing assume an older board which were only r4.5's
+                # using drv8323.
+                return False
+            return self.board_hwrev >= 7
+        if family == 2:
+            return False
+        return True
+
     def fix_config(self, old_config):
         lines = old_config.split(b'\n')
         items = dict([line.split(b' ') for line in lines if b' ' in line])
+
+        def remap_drv8323(key, old_table, new_table):
+            # Rewrite drv8323_conf.<key> so the firmware being flashed selects
+            # the same register index the current firmware did.  If the value
+            # already encodes that index under the new table, leave it alone:
+            # otherwise it would needlessly snap to the canonical table entry
+            # and not round-trip across an upgrade/downgrade pair.
+            full_key = b'drv8323_conf.' + key
+            if full_key not in items:
+                return
+            old_value = int(float(items[full_key]))
+            target = _map_choice(old_table, old_value)
+            if _map_choice(new_table, old_value) == target:
+                return
+            new_value = new_table[target]
+            items[full_key] = str(new_value).encode('utf8')
+            print(f"Remapped {full_key.decode('utf8')} "
+                  f"{old_value} -> {new_value} for 0x010100")
+
+        if self.new <= 0x010000 and self.old >= 0x010100:
+            # Downgrade across the 0x010100 boundary.  Invert the
+            # idriven_ls_ma table fix and the moteus-c1/n1 path
+            # correction (see the upgrade block below for rationale).
+            family = self.board_family or 0
+            if family == 2:
+                remap_drv8323(b'idrivep_hs_ma',
+                              IDRIVEP_TABLE_DRV8323, IDRIVEP_TABLE_DRV8353)
+                remap_drv8323(b'idriven_hs_ma',
+                              IDRIVEN_TABLE_DRV8323, IDRIVEN_TABLE_DRV8353)
+                remap_drv8323(b'idrivep_ls_ma',
+                              IDRIVEP_TABLE_DRV8323, IDRIVEP_TABLE_DRV8353)
+                remap_drv8323(b'idriven_ls_ma',
+                              IDRIVEN_TABLE_DRV8323, IDRIVEP_TABLE_DRV8353)
+                # ocp_deg_us is intentionally not remapped (see the
+                # upgrade block).
+                remap_drv8323(b'vds_lvl_mv',
+                              VDS_LVL_TABLE_DRV8323, VDS_LVL_TABLE_DRV8353)
+            elif family == 1:
+                # moteus-n1 returns from the DRV8353 path to the (incorrect)
+                # DRV8323 path that pre-0x010100 firmware used.  If the gate
+                # drive still looks like the 0x010100 defaults, restore the
+                # older defaults; otherwise preserve the register codes.
+                if _at_drv8323_defaults(items, N1_NEW_DEFAULTS):
+                    _set_drv8323_defaults(items, N1_OLD_DEFAULTS)
+                    print("moteus-n1 gate drive at defaults; restoring "
+                          "pre-0x010100 defaults")
+                else:
+                    remap_drv8323(b'idrivep_hs_ma',
+                                  IDRIVEP_TABLE_DRV8353, IDRIVEP_TABLE_DRV8323)
+                    remap_drv8323(b'idriven_hs_ma',
+                                  IDRIVEN_TABLE_DRV8353, IDRIVEN_TABLE_DRV8323)
+                    remap_drv8323(b'idrivep_ls_ma',
+                                  IDRIVEP_TABLE_DRV8353, IDRIVEP_TABLE_DRV8323)
+                    remap_drv8323(b'idriven_ls_ma',
+                                  IDRIVEN_TABLE_DRV8353, IDRIVEN_TABLE_DRV8323)
+            elif self._fixed_path_is_drv8353():
+                remap_drv8323(b'idriven_ls_ma',
+                              IDRIVEN_TABLE_DRV8353, IDRIVEP_TABLE_DRV8353)
 
         if self.new <= 0x010e and self.old >= 0x010000:
             # Nothing to do here.
@@ -709,6 +866,58 @@ class FirmwareUpgrade:
             # Nothing to do.
             pass
 
+        if self.new >= 0x010100 and self.old <= 0x010000:
+            # 0x010100 corrected the reg4 idriven_ls_ma calculation to use
+            # the DRV8353 pull-down (idriven) table and corrected the
+            # gate-driver family routing (moteus-c1 to the DRV8323 path,
+            # moteus-n1 to the DRV8353 path).  Remap the affected
+            # gate-drive config so the same register codes are written.
+            family = self.board_family or 0
+            if family == 2:
+                # moteus-c1 moves from the DRV8353 path to the DRV8323
+                # path.  Preserve every config-driven gate-drive register
+                # code (idriven_ls_ma was additionally on the wrong
+                # DRV8353 table, hence its IDRIVEP source).
+                remap_drv8323(b'idrivep_hs_ma',
+                              IDRIVEP_TABLE_DRV8353, IDRIVEP_TABLE_DRV8323)
+                remap_drv8323(b'idriven_hs_ma',
+                              IDRIVEN_TABLE_DRV8353, IDRIVEN_TABLE_DRV8323)
+                remap_drv8323(b'idrivep_ls_ma',
+                              IDRIVEP_TABLE_DRV8353, IDRIVEP_TABLE_DRV8323)
+                remap_drv8323(b'idriven_ls_ma',
+                              IDRIVEP_TABLE_DRV8353, IDRIVEN_TABLE_DRV8323)
+                # ocp_deg_us is intentionally not preserved: the c1
+                # firmware default stays at 4, so all c1 boards use the
+                # same 4us deglitch rather than the 6us it ran while
+                # mis-routed on the drv8353 path.
+                remap_drv8323(b'vds_lvl_mv',
+                              VDS_LVL_TABLE_DRV8353, VDS_LVL_TABLE_DRV8323)
+            elif family == 1:
+                # moteus-n1 moves from the (incorrect) DRV8323 path back to
+                # the DRV8353 path.  If the gate drive is untouched (every
+                # field maps to the old default's register code) adopt the
+                # new, more conservative 0x010100 defaults; otherwise preserve
+                # the register codes across the path change.
+                if _at_drv8323_defaults(items, N1_OLD_DEFAULTS):
+                    _set_drv8323_defaults(items, N1_NEW_DEFAULTS)
+                    print("moteus-n1 gate drive at defaults; adopting new "
+                          "conservative defaults for 0x010100")
+                else:
+                    remap_drv8323(b'idrivep_hs_ma',
+                                  IDRIVEP_TABLE_DRV8323, IDRIVEP_TABLE_DRV8353)
+                    remap_drv8323(b'idriven_hs_ma',
+                                  IDRIVEN_TABLE_DRV8323, IDRIVEN_TABLE_DRV8353)
+                    remap_drv8323(b'idrivep_ls_ma',
+                                  IDRIVEP_TABLE_DRV8323, IDRIVEP_TABLE_DRV8353)
+                    remap_drv8323(b'idriven_ls_ma',
+                                  IDRIVEN_TABLE_DRV8323, IDRIVEN_TABLE_DRV8353)
+            elif self._fixed_path_is_drv8353():
+                # Boards that remain on the DRV8353 path (family 0 rev>=7 and
+                # x1) only need idriven_ls_ma corrected from the IDRIVEP table
+                # to the IDRIVEN table.
+                remap_drv8323(b'idriven_ls_ma',
+                              IDRIVEP_TABLE_DRV8353, IDRIVEN_TABLE_DRV8353)
+
         lines = [key + b' ' + value for key, value in items.items()]
         return b'\n'.join(lines)
 
@@ -1140,7 +1349,8 @@ class Stream:
             if old_firmware is None else
             old_firmware.version,
             elf.firmware_version,
-            None if old_firmware is None else getattr(old_firmware, 'family', 0)
+            None if old_firmware is None else getattr(old_firmware, 'family', 0),
+            None if old_firmware is None else getattr(old_firmware, 'hwrev', None)
         )
 
         if not self.args.bootloader_active and not self.args.no_restore_config:

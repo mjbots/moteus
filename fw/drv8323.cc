@@ -220,7 +220,10 @@ class Drv8323::Impl {
       config_.idrivep_hs_ma = std::min<uint16_t>(config_.idrivep_hs_ma, 50);
       config_.idriven_hs_ma = std::min<uint16_t>(config_.idriven_hs_ma, 100);
       config_.idrivep_ls_ma = std::min<uint16_t>(config_.idrivep_ls_ma, 50);
-      config_.idriven_ls_ma = std::min<uint16_t>(config_.idriven_ls_ma, 100);
+      // 200 maps to the same drv8353 IDRIVEN_LS register code (index 2)
+      // as the old "100" clamp did under the previous, incorrect reg4
+      // table, so the physical sink drive is unchanged.
+      config_.idriven_ls_ma = std::min<uint16_t>(config_.idriven_ls_ma, 200);
     } else {
       // hw rev 8 (silk 4.10) has improved layout and an additional
       // gate drive resistor, it will likely not be damaged at up to
@@ -269,9 +272,11 @@ class Drv8323::Impl {
       return (val ? 1 : 0) << pos;
     };
 
+    // moteus-r4.5 and earlier (family 0 hwrev <=6), and the moteus-c1
+    // (family 2) both use the drv8323.
     const bool drv8323 =
         (g_measured_hw_family == 0 && g_measured_hw_rev <= 6) ||
-        (g_measured_hw_family == 1);
+        (g_measured_hw_family == 2);
 
     constexpr uint16_t idrivep_table_drv8323[] = {
       10, 30, 60, 80, 120, 140, 170, 190,
@@ -361,7 +366,7 @@ class Drv8323::Impl {
         (map_choice(tdrive_ns_table, config_.tdrive_ns) << 8) |
         (map_choice(drv8323 ? idrivep_table_drv8323 : idrivep_table_drv8353,
                     config_.idrivep_ls_ma) << 4) |
-        (map_choice(drv8323 ? idriven_table_drv8323 : idrivep_table_drv8353,
+        (map_choice(drv8323 ? idriven_table_drv8323 : idriven_table_drv8353,
                     config_.idriven_ls_ma) << 0);
 
     const uint16_t reg5 =
