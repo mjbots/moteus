@@ -44,6 +44,7 @@ cc_library(
         "stm32_i2c_timing.h",
         "strtof.h",
         "bissc_extract.h",
+        "aksim2_validator.h",
     ],
     srcs = [
         "foc.cc",
@@ -218,6 +219,7 @@ cc_test(
         "test/motor_position_test.cc",
         "test/stm32_i2c_timing_test.cc",
         "test/bissc_extract_test.cc",
+        "test/aksim2_validator_test.cc",
         "test/torque_model_test.cc",
         "test/test_main.cc",
     ],
