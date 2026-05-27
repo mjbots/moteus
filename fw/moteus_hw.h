@@ -25,6 +25,7 @@ namespace moteus {
 //  moteus    - family 0
 //  moteus-n1 - family 1
 //  moteus-c1 - family 2
+//  moteus-x1 - family 3
 //
 // Each family has an independent hardware version timeline, and
 // possibly a different mechanism for verifying hardware version
