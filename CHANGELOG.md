@@ -65,6 +65,6 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 (no entries yet)
 
-#### 1.0.0
+#### 1.0.0 - 2026-05-28
 
 * First semver based release.
