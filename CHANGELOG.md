@@ -44,6 +44,10 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Unreleased
 
+(no entries yet)
+
+### 1.0.0 - 2026-05-28
+
 #### Improvements
 
 - `moteus_tool --calibrate` for controllers configured for hall commutation now calibrate a fine position for each hall transition, which improves performance and consistency for hall based configurations
