@@ -11,7 +11,7 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 (no entries yet)
 
-### 1.0.0 - YYYY-MM-DD
+### 1.0.0 - 2026-05-28
 
 #### Firmware improvements
 
