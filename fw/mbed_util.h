@@ -28,6 +28,21 @@ inline PinMode MbedMapPull(aux::Pin::Pull pull) {
   return PullNone;
 }
 
+// Like MbedMapPull, but maps to the open-drain PinMode variants.  Use
+// this for pins that must remain open-drain (e.g. I2C SDA/SCL): mbed's
+// pin_mode() forces a push-pull output type for the plain
+// PullUp/PullDown/PullNone modes on an alternate-function pin, which
+// would break an open-drain bus.
+inline PinMode MbedMapPullOpenDrain(aux::Pin::Pull pull) {
+  switch (pull) {
+    case aux::Pin::kNone: { return OpenDrainNoPull; }
+    case aux::Pin::kPullUp: { return OpenDrainPullUp; }
+    case aux::Pin::kPullDown: { return OpenDrainPullDown; }
+    case aux::Pin::kOpenDrain: { return OpenDrainNoPull; }
+  }
+  return OpenDrainNoPull;
+}
+
 /// Figure out which mbed alt pin is associated with the given STM32
 /// timer.
 inline PinName FindTimerAlt(PinName pin, TIM_TypeDef* timer) {

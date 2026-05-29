@@ -969,6 +969,10 @@ class AuxPort {
     if (any_i2c) {
       PinName sda = NC;
       PinName scl = NC;
+      // The per-pin pull configuration for whichever connector pins map
+      // to SDA and SCL, applied as the STM32 internal pull below.
+      aux::Pin::Pull sda_pull = aux::Pin::kNone;
+      aux::Pin::Pull scl_pull = aux::Pin::kNone;
       for (size_t i = 0; i < pin_count_; i++) {
         if (config_.pins[i].mode != aux::Pin::Mode::kI2C) { continue; }
 
@@ -982,9 +986,11 @@ class AuxPort {
             const PinName mbed_pin = static_cast<PinName>(pin.mbed | alt);
             if (pinmap_find_peripheral(mbed_pin, PinMap_I2C_SCL) == int_i2c) {
               scl = mbed_pin;
+              scl_pull = config_.pins[i].pull;
               break;
             } else if (pinmap_find_peripheral(mbed_pin, PinMap_I2C_SDA) == int_i2c) {
               sda = mbed_pin;
+              sda_pull = config_.pins[i].pull;
               break;
             }
           }
@@ -1018,6 +1024,13 @@ class AuxPort {
             options.timer = timer_;
             return options;
           }());
+
+      // mbed's i2c_init() leaves SDA/SCL with no internal pull; apply
+      // the per-pin pull configuration now.  The open-drain variants
+      // preserve the open-drain output type the bus requires.
+      pin_mode(sda, MbedMapPullOpenDrain(sda_pull));
+      pin_mode(scl, MbedMapPullOpenDrain(scl_pull));
+
       updated_any_isr = true;
     }
 
