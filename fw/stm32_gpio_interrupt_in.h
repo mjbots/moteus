@@ -83,10 +83,9 @@ class Stm32GpioInterruptIn {
   Stm32GpioInterruptIn(PinName pin, Callback* entry)
       : pin_(pin),
         entry_(entry) {
+    // GPIO port clocks are enabled centrally in SetupClock(); only the
+    // SYSCFG clock (for EXTI line muxing) is needed locally here.
     __HAL_RCC_SYSCFG_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_GPIOC_CLK_ENABLE();
 
     const uint32_t port_index = STM_PORT(pin);
     const uint32_t pin_index = STM_PIN(pin);

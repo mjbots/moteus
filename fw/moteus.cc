@@ -117,6 +117,17 @@ void SetupClock() {
     __HAL_RCC_TIM2_CLK_ENABLE();
     __HAL_RCC_TIM3_CLK_ENABLE();
     __HAL_RCC_TIM4_CLK_ENABLE();
+
+    // Enable all GPIO port clocks centrally.  Code that manipulates
+    // GPIO registers directly then does not need to enable them
+    // individually.
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    // Our current parts have no pins on D or E
+    // __HAL_RCC_GPIOD_CLK_ENABLE();
+    // __HAL_RCC_GPIOE_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
   }
 #endif
 }
