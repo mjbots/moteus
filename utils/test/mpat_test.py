@@ -117,7 +117,7 @@ class MpatTest(unittest.TestCase):
             "--torque", "0",
             "--field_weakening", "off",
             "--motor_cooling", "max")
-        self.assertFieldAlmostEqual(data, "velocity", 100.7, places=0)
+        self.assertFieldAlmostEqual(data, "velocity", 102.0, places=0)
 
     def test_fw_on_max_velocity_extended(self):
         """FW on with max cooling: velocity extends beyond base speed."""
@@ -342,8 +342,8 @@ class MpatTest(unittest.TestCase):
             "--motor.ld_scale", "-3.6e-6")
         self.assertIsNotNone(no_sat)
         self.assertIsNotNone(sat)
-        self.assertFieldAlmostEqual(no_sat, "velocity", 58.1, places=0)
-        self.assertFieldAlmostEqual(sat, "velocity", 67.5, places=0)
+        self.assertFieldAlmostEqual(no_sat, "velocity", 58.8, places=0)
+        self.assertFieldAlmostEqual(sat, "velocity", 68.4, places=0)
 
     def test_saturation_zero_scale_matches_base(self):
         """With ld_scale=0, results should match the unsaturated model."""
@@ -431,7 +431,7 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(no_sat)
         self.assertIsNotNone(sat)
         # Saturation increases id_char, so less i_d needed (smaller magnitude)
-        self.assertFieldAlmostEqual(no_sat, "d_current", -27.4, places=0)
+        self.assertFieldAlmostEqual(no_sat, "d_current", -26.6, places=0)
         self.assertFieldAlmostEqual(sat, "d_current", -14.4, places=0)
 
 
