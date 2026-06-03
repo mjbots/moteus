@@ -29,6 +29,7 @@ test_suite(
         "//lib/rust/moteus:moteus-doc-test",
         "//lib/rust/moteus:moteus-doc-test-all-features",
         "//lib/rust:clippy",
+        "//lib/rust:examples",
         "//lib/rust:rustdoc",
         "//lib/rust:fmt",
     ],
@@ -65,6 +66,24 @@ sh_test(
     data = [
         "//lib/rust/moteus-protocol:moteus-protocol-doc",
         "//lib/rust/moteus:moteus-doc",
+    ],
+    size = "small",
+)
+
+# Ensure all example binaries build.
+# Wrapped in sh_test so they build as part of the test suite.
+sh_test(
+    name = "examples",
+    srcs = ["clippy_test.sh"],
+    data = [
+        ":bandwidth_test",
+        ":diagnostic_protocol",
+        ":discover",
+        ":gpio",
+        ":move_to",
+        ":multiservo",
+        ":protocol_only",
+        ":simple",
     ],
     size = "small",
 )
