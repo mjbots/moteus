@@ -26,6 +26,7 @@ rust_clippy(
 rust_proc_macro(
     name = "moteus-derive",
     srcs = ["src/lib.rs"],
+    compile_data = ["README.md"],
     crate_name = "moteus_derive",
     edition = "2021",
     deps = [

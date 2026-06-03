@@ -191,7 +191,7 @@ ctrl.query_format.torque = Resolution::Int16;
 
 ## Supported Transports
 
-- **FdCanUSB**: USB-to-CAN adapter (serial CDC)
+- **fdcanusb**: USB-to-CAN adapter (serial CDC)
 - **SocketCAN**: Linux kernel CAN interface
 
 ## Building with Bazel
@@ -200,3 +200,9 @@ ctrl.query_format.torque = Resolution::Int16;
 tools/bazel build //lib/rust/moteus
 tools/bazel test //lib/rust:host
 ```
+
+## Versions prior to 0.5.0
+
+Versions of this crate prior to 0.5.0 were developed independently by
+Omelia Iliffe.  The source for those versions can be found at:
+[https://github.com/omelia-iliffe/moteus-rs](https://github.com/omelia-iliffe/moteus-rs)

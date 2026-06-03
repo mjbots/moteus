@@ -12,34 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # moteus-protocol
-//!
-//! Low-level protocol types for moteus brushless motor controllers.
-//!
-//! This crate provides `no_std` compatible types for encoding and decoding
-//! CAN-FD frames used to communicate with moteus controllers. It is designed
-//! to be usable on embedded systems without an allocator, as well as in
-//! standard environments.
-//!
-//! ## Example
-//!
-//! ```rust
-//! use moteus_protocol::{Register, Mode, Resolution, CanFdFrame};
-//! use moteus_protocol::command::PositionCommand;
-//! use moteus_protocol::query::QueryFormat;
-//!
-//! // Build a position command frame
-//! let mut frame = CanFdFrame::new();
-//! let cmd = PositionCommand::new()
-//!     .position(0.5)
-//!     .velocity(1.0);
-//! cmd.serialize(&mut frame, &Default::default());
-//!
-//! // Add a query for telemetry
-//! let query = QueryFormat::default();
-//! query.serialize(&mut frame);
-//! ```
-
+#![doc = include_str!("../README.md")]
 #![no_std]
 
 mod frame;

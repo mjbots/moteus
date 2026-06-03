@@ -21,6 +21,7 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "moteus-protocol",
     srcs = glob(["src/**/*.rs"]),
+    compile_data = ["README.md"],
     crate_name = "moteus_protocol",
     edition = "2021",
     rustc_flags = ["-D", "warnings"],
