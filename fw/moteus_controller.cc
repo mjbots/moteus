@@ -487,7 +487,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    g_measured_hw_family != 3 ?
                    AuxPort::kDefaultOnboardSpi :
                    AuxPort::kDefaultOnboardMa600,
-                   (g_measured_hw_family == 2 ||
+                   (g_measured_hw_family == 1 ||
                     g_measured_hw_family == 3) ?
                    AuxPort::kDefaultUartSerial : AuxPort::kDefaultUartDisabled,
                    {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6, DMA1_Channel7}),
@@ -498,7 +498,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    timer,
                    AuxPort::kNoDefaultSpi,
                    (g_measured_hw_family == 0 ||
-                    g_measured_hw_family == 1) ?
+                    g_measured_hw_family == 2) ?
                    AuxPort::kDefaultUartSerial : AuxPort::kDefaultUartDisabled,
                    {DMA1_Channel8, DMA2_Channel1, DMA2_Channel2, DMA2_Channel3, DMA2_Channel4}),
         motor_position_(persistent_config, telemetry_manager,
