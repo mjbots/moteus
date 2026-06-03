@@ -37,12 +37,12 @@
 
 use crate::error::Result;
 use crate::transport::async_factory::AsyncTransportOptions;
-use crate::transport::async_transport::AsyncTransport;
+use crate::transport::async_transport::AsyncRouter;
 use std::sync::Arc;
 use tokio::sync::{Mutex, OnceCell};
 
 /// Global async singleton transport instance.
-static GLOBAL_ASYNC_TRANSPORT: OnceCell<Arc<Mutex<AsyncTransport>>> = OnceCell::const_new();
+static GLOBAL_ASYNC_TRANSPORT: OnceCell<Arc<Mutex<AsyncRouter>>> = OnceCell::const_new();
 
 /// Get or create the global async singleton transport.
 ///
@@ -72,13 +72,13 @@ static GLOBAL_ASYNC_TRANSPORT: OnceCell<Arc<Mutex<AsyncTransport>>> = OnceCell::
 /// ```
 pub async fn get_async_singleton_transport(
     options: Option<&AsyncTransportOptions>,
-) -> Result<Arc<Mutex<AsyncTransport>>> {
+) -> Result<Arc<Mutex<AsyncRouter>>> {
     GLOBAL_ASYNC_TRANSPORT
         .get_or_try_init(|| async {
             let default_options = AsyncTransportOptions::new();
             let opts = options.unwrap_or(&default_options);
 
-            let router = AsyncTransport::with_options(opts).await?;
+            let router = AsyncRouter::with_options(opts).await?;
             Ok(Arc::new(Mutex::new(router)))
         })
         .await

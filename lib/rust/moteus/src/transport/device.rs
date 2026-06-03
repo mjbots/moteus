@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Transport device abstraction for CAN-FD hardware.
+//! Router device abstraction for CAN-FD hardware.
 //!
 //! This module defines the `TransportDevice` trait that abstracts over
 //! individual CAN-FD hardware interfaces like fdcanusb and socketcan.
@@ -38,9 +38,9 @@ pub struct TransportDeviceInfo {
     /// Human-readable detail shown in parentheses when displaying.
     /// e.g. `"sn='ABC123'"` or `"'can0'"`.
     pub detail: Option<String>,
-    /// Index of the parent device in the Transport's device list.
+    /// Index of the parent device in the Router's device list.
     ///
-    /// When `Some(p)`, this device is a child of device `p`. The Transport
+    /// When `Some(p)`, this device is a child of device `p`. The Router
     /// will route requests through the parent device and only call
     /// `read()`/`flush()` on parent devices.
     pub parent_index: Option<usize>,
@@ -90,7 +90,7 @@ impl std::fmt::Display for TransportDeviceInfo {
 /// A blocking transport device for CAN-FD communication.
 ///
 /// This trait represents a single hardware interface (e.g., one fdcanusb
-/// or one socketcan interface). The `Transport` can manage multiple
+/// or one socketcan interface). The `Router` can manage multiple
 /// devices to support multi-bus configurations.
 ///
 /// # Transaction Model

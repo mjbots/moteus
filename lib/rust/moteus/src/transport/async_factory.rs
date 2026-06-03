@@ -99,7 +99,7 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
         options: &'a AsyncTransportOptions,
     ) -> BoxFuture<'a, Result<Vec<Box<dyn AsyncTransportDevice>>>> {
         Box::pin(async move {
-            use crate::transport::async_fdcanusb::AsyncFdcanusb;
+            use crate::transport::async_fdcanusb::AsyncFdcanusbDevice;
             use crate::transport::device::TransportDeviceInfo;
             use crate::transport::discovery::{detect_fdcanusbs, FdcanusbInfo};
 
@@ -118,22 +118,22 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
 
             let mut devices: Vec<Box<dyn AsyncTransportDevice>> = Vec::new();
             for (idx, info) in infos.iter().enumerate() {
-                match AsyncFdcanusb::open_with_options(
+                match AsyncFdcanusbDevice::open_with_options(
                     &info.path,
                     options.timeout,
                     options.disable_brs,
                 )
                 .await
                 {
-                    Ok(mut transport) => {
+                    Ok(mut device) => {
                         // Update device info
                         let mut dev_info = TransportDeviceInfo::new(idx, "AsyncFdcanusb");
                         if let Some(ref sn) = info.serial_number {
                             dev_info.detail = Some(format!("sn='{}'", sn));
                             dev_info.serial_number = Some(sn.clone());
                         }
-                        transport.info = dev_info;
-                        devices.push(Box::new(transport));
+                        device.info = dev_info;
+                        devices.push(Box::new(device));
                     }
                     Err(_) => continue,
                 }
@@ -183,7 +183,7 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
         options: &'a AsyncTransportOptions,
     ) -> BoxFuture<'a, Result<Vec<Box<dyn AsyncTransportDevice>>>> {
         Box::pin(async move {
-            use crate::transport::async_socketcan::AsyncSocketCan;
+            use crate::transport::async_socketcan::AsyncSocketCanDevice;
             use crate::transport::device::TransportDeviceInfo;
             use crate::transport::discovery::detect_socketcan_interfaces;
 
@@ -198,14 +198,18 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
 
             let mut devices: Vec<Box<dyn AsyncTransportDevice>> = Vec::new();
             for (idx, interface) in interfaces.iter().enumerate() {
-                match AsyncSocketCan::with_options(interface, options.timeout, options.disable_brs)
-                    .await
+                match AsyncSocketCanDevice::with_options(
+                    interface,
+                    options.timeout,
+                    options.disable_brs,
+                )
+                .await
                 {
-                    Ok(mut transport) => {
-                        transport.info = TransportDeviceInfo::new(idx, "AsyncSocketCan")
+                    Ok(mut device) => {
+                        device.info = TransportDeviceInfo::new(idx, "AsyncSocketCan")
                             .with_serial(interface)
                             .with_detail(format!("'{}'", interface));
-                        devices.push(Box::new(transport));
+                        devices.push(Box::new(device));
                     }
                     Err(_) => continue,
                 }
@@ -317,7 +321,7 @@ pub async fn create_async_transports(
         for device in all_devices {
             // Check if this is a socketcan device that duplicates an fdcanusb
             let should_skip = socketcan_infos.iter().any(|info| {
-                // For SocketCan devices, the interface name is stored in serial_number
+                // For SocketCanDevice devices, the interface name is stored in serial_number
                 (device.info().serial_number.as_ref() == Some(&info.interface))
                     && info
                         .fdcanusb_serial

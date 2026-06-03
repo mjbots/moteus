@@ -34,7 +34,7 @@
 //! }
 //! ```
 //!
-//! # Custom Transport Options
+//! # Custom Router Options
 //!
 //! ```no_run
 //! use moteus::AsyncController;
@@ -54,7 +54,7 @@ use crate::controller::Controller;
 use crate::device_address::DeviceAddress;
 use crate::error::{Error, Result};
 use crate::transport::async_singleton::get_async_singleton_transport;
-use crate::transport::async_transport::{AsyncTransport, AsyncTransportOps, BoxFuture};
+use crate::transport::async_transport::{AsyncRouter, AsyncTransport, BoxFuture};
 use crate::transport::transaction::Request;
 use moteus_protocol::command::{
     AuxPwmCommand, CurrentCommand, PositionCommand, StayWithinCommand, VFOCCommand,
@@ -91,14 +91,14 @@ use tokio::sync::Mutex;
 ///     Ok(())
 /// }
 /// ```
-pub struct AsyncController<T: AsyncTransportOps = Arc<Mutex<AsyncTransport>>> {
+pub struct AsyncController<T: AsyncTransport = Arc<Mutex<AsyncRouter>>> {
     /// Frame builder
     pub controller: Controller,
     /// Async transport
     pub(crate) transport: T,
 }
 
-impl<T: AsyncTransportOps> std::fmt::Debug for AsyncController<T> {
+impl<T: AsyncTransport> std::fmt::Debug for AsyncController<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AsyncController")
             .field("id", &self.controller.id)
@@ -111,7 +111,7 @@ impl<T: AsyncTransportOps> std::fmt::Debug for AsyncController<T> {
 // Singleton constructors (use global shared transport)
 // =============================================================================
 
-impl AsyncController<Arc<Mutex<AsyncTransport>>> {
+impl AsyncController<Arc<Mutex<AsyncRouter>>> {
     /// Creates a new async controller with auto-discovered transport.
     ///
     /// # Arguments
@@ -179,7 +179,7 @@ impl AsyncController<Arc<Mutex<AsyncTransport>>> {
 // Generic methods (work with any transport)
 // =============================================================================
 
-impl<T: AsyncTransportOps> AsyncController<T> {
+impl<T: AsyncTransport> AsyncController<T> {
     /// Creates an async controller with an explicit transport.
     ///
     /// This bypasses auto-discovery and uses the provided transport directly.
@@ -1242,7 +1242,7 @@ impl<T: AsyncTransportOps> AsyncController<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::transport::async_transport::AsyncTransportOps;
+    use crate::transport::async_transport::AsyncTransport;
     use crate::transport::transaction::dispatch_frame;
     use moteus_protocol::CanFdFrame;
 
@@ -1258,7 +1258,7 @@ mod tests {
         }
     }
 
-    impl AsyncTransportOps for MockTransport {
+    impl AsyncTransport for MockTransport {
         fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
             self.call_count.set(self.call_count.get() + 1);
 

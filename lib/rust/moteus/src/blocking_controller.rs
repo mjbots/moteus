@@ -36,15 +36,17 @@
 //!
 //! # Explicit Transport
 //!
-//! You can also specify a transport explicitly:
+//! You can also construct a transport yourself and hand it to the
+//! controller. The canonical pattern for a single bus is to open one
+//! [`Fdcanusb`](crate::Fdcanusb) and pass it to
+//! [`with_transport`](BlockingController::with_transport):
 //!
 //! ```no_run
-//! use moteus::{BlockingController, Transport, TransportOptions};
+//! use moteus::{BlockingController, Fdcanusb};
 //!
 //! fn main() -> Result<(), moteus::Error> {
-//!     let opts = TransportOptions::new()
-//!         .socketcan_interfaces(vec!["can0"]);
-//!     let mut ctrl = BlockingController::with_options(1, &opts)?;
+//!     let transport = Fdcanusb::open("/dev/fdcanusb")?;
+//!     let mut ctrl = BlockingController::with_transport(1, transport);
 //!     Ok(())
 //! }
 //! ```
@@ -56,7 +58,7 @@ use crate::error::{Error, Result};
 use crate::transport::factory::TransportOptions;
 use crate::transport::singleton::get_singleton_transport;
 use crate::transport::transaction::Request;
-use crate::transport::{Transport, TransportOps};
+use crate::transport::{Router, Transport};
 use moteus_protocol::command::{
     AuxPwmCommand, CurrentCommand, PositionCommand, StayWithinCommand, VFOCCommand,
     ZeroVelocityCommand,
@@ -98,14 +100,14 @@ use std::time::Duration;
 ///     Ok(())
 /// }
 /// ```
-pub struct BlockingController<T: TransportOps = Arc<Mutex<Transport>>> {
+pub struct BlockingController<T: Transport = Arc<Mutex<Router>>> {
     /// Frame builder
     pub controller: Controller,
-    /// Transport for communication
+    /// Router for communication
     pub(crate) transport: T,
 }
 
-impl<T: TransportOps> std::fmt::Debug for BlockingController<T> {
+impl<T: Transport> std::fmt::Debug for BlockingController<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BlockingController")
             .field("id", &self.controller.id)
@@ -118,7 +120,7 @@ impl<T: TransportOps> std::fmt::Debug for BlockingController<T> {
 // Singleton constructors (use global shared transport)
 // =============================================================================
 
-impl BlockingController<Arc<Mutex<Transport>>> {
+impl BlockingController<Arc<Mutex<Router>>> {
     /// Creates a new blocking controller with auto-discovered transport.
     ///
     /// # Arguments
@@ -155,7 +157,7 @@ impl BlockingController<Arc<Mutex<Transport>>> {
     /// # Arguments
     /// * `address` - Device address (CAN ID or UUID). Integers are automatically
     ///   converted to CAN ID addresses.
-    /// * `options` - Transport options for device selection and configuration
+    /// * `options` - Router options for device selection and configuration
     ///
     /// # Errors
     ///
@@ -217,7 +219,7 @@ impl BlockingController<Arc<Mutex<Transport>>> {
 // Generic methods (work with any transport)
 // =============================================================================
 
-impl<T: TransportOps> BlockingController<T> {
+impl<T: Transport> BlockingController<T> {
     /// Creates a blocking controller with an explicit transport.
     ///
     /// This bypasses auto-discovery and uses the provided transport directly.
@@ -1116,7 +1118,7 @@ impl<T: TransportOps> BlockingController<T> {
         }
     }
 
-    // === Transport Methods ===
+    // === Router Methods ===
 
     /// Flushes any pending data from the transport.
     ///

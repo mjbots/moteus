@@ -25,7 +25,7 @@ use clap::Parser;
 use moteus::command::{PositionCommand, PositionFormat};
 use moteus::query::QueryFormat;
 use moteus::transport::args::TransportArgs;
-use moteus::transport::async_transport::AsyncTransport;
+use moteus::transport::async_transport::AsyncRouter;
 use moteus::transport::transaction::Request;
 use moteus::{Controller, Resolution};
 use std::io::Write;
@@ -55,7 +55,7 @@ async fn main() -> Result<(), moteus::Error> {
 
     // Create async transport with specified options.
     let opts = args.transport.into();
-    let mut transport = AsyncTransport::with_options(&opts).await?;
+    let mut transport = AsyncRouter::with_options(&opts).await?;
 
     // Use specified targets or auto-discover.
     let targets: Vec<u8> = if args.target.is_empty() {

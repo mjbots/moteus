@@ -130,7 +130,7 @@ impl FdcanusbProtocol {
 ///
 /// This provides a synchronous interface for communicating with moteus
 /// controllers through an fdcanusb device.
-pub struct Fdcanusb<S: std::io::Read + std::io::Write> {
+pub struct FdcanusbDevice<S: std::io::Read + std::io::Write> {
     reader: BufReader<S>,
     writer: S,
     timeout: Duration,
@@ -142,9 +142,9 @@ pub struct Fdcanusb<S: std::io::Read + std::io::Write> {
     pub(crate) info: TransportDeviceInfo,
 }
 
-impl<S: std::io::Read + std::io::Write> std::fmt::Debug for Fdcanusb<S> {
+impl<S: std::io::Read + std::io::Write> std::fmt::Debug for FdcanusbDevice<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Fdcanusb")
+        f.debug_struct("FdcanusbDevice")
             .field("info", &self.info)
             .field("timeout", &self.timeout)
             .field("disable_brs", &self.disable_brs)
@@ -153,15 +153,15 @@ impl<S: std::io::Read + std::io::Write> std::fmt::Debug for Fdcanusb<S> {
     }
 }
 
-impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
+impl<S: std::io::Read + std::io::Write + Clone> FdcanusbDevice<S> {
     /// Creates an FdCanUSB transport from a pre-opened stream.
     ///
     /// This is primarily useful for testing with mock streams.
-    /// For normal use, prefer [`Fdcanusb::new`] which opens the serial port
+    /// For normal use, prefer [`FdcanusbDevice::new`] which opens the serial port
     /// directly from a device path.
     pub fn from_stream(stream: S) -> Self {
         let reader = BufReader::new(stream.clone());
-        Fdcanusb {
+        FdcanusbDevice {
             reader,
             writer: stream,
             timeout: crate::transport::factory::DEFAULT_TIMEOUT,
@@ -175,11 +175,11 @@ impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
     /// Creates an FdCanUSB transport from a pre-opened stream with options.
     ///
     /// This is primarily useful for testing with mock streams.
-    /// For normal use, prefer [`Fdcanusb::new`] which opens the serial port
+    /// For normal use, prefer [`FdcanusbDevice::new`] which opens the serial port
     /// directly from a device path.
     pub fn from_stream_with_options(stream: S, timeout: Duration, disable_brs: bool) -> Self {
         let reader = BufReader::new(stream.clone());
-        Fdcanusb {
+        FdcanusbDevice {
             reader,
             writer: stream,
             timeout,
@@ -275,11 +275,11 @@ impl<S: std::io::Read + std::io::Write + Clone> Fdcanusb<S> {
     }
 }
 
-impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcanusb<S> {
+impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for FdcanusbDevice<S> {
     fn transaction(&mut self, requests: &mut [Request]) -> Result<()> {
         debug_assert!(
             requests.iter().all(|r| r.child_device.is_none()),
-            "Fdcanusb does not support child devices"
+            "FdcanusbDevice does not support child devices"
         );
 
         // Pipeline: write all frames first
@@ -548,16 +548,16 @@ mod linux_serial {
 use linux_serial::LinuxSerialPort;
 
 #[cfg(target_os = "linux")]
-impl Fdcanusb<LinuxSerialPort> {
+impl FdcanusbDevice<LinuxSerialPort> {
     /// Opens an fdcanusb device at the given serial port path.
     ///
     /// # Example
     ///
     /// ```no_run
-    /// use moteus::transport::fdcanusb::Fdcanusb;
+    /// use moteus::transport::fdcanusb::FdcanusbDevice;
     ///
     /// fn main() -> Result<(), moteus::Error> {
-    ///     let fdcanusb = Fdcanusb::new("/dev/ttyACM0")?;
+    ///     let fdcanusb = FdcanusbDevice::new("/dev/ttyACM0")?;
     ///     Ok(())
     /// }
     /// ```

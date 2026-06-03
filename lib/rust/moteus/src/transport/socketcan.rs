@@ -20,10 +20,10 @@
 //! # Example
 //!
 //! ```no_run
-//! use moteus::transport::socketcan::SocketCan;
+//! use moteus::transport::socketcan::SocketCanDevice;
 //!
 //! fn main() -> Result<(), moteus::Error> {
-//!     let mut transport = SocketCan::new("can0")?;
+//!     let mut device = SocketCanDevice::new("can0")?;
 //!     Ok(())
 //! }
 //! ```
@@ -84,7 +84,7 @@ mod linux {
     use select_ffi::*;
 
     /// SocketCAN transport for Linux.
-    pub struct SocketCan {
+    pub struct SocketCanDevice {
         fd: RawFd,
         timeout: Duration,
         disable_brs: bool,
@@ -92,9 +92,9 @@ mod linux {
         pub(crate) info: TransportDeviceInfo,
     }
 
-    impl std::fmt::Debug for SocketCan {
+    impl std::fmt::Debug for SocketCanDevice {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct("SocketCan")
+            f.debug_struct("SocketCanDevice")
                 .field("info", &self.info)
                 .field("timeout", &self.timeout)
                 .field("disable_brs", &self.disable_brs)
@@ -102,7 +102,7 @@ mod linux {
         }
     }
 
-    impl SocketCan {
+    impl SocketCanDevice {
         /// Creates a new SocketCAN transport.
         ///
         /// # Arguments
@@ -173,7 +173,7 @@ mod linux {
             let flags = unsafe { fcntl(fd, F_GETFL) };
             unsafe { fcntl(fd, F_SETFL, flags | O_NONBLOCK) };
 
-            Ok(SocketCan {
+            Ok(SocketCanDevice {
                 fd,
                 timeout,
                 disable_brs,
@@ -256,23 +256,23 @@ mod linux {
         }
     }
 
-    impl Drop for SocketCan {
+    impl Drop for SocketCanDevice {
         fn drop(&mut self) {
             unsafe { close(self.fd) };
         }
     }
 
-    impl AsRawFd for SocketCan {
+    impl AsRawFd for SocketCanDevice {
         fn as_raw_fd(&self) -> RawFd {
             self.fd
         }
     }
 
-    impl TransportDevice for SocketCan {
+    impl TransportDevice for SocketCanDevice {
         fn transaction(&mut self, requests: &mut [Request]) -> Result<()> {
             debug_assert!(
                 requests.iter().all(|r| r.child_device.is_none()),
-                "SocketCan does not support child devices"
+                "SocketCanDevice does not support child devices"
             );
             // Send all frames
             for req in requests.iter() {
@@ -401,7 +401,7 @@ mod linux {
 }
 
 #[cfg(target_os = "linux")]
-pub use linux::SocketCan;
+pub use linux::SocketCanDevice;
 
 #[cfg(test)]
 mod tests {
@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn test_socketcan_interface_not_found() {
         // This should fail because the interface doesn't exist
-        let result = super::SocketCan::new("nonexistent_can_interface_12345");
+        let result = super::SocketCanDevice::new("nonexistent_can_interface_12345");
         assert!(result.is_err());
     }
 }

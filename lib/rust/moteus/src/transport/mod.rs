@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Transport layer for communicating with moteus controllers.
+//! Router layer for communicating with moteus controllers.
 //!
-//! This module provides the `Transport` struct that manages communication
+//! This module provides the `Router` struct that manages communication
 //! with moteus controllers over CAN-FD, routing frames across multiple channels.
 //!
 //! ## API Overview
 //!
-//! The Transport API provides several methods matching the Python API:
+//! The Router API provides several methods matching the Python API:
 //!
-//! - [`cycle()`](Transport::cycle): Execute a batch transaction (send frames, collect responses)
-//! - [`write()`](Transport::write): Fire-and-forget single frame send
-//! - [`read()`](Transport::read): Receive an unsolicited frame
-//! - [`flush_read()`](Transport::flush_read): Clear any pending unsolicited frames
+//! - [`cycle()`](Router::cycle): Execute a batch transaction (send frames, collect responses)
+//! - [`write()`](Router::write): Fire-and-forget single frame send
+//! - [`read()`](Router::read): Receive an unsolicited frame
+//! - [`flush_read()`](Router::flush_read): Clear any pending unsolicited frames
 //!
 //! ## Module Structure
 //!
@@ -43,11 +43,12 @@
 //! - `async_fdcanusb`: Tokio-based async FdCanUSB transport
 //! - `async_socketcan`: Tokio-based async SocketCAN transport (Linux only)
 //! - `async_factory`: Async transport factory for device creation
-//! - `async_transport`: Async Transport for multi-device routing
+//! - `async_transport`: Async Router for multi-device routing
 //! - `async_singleton`: Global async singleton transport
 
 pub mod args;
 pub mod async_transport;
+pub mod convenience;
 pub mod device;
 pub mod discovery;
 pub mod factory;
@@ -79,20 +80,20 @@ use std::time::Duration;
 pub use transaction::{dispatch_frame, FrameFilter, Request, ResponseCollector};
 
 // =============================================================================
-// TransportOps Trait
+// Transport Trait
 // =============================================================================
 
 /// Trait for transport operations.
 ///
 /// This trait defines the common interface for transport implementations.
-/// Most users should use the concrete [`Transport`] struct directly, which
+/// Most users should use the concrete [`Router`] struct directly, which
 /// provides these methods as inherent methods.
 ///
 /// This trait is useful for:
 /// - Writing generic code that works with any transport
 /// - Implementing custom transports
-/// - Using `Box<dyn TransportOps>` for polymorphism
-pub trait TransportOps {
+/// - Using `Box<dyn Transport>` for polymorphism
+pub trait Transport {
     /// Executes a cycle: sends frames and collects responses.
     ///
     /// # Errors
@@ -426,12 +427,12 @@ pub(crate) fn resolve_addresses(devices: &mut [DeviceInfo]) {
 }
 
 // =============================================================================
-// Transport Struct
+// Router Struct
 // =============================================================================
 
 /// A transport that manages multiple CAN-FD devices.
 ///
-/// The `Transport` routes frames to the appropriate device based on
+/// The `Router` routes frames to the appropriate device based on
 /// a `DeviceAddress` lookup, matching the Python library's
 /// `Dict[DeviceAddress, TransportDevice]` routing table.
 ///
@@ -443,7 +444,7 @@ pub(crate) fn resolve_addresses(devices: &mut [DeviceInfo]) {
 /// # Example
 ///
 /// ```no_run
-/// use moteus::{Transport, TransportOptions};
+/// use moteus::{Router, TransportOptions};
 /// use moteus::transport::singleton::create_default_transport;
 ///
 /// fn main() -> Result<(), moteus::Error> {
@@ -459,7 +460,7 @@ pub(crate) fn resolve_addresses(devices: &mut [DeviceInfo]) {
 ///     Ok(())
 /// }
 /// ```
-pub struct Transport {
+pub struct Router {
     /// The underlying devices.
     devices: Vec<Box<dyn TransportDevice>>,
     /// Deduplicated parent device indices for read/flush/broadcast.
@@ -476,11 +477,11 @@ pub struct Transport {
     timeout: Duration,
 }
 
-impl std::fmt::Debug for Transport {
+impl std::fmt::Debug for Router {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let device_infos: Vec<&TransportDeviceInfo> =
             self.devices.iter().map(|d| d.info()).collect();
-        f.debug_struct("Transport")
+        f.debug_struct("Router")
             .field("device_count", &self.devices.len())
             .field("devices", &device_infos)
             .field("routes", &self.routing_table.len())
@@ -504,7 +505,7 @@ fn compute_parent_indices(devices: &[Box<dyn TransportDevice>]) -> Vec<usize> {
     indices
 }
 
-impl Transport {
+impl Router {
     /// Creates a transport from a single device.
     ///
     /// This is the simplest way to create a transport when you know
@@ -513,11 +514,11 @@ impl Transport {
     /// # Example
     ///
     /// ```no_run
-    /// use moteus::transport::socketcan::SocketCan;
-    /// use moteus::Transport;
+    /// use moteus::transport::socketcan::SocketCanDevice;
+    /// use moteus::Router;
     ///
     /// fn main() -> Result<(), moteus::Error> {
-    ///     let transport = Transport::from_device(SocketCan::new("can0")?);
+    ///     let transport = Router::from_device(SocketCanDevice::new("can0")?);
     ///     Ok(())
     /// }
     /// ```
@@ -935,7 +936,7 @@ impl Transport {
     /// # Example
     ///
     /// ```no_run
-    /// use moteus::{Transport, TransportOptions, CanFdFrame};
+    /// use moteus::{Router, TransportOptions, CanFdFrame};
     /// use moteus::transport::transaction::Request;
     /// use moteus::transport::singleton::create_default_transport;
     ///
@@ -1068,29 +1069,35 @@ impl Transport {
     }
 }
 
-impl TransportOps for Transport {
+impl<D: TransportDevice + 'static> From<D> for Router {
+    fn from(device: D) -> Self {
+        Router::from_device(device)
+    }
+}
+
+impl Transport for Router {
     fn cycle(&mut self, requests: &mut [Request]) -> Result<()> {
-        Transport::cycle(self, requests)
+        Router::cycle(self, requests)
     }
 
     fn write(&mut self, frame: &CanFdFrame) -> Result<()> {
-        Transport::write(self, frame)
+        Router::write(self, frame)
     }
 
     fn read(&mut self, channel: Option<usize>) -> Result<Option<CanFdFrame>> {
-        Transport::read(self, channel)
+        Router::read(self, channel)
     }
 
     fn flush_read(&mut self, channel: Option<usize>) -> Result<()> {
-        Transport::flush_read(self, channel)
+        Router::flush_read(self, channel)
     }
 
     fn set_timeout(&mut self, timeout: Duration) {
-        Transport::set_timeout(self, timeout)
+        Router::set_timeout(self, timeout)
     }
 
     fn timeout(&self) -> Duration {
-        Transport::timeout(self)
+        Router::timeout(self)
     }
 }
 
@@ -1121,7 +1128,7 @@ impl Default for NullTransport {
     }
 }
 
-impl TransportOps for NullTransport {
+impl Transport for NullTransport {
     fn cycle(&mut self, _requests: &mut [Request]) -> Result<()> {
         // NullTransport doesn't send or receive anything
         Ok(())
@@ -1151,7 +1158,7 @@ impl TransportOps for NullTransport {
     }
 }
 
-impl<T: TransportOps> TransportOps for Arc<Mutex<T>> {
+impl<T: Transport> Transport for Arc<Mutex<T>> {
     fn cycle(&mut self, requests: &mut [Request]) -> Result<()> {
         self.lock()
             .map_err(|_| Error::Protocol("Transport mutex poisoned".to_string()))?
@@ -1214,7 +1221,7 @@ mod tests {
         timeout: Duration,
         responses: Vec<CanFdFrame>,
         /// Shared log of frames sent to this device, accessible after
-        /// the device has been moved into a Transport.
+        /// the device has been moved into a Router.
         log: MockDeviceLog,
     }
 
@@ -1316,7 +1323,7 @@ mod tests {
     #[test]
     fn test_transport_single_device() {
         let device = MockDevice::new(0);
-        let mut transport = Transport::from_devices(vec![device]);
+        let mut transport = Router::from_devices(vec![device]);
 
         assert_eq!(transport.device_count(), 1);
 
@@ -1331,7 +1338,7 @@ mod tests {
         let device0 = MockDevice::new(0);
         let device1 = MockDevice::new(1);
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
 
         assert_eq!(transport.device_count(), 2);
 
@@ -1349,7 +1356,7 @@ mod tests {
         let device0 = MockDevice::new(0);
         let device1 = MockDevice::new(1);
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
 
         assert_eq!(transport.timeout(), Duration::from_millis(100));
 
@@ -1360,7 +1367,7 @@ mod tests {
     #[test]
     fn test_transport_empty() {
         let devices: Vec<MockDevice> = vec![];
-        let mut transport = Transport::from_devices(devices);
+        let mut transport = Router::from_devices(devices);
 
         let frame = CanFdFrame::new();
         let mut requests = vec![Request::new(frame)];
@@ -1382,7 +1389,7 @@ mod tests {
         resp_frame.size = 3;
 
         let device = MockDevice::new(0).with_response(resp_frame);
-        let mut transport = Transport::from_devices(vec![device]);
+        let mut transport = Router::from_devices(vec![device]);
 
         let mut requests = vec![Request::new(cmd_frame)];
         transport.cycle(&mut requests).unwrap();
@@ -1398,7 +1405,7 @@ mod tests {
         let device0 = MockDevice::new(0);
         let device1 = MockDevice::new(1);
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
 
         // Create requests explicitly routed to different channels
         let frame0 = CanFdFrame::new();
@@ -1421,7 +1428,7 @@ mod tests {
         let device0 = MockDevice::new(0);
         let device1 = MockDevice::new(1);
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
 
         transport.add_route(1u8, 0).unwrap();
         assert_eq!(
@@ -1445,7 +1452,7 @@ mod tests {
         let device1 = MockDevice::new(1);
         let log1 = device1.log.clone();
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
         transport.add_route(1u8, 0).unwrap();
 
         let mut cmd_frame = CanFdFrame::new();
@@ -1464,7 +1471,7 @@ mod tests {
         let device0 = MockDevice::new(0);
         let device1 = MockDevice::new(1);
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
         transport.add_route(1u8, 0).unwrap();
 
         transport.clear_routes();
@@ -1483,7 +1490,7 @@ mod tests {
         let device1 = MockDevice::new(1);
         let log1 = device1.log.clone();
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
         transport.add_route(1u8, 0).unwrap();
         transport.add_route(2u8, 1).unwrap();
 
@@ -1527,7 +1534,7 @@ mod tests {
             transport_device: None,
         };
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
         transport.add_route(uuid_a.clone(), 0).unwrap();
         transport.add_route(uuid_b.clone(), 1).unwrap();
 
@@ -1565,7 +1572,7 @@ mod tests {
         let device1 = MockDevice::new(1);
         let log1 = device1.log.clone();
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
         transport.add_route(1u8, 0).unwrap();
 
         let mut frame = CanFdFrame::new();
@@ -1585,7 +1592,7 @@ mod tests {
         let device1 = MockDevice::new(1);
         let log1 = device1.log.clone();
 
-        let mut transport = Transport::from_devices(vec![device0, device1]);
+        let mut transport = Router::from_devices(vec![device0, device1]);
 
         let mut frame = CanFdFrame::new();
         frame.arbitration_id = calculate_arbitration_id(0, 0x7F, 0, false);

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Transport factory system for creating CAN-FD transports.
+//! Router factory system for creating CAN-FD transports.
 //!
 //! This module provides the factory pattern for creating transport devices
 //! from different backends (fdcanusb, socketcan, etc.).
@@ -123,7 +123,7 @@ impl TransportOptions {
     /// - `fdcanusb`: Path to fdcanusb device (can appear multiple times)
     /// - `can-chan`: SocketCAN interface name (can appear multiple times)
     /// - `can-disable-brs`: "true" to disable CAN-FD bit rate switching
-    /// - `force-transport`: Transport type name (validated against registered factories)
+    /// - `force-transport`: Router type name (validated against registered factories)
     /// - `timeout-ms`: Communication timeout in milliseconds
     ///
     /// # Example
@@ -230,7 +230,7 @@ impl TransportFactory for FdcanusbFactory {
 
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
         use crate::transport::discovery::{detect_fdcanusbs, FdcanusbInfo};
-        use crate::transport::fdcanusb::Fdcanusb;
+        use crate::transport::fdcanusb::FdcanusbDevice;
 
         let infos: Vec<FdcanusbInfo> = if options.fdcanusb_paths.is_empty() {
             // Auto-detect fdcanusb devices
@@ -249,13 +249,13 @@ impl TransportFactory for FdcanusbFactory {
 
         let mut devices: Vec<Box<dyn TransportDevice>> = Vec::new();
         for (idx, info) in infos.iter().enumerate() {
-            match Fdcanusb::with_options(&info.path, options.timeout, options.disable_brs) {
-                Ok(mut transport) => {
-                    transport.info.id = idx;
-                    transport.info.serial_number = info.serial_number.clone();
-                    transport.info.detail =
+            match FdcanusbDevice::with_options(&info.path, options.timeout, options.disable_brs) {
+                Ok(mut device) => {
+                    device.info.id = idx;
+                    device.info.serial_number = info.serial_number.clone();
+                    device.info.detail =
                         info.serial_number.as_ref().map(|sn| format!("sn='{}'", sn));
-                    devices.push(Box::new(transport));
+                    devices.push(Box::new(device));
                 }
                 Err(_) => continue, // Skip devices that fail to open
             }
@@ -301,7 +301,7 @@ impl TransportFactory for SocketCanFactory {
 
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
         use crate::transport::discovery::detect_socketcan_interfaces;
-        use crate::transport::socketcan::SocketCan;
+        use crate::transport::socketcan::SocketCanDevice;
 
         let interfaces = if options.socketcan_interfaces.is_empty() {
             // Auto-detect interfaces
@@ -315,10 +315,10 @@ impl TransportFactory for SocketCanFactory {
 
         let mut devices: Vec<Box<dyn TransportDevice>> = Vec::new();
         for (idx, interface) in interfaces.iter().enumerate() {
-            match SocketCan::with_options(interface, options.timeout, options.disable_brs) {
-                Ok(mut transport) => {
-                    transport.info.id = idx;
-                    devices.push(Box::new(transport));
+            match SocketCanDevice::with_options(interface, options.timeout, options.disable_brs) {
+                Ok(mut device) => {
+                    device.info.id = idx;
+                    devices.push(Box::new(device));
                 }
                 Err(_) => continue, // Skip interfaces that fail to open
             }

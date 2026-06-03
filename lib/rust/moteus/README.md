@@ -68,11 +68,26 @@ let cmd = PositionCommand::new()
 For more control, you can specify a transport explicitly:
 
 ```rust,no_run
-use moteus::{BlockingController, Transport};
-use moteus::transport::socketcan::SocketCan;
+use moteus::{BlockingController, Fdcanusb};
 
 fn main() -> Result<(), moteus::Error> {
-    let transport = Transport::from_device(SocketCan::new("can0")?);
+    // A single-bus convenience transport, ready to hand to a controller.
+    let transport = Fdcanusb::open("/dev/fdcanusb")?;
+    let mut ctrl = BlockingController::with_transport(1, transport);
+
+    ctrl.set_stop()?;
+    Ok(())
+}
+```
+
+You can also build a [`Router`] over one or more explicit devices:
+
+```rust,no_run
+use moteus::{BlockingController, Router};
+use moteus::transport::socketcan::SocketCanDevice;
+
+fn main() -> Result<(), moteus::Error> {
+    let transport = Router::from_device(SocketCanDevice::new("can0")?);
     let mut ctrl = BlockingController::with_transport(1, transport);
 
     ctrl.set_stop()?;
