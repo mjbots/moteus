@@ -215,6 +215,23 @@ error exceeds this value.  The velocity control error is the
 difference between the commanded and measured velocity in revolutions
 per second.  If set to `nan` (the default), no fault is triggered.
 
+## `servo.max_regen_power_W`
+
+When regenerating, moteus will dissipate energy in the windings in the
+motor in order to limit the maximum regenerative power to the input bus
+below this amount.
+
+`nan` disables the feature, in which case only flux braking will result in energy being dissipated in the windings.
+
+`0` means allow no regenerative power to the input bus.
+
+WARNING: The amount of power that can be dissipated in the windings is
+subject to the current limit of the board, along with the supply
+voltage and phase winding resistance.  Once moteus reaches the maximum
+amount of power that can be applied to the phase windings, further
+power will be directed to the input bus regardless of the value of
+this setting.
+
 ## `servo.flux_brake_margin_voltage`
 
 Selects the flux braking point relative to the currently configured `servo.max_voltage`.  `flux braking point = max_voltage - flux_brake_margin_voltage`.
