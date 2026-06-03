@@ -58,7 +58,7 @@ use crate::transport::transaction::Request;
 use crate::transport::Transport;
 use moteus_protocol::command::PositionCommand;
 use moteus_protocol::query::{QueryFormat, QueryResult};
-use moteus_protocol::Resolution;
+use moteus_protocol::{Mode, Resolution};
 
 /// A target setpoint for a servo.
 ///
@@ -331,6 +331,8 @@ fn make_query_format(controllers: &[(&Controller, Setpoint)]) -> QueryFormat {
 ///
 /// * `Error::Fault` — if any servo enters a fault or timeout mode
 /// * `Error::Timeout` — if `options.timeout` is set and exceeded
+/// * `Error::DeviceNotFound` — if a servo does not respond to the
+///   initial query, or stops responding during the move
 pub fn move_to(
     transport: &mut dyn Transport,
     servos: &[(&Controller, Setpoint)],
@@ -342,7 +344,9 @@ pub fn move_to(
 
     let query_format = make_query_format(servos);
 
-    // Per-servo velocity limits computed from duration
+    // If a duration is specified, query the current positions and
+    // calculate the necessary velocity limits.  A servo that does not
+    // respond here is reported by ID before any watchdog is armed.
     let velocity_limits = compute_velocity_limits(transport, servos, options, &query_format)?;
 
     let start = std::time::Instant::now();
@@ -394,32 +398,44 @@ pub fn move_to(
 
         transport.cycle(&mut requests)?;
 
-        // Parse results
+        count = (count - 1).max(0);
+
+        // Process results, mirroring the Python implementation: a
+        // servo with no response this cycle is skipped rather than
+        // failing the move.
         let mut all_complete = true;
         for (i, (controller, setpoint)) in servos.iter().enumerate() {
-            if let Some(frame) = requests[i].responses.take().into_iter().next() {
-                let qr = controller.parse_query(&frame);
+            let frame = match requests[i].responses.take().into_iter().next() {
+                Some(frame) => frame,
+                None => continue,
+            };
+            let qr = controller.parse_query(&frame);
 
-                // Check for faults
-                if qr.mode.is_error() {
-                    return Err(Error::Fault {
-                        mode: qr.mode as u8,
-                        code: qr.fault,
-                    });
-                }
+            // Check for faults
+            if qr.mode.is_error() {
+                return Err(Error::Fault {
+                    mode: qr.mode as u8,
+                    code: qr.fault,
+                });
+            }
 
-                // Only check trajectory_complete for non-NaN setpoints
-                if !setpoint.position.is_nan() && !qr.trajectory_complete {
+            // Only check trajectory_complete for non-NaN setpoints.
+            //
+            // While the motor is transitioning from stopped through
+            // the calibration sequence to position mode, the position
+            // trajectory code does not run and TRAJECTORY_COMPLETE
+            // retains its prior value (often 1).  Don't trust it until
+            // the motor is actually in a position-tracking mode.  This
+            // matches the Python implementation.
+            if !setpoint.position.is_nan() {
+                let in_position_mode = matches!(qr.mode, Mode::Position | Mode::StayWithin);
+                if !(in_position_mode && qr.trajectory_complete) {
                     all_complete = false;
                 }
-
-                last_results[i] = Some(qr);
-            } else {
-                all_complete = false;
             }
-        }
 
-        count = count.saturating_sub(1);
+            last_results[i] = Some(qr);
+        }
 
         if count == 0 && all_complete {
             return Ok(servos
@@ -437,7 +453,12 @@ pub fn move_to(
 }
 
 /// Queries current positions and computes per-servo velocity limits
-/// based on duration.
+/// based on duration, mirroring the Python implementation.
+///
+/// Servos with NaN setpoints are skipped.  A missing response for any
+/// other servo is an error: this surfaces an absent or mis-addressed
+/// servo by ID *before* any position command has armed a watchdog on
+/// the servos that are present.
 fn compute_velocity_limits(
     transport: &mut dyn Transport,
     servos: &[(&Controller, Setpoint)],
@@ -445,17 +466,11 @@ fn compute_velocity_limits(
     query_format: &QueryFormat,
 ) -> Result<Vec<Option<f32>>> {
     let duration_s = match options.duration {
-        Some(d) => {
-            let s = d.as_secs_f32();
-            if s <= 0.0 {
-                return Ok(vec![None; servos.len()]);
-            }
-            s
-        }
+        Some(d) if d.as_secs_f32() > 0.0 => d.as_secs_f32(),
         _ => return Ok(vec![None; servos.len()]),
     };
 
-    // Query current positions
+    // Query current positions.
     let mut requests: Vec<Request> = servos
         .iter()
         .map(|(controller, _)| {
@@ -473,17 +488,23 @@ fn compute_velocity_limits(
             continue;
         }
 
-        let vl = requests[i]
-            .responses
-            .take()
-            .into_iter()
-            .next()
-            .map(|frame| {
-                let qr = controller.parse_query(&frame);
-                let distance = (setpoint.position - qr.position).abs();
-                distance / duration_s
-            });
-        limits.push(vl);
+        let qr = match requests[i].responses.take().into_iter().next() {
+            Some(frame) => controller.parse_query(&frame),
+            None => {
+                return Err(Error::DeviceNotFound(format!(
+                    "could not retrieve current position for servo {}",
+                    controller.id
+                )))
+            }
+        };
+
+        // Calculate per-servo velocity limit: velocity = distance / duration
+        let distance = (setpoint.position - qr.position).abs();
+        limits.push(if distance != 0.0 {
+            Some(distance / duration_s)
+        } else {
+            None
+        });
     }
 
     Ok(limits)
@@ -500,6 +521,8 @@ fn compute_velocity_limits(
 ///
 /// * `Error::Fault` — if any servo enters a fault or timeout mode
 /// * `Error::Timeout` — if `options.timeout` is set and exceeded
+/// * `Error::DeviceNotFound` — if a servo does not respond to the
+///   initial query, or stops responding during the move
 ///
 /// # Cancel safety
 ///
@@ -517,7 +540,9 @@ pub async fn async_move_to(
 
     let query_format = make_query_format(servos);
 
-    // Per-servo velocity limits computed from duration
+    // If a duration is specified, query the current positions and
+    // calculate the necessary velocity limits.  A servo that does not
+    // respond here is reported by ID before any watchdog is armed.
     let velocity_limits =
         async_compute_velocity_limits(transport, servos, options, &query_format).await?;
 
@@ -570,32 +595,44 @@ pub async fn async_move_to(
 
         transport.cycle(&mut requests).await?;
 
-        // Parse results
+        count = (count - 1).max(0);
+
+        // Process results, mirroring the Python implementation: a
+        // servo with no response this cycle is skipped rather than
+        // failing the move.
         let mut all_complete = true;
         for (i, (controller, setpoint)) in servos.iter().enumerate() {
-            if let Some(frame) = requests[i].responses.take().into_iter().next() {
-                let qr = controller.parse_query(&frame);
+            let frame = match requests[i].responses.take().into_iter().next() {
+                Some(frame) => frame,
+                None => continue,
+            };
+            let qr = controller.parse_query(&frame);
 
-                // Check for faults
-                if qr.mode.is_error() {
-                    return Err(Error::Fault {
-                        mode: qr.mode as u8,
-                        code: qr.fault,
-                    });
-                }
+            // Check for faults
+            if qr.mode.is_error() {
+                return Err(Error::Fault {
+                    mode: qr.mode as u8,
+                    code: qr.fault,
+                });
+            }
 
-                // Only check trajectory_complete for non-NaN setpoints
-                if !setpoint.position.is_nan() && !qr.trajectory_complete {
+            // Only check trajectory_complete for non-NaN setpoints.
+            //
+            // While the motor is transitioning from stopped through
+            // the calibration sequence to position mode, the position
+            // trajectory code does not run and TRAJECTORY_COMPLETE
+            // retains its prior value (often 1).  Don't trust it until
+            // the motor is actually in a position-tracking mode.  This
+            // matches the Python implementation.
+            if !setpoint.position.is_nan() {
+                let in_position_mode = matches!(qr.mode, Mode::Position | Mode::StayWithin);
+                if !(in_position_mode && qr.trajectory_complete) {
                     all_complete = false;
                 }
-
-                last_results[i] = Some(qr);
-            } else {
-                all_complete = false;
             }
-        }
 
-        count = count.saturating_sub(1);
+            last_results[i] = Some(qr);
+        }
 
         if count == 0 && all_complete {
             return Ok(servos
@@ -612,7 +649,7 @@ pub async fn async_move_to(
     }
 }
 
-/// Async version of velocity limit computation.
+/// Async version of [`compute_velocity_limits`].
 #[cfg(feature = "tokio")]
 async fn async_compute_velocity_limits(
     transport: &mut dyn crate::transport::async_transport::AsyncTransport,
@@ -621,17 +658,11 @@ async fn async_compute_velocity_limits(
     query_format: &QueryFormat,
 ) -> Result<Vec<Option<f32>>> {
     let duration_s = match options.duration {
-        Some(d) => {
-            let s = d.as_secs_f32();
-            if s <= 0.0 {
-                return Ok(vec![None; servos.len()]);
-            }
-            s
-        }
+        Some(d) if d.as_secs_f32() > 0.0 => d.as_secs_f32(),
         _ => return Ok(vec![None; servos.len()]),
     };
 
-    // Query current positions
+    // Query current positions.
     let mut requests: Vec<Request> = servos
         .iter()
         .map(|(controller, _)| {
@@ -649,17 +680,23 @@ async fn async_compute_velocity_limits(
             continue;
         }
 
-        let vl = requests[i]
-            .responses
-            .take()
-            .into_iter()
-            .next()
-            .map(|frame| {
-                let qr = controller.parse_query(&frame);
-                let distance = (setpoint.position - qr.position).abs();
-                distance / duration_s
-            });
-        limits.push(vl);
+        let qr = match requests[i].responses.take().into_iter().next() {
+            Some(frame) => controller.parse_query(&frame),
+            None => {
+                return Err(Error::DeviceNotFound(format!(
+                    "could not retrieve current position for servo {}",
+                    controller.id
+                )))
+            }
+        };
+
+        // Calculate per-servo velocity limit: velocity = distance / duration
+        let distance = (setpoint.position - qr.position).abs();
+        limits.push(if distance != 0.0 {
+            Some(distance / duration_s)
+        } else {
+            None
+        });
     }
 
     Ok(limits)
@@ -669,6 +706,7 @@ async fn async_compute_velocity_limits(
 mod tests {
     use super::*;
     use crate::transport::NullTransport;
+    use moteus_protocol::CanFdFrame;
 
     #[test]
     fn test_setpoint_from_f32() {
@@ -737,11 +775,86 @@ mod tests {
     }
 
     #[test]
-    fn test_move_to_timeout() {
+    fn test_move_to_unresponsive_servo_fails_fast() {
+        // With a duration set, the initial position query must fail
+        // with an error naming the servo when it does not respond
+        // (mirroring the Python RuntimeError), rather than entering
+        // the polling loop where other servos' watchdogs starve.
         let mut transport = NullTransport::new();
         let c = Controller::new(1);
-        let opts = MoveToOptions::new().timeout(std::time::Duration::from_millis(50));
+        let opts = MoveToOptions::new()
+            .duration(std::time::Duration::from_secs(1))
+            .timeout(std::time::Duration::from_millis(50));
         let result = move_to(&mut transport, &[(&c, 0.5.into())], &opts);
-        assert!(matches!(result, Err(Error::Timeout)));
+        match result {
+            Err(Error::DeviceNotFound(msg)) => assert!(msg.contains("servo 1")),
+            other => panic!("expected DeviceNotFound, got {:?}", other),
+        }
+    }
+
+    /// Transport whose servo reports Position mode immediately but
+    /// only sets trajectory_complete after a number of cycles,
+    /// mimicking real hardware where a move takes many polling
+    /// periods to finish.
+    struct ScriptedTransport {
+        cycles: usize,
+        complete_after: usize,
+    }
+
+    impl Transport for ScriptedTransport {
+        fn cycle(&mut self, requests: &mut [Request]) -> Result<()> {
+            self.cycles += 1;
+            let complete = self.cycles > self.complete_after;
+            for req in requests.iter_mut() {
+                let mut frame = CanFdFrame::new();
+                frame.data[..6].copy_from_slice(&[
+                    0x21, // reply int8, count 1
+                    0x00, // register 0x000: Mode
+                    0x0a, // = 10 (Position)
+                    0x21, // reply int8, count 1
+                    0x0b, // register 0x00b: TrajectoryComplete
+                    u8::from(complete),
+                ]);
+                frame.size = 6;
+                req.responses.push(frame);
+            }
+            Ok(())
+        }
+        fn write(&mut self, _frame: &CanFdFrame) -> Result<()> {
+            Ok(())
+        }
+        fn read(&mut self, _channel: Option<usize>) -> Result<Option<CanFdFrame>> {
+            Ok(None)
+        }
+        fn flush_read(&mut self, _channel: Option<usize>) -> Result<()> {
+            Ok(())
+        }
+        fn set_timeout(&mut self, _timeout: std::time::Duration) {}
+        fn timeout(&self) -> std::time::Duration {
+            std::time::Duration::ZERO
+        }
+    }
+
+    #[test]
+    fn test_move_to_completes_when_trajectory_finishes_late() {
+        // Regression test: completion must be recognized even when the
+        // trajectory takes many polling cycles to finish.  An earlier
+        // version decremented its settle counter with saturating_sub
+        // instead of clamping at zero (Python: max(count - 1, 0)), so
+        // the `count == 0` exit condition was only satisfiable on
+        // exactly the second iteration and real moves never completed.
+        let mut transport = ScriptedTransport {
+            cycles: 0,
+            complete_after: 10,
+        };
+        let c = Controller::new(1);
+        let opts = MoveToOptions::new()
+            .duration(std::time::Duration::from_millis(100))
+            .period(std::time::Duration::from_millis(1))
+            .timeout(std::time::Duration::from_secs(5));
+        let results = move_to(&mut transport, &[(&c, 0.5.into())], &opts).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].result.mode, Mode::Position);
+        assert!(results[0].result.trajectory_complete);
     }
 }
