@@ -118,11 +118,24 @@ rust_doc_test(
 rust_doc_test(
     name = "moteus-doc-test-all-features",
     crate = ":moteus_clap_tokio",
+    # rust_doc_test does not inherit the crate's rustc_flags, so the
+    # feature cfgs must be repeated here or rustdoc will silently skip
+    # every feature-gated doctest.
+    crate_features = [
+        "clap",
+        "tokio",
+    ],
     size = "small",
 )
 
 rust_doc(
     name = "moteus-doc",
     crate = ":moteus_clap_tokio",
+    # As with the doc tests above, the feature cfgs must be repeated or
+    # the generated documentation omits all feature-gated modules.
+    crate_features = [
+        "clap",
+        "tokio",
+    ],
     rustdoc_flags = ["-D", "warnings"],
 )

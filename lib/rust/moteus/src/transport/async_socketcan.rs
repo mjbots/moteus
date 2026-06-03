@@ -21,11 +21,16 @@
 //!
 //! ```no_run
 //! use moteus::transport::async_socketcan::AsyncSocketCanDevice;
+//! use moteus::transport::device::AsyncTransportDevice;
+//! use moteus::transport::Request;
+//! use moteus::CanFdFrame;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
 //!     let mut device = AsyncSocketCanDevice::new("can0").await?;
-//!     let responses = device.transaction(&frames).await?;
+//!     let mut requests = [Request::new(CanFdFrame::new())];
+//!     device.transaction(&mut requests).await?;
+//!     let responses = requests[0].responses.take();
 //!     Ok(())
 //! }
 //! ```

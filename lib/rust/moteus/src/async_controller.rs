@@ -356,6 +356,8 @@ impl<T: AsyncTransport> AsyncController<T> {
     /// use moteus::command::PositionCommand;
     /// use moteus::query::QueryFormat;
     ///
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// # let mut ctrl = AsyncController::new(1).await?;
     /// // Simple position command
     /// let result = ctrl.set_position(
     ///     PositionCommand::new().position(0.5)
@@ -367,6 +369,8 @@ impl<T: AsyncTransport> AsyncController<T> {
     ///         .position(0.5)
     ///         .with_query(QueryFormat::comprehensive())
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_position(
         &mut self,
@@ -488,9 +492,13 @@ impl<T: AsyncTransport> AsyncController<T> {
     /// ```no_run
     /// use moteus::command::CurrentCommand;
     ///
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// # let mut ctrl = moteus::AsyncController::new(1).await?;
     /// let result = ctrl.set_current(
     ///     CurrentCommand::new().q_current(0.5).d_current(0.0)
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_current(
         &mut self,
@@ -559,9 +567,13 @@ impl<T: AsyncTransport> AsyncController<T> {
     /// ```no_run
     /// use moteus::command::VFOCCommand;
     ///
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// # let mut ctrl = moteus::AsyncController::new(1).await?;
     /// let result = ctrl.set_vfoc(
     ///     VFOCCommand::new().theta(0.0).voltage(1.0)
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_vfoc(
         &mut self,
@@ -627,11 +639,15 @@ impl<T: AsyncTransport> AsyncController<T> {
     /// ```no_run
     /// use moteus::command::StayWithinCommand;
     ///
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// # let mut ctrl = moteus::AsyncController::new(1).await?;
     /// let result = ctrl.set_stay_within(
     ///     StayWithinCommand::new()
     ///         .lower_bound(-0.5)
     ///         .upper_bound(0.5)
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_stay_within(
         &mut self,
@@ -700,12 +716,16 @@ impl<T: AsyncTransport> AsyncController<T> {
     /// ```no_run
     /// use moteus::command::ZeroVelocityCommand;
     ///
+    /// # async fn example() -> Result<(), moteus::Error> {
+    /// # let mut ctrl = moteus::AsyncController::new(1).await?;
     /// let result = ctrl.set_zero_velocity(ZeroVelocityCommand::new()).await?;
     ///
     /// // With custom kd_scale
     /// let result = ctrl.set_zero_velocity(
     ///     ZeroVelocityCommand::new().kd_scale(0.5)
     /// ).await?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn set_zero_velocity(
         &mut self,

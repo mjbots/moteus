@@ -22,6 +22,7 @@
 //!
 //! ```no_run
 //! use moteus::transport::async_singleton::get_async_singleton_transport;
+//! use moteus::transport::async_factory::AsyncTransportOptions;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
