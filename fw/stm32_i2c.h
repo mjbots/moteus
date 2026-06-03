@@ -58,6 +58,17 @@ class Stm32I2c {
     // PE must be low for a bit, so wait.
     for (int i = 0; i < 1000; i++);
 
+    // mbed's i2c_init() leaves own-address matching enabled with
+    // address 0, which a glitchy bus can match (verified on
+    // hardware).  We are master-only: on a match the slave engine
+    // sets ADDR and per RM0440 section 41.4.8 stretches SCL low
+    // until ADDR is cleared, which no code here ever does.  An
+    // own-address match racing a pending master START can also leave
+    // the peripheral in an unpredictable state per ES0430 erratum
+    // section 2.15.3.  Disable all slave address matching.
+    i2c_->OAR1 = 0;
+    i2c_->OAR2 = 0;
+
     // Now figure out the actual timing values.
     TimingInput timing_input;
     timing_input.peripheral_hz = HAL_RCC_GetSysClockFreq();
