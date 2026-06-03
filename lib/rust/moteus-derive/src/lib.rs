@@ -12,10 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Derive macros for the moteus crate.
-//!
-//! This crate provides the `#[derive(Setters)]` macro for generating
-//! builder-style setter methods.
+#![doc = include_str!("../README.md")]
 
 use proc_macro::TokenStream;
 use quote::quote;
