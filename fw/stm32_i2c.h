@@ -32,6 +32,11 @@ class Stm32I2c {
     PinName scl = NC;
     int frequency = 400000;
     I2cMode i2c_mode = I2cMode::kFast;
+    // The analog filter rejects spikes shorter than tAF(min)=50ns
+    // (STM32G474 datasheet section 5.3.27, Table 88), which would
+    // otherwise be seen as SCL or SDA edges on noisy or slowly
+    // rising buses.
+    AnalogFilter analog_filter = AnalogFilter::kOn;
     // When non-null, transactions that take much longer than they
     // could on a functioning bus are abandoned and the peripheral
     // reset.
@@ -58,6 +63,7 @@ class Stm32I2c {
     timing_input.peripheral_hz = HAL_RCC_GetSysClockFreq();
     timing_input.i2c_hz = options_.frequency;
     timing_input.i2c_mode = options_.i2c_mode;
+    timing_input.analog_filter = options_.analog_filter;
 
     const auto timing = CalculateI2cTiming(timing_input);
     if (timing.error) {

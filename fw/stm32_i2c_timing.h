@@ -88,9 +88,9 @@ inline TimingResult TryTimingWithPrescaler(const TimingInput& i, int prescaler) 
           // needs to be at least 300ns.
           case I2cMode::kStandard: return 300000;
           // The NXP I2C doc lists 0 for both fast and fast+.  One
-          // device, an AS5048, lists 10ns.  We'll go with 10.
-          case I2cMode::kFast: return 10;
-          case I2cMode::kFastPlus: return 10;
+          // device, an AS5048, lists 10ns.  We'll go with 10ns.
+          case I2cMode::kFast: return 10000;
+          case I2cMode::kFastPlus: return 10000;
         }
         return 0;
       }();
@@ -103,6 +103,28 @@ inline TimingResult TryTimingWithPrescaler(const TimingInput& i, int prescaler) 
         }
         return 0;
       }();
+  // These values are the tVD;DAT maximums from the RM0440 section
+  // 41.4.5 body text.  The text notes that the hold time need only be
+  // met if the device does not stretch SCL.  Since we always stretch,
+  // this is a sanity bound rather than a hard requirement.
+  const int64_t data_max_hold_ps =
+      [&]() {
+        switch (i.i2c_mode) {
+          case I2cMode::kStandard: return 3450000;
+          case I2cMode::kFast: return 900000;
+          case I2cMode::kFastPlus: return 450000;
+        }
+        return 0;
+      }();
+
+  // The I2C analog filter delay, from the STM32G474 datasheet
+  // section 5.3.27, Table 88.  Per RM0440 section 41.4.5, the tAF
+  // terms apply to the SDADEL constraints only when the analog
+  // filter is enabled.
+  const int64_t analog_filter_min_ps =
+      (i.analog_filter == AnalogFilter::kOn) ? 50000 : 0;
+  const int64_t analog_filter_max_ps =
+      (i.analog_filter == AnalogFilter::kOn) ? 90000 : 0;
 
   const int64_t i2c_max_hz =
       [&]() {
@@ -146,16 +168,29 @@ inline TimingResult TryTimingWithPrescaler(const TimingInput& i, int prescaler) 
 
   // const int64_t actual_scl_high_ps = (result.sclh + 1) * t_presc_ps;
 
-  // Per RM0440: tSDADEL = SDADEL * tPRESC + tI2CCLK.  Unlike SCLL /
-  // SCLH / SCLDEL, there is no "+1" on the SDADEL multiplier, so
-  // floor division here would underspecify the hold time.  Use a
-  // ceiling, and credit the +tI2CCLK term the hardware adds for free.
+  // Per RM0440 section 41.4.5: tSDADEL = SDADEL * tPRESC + tI2CCLK.
+  // Unlike SCLL / SCLH / SCLDEL, there is no "+1" on the SDADEL
+  // multiplier, so floor division here would underspecify the hold
+  // time.  Use a ceiling, and credit the +tI2CCLK term the hardware
+  // adds for free.  When enabled, the analog filter delays the
+  // internally observed SCL falling edge by at least tAF(min), which
+  // extends the effective hold time by the same amount.
   const int64_t sdadel_min_ps =
-      std::max<int64_t>(0, data_min_hold_ps - t_i2cclk_ps);
+      std::max<int64_t>(
+          0, data_min_hold_ps - analog_filter_min_ps - t_i2cclk_ps);
   result.sdadel = static_cast<int>(
       (sdadel_min_ps + t_presc_ps - 1) / t_presc_ps);
   if (result.sdadel > 15) {
     result.error = 4;
+    return result;
+  }
+
+  // Per RM0440 section 41.4.5: SDADEL <= {tHD;DAT(max) - tAF(max) -
+  // [(DNF+4) x tI2CCLK]} / {(PRESC+1) x tI2CCLK}.
+  const int64_t sdadel_max_ps =
+      data_max_hold_ps - analog_filter_max_ps - 4 * t_i2cclk_ps;
+  if (result.sdadel * t_presc_ps > sdadel_max_ps) {
+    result.error = 6;
     return result;
   }
 

@@ -14,6 +14,8 @@
 
 #include "fw/stm32_i2c_timing.h"
 
+#include <utility>
+
 #include <boost/test/auto_unit_test.hpp>
 
 using namespace moteus;
@@ -68,6 +70,77 @@ BOOST_AUTO_TEST_CASE(StandardModeHoldTimeMeetsMinimum) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(TimingTestAnalogFilterStandard) {
+  TimingInput input;
+  input.peripheral_hz = 64000000;
+  input.i2c_hz = 100000;
+  input.i2c_mode = I2cMode::kStandard;
+  input.analog_filter = AnalogFilter::kOn;
+
+  const auto result = CalculateI2cTiming(input);
+  BOOST_TEST(result.error == 0);
+  BOOST_TEST(result.prescaler == 1);
+  BOOST_TEST(result.scldel == 8);
+  BOOST_TEST(result.sclh == 147);
+  BOOST_TEST(result.scll == 172);
+  // The analog filter delays the internally observed SCL falling
+  // edge by at least tAF(min)=50ns, which counts toward the hold
+  // time, so a smaller SDADEL suffices than with the filter off.
+  BOOST_TEST(result.sdadel == 8);
+  BOOST_TEST(result.timingr == 0x108893ac);
+}
+
+// With the analog filter enabled, the realised hold time plus the
+// tAF(min) credit must still meet the 300 ns Standard-mode minimum.
+BOOST_AUTO_TEST_CASE(StandardModeHoldTimeMeetsMinimumAnalogFilter) {
+  // STM32G474 datasheet section 5.3.27, Table 88.
+  constexpr int64_t taf_min_ps = 50000;
+
+  for (const int peripheral_hz : {64000000, 85000000, 128000000, 170000000}) {
+    TimingInput input;
+    input.peripheral_hz = peripheral_hz;
+    input.i2c_hz = 100000;
+    input.i2c_mode = I2cMode::kStandard;
+    input.analog_filter = AnalogFilter::kOn;
+
+    const auto result = CalculateI2cTiming(input);
+    BOOST_TEST_REQUIRE(result.error == 0);
+
+    const int64_t t_i2cclk_ps = 1000000000000ll / peripheral_hz;
+    const int64_t t_presc_ps = t_i2cclk_ps * (result.prescaler + 1);
+    const int64_t actual_hold_ps =
+        static_cast<int64_t>(result.sdadel) * t_presc_ps + t_i2cclk_ps +
+        taf_min_ps;
+    BOOST_TEST(actual_hold_ps >= 300000,
+               "peripheral_hz=" << peripheral_hz
+               << " sdadel=" << result.sdadel
+               << " prescaler=" << result.prescaler
+               << " actual_hold_ps=" << actual_hold_ps);
+  }
+}
+
+// The analog filter must not render any supported mode or peripheral
+// clock infeasible.
+BOOST_AUTO_TEST_CASE(AnalogFilterAllModesValid) {
+  for (const int peripheral_hz : {64000000, 85000000, 128000000, 170000000}) {
+    for (const auto [mode, i2c_hz] :
+             {std::pair{I2cMode::kStandard, 100000},
+              std::pair{I2cMode::kFast, 400000},
+              std::pair{I2cMode::kFastPlus, 1000000}}) {
+      TimingInput input;
+      input.peripheral_hz = peripheral_hz;
+      input.i2c_hz = i2c_hz;
+      input.i2c_mode = mode;
+      input.analog_filter = AnalogFilter::kOn;
+
+      const auto result = CalculateI2cTiming(input);
+      BOOST_TEST(result.error == 0,
+                 "peripheral_hz=" << peripheral_hz
+                 << " i2c_hz=" << i2c_hz);
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(TimingTest2) {
   TimingInput input;
   input.peripheral_hz = 64000000;
@@ -113,5 +186,8 @@ BOOST_AUTO_TEST_CASE(TimingTest4) {
   BOOST_TEST(result.scldel == 6);
   BOOST_TEST(result.sclh == 42);
   BOOST_TEST(result.scll == 85);
-  BOOST_TEST(result.timingr == 0x00602a55);
+  // With tI2CCLK = 7.8 ns, the implicit +tI2CCLK hold alone is below
+  // the 10 ns minimum, so one SDADEL count is required.
+  BOOST_TEST(result.sdadel == 1);
+  BOOST_TEST(result.timingr == 0x00612a55);
 }
