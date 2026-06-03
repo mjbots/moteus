@@ -22,11 +22,16 @@
 //!
 //! ```no_run
 //! use moteus::transport::async_fdcanusb::AsyncFdcanusbDevice;
+//! use moteus::transport::device::AsyncTransportDevice;
+//! use moteus::transport::Request;
+//! use moteus::CanFdFrame;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
 //!     let mut device = AsyncFdcanusbDevice::open("/dev/ttyACM0").await?;
-//!     let responses = device.transaction(&frames).await?;
+//!     let mut requests = [Request::new(CanFdFrame::new())];
+//!     device.transaction(&mut requests).await?;
+//!     let responses = requests[0].responses.take();
 //!     Ok(())
 //! }
 //! ```

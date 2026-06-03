@@ -116,6 +116,8 @@ pub trait AsyncTransport: Send {
 /// ```no_run
 /// use moteus::transport::async_transport::AsyncRouter;
 /// use moteus::transport::async_factory::AsyncTransportOptions;
+/// use moteus::transport::Request;
+/// use moteus::CanFdFrame;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), moteus::Error> {
@@ -129,6 +131,7 @@ pub trait AsyncTransport: Send {
 ///     }
 ///
 ///     // Send commands
+///     let frame = CanFdFrame::new();
 ///     let mut requests = vec![Request::new(frame)];
 ///     transport.cycle(&mut requests).await?;
 ///     Ok(())
@@ -724,11 +727,18 @@ impl AsyncRouter {
     /// # Example
     ///
     /// ```no_run
+    /// # use moteus::transport::async_transport::AsyncRouter;
+    /// # use moteus::transport::Request;
+    /// # use moteus::CanFdFrame;
+    /// # async fn example(transport: &mut AsyncRouter) -> Result<(), moteus::Error> {
+    /// # let frame = CanFdFrame::new();
     /// let mut requests = vec![Request::new(frame)];
     /// transport.cycle(&mut requests).await?;
     /// for response in requests[0].responses.take() {
     ///     // Process response
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub async fn cycle(&mut self, requests: &mut [Request]) -> Result<()> {
         self.execute_cycle(requests).await
