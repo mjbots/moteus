@@ -14,10 +14,13 @@
 
 #pragma once
 
+#include <algorithm>
+
 #include "mbed.h"
 
 #include "mjlib/base/string_span.h"
 
+#include "fw/millisecond_timer.h"
 #include "fw/stm32_i2c_timing.h"
 
 namespace moteus {
@@ -29,6 +32,10 @@ class Stm32I2c {
     PinName scl = NC;
     int frequency = 400000;
     I2cMode i2c_mode = I2cMode::kFast;
+    // When non-null, transactions that take much longer than they
+    // could on a functioning bus are abandoned and the peripheral
+    // reset.
+    MillisecondTimer* timer = nullptr;
   };
 
   Stm32I2c(const Options& options) : options_(options) {
@@ -86,6 +93,9 @@ class Stm32I2c {
     slave_address_ = slave_address;
     rx_data_ = data;
 
+    // Address + register, then repeated start, address + data.
+    ArmTimeout(3 + data.size());
+
     i2c_->ICR |= (I2C_ICR_STOPCF | I2C_ICR_NACKCF);
 
     i2c_->CR2 = (
@@ -112,6 +122,9 @@ class Stm32I2c {
     }
 
     tx_data_ = data;
+
+    // Address + register + data.
+    ArmTimeout(2 + data.size());
 
     i2c_->CR2 = (
         I2C_CR2_START |
@@ -166,6 +179,17 @@ class Stm32I2c {
       i2c_->ICR |= (I2C_ICR_NACKCF |
                     I2C_ICR_ARLOCF |
                     I2C_ICR_BERRCF);
+      return;
+    }
+
+    // The peripheral state machine can wedge permanently with no
+    // error flags set, for instance if a transaction is started while
+    // the bus is held low.  The only way out is a PE toggle, which
+    // the kError path of CheckRead performs.
+    if (busy() && options_.timer &&
+        MillisecondTimer::subtract_us(
+            options_.timer->read_us(), start_us_) > timeout_us_) {
+      mode_ = Mode::kError;
       return;
     }
 
@@ -268,6 +292,21 @@ class Stm32I2c {
   }
 
  private:
+  void ArmTimeout(size_t total_bytes) {
+    if (!options_.timer) { return; }
+
+    // Each byte takes 9 bit-times on the wire, plus a few more for
+    // the start/stop conditions.  Allow 10x that to account for
+    // polling granularity and slave clock stretching; a legitimate
+    // transaction can never approach this, while a wedged peripheral
+    // never completes.
+    const uint32_t nominal_us =
+        (static_cast<uint32_t>(total_bytes) * 9 + 4) * 1000000u /
+        static_cast<uint32_t>(std::max(1, options_.frequency));
+    timeout_us_ = 1000 + 10 * nominal_us;
+    start_us_ = options_.timer->read_us();
+  }
+
   const Options options_;
   bool valid_ = false;
   i2c_t mbed_i2c_;
@@ -288,6 +327,8 @@ class Stm32I2c {
   mjlib::base::string_span rx_data_;
   std::string_view tx_data_;
   int32_t offset_ = 0;
+  uint32_t start_us_ = 0;
+  uint32_t timeout_us_ = 0;
 };
 
 }

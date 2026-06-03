@@ -1006,6 +1006,7 @@ class AuxPort {
             options.scl = scl;
             options.frequency = config_.i2c.i2c_hz;
             options.i2c_mode = static_cast<I2cMode>(config_.i2c.i2c_mode);
+            options.timer = timer_;
             return options;
           }());
       updated_any_isr = true;
