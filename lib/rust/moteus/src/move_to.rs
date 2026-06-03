@@ -55,7 +55,7 @@
 use crate::controller::Controller;
 use crate::error::{Error, Result};
 use crate::transport::transaction::Request;
-use crate::transport::TransportOps;
+use crate::transport::Transport;
 use moteus_protocol::command::PositionCommand;
 use moteus_protocol::query::{QueryFormat, QueryResult};
 use moteus_protocol::Resolution;
@@ -332,7 +332,7 @@ fn make_query_format(controllers: &[(&Controller, Setpoint)]) -> QueryFormat {
 /// * `Error::Fault` — if any servo enters a fault or timeout mode
 /// * `Error::Timeout` — if `options.timeout` is set and exceeded
 pub fn move_to(
-    transport: &mut dyn TransportOps,
+    transport: &mut dyn Transport,
     servos: &[(&Controller, Setpoint)],
     options: &MoveToOptions,
 ) -> Result<Vec<ServoResult>> {
@@ -439,7 +439,7 @@ pub fn move_to(
 /// Queries current positions and computes per-servo velocity limits
 /// based on duration.
 fn compute_velocity_limits(
-    transport: &mut dyn TransportOps,
+    transport: &mut dyn Transport,
     servos: &[(&Controller, Setpoint)],
     options: &MoveToOptions,
     query_format: &QueryFormat,
@@ -507,7 +507,7 @@ fn compute_velocity_limits(
 /// trajectory until any configured watchdog timeout activates.
 #[cfg(feature = "tokio")]
 pub async fn async_move_to(
-    transport: &mut dyn crate::transport::async_transport::AsyncTransportOps,
+    transport: &mut dyn crate::transport::async_transport::AsyncTransport,
     servos: &[(&Controller, Setpoint)],
     options: &MoveToOptions,
 ) -> Result<Vec<ServoResult>> {
@@ -615,7 +615,7 @@ pub async fn async_move_to(
 /// Async version of velocity limit computation.
 #[cfg(feature = "tokio")]
 async fn async_compute_velocity_limits(
-    transport: &mut dyn crate::transport::async_transport::AsyncTransportOps,
+    transport: &mut dyn crate::transport::async_transport::AsyncTransport,
     servos: &[(&Controller, Setpoint)],
     options: &MoveToOptions,
     query_format: &QueryFormat,

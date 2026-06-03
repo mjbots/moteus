@@ -27,7 +27,7 @@ use clap::Parser;
 use moteus::command::PositionCommand;
 use moteus::query::QueryResult;
 use moteus::transport::args::TransportArgs;
-use moteus::transport::async_transport::AsyncTransport;
+use moteus::transport::async_transport::AsyncRouter;
 use moteus::transport::singleton::get_singleton_transport;
 use moteus::transport::transaction::Request;
 use moteus::Controller;
@@ -136,7 +136,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
 async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     // Create async transport with specified options.
     let opts = args.transport.clone().into();
-    let mut transport = AsyncTransport::with_options(&opts).await?;
+    let mut transport = AsyncRouter::with_options(&opts).await?;
 
     // Discover all connected devices.
     let devices = transport.discover(0, 0).await?;

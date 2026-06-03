@@ -20,12 +20,12 @@
 //! # Example
 //!
 //! ```no_run
-//! use moteus::transport::async_socketcan::AsyncSocketCan;
+//! use moteus::transport::async_socketcan::AsyncSocketCanDevice;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
-//!     let mut transport = AsyncSocketCan::new("can0").await?;
-//!     let responses = transport.transaction(&frames).await?;
+//!     let mut device = AsyncSocketCanDevice::new("can0").await?;
+//!     let responses = device.transaction(&frames).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -159,16 +159,16 @@ mod linux {
     }
 
     /// Async SocketCAN transport using tokio.
-    pub struct AsyncSocketCan {
+    pub struct AsyncSocketCanDevice {
         async_fd: AsyncFd<SocketCanRaw>,
         timeout: std::time::Duration,
         pub(crate) info: TransportDeviceInfo,
         needs_recovery: bool,
     }
 
-    impl std::fmt::Debug for AsyncSocketCan {
+    impl std::fmt::Debug for AsyncSocketCanDevice {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            f.debug_struct("AsyncSocketCan")
+            f.debug_struct("AsyncSocketCanDevice")
                 .field("info", &self.info)
                 .field("timeout", &self.timeout)
                 .field("needs_recovery", &self.needs_recovery)
@@ -176,7 +176,7 @@ mod linux {
         }
     }
 
-    impl AsyncSocketCan {
+    impl AsyncSocketCanDevice {
         /// Creates a new async SocketCAN transport.
         ///
         /// # Arguments
@@ -194,7 +194,7 @@ mod linux {
             let raw = SocketCanRaw::new(interface, disable_brs)?;
             let async_fd = AsyncFd::new(raw).map_err(Error::Io)?;
 
-            Ok(AsyncSocketCan {
+            Ok(AsyncSocketCanDevice {
                 async_fd,
                 timeout,
                 info: TransportDeviceInfo::new(0, "AsyncSocketCan")
@@ -258,7 +258,7 @@ mod linux {
         async fn execute_cycle(&mut self, requests: &mut [Request]) -> Result<()> {
             debug_assert!(
                 requests.iter().all(|r| r.child_device.is_none()),
-                "AsyncSocketCan does not support child devices"
+                "AsyncSocketCanDevice does not support child devices"
             );
 
             self.needs_recovery = true;
@@ -286,7 +286,7 @@ mod linux {
         }
     }
 
-    impl AsyncTransportDevice for AsyncSocketCan {
+    impl AsyncTransportDevice for AsyncSocketCanDevice {
         fn recover(&mut self) -> BoxFuture<'_, Result<()>> {
             Box::pin(async move {
                 if !self.needs_recovery {
@@ -365,14 +365,14 @@ mod linux {
 }
 
 #[cfg(target_os = "linux")]
-pub use linux::AsyncSocketCan;
+pub use linux::AsyncSocketCanDevice;
 
 #[cfg(test)]
 mod tests {
     #[cfg(target_os = "linux")]
     #[tokio::test]
     async fn test_async_socketcan_interface_not_found() {
-        let result = super::AsyncSocketCan::new("nonexistent_can_interface_12345").await;
+        let result = super::AsyncSocketCanDevice::new("nonexistent_can_interface_12345").await;
         assert!(result.is_err());
     }
 }

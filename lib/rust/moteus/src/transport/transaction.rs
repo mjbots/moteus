@@ -257,7 +257,7 @@ pub struct Request {
     ///
     /// When a request is routed through a parent device, this field
     /// indicates which child device the request is intended for.
-    /// Set automatically by the Transport when dispatching to a parent.
+    /// Set automatically by the Router when dispatching to a parent.
     pub child_device: Option<usize>,
     /// Device address for routing table lookup.
     ///

@@ -31,7 +31,15 @@ pub use controller::Controller;
 pub use device_address::DeviceAddress;
 pub use error::Error;
 pub use transport::factory::TransportOptions;
-pub use transport::{Transport, TransportOps};
+pub use transport::{Router, Transport};
+
+// Single-bus convenience transports (mirrors Python's `Fdcanusb`/`PythonCan`).
+#[cfg(feature = "tokio")]
+pub use transport::convenience::AsyncFdcanusb;
+#[cfg(all(feature = "tokio", target_os = "linux"))]
+pub use transport::convenience::AsyncSocketCan;
+#[cfg(target_os = "linux")]
+pub use transport::convenience::{Fdcanusb, SocketCan};
 
 // Re-export protocol types for convenience
 pub use moteus_protocol::{command, query, CanFdFrame, Mode, Register, Resolution};

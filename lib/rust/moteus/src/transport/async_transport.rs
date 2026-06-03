@@ -14,7 +14,7 @@
 
 //! Async transport for moteus communication.
 //!
-//! This module provides the `AsyncTransport` struct that manages async
+//! This module provides the `AsyncRouter` struct that manages async
 //! communication with moteus controllers over CAN-FD, routing frames
 //! across multiple channels.
 //!
@@ -58,7 +58,7 @@ use tokio::sync::Mutex;
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 // =============================================================================
-// AsyncTransportOps Trait
+// AsyncTransport Trait
 // =============================================================================
 
 /// A shared, cancellation-safe handle to an async transport device.
@@ -68,18 +68,18 @@ pub type SharedDevice = Arc<Mutex<Box<dyn AsyncTransportDevice>>>;
 /// Trait for async transport operations.
 ///
 /// This trait defines the common interface for async transport implementations.
-/// Most users should use the concrete `AsyncTransport` struct directly, which
+/// Most users should use the concrete `AsyncRouter` struct directly, which
 /// provides these methods as inherent async methods.
 ///
 /// This trait is useful for:
 /// - Writing generic code that works with any async transport
 /// - Implementing custom async transports
-/// - Using `Box<dyn AsyncTransportOps>` for polymorphism
+/// - Using `Box<dyn AsyncTransport>` for polymorphism
 ///
 /// # Cancel safety
 ///
 /// All methods are cancel safe.
-pub trait AsyncTransportOps: Send {
+pub trait AsyncTransport: Send {
     /// Executes a cycle: sends frames and collects responses asynchronously.
     fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>>;
 
@@ -94,13 +94,13 @@ pub trait AsyncTransportOps: Send {
 }
 
 // =============================================================================
-// AsyncTransport Struct (tokio feature only)
+// AsyncRouter Struct (tokio feature only)
 // =============================================================================
 
 /// An async transport that manages multiple CAN-FD devices.
 #[cfg(feature = "tokio")]
 ///
-/// The `AsyncTransport` routes frames to the appropriate device based on
+/// The `AsyncRouter` routes frames to the appropriate device based on
 /// a `DeviceAddress` lookup, matching the Python library's
 /// `Dict[DeviceAddress, TransportDevice]` routing table.
 ///
@@ -114,13 +114,13 @@ pub trait AsyncTransportOps: Send {
 /// # Example
 ///
 /// ```no_run
-/// use moteus::transport::async_transport::AsyncTransport;
+/// use moteus::transport::async_transport::AsyncRouter;
 /// use moteus::transport::async_factory::AsyncTransportOptions;
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), moteus::Error> {
 ///     let opts = AsyncTransportOptions::new();
-///     let mut transport = AsyncTransport::with_options(&opts).await?;
+///     let mut transport = AsyncRouter::with_options(&opts).await?;
 ///
 ///     // Discover devices
 ///     let devices = transport.discover(0, 0).await?;
@@ -134,7 +134,7 @@ pub trait AsyncTransportOps: Send {
 ///     Ok(())
 /// }
 /// ```
-pub struct AsyncTransport {
+pub struct AsyncRouter {
     /// The underlying async devices, wrapped for cancellation safety.
     devices: Vec<SharedDevice>,
     /// Cached device info (avoids locking to read immutable metadata).
@@ -249,7 +249,7 @@ async fn run_device_work(device: SharedDevice, mut work: DeviceWork) -> DeviceWo
 }
 
 #[cfg(feature = "tokio")]
-impl AsyncTransport {
+impl AsyncRouter {
     /// Creates a new async transport from a list of devices.
     pub fn new(devices: Vec<Box<dyn AsyncTransportDevice>>) -> Self {
         let device_infos: Vec<TransportDeviceInfo> = devices
@@ -271,6 +271,28 @@ impl AsyncTransport {
             parent_indices,
             routing_table: HashMap::new(),
         }
+    }
+
+    /// Creates an async transport from a single device.
+    ///
+    /// This is the simplest way to create a transport when you know
+    /// exactly which device to use.
+    pub fn from_device(device: impl AsyncTransportDevice + 'static) -> Self {
+        Self::new(vec![Box::new(device)])
+    }
+
+    /// Creates an async transport from an iterator of devices.
+    pub fn from_devices<I, T>(devices: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: AsyncTransportDevice + 'static,
+    {
+        Self::new(
+            devices
+                .into_iter()
+                .map(|d| Box::new(d) as Box<dyn AsyncTransportDevice>)
+                .collect(),
+        )
     }
 
     /// Creates an async transport from the default transport options.
@@ -802,26 +824,33 @@ impl AsyncTransport {
 }
 
 #[cfg(feature = "tokio")]
-impl AsyncTransportOps for AsyncTransport {
-    fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
-        Box::pin(AsyncTransport::cycle(self, requests))
-    }
-
-    fn write<'a>(&'a mut self, frame: &'a CanFdFrame) -> BoxFuture<'a, Result<()>> {
-        Box::pin(AsyncTransport::write(self, frame))
-    }
-
-    fn read<'a>(&'a mut self, channel: Option<usize>) -> BoxFuture<'a, Result<Option<CanFdFrame>>> {
-        Box::pin(AsyncTransport::read(self, channel))
-    }
-
-    fn flush_read<'a>(&'a mut self, channel: Option<usize>) -> BoxFuture<'a, Result<()>> {
-        Box::pin(AsyncTransport::flush_read(self, channel))
+impl<D: AsyncTransportDevice + 'static> From<D> for AsyncRouter {
+    fn from(device: D) -> Self {
+        AsyncRouter::from_device(device)
     }
 }
 
 #[cfg(feature = "tokio")]
-impl<T: AsyncTransportOps + 'static> AsyncTransportOps for Arc<tokio::sync::Mutex<T>> {
+impl AsyncTransport for AsyncRouter {
+    fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
+        Box::pin(AsyncRouter::cycle(self, requests))
+    }
+
+    fn write<'a>(&'a mut self, frame: &'a CanFdFrame) -> BoxFuture<'a, Result<()>> {
+        Box::pin(AsyncRouter::write(self, frame))
+    }
+
+    fn read<'a>(&'a mut self, channel: Option<usize>) -> BoxFuture<'a, Result<Option<CanFdFrame>>> {
+        Box::pin(AsyncRouter::read(self, channel))
+    }
+
+    fn flush_read<'a>(&'a mut self, channel: Option<usize>) -> BoxFuture<'a, Result<()>> {
+        Box::pin(AsyncRouter::flush_read(self, channel))
+    }
+}
+
+#[cfg(feature = "tokio")]
+impl<T: AsyncTransport + 'static> AsyncTransport for Arc<tokio::sync::Mutex<T>> {
     fn cycle<'a>(&'a mut self, requests: &'a mut [Request]) -> BoxFuture<'a, Result<()>> {
         let arc = Arc::clone(self);
         Box::pin(async move {
@@ -861,9 +890,10 @@ mod tests {
     #[cfg(feature = "tokio")]
     #[tokio::test]
     async fn test_async_transport_empty() {
+        use super::*;
         use crate::error::Error;
         let devices: Vec<Box<dyn AsyncTransportDevice>> = vec![];
-        let mut transport = AsyncTransport::new(devices);
+        let mut transport = AsyncRouter::new(devices);
 
         let frame = CanFdFrame::new();
         let mut requests = vec![Request::new(frame)];
@@ -1010,7 +1040,7 @@ mod tests {
         async fn test_single_device_survives_cancellation() {
             let fast_mode = Arc::new(AtomicBool::new(false));
             let device = CancellableMockDevice::new(fast_mode);
-            let mut transport = AsyncTransport::new(vec![Box::new(device)]);
+            let mut transport = AsyncRouter::new(vec![Box::new(device)]);
 
             let mut requests = vec![Request::new(CanFdFrame::new())];
             let result =
@@ -1018,7 +1048,7 @@ mod tests {
                     .await;
             assert!(result.is_err()); // timed out
 
-            // Transport still usable — devices not lost
+            // Router still usable — devices not lost
             assert_eq!(transport.device_count(), 1);
         }
 
@@ -1026,7 +1056,7 @@ mod tests {
         async fn test_multi_device_survives_cancellation() {
             let fast1 = Arc::new(AtomicBool::new(false));
             let fast2 = Arc::new(AtomicBool::new(false));
-            let mut transport = AsyncTransport::new(vec![
+            let mut transport = AsyncRouter::new(vec![
                 Box::new(CancellableMockDevice::new(fast1)),
                 Box::new(CancellableMockDevice::new(fast2)),
             ]);
@@ -1059,7 +1089,7 @@ mod tests {
             let fast_mode = Arc::new(AtomicBool::new(false));
             let device =
                 CancellableMockDevice::with_counter(recover_count.clone(), fast_mode.clone());
-            let mut transport = AsyncTransport::new(vec![Box::new(device)]);
+            let mut transport = AsyncRouter::new(vec![Box::new(device)]);
 
             // Cancel a cycle
             let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];
@@ -1081,7 +1111,7 @@ mod tests {
         async fn test_recover_noop_without_cancellation() {
             let recover_count = Arc::new(AtomicUsize::new(0));
             let device = FastMockDevice::with_counter(recover_count.clone());
-            let mut transport = AsyncTransport::new(vec![Box::new(device)]);
+            let mut transport = AsyncRouter::new(vec![Box::new(device)]);
 
             // Run two successful cycles
             let mut requests = vec![Request::new(CanFdFrame::new()).with_expected_replies(0)];

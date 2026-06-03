@@ -184,7 +184,7 @@ pub fn parse_diagnostic_response(frame: &CanFdFrame, channel: u8) -> Option<Diag
 // ============================================================================
 
 use crate::blocking_controller::BlockingController;
-use crate::transport::TransportOps;
+use crate::transport::Transport;
 
 /// A blocking diagnostic stream for a moteus controller.
 ///
@@ -216,14 +216,14 @@ use crate::transport::TransportOps;
 /// ```
 pub struct DiagnosticStream<
     'a,
-    T: TransportOps = std::sync::Arc<std::sync::Mutex<crate::transport::Transport>>,
+    T: Transport = std::sync::Arc<std::sync::Mutex<crate::transport::Router>>,
 > {
     controller: &'a mut BlockingController<T>,
     channel: u8,
     read_buffer: Vec<u8>,
 }
 
-impl<'a, T: TransportOps> std::fmt::Debug for DiagnosticStream<'a, T> {
+impl<'a, T: Transport> std::fmt::Debug for DiagnosticStream<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DiagnosticStream")
             .field("device_id", &self.controller.controller.id)
@@ -233,7 +233,7 @@ impl<'a, T: TransportOps> std::fmt::Debug for DiagnosticStream<'a, T> {
     }
 }
 
-impl<'a, T: TransportOps> DiagnosticStream<'a, T> {
+impl<'a, T: Transport> DiagnosticStream<'a, T> {
     /// Creates a new diagnostic stream for a controller.
     pub fn new(controller: &'a mut BlockingController<T>) -> Self {
         Self::with_channel(controller, DEFAULT_CHANNEL)
@@ -438,7 +438,7 @@ impl<'a, T: TransportOps> DiagnosticStream<'a, T> {
 #[cfg(feature = "tokio")]
 use crate::async_controller::AsyncController;
 #[cfg(feature = "tokio")]
-use crate::transport::async_transport::AsyncTransportOps;
+use crate::transport::async_transport::AsyncTransport;
 
 /// An async diagnostic stream for a moteus controller.
 ///
@@ -446,7 +446,7 @@ use crate::transport::async_transport::AsyncTransportOps;
 ///
 /// # Cancel safety
 ///
-/// Transport-level operations are cancel safe. However, multi-step
+/// Router-level operations are cancel safe. However, multi-step
 /// diagnostic sequences are not transactional — if `command()` is
 /// cancelled between write and read, the response is lost. Call
 /// `flush_read()` to resync after cancellation.
@@ -471,8 +471,8 @@ use crate::transport::async_transport::AsyncTransportOps;
 #[cfg(feature = "tokio")]
 pub struct AsyncDiagnosticStream<
     'a,
-    T: AsyncTransportOps = std::sync::Arc<
-        tokio::sync::Mutex<crate::transport::async_transport::AsyncTransport>,
+    T: AsyncTransport = std::sync::Arc<
+        tokio::sync::Mutex<crate::transport::async_transport::AsyncRouter>,
     >,
 > {
     controller: &'a mut AsyncController<T>,
@@ -481,7 +481,7 @@ pub struct AsyncDiagnosticStream<
 }
 
 #[cfg(feature = "tokio")]
-impl<'a, T: AsyncTransportOps> std::fmt::Debug for AsyncDiagnosticStream<'a, T> {
+impl<'a, T: AsyncTransport> std::fmt::Debug for AsyncDiagnosticStream<'a, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AsyncDiagnosticStream")
             .field("device_id", &self.controller.controller.id)
@@ -492,7 +492,7 @@ impl<'a, T: AsyncTransportOps> std::fmt::Debug for AsyncDiagnosticStream<'a, T> 
 }
 
 #[cfg(feature = "tokio")]
-impl<'a, T: AsyncTransportOps> AsyncDiagnosticStream<'a, T> {
+impl<'a, T: AsyncTransport> AsyncDiagnosticStream<'a, T> {
     /// Creates a new async diagnostic stream for a controller.
     pub fn new(controller: &'a mut AsyncController<T>) -> Self {
         Self::with_channel(controller, DEFAULT_CHANNEL)

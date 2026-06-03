@@ -29,7 +29,7 @@
 use clap::Parser;
 use moteus::move_to::{async_move_to, move_to, MoveToOptions};
 use moteus::transport::args::TransportArgs;
-use moteus::transport::async_transport::AsyncTransport;
+use moteus::transport::async_transport::AsyncRouter;
 use moteus::transport::singleton::get_singleton_transport;
 use moteus::transport::transaction::Request;
 use moteus::Controller;
@@ -117,7 +117,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
 #[tokio::main]
 async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     let opts = args.transport.clone().into();
-    let mut transport = AsyncTransport::with_options(&opts).await?;
+    let mut transport = AsyncRouter::with_options(&opts).await?;
 
     let c1 = Controller::new(args.id1);
     let c2 = Controller::new(args.id2);

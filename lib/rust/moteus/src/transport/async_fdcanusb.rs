@@ -21,12 +21,12 @@
 //! # Example
 //!
 //! ```no_run
-//! use moteus::transport::async_fdcanusb::AsyncFdcanusb;
+//! use moteus::transport::async_fdcanusb::AsyncFdcanusbDevice;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), moteus::Error> {
-//!     let mut transport = AsyncFdcanusb::open("/dev/ttyACM0").await?;
-//!     let responses = transport.transaction(&frames).await?;
+//!     let mut device = AsyncFdcanusbDevice::open("/dev/ttyACM0").await?;
+//!     let responses = device.transaction(&frames).await?;
 //!     Ok(())
 //! }
 //! ```
@@ -45,7 +45,7 @@ use tokio_serial::SerialStream;
 ///
 /// This provides an async interface for communicating with moteus
 /// controllers through an fdcanusb device.
-pub struct AsyncFdcanusb {
+pub struct AsyncFdcanusbDevice {
     reader: BufReader<ReadHalf<SerialStream>>,
     writer: WriteHalf<SerialStream>,
     timeout: std::time::Duration,
@@ -56,9 +56,9 @@ pub struct AsyncFdcanusb {
     needs_recovery: bool,
 }
 
-impl std::fmt::Debug for AsyncFdcanusb {
+impl std::fmt::Debug for AsyncFdcanusbDevice {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AsyncFdcanusb")
+        f.debug_struct("AsyncFdcanusbDevice")
             .field("info", &self.info)
             .field("timeout", &self.timeout)
             .field("disable_brs", &self.disable_brs)
@@ -68,7 +68,7 @@ impl std::fmt::Debug for AsyncFdcanusb {
     }
 }
 
-impl AsyncFdcanusb {
+impl AsyncFdcanusbDevice {
     /// Opens an async FdCanUSB transport at the specified path.
     ///
     /// # Arguments
@@ -218,7 +218,7 @@ impl AsyncFdcanusb {
     async fn execute_cycle(&mut self, requests: &mut [Request]) -> Result<()> {
         debug_assert!(
             requests.iter().all(|r| r.child_device.is_none()),
-            "AsyncFdcanusb does not support child devices"
+            "AsyncFdcanusbDevice does not support child devices"
         );
 
         self.needs_recovery = true;
@@ -258,7 +258,7 @@ impl AsyncFdcanusb {
     }
 }
 
-impl AsyncTransportDevice for AsyncFdcanusb {
+impl AsyncTransportDevice for AsyncFdcanusbDevice {
     fn recover(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             if !self.needs_recovery {

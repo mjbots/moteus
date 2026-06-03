@@ -20,11 +20,11 @@
 
 use crate::error::{Error, Result};
 use crate::transport::factory::{create_transports, TransportOptions};
-use crate::transport::Transport;
+use crate::transport::Router;
 use std::sync::{Arc, Mutex, OnceLock};
 
 /// Global singleton transport instance.
-static GLOBAL_TRANSPORT: OnceLock<Arc<Mutex<Transport>>> = OnceLock::new();
+static GLOBAL_TRANSPORT: OnceLock<Arc<Mutex<Router>>> = OnceLock::new();
 
 /// Get or create the global singleton transport.
 ///
@@ -54,9 +54,7 @@ static GLOBAL_TRANSPORT: OnceLock<Arc<Mutex<Transport>>> = OnceLock::new();
 ///     Ok(())
 /// }
 /// ```
-pub fn get_singleton_transport(
-    options: Option<&TransportOptions>,
-) -> Result<Arc<Mutex<Transport>>> {
+pub fn get_singleton_transport(options: Option<&TransportOptions>) -> Result<Arc<Mutex<Router>>> {
     // Try to get existing transport
     if let Some(transport) = GLOBAL_TRANSPORT.get() {
         return Ok(Arc::clone(transport));
@@ -82,22 +80,22 @@ pub fn get_singleton_transport(
 /// Create a default transport with auto-detection and deduplication.
 ///
 /// This function uses [`create_transports`]
-/// to discover and deduplicate devices, then wraps them in a [`Transport`].
+/// to discover and deduplicate devices, then wraps them in a [`Router`].
 ///
 /// # Arguments
-/// * `options` - Transport options for configuration
+/// * `options` - Router options for configuration
 ///
 /// # Errors
 ///
 /// Returns an error if no CAN-FD devices are found.
-pub fn create_default_transport(options: &TransportOptions) -> Result<Transport> {
+pub fn create_default_transport(options: &TransportOptions) -> Result<Router> {
     let all_devices = create_transports(options)?;
 
     if all_devices.is_empty() {
         return Err(Error::DeviceNotFound("No CAN-FD devices found".to_string()));
     }
 
-    let mut router = Transport::new(all_devices);
+    let mut router = Router::new(all_devices);
     router.set_timeout(options.timeout);
 
     Ok(router)
