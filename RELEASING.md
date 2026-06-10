@@ -1,16 +1,17 @@
 # Releasing moteus
 
-Each shipped artifact (firmware, Python client, C++ client) carries its own
-[semver](https://semver.org/) version and its own release cadence. Tags are
-prefixed by component:
+Each shipped artifact (firmware, Python client, C++ client, Rust client)
+carries its own [semver](https://semver.org/) version and its own release
+cadence. Tags are prefixed by component:
 
 | Component | Version source                          | Tag prefix       |
 |-----------|-----------------------------------------|------------------|
 | firmware  | `fw/moteus_hw.h` (`MOTEUS_FIRMWARE_VERSION`) | `firmware/v...` |
 | python    | `tools/python.bzl` (`VERSION`)          | `python/v...`    |
 | cpp       | `CMakeLists.txt` (`project(... VERSION ...)`) | `cpp/v...`  |
+| rust      | `lib/rust/Cargo.toml` (`[workspace.package] version`) | `rust/v...` |
 
-Firmware and cpp pre-releases use semver suffixes (`1.0.0-rc.1`,
+Firmware, cpp, and rust pre-releases use semver suffixes (`1.0.0-rc.1`,
 `1.0.0-beta.1`); the python package uses normalized PEP 440 forms instead
 (`1.0.0rc1`, see [Python version strings](#python-version-strings)). For
 firmware, the on-wire version (register 0x101) is the packed
@@ -83,7 +84,11 @@ with the new firmware will hit the friendly "moteus_tool needs to be
 upgraded" error from `SUPPORTED_ABI_VERSION` — which is correct
 behavior, not a regression.
 
-Python (and C++) releases are also of course necessary if the functionality of the relevant library is improved or bugs are fixed.
+Python (and C++/Rust) releases are also of course necessary if the
+functionality of the relevant library is improved or bugs are fixed.
+The Rust client does not perform calibration, so it has no
+`SUPPORTED_ABI_VERSION` concern — like C++, it only needs a release
+when its own functionality changes.
 
 ## Cutting a release
 
@@ -118,8 +123,11 @@ The script:
 2. Computes the new version (or accepts an explicit one).
 3. For firmware: validates `MOTEUS_FIRMWARE_VERSION` matches the new
    release's M.m.p; refuses to tag otherwise.
-4. For python/cpp: updates the version file in place.
-5. Commits (if the file changed) and creates the annotated tag.
+4. For python/cpp/rust: updates the version file(s) in place. For rust
+   this is `lib/rust/Cargo.toml` (the workspace version plus the
+   inter-crate dependency requirements) and the matching package
+   entries in `lib/rust/Cargo.lock`.
+5. Commits (if the files changed) and creates the annotated tag.
 6. Prints the `git push` commands.
 
 Inspect the diff and tag before pushing.
@@ -148,7 +156,9 @@ After the build workflow finishes, validate the draft locally:
 2. For firmware: flash on representative hardware and run your
    validation suite.  For python: `pip install` the wheel into a fresh
    venv and exercise `moteus_tool` against a device.  For cpp: build a
-   downstream project against the tag.
+   downstream project against the tag.  For rust: build a downstream
+   project against the tag (`moteus = { git = ..., tag = "rust/vX.Y.Z" }`)
+   and exercise it against a device.
 3. When satisfied, publish.  Either click "Publish release" in the UI,
    or:
 
@@ -171,6 +181,12 @@ published` event, downloads the wheel and sdist attached to the
 release, and uploads them to PyPI via OIDC. Do not click "Publish
 release" on a python draft until you intend the wheel to land on
 PyPI — PyPI is append-only, you cannot un-publish.
+
+Likewise for rust, **promoting the draft is what triggers the
+crates.io publish**. The `publish-rust-crates.yml` workflow checks out
+the release tag and runs `cargo publish --workspace` via OIDC trusted
+publishing. crates.io is also append-only — a published version can be
+yanked but never deleted or reused.
 
 ## Cutting a maintenance branch
 
@@ -238,6 +254,16 @@ newer firmware. That's the intended behavior.
   GitHub auto-attaches whole-repo source archives. The C++ client is
   header-only and is normally consumed via `FetchContent` pointing at the
   tag.
+- `build-rust-release.yml` — fires on `rust/v*` tag push. Runs
+  `cargo package --workspace` and attaches the three `.crate` files
+  (`moteus`, `moteus-derive`, `moteus-protocol`) to a draft Release.
+  The three crates share the version from `lib/rust/Cargo.toml` and
+  ship in lockstep.
+- `publish-rust-crates.yml` — fires when a `rust/v*` Release is
+  promoted out of draft. Checks out the tag and runs
+  `cargo publish --workspace`, which publishes the three crates to
+  crates.io in dependency order via OIDC trusted publishing. See
+  [Publishing to crates.io](#publishing-to-cratesio) below.
 
 ## Python version strings
 
@@ -254,7 +280,8 @@ Python package:
 | Dev           | `1.0.0-dev.1` | `1.0.0.dev1`                  |
 | Post          | (n/a)         | `1.0.0.post1`                 |
 
-The firmware and C++ tags continue to use semver (`firmware/v1.0.0-rc.1`).
+The firmware, C++, and Rust tags continue to use semver
+(`firmware/v1.0.0-rc.1`, `rust/v1.0.0-rc.1` — crates.io requires it).
 They're independent components and free to use different conventions.
 
 ```bash
@@ -314,3 +341,58 @@ unless the user passes `--pre`. So pre-releases are safe to publish.
 
 PyPI is append-only — you can yank a release but cannot delete it or reuse
 the version number. The environment-gate is the safety net.
+
+## Publishing to crates.io
+
+crates.io publishing uses
+[trusted publishing](https://crates.io/docs/trusted-publishing) via
+OIDC, so no API token is stored in this repo — the same model as PyPI.
+
+A rust release covers three crates — `moteus` (the client library),
+`moteus-protocol` (the no_std protocol types), and `moteus-derive`
+(the proc macros). They share a single version from
+`lib/rust/Cargo.toml` and ship together; `cargo publish --workspace`
+publishes them in dependency order automatically.
+
+**Bootstrap**: crates.io only allows trusted publishing to be
+configured on a crate that already exists, so the *very first* publish
+of each crate must be done manually by a maintainer:
+
+```bash
+cd lib/rust
+cargo publish --workspace --locked   # uses your `cargo login` token
+```
+
+**One-time setup** (after the first publish, for *each* of the three
+crates):
+
+1. Sign in to crates.io as an owner of the crate.
+2. Crate → Settings → Trusted Publishing → Add. Configure:
+   - Repository owner: `mjbots`
+   - Repository name: `moteus`
+   - Workflow filename: `publish-rust-crates.yml`
+   - Environment: `crates-io`
+3. In this GitHub repo: Settings → Environments → New environment
+   named `crates-io` (analogous to the `pypi` environment; the
+   "Publish release" action on the draft is the gate).
+
+After setup, the rust release flow is:
+
+1. Push a `rust/v*` tag → `build-rust-release.yml` packages the three
+   crates and creates a draft GitHub Release with the `.crate` files
+   attached.
+2. Validate locally (point a downstream project's `Cargo.toml` at the
+   tag, exercise it against a device).
+3. Publish the draft via the GitHub UI or
+   `gh release edit rust/vX.Y.Z --draft=false`.
+4. Promoting the draft fires `publish-rust-crates.yml`, which checks
+   out the tag, exchanges an OIDC token with crates.io, and runs
+   `cargo publish --workspace --locked`.
+
+A pre-release version (`1.0.0-rc.1`) goes to crates.io but cargo will
+not select it for a normal requirement like `moteus = "1.0"`; users
+must opt in with an explicit pre-release requirement
+(`moteus = "1.0.0-rc.1"`). So pre-releases are safe to publish.
+
+crates.io is append-only — you can yank a version but cannot delete it
+or reuse the version number. The environment-gate is the safety net.

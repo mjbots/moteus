@@ -1,0 +1,55 @@
+name: Publish rust release to crates.io
+
+# Triggered when a rust/v* draft release is promoted to public.  The
+# three crates (moteus-derive, moteus-protocol, moteus) are published
+# to crates.io via OIDC trusted publishing.
+#
+# Unlike PyPI (where the wheels attached to the release are uploaded
+# verbatim), cargo always packages from source, so this workflow checks
+# out the release tag and runs `cargo publish` there — the same source
+# the .crate files attached to the draft were built from.
+#
+# Trusted publishing must be configured at crates.io for each of the
+# three crates + this workflow + the `crates-io` environment.  See
+# RELEASING.md for the one-time setup.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  crates-io:
+    # Only fire for rust releases, not firmware/python/cpp.
+    if: startsWith(github.event.release.tag_name, 'rust/v')
+    runs-on: ubuntu-24.04
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/moteus
+    permissions:
+      contents: read
+      id-token: write   # OIDC for trusted publishing
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup
+        # libudev-dev is needed by the serialport dependency, which is
+        # built during pre-publish verification.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev
+
+      # `cargo publish --workspace` needs cargo >= 1.90; it publishes
+      # the crates in dependency order (moteus-derive, moteus-protocol,
+      # moteus) and waits for each to be available before the next.
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+
+      - name: Publish
+        working-directory: lib/rust
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish --workspace --locked

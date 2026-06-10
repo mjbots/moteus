@@ -11,7 +11,7 @@ on:
         description: 'Component to release'
         required: true
         type: choice
-        options: [firmware, python, cpp]
+        options: [firmware, python, cpp, rust]
       bump:
         description: 'Bump type or explicit version (patch | minor | major | 1.0.0-rc.1)'
         required: true

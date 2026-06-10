@@ -1,0 +1,63 @@
+name: Build rust release
+
+on:
+  push:
+    tags:
+      - 'rust/v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        # libudev-dev is needed by the serialport dependency, which is
+        # built during `cargo package` verification.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev
+
+      # `cargo package --workspace` needs cargo >= 1.90 (it resolves the
+      # not-yet-published inter-crate dependencies against a local
+      # overlay registry and orders the packaging accordingly), so use
+      # stable rather than the MSRV toolchain that CI pins.
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Package crates
+        working-directory: lib/rust
+        # --locked guards against a Cargo.lock that drifted from the
+        # manifests; utils/release.py keeps them in sync.
+        run: cargo package --workspace --locked
+
+      - name: Stage release artifacts
+        id: stage
+        run: |
+          version="${GITHUB_REF_NAME#rust/v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          mkdir -p release
+          cp "lib/rust/target/package/moteus-${version}.crate"          release/
+          cp "lib/rust/target/package/moteus-derive-${version}.crate"   release/
+          cp "lib/rust/target/package/moteus-protocol-${version}.crate" release/
+          (cd release && sha256sum * > SHA256SUMS)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          name: 'rust v${{ steps.stage.outputs.version }}'
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          # Firmware owns the "Latest" badge; rust releases never claim it.
+          make_latest: false
+          # Released as a draft.  Publish via the GitHub UI or:
+          #   gh release edit rust/vX.Y.Z --draft=false
+          # Promoting the draft fires the publish-rust-crates.yml
+          # workflow, which publishes the three crates to crates.io via
+          # OIDC trusted publishing.
+          draft: true
+          generate_release_notes: true

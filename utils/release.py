@@ -23,6 +23,7 @@ Components:
     firmware  - validates fw/moteus_hw.h ABI matches and tags firmware/vX.Y.Z
     python    - bumps tools/python.bzl and tags python/vX.Y.Z
     cpp       - bumps CMakeLists.txt and tags cpp/vX.Y.Z
+    rust      - bumps lib/rust/Cargo.toml + Cargo.lock and tags rust/vX.Y.Z
 
 Bump types:
     major | minor | patch
@@ -31,10 +32,14 @@ Bump types:
 
 When current is a pre-release, `patch` graduates it (1.0.0-rc.1 -> 1.0.0).
 
-Firmware and cpp use semver pre-release suffixes (1.0.0-rc.1).  The python
-package must use normalized PEP 440 forms instead (1.0.0rc1, 1.0.0b1,
+Firmware, cpp, and rust use semver pre-release suffixes (1.0.0-rc.1).  The
+python package must use normalized PEP 440 forms instead (1.0.0rc1, 1.0.0b1,
 1.0.0.dev1); a non-normalized python version is rejected because PyPI and
 the bazel wheel build name artifacts by the normalized form.
+
+The rust release covers three crates (moteus, moteus-derive,
+moteus-protocol) that share a single workspace version and ship in
+lockstep, like the two python packages.
 
 For firmware, MOTEUS_FIRMWARE_VERSION is bumped during feature work
 (alongside SUPPORTED_ABI_VERSION in moteus_tool.py and any matching
@@ -179,11 +184,62 @@ def validate_python_version(version):
             f'    utils/release.py python {normalized}\n')
 
 
+def validate_rust_version(version):
+    """Reject rust versions that are not plain semver.
+
+    crates.io requires semver, so PEP 440 spellings like '1.0.0rc1'
+    (which compute_new_version accepts for python's sake) must be
+    rejected here.  Build metadata ('+...') is also rejected because
+    the version is written verbatim into the inter-crate dependency
+    requirements in lib/rust/Cargo.toml, where it would be meaningless.
+    """
+    if not re.match(r'^\d+\.\d+\.\d+'
+                    r'(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$', version):
+        sys.exit(
+            f'\nERROR: rust version {version!r} is not plain semver.'
+            f'\n\ncrates.io requires semver; use e.g. 1.0.0 or 1.0.0-rc.1 '
+            f'(not the PEP 440\nforms used for python releases).\n')
+
+
+def update_rust_versions(new):
+    """Write the new version everywhere the rust workspace records it.
+
+    The three crates inherit workspace.package.version from
+    lib/rust/Cargo.toml and ship in lockstep.  The inter-crate
+    dependency requirements in [workspace.dependencies] are kept equal
+    to the full version so a regex bump can never leave them stale.
+    Cargo.lock records each workspace member's version; updating it
+    here keeps `cargo --locked` and the bazel build consistent without
+    needing a cargo invocation at release time.
+    """
+    def sub_checked(path, regex, replacement, count):
+        full = REPO_ROOT / path
+        text, n = re.subn(regex, replacement, full.read_text(),
+                          flags=re.MULTILINE)
+        if n != count:
+            sys.exit(f'expected {count} match(es) of {regex!r} in {path}, '
+                     f'found {n}')
+        full.write_text(text)
+
+    sub_checked('lib/rust/Cargo.toml',
+                r'^version = "[^"]+"', f'version = "{new}"', count=1)
+    for crate in ('moteus-derive', 'moteus-protocol'):
+        sub_checked(
+            'lib/rust/Cargo.toml',
+            rf'^({crate} = {{ path = "{crate}", version = ")[^"]+(" }})$',
+            rf'\g<1>{new}\g<2>', count=1)
+    for crate in ('moteus', 'moteus-derive', 'moteus-protocol'):
+        sub_checked('lib/rust/Cargo.lock',
+                    rf'^(name = "{crate}"\nversion = ")[^"]+(")$',
+                    rf'\g<1>{new}\g<2>', count=1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('component', choices=['firmware', 'python', 'cpp'])
+    parser.add_argument('component',
+                        choices=['firmware', 'python', 'cpp', 'rust'])
     parser.add_argument('bump',
                         help='major | minor | patch | rc | <explicit version>')
     args = parser.parse_args()
@@ -201,6 +257,10 @@ def main():
         version_file = 'tools/python.bzl'
         current = read_version(version_file, r'^VERSION = "([^"]+)"')
         tag_prefix = 'python/v'
+    elif args.component == 'rust':
+        version_file = 'lib/rust/Cargo.toml'
+        current = read_version(version_file, r'^version = "([^"]+)"')
+        tag_prefix = 'rust/v'
     else:  # cpp
         version_file = 'CMakeLists.txt'
         current = read_version(version_file,
@@ -213,17 +273,23 @@ def main():
 
     if args.component == 'python':
         validate_python_version(new)
+    elif args.component == 'rust':
+        validate_rust_version(new)
 
     tag = f'{tag_prefix}{new}'
     if git('rev-parse', '-q', '--verify', f'refs/tags/{tag}',
            capture=True, check=False).returncode == 0:
         sys.exit(f'tag {tag} already exists')
 
+    commit_files = [version_file] if version_file else []
     if args.component == 'firmware':
         validate_firmware_abi(constant_packed, constant_version, new)
     elif args.component == 'python':
         write_version(version_file, r'^VERSION = "[^"]+"',
                       f'VERSION = "{new}"')
+    elif args.component == 'rust':
+        update_rust_versions(new)
+        commit_files.append('lib/rust/Cargo.lock')
     else:  # cpp
         # CMake project(... VERSION X.Y.Z) does not allow pre-release
         # identifiers; strip anything after '-' for the file value but
@@ -233,11 +299,11 @@ def main():
                       r'^(project\(moteus VERSION )[^)]+\)',
                       rf'\g<1>{cmake_value})')
 
-    if version_file and git('diff', '--quiet', '--', version_file,
+    if commit_files and git('diff', '--quiet', '--', *commit_files,
                             check=False).returncode != 0:
-        git('add', version_file)
+        git('add', *commit_files)
         git('commit', '-m', f'Release {args.component} {new}')
-    elif version_file is None:
+    elif not commit_files:
         print('(no version-file change to commit; tagging current HEAD)')
 
     git('tag', '-a', tag, '-m', f'{args.component} {new}')

@@ -1,6 +1,6 @@
 [package]
 name = "moteus-protocol"
-version = "0.5.0"
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 description = "Low-level CAN-FD protocol types for moteus brushless motor controllers (no_std compatible)"
@@ -10,5 +10,5 @@ keywords = ["moteus", "robotics", "motor-control", "can-fd", "no-std"]
 categories = ["science::robotics", "hardware-support", "no-std", "embedded"]
 
 [dependencies]
-moteus-derive = { path = "../moteus-derive", version = "0.5" }
+moteus-derive.workspace = true
 num_enum = { version = "0.7", default-features = false }
