@@ -51,6 +51,106 @@ const FDCANUSB_IDS: &[(u16, u16)] = &[
     (0x1209, 0x2323), // New fdcanusb with gs_usb
 ];
 
+/// Determines whether the device at `path` is a known fdcanusb (USB
+/// CAN-FD adapter), as opposed to e.g. a moteus connected directly
+/// over UART.
+///
+/// Returns false when the device is *conclusively* identified as
+/// something other than an fdcanusb: a USB serial device with a
+/// foreign VID/PID, or (on Linux) a non-USB serial port — a real
+/// fdcanusb is always a USB device.
+///
+/// When no identification is possible at all (no enumeration support
+/// in this build, or the port does not appear in the system's port
+/// list), this assumes fdcanusb, matching the C++ library.
+/// Misclassifying a real fdcanusb as a UART would render it unusable
+/// (checksums would discard all of its responses), while
+/// misclassifying a UART as an fdcanusb merely loses the retry
+/// machinery; UART users on such systems can set
+/// [`FdcanusbOptions::uart_mode`](crate::transport::fdcanusb::FdcanusbOptions)
+/// explicitly.
+pub fn is_fdcanusb_path(path: &str) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        is_fdcanusb_path_sysfs(path)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        is_fdcanusb_path_ports(path)
+    }
+}
+
+/// Linux implementation: read the USB VID/PID from sysfs.  This works
+/// without any USB enumeration support in the serialport crate.
+#[cfg(target_os = "linux")]
+fn is_fdcanusb_path_sysfs(path: &str) -> bool {
+    use std::fs;
+
+    // Resolve symlinks (e.g. /dev/serial/by-id/...) to the real
+    // device node.
+    let Ok(resolved) = fs::canonicalize(path) else {
+        return false;
+    };
+    let Some(tty_name) = resolved.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+
+    // Non-USB devices (e.g. /dev/ttyAMA0) do not have these files; a
+    // real fdcanusb is always a USB device.
+    let read_hex = |field: &str| -> Option<u16> {
+        let sysfs_path = format!("/sys/class/tty/{}/device/../{}", tty_name, field);
+        u16::from_str_radix(fs::read_to_string(sysfs_path).ok()?.trim(), 16).ok()
+    };
+
+    match (read_hex("idVendor"), read_hex("idProduct")) {
+        (Some(vid), Some(pid)) => FDCANUSB_IDS.contains(&(vid, pid)),
+        _ => false,
+    }
+}
+
+/// Non-Linux implementation: match the path against the serial port
+/// enumeration and check the USB VID/PID.
+#[cfg(not(target_os = "linux"))]
+fn is_fdcanusb_path_ports(path: &str) -> bool {
+    #[cfg(feature = "serialport")]
+    {
+        let resolved = std::fs::canonicalize(path).ok();
+
+        if let Ok(ports) = serialport::available_ports() {
+            for port in ports {
+                let matches = port.port_name == path
+                    || resolved
+                        .as_deref()
+                        .is_some_and(|r| r == std::path::Path::new(&port.port_name));
+                if !matches {
+                    continue;
+                }
+
+                if let serialport::SerialPortType::UsbPort(usb_info) = &port.port_type {
+                    return FDCANUSB_IDS.contains(&(usb_info.vid, usb_info.pid));
+                }
+                // Conclusively a non-USB serial port; a real fdcanusb
+                // is always a USB device.
+                return false;
+            }
+        }
+
+        // Not found in the enumeration (or enumeration failed): no
+        // conclusive identification is possible, so fail open and
+        // assume fdcanusb.
+        true
+    }
+
+    #[cfg(not(feature = "serialport"))]
+    {
+        // No enumeration support in this build: fail open and assume
+        // fdcanusb, matching the C++ library on platforms without
+        // detection support.
+        let _ = path;
+        true
+    }
+}
+
 /// Detect all fdcanusb devices on Linux.
 ///
 /// On Linux, this first checks `/dev/serial/by-id/*fdcanusb*` for symlinks,

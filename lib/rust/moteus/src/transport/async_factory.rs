@@ -82,13 +82,22 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
 
     fn arg_specs(&self) -> Vec<ArgSpec> {
         use crate::transport::args::ArgType;
-        vec![ArgSpec {
-            name: "fdcanusb",
-            help: "Path to fdcanusb device (can be specified multiple times)",
-            arg_type: ArgType::MultiString,
-            default: None,
-            possible_values: None,
-        }]
+        vec![
+            ArgSpec {
+                name: "fdcanusb",
+                help: "Path to fdcanusb device (can be specified multiple times)",
+                arg_type: ArgType::MultiString,
+                default: None,
+                possible_values: None,
+            },
+            ArgSpec {
+                name: "fdcanusb-baudrate",
+                help: "Serial baud rate (only matters for UART connections)",
+                arg_type: ArgType::Integer,
+                default: None,
+                possible_values: None,
+            },
+        ]
     }
 
     fn create<'a>(
@@ -99,10 +108,11 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
             use crate::transport::async_fdcanusb::AsyncFdcanusbDevice;
             use crate::transport::device::TransportDeviceInfo;
             use crate::transport::discovery::{detect_fdcanusbs, FdcanusbInfo};
+            use crate::transport::fdcanusb::FdcanusbOptions;
 
-            let infos: Vec<FdcanusbInfo> = if options.fdcanusb_paths.is_empty() {
-                detect_fdcanusbs()
-            } else {
+            let explicit_paths = !options.fdcanusb_paths.is_empty();
+
+            let infos: Vec<FdcanusbInfo> = if explicit_paths {
                 options
                     .fdcanusb_paths
                     .iter()
@@ -111,17 +121,27 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
                         serial_number: None,
                     })
                     .collect()
+            } else {
+                detect_fdcanusbs()
             };
+
+            let mut device_options = FdcanusbOptions::new()
+                .timeout(options.timeout)
+                .disable_brs(options.disable_brs);
+            if let Some(baudrate) = options.fdcanusb_baudrate {
+                device_options = device_options.baudrate(baudrate);
+            }
+            // Auto-detected devices are fdcanusbs by construction.
+            // Explicitly specified paths may instead be a moteus
+            // connected directly over UART, so leave UART
+            // auto-detection enabled for them.
+            if !explicit_paths {
+                device_options = device_options.uart_mode(false);
+            }
 
             let mut devices: Vec<Box<dyn AsyncTransportDevice>> = Vec::new();
             for (idx, info) in infos.iter().enumerate() {
-                match AsyncFdcanusbDevice::open_with_options(
-                    &info.path,
-                    options.timeout,
-                    options.disable_brs,
-                )
-                .await
-                {
+                match AsyncFdcanusbDevice::open_with(&info.path, &device_options).await {
                     Ok(mut device) => {
                         // Update device info
                         let mut dev_info = TransportDeviceInfo::new(idx, "AsyncFdcanusb");
@@ -346,8 +366,9 @@ mod tests {
     fn test_async_factory_arg_specs() {
         let fdcanusb = AsyncFdcanusbFactory::new();
         let specs = fdcanusb.arg_specs();
-        assert_eq!(specs.len(), 1);
+        assert_eq!(specs.len(), 2);
         assert_eq!(specs[0].name, "fdcanusb");
+        assert_eq!(specs[1].name, "fdcanusb-baudrate");
 
         #[cfg(target_os = "linux")]
         {

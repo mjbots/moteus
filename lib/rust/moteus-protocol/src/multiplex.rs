@@ -60,9 +60,33 @@ pub const CLIENT_TO_SERVER: u8 = 0x40;
 pub const SERVER_TO_CLIENT: u8 = 0x41;
 /// Tunneled stream: client poll server
 pub const CLIENT_POLL_SERVER: u8 = 0x42;
+/// Tunneled stream: server to client, with flow control packet number
+pub const SERVER_TO_CLIENT_FLOW: u8 = 0x43;
+/// Tunneled stream: client poll server, acknowledging a flow control
+/// packet number
+pub const CLIENT_POLL_SERVER_FLOW: u8 = 0x44;
 
 /// No operation
 pub const NOP: u8 = 0x50;
+
+/// Reads a varuint from a slice, returning the value and the remaining
+/// bytes.
+pub(crate) fn read_varuint_slice(mut data: &[u8]) -> Option<(u32, &[u8])> {
+    let mut value = 0u32;
+    let mut shift = 0;
+    loop {
+        let (byte, rest) = data.split_first()?;
+        data = rest;
+        value |= ((byte & 0x7f) as u32) << shift;
+        if byte & 0x80 == 0 {
+            return Some((value, data));
+        }
+        shift += 7;
+        if shift > 28 {
+            return None;
+        }
+    }
+}
 
 /// Writer for appending data to a CAN-FD frame.
 pub struct WriteCanData<'a> {
@@ -437,6 +461,10 @@ pub enum SubframeType {
     StreamServerToClient,
     /// Tunneled stream: client poll server
     StreamClientPollServer,
+    /// Tunneled stream: server to client, with flow control
+    StreamServerToClientFlow,
+    /// Tunneled stream: client poll server, with flow control
+    StreamClientPollServerFlow,
 }
 
 /// A single parsed subframe from a multiplex protocol frame.
@@ -472,12 +500,25 @@ pub enum Subframe<'a> {
         /// The stream data (borrowed from the input)
         data: &'a [u8],
     },
+    /// A tunneled stream subframe with a flow control packet number.
+    StreamFlow {
+        /// The stream direction
+        subframe_type: SubframeType,
+        /// The stream channel number
+        channel: u16,
+        /// The flow control packet number
+        packet_number: u8,
+        /// For `StreamServerToClientFlow`, the stream data; empty for
+        /// `StreamClientPollServerFlow` polls (whose final byte is the
+        /// requested maximum length, not data)
+        data: &'a [u8],
+    },
 }
 
 /// Iterator over subframes in a multiplex protocol frame.
 ///
 /// Handles all opcode families: WRITE (0x00-0x0f), READ (0x10-0x1f),
-/// REPLY (0x20-0x2f), ERROR (0x30-0x31), STREAM (0x40-0x42), NOP (0x50).
+/// REPLY (0x20-0x2f), ERROR (0x30-0x31), STREAM (0x40-0x44), NOP (0x50).
 ///
 /// See [`parse_frame`] for a convenience wrapper.
 pub struct FrameParser<'a> {
@@ -716,31 +757,67 @@ impl<'a> FrameParser<'a> {
         })
     }
 
-    /// Parses a stream subframe (0x40-0x42).
+    /// Parses a stream subframe (0x40-0x44).
     fn parse_stream(&mut self, cmd: u8) -> Option<Subframe<'a>> {
         let subframe_type = match cmd {
             CLIENT_TO_SERVER => SubframeType::StreamClientToServer,
             SERVER_TO_CLIENT => SubframeType::StreamServerToClient,
             CLIENT_POLL_SERVER => SubframeType::StreamClientPollServer,
-            _ => return None,
+            SERVER_TO_CLIENT_FLOW => SubframeType::StreamServerToClientFlow,
+            CLIENT_POLL_SERVER_FLOW => SubframeType::StreamClientPollServerFlow,
+            _ => {
+                // Unknown stream subframe: the operand layout is not
+                // known, so the rest of the frame cannot be parsed.
+                self.offset = self.data.len();
+                return None;
+            }
         };
 
         let channel = self.read_varuint();
+
+        // The flow control variants carry a packet number between the
+        // channel and the size/max_length byte.
+        let packet_number = match subframe_type {
+            SubframeType::StreamServerToClientFlow | SubframeType::StreamClientPollServerFlow => {
+                if self.offset >= self.data.len() {
+                    return None;
+                }
+                let value = self.data[self.offset];
+                self.offset += 1;
+                Some(value)
+            }
+            _ => None,
+        };
+
         let size = self.read_varuint() as usize;
 
-        if self.offset + size > self.data.len() {
-            self.offset = self.data.len();
-            return None;
+        // Poll subframes carry no data: their final byte is the
+        // requested maximum length.
+        let data = if subframe_type == SubframeType::StreamClientPollServerFlow {
+            &[]
+        } else {
+            if self.offset + size > self.data.len() {
+                self.offset = self.data.len();
+                return None;
+            }
+            let data = &self.data[self.offset..self.offset + size];
+            self.offset += size;
+            data
+        };
+
+        match packet_number {
+            Some(packet_number) => Some(Subframe::StreamFlow {
+                subframe_type,
+                channel,
+                packet_number,
+                data,
+            }),
+            None => Some(Subframe::Stream {
+                subframe_type,
+                channel,
+                data,
+            }),
         }
-
-        let data = &self.data[self.offset..self.offset + size];
-        self.offset += size;
-
-        Some(Subframe::Stream {
-            subframe_type,
-            channel,
-            data,
-        })
     }
 }
 
@@ -779,7 +856,7 @@ impl<'a> Iterator for FrameParser<'a> {
                     }
                     continue;
                 }
-                // STREAM (0x40-0x42)
+                // STREAM (0x40-0x44)
                 0x40 => {
                     if let Some(subframe) = self.parse_stream(cmd) {
                         return Some(subframe);
@@ -823,6 +900,73 @@ pub fn parse_frame(data: &[u8]) -> FrameParser<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_stream_flow_server_to_client() {
+        // 0x43: channel, packet_number, size, data
+        let frame = [0x43, 0x01, 0x07, 0x02, 0xAA, 0xBB];
+        let mut parser = parse_frame(&frame);
+        match parser.next().unwrap() {
+            Subframe::StreamFlow {
+                subframe_type,
+                channel,
+                packet_number,
+                data,
+            } => {
+                assert_eq!(subframe_type, SubframeType::StreamServerToClientFlow);
+                assert_eq!(channel, 1);
+                assert_eq!(packet_number, 0x07);
+                assert_eq!(data, &[0xAA, 0xBB]);
+            }
+            other => panic!("unexpected subframe: {:?}", other),
+        }
+        assert!(parser.next().is_none());
+    }
+
+    #[test]
+    fn test_parse_stream_flow_poll() {
+        // 0x44: channel, packet_number, max_length — no data follows,
+        // so a register subframe after it must still parse.
+        let frame = [0x44, 0x01, 0x07, 0x30, 0x50, 0x50];
+        let mut parser = parse_frame(&frame);
+        match parser.next().unwrap() {
+            Subframe::StreamFlow {
+                subframe_type,
+                channel,
+                packet_number,
+                data,
+            } => {
+                assert_eq!(subframe_type, SubframeType::StreamClientPollServerFlow);
+                assert_eq!(channel, 1);
+                assert_eq!(packet_number, 0x07);
+                assert!(data.is_empty());
+            }
+            other => panic!("unexpected subframe: {:?}", other),
+        }
+        // The trailing NOPs are skipped cleanly.
+        assert!(parser.next().is_none());
+    }
+
+    #[test]
+    fn test_parse_stream_flow_does_not_misparse_payload() {
+        // Before flow support, the parser treated the bytes after an
+        // unknown 0x43 command as new subframes; ensure the payload is
+        // consumed as data instead.
+        let frame = [
+            0x43, 0x01, 0x07, 0x04, 0x21, 0x00, 0x01, 0x02, // flow data
+            0x41, 0x01, 0x01, 0x99, // plain stream subframe after
+        ];
+        let mut parser = parse_frame(&frame);
+        assert!(matches!(
+            parser.next().unwrap(),
+            Subframe::StreamFlow { data, .. } if data == [0x21, 0x00, 0x01, 0x02]
+        ));
+        assert!(matches!(
+            parser.next().unwrap(),
+            Subframe::Stream { data, .. } if data == [0x99]
+        ));
+        assert!(parser.next().is_none());
+    }
 
     #[test]
     fn test_write_varuint() {

@@ -22,13 +22,20 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        target:
-          - x86_64-pc-windows-gnu
-          - x86_64-unknown-linux-gnu
+        include:
+          - target: x86_64-pc-windows-gnu
+            flags: --workspace --all-features
+          - target: x86_64-unknown-linux-gnu
+            flags: --workspace --all-features
           # `cargo check` does not link, so the Apple targets need no
           # macOS SDK and can be checked from a Linux runner.
-          - aarch64-apple-darwin
-          - x86_64-apple-darwin
+          - target: aarch64-apple-darwin
+            flags: --workspace --all-features
+          - target: x86_64-apple-darwin
+            flags: --workspace --all-features
+          # Enforce that the protocol crate stays no_std clean.
+          - target: thumbv7em-none-eabihf
+            flags: -p moteus-protocol
     steps:
     - uses: actions/checkout@v4
     - name: install libudev-dev
@@ -38,4 +45,4 @@ jobs:
         targets: ${{ matrix.target }}
     - name: cargo check (${{ matrix.target }})
       working-directory: lib/rust
-      run: cargo check --target ${{ matrix.target }} --workspace --all-features
+      run: cargo check --target ${{ matrix.target }} ${{ matrix.flags }}

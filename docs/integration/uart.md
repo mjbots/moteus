@@ -19,7 +19,7 @@ Serial parameters:
 
 ## Protocol
 
-In this mode, moteus acts as if it were a fdcanusb device on the UART.  The moteus python and C++ library can be used directly if the operating system device name for the UART is given instead of the fdcanusb.  The only difference is that moteus permits checksums on command lines and always emits checksums on response lines.  Once any command has been sent with a checksum, all further commands require a checksum.
+In this mode, moteus acts as if it were a fdcanusb device on the UART.  The moteus python, C++, and rust libraries can be used directly if the operating system device name for the UART is given instead of the fdcanusb.  The only difference is that moteus permits checksums on command lines and always emits checksums on response lines.  Once any command has been sent with a checksum, all further commands require a checksum.
 
 The checksum uses the following format:
 
@@ -96,6 +96,15 @@ moteus::Controller controller([]() {
   return options;
 }());
 ```
+
+or for rust
+
+```rust
+let transport = moteus::Fdcanusb::open("/dev/ttyUSB0")?;
+let mut controller = moteus::BlockingController::with_transport(1, transport);
+```
+
+For embedded (no_std) rust hosts, the `moteus-protocol` crate provides an allocation-free codec for this protocol in its `fdcanusb` module.
 
 For usage with Arduino, see that [platform integration reference](../platforms/arduino.md).
 

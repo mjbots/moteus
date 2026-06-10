@@ -119,6 +119,11 @@ pub struct Fdcanusb(crate::transport::Router);
 #[cfg(feature = "serialport")]
 impl Fdcanusb {
     /// Open an fdcanusb at the given serial port path.
+    ///
+    /// The path may also refer to a moteus connected directly over a
+    /// TTL UART (see `docs/integration/uart.md`); such devices are
+    /// auto-detected and handled with per-frame retries and CRC-8
+    /// checksums.
     pub fn open(path: &str) -> Result<Self> {
         let device = crate::transport::fdcanusb::FdcanusbDevice::new(path)?;
         Ok(Self(crate::transport::Router::from_device(device)))
@@ -128,6 +133,15 @@ impl Fdcanusb {
     pub fn with_options(path: &str, timeout: Duration, disable_brs: bool) -> Result<Self> {
         let device =
             crate::transport::fdcanusb::FdcanusbDevice::with_options(path, timeout, disable_brs)?;
+        Ok(Self(crate::transport::Router::from_device(device)))
+    }
+
+    /// Open an fdcanusb or moteus UART with full options.
+    pub fn open_with(
+        path: &str,
+        options: &crate::transport::fdcanusb::FdcanusbOptions,
+    ) -> Result<Self> {
+        let device = crate::transport::fdcanusb::FdcanusbDevice::open_with(path, options)?;
         Ok(Self(crate::transport::Router::from_device(device)))
     }
 }
@@ -185,6 +199,11 @@ pub struct AsyncFdcanusb(crate::transport::async_transport::AsyncRouter);
 #[cfg(feature = "tokio")]
 impl AsyncFdcanusb {
     /// Open an fdcanusb at the given serial port path.
+    ///
+    /// The path may also refer to a moteus connected directly over a
+    /// TTL UART (see `docs/integration/uart.md`); such devices are
+    /// auto-detected and handled with per-frame retries and CRC-8
+    /// checksums.
     pub async fn open(path: &str) -> Result<Self> {
         let device = crate::transport::async_fdcanusb::AsyncFdcanusbDevice::open(path).await?;
         Ok(Self(
@@ -197,6 +216,18 @@ impl AsyncFdcanusb {
         let device =
             crate::transport::async_fdcanusb::AsyncFdcanusbDevice::open_with_brs(path, disable_brs)
                 .await?;
+        Ok(Self(
+            crate::transport::async_transport::AsyncRouter::from_device(device),
+        ))
+    }
+
+    /// Open an fdcanusb or moteus UART with full options.
+    pub async fn open_with(
+        path: &str,
+        options: &crate::transport::fdcanusb::FdcanusbOptions,
+    ) -> Result<Self> {
+        let device =
+            crate::transport::async_fdcanusb::AsyncFdcanusbDevice::open_with(path, options).await?;
         Ok(Self(
             crate::transport::async_transport::AsyncRouter::from_device(device),
         ))

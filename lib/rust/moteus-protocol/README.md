@@ -93,6 +93,58 @@ assert_eq!(result.position, 0.5);
   for reading and writing arbitrary registers.
 - `calculate_arbitration_id` / `parse_arbitration_id`: CAN ID routing
   helpers.
+- `fdcanusb`: an allocation-free codec for the fdcanusb text line
+  protocol, which moteus also speaks directly over a TTL UART.  Encode
+  `can send` lines into a caller-provided buffer, parse `rcv`/`OK`/`ERR`
+  lines, and compute the CRC-8 checksums used over UART.
+- `diagnostic`: payload framing for the tunneled diagnostic stream,
+  including the flow-controlled poll variant for lossy transports.
+
+## UART Hosts
+
+To command a moteus over a TTL UART from an embedded host (see the
+[UART integration reference](https://mjbots.github.io/moteus/integration/uart/)),
+encode each CAN frame as an fdcanusb line and parse the response lines:
+
+```rust
+use moteus_protocol::fdcanusb::{
+    encode_can_send, parse_line, strip_checksum, EncodeOptions, Line,
+    MAX_LINE_LENGTH,
+};
+use moteus_protocol::query::QueryResult;
+use moteus_protocol::{CanFdFrame, Mode};
+
+// Fill a frame as in "Encoding a Command" above.
+let frame = CanFdFrame::new();
+let mut line = [0u8; MAX_LINE_LENGTH];
+let len = encode_can_send(
+    &frame,
+    &EncodeOptions { disable_brs: false, checksum: true },
+    &mut line,
+).unwrap();
+let command = &line[..len]; // write this to the UART
+assert!(command.starts_with(b"can send"));
+
+// ... then for each line received from the UART, validate and strip
+// the checksum, then classify the line:
+let (content, _had_checksum, valid) = strip_checksum(b"OK *BD");
+assert!(valid);
+assert!(matches!(parse_line(content), Line::Ok)); // command acknowledged
+
+// `rcv` lines carry a CAN frame from the device, parsed like any
+// other reply — this one reports the mode and position registers:
+match parse_line(b"rcv 0100 21000A2D010000003F") {
+    Line::Rcv(reply) => {
+        let result = QueryResult::parse(&reply);
+        assert_eq!(result.mode, Mode::Position);
+        assert_eq!(result.position, 0.5);
+    }
+    Line::Ok | Line::Err(_) | Line::Other(_) => panic!("expected a reply frame"),
+}
+```
+
+The retry, timeout, and checksum-escalation policy is up to the host;
+the `moteus` crate's transports implement one for std environments.
 
 ## Building with Bazel
 

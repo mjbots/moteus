@@ -189,6 +189,15 @@ impl TransportOptions {
             opts.fdcanusb_paths = values.cloned().collect();
         }
 
+        if matches.try_contains_id("fdcanusb-baudrate").is_ok() {
+            if let Some(value) = matches.get_one::<String>("fdcanusb-baudrate") {
+                let baudrate: u32 = value
+                    .parse()
+                    .map_err(|_| format!("invalid baudrate: {}", value))?;
+                opts.fdcanusb_baudrate = Some(baudrate);
+            }
+        }
+
         if let Some(values) = matches.get_many::<String>("can-chan") {
             opts.socketcan_interfaces = values.cloned().collect();
         }
@@ -212,7 +221,7 @@ impl TransportOptions {
         for factory in super::factory::get_factories() {
             for spec in factory.arg_specs() {
                 // Skip args we already handled above
-                if matches!(spec.name, "fdcanusb" | "can-chan") {
+                if matches!(spec.name, "fdcanusb" | "fdcanusb-baudrate" | "can-chan") {
                     continue;
                 }
                 match spec.arg_type {
@@ -271,6 +280,10 @@ pub struct TransportArgs {
     #[cfg_attr(feature = "clap", arg(long = "fdcanusb", action = clap::ArgAction::Append))]
     pub fdcanusb: Vec<String>,
 
+    /// Serial baud rate (only matters for UART connections).
+    #[cfg_attr(feature = "clap", arg(long = "fdcanusb-baudrate"))]
+    pub fdcanusb_baudrate: Option<u32>,
+
     /// SocketCAN interface (can be specified multiple times).
     #[cfg_attr(feature = "clap", arg(long = "can-chan", action = clap::ArgAction::Append))]
     pub can_chan: Vec<String>,
@@ -304,6 +317,7 @@ impl TransportArgs {
             socketcan_interfaces: self.can_chan,
             disable_brs: self.can_disable_brs,
             force_transport: self.force_transport,
+            fdcanusb_baudrate: self.fdcanusb_baudrate,
             timeout: Duration::from_millis(self.timeout_ms as u64),
             extra: Default::default(),
         }
@@ -334,6 +348,7 @@ mod tests {
     fn test_transport_args_to_options() {
         let args = TransportArgs {
             fdcanusb: vec!["/dev/ttyACM0".to_string()],
+            fdcanusb_baudrate: Some(3_000_000),
             can_chan: vec!["can0".to_string(), "can1".to_string()],
             can_disable_brs: true,
             force_transport: Some("socketcan".to_string()),
@@ -342,6 +357,7 @@ mod tests {
 
         let opts: TransportOptions = args.into();
         assert_eq!(opts.fdcanusb_paths, vec!["/dev/ttyACM0"]);
+        assert_eq!(opts.fdcanusb_baudrate, Some(3_000_000));
         assert_eq!(opts.socketcan_interfaces, vec!["can0", "can1"]);
         assert!(opts.disable_brs);
         assert_eq!(opts.force_transport, Some("socketcan".to_string()));

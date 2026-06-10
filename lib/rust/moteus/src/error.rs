@@ -36,6 +36,14 @@ pub enum Error {
     DeviceNotFound(String),
     /// Protocol error
     Protocol(String),
+    /// An error line reported by an fdcanusb or moteus UART device.
+    Device {
+        /// The raw error line from the device.
+        message: String,
+        /// Whether retrying the command (possibly with checksums
+        /// enabled) may resolve the error.
+        retryable: bool,
+    },
 }
 
 impl fmt::Display for Error {
@@ -51,6 +59,7 @@ impl fmt::Display for Error {
             Error::NotConnected => write!(f, "Transport not connected"),
             Error::DeviceNotFound(dev) => write!(f, "Device not found: {}", dev),
             Error::Protocol(msg) => write!(f, "Protocol error: {}", msg),
+            Error::Device { message, .. } => write!(f, "fdcanusb error: {}", message),
         }
     }
 }

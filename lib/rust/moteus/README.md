@@ -193,6 +193,9 @@ ctrl.query_format.torque = Resolution::Int16;
 ## Supported Transports
 
 - **fdcanusb**: USB-to-CAN adapter (serial CDC); Linux, Windows, and macOS
+- **UART**: a moteus connected directly to a TTL serial port (see
+  `docs/integration/uart.md`); auto-detected when the device path is not a
+  known fdcanusb, with per-frame retries and CRC-8 checksums
 - **SocketCAN**: Linux kernel CAN interface
 
 ## Building with Bazel
