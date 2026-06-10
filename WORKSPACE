@@ -142,6 +142,13 @@ crates_repository(
             version = "2",
             features = ["full"],
         ),
+        # default_features = False omits the libudev feature, which would
+        # otherwise require the system libudev library at build time.  This
+        # matches how mio-serial/tokio-serial already resolve serialport.
+        "serialport": crate.spec(
+            version = "4",
+            default_features = False,
+        ),
         "tokio": crate.spec(
             version = "1.0",
             features = ["net", "io-util", "time", "rt", "rt-multi-thread", "macros", "sync"],

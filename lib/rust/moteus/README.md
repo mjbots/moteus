@@ -186,12 +186,13 @@ ctrl.query_format.torque = Resolution::Int16;
 
 ## Features
 
+- `serialport`: fdcanusb transport support (default)
 - `tokio`: Async I/O transports and `AsyncController` (optional)
 - `clap`: CLI argument parsing support (optional)
 
 ## Supported Transports
 
-- **fdcanusb**: USB-to-CAN adapter (serial CDC)
+- **fdcanusb**: USB-to-CAN adapter (serial CDC); Linux, Windows, and macOS
 - **SocketCAN**: Linux kernel CAN interface
 
 ## Building with Bazel

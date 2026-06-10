@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![doc = include_str!("../README.md")]
+// The README examples use the fdcanusb transport, so its doctests can
+// only build when the (default) serialport feature is enabled.
+#![cfg_attr(feature = "serialport", doc = include_str!("../README.md"))]
 
 pub mod command_ext;
 pub mod command_types;
@@ -38,8 +40,10 @@ pub use transport::{Router, Transport};
 pub use transport::convenience::AsyncFdcanusb;
 #[cfg(all(feature = "tokio", target_os = "linux"))]
 pub use transport::convenience::AsyncSocketCan;
+#[cfg(feature = "serialport")]
+pub use transport::convenience::Fdcanusb;
 #[cfg(target_os = "linux")]
-pub use transport::convenience::{Fdcanusb, SocketCan};
+pub use transport::convenience::SocketCan;
 
 // Re-export protocol types for convenience
 pub use moteus_protocol::{command, query, CanFdFrame, Mode, Register, Resolution};

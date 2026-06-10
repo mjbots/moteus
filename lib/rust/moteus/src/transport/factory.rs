@@ -194,12 +194,12 @@ pub trait TransportFactory: Send + Sync {
     fn create(&self, options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>>;
 }
 
-/// Factory for fdcanusb devices (CDC serial, Linux only).
-#[cfg(target_os = "linux")]
+/// Factory for fdcanusb devices (CDC serial).
+#[cfg(feature = "serialport")]
 #[derive(Debug, Default)]
 pub struct FdcanusbFactory;
 
-#[cfg(target_os = "linux")]
+#[cfg(feature = "serialport")]
 impl FdcanusbFactory {
     /// Create a new fdcanusb factory.
     pub fn new() -> Self {
@@ -207,7 +207,7 @@ impl FdcanusbFactory {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(feature = "serialport")]
 impl TransportFactory for FdcanusbFactory {
     fn priority(&self) -> u32 {
         10 // Higher priority than socketcan
@@ -334,11 +334,12 @@ static REGISTRY: OnceLock<Mutex<Vec<Box<dyn TransportFactory>>>> = OnceLock::new
 
 fn get_registry() -> &'static Mutex<Vec<Box<dyn TransportFactory>>> {
     REGISTRY.get_or_init(|| {
-        #[cfg(target_os = "linux")]
-        let factories: Vec<Box<dyn TransportFactory>> =
-            vec![Box::new(FdcanusbFactory), Box::new(SocketCanFactory)];
-        #[cfg(not(target_os = "linux"))]
-        let factories: Vec<Box<dyn TransportFactory>> = Vec::new();
+        let factories: Vec<Box<dyn TransportFactory>> = vec![
+            #[cfg(feature = "serialport")]
+            Box::new(FdcanusbFactory),
+            #[cfg(target_os = "linux")]
+            Box::new(SocketCanFactory),
+        ];
         Mutex::new(factories)
     })
 }
@@ -377,17 +378,12 @@ pub fn register(factory: Box<dyn TransportFactory>) {
 /// of registered factories (including external ones), use
 /// [`create_transports()`] which reads the global registry.
 pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
-    #[cfg(target_os = "linux")]
-    {
-        vec![
-            Box::new(FdcanusbFactory::new()),
-            Box::new(SocketCanFactory::new()),
-        ]
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        Vec::new()
-    }
+    vec![
+        #[cfg(feature = "serialport")]
+        Box::new(FdcanusbFactory::new()),
+        #[cfg(target_os = "linux")]
+        Box::new(SocketCanFactory::new()),
+    ]
 }
 
 /// Create transport devices using all registered factories.
@@ -492,7 +488,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(all(feature = "serialport", target_os = "linux"))]
     #[test]
     fn test_factory_priorities() {
         let fdcanusb = FdcanusbFactory::new();
@@ -501,7 +497,7 @@ mod tests {
         assert!(fdcanusb.priority() < socketcan.priority());
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(feature = "serialport")]
     #[test]
     fn test_factory_arg_specs() {
         let fdcanusb = FdcanusbFactory::new();
@@ -519,6 +515,7 @@ mod tests {
         assert_eq!(specs[0].name, "can-chan");
     }
 
+    #[cfg(feature = "serialport")]
     #[test]
     fn test_get_factories() {
         let factories = get_factories();

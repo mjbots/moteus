@@ -36,7 +36,7 @@ use crate::transport::transaction::Request;
 
 /// Implement the blocking [`Transport`](crate::transport::Transport) trait for a
 /// newtype `$t(Router)` by forwarding to the inner `Router`.
-#[cfg(target_os = "linux")]
+#[cfg(any(feature = "serialport", target_os = "linux"))]
 macro_rules! forward_transport {
     ($t:ty) => {
         impl $crate::transport::Transport for $t {
@@ -97,10 +97,12 @@ macro_rules! forward_async_transport {
 }
 
 // ===========================================================================
-// Blocking convenience transports (Linux-only: native serial / SocketCAN)
+// Blocking convenience transports
 // ===========================================================================
 
 /// A ready-to-use blocking transport over a single fdcanusb.
+///
+/// Available on all platforms (requires the default `serialport` feature).
 ///
 /// ```no_run
 /// use moteus::{BlockingController, Fdcanusb};
@@ -111,10 +113,10 @@ macro_rules! forward_async_transport {
 /// # Ok(())
 /// # }
 /// ```
-#[cfg(target_os = "linux")]
+#[cfg(feature = "serialport")]
 pub struct Fdcanusb(crate::transport::Router);
 
-#[cfg(target_os = "linux")]
+#[cfg(feature = "serialport")]
 impl Fdcanusb {
     /// Open an fdcanusb at the given serial port path.
     pub fn open(path: &str) -> Result<Self> {
@@ -130,10 +132,11 @@ impl Fdcanusb {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(feature = "serialport")]
 forward_transport!(Fdcanusb);
 
-/// A ready-to-use blocking transport over a single SocketCAN interface.
+/// A ready-to-use blocking transport over a single SocketCAN interface
+/// (Linux only).
 ///
 /// ```no_run
 /// use moteus::{BlockingController, SocketCan};

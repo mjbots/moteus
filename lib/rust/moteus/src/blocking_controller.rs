@@ -42,13 +42,14 @@
 //! [`with_transport`](BlockingController::with_transport):
 //!
 //! ```no_run
+//! # #[cfg(feature = "serialport")]
+//! # fn example() -> Result<(), moteus::Error> {
 //! use moteus::{BlockingController, Fdcanusb};
 //!
-//! fn main() -> Result<(), moteus::Error> {
-//!     let transport = Fdcanusb::open("/dev/fdcanusb")?;
-//!     let mut ctrl = BlockingController::with_transport(1, transport);
-//!     Ok(())
-//! }
+//! let transport = Fdcanusb::open("/dev/fdcanusb")?;
+//! let mut ctrl = BlockingController::with_transport(1, transport);
+//! # Ok(())
+//! # }
 //! ```
 
 use crate::command_ext::MaybeQuery;

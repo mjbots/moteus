@@ -132,7 +132,6 @@ impl FdcanusbProtocol {
 /// controllers through an fdcanusb device.
 pub struct FdcanusbDevice<S: std::io::Read + std::io::Write> {
     reader: BufReader<S>,
-    writer: S,
     timeout: Duration,
     disable_brs: bool,
     line_buffer: String,
@@ -153,23 +152,14 @@ impl<S: std::io::Read + std::io::Write> std::fmt::Debug for FdcanusbDevice<S> {
     }
 }
 
-impl<S: std::io::Read + std::io::Write + Clone> FdcanusbDevice<S> {
+impl<S: std::io::Read + std::io::Write> FdcanusbDevice<S> {
     /// Creates an FdCanUSB transport from a pre-opened stream.
     ///
     /// This is primarily useful for testing with mock streams.
     /// For normal use, prefer [`FdcanusbDevice::new`] which opens the serial port
     /// directly from a device path.
     pub fn from_stream(stream: S) -> Self {
-        let reader = BufReader::new(stream.clone());
-        FdcanusbDevice {
-            reader,
-            writer: stream,
-            timeout: crate::transport::factory::DEFAULT_TIMEOUT,
-            disable_brs: false,
-            line_buffer: String::new(),
-            pending_frames: Vec::new(),
-            info: TransportDeviceInfo::new(0, "Fdcanusb"),
-        }
+        Self::from_stream_with_options(stream, crate::transport::factory::DEFAULT_TIMEOUT, false)
     }
 
     /// Creates an FdCanUSB transport from a pre-opened stream with options.
@@ -178,10 +168,8 @@ impl<S: std::io::Read + std::io::Write + Clone> FdcanusbDevice<S> {
     /// For normal use, prefer [`FdcanusbDevice::new`] which opens the serial port
     /// directly from a device path.
     pub fn from_stream_with_options(stream: S, timeout: Duration, disable_brs: bool) -> Self {
-        let reader = BufReader::new(stream.clone());
         FdcanusbDevice {
-            reader,
-            writer: stream,
+            reader: BufReader::new(stream),
             timeout,
             disable_brs,
             line_buffer: String::new(),
@@ -198,16 +186,49 @@ impl<S: std::io::Read + std::io::Write + Clone> FdcanusbDevice<S> {
     /// Writes a frame without waiting for OK response.
     fn write_frame(&mut self, frame: &CanFdFrame) -> Result<()> {
         let cmd = FdcanusbProtocol::encode_frame(frame, self.disable_brs);
-        self.writer.write_all(cmd.as_bytes())?;
+        self.reader.get_mut().write_all(cmd.as_bytes())?;
         Ok(())
     }
 
     /// Sends a single frame and waits for OK response.
     fn send_frame(&mut self, frame: &CanFdFrame) -> Result<()> {
         self.write_frame(frame)?;
-        self.writer.flush()?;
+        self.reader.get_mut().flush()?;
         self.wait_for_ok()?;
         Ok(())
+    }
+
+    /// Reads one complete line (terminated by '\n') into `line_buffer`,
+    /// waiting until `deadline`.
+    ///
+    /// Returns `Ok(true)` when a complete line is available and `Ok(false)`
+    /// when the deadline expires first.  Partial data received before the
+    /// deadline is retained in `line_buffer` so it is not lost across
+    /// timeout-bounded reads; the caller must clear the buffer after
+    /// consuming a complete line.
+    fn read_line_deadline(&mut self, deadline: Instant) -> Result<bool> {
+        loop {
+            if Instant::now() > deadline {
+                return Ok(false);
+            }
+
+            match self.reader.read_line(&mut self.line_buffer) {
+                Ok(0) => continue, // No data yet
+                Ok(_) => {
+                    if self.line_buffer.ends_with('\n') {
+                        return Ok(true);
+                    }
+                    // Partial line - keep accumulating
+                }
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                {
+                    continue
+                }
+                Err(e) => return Err(Error::Io(e)),
+            }
+        }
     }
 
     /// Waits for an OK response.
@@ -216,29 +237,25 @@ impl<S: std::io::Read + std::io::Write + Clone> FdcanusbDevice<S> {
         let deadline = Instant::now() + self.timeout;
 
         loop {
-            if Instant::now() > deadline {
+            if !self.read_line_deadline(deadline)? {
                 return Err(Error::Timeout);
             }
 
-            self.line_buffer.clear();
-            match self.reader.read_line(&mut self.line_buffer) {
-                Ok(0) => continue, // No data yet
-                Ok(_) => {
-                    let line = self.line_buffer.trim();
-                    if FdcanusbProtocol::is_ok_response(line) {
-                        return Ok(());
-                    }
-                    if FdcanusbProtocol::is_error_response(line) {
-                        return Err(Error::Protocol(format!("fdcanusb error: {}", line)));
-                    }
-                    // Save any received frames for later retrieval
-                    if let Some(frame) = FdcanusbProtocol::parse_frame(&self.line_buffer) {
-                        self.pending_frames.push(frame);
-                    }
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-                Err(e) => return Err(Error::Io(e)),
+            let line = self.line_buffer.trim();
+            if FdcanusbProtocol::is_ok_response(line) {
+                self.line_buffer.clear();
+                return Ok(());
             }
+            if FdcanusbProtocol::is_error_response(line) {
+                let message = format!("fdcanusb error: {}", line);
+                self.line_buffer.clear();
+                return Err(Error::Protocol(message));
+            }
+            // Save any received frames for later retrieval
+            if let Some(frame) = FdcanusbProtocol::parse_frame(&self.line_buffer) {
+                self.pending_frames.push(frame);
+            }
+            self.line_buffer.clear();
         }
     }
 
@@ -254,28 +271,21 @@ impl<S: std::io::Read + std::io::Write + Clone> FdcanusbDevice<S> {
         let deadline = Instant::now() + self.timeout;
 
         while frames.len() < expected_count {
-            if Instant::now() > deadline {
+            if !self.read_line_deadline(deadline)? {
                 break; // Timeout - return what we have
             }
 
-            self.line_buffer.clear();
-            match self.reader.read_line(&mut self.line_buffer) {
-                Ok(0) => continue,
-                Ok(_) => {
-                    if let Some(frame) = FdcanusbProtocol::parse_frame(&self.line_buffer) {
-                        frames.push(frame);
-                    }
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-                Err(e) => return Err(Error::Io(e)),
+            if let Some(frame) = FdcanusbProtocol::parse_frame(&self.line_buffer) {
+                frames.push(frame);
             }
+            self.line_buffer.clear();
         }
 
         Ok(frames)
     }
 }
 
-impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for FdcanusbDevice<S> {
+impl<S: std::io::Read + std::io::Write + Send> TransportDevice for FdcanusbDevice<S> {
     fn transaction(&mut self, requests: &mut [Request]) -> Result<()> {
         debug_assert!(
             requests.iter().all(|r| r.child_device.is_none()),
@@ -293,7 +303,7 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
 
         // Single flush for all frames
         if frames_sent > 0 {
-            self.writer.flush()?;
+            self.reader.get_mut().flush()?;
         }
 
         // Wait for all OKs
@@ -328,39 +338,32 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
         // Try to read one frame with a short timeout
         let deadline = Instant::now() + self.timeout;
 
-        while Instant::now() < deadline {
+        loop {
+            if !self.read_line_deadline(deadline)? {
+                return Ok(None);
+            }
+
+            let frame = FdcanusbProtocol::parse_frame(&self.line_buffer);
             self.line_buffer.clear();
-            match self.reader.read_line(&mut self.line_buffer) {
-                Ok(0) => continue,
-                Ok(_) => {
-                    if let Some(frame) = FdcanusbProtocol::parse_frame(&self.line_buffer) {
-                        return Ok(Some(frame));
-                    }
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-                Err(e) => return Err(Error::Io(e)),
+            if frame.is_some() {
+                return Ok(frame);
             }
         }
-
-        Ok(None)
     }
 
     fn flush(&mut self) -> Result<()> {
         // Clear pending frames
         self.pending_frames.clear();
 
-        // Drain any incoming data for a short period
+        // Drain any incoming data for a short period, swallowing errors
         let deadline = Instant::now() + Duration::from_millis(50);
 
-        while Instant::now() < deadline {
+        while let Ok(true) = self.read_line_deadline(deadline) {
             self.line_buffer.clear();
-            match self.reader.read_line(&mut self.line_buffer) {
-                Ok(0) => break,    // No more data
-                Ok(_) => continue, // Discard
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
-                Err(_) => break,
-            }
         }
+
+        // Discard any partial line left by the deadline expiring
+        self.line_buffer.clear();
 
         Ok(())
     }
@@ -379,177 +382,41 @@ impl<S: std::io::Read + std::io::Write + Clone + Send> TransportDevice for Fdcan
 }
 
 // =============================================================================
-// Linux serial port
+// Serial port (via the `serialport` crate)
 // =============================================================================
 
-/// Linux serial port implementation for fdcanusb.
-#[cfg(target_os = "linux")]
-mod linux_serial {
-    use std::fs::OpenOptions;
-    use std::io::{Read, Result, Write};
-    use std::os::raw::{c_int, c_void};
-    use std::os::unix::io::{AsRawFd, RawFd};
+/// Read timeout configured on the serial port itself.
+///
+/// The outer deadline in each read loop governs the total wait; this just
+/// bounds how long a single read may block before the deadline is
+/// rechecked.
+#[cfg(feature = "serialport")]
+const PORT_READ_TIMEOUT: Duration = Duration::from_millis(10);
 
-    // termios constants
-    const NCCS: usize = 32;
-    const VMIN: usize = 6;
-    const VTIME: usize = 5;
-    const TCSANOW: c_int = 0;
-    const TCIOFLUSH: c_int = 2;
+/// Opens and configures a serial port for fdcanusb use.
+///
+/// The fdcanusb is a USB CDC ACM device, so the baud rate is arbitrary.
+#[cfg(feature = "serialport")]
+fn open_serial_port(path: &str) -> Result<Box<dyn serialport::SerialPort>> {
+    let mut port = serialport::new(path, 115_200)
+        .timeout(PORT_READ_TIMEOUT)
+        .open()
+        .map_err(|e| Error::Io(e.into()))?;
 
-    // c_iflag bits
-    const IGNBRK: u32 = 0o000001;
-    const BRKINT: u32 = 0o000002;
-    const PARMRK: u32 = 0o000010;
-    const ISTRIP: u32 = 0o000040;
-    const INLCR: u32 = 0o000100;
-    const IGNCR: u32 = 0o000200;
-    const ICRNL: u32 = 0o000400;
-    const IXON: u32 = 0o002000;
+    // Some platforms (notably Windows) do not deliver data from a CDC
+    // ACM device until DTR is asserted.  Failure is non-fatal.
+    let _ = port.write_data_terminal_ready(true);
 
-    // c_oflag bits
-    const OPOST: u32 = 0o000001;
-
-    // c_lflag bits
-    const ECHO: u32 = 0o000010;
-    const ECHONL: u32 = 0o000100;
-    const ICANON: u32 = 0o000002;
-    const ISIG: u32 = 0o000001;
-    const IEXTEN: u32 = 0o100000;
-
-    // c_cflag bits
-    const CSIZE: u32 = 0o000060;
-    const PARENB: u32 = 0o000400;
-    const CS8: u32 = 0o000060;
-
-    #[repr(C)]
-    struct Termios {
-        c_iflag: u32,
-        c_oflag: u32,
-        c_cflag: u32,
-        c_lflag: u32,
-        c_line: u8,
-        c_cc: [u8; NCCS],
-        c_ispeed: u32,
-        c_ospeed: u32,
-    }
-
-    extern "C" {
-        fn tcgetattr(fd: c_int, termios: *mut Termios) -> c_int;
-        fn tcsetattr(fd: c_int, optional_actions: c_int, termios: *const Termios) -> c_int;
-        fn tcflush(fd: c_int, queue_selector: c_int) -> c_int;
-        fn dup(fd: c_int) -> c_int;
-    }
-
-    /// A simple serial port wrapper for Linux.
-    pub struct LinuxSerialPort {
-        fd: RawFd,
-    }
-
-    impl LinuxSerialPort {
-        /// Opens a serial port with appropriate settings for fdcanusb.
-        pub fn open(path: &str) -> Result<Self> {
-            let file = OpenOptions::new().read(true).write(true).open(path)?;
-
-            let fd = file.as_raw_fd();
-
-            // Configure the serial port using termios
-            unsafe {
-                let mut termios: Termios = std::mem::zeroed();
-                if tcgetattr(fd, &mut termios) != 0 {
-                    return Err(std::io::Error::last_os_error());
-                }
-
-                // Raw mode - disable canonical processing, echo, signals
-                termios.c_iflag &=
-                    !(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
-                termios.c_oflag &= !OPOST;
-                termios.c_lflag &= !(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
-                termios.c_cflag &= !(CSIZE | PARENB);
-                termios.c_cflag |= CS8;
-
-                // Non-blocking reads: VMIN=0 means return immediately
-                // VTIME=1 means 0.1s inter-character timeout
-                termios.c_cc[VMIN] = 0;
-                termios.c_cc[VTIME] = 1;
-
-                if tcsetattr(fd, TCSANOW, &termios) != 0 {
-                    return Err(std::io::Error::last_os_error());
-                }
-
-                // Flush any pending data
-                tcflush(fd, TCIOFLUSH);
-            }
-
-            // Transfer ownership of fd - don't let File close it
-            std::mem::forget(file);
-
-            Ok(LinuxSerialPort { fd })
-        }
-    }
-
-    impl Clone for LinuxSerialPort {
-        fn clone(&self) -> Self {
-            let new_fd = unsafe { dup(self.fd) };
-            LinuxSerialPort { fd: new_fd }
-        }
-    }
-
-    impl Drop for LinuxSerialPort {
-        fn drop(&mut self) {
-            unsafe {
-                extern "C" {
-                    fn close(fd: c_int) -> c_int;
-                }
-                close(self.fd);
-            }
-        }
-    }
-
-    impl Read for LinuxSerialPort {
-        fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-            let n = unsafe {
-                extern "C" {
-                    fn read(fd: c_int, buf: *mut c_void, count: usize) -> isize;
-                }
-                read(self.fd, buf.as_mut_ptr() as *mut c_void, buf.len())
-            };
-            if n < 0 {
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(n as usize)
-            }
-        }
-    }
-
-    impl Write for LinuxSerialPort {
-        fn write(&mut self, buf: &[u8]) -> Result<usize> {
-            let n = unsafe {
-                extern "C" {
-                    fn write(fd: c_int, buf: *const c_void, count: usize) -> isize;
-                }
-                write(self.fd, buf.as_ptr() as *const c_void, buf.len())
-            };
-            if n < 0 {
-                Err(std::io::Error::last_os_error())
-            } else {
-                Ok(n as usize)
-            }
-        }
-
-        fn flush(&mut self) -> Result<()> {
-            // For serial ports, write is typically unbuffered
-            Ok(())
-        }
-    }
+    Ok(port)
 }
 
-#[cfg(target_os = "linux")]
-use linux_serial::LinuxSerialPort;
-
-#[cfg(target_os = "linux")]
-impl FdcanusbDevice<LinuxSerialPort> {
+#[cfg(feature = "serialport")]
+impl FdcanusbDevice<Box<dyn serialport::SerialPort>> {
     /// Opens an fdcanusb device at the given serial port path.
+    ///
+    /// The path is a serial device such as `/dev/ttyACM0` or
+    /// `/dev/serial/by-id/usb-mjbots_fdcanusb_...` on Linux,
+    /// `/dev/cu.usbmodem...` on macOS, or `COM3` on Windows.
     ///
     /// # Example
     ///
@@ -562,13 +429,12 @@ impl FdcanusbDevice<LinuxSerialPort> {
     /// }
     /// ```
     pub fn new(path: &str) -> Result<Self> {
-        let port = LinuxSerialPort::open(path)?;
-        Ok(Self::from_stream(port))
+        Self::with_options(path, crate::transport::factory::DEFAULT_TIMEOUT, false)
     }
 
     /// Opens an fdcanusb device with explicit timeout and BRS settings.
     pub fn with_options(path: &str, timeout: Duration, disable_brs: bool) -> Result<Self> {
-        let port = LinuxSerialPort::open(path)?;
+        let port = open_serial_port(path)?;
         Ok(Self::from_stream_with_options(port, timeout, disable_brs))
     }
 }

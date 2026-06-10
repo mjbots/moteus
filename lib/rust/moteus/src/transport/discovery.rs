@@ -129,6 +129,24 @@ fn detect_fdcanusbs_by_vid_pid() -> Vec<FdcanusbInfo> {
             }
         }
 
+        // macOS enumerates each device as both a callout (/dev/cu.*) and a
+        // dial-in (/dev/tty.*) port.  Prefer the callout device: opening
+        // the dial-in port can block waiting for carrier detect.
+        #[cfg(target_os = "macos")]
+        {
+            let callouts: std::collections::HashSet<String> = result
+                .iter()
+                .filter_map(|info| info.path.strip_prefix("/dev/cu."))
+                .map(String::from)
+                .collect();
+            result.retain(|info| {
+                !info
+                    .path
+                    .strip_prefix("/dev/tty.")
+                    .is_some_and(|suffix| callouts.contains(suffix))
+            });
+        }
+
         result.sort_by(|a, b| a.path.cmp(&b.path));
         result
     }

@@ -108,7 +108,14 @@ impl AsyncFdcanusbDevice {
         disable_brs: bool,
     ) -> Result<Self> {
         let builder = tokio_serial::new(path, 9600);
-        let port = SerialStream::open(&builder).map_err(|e| Error::Io(e.into()))?;
+        let mut port = SerialStream::open(&builder).map_err(|e| Error::Io(e.into()))?;
+
+        // Some platforms (notably Windows) do not deliver data from a CDC
+        // ACM device until DTR is asserted.  Failure is non-fatal.
+        {
+            use tokio_serial::SerialPort;
+            let _ = port.write_data_terminal_ready(true);
+        }
 
         let (reader, writer) = tokio::io::split(port);
         let reader = BufReader::new(reader);

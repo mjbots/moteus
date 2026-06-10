@@ -25,6 +25,10 @@ jobs:
         target:
           - x86_64-pc-windows-gnu
           - x86_64-unknown-linux-gnu
+          # `cargo check` does not link, so the Apple targets need no
+          # macOS SDK and can be checked from a Linux runner.
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
     steps:
     - uses: actions/checkout@v4
     - name: install libudev-dev

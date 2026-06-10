@@ -365,7 +365,9 @@ mod tests {
         assert!(names.contains(&"force-transport"));
         assert!(names.contains(&"timeout-ms"));
         // Factory-provided args
+        #[cfg(feature = "serialport")]
         assert!(names.contains(&"fdcanusb"));
+        #[cfg(target_os = "linux")]
         assert!(names.contains(&"can-chan"));
     }
 

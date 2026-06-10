@@ -24,12 +24,16 @@ rust_library(
     compile_data = ["README.md"],
     crate_name = "moteus",
     edition = "2021",
-    rustc_flags = ["-D", "warnings"],
+    rustc_flags = [
+        "--cfg=feature=\"serialport\"",
+        "-D", "warnings",
+    ],
     proc_macro_deps = [
         "//lib/rust/moteus-derive",
     ],
     deps = [
         "//lib/rust/moteus-protocol",
+        "@crate_index//:serialport",
     ],
 )
 
@@ -42,6 +46,7 @@ rust_library(
     edition = "2021",
     rustc_flags = [
         "--cfg=feature=\"clap\"",
+        "--cfg=feature=\"serialport\"",
         "-D", "warnings",
     ],
     proc_macro_deps = [
@@ -50,6 +55,7 @@ rust_library(
     deps = [
         "//lib/rust/moteus-protocol",
         "@crate_index//:clap",
+        "@crate_index//:serialport",
     ],
 )
 
@@ -61,6 +67,7 @@ rust_library(
     crate_name = "moteus",
     edition = "2021",
     rustc_flags = [
+        "--cfg=feature=\"serialport\"",
         "--cfg=feature=\"tokio\"",
         "-D", "warnings",
     ],
@@ -69,6 +76,7 @@ rust_library(
     ],
     deps = [
         "//lib/rust/moteus-protocol",
+        "@crate_index//:serialport",
         "@crate_index//:tokio",
         "@crate_index//:tokio-serial",
     ],
@@ -83,6 +91,7 @@ rust_library(
     edition = "2021",
     rustc_flags = [
         "--cfg=feature=\"clap\"",
+        "--cfg=feature=\"serialport\"",
         "--cfg=feature=\"tokio\"",
         "-D", "warnings",
     ],
@@ -92,6 +101,7 @@ rust_library(
     deps = [
         "//lib/rust/moteus-protocol",
         "@crate_index//:clap",
+        "@crate_index//:serialport",
         "@crate_index//:tokio",
         "@crate_index//:tokio-serial",
     ],
@@ -101,6 +111,12 @@ rust_test(
     name = "moteus-test",
     crate = ":moteus",
     edition = "2021",
+    # rust_test does not inherit the crate's rustc_flags, so the feature
+    # cfgs must be repeated here or feature-gated code is compiled out of
+    # the test build.
+    crate_features = [
+        "serialport",
+    ],
     size = "small",
 )
 
@@ -112,6 +128,12 @@ rust_clippy(
 rust_doc_test(
     name = "moteus-doc-test",
     crate = ":moteus",
+    # rust_doc_test does not inherit the crate's rustc_flags, so the
+    # feature cfgs must be repeated here or rustdoc will silently skip
+    # every feature-gated doctest.
+    crate_features = [
+        "serialport",
+    ],
     size = "small",
 )
 
@@ -123,6 +145,7 @@ rust_doc_test(
     # every feature-gated doctest.
     crate_features = [
         "clap",
+        "serialport",
         "tokio",
     ],
     size = "small",
@@ -135,6 +158,7 @@ rust_doc(
     # the generated documentation omits all feature-gated modules.
     crate_features = [
         "clap",
+        "serialport",
         "tokio",
     ],
     rustdoc_flags = ["-D", "warnings"],
