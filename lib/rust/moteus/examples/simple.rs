@@ -84,8 +84,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
     // Create a controller with the specified ID and transport options.
     // By default, this picks an arbitrary CAN-FD transport, preferring
     // an attached fdcanusb if available.
-    let mut c =
-        AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
+    let mut c = AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
 
     // Clear any faults by sending a stop command.
     c.set_stop().await?;
@@ -98,7 +97,9 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
         //
         // The return type of `set_position` is a QueryResult type which
         // contains the current state of the servo.
-        let state = c.set_position(PositionCommand::new().position(f32::NAN)).await?;
+        let state = c
+            .set_position(PositionCommand::new().position(f32::NAN))
+            .await?;
 
         // Print out everything.
         println!("{:?}", state);

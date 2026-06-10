@@ -75,8 +75,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
 
 #[tokio::main]
 async fn run_async(args: &Args) -> Result<(), moteus::Error> {
-    let mut ctrl =
-        AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
+    let mut ctrl = AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
     let mut stream = AsyncDiagnosticStream::new(&mut ctrl);
 
     // Stop telemetry and flush pending data.
@@ -86,7 +85,9 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
 
     // Read a configuration value. The `conf get` command replies with a
     // single line, so use `command_oneline`.
-    let old_kp = stream.command_oneline(b"conf get servo.pid_position.kp").await?;
+    let old_kp = stream
+        .command_oneline(b"conf get servo.pid_position.kp")
+        .await?;
     let old_kp_str = String::from_utf8_lossy(&old_kp);
     let old_kp: f64 = old_kp_str.trim().parse().unwrap_or(0.0);
 

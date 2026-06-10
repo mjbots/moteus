@@ -94,10 +94,14 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
             .enumerate()
             .map(|(i, servo)| {
                 let velocity = 0.1 * (now + i as f32).sin();
-                Request::new(servo.make_position_command(
-                    &PositionCommand::new().position(f32::NAN).velocity(velocity),
-                    true, // query
-                ).into_frame())
+                Request::new(
+                    servo
+                        .make_position_command(
+                            &PositionCommand::new().position(f32::NAN).velocity(velocity),
+                            true, // query
+                        )
+                        .into_frame(),
+                )
             })
             .collect();
 
@@ -181,10 +185,14 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
             .enumerate()
             .map(|(i, servo)| {
                 let velocity = 0.1 * (now + i as f32).sin();
-                Request::new(servo.make_position_command(
-                    &PositionCommand::new().position(f32::NAN).velocity(velocity),
-                    true, // query
-                ).into_frame())
+                Request::new(
+                    servo
+                        .make_position_command(
+                            &PositionCommand::new().position(f32::NAN).velocity(velocity),
+                            true, // query
+                        )
+                        .into_frame(),
+                )
             })
             .collect();
 

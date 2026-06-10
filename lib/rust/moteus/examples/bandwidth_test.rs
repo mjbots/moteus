@@ -111,10 +111,13 @@ async fn main() -> Result<(), moteus::Error> {
         let mut requests: Vec<_> = controllers
             .iter()
             .map(|c| {
-                Request::new(c.make_position_command(
-                    &PositionCommand::new().position(f32::NAN).velocity(0.0),
-                    true,
-                ).into_frame())
+                Request::new(
+                    c.make_position_command(
+                        &PositionCommand::new().position(f32::NAN).velocity(0.0),
+                        true,
+                    )
+                    .into_frame(),
+                )
             })
             .collect();
 

@@ -77,10 +77,7 @@ fn run_blocking(args: &Args) -> Result<(), moteus::Error> {
 
     println!("Servo {}: alternating between 0 and 1 rev", args.id1);
     println!("Servo {}: alternating between 0 and 3 rev", args.id2);
-    println!(
-        "Period: {}s (each move: {}s)",
-        args.period, move_duration
-    );
+    println!("Period: {}s (each move: {}s)", args.period, move_duration);
     println!("Press Ctrl+C to stop");
     println!();
 
@@ -133,10 +130,7 @@ async fn run_async(args: &Args) -> Result<(), moteus::Error> {
 
     println!("Servo {}: alternating between 0 and 1 rev", args.id1);
     println!("Servo {}: alternating between 0 and 3 rev", args.id2);
-    println!(
-        "Period: {}s (each move: {}s)",
-        args.period, move_duration
-    );
+    println!("Period: {}s (each move: {}s)", args.period, move_duration);
     println!("Press Ctrl+C to stop");
     println!();
 
