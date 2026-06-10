@@ -2683,13 +2683,13 @@ Implement this to create custom transport backends.</dd>
 <h3 id="transport-backends">Transport Backends<a class="headerlink" href="#transport-backends" title="Permanent link">&para;</a></h3>
 <dl>
 <dt><a href="https://docs.rs/moteus/latest/moteus/transport/fdcanusb/struct.Fdcanusb.html"><code>transport::fdcanusb::Fdcanusb</code></a></dt>
-<dd>FdCanUSB serial (CDC) transport.
+<dd>fdcanusb serial (CDC) transport.
 Auto-detected when an fdcanusb device is connected via USB.</dd>
 <dt><a href="https://docs.rs/moteus/latest/moteus/transport/socketcan/struct.SocketCan.html"><code>transport::socketcan::SocketCan</code></a></dt>
 <dd>Linux SocketCAN transport.
 Uses the kernel CAN interface (e.g., <code>can0</code>).</dd>
 <dt><a href="https://docs.rs/moteus/latest/moteus/transport/async_fdcanusb/struct.AsyncFdcanusb.html"><code>transport::async_fdcanusb::AsyncFdcanusb</code></a> <em>(requires <code>tokio</code> feature)</em></dt>
-<dd>Async FdCanUSB transport using tokio-serial.</dd>
+<dd>Async fdcanusb transport using tokio-serial.</dd>
 <dt><a href="https://docs.rs/moteus/latest/moteus/transport/async_socketcan/struct.AsyncSocketCan.html"><code>transport::async_socketcan::AsyncSocketCan</code></a> <em>(requires <code>tokio</code> feature)</em></dt>
 <dd>Async SocketCAN transport using tokio.</dd>
 </dl>

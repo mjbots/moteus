@@ -2584,7 +2584,7 @@
 <li>Parity: None</li>
 </ul>
 <h2 id="protocol">Protocol<a class="headerlink" href="#protocol" title="Permanent link">&para;</a></h2>
-<p>In this mode, moteus acts as if it were a fdcanusb device on the UART.  The moteus python and C++ library can be used directly if the operating system device name for the UART is given instead of the fdcanusb.  The only difference is that moteus permits checksums on command lines and always emits checksums on response lines.  Once any command has been sent with a checksum, all further commands require a checksum.</p>
+<p>In this mode, moteus acts as if it were a fdcanusb device on the UART.  The moteus python, C++, and rust libraries can be used directly if the operating system device name for the UART is given instead of the fdcanusb.  The only difference is that moteus permits checksums on command lines and always emits checksums on response lines.  Once any command has been sent with a checksum, all further commands require a checksum.</p>
 <p>The checksum uses the following format:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>data line *XX
 </span></code></pre></div>
@@ -2644,6 +2644,11 @@
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="p">}());</span>
 </span></code></pre></div>
+<p>or for rust</p>
+<div class="language-rust highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kd">let</span><span class="w"> </span><span class="n">transport</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">moteus</span><span class="p">::</span><span class="n">Fdcanusb</span><span class="p">::</span><span class="n">open</span><span class="p">(</span><span class="s">&quot;/dev/ttyUSB0&quot;</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">controller</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">moteus</span><span class="p">::</span><span class="n">BlockingController</span><span class="p">::</span><span class="n">with_transport</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">transport</span><span class="p">);</span>
+</span></code></pre></div>
+<p>For embedded (no_std) rust hosts, the <code>moteus-protocol</code> crate provides an allocation-free codec for this protocol in its <code>fdcanusb</code> module.</p>
 <p>For usage with Arduino, see that <a href="../../platforms/arduino/">platform integration reference</a>.</p>
 <h2 id="caveats">Caveats<a class="headerlink" href="#caveats" title="Permanent link">&para;</a></h2>
 <h3 id="reconfiguring">Reconfiguring<a class="headerlink" href="#reconfiguring" title="Permanent link">&para;</a></h3>
