@@ -12,7 +12,7 @@ This library is split into two crates:
 
 - **moteus-protocol**: Low-level protocol encoding/decoding. `no_std`
   compatible for embedded use.
-- **moteus**: High-level API with transport implementations for FdCanUSB
+- **moteus**: High-level API with transport implementations for fdcanusb
   and SocketCAN.
 
 ## Quick Start - Auto-Discovery (Recommended)

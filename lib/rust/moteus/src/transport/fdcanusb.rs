@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! FdCanUSB transport for communicating with moteus controllers.
+//! fdcanusb transport for communicating with moteus controllers.
 //!
 //! The fdcanusb is a USB-to-CAN-FD adapter that uses a simple text protocol:
 //! - Send: `can send AAAA HEXDATA FLAGS\n`
@@ -127,7 +127,7 @@ impl FdcanusbOptions {
     }
 }
 
-/// FdCanUSB text protocol encoder/decoder.
+/// fdcanusb text protocol encoder/decoder.
 ///
 /// These are thin `String`-based wrappers over the allocation-free
 /// codec in [`moteus_protocol::fdcanusb`], which embedded users can
@@ -197,7 +197,7 @@ impl FdcanusbProtocol {
     }
 }
 
-/// FdCanUSB transport implementation.
+/// fdcanusb transport implementation.
 ///
 /// This provides a synchronous interface for communicating with moteus
 /// controllers through an fdcanusb device.
@@ -238,7 +238,7 @@ impl<S: std::io::Read + std::io::Write> std::fmt::Debug for FdcanusbDevice<S> {
 }
 
 impl<S: std::io::Read + std::io::Write> FdcanusbDevice<S> {
-    /// Creates an FdCanUSB transport from a pre-opened stream.
+    /// Creates an fdcanusb transport from a pre-opened stream.
     ///
     /// This is primarily useful for testing with mock streams.
     /// For normal use, prefer [`FdcanusbDevice::new`] which opens the serial port
@@ -247,7 +247,7 @@ impl<S: std::io::Read + std::io::Write> FdcanusbDevice<S> {
         Self::from_stream_with(stream, &FdcanusbOptions::new())
     }
 
-    /// Creates an FdCanUSB transport from a pre-opened stream with options.
+    /// Creates an fdcanusb transport from a pre-opened stream with options.
     ///
     /// This is primarily useful for testing with mock streams.
     /// For normal use, prefer [`FdcanusbDevice::new`] which opens the serial port
@@ -261,7 +261,7 @@ impl<S: std::io::Read + std::io::Write> FdcanusbDevice<S> {
         )
     }
 
-    /// Creates an FdCanUSB transport from a pre-opened stream with
+    /// Creates an fdcanusb transport from a pre-opened stream with
     /// full options.
     ///
     /// No auto-detection is performed: `uart_mode: None` is treated as

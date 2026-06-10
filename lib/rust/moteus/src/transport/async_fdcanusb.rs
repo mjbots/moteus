@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Async FdCanUSB transport using tokio.
+//! Async fdcanusb transport using tokio.
 //!
-//! This module provides an async implementation of the FdCanUSB transport
+//! This module provides an async implementation of the fdcanusb transport
 //! using tokio for non-blocking I/O. It reuses the protocol encoder/decoder
 //! from the blocking implementation.
 //!
@@ -53,7 +53,7 @@ use tokio::io::{
 };
 use tokio_serial::SerialStream;
 
-/// Async FdCanUSB transport using tokio-serial.
+/// Async fdcanusb transport using tokio-serial.
 ///
 /// This provides an async interface for communicating with moteus
 /// controllers through an fdcanusb device, or directly over a UART.
@@ -100,7 +100,7 @@ impl<S> std::fmt::Debug for AsyncFdcanusbDevice<S> {
 }
 
 impl AsyncFdcanusbDevice {
-    /// Opens an async FdCanUSB transport at the specified path.
+    /// Opens an async fdcanusb transport at the specified path.
     ///
     /// As with the blocking
     /// [`FdcanusbDevice::new`](crate::transport::fdcanusb::FdcanusbDevice::new),
@@ -113,7 +113,7 @@ impl AsyncFdcanusbDevice {
         Self::open_with(path, &FdcanusbOptions::new()).await
     }
 
-    /// Opens an async FdCanUSB transport with BRS option.
+    /// Opens an async fdcanusb transport with BRS option.
     ///
     /// # Arguments
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
@@ -122,7 +122,7 @@ impl AsyncFdcanusbDevice {
         Self::open_with(path, &FdcanusbOptions::new().disable_brs(disable_brs)).await
     }
 
-    /// Opens an async FdCanUSB transport with timeout and BRS options.
+    /// Opens an async fdcanusb transport with timeout and BRS options.
     ///
     /// # Arguments
     /// * `path` - Device path (e.g., "/dev/ttyACM0")
@@ -167,7 +167,7 @@ impl AsyncFdcanusbDevice {
 }
 
 impl<S: AsyncRead + AsyncWrite + Send> AsyncFdcanusbDevice<S> {
-    /// Creates an async FdCanUSB transport from a pre-opened stream
+    /// Creates an async fdcanusb transport from a pre-opened stream
     /// with full options.
     ///
     /// This is primarily useful for testing with in-memory streams.

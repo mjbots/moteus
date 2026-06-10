@@ -85,7 +85,7 @@ This page provides a curated summary of the key types and their roles.
 ### Transport Backends
 
 [`transport::fdcanusb::Fdcanusb`](https://docs.rs/moteus/latest/moteus/transport/fdcanusb/struct.Fdcanusb.html)
-:   FdCanUSB serial (CDC) transport.
+:   fdcanusb serial (CDC) transport.
     Auto-detected when an fdcanusb device is connected via USB.
 
 [`transport::socketcan::SocketCan`](https://docs.rs/moteus/latest/moteus/transport/socketcan/struct.SocketCan.html)
@@ -93,7 +93,7 @@ This page provides a curated summary of the key types and their roles.
     Uses the kernel CAN interface (e.g., `can0`).
 
 [`transport::async_fdcanusb::AsyncFdcanusb`](https://docs.rs/moteus/latest/moteus/transport/async_fdcanusb/struct.AsyncFdcanusb.html) *(requires `tokio` feature)*
-:   Async FdCanUSB transport using tokio-serial.
+:   Async fdcanusb transport using tokio-serial.
 
 [`transport::async_socketcan::AsyncSocketCan`](https://docs.rs/moteus/latest/moteus/transport/async_socketcan/struct.AsyncSocketCan.html) *(requires `tokio` feature)*
 :   Async SocketCAN transport using tokio.

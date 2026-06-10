@@ -29,7 +29,7 @@
 //! ## Module Structure
 //!
 //! - [`args`]: Command-line argument support for transport options
-//! - [`fdcanusb`]: FdCanUSB serial protocol implementation
+//! - [`fdcanusb`]: fdcanusb serial protocol implementation
 //! - [`socketcan`]: Linux SocketCAN transport (Linux only)
 //! - [`device`]: TransportDevice trait for hardware abstraction
 //! - [`discovery`]: Device enumeration and detection
@@ -40,7 +40,7 @@
 //!
 //! When the `tokio` feature is enabled, additional async transport modules are available:
 //!
-//! - `async_fdcanusb`: Tokio-based async FdCanUSB transport
+//! - `async_fdcanusb`: Tokio-based async fdcanusb transport
 //! - `async_socketcan`: Tokio-based async SocketCAN transport (Linux only)
 //! - `async_factory`: Async transport factory for device creation
 //! - `async_transport`: Async Router for multi-device routing
