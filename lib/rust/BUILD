@@ -91,7 +91,7 @@ sh_test(
 # Example: Simple single-servo control
 rust_binary(
     name = "simple",
-    srcs = ["examples/simple.rs"],
+    srcs = ["//lib/rust/moteus:examples/simple.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap_tokio",
@@ -103,7 +103,7 @@ rust_binary(
 # Example: Protocol-only usage (no transport)
 rust_binary(
     name = "protocol_only",
-    srcs = ["examples/protocol_only.rs"],
+    srcs = ["//lib/rust/moteus:examples/protocol_only.rs"],
     edition = "2021",
     deps = ["//lib/rust/moteus-protocol"],
 )
@@ -111,7 +111,7 @@ rust_binary(
 # Example: Multi-servo control with discovery
 rust_binary(
     name = "multiservo",
-    srcs = ["examples/multiservo.rs"],
+    srcs = ["//lib/rust/moteus:examples/multiservo.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap_tokio",
@@ -123,7 +123,7 @@ rust_binary(
 # Example: Discover all connected controllers
 rust_binary(
     name = "discover",
-    srcs = ["examples/discover.rs"],
+    srcs = ["//lib/rust/moteus:examples/discover.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap",
@@ -134,7 +134,7 @@ rust_binary(
 # Example: Bandwidth test for position/query loop
 rust_binary(
     name = "bandwidth_test",
-    srcs = ["examples/bandwidth_test.rs"],
+    srcs = ["//lib/rust/moteus:examples/bandwidth_test.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap_tokio",
@@ -146,7 +146,7 @@ rust_binary(
 # Example: Diagnostic protocol for configuration and debugging
 rust_binary(
     name = "diagnostic_protocol",
-    srcs = ["examples/diagnostic_protocol.rs"],
+    srcs = ["//lib/rust/moteus:examples/diagnostic_protocol.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap_tokio",
@@ -158,7 +158,7 @@ rust_binary(
 # Example: Coordinated multi-servo move_to
 rust_binary(
     name = "move_to",
-    srcs = ["examples/move_to.rs"],
+    srcs = ["//lib/rust/moteus:examples/move_to.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap_tokio",
@@ -170,7 +170,7 @@ rust_binary(
 # Example: GPIO reading and writing
 rust_binary(
     name = "gpio",
-    srcs = ["examples/gpio.rs"],
+    srcs = ["//lib/rust/moteus:examples/gpio.rs"],
     edition = "2021",
     deps = [
         "//lib/rust/moteus:moteus_clap_tokio",

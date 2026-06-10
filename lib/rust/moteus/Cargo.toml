@@ -23,3 +23,38 @@ clap = { version = "4.5", features = ["derive"], optional = true }
 tokio = { version = "1.0", features = ["net", "io-util", "time", "rt", "rt-multi-thread", "macros", "sync"], optional = true }
 serialport = { version = "4", optional = true }
 tokio-serial = { version = "5.4", optional = true }
+
+# The examples are also built by bazel; see lib/rust/BUILD.  Run them
+# with e.g.:
+#   cargo run --features clap,tokio --example simple
+
+[[example]]
+name = "protocol_only"
+
+[[example]]
+name = "discover"
+required-features = ["clap", "serialport"]
+
+[[example]]
+name = "bandwidth_test"
+required-features = ["clap", "serialport", "tokio"]
+
+[[example]]
+name = "diagnostic_protocol"
+required-features = ["clap", "serialport", "tokio"]
+
+[[example]]
+name = "gpio"
+required-features = ["clap", "serialport", "tokio"]
+
+[[example]]
+name = "move_to"
+required-features = ["clap", "serialport", "tokio"]
+
+[[example]]
+name = "multiservo"
+required-features = ["clap", "serialport", "tokio"]
+
+[[example]]
+name = "simple"
+required-features = ["clap", "serialport", "tokio"]

@@ -18,6 +18,11 @@ load("@rules_rust//rust:defs.bzl", "rust_clippy", "rust_doc", "rust_doc_test", "
 
 package(default_visibility = ["//visibility:public"])
 
+# The example sources are part of the cargo package (so `cargo run
+# --example` works and they ship in the published crate), but the
+# rust_binary targets that build them live in //lib/rust.
+exports_files(glob(["examples/*.rs"]))
+
 rust_library(
     name = "moteus",
     srcs = glob(["src/**/*.rs"]),
