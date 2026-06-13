@@ -4,6 +4,16 @@ on:
   push:
     tags:
       - 'firmware/v*'
+  # Manual builds of an arbitrary commit, with no release created.
+  # The artifacts are attached to the workflow run instead (see the
+  # "Upload build artifacts" step).  Use this to flash and validate a
+  # work-in-progress commit without minting a release or a tag.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Commit SHA, branch, or tag to build (blank = the branch selected above)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -15,6 +25,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # Empty for tag pushes, so checkout falls back to the
+          # triggering ref.  For manual runs this is the commit the
+          # operator typed (if any).
+          ref: ${{ github.event.inputs.ref }}
 
       - name: Setup
         run: |
@@ -31,18 +45,40 @@ jobs:
       - name: Stage release artifacts
         id: stage
         run: |
-          version="${GITHUB_REF_NAME#firmware/v}"
-          sha="${GITHUB_SHA:0:10}"
+          # Derive the built commit from the working tree rather than
+          # GITHUB_SHA: for a manual run with a "ref" input, GITHUB_SHA
+          # is the branch the run was launched from, not the commit we
+          # actually checked out.  HEAD is always the built commit.
+          sha="$(git rev-parse --short=10 HEAD)"
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+              version="${GITHUB_REF_NAME#firmware/v}"
+          else
+              # Manual build of an arbitrary commit: there is no version
+              # tag, so use a placeholder.  The +g<sha> below still
+              # pins the artifact to its exact source commit.
+              version="0.0.0-dev"
+          fi
           # Filename uses semver build-metadata syntax: <version>+g<sha>.
           # The +g<sha> identifies which commit produced this binary
           # without affecting semver precedence (build metadata is
           # ignored for ordering).
           stamp="${version}+g${sha}"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "stamp=${stamp}" >> "$GITHUB_OUTPUT"
           mkdir -p release
           cp bazel-bin/fw/moteus.elf         "release/moteus-fw-${stamp}.elf"
           cp bazel-bin/fw/can_bootloader.elf "release/moteus-bl-${stamp}.elf"
           (cd release && sha256sum * > SHA256SUMS)
+
+      # Manual builds don't create a release; the artifacts are
+      # attached to the workflow run instead and can be downloaded
+      # from its summary page.
+      - name: Upload build artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: moteus-firmware-${{ steps.stage.outputs.stamp }}
+          path: release/*
 
       # Firmware owns the repo's "Latest" badge, but only when the new
       # release is actually the highest version shipped.  A patch on an
@@ -51,6 +87,7 @@ jobs:
       # Pre-releases never claim it.
       - name: Decide if this release should be marked latest
         id: latest
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -74,6 +111,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
