@@ -805,6 +805,15 @@ class AuxPort {
   }
 
 
+  // Returns true for UART encoder modes that share a single RS485
+  // differential pair (TX+/RX+ and TX-/RX- tied together).  These are
+  // half-duplex: the transmit driver must be released after each command
+  // so the encoder can drive its reply onto the shared pair.  4-wire
+  // RS422 encoders (e.g. the AksIM-2) keep the driver enabled statically.
+  static bool IsHalfDuplexUart(aux::UartEncoder::Config::Mode mode) {
+    return mode == aux::UartEncoder::Config::kCuiAmt21;
+  }
+
   void HandleConfigUpdate() {
     // Disable our ISR before changing any config.
     any_isr_enabled_ = false;
@@ -1236,7 +1245,12 @@ class AuxPort {
         return;
       }
 
-      if (rs422_de_) { rs422_de_->write(config_.rs422); }
+      // For half-duplex (tied-line) UART encoders the driver enable is
+      // released after every command by the UART's transmission-complete
+      // interrupt, so leave it de-asserted here and let the UART own it.
+      // Full-duplex RS422 and BiSS-C clock output keep it asserted.
+      const bool half_duplex = IsHalfDuplexUart(config_.uart.mode);
+      if (rs422_de_) { rs422_de_->write(config_.rs422 && !half_duplex); }
       if (rs422_re_) { rs422_re_->write(!config_.rs422); }
     }
 
@@ -1256,6 +1270,9 @@ class AuxPort {
             options.baud_rate = config_.uart.baud_rate;
             options.rx_dma = dma_channels_[2];
             options.tx_dma = dma_channels_[3];
+            if (IsHalfDuplexUart(config_.uart.mode) && rs422_de_) {
+              options.de = &*rs422_de_;
+            }
             return options;
           }());
 
