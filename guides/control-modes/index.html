@@ -2528,7 +2528,6 @@
 <li><strong>Acceleration limit override</strong>: If non-special, override the configured acceleration limit, which constrains how quickly the target position is reached</li>
 </ul>
 <p>Additionally, the position may be set as a "special value" (NaN for floating point and the debug interface, maximal negative for integer encodings). In that case, the position selected is "wherever you are right now".</p>
-<p>A pure velocity mode can be obtained by setting the kp scale to 0 (or permanently so by configuring the kp constant to 0). In this case, using the <code>servo.max_position_slip</code> configurable parameter may be valuable as per the velocity control section below.</p>
 <h2 id="constant-acceleration-trajectories">Constant Acceleration Trajectories<a class="headerlink" href="#constant-acceleration-trajectories" title="Permanent link">&para;</a></h2>
 <p>Velocity and acceleration limits can be configured either globally, or
 on a per-command basis which will cause moteus to internally generate
