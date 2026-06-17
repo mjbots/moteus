@@ -10,7 +10,26 @@ runs:
   steps:
     - shell: bash
       run: |
+        echo "::group::disk usage before cleanup"
+        df -h /
+        before=$(df --output=avail --block-size=1M / | tail -1)
+        echo "::endgroup::"
+
+        # The big wins on GitHub-hosted ubuntu runners, none of which
+        # this build uses.  Approximate sizes:
+        #   /usr/local/lib/android       ~8   GB
+        #   /opt/hostedtoolcache/CodeQL  ~5   GB
+        #   /usr/local/.ghcup, /opt/ghc  ~5   GB  (Haskell)
+        #   /usr/share/dotnet            ~1.6 GB
+        # docker image prune typically reclaims only ~1-2 GB, so it is
+        # the smallest contributor despite being the only one that
+        # prints its own reclaimed total.
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
                     /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
         sudo docker image prune --all --force
+
+        echo "::group::disk usage after cleanup"
         df -h /
+        after=$(df --output=avail --block-size=1M / | tail -1)
+        echo "::endgroup::"
+        echo "Freed $(( (after - before) / 1024 )) GiB on / (was ${before} MiB avail, now ${after} MiB)"
