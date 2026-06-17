@@ -112,6 +112,34 @@ rust_library(
     ],
 )
 
+# Library variant that also exposes the runnable example bodies (the
+# `examples` module).  This is what the example binaries in //lib/rust
+# link against, and what out-of-tree transports (e.g. pi3hat) reuse.
+rust_library(
+    name = "moteus_examples",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = ["README.md"],
+    crate_name = "moteus",
+    edition = "2021",
+    rustc_flags = [
+        "--cfg=feature=\"clap\"",
+        "--cfg=feature=\"examples\"",
+        "--cfg=feature=\"serialport\"",
+        "--cfg=feature=\"tokio\"",
+        "-D", "warnings",
+    ],
+    proc_macro_deps = [
+        "//lib/rust/moteus-derive",
+    ],
+    deps = [
+        "//lib/rust/moteus-protocol",
+        "@crate_index//:clap",
+        "@crate_index//:serialport",
+        "@crate_index//:tokio",
+        "@crate_index//:tokio-serial",
+    ],
+)
+
 rust_test(
     name = "moteus-test",
     crate = ":moteus",

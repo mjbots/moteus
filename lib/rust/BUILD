@@ -19,6 +19,7 @@
 # See moteus/ for the full client library with transports
 
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rustfmt_test")
+load(":examples.bzl", "MOTEUS_RUST_EXAMPLES")
 
 test_suite(
     name = "host",
@@ -75,106 +76,29 @@ sh_test(
 sh_test(
     name = "examples",
     srcs = ["clippy_test.sh"],
-    data = [
-        ":bandwidth_test",
-        ":diagnostic_protocol",
-        ":discover",
-        ":gpio",
-        ":move_to",
-        ":multiservo",
+    data = [":" + name for name in MOTEUS_RUST_EXAMPLES] + [
         ":protocol_only",
-        ":simple",
     ],
     size = "small",
 )
 
-# Example: Simple single-servo control
-rust_binary(
-    name = "simple",
-    srcs = ["//lib/rust/moteus:examples/simple.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap_tokio",
-        "@crate_index//:clap",
-        "@crate_index//:tokio",
-    ],
-)
+# The transport-using examples are thin wrappers over
+# moteus::examples::<name>::run; one rust_binary per entry in the shared
+# MOTEUS_RUST_EXAMPLES list.
+[
+    rust_binary(
+        name = name,
+        srcs = ["//lib/rust/moteus:examples/" + name + ".rs"],
+        edition = "2021",
+        deps = ["//lib/rust/moteus:moteus_examples"],
+    )
+    for name in MOTEUS_RUST_EXAMPLES
+]
 
-# Example: Protocol-only usage (no transport)
+# Protocol-only usage (no transport); not part of the reusable set.
 rust_binary(
     name = "protocol_only",
     srcs = ["//lib/rust/moteus:examples/protocol_only.rs"],
     edition = "2021",
     deps = ["//lib/rust/moteus-protocol"],
-)
-
-# Example: Multi-servo control with discovery
-rust_binary(
-    name = "multiservo",
-    srcs = ["//lib/rust/moteus:examples/multiservo.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap_tokio",
-        "@crate_index//:clap",
-        "@crate_index//:tokio",
-    ],
-)
-
-# Example: Discover all connected controllers
-rust_binary(
-    name = "discover",
-    srcs = ["//lib/rust/moteus:examples/discover.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap",
-        "@crate_index//:clap",
-    ],
-)
-
-# Example: Bandwidth test for position/query loop
-rust_binary(
-    name = "bandwidth_test",
-    srcs = ["//lib/rust/moteus:examples/bandwidth_test.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap_tokio",
-        "@crate_index//:clap",
-        "@crate_index//:tokio",
-    ],
-)
-
-# Example: Diagnostic protocol for configuration and debugging
-rust_binary(
-    name = "diagnostic_protocol",
-    srcs = ["//lib/rust/moteus:examples/diagnostic_protocol.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap_tokio",
-        "@crate_index//:clap",
-        "@crate_index//:tokio",
-    ],
-)
-
-# Example: Coordinated multi-servo move_to
-rust_binary(
-    name = "move_to",
-    srcs = ["//lib/rust/moteus:examples/move_to.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap_tokio",
-        "@crate_index//:clap",
-        "@crate_index//:tokio",
-    ],
-)
-
-# Example: GPIO reading and writing
-rust_binary(
-    name = "gpio",
-    srcs = ["//lib/rust/moteus:examples/gpio.rs"],
-    edition = "2021",
-    deps = [
-        "//lib/rust/moteus:moteus_clap_tokio",
-        "@crate_index//:clap",
-        "@crate_index//:tokio",
-    ],
 )

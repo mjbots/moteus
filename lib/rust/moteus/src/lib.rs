@@ -25,6 +25,11 @@ pub mod error;
 pub mod move_to;
 pub mod transport;
 
+/// Reusable bodies of the example programs (gated behind the `examples`
+/// feature).  See [`examples`] for how out-of-tree transports reuse them.
+#[cfg(feature = "examples")]
+pub mod examples;
+
 // Core types that most users need
 #[cfg(feature = "tokio")]
 pub use async_controller::AsyncController;

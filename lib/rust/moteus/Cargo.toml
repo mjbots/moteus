@@ -14,6 +14,10 @@ default = ["serialport"]
 clap = ["dep:clap"]
 serialport = ["dep:serialport"]
 tokio = ["dep:tokio", "dep:tokio-serial"]
+# Exposes the runnable example bodies as a library (the `examples`
+# module) so downstream binaries can reuse them with other transports.
+# Enables everything the examples need.
+examples = ["clap", "tokio", "serialport"]
 
 [dependencies]
 moteus-derive.workspace = true
@@ -33,28 +37,28 @@ name = "protocol_only"
 
 [[example]]
 name = "discover"
-required-features = ["clap", "serialport"]
+required-features = ["examples"]
 
 [[example]]
 name = "bandwidth_test"
-required-features = ["clap", "serialport", "tokio"]
+required-features = ["examples"]
 
 [[example]]
 name = "diagnostic_protocol"
-required-features = ["clap", "serialport", "tokio"]
+required-features = ["examples"]
 
 [[example]]
 name = "gpio"
-required-features = ["clap", "serialport", "tokio"]
+required-features = ["examples"]
 
 [[example]]
 name = "move_to"
-required-features = ["clap", "serialport", "tokio"]
+required-features = ["examples"]
 
 [[example]]
 name = "multiservo"
-required-features = ["clap", "serialport", "tokio"]
+required-features = ["examples"]
 
 [[example]]
 name = "simple"
-required-features = ["clap", "serialport", "tokio"]
+required-features = ["examples"]

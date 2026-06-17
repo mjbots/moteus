@@ -12,44 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This example discovers all connected moteus controllers and displays
-//! their CAN IDs and UUIDs.
-//!
-//! Usage:
-//!   tools/bazel run //lib/rust:discover
-//!   tools/bazel run //lib/rust:discover -- --fdcanusb /dev/ttyACM0
-//!   tools/bazel run //lib/rust:discover -- --can-chan can0
-
-use clap::Parser;
-use moteus::transport::args::TransportArgs;
-use moteus::transport::singleton::get_singleton_transport;
-
-/// Discover all connected moteus controllers.
-#[derive(Parser)]
-#[command(about = "Discover all connected moteus controllers")]
-struct Args {
-    #[command(flatten)]
-    transport: TransportArgs,
-}
+//! Thin entry point for the `discover` example.  The implementation lives
+//! in `moteus::examples::discover` so it can be reused by downstream
+//! binaries that register additional transports (see that module).
 
 fn main() -> Result<(), moteus::Error> {
-    let args = Args::parse();
-
-    // Get the singleton transport with specified options.
-    let transport = get_singleton_transport(Some(&args.transport.into()))?;
-    let mut transport = transport.lock().unwrap();
-
-    // Discover all connected devices.
-    let devices = transport.discover(0, 0)?;
-
-    if devices.is_empty() {
-        println!("No devices found!");
-        return Ok(());
-    }
-
-    for device in &devices {
-        println!("{}", device);
-    }
-
-    Ok(())
+    moteus::examples::discover::run(|| {})
 }
