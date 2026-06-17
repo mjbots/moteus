@@ -9,6 +9,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v5
+    - name: free disk space
+      uses: ./.github/actions/free-disk-space
     - name: setup
       run: |
         sudo apt update

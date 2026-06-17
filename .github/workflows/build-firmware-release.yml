@@ -30,6 +30,9 @@ jobs:
           # operator typed (if any).
           ref: ${{ github.event.inputs.ref }}
 
+      - name: Free disk space
+        uses: ./.github/actions/free-disk-space
+
       - name: Setup
         run: |
           sudo apt update

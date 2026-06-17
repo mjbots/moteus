@@ -1,0 +1,16 @@
+name: Free disk space
+description: >
+  Reclaim disk from preinstalled tooling we never use.  The firmware
+  build extracts the ~2GB ARM toolchain into the bazel cache on top of
+  the host build outputs, which leaves the runner's root partition right
+  at its limit and intermittently fails with "No space left on device".
+  This gives the build comfortable headroom.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+                    /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        df -h /
