@@ -19,8 +19,6 @@ The primary control mode for the moteus controller is an integrated position/vel
 
 Additionally, the position may be set as a "special value" (NaN for floating point and the debug interface, maximal negative for integer encodings). In that case, the position selected is "wherever you are right now".
 
-A pure velocity mode can be obtained by setting the kp scale to 0 (or permanently so by configuring the kp constant to 0). In this case, using the `servo.max_position_slip` configurable parameter may be valuable as per the velocity control section below.
-
 ## Constant Acceleration Trajectories
 
 Velocity and acceleration limits can be configured either globally, or
