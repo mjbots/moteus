@@ -40,8 +40,12 @@ struct BisscExtractResult {
   BisscExtractError error = BisscExtractError::kNone;
 
   uint64_t data_value = 0;
-  bool error_flag = false;    // BiSS-C error bit (true = no error)
-  bool warning_flag = false;  // BiSS-C warning bit (true = no warning)
+  // BiSS-C error/warning bits are active low on the wire (driven low
+  // when asserted).  These flags capture the asserted state directly:
+  // true means the bit was driven low, i.e. the encoder is reporting
+  // an error or warning.
+  bool error_flag = false;
+  bool warning_flag = false;
   uint32_t crc_received = 0;
   uint32_t crc_computed = 0;
   int start_bit_index = -1;   // Index where START bit was found

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "fw/absolute_encoder_validator.h"
 #include "fw/aux_common.h"
 #include "fw/bissc_extract.h"
 #include "fw/mbed_util.h"
@@ -254,7 +255,11 @@ class BissC {
     // The receive pin will be configured as a digital input
     rx_.emplace(pin_rx.mbed, MbedMapPull(pin_rx_pull));
 
-    status_->active = true;
+    // The validator gates the transition to active; we stay inactive
+    // until the encoder has produced a non-zero value (or the device
+    // set-up window has comfortably elapsed -- see
+    // AbsoluteEncoderValidator).
+    status_->active = false;
   }
 
   aux::AuxError error() const { return error_; }
@@ -315,6 +320,16 @@ class BissC {
       status_->error_flag = result.error_flag;
       status_->warning_flag = result.warning_flag;
       status_->nonce++;
+
+      // Gate active state with the same validator used by aksim2.h:
+      // accept the first valid non-zero reading immediately, gate
+      // zeros with a timeout, and drop active on any reported error.
+      // BiSS-C's error_flag is true when the encoder is asserting the
+      // error bit (see bissc_extract.h), so reading_valid is its
+      // negation.
+      status_->active = validator_.Update(
+          status_->active, !result.error_flag, result.data_value,
+          timer_->ms_since_boot());
     }
   }
 
@@ -416,6 +431,8 @@ class BissC {
   alignas(4) std::array<uint8_t, kBufferSize> buffer_ = {};
 
   uint32_t last_query_start_us_ = 0;
+
+  AbsoluteEncoderValidator validator_;
 };
 
 }

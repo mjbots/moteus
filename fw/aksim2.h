@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "fw/aksim2_validator.h"
+#include "fw/absolute_encoder_validator.h"
 #include "fw/aux_common.h"
 #include "fw/millisecond_timer.h"
 #include "fw/stm32g4_dma_uart.h"
@@ -96,10 +96,11 @@ class Aksim2 {
     // The reported error is active low; a set bit means no error.
     const bool reading_valid = status->aksim2_err;
 
-    // Require several consistent readings before becoming active so
-    // that power-on / power-cycle transients (e.g. a not-yet-acquired
-    // or zero position) are not latched as the boot output position.
-    status->active = validator_.Update(status->active, reading_valid, value);
+    // Accept the first valid non-zero reading; gate zeros with a
+    // timeout so the encoder's pre-acquisition default is not latched
+    // as the boot output position.
+    status->active = validator_.Update(
+        status->active, reading_valid, value, timer_->ms_since_boot());
   }
 
  private:
@@ -117,7 +118,7 @@ class Aksim2 {
 
   uint32_t last_query_start_us_ = 0;
 
-  Aksim2Validator validator_;
+  AbsoluteEncoderValidator validator_;
 
   static constexpr int kResyncBytes = 3;
   static constexpr int kMaxCount = 50;
