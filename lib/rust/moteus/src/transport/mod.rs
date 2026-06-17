@@ -529,12 +529,22 @@ impl Router {
     /// Creates a new transport from a list of devices.
     ///
     /// The devices will be assigned sequential IDs starting from 0.
+    ///
+    /// The routing table is pre-populated from each device's
+    /// `known_can_ids`, mirroring the Python library's `servo_bus_map`
+    /// handling.
     pub fn new(devices: Vec<Box<dyn TransportDevice>>) -> Self {
         let parent_indices = compute_parent_indices(&devices);
+        let mut routing_table = HashMap::new();
+        for (idx, device) in devices.iter().enumerate() {
+            for &id in &device.info().known_can_ids {
+                routing_table.insert(DeviceAddress::can_id(id), idx);
+            }
+        }
         Self {
             devices,
             parent_indices,
-            routing_table: HashMap::new(),
+            routing_table,
             timeout: factory::DEFAULT_TIMEOUT,
         }
     }
@@ -643,9 +653,11 @@ impl Router {
 
         let mut found: Vec<usize> = Vec::new();
 
-        // Try each device that supports broadcast
+        // Try each device that supports broadcast.  Parent-only
+        // devices have no bus of their own; their children are probed
+        // instead.
         for (idx, device) in self.devices.iter_mut().enumerate() {
-            if !device.empty_bus_tx_safe() {
+            if device.info().parent_only || !device.empty_bus_tx_safe() {
                 continue;
             }
 
@@ -714,9 +726,11 @@ impl Router {
 
         let mut discovered = Vec::new();
 
-        // Send to each device that supports broadcast and collect responses
+        // Send to each device that supports broadcast and collect
+        // responses.  Parent-only devices have no bus of their own;
+        // their children are probed instead.
         for (idx, device) in self.devices.iter_mut().enumerate() {
-            if !device.empty_bus_tx_safe() {
+            if device.info().parent_only || !device.empty_bus_tx_safe() {
                 continue;
             }
 
@@ -779,28 +793,45 @@ impl Router {
             for req in requests.iter() {
                 let frames = req.responses.take();
                 for mut frame in frames {
-                    frame.channel = Some(0);
+                    if frame.channel.is_none() {
+                        frame.channel = Some(0);
+                    }
                     req.responses.push(frame);
                 }
             }
             return result;
         }
 
-        // Group request indices by destination device.
+        // Group request dispatch entries by destination device.
         //
-        // This produces a map from device index to (is_broadcast_with_reply, orig_index)
-        // so that within each device we can sequence broadcast-with-reply requests
-        // before the non-broadcast batch, matching Python's _cycle_batch.
-        let mut device_request_indices: HashMap<usize, Vec<(bool, usize)>> = HashMap::new();
+        // Each entry is (is_broadcast_with_reply, orig_index,
+        // child_device), so that within each device we can sequence
+        // broadcast-with-reply requests before the non-broadcast batch,
+        // matching Python's _cycle_batch.
+        type DispatchEntry = (bool, usize, Option<usize>);
+        let mut device_request_indices: HashMap<usize, Vec<DispatchEntry>> = HashMap::new();
+
+        // Resolve a target device to the device the request must be
+        // sent to, plus the child_device marker if it is routed
+        // through a parent.
+        let route_via_parent =
+            |devices: &[Box<dyn TransportDevice>], target_idx: usize| match devices
+                .get(target_idx)
+                .and_then(|d| d.info().parent_index)
+            {
+                Some(parent_idx) => (parent_idx, Some(target_idx)),
+                None => (target_idx, None),
+            };
 
         #[allow(clippy::needless_range_loop, clippy::manual_map)]
         for i in 0..requests.len() {
             // Explicit channel bypasses routing table
             if let Some(device_idx) = requests[i].channel {
+                let (send_idx, child) = route_via_parent(&self.devices, device_idx);
                 device_request_indices
-                    .entry(device_idx)
+                    .entry(send_idx)
                     .or_default()
-                    .push((false, i));
+                    .push((false, i, child));
                 continue;
             }
 
@@ -819,15 +850,22 @@ impl Router {
                     );
 
                 if is_true_broadcast {
-                    // Broadcast - send to all parent devices
+                    // Broadcast - fan out to every device with a bus
+                    // of its own, routed through parents where
+                    // present, matching Python's
+                    // _get_devices_for_command.
                     let is_bwr = requests[i].expected_reply_count > 0;
-                    for &device_idx in &self.parent_indices.clone() {
-                        if self.devices[device_idx].empty_bus_tx_safe() {
-                            device_request_indices
-                                .entry(device_idx)
-                                .or_default()
-                                .push((is_bwr, i));
+                    for target_idx in 0..self.devices.len() {
+                        if self.devices[target_idx].info().parent_only
+                            || !self.devices[target_idx].empty_bus_tx_safe()
+                        {
+                            continue;
                         }
+                        let (send_idx, child) = route_via_parent(&self.devices, target_idx);
+                        device_request_indices
+                            .entry(send_idx)
+                            .or_default()
+                            .push((is_bwr, i, child));
                     }
                 } else {
                     // Addressed frame - look up single device
@@ -844,19 +882,15 @@ impl Router {
                         }
                         None => (0, 0),
                     };
-                    let mut target_idx =
+                    let target_idx =
                         self.get_or_discover_device(&lookup_addr, source, can_prefix)?;
 
                     // If this device has a parent, route through the parent
-                    if let Some(parent_idx) = self.devices[target_idx].info().parent_index {
-                        requests[i].child_device = Some(target_idx);
-                        target_idx = parent_idx;
-                    }
-
+                    let (send_idx, child) = route_via_parent(&self.devices, target_idx);
                     device_request_indices
-                        .entry(target_idx)
+                        .entry(send_idx)
                         .or_default()
-                        .push((false, i));
+                        .push((false, i, child));
                 }
             }
         }
@@ -869,47 +903,53 @@ impl Router {
         for (device_idx, items) in device_request_indices {
             if let Some(device) = self.devices.get_mut(device_idx) {
                 // Separate broadcast-with-reply from everything else
-                let bwr_indices: Vec<usize> = items
+                let bwr_entries: Vec<(usize, Option<usize>)> = items
                     .iter()
-                    .filter(|(bwr, _)| *bwr)
-                    .map(|(_, i)| *i)
+                    .filter(|(bwr, _, _)| *bwr)
+                    .map(|(_, i, child)| (*i, *child))
                     .collect();
-                let other_indices: Vec<usize> = items
+                let other_entries: Vec<(usize, Option<usize>)> = items
                     .iter()
-                    .filter(|(bwr, _)| !*bwr)
-                    .map(|(_, i)| *i)
+                    .filter(|(bwr, _, _)| !*bwr)
+                    .map(|(_, i, child)| (*i, *child))
                     .collect();
 
                 // Send broadcast-with-reply one at a time
-                for &orig_idx in &bwr_indices {
+                for &(orig_idx, child) in &bwr_entries {
                     let mut req = requests[orig_idx].clone();
                     req.responses = ResponseCollector::new();
+                    req.child_device = child;
                     let mut reqs = vec![req];
 
                     if device.transaction(&mut reqs).is_ok() {
                         for mut frame in reqs[0].responses.take() {
-                            frame.channel = Some(device_idx);
+                            if frame.channel.is_none() {
+                                frame.channel = Some(device_idx);
+                            }
                             requests[orig_idx].responses.push(frame);
                         }
                     }
                 }
 
                 // Send remaining requests as a batch
-                if !other_indices.is_empty() {
-                    let mut device_requests: Vec<Request> = other_indices
+                if !other_entries.is_empty() {
+                    let mut device_requests: Vec<Request> = other_entries
                         .iter()
-                        .map(|&i| {
+                        .map(|&(i, child)| {
                             let mut req = requests[i].clone();
                             req.responses = ResponseCollector::new();
+                            req.child_device = child;
                             req
                         })
                         .collect();
 
                     device.transaction(&mut device_requests)?;
 
-                    for (local_idx, &orig_idx) in other_indices.iter().enumerate() {
+                    for (local_idx, &(orig_idx, _)) in other_entries.iter().enumerate() {
                         for mut frame in device_requests[local_idx].responses.take() {
-                            frame.channel = Some(device_idx);
+                            if frame.channel.is_none() {
+                                frame.channel = Some(device_idx);
+                            }
                             requests[orig_idx].responses.push(frame);
                         }
                     }
@@ -973,9 +1013,9 @@ impl Router {
         let dest_id = (frame.arbitration_id & 0x7F) as u8;
 
         if dest_id == 0x7F {
-            // Broadcast - send to all devices
+            // Broadcast - send to all devices with a bus of their own
             for device in &mut self.devices {
-                if device.empty_bus_tx_safe() {
+                if !device.info().parent_only && device.empty_bus_tx_safe() {
                     device.write(frame)?;
                 }
             }
@@ -1006,7 +1046,9 @@ impl Router {
             if let Some(device) = self.devices.get_mut(idx) {
                 match device.read()? {
                     Some(mut frame) => {
-                        frame.channel = Some(idx);
+                        if frame.channel.is_none() {
+                            frame.channel = Some(idx);
+                        }
                         Ok(Some(frame))
                     }
                     None => Ok(None),
@@ -1018,7 +1060,9 @@ impl Router {
             // Try to read from parent devices only
             for &idx in &self.parent_indices {
                 if let Ok(Some(mut frame)) = self.devices[idx].read() {
-                    frame.channel = Some(idx);
+                    if frame.channel.is_none() {
+                        frame.channel = Some(idx);
+                    }
                     return Ok(Some(frame));
                 }
             }
@@ -1204,7 +1248,14 @@ mod tests {
 
     /// Shared state for observing what a MockDevice received.
     #[derive(Clone, Default)]
-    struct MockDeviceLog(Arc<Mutex<Vec<CanFdFrame>>>);
+    struct MockDeviceLog {
+        /// Frames sent to this device.
+        frames: Arc<Mutex<Vec<CanFdFrame>>>,
+        /// `child_device` markers of the requests with frames.
+        children: Arc<Mutex<Vec<Option<usize>>>>,
+        /// Number of transaction() calls.
+        transactions: Arc<Mutex<usize>>,
+    }
 
     impl MockDeviceLog {
         fn new() -> Self {
@@ -1212,7 +1263,15 @@ mod tests {
         }
 
         fn len(&self) -> usize {
-            self.0.lock().unwrap().len()
+            self.frames.lock().unwrap().len()
+        }
+
+        fn children(&self) -> Vec<Option<usize>> {
+            self.children.lock().unwrap().clone()
+        }
+
+        fn transaction_count(&self) -> usize {
+            *self.transactions.lock().unwrap()
         }
     }
 
@@ -1239,14 +1298,31 @@ mod tests {
             self.responses.push(response);
             self
         }
+
+        fn with_parent_only(mut self) -> Self {
+            self.info.parent_only = true;
+            self
+        }
+
+        fn with_parent(mut self, parent_index: usize) -> Self {
+            self.info.parent_index = Some(parent_index);
+            self
+        }
+
+        fn with_known_can_ids(mut self, ids: impl IntoIterator<Item = u8>) -> Self {
+            self.info.known_can_ids = ids.into_iter().collect();
+            self
+        }
     }
 
     impl TransportDevice for MockDevice {
         fn transaction(&mut self, requests: &mut [Request]) -> Result<()> {
+            *self.log.transactions.lock().unwrap() += 1;
             // Record sent frames
             for req in requests.iter() {
                 if let Some(frame) = &req.frame {
-                    self.log.0.lock().unwrap().push(frame.clone());
+                    self.log.frames.lock().unwrap().push(frame.clone());
+                    self.log.children.lock().unwrap().push(req.child_device);
                 }
             }
             // Dispatch pre-configured responses to matching requests
@@ -1257,7 +1333,7 @@ mod tests {
         }
 
         fn write(&mut self, frame: &CanFdFrame) -> Result<()> {
-            self.log.0.lock().unwrap().push(frame.clone());
+            self.log.frames.lock().unwrap().push(frame.clone());
             Ok(())
         }
 
@@ -1600,5 +1676,149 @@ mod tests {
 
         assert_eq!(log0.len(), 1);
         assert_eq!(log1.len(), 1);
+    }
+
+    /// A parent-only device with two child buses, like the pi3hat.
+    fn make_parent_child_router() -> (Router, MockDeviceLog, MockDeviceLog, MockDeviceLog) {
+        let parent = MockDevice::new(0).with_parent_only();
+        let parent_log = parent.log.clone();
+        let child1 = MockDevice::new(1).with_parent(0);
+        let child1_log = child1.log.clone();
+        let child2 = MockDevice::new(2).with_parent(0);
+        let child2_log = child2.log.clone();
+
+        let router = Router::from_devices(vec![parent, child1, child2]);
+        (router, parent_log, child1_log, child2_log)
+    }
+
+    #[test]
+    fn test_addressed_routes_through_parent_with_child_marker() {
+        use moteus_protocol::calculate_arbitration_id;
+
+        let (mut transport, parent_log, child1_log, child2_log) = make_parent_child_router();
+        transport.add_route(1u8, 2).unwrap();
+
+        let mut frame = CanFdFrame::new();
+        frame.arbitration_id = calculate_arbitration_id(0, 1, 0, true);
+        let mut requests = vec![Request::new(frame)];
+        transport.cycle(&mut requests).unwrap();
+
+        // The frame is sent through the parent, tagged for child 2.
+        assert_eq!(parent_log.len(), 1);
+        assert_eq!(parent_log.children(), vec![Some(2)]);
+        assert_eq!(child1_log.len(), 0);
+        assert_eq!(child2_log.len(), 0);
+    }
+
+    #[test]
+    fn test_broadcast_fans_out_per_child_through_parent() {
+        use moteus_protocol::calculate_arbitration_id;
+
+        let (mut transport, parent_log, child1_log, child2_log) = make_parent_child_router();
+
+        let mut frame = CanFdFrame::new();
+        frame.arbitration_id = calculate_arbitration_id(0, 0x7F, 0, false);
+        let mut requests = vec![Request::new(frame)];
+        transport.cycle(&mut requests).unwrap();
+
+        // One copy per child, all through the parent, each tagged with
+        // its child.  The parent-only device gets no untagged copy of
+        // its own.
+        assert_eq!(parent_log.len(), 2);
+        let mut children = parent_log.children();
+        children.sort();
+        assert_eq!(children, vec![Some(1), Some(2)]);
+        assert_eq!(child1_log.len(), 0);
+        assert_eq!(child2_log.len(), 0);
+    }
+
+    #[test]
+    fn test_explicit_channel_to_child_routes_through_parent() {
+        use moteus_protocol::calculate_arbitration_id;
+
+        let (mut transport, parent_log, child1_log, _child2_log) = make_parent_child_router();
+
+        let mut frame = CanFdFrame::new();
+        frame.arbitration_id = calculate_arbitration_id(0, 1, 0, true);
+        let mut requests = vec![Request::new(frame).with_channel(1)];
+        transport.cycle(&mut requests).unwrap();
+
+        assert_eq!(parent_log.len(), 1);
+        assert_eq!(parent_log.children(), vec![Some(1)]);
+        assert_eq!(child1_log.len(), 0);
+    }
+
+    #[test]
+    fn test_discover_skips_parent_only_devices() {
+        // Each child responds to the broadcast UUID query.
+        let mut response1 = CanFdFrame::new();
+        response1.arbitration_id = 0x0500; // source 5, dest 0
+        let mut response2 = CanFdFrame::new();
+        response2.arbitration_id = 0x0600; // source 6, dest 0
+
+        let parent = MockDevice::new(0).with_parent_only();
+        let parent_log = parent.log.clone();
+        let child1 = MockDevice::new(1).with_parent(0).with_response(response1);
+        let child2 = MockDevice::new(2).with_parent(0).with_response(response2);
+
+        let mut transport = Router::from_devices(vec![parent, child1, child2]);
+        let discovered = transport.discover(0, 0).unwrap();
+
+        let ids: Vec<u8> = discovered.iter().map(|d| d.can_id).collect();
+        assert_eq!(ids, vec![5, 6]);
+        // The parent-only device was never probed.
+        assert_eq!(parent_log.transaction_count(), 0);
+    }
+
+    #[test]
+    fn test_known_can_ids_prepopulate_routing_table() {
+        use moteus_protocol::calculate_arbitration_id;
+
+        let device0 = MockDevice::new(0).with_known_can_ids([1, 2]);
+        let log0 = device0.log.clone();
+        let device1 = MockDevice::new(1).with_known_can_ids([3]);
+        let log1 = device1.log.clone();
+
+        let mut transport = Router::from_devices(vec![device0, device1]);
+
+        // No discovery is needed; the routing table already knows
+        // where ID 3 lives.
+        let mut frame = CanFdFrame::new();
+        frame.arbitration_id = calculate_arbitration_id(0, 3, 0, true);
+        let mut requests = vec![Request::new(frame)];
+        transport.cycle(&mut requests).unwrap();
+
+        assert_eq!(log0.len(), 0);
+        assert_eq!(log1.len(), 1);
+        // Only the addressed transaction ran; no discovery probes.
+        assert_eq!(log0.transaction_count(), 0);
+        assert_eq!(log1.transaction_count(), 1);
+    }
+
+    #[test]
+    fn test_response_channel_set_by_device_is_preserved() {
+        use moteus_protocol::calculate_arbitration_id;
+
+        // The device attributes the response to channel 7, as a
+        // parent device does when reporting which child bus a frame
+        // arrived on.
+        let mut response = CanFdFrame::new();
+        response.arbitration_id = 0x0100; // source 1, dest 0
+        response.channel = Some(7);
+
+        let device0 = MockDevice::new(0).with_response(response);
+        let device1 = MockDevice::new(1);
+
+        let mut transport = Router::from_devices(vec![device0, device1]);
+        transport.add_route(1u8, 0).unwrap();
+
+        let mut frame = CanFdFrame::new();
+        frame.arbitration_id = calculate_arbitration_id(0, 1, 0, true);
+        let mut requests = vec![Request::new(frame)];
+        transport.cycle(&mut requests).unwrap();
+
+        let responses = requests[0].responses.take();
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0].channel, Some(7));
     }
 }

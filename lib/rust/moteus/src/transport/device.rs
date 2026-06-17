@@ -48,6 +48,23 @@ pub struct TransportDeviceInfo {
     /// no hardware attached.  Cached at construction time so the async
     /// transport can read it without locking the device mutex.
     pub empty_bus_tx_safe: bool,
+    /// This device exists only to execute transactions on behalf of
+    /// its children and has no bus of its own (e.g. the pi3hat, where
+    /// each CAN bus is a child device and the parent represents the
+    /// shared SPI link).
+    ///
+    /// Parent-only devices are skipped during discovery and broadcast
+    /// fan-out; every `Request` they receive carries a `child_device`
+    /// identifying the bus to use.  The Router still directs `read()`
+    /// and `flush()` to them.
+    pub parent_only: bool,
+    /// CAN IDs statically known to be reachable through this device.
+    ///
+    /// The Router pre-populates its routing table from this list at
+    /// construction time, so that no on-demand discovery is needed for
+    /// these IDs.  This mirrors the Python library's `servo_bus_map`
+    /// handling.
+    pub known_can_ids: Vec<u8>,
 }
 
 impl TransportDeviceInfo {
@@ -60,6 +77,8 @@ impl TransportDeviceInfo {
             detail: None,
             parent_index: None,
             empty_bus_tx_safe: true,
+            parent_only: false,
+            known_can_ids: Vec::new(),
         }
     }
 
@@ -74,6 +93,21 @@ impl TransportDeviceInfo {
     #[must_use]
     pub fn with_detail(mut self, detail: impl Into<String>) -> Self {
         self.detail = Some(detail.into());
+        self
+    }
+
+    /// Mark this device as parent-only (no bus of its own).
+    #[must_use]
+    pub fn with_parent_only(mut self) -> Self {
+        self.parent_only = true;
+        self
+    }
+
+    /// Set the CAN IDs statically known to be reachable through this
+    /// device.
+    #[must_use]
+    pub fn with_known_can_ids(mut self, ids: impl IntoIterator<Item = u8>) -> Self {
+        self.known_can_ids = ids.into_iter().collect();
         self
     }
 }

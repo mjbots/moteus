@@ -264,6 +264,12 @@ impl AsyncRouter {
             })
             .collect();
         let parent_indices = compute_parent_indices(&device_infos);
+        let mut routing_table = HashMap::new();
+        for (idx, info) in device_infos.iter().enumerate() {
+            for &id in &info.known_can_ids {
+                routing_table.insert(DeviceAddress::can_id(id), idx);
+            }
+        }
         let shared = devices
             .into_iter()
             .map(|d| Arc::new(Mutex::new(d)))
@@ -272,7 +278,7 @@ impl AsyncRouter {
             devices: shared,
             device_infos,
             parent_indices,
-            routing_table: HashMap::new(),
+            routing_table,
         }
     }
 
@@ -402,9 +408,11 @@ impl AsyncRouter {
             let _ = guard.flush().await;
         }
 
-        // Send probe frame to all buses sequentially
+        // Send probe frame to all buses sequentially.  Parent-only
+        // devices have no bus of their own; their children are probed
+        // instead.
         for (idx, device) in self.devices.iter().enumerate() {
-            if self.device_infos[idx].empty_bus_tx_safe {
+            if !self.device_infos[idx].parent_only && self.device_infos[idx].empty_bus_tx_safe {
                 let mut guard = device.lock().await;
                 let _ = guard.write(&query_frame).await;
             }
@@ -414,6 +422,9 @@ impl AsyncRouter {
         // Use receive-only requests since probes were already sent above.
         let mut join_set = tokio::task::JoinSet::new();
         for (idx, device) in self.devices.iter().enumerate() {
+            if self.device_infos[idx].parent_only {
+                continue;
+            }
             let device = Arc::clone(device);
             join_set.spawn(async move {
                 let mut guard = device.lock().await;
@@ -492,9 +503,11 @@ impl AsyncRouter {
 
         let (query_frame, _reply_size) = make_uuid_query_frame(source, can_prefix);
 
-        // Send broadcast to all devices first (sequential, need lock)
+        // Send broadcast to all devices first (sequential, need lock).
+        // Parent-only devices have no bus of their own; their children
+        // are probed instead.
         for (idx, device) in self.devices.iter().enumerate() {
-            if self.device_infos[idx].empty_bus_tx_safe {
+            if !self.device_infos[idx].parent_only && self.device_infos[idx].empty_bus_tx_safe {
                 let mut guard = device.lock().await;
                 let _ = guard.write(&query_frame).await;
             }
@@ -504,6 +517,9 @@ impl AsyncRouter {
         // Use receive-only requests since probes were already sent above.
         let mut join_set = tokio::task::JoinSet::new();
         for (idx, device) in self.devices.iter().enumerate() {
+            if self.device_infos[idx].parent_only {
+                continue;
+            }
             let device = Arc::clone(device);
             let transport_device = self.device_infos[idx].to_string();
             join_set.spawn(async move {
@@ -574,7 +590,9 @@ impl AsyncRouter {
             for req in requests.iter() {
                 let frames = req.responses.take();
                 for mut frame in frames {
-                    frame.channel = Some(0);
+                    if frame.channel.is_none() {
+                        frame.channel = Some(0);
+                    }
                     req.responses.push(frame);
                 }
             }
@@ -584,19 +602,31 @@ impl AsyncRouter {
         // Group requests by destination device, matching Python's _cycle_batch.
         let mut device_groups: HashMap<usize, DeviceWork> = HashMap::new();
 
+        // Resolve a target device to the device the request must be
+        // sent to, plus the child_device marker if it is routed
+        // through a parent.
+        let route_via_parent =
+            |device_infos: &[TransportDeviceInfo], target_idx: usize| match device_infos
+                .get(target_idx)
+                .and_then(|d| d.parent_index)
+            {
+                Some(parent_idx) => (parent_idx, Some(target_idx)),
+                None => (target_idx, None),
+            };
+
         #[allow(clippy::needless_range_loop, clippy::manual_map)]
         for i in 0..requests.len() {
             // Explicit channel bypasses routing table
             if let Some(device_idx) = requests[i].channel {
-                let work = device_groups
-                    .entry(device_idx)
-                    .or_insert_with(|| DeviceWork {
-                        device_idx,
-                        broadcast_with_reply: Vec::new(),
-                        other: Vec::new(),
-                    });
+                let (send_idx, child) = route_via_parent(&self.device_infos, device_idx);
+                let work = device_groups.entry(send_idx).or_insert_with(|| DeviceWork {
+                    device_idx: send_idx,
+                    broadcast_with_reply: Vec::new(),
+                    other: Vec::new(),
+                });
                 let mut req = requests[i].clone();
                 req.responses = ResponseCollector::new();
+                req.child_device = child;
                 work.other.push((i, req));
                 continue;
             }
@@ -616,24 +646,30 @@ impl AsyncRouter {
                     );
 
                 if is_true_broadcast {
+                    // Broadcast - fan out to every device with a bus
+                    // of its own, routed through parents where
+                    // present, matching Python's
+                    // _get_devices_for_command.
                     let is_bwr = requests[i].expected_reply_count > 0;
-                    for &device_idx in &self.parent_indices.clone() {
-                        if self.device_infos[device_idx].empty_bus_tx_safe {
-                            let work =
-                                device_groups
-                                    .entry(device_idx)
-                                    .or_insert_with(|| DeviceWork {
-                                        device_idx,
-                                        broadcast_with_reply: Vec::new(),
-                                        other: Vec::new(),
-                                    });
-                            let mut req = requests[i].clone();
-                            req.responses = ResponseCollector::new();
-                            if is_bwr {
-                                work.broadcast_with_reply.push((i, req));
-                            } else {
-                                work.other.push((i, req));
-                            }
+                    for target_idx in 0..self.device_infos.len() {
+                        if self.device_infos[target_idx].parent_only
+                            || !self.device_infos[target_idx].empty_bus_tx_safe
+                        {
+                            continue;
+                        }
+                        let (send_idx, child) = route_via_parent(&self.device_infos, target_idx);
+                        let work = device_groups.entry(send_idx).or_insert_with(|| DeviceWork {
+                            device_idx: send_idx,
+                            broadcast_with_reply: Vec::new(),
+                            other: Vec::new(),
+                        });
+                        let mut req = requests[i].clone();
+                        req.responses = ResponseCollector::new();
+                        req.child_device = child;
+                        if is_bwr {
+                            work.broadcast_with_reply.push((i, req));
+                        } else {
+                            work.other.push((i, req));
                         }
                     }
                 } else {
@@ -651,24 +687,20 @@ impl AsyncRouter {
                         }
                         None => (0, 0),
                     };
-                    let mut target_idx = self
+                    let target_idx = self
                         .get_or_discover_device(&lookup_addr, source, can_prefix)
                         .await?;
 
-                    if let Some(parent_idx) = self.device_infos[target_idx].parent_index {
-                        requests[i].child_device = Some(target_idx);
-                        target_idx = parent_idx;
-                    }
-
-                    let work = device_groups
-                        .entry(target_idx)
-                        .or_insert_with(|| DeviceWork {
-                            device_idx: target_idx,
-                            broadcast_with_reply: Vec::new(),
-                            other: Vec::new(),
-                        });
+                    // If this device has a parent, route through the parent
+                    let (send_idx, child) = route_via_parent(&self.device_infos, target_idx);
+                    let work = device_groups.entry(send_idx).or_insert_with(|| DeviceWork {
+                        device_idx: send_idx,
+                        broadcast_with_reply: Vec::new(),
+                        other: Vec::new(),
+                    });
                     let mut req = requests[i].clone();
                     req.responses = ResponseCollector::new();
+                    req.child_device = child;
                     work.other.push((i, req));
                 }
             }
@@ -689,7 +721,9 @@ impl AsyncRouter {
                 Ok(work_result) => {
                     for (orig_idx, frames) in work_result.responses {
                         for mut frame in frames {
-                            frame.channel = Some(work_result.device_idx);
+                            if frame.channel.is_none() {
+                                frame.channel = Some(work_result.device_idx);
+                            }
                             requests[orig_idx].responses.push(frame);
                         }
                     }
@@ -756,9 +790,9 @@ impl AsyncRouter {
         let dest_id = (frame.arbitration_id & 0x7F) as u8;
 
         if dest_id == 0x7F {
-            // Broadcast - send to all devices
+            // Broadcast - send to all devices with a bus of their own
             for (idx, device) in self.devices.iter().enumerate() {
-                if self.device_infos[idx].empty_bus_tx_safe {
+                if !self.device_infos[idx].parent_only && self.device_infos[idx].empty_bus_tx_safe {
                     let mut guard = device.lock().await;
                     guard.write(frame).await?;
                 }
@@ -787,7 +821,9 @@ impl AsyncRouter {
                 let mut guard = self.devices[idx].lock().await;
                 match guard.read().await? {
                     Some(mut frame) => {
-                        frame.channel = Some(idx);
+                        if frame.channel.is_none() {
+                            frame.channel = Some(idx);
+                        }
                         Ok(Some(frame))
                     }
                     None => Ok(None),
@@ -799,7 +835,9 @@ impl AsyncRouter {
             for &idx in &self.parent_indices {
                 let mut guard = self.devices[idx].lock().await;
                 if let Ok(Some(mut frame)) = guard.read().await {
-                    frame.channel = Some(idx);
+                    if frame.channel.is_none() {
+                        frame.channel = Some(idx);
+                    }
                     return Ok(Some(frame));
                 }
             }

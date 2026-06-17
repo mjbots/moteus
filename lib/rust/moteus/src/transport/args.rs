@@ -103,6 +103,34 @@ pub struct ArgSpec {
 }
 
 impl ArgSpec {
+    /// Create a new argument specification.
+    ///
+    /// This is the only way for external transport factories to
+    /// construct an `ArgSpec`, since the struct is `#[non_exhaustive]`.
+    pub const fn new(name: &'static str, help: &'static str, arg_type: ArgType) -> Self {
+        Self {
+            name,
+            help,
+            arg_type,
+            default: None,
+            possible_values: None,
+        }
+    }
+
+    /// Set the default value (builder pattern).
+    #[must_use]
+    pub const fn with_default(mut self, default: &'static str) -> Self {
+        self.default = Some(default);
+        self
+    }
+
+    /// Set the valid values for enum-like arguments (builder pattern).
+    #[must_use]
+    pub const fn with_possible_values(mut self, values: &'static [&'static str]) -> Self {
+        self.possible_values = Some(values);
+        self
+    }
+
     /// Create a clap Arg from this specification.
     #[cfg(feature = "clap")]
     pub fn to_clap_arg(&self) -> clap::Arg {
@@ -385,6 +413,18 @@ mod tests {
         assert!(names.contains(&"fdcanusb"));
         #[cfg(target_os = "linux")]
         assert!(names.contains(&"can-chan"));
+    }
+
+    #[test]
+    fn test_arg_spec_new() {
+        let spec = ArgSpec::new("pi3hat-cpu", "CPU to pin to", ArgType::Integer)
+            .with_default("0")
+            .with_possible_values(&["0", "1", "2", "3"]);
+        assert_eq!(spec.name, "pi3hat-cpu");
+        assert_eq!(spec.help, "CPU to pin to");
+        assert_eq!(spec.arg_type, ArgType::Integer);
+        assert_eq!(spec.default, Some("0"));
+        assert_eq!(spec.possible_values, Some(&["0", "1", "2", "3"][..]));
     }
 
     #[test]
