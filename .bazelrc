@@ -1,6 +1,22 @@
 common --noenable_bzlmod
 build --incompatible_enable_cc_toolchain_resolution
 
+# Name bazel-out directories by the target platform so the firmware
+# (stm32g4) and host builds land in distinct output trees and coexist,
+# rather than relying on a per-platform --cpu (the bazel#12036
+# workaround that previously lived on --config=target).
+#
+# REVISIT ON BAZEL UPGRADE (bazelbuild/bazel#27575): these flags are
+# still experimental as of 7.4.1.  Bazel 9 turns
+# --experimental_platform_in_output_dir on by default for the *exec*
+# config only; the everywhere/target-config default is proposed for
+# Bazel 10, so setting it explicitly here is still required until then.
+# Bazel 9 also RENAMES --experimental_override_name_platform_in_output_dir
+# to --experimental_override_platform_cpu_name -- rename the line below
+# when bumping BAZEL_VERSION.
+build --experimental_platform_in_output_dir
+build --experimental_override_name_platform_in_output_dir=@com_github_mjbots_rules_mbed//:stm32g4=stm32g4
+
 build --features=c++20
 build --features=-c++17
 build --compiler=compiler
@@ -32,14 +48,11 @@ build:host_ubsan --linkopt=-fsanitize=undefined
 build:host_ubsan --linkopt=-fno-sanitize=vptr,function,alignment
 test:host_ubsan --test_env=UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 
+# The firmware target selects the rules_mbed stm32g4 toolchain purely
+# by platform.  Distinct output directories are provided by
+# --experimental_platform_in_output_dir above, so the legacy
+# --crosstool_top/--cpu bazel#12036 workaround is no longer needed.
 build:target --platforms=@com_github_mjbots_rules_mbed//:stm32g4
-
-# The following are used to work around
-# https://github.com/bazelbuild/bazel/issues/12036 as there is
-# otherwise no way to get the bazel-out directory to be different
-# across platforms.
-build:target --crosstool_top=@com_github_mjbots_rules_mbed//tools/cc_toolchain:toolchain
-build:target --cpu=stm32g4
 
 
 # Because something still tries to use the legacy cc_toolchain_suite (and I
