@@ -9,12 +9,12 @@ resolver = "2"
 [workspace.package]
 # This version is managed by utils/release.py; it applies to all three
 # crates, which ship in lockstep.
-version = "0.5.2"
+version = "0.5.3"
 edition = "2021"
 rust-version = "1.75"
 
 [workspace.dependencies]
 # The inter-crate version requirements below are also managed by
 # utils/release.py and always match workspace.package.version exactly.
-moteus-derive = { path = "moteus-derive", version = "0.5.2" }
-moteus-protocol = { path = "moteus-protocol", version = "0.5.2" }
+moteus-derive = { path = "moteus-derive", version = "0.5.3" }
+moteus-protocol = { path = "moteus-protocol", version = "0.5.3" }
