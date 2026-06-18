@@ -332,6 +332,47 @@ struct Application {
       }
     }
 
+    // Flat-window velocity bias.  Over non-overlapping windows where
+    // the true speed is nearly constant, the mean velocity error
+    // isolates the steady-state bias -- free of the acceleration lag
+    // and per-edge ripple that the sum-of-squares velocity_metric
+    // above blends together.  This exposes any residual rise/fall bias
+    // left by the two-edge de-biasing.  Reported as a signed
+    // percentage of the true speed (positive => the estimate
+    // overstates the magnitude); the worst window wins.
+    double max_velocity_bias = 0.0;
+    double max_velocity_bias_speed = 0.0;
+    double max_velocity_bias_time = 0.0;
+    {
+      constexpr size_t kWindow = 3000;     // 0.1 s at 30 kHz
+      constexpr double kMinSpeed = 50.0;   // counts/s; skip near-stop
+      constexpr double kFlatness = 0.05;   // max (vmax-vmin)/|mean speed|
+      for (size_t i = 0; i + kWindow <= data_.size(); i += kWindow) {
+        double sum_truth = 0.0;
+        double sum_est = 0.0;
+        double vmin = std::abs(data_[i].truth_velocity);
+        double vmax = vmin;
+        for (size_t j = i; j < i + kWindow; j++) {
+          const double tv = data_[j].truth_velocity;
+          sum_truth += tv;
+          sum_est += data_[j].velocity;
+          const double a = std::abs(tv);
+          if (a < vmin) { vmin = a; }
+          if (a > vmax) { vmax = a; }
+        }
+        const double mean_truth = sum_truth / kWindow;
+        const double abs_mean_truth = std::abs(mean_truth);
+        if (abs_mean_truth < kMinSpeed) { continue; }
+        if ((vmax - vmin) / abs_mean_truth > kFlatness) { continue; }
+        const double bias = (sum_est / kWindow - mean_truth) / mean_truth;
+        if (std::abs(bias) > std::abs(max_velocity_bias)) {
+          max_velocity_bias = bias;
+          max_velocity_bias_speed = abs_mean_truth;
+          max_velocity_bias_time = i / 30000.0;
+        }
+      }
+    }
+
     if (out) {
       *out << fmt::format("time,raw,count,compensated,filtered,velocity,"
                           "truth_pos,truth_vel,slow_count\n");
@@ -355,7 +396,10 @@ struct Application {
     fmt::print("  \"max_position_error\": {},\n", max_position_error);
     fmt::print("  \"max_position_error_time\": {},\n", max_position_error_time);
     fmt::print("  \"max_velocity_error\": {},\n", max_velocity_error);
-    fmt::print("  \"max_velocity_error_time\": {}\n", max_velocity_error_time);
+    fmt::print("  \"max_velocity_error_time\": {},\n", max_velocity_error_time);
+    fmt::print("  \"max_velocity_bias_pct\": {},\n", 100.0 * max_velocity_bias);
+    fmt::print("  \"max_velocity_bias_speed\": {},\n", max_velocity_bias_speed);
+    fmt::print("  \"max_velocity_bias_time\": {}\n", max_velocity_bias_time);
     fmt::print("}}\n");
   }
 };
