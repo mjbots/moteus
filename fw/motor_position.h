@@ -220,6 +220,26 @@ class MotorPosition {
     float prev_time_since_update = 0.0f;
     uint8_t slow_count = std::numeric_limits<uint8_t>::max();
 
+    // For hall sources only.  hall_prev_dt is the previous inter-edge
+    // interval; hall_v2 is the two-edge (rise+fall averaged, hence
+    // rise/fall-asymmetry-free) velocity computed from it, with no
+    // rise-time calibration.  hall_v2 is the unbiased reference that
+    // the PLL-band DC bias correction adapts toward; it is NOT the
+    // slow-mode velocity (slow mode computes its own two-edge velocity
+    // inline, from prev_time_since_update and without the read-delay
+    // term).  hall_v2 is exactly 0.0f when no valid two-edge
+    // measurement is available (a real measurement always has a nonzero
+    // count delta, so 0.0f is unambiguous).
+    float hall_prev_dt = 0.0f;
+    float hall_v2 = 0.0f;
+
+    // Slowly-adapted estimate of the PLL velocity's DC bias (raw PLL
+    // velocity minus the unbiased two-edge velocity).  Subtracted from
+    // the reported velocity to remove the rise/fall bias without
+    // disturbing the loop.  Forced to zero in slow mode, where the
+    // reported velocity is already the unbiased two-edge measurement.
+    float hall_bias_est = 0.0f;
+
     // This will increment every time a new value is provided.
     uint8_t nonce = 0;
 
@@ -249,6 +269,9 @@ class MotorPosition {
       a->Visit(MJ_NVP(old_delta));
       a->Visit(MJ_NVP(prev_time_since_update));
       a->Visit(MJ_NVP(slow_count));
+      a->Visit(MJ_NVP(hall_prev_dt));
+      a->Visit(MJ_NVP(hall_v2));
+      a->Visit(MJ_NVP(hall_bias_est));
       a->Visit(MJ_NVP(nonce));
       a->Visit(MJ_NVP(offset_value));
       a->Visit(MJ_NVP(compensated_value));
@@ -916,7 +939,11 @@ class MotorPosition {
 
       status_.position_relative = IntToFloat(status_.position_relative_raw);
       status_.position = IntToFloat(status_.position_raw);
-      status_.velocity = output_status.integral * output_cpr_scale_;
+      // Report the DC-bias-corrected velocity (hall_bias_est is zero
+      // for non-hall sources and in slow mode).
+      status_.velocity =
+          (output_status.integral - output_status.hall_bias_est) *
+          output_cpr_scale_;
     }
 
     if (!output_status.active_velocity &&
@@ -1071,48 +1098,93 @@ class MotorPosition {
 
           if (updated) {
             const auto ratio = status.time_since_update * config.pll_filter_hz;
+            const bool hall_reversal = (delta * old_delta < 0.0f);
 
-            if (delta * old_delta < 0.0f) {
+            // Two-edge velocity, free of the open-collector rise/fall
+            // asymmetry: pairing this interval with the previous one
+            // spans exactly one rising and one falling edge, so the
+            // late-rising-edge error cancels out.  This is the
+            // unbiased reference the PLL-band DC bias correction
+            // adapts toward; slow mode computes its own two-edge
+            // velocity inline below (without this read-delay term).
+            //
+            // Each interval is read here in the source pass before
+            // ISR_UpdateState applies this cycle's dt_ increment, so
+            // each lands one dt_ short -- add dt_ back to each.
+            if (!hall_reversal && delta != 0 &&
+                status.hall_prev_dt > 0.0f) {
+              status.hall_v2 = (2.0f * delta) /
+                  ((status.time_since_update + dt_) +
+                   (status.hall_prev_dt + dt_));
+            } else {
+              status.hall_v2 = 0.0f;
+            }
+            status.hall_prev_dt =
+                hall_reversal ? 0.0f : status.time_since_update;
+
+            if (hall_reversal) {
               if (&config == commutation_config_) {
                 // The direction changed from the most recent update to
-                // this one.  Thus we will reset the velocity to exactly
-                // zero, and similarly force our position to exactly
-                // match the compensated value.
+                // this one.  Reset the velocity to exactly zero and
+                // force the position to match the compensated value.
                 status.integral = 0.0f;
                 status.velocity = 0.0f;
                 reset_to_compensated = true;
               }
-              // Also in this case, we don't want to update our filter
-              // if we are using one, because the possible very short
-              // time from the previous event could result in
-              // instability.
+              // Don't update the filter: the possibly very short time
+              // from the previous event could cause instability.
               status.time_since_update = 0.0f;
               status.prev_time_since_update = 0.0f;
               status.slow_count = std::numeric_limits<uint8_t>::max();
+              status.hall_bias_est = 0.0f;
               updated = false;
-            } else if (ratio > 0.25f) {
-              // The time between this update and the last is long
-              // enough relative to our filter bandwidth.  That means
-              // we may switch to "slow" mode operation, where the
-              // velocity is directly measured from inter-sample
-              // spacing rather than through the PLL filter.
+            } else if (ratio >
+                       ((status.slow_count >= 3) ? 0.20f : 0.25f)) {
+              // Slow mode: the velocity is measured directly from
+              // inter-sample spacing rather than through the PLL
+              // filter.  Hysteresis (enter at 0.25, leave at 0.20)
+              // keeps quantization jitter in ratio from chattering
+              // back and forth at the slow/PLL boundary.
               if (status.slow_count < 3) {
                 status.slow_count++;
               } else {
-                status.integral
-                    = status.velocity
-                    = delta / status.time_since_update;
-                // When in "slow" mode, we also always force the
-                // filtered position to exactly match the compensated
-                // value at transition points.
+                if (status.prev_time_since_update > 0.0f) {
+                  // Two-edge sliding window.  Unlike hall_v2, no
+                  // read-delay (+dt) term is needed here: slow mode
+                  // zeroes time_since_update in this source pass and
+                  // sets updated=false, so ISR_UpdateOutput's
+                  // unconditional += dt_ still runs while its own reset
+                  // is skipped.  That one-tick head start means the
+                  // value read here is already the full inter-edge
+                  // interval.  hall_v2 reads the same counter in the
+                  // source pass, but the PLL path zeroes it in the
+                  // output pass *after* that increment, so hall_v2's
+                  // reads come up one dt_ short per interval -- hence
+                  // the dt_ it adds back to each.  Adding that here
+                  // would over-inflate this full interval into an
+                  // underestimate.
+                  status.integral
+                      = status.velocity
+                      = (2.0f * delta) /
+                        (status.time_since_update +
+                         status.prev_time_since_update);
+                } else {
+                  status.integral
+                      = status.velocity
+                      = delta / status.time_since_update;
+                }
+                // Force the filtered position to match the compensated
+                // value at transition points.  The two-edge velocity
+                // is already unbiased, so no DC correction is applied.
                 reset_to_compensated = true;
                 status.prev_time_since_update = status.time_since_update;
                 status.time_since_update = 0.0f;
+                status.hall_bias_est = 0.0f;
                 updated = false;
               }
             } else if (status.time_since_update > 0.0f) {
-              // The inter-sample spacing was close enough to warrant
-              // using the PLL filter.
+              // PLL mode (its DC bias is removed downstream against
+              // hall_v2).
               status.slow_count = 0;
               status.prev_time_since_update = 0.0f;
             }
@@ -1221,6 +1293,7 @@ class MotorPosition {
           status.filtered_value = status.compensated_value;
           status.integral = 0.0f;
           status.velocity = 0.0f;
+          status.hall_bias_est = 0.0f;
           status.time_since_update = 0.0f;
         } else if (!old_active_theta && status.active_theta) {
           // Our velocity was valid before, so leave it alone.
@@ -1236,6 +1309,25 @@ class MotorPosition {
 
           status.integral += status.time_since_update * filter.ki * error;
           status.velocity = status.integral + filter.kp * error;
+
+          // Online DC bias estimate: The position PLL uses both
+          // falling and rising hall effect edges.  For constant speed
+          // motion, this results in it reciving update intervals of
+          // alternating sides, as the rise time is slower than the
+          // fall time.  For the formulation of PLL filter we use,
+          // that results in a steady state DC bias versus the true
+          // velocity.
+          //
+          // Track that varying offset between the PLL velocity and
+          // the two-edge velocity (which is free of the rise/fall
+          // asymmetry) and subtract it from the *reported* velocity
+          // downstream.  The loop state itself is left raw, so the
+          // filter keeps its full acceleration tracking and the slow
+          // estimate never injects v2's transient lag.
+          if (config.type == SourceConfig::kHall && status.hall_v2 != 0.0f) {
+            status.hall_bias_est += kHallBiasAdapt *
+                ((status.integral - status.hall_v2) - status.hall_bias_est);
+          }
 
           // We don't let our velocity get beyond 1 revolution in 8
           // encoder samples.
@@ -1490,6 +1582,13 @@ class MotorPosition {
   float dt_ = 1.0f / 30000.0f;
   float hall_step1_filter_ = 1.0f;
   float hall_step2_filter_ = 1.0f;
+
+  // Per-edge adaptation rate of the DC bias estimate (hall_bias_est).
+  // This is set somewhat arbitrarily to get decent results across a
+  // range of accelerations on test data.  Ideally it would be instead
+  // structured to be relative to the configured PLL bandwidth, but
+  // that is work, and this is "good enough" for now.
+  static constexpr float kHallBiasAdapt = 0.02f;
 
   const SourceConfig* commutation_config_ = nullptr;
   const SourceStatus* commutation_status_ = nullptr;

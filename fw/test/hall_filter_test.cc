@@ -194,7 +194,10 @@ struct Application {
       d.hall_count = aux1_status.hall.count;
       d.compensated_value = status.sources[0].compensated_value;
       d.filtered_value = status.sources[0].filtered_value;
-      d.velocity = status.sources[0].integral;
+      // The reported velocity is the raw PLL integral minus the online
+      // DC bias estimate (matching what the device exposes).
+      d.velocity = status.sources[0].integral -
+                   status.sources[0].hall_bias_est;
       d.slow_count = status.sources[0].slow_count;
 
       data_.push_back(d);
