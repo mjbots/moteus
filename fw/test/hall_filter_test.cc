@@ -14,8 +14,10 @@
 
 #include "fw/motor_position.h"
 
+#include <cmath>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
@@ -77,17 +79,24 @@ std::vector<int> ParseDebugStream(const std::string& str) {
   return result;
 }
 
-double wrap_encoder(double i) {
-  if (i >= 90) { return i - 90; }
-  if (i < 0) { return i + 90; }
-  return i;
-}
-
 double wrap_encoder_delta(double i) {
   if (i > 45) { return i - 90; }
   if (i < -45) { return i + 90; }
   return i;
 }
+
+// Maps a 3-bit hall pin state (one bit per line) to the moteus sector
+// count 0-5.  The all-low and all-high codes are invalid and map to 0.
+constexpr uint8_t kRawToSector[8] = {
+  0,  // 0b000 invalid
+  0,  // 0b001 => 0
+  2,  // 0b010 => 2
+  1,  // 0b011 => 1
+  4,  // 0b100 => 4
+  5,  // 0b101 => 5
+  3,  // 0b110 => 3
+  0,  // 0b111 invalid
+};
 
 struct Data {
   double time = 0.0;
@@ -96,6 +105,7 @@ struct Data {
   float compensated_value = 0.0f;
   float filtered_value = 0.0f;
   float velocity = 0.0;
+  int slow_count = 0;
 
   float truth_value = 0.0f;
   float truth_velocity = 0.0f;
@@ -169,17 +179,7 @@ struct Application {
       const auto raw_value = raw_encoder[i];
       const auto old = aux1_status.hall.count;
 
-      static constexpr uint8_t kHallMapping[] = {
-        0,  // invalid
-        0,  // 0b001 => 0
-        2,  // 0b010 => 2
-        1,  // 0b011 => 1
-        4,  // 0b100 => 4
-        5,  // 0b101 => 5
-        3,  // 0b110 => 3
-        0,  // invalid
-      };
-      aux1_status.hall.count = kHallMapping[raw_value];
+      aux1_status.hall.count = kRawToSector[raw_value & 0x7];
 
       if (aux1_status.hall.count != old) {
         aux1_status.hall.nonce += 1;
@@ -195,48 +195,105 @@ struct Application {
       d.compensated_value = status.sources[0].compensated_value;
       d.filtered_value = status.sources[0].filtered_value;
       d.velocity = status.sources[0].integral;
+      d.slow_count = status.sources[0].slow_count;
 
       data_.push_back(d);
 
       t += kDt;
     }
 
-    auto find_ground_truth = [&](size_t i) {
-      const auto current_value = data_[i].compensated_value;
-      size_t first = i;
-      for (; first > 0 && data_[first].compensated_value == current_value; first--);
-      size_t last = i;
-      for (; last < data_.size() && data_[last].compensated_value == current_value; last++);
+    // Estimator-independent ground truth, reconstructed purely from the
+    // recorded raw hall pin state (data_[i].raw_value).  The firmware's
+    // compensated_value is produced by the position source itself, so
+    // building the oracle from it would let the estimator under test
+    // partly define its own ground truth; the raw pin state does not.
+    //
+    // Position and velocity are derived from the FALLING edges only.
+    // Open-collector hall outputs have a sharp, well defined falling
+    // edge but a pull-up/cable-capacitance limited rising edge that
+    // registers late.  A per-sector oracle (one count per edge) would
+    // inherit that rise/fall asymmetry as an alternating per-sector
+    // velocity bias -- the very artifact a good estimator must reject
+    // -- and so would reward the bias.  Bracketing each sample between
+    // the two surrounding falling edges (two counts apart, i.e. three
+    // reference points per electrical cycle) is insensitive to the
+    // rising-edge delay while staying local enough to follow the rapid
+    // speed changes in these traces.
+    std::vector<double> truth_count(data_.size(), 0.0);
+    std::vector<size_t> falls;  // sample indices of falling edges
+    {
+      int prev_sector = kRawToSector[data_[0].raw_value & 0x7];
+      // Seed the accumulator the way the firmware seeds offset_value
+      // on its first hall sample: as the signed step from an assumed
+      // previous count of zero.  Seeding with the raw sector instead
+      // would leave the reconstruction offset from the firmware's
+      // (electrical-cycle-ambiguous) absolute frame by a multiple of
+      // six counts, corrupting the position error.
+      double accum = ((prev_sector + 9) % 6) - 3;
+      truth_count[0] = accum;
+      for (size_t i = 1; i < data_.size(); i++) {
+        const uint32_t prev_raw = data_[i - 1].raw_value & 0x7;
+        const uint32_t cur_raw = data_[i].raw_value & 0x7;
+        const int sector = kRawToSector[cur_raw];
+        // Signed count step resolved modulo six into [-3, 2]; the
+        // same convention the firmware uses for its hall delta.  At
+        // these sample rates a real step is only -1, 0 or +1.
+        const int step = ((sector - prev_sector + 9) % 6) - 3;
+        accum += step;
+        truth_count[i] = accum;
+        prev_sector = sector;
 
-      if (last == data_.size()) {
-        // The trace ended without us leaving this sector.  The rotor
-        // is somewhere in [current_value, current_value + 1); the
-        // midpoint is the best a-priori guess and matches the
-        // firmware's mid-sector commutation interpretation.
-        return std::make_pair(
-            wrap_encoder(static_cast<double>(current_value) + 0.5),
-            0.0);
+        // A single hall line transitioning high -> low is a falling
+        // edge.
+        const uint32_t changed = prev_raw ^ cur_raw;
+        if (changed != 0 && (changed & (changed - 1)) == 0 &&
+            (prev_raw & changed) != 0) {
+          falls.push_back(i);
+        }
+      }
+    }
+
+    auto wrap_modulo = [](double v) {
+      v = std::fmod(v, 90.0);
+      if (v < 0.0) { v += 90.0; }
+      return v;
+    };
+
+    auto find_ground_truth = [&](size_t i) -> std::pair<double, double> {
+      if (falls.size() < 2 || i < falls.front() || i >= falls.back()) {
+        // No surrounding pair of falling edges: the best a-priori
+        // guess is the mid-point of the current count cell, at rest.
+        // This matches the firmware's mid-sector commutation
+        // interpretation.
+        return std::make_pair(wrap_modulo(truth_count[i] + 0.5), 0.0);
       }
 
-      if (data_[first].compensated_value == data_[last].compensated_value) {
-        // We had a back-and-forth: the rotor entered this sector
-        // and exited back through the same boundary.  In contrast
-        // to the end-of-trace case we have direct evidence the
-        // rotor lingered near that boundary -- it didn't have time
-        // to drift to mid-sector before bouncing back.  Returning
-        // the boundary (current_value) is therefore a better
-        // estimate than the sector midpoint.
-        return std::make_pair(static_cast<double>(current_value), 0.0);
+      // Locate the falling-edge bracket [falls[lo], falls[lo+1])
+      // containing sample i.
+      size_t lo = 0;
+      size_t hi = falls.size() - 1;
+      while (hi - lo > 1) {
+        const size_t mid = (lo + hi) / 2;
+        if (falls[mid] <= i) { lo = mid; } else { hi = mid; }
       }
 
-      const auto fraction =
-          static_cast<double>(i - first) / static_cast<double>(last - first);
-      const auto velocity =
-          static_cast<double>(wrap_encoder_delta(data_[last].compensated_value - current_value)) /
-          ((1.0/30000.0) * static_cast<double>((last - first - 1)));
-      return std::make_pair(
-          static_cast<double>(wrap_encoder(fraction * (wrap_encoder_delta(data_[last].compensated_value - current_value)) + current_value)),
-          static_cast<double>(velocity));
+      const double u0 = truth_count[falls[lo]];
+      const double u1 = truth_count[falls[lo + 1]];
+      const double span = u1 - u0;  // +2, -2, or 0 (already unwrapped)
+
+      if (span == 0.0) {
+        // The rotor returned to the same falling-edge boundary: it
+        // dithered around it rather than advancing through.
+        return std::make_pair(wrap_modulo(u0), 0.0);
+      }
+
+      const double fraction =
+          static_cast<double>(i - falls[lo]) /
+          static_cast<double>(falls[lo + 1] - falls[lo]);
+      const double velocity =
+          span / ((1.0 / 30000.0) *
+                  static_cast<double>(falls[lo + 1] - falls[lo]));
+      return std::make_pair(wrap_modulo(u0 + fraction * span), velocity);
     };
 
     double position_metric = 0.0;
@@ -276,17 +333,19 @@ struct Application {
     }
 
     if (out) {
-      *out << fmt::format("time,raw,count,compensated,filtered,velocity,truth_pos,truth_vel\n");
+      *out << fmt::format("time,raw,count,compensated,filtered,velocity,"
+                          "truth_pos,truth_vel,slow_count\n");
 
       for (const auto& d : data_) {
         *out << fmt::format(
-            "{},{},{},{},{},{},{},{}\n",
+            "{},{},{},{},{},{},{},{},{}\n",
             d.time, d.raw_value, d.hall_count,
             d.compensated_value,
             d.filtered_value,
             d.velocity,
             d.truth_value,
-            d.truth_velocity);
+            d.truth_velocity,
+            d.slow_count);
       }
     }
 

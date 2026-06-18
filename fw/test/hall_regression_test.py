@@ -22,42 +22,49 @@ import subprocess
 import sys
 import tempfile
 
+# Thresholds are tuned for the falling-edge ground-truth oracle in
+# hall_filter_test.cc (velocity and position derived from the sharp
+# falling hall edges only, so they are insensitive to the open
+# collector rise/fall asymmetry).  pmetric/pmax/vmetric/vmax are
+# bounded both above and below (the runner also fails under half the
+# threshold), bracketing the measured result with ~20% headroom so a
+# regression is caught tightly.
 TESTS = [
     # test                         PLL   pmetric  pmax  vmetric  vmax
-    ('20250616-speed-cycle',       50,    0.08,   1.51,  1400.0,  280.0),
-    ('20250616-back-and-forth',    50,    0.15,   1.51,   150.0,   70.0),
-    ('20250616-bnforth-highaccel', 50,    0.08,   1.51,   190.0,   80.0),
-    ('20250616-hboard-cycle',      50,    0.10,   1.51,   810.0,  130.0),
-    ('20250616-hboard-manual',     50,    0.03,   1.01,    30.0,   20.0),
-    ('20250615-new-slow',          50,    0.29,   1.50,   190.0,   80.0),
+    ('20250616-speed-cycle',         50,     0.15,   2.4,    781.0,   160.0),
+    ('20250616-back-and-forth',      50,    0.205,  2.68,    155.0,    89.1),
+    ('20250616-bnforth-highaccel',   50,    0.114,   2.4,    212.0,   120.0),
+    ('20250616-hboard-cycle',        50,   0.0605,   1.8,     80.4,    39.3),
+    ('20250616-hboard-manual',       50,    0.151,   2.4,     20.8,    32.0),
+    ('20250615-new-slow',            50,    0.306,  2.81,    286.0,   119.0),
 
-    ('20250616-speed-cycle',       124,   0.08,   1.51,  1290.0,  270.0),
-    ('20250616-back-and-forth',    124,   0.15,   1.51,   190.0,   70.0),
-    ('20250616-bnforth-highaccel', 124,   0.08,   1.51,   250.0,   80.0),
-    ('20250616-hboard-cycle',      124,   0.10,   1.51,  1360.0,  160.0),
-    ('20250616-hboard-manual',     124,   0.03,   1.01,    30.0,   20.0),
-    ('20250615-new-slow',          124,   0.29,   1.50,   190.0,   80.0),
+    ('20250616-speed-cycle',        124,    0.149,   2.4,    596.0,   147.0),
+    ('20250616-back-and-forth',     124,    0.205,  2.68,    161.0,    89.1),
+    ('20250616-bnforth-highaccel',  124,    0.115,   2.4,    214.0,   120.0),
+    ('20250616-hboard-cycle',       124,   0.0592,   1.8,    403.0,   125.0),
+    ('20250616-hboard-manual',      124,    0.151,   2.4,     20.8,    32.0),
+    ('20250615-new-slow',           124,    0.306,  2.81,    286.0,   119.0),
 
-    ('20250616-speed-cycle',       248,   0.08,   1.51,  1380.0,  260.0),
-    ('20250616-back-and-forth',    248,   0.15,   1.51,   190.0,   70.0),
-    ('20250616-bnforth-highaccel', 248,   0.08,   1.51,   250.0,   80.0),
-    ('20250616-hboard-cycle',      248,   0.10,   1.51,  2710.0,  180.0),
-    ('20250616-hboard-manual',     248,   0.03,   1.01,    30.0,   20.0),
-    ('20250615-new-slow',          248,   0.29,   1.50,   190.0,   80.0),
+    ('20250616-speed-cycle',        248,     0.15,   2.4,    562.0,   155.0),
+    ('20250616-back-and-forth',     248,    0.205,  2.68,    161.0,    89.1),
+    ('20250616-bnforth-highaccel',  248,    0.115,   2.4,    214.0,   120.0),
+    ('20250616-hboard-cycle',       248,   0.0614,   1.8,    954.0,   153.0),
+    ('20250616-hboard-manual',      248,    0.151,   2.4,     20.8,    32.0),
+    ('20250615-new-slow',           248,    0.306,  2.81,    286.0,   119.0),
 
-    ('20250616-speed-cycle',       496,   0.08,   1.51,  2670.0,  340.0),
-    ('20250616-back-and-forth',    496,   0.15,   1.51,   190.0,   70.0),
-    ('20250616-bnforth-highaccel', 496,   0.08,   1.51,   250.0,   80.0),
-    ('20250616-hboard-cycle',      496,   0.10,   1.51,  2710.0,  180.0),
-    ('20250616-hboard-manual',     496,   0.03,   1.01,    30.0,   20.0),
-    ('20250615-new-slow',          496,   0.29,   1.50,   190.0,   80.0),
+    ('20250616-speed-cycle',        496,     0.15,   2.4,   1550.0,   312.0),
+    ('20250616-back-and-forth',     496,    0.205,  2.68,    161.0,    89.1),
+    ('20250616-bnforth-highaccel',  496,    0.115,   2.4,    214.0,   120.0),
+    ('20250616-hboard-cycle',       496,   0.0614,   1.8,    954.0,   153.0),
+    ('20250616-hboard-manual',      496,    0.151,   2.4,     20.8,    32.0),
+    ('20250615-new-slow',           496,    0.306,  2.81,    286.0,   119.0),
 
-    ('20250616-speed-cycle',       992,   0.08,   1.51,  3420.0,  380.0),
-    ('20250616-back-and-forth',    992,   0.15,   1.51,   190.0,   70.0),
-    ('20250616-bnforth-highaccel', 992,   0.08,   1.51,   250.0,   80.0),
-    ('20250616-hboard-cycle',      992,   0.10,   1.51,  2710.0,  180.0),
-    ('20250616-hboard-manual',     992,   0.03,   1.01,    30.0,   20.0),
-    ('20250615-new-slow',          992,   0.29,   1.50,   190.0,   80.0),
+    ('20250616-speed-cycle',        992,     0.15,   2.4,   1800.0,   312.0),
+    ('20250616-back-and-forth',     992,    0.205,  2.68,    161.0,    89.1),
+    ('20250616-bnforth-highaccel',  992,    0.115,   2.4,    214.0,   120.0),
+    ('20250616-hboard-cycle',       992,   0.0614,   1.8,    954.0,   153.0),
+    ('20250616-hboard-manual',      992,    0.151,   2.4,     20.8,    32.0),
+    ('20250615-new-slow',           992,    0.306,  2.81,    286.0,   119.0),
 ]
 
 def main():
