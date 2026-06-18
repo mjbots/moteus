@@ -51,6 +51,7 @@ EMIT_DEBUG = [
     (1 << 25, 'servo_stats.motor_base_velocity', 200 / 32767, 'rev/s'),
     (1 << 26, 'servo_control.i_d_A', 100 / 32767, 'A'),
     (1 << 27, 'servo_control.i_q_A', 100 / 32767, 'A'),
+    (1 << 28, 'servo_stats.control_velocity', 100 / 32767, 'rev/s'),
 ]
 
 

@@ -1232,6 +1232,9 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       // commanded q_A (i_q_A), scale ±100A range
       write_scalar(static_cast<int16_t>(32767.0f * control_.i_q_A / 100.0f));
     }
+    if (config_.emit_debug & (1 << 28)) {
+      write_scalar(static_cast<int16_t>(32767.0f * status_.control_velocity.value_or(0.0f) / 100.0f));
+    }
 
     // We rely on the FIFO to queue these things up.
     for (int i = 0; i < pos; i++) {
