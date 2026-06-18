@@ -338,6 +338,8 @@ py_test(
         "test/data/20250616-bnforth-highaccel.dat.gz",
         "test/data/20250616-hboard-manual.dat.gz",
         "test/data/20250615-new-slow.dat.gz",
+        "test/data/20260618-spindle-sweep.dat.gz",
+        "test/data/20260618-spindle-hw.dat.gz",
     ],
 )
 
