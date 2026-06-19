@@ -24,7 +24,7 @@
 use crate::command::{PositionCommand, PositionFormat};
 use crate::query::QueryFormat;
 use crate::transport::args::TransportArgs;
-use crate::transport::async_transport::AsyncRouter;
+use crate::transport::singleton::create_default_transport;
 use crate::transport::transaction::Request;
 use crate::{Controller, Resolution};
 use clap::Parser;
@@ -51,19 +51,22 @@ struct Args {
 
 /// Run this example.  See [`crate::examples::simple::run`] for the
 /// meaning of the `register_transports` hook.
-#[tokio::main]
-pub async fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
+///
+/// This is a synchronous (blocking) loop: a bandwidth benchmark is a
+/// single dedicated task with nothing else to schedule, so the async
+/// runtime would only add per-cycle overhead.
+pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
     let args = Args::parse();
 
     register_transports();
 
-    // Create async transport with specified options.
+    // Create the transport with specified options.
     let opts = args.transport.into();
-    let mut transport = AsyncRouter::with_options(&opts).await?;
+    let mut transport = create_default_transport(&opts)?;
 
     // Use specified targets or auto-discover.
     let targets: Vec<u8> = if args.target.is_empty() {
-        let devices = transport.discover(0, 0).await?;
+        let devices = transport.discover(0, 0)?;
         devices.iter().map(|d| d.can_id).collect()
     } else {
         args.target
@@ -126,7 +129,7 @@ pub async fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error>
             .collect();
 
         // Send commands and receive responses.
-        transport.cycle(&mut requests).await?;
+        transport.cycle(&mut requests)?;
         let count: usize = requests.iter().map(|r| r.responses.len()).sum();
 
         // Report stats periodically.
@@ -138,8 +141,5 @@ pub async fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error>
             hz_count = 0;
             status_time = Instant::now();
         }
-
-        // Yield to allow other async tasks.
-        tokio::task::yield_now().await;
     }
 }
