@@ -498,6 +498,7 @@ struct BldcServoConfig {
   uint16_t pwm_rate_hz =
       (g_measured_hw_family == 0 &&
        g_measured_hw_rev <= 2) ? 60000 :
+      g_measured_hw_family == 1 ? 20000 :
       g_measured_hw_family == 3 ? 15000 :
       30000;
 

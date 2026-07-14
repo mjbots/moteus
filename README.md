@@ -10,19 +10,19 @@ for moderately high power electronics.  It has not yet burned down my
 
 # Specifications #
 
-| Name                   | r4.11        | c1         | n1        | x1          |
-|------------------------|--------------|------------|-----------|-------------|
-| Voltage Input          | 10-44V       | 10-51V     | 10-54V    | 10-54V      |
-| Peak Electrical Power  | 900W @ 30V   | 250W @ 28V | 2kW @ 36V | 1.3kW @ 36V |
-| Mass                   | 14.2g        | 8.9g       | 14.6g     | 23.8g       |
-| Control Rate           | 15-30kHz     | -          | -         | -           |
-| PWM Switching Rate     | 15-60kHz     | -          | -         | -           |
-| CPU                    | STM32G4      | -          | -         | -           |
-| Uncooled phase current | 12A          | 5A         | 9A       | 25A         |
-| Cooled phase current   | 32A          | 14A        | 26A       | 62A         |
-| Peak phase current     | 100A         | 20A        | 100A      | 120A        |
-| Communications         | 5Mbps CAN-FD | -          | -         | -           |
-| Dimensions             | 46x53mm      | 38x38x9mm  | 46x46x8mm | 56x56x10mm  |
+| Name                   | r4.11        | c1         | n1          | x1          |
+|------------------------|--------------|------------|-------------|-------------|
+| Voltage Input          | 10-44V       | 10-51V     | 10-54V      | 10-54V      |
+| Peak Electrical Power  | 900W @ 30V   | 250W @ 28V | 1.3kW @ 36V | 1kW @ 36V   |
+| Mass                   | 14.2g        | 8.9g       | 14.6g       | 23.8g       |
+| Control Rate           | 15-30kHz     | -          | -           | -           |
+| PWM Switching Rate     | 15-60kHz     | -          | -           | -           |
+| CPU                    | STM32G4      | -          | -           | -           |
+| Uncooled phase current | 12A          | 5A         | 9A          | 25A         |
+| Cooled phase current   | 32A          | 14A        | 26A         | 62A         |
+| Peak phase current     | 100A         | 20A        | 100A        | 120A        |
+| Communications         | 5Mbps CAN-FD | -          | -           | -           |
+| Dimensions             | 46x53mm      | 38x38x9mm  | 46x46x8mm   | 56x56x10mm  |
 
 Assembled and tested boards can be purchased at: https://mjbots.com
 

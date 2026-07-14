@@ -284,6 +284,10 @@ class FirmwareUpgrade:
                 remap_drv8323(b'vds_lvl_mv',
                               VDS_LVL_TABLE_DRV8323, VDS_LVL_TABLE_DRV8353)
             elif family == 1:
+                if int(items.get(b'servo.pwm_rate_hz', b'0')) == 20000:
+                    print(f"Downgraded moteus-n1 pwm_rate to 30000 Hz")
+                    items[b'servo.pwm_rate_hz'] = b'30000'
+
                 # moteus-n1 returns from the DRV8353 path to the (incorrect)
                 # DRV8323 path that pre-0x010100 firmware used.  If the gate
                 # drive still looks like the 0x010100 defaults, restore the
@@ -893,6 +897,10 @@ class FirmwareUpgrade:
                 remap_drv8323(b'vds_lvl_mv',
                               VDS_LVL_TABLE_DRV8353, VDS_LVL_TABLE_DRV8323)
             elif family == 1:
+                if int(items.get(b'servo.pwm_rate_hz', b'0')) == 30000:
+                    print(f"Upgrading moteus-n1 pwm_rate to 20000 Hz for 1.1")
+                    items[b'servo.pwm_rate_hz'] = b'20000'
+
                 # moteus-n1 moves from the (incorrect) DRV8323 path back to
                 # the DRV8353 path.  If the gate drive is untouched (every
                 # field maps to the old default's register code) adopt the
