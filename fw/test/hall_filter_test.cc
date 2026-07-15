@@ -14,8 +14,11 @@
 
 #include "fw/motor_position.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <vector>
 
@@ -36,6 +39,7 @@ struct Options {
   std::string input;
   std::string output;
   double pll_filter_hz = 40.0;
+  double rate_hz = 30000.0;
   bool no_commutation = false;
 
   template <typename Archive>
@@ -43,6 +47,7 @@ struct Options {
     a->Visit(MJ_NVP(input));
     a->Visit(MJ_NVP(output));
     a->Visit(MJ_NVP(pll_filter_hz));
+    a->Visit(MJ_NVP(rate_hz));
     a->Visit(MJ_NVP(no_commutation));
   }
 };
@@ -126,13 +131,14 @@ struct Application {
 
   Options options;
 
-  static constexpr float kDt = 1.0f / 30000.0f;
+  double dt_ = 1.0 / 30000.0;
 
   Application(int argc, char** argv) {
     auto group = mjlib::base::ClippArchive().Accept(&options).group();
     mjlib::base::ClippParse(argc, argv, group);
 
-    dut.SetRate(kDt);
+    dt_ = 1.0 / options.rate_hz;
+    dut.SetRate(static_cast<float>(dt_));
 
     if (options.no_commutation) {
       dut.config()->commutation_source = 1;
@@ -202,7 +208,7 @@ struct Application {
 
       data_.push_back(d);
 
-      t += kDt;
+      t += dt_;
     }
 
     // Estimator-independent ground truth, reconstructed purely from the
@@ -294,7 +300,7 @@ struct Application {
           static_cast<double>(i - falls[lo]) /
           static_cast<double>(falls[lo + 1] - falls[lo]);
       const double velocity =
-          span / ((1.0 / 30000.0) *
+          span / (dt_ *
                   static_cast<double>(falls[lo + 1] - falls[lo]));
       return std::make_pair(wrap_modulo(u0 + fraction * span), velocity);
     };
@@ -325,13 +331,96 @@ struct Application {
       const auto abs_position_error = std::abs(position_error);
       if (abs_position_error > max_position_error) {
         max_position_error = abs_position_error;
-        max_position_error_time = i / 30000.0;
+        max_position_error_time = i * dt_;
       }
 
       const auto abs_velocity_error = std::abs(velocity_error);
       if (abs_velocity_error > max_velocity_error) {
         max_velocity_error = abs_velocity_error;
-        max_velocity_error_time = i / 30000.0;
+        max_velocity_error_time = i * dt_;
+      }
+    }
+
+    // Edge-locked velocity ripple.  At constant speed, the velocity
+    // estimate averaged synchronously with the hall pattern should be
+    // flat: any deterministic structure is an estimator artifact.
+    // Over the same flat-speed windows used for the bias metric below,
+    // resample the normalized velocity error onto a fixed number of
+    // phase bins spanning consecutive falling-edge brackets (the same
+    // bracket the ground-truth oracle interpolates across, covering
+    // one rising and one falling edge), and average across brackets.
+    // Averaging cancels aperiodic noise while any edge-synchronous
+    // structure survives.  The metric is the peak-to-peak amplitude of
+    // that mean waveform as a percentage of true speed.
+    //
+    // This makes no assumption about where in the interval an
+    // artifact lives or what sign it has: it catches an
+    // end-of-sector anti-overrun decay, per-edge rise/fall
+    // alternation, edge overshoot, or any future edge-synchronous
+    // ripple equally.  Such structure is nearly invisible to the
+    // sum-of-squares velocity_metric (it is small relative to
+    // acceleration transients), but is a direct, periodic excitation
+    // of any velocity-feedback (kd) term at a multiple of the hall
+    // edge rate.
+    double edge_ripple_pct = 0.0;
+    {
+      const size_t kWindow =
+          static_cast<size_t>(0.1 * options.rate_hz);  // 0.1 s
+      constexpr double kMinSpeed = 50.0;   // counts/s; skip near-stop
+      constexpr double kFlatness = 0.05;   // max (vmax-vmin)/|mean speed|
+      constexpr size_t kBins = 20;
+      std::array<double, kBins> bin_sum = {};
+      std::array<size_t, kBins> bin_count = {};
+
+      size_t next_fall = 0;
+      for (size_t i = 0; i + kWindow <= data_.size(); i += kWindow) {
+        double sum_truth = 0.0;
+        double vmin = std::abs(data_[i].truth_velocity);
+        double vmax = vmin;
+        for (size_t j = i; j < i + kWindow; j++) {
+          const double tv = data_[j].truth_velocity;
+          sum_truth += tv;
+          const double a = std::abs(tv);
+          if (a < vmin) { vmin = a; }
+          if (a > vmax) { vmax = a; }
+        }
+        const double mean_truth = sum_truth / kWindow;
+        const double abs_mean_truth = std::abs(mean_truth);
+        if (abs_mean_truth < kMinSpeed) { continue; }
+        if ((vmax - vmin) / abs_mean_truth > kFlatness) { continue; }
+
+        // Accumulate every falling-edge bracket wholly within this
+        // window.
+        while (next_fall + 1 < falls.size() && falls[next_fall] < i) {
+          next_fall++;
+        }
+        for (size_t f = next_fall;
+             f + 1 < falls.size() && falls[f + 1] < i + kWindow;
+             f++) {
+          const size_t b0 = falls[f];
+          const size_t b1 = falls[f + 1];
+          if (b1 - b0 < 2 * kBins) { continue; }
+          for (size_t k = b0; k < b1; k++) {
+            const size_t bin = ((k - b0) * kBins) / (b1 - b0);
+            const double err =
+                (data_[k].velocity - data_[k].truth_velocity) /
+                abs_mean_truth;
+            bin_sum[bin] += err;
+            bin_count[bin]++;
+          }
+        }
+      }
+
+      double wave_min = std::numeric_limits<double>::infinity();
+      double wave_max = -std::numeric_limits<double>::infinity();
+      for (size_t b = 0; b < kBins; b++) {
+        if (bin_count[b] == 0) { continue; }
+        const double v = bin_sum[b] / bin_count[b];
+        wave_min = std::min(wave_min, v);
+        wave_max = std::max(wave_max, v);
+      }
+      if (wave_max >= wave_min) {
+        edge_ripple_pct = 100.0 * (wave_max - wave_min);
       }
     }
 
@@ -347,7 +436,8 @@ struct Application {
     double max_velocity_bias_speed = 0.0;
     double max_velocity_bias_time = 0.0;
     {
-      constexpr size_t kWindow = 3000;     // 0.1 s at 30 kHz
+      const size_t kWindow =
+          static_cast<size_t>(0.1 * options.rate_hz);  // 0.1 s
       constexpr double kMinSpeed = 50.0;   // counts/s; skip near-stop
       constexpr double kFlatness = 0.05;   // max (vmax-vmin)/|mean speed|
       for (size_t i = 0; i + kWindow <= data_.size(); i += kWindow) {
@@ -371,7 +461,7 @@ struct Application {
         if (std::abs(bias) > std::abs(max_velocity_bias)) {
           max_velocity_bias = bias;
           max_velocity_bias_speed = abs_mean_truth;
-          max_velocity_bias_time = i / 30000.0;
+          max_velocity_bias_time = i * dt_;
         }
       }
     }
@@ -400,6 +490,7 @@ struct Application {
     fmt::print("  \"max_position_error_time\": {},\n", max_position_error_time);
     fmt::print("  \"max_velocity_error\": {},\n", max_velocity_error);
     fmt::print("  \"max_velocity_error_time\": {},\n", max_velocity_error_time);
+    fmt::print("  \"edge_ripple_pct\": {},\n", edge_ripple_pct);
     fmt::print("  \"max_velocity_bias_pct\": {},\n", 100.0 * max_velocity_bias);
     fmt::print("  \"max_velocity_bias_speed\": {},\n", max_velocity_bias_speed);
     fmt::print("  \"max_velocity_bias_time\": {}\n", max_velocity_bias_time);

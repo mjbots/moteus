@@ -400,12 +400,9 @@ class MotorPosition {
     dt_ = dt;
     const float rate_hz = 1.0f / dt;
 
-    // During the initial phase, drop velocity with a slower time
-    // constant.
-    hall_step1_filter_ = 1.0f - (1.0f / (rate_hz * 0.120f));
-
-    // Once we have exceeded a whole count, drop it with a faster one.
-    hall_step2_filter_ = 1.0f - (1.0f / (rate_hz * 0.020f));
+    // Time constant used to decay a hall velocity estimate once the
+    // next edge is overdue.
+    hall_overdue_filter_ = 1.0f - (1.0f / (rate_hz * 0.020f));
   }
 
   void ISR_Update() MOTEUS_CCM_ATTRIBUTE {
@@ -1369,16 +1366,49 @@ class MotorPosition {
         const float velocity_sign = status.velocity > 0.0f ? 1.0f : -1.0f;
         const float signed_err = err * velocity_sign;
         const float max_err = std::min(1.0f, 0.5f + std::abs(status.velocity) / 10.0f);
+        // Decay the stale velocity only once the next edge is
+        // overdue.  In slow mode the dead-reckoned error sweeps
+        // 0 -> 1 count every inter-edge interval by construction, so
+        // any error threshold below max_err fires deterministically
+        // near the end of every sector even with a perfect velocity
+        // estimate, imposing a sawtooth on the reported velocity at
+        // the hall edge rate.
+        //
+        // "Overdue" is judged against two predictors of the expected
+        // inter-edge time, decaying only when the elapsed time
+        // exceeds both.  They are not independent -- in steady-state
+        // slow mode err equals velocity * elapsed time, so
+        // err > max_err is itself a time threshold at
+        // max_err / velocity, i.e. the mean of the last two intervals
+        // -- but they fail in different directions, so their max is a
+        // better predictor than either alone:
+        //
+        //  * err > max_err (elapsed > mean of last two intervals via
+        //    the two-edge velocity): robust when
+        //    prev_time_since_update is stale or unrepresentative,
+        //    e.g. near the slow/PLL hysteresis boundary; gating on
+        //    time alone measurably degrades those regimes.
+        //  * elapsed > margin * previous interval: robust when the
+        //    velocity estimate is high, and keeps ordinary hall
+        //    placement spread (sectors a few percent wider than the
+        //    two-interval mean predicts) from triggering the decay
+        //    at the tail of every wide sector.
+        //
+        // The position clamp below needs no time evidence: past the
+        // boundary the position is provably wrong regardless.
         if (signed_err > max_err) {
-          status.integral *= hall_step2_filter_;
-          status.velocity *= hall_step2_filter_;
+          const bool overdue =
+              (status.prev_time_since_update <= 0.0f) ||
+              (status.time_since_update >
+               kHallOverdueMargin * status.prev_time_since_update);
+          if (overdue) {
+            status.integral *= hall_overdue_filter_;
+            status.velocity *= hall_overdue_filter_;
+          }
           if (&config == commutation_config_) {
             status.filtered_value =
                 status.compensated_value + ISR_Limit(err, -max_err, max_err);
           }
-        } else if (signed_err > (0.75f * max_err)) {
-          status.integral *= hall_step1_filter_;
-          status.velocity *= hall_step1_filter_;
         }
 
         if (updated && &config == commutation_config_) {
@@ -1580,8 +1610,15 @@ class MotorPosition {
   // Values cached after config changes to make runtime computation
   // faster.
   float dt_ = 1.0f / 30000.0f;
-  float hall_step1_filter_ = 1.0f;
-  float hall_step2_filter_ = 1.0f;
+  float hall_overdue_filter_ = 1.0f;
+
+  // How late a hall edge must be, relative to the previous inter-edge
+  // interval, before dead-reckoning past the sector boundary decays
+  // the velocity estimate (in slow mode; outside slow mode
+  // prev_time_since_update is zero and the decay applies as soon as
+  // the boundary is crossed).  Sized to cover typical hall placement
+  // spread of a few percent.
+  static constexpr float kHallOverdueMargin = 1.05f;
 
   // Per-edge adaptation rate of the DC bias estimate (hall_bias_est).
   // This is set somewhat arbitrarily to get decent results across a
