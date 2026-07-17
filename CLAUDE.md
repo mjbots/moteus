@@ -34,13 +34,6 @@ The apt packages (numpy, scipy, etc.) are built for the system Python 3.12. If `
 sudo mv /usr/local/bin/python3 /usr/local/bin/python3.bak
 ```
 
-To run the cpp tests, you will need this package:
-
-```
-wget http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-sudo apt install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
-```
-
 ## Proxy/Offline Builds (Claude Code VM)
 
 **IMPORTANT for Claude Code:** When building in the Claude Code VM, always use the offline build approach below. Do not attempt direct bazel downloads as they will fail due to proxy authentication.

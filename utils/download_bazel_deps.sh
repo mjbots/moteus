@@ -85,14 +85,6 @@ download_and_cache "https://github.com/muellan/clipp/archive/2c32b2f1f7cc530b1ec
 
 download_and_cache "https://github.com/google/snappy/archive/1.1.7.tar.gz"
 
-# System dependencies (Ubuntu 24.04 needs libtinfo5 from older package)
-if ! ldconfig -p | grep -q libtinfo.so.5; then
-    echo "Installing libtinfo5..."
-    curl -L -o /tmp/libtinfo5.deb http://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-    dpkg -i /tmp/libtinfo5.deb
-    ldconfig
-fi
-
 # Python dependencies
 echo "Installing Python dependencies..."
 apt-get install -y python3-build python3-can python3-serial python3-setuptools python3-pyelftools \
