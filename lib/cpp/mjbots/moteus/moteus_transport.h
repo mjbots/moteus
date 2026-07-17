@@ -1116,6 +1116,11 @@ class Fdcanusb : public details::TimeoutTransport {
   }
 
   static speed_t BaudToSpeed(int baudrate) {
+#ifdef __APPLE__
+    // On Darwin, speed_t is the numeric baud rate itself rather than
+    // an opaque code, and the kernel accepts arbitrary values.
+    return static_cast<speed_t>(baudrate);
+#else
     switch (baudrate) {
       case 9600: return B9600;
       case 19200: return B19200;
@@ -1152,6 +1157,7 @@ class Fdcanusb : public details::TimeoutTransport {
 #endif
       default: return B921600;
     }
+#endif
   }
 
   // This is set in the parent, then used in the child.
