@@ -1800,37 +1800,95 @@ class Stream:
         aux_number = await self.read_config_int(
             f"motor_position.sources.{commutation_source}.aux_number")
 
-        # Sweep PWM phase across one electrical cycle.  The dense
-        # scan serves two purposes: calibrate_hall identifies sign,
-        # offset and polarity (which only needs all six states), and
-        # find_hall_boundary_phases locates each sector boundary to
-        # within ~2° so the firmware's motor.offset[] commutation
-        # correction table can be populated.
-        STEPS = 90
-        SETTLE_S = 0.2
-        hall_cal_data = []
-        for i in range(STEPS):
-            phase = i / STEPS * 2 * math.pi
-            await self.command(f"d pwm {phase} {encoder_cal_voltage}")
-            await asyncio.sleep(SETTLE_S)
-            motor_position = await self.read_data("motor_position")
-            hall_cal_data.append(
-                (phase, motor_position.sources[commutation_source].raw))
+        # Sweep PWM phase across several electrical cycles, first
+        # forward and then reverse.  The dense scan serves two
+        # purposes: calibrate_hall identifies sign, offset and
+        # polarity (which only needs all six states), and every sector
+        # transition of every electrical cycle in both directions is
+        # circular-averaged into per-boundary phases so the firmware's
+        # motor.offset[] commutation correction table averages over
+        # several pole pairs rather than a single, possibly
+        # unrepresentative, one.  Averaging the two directions cancels
+        # the settling lag (and hall switching hysteresis, measured at
+        # ~10 deg-e on a typical hoverboard motor), which both
+        # dominates any single-direction scan and permits a much
+        # shorter per-step settle time.
+        #
+        # More cycles help only weakly beyond a few: the residual
+        # error is dominated by systematic pole-to-pole placement
+        # variation, so on a 30-pole test motor a 3-cycle scan landed
+        # within ~2 deg-e of the full-revolution table while taking a
+        # fifth of the time.
+        STEPS_PER_CYCLE = 90
+        settle_s = self.args.cal_hall_settle
+        full_rev_cycles = self.args.cal_motor_poles // 2
+        cycles = (full_rev_cycles
+                  if self.args.cal_hall_cycles <= 0 else
+                  min(self.args.cal_hall_cycles, full_rev_cycles))
+        total_steps = STEPS_PER_CYCLE * cycles
+        two_pi = 2 * math.pi
+
+        async def hall_sweep(step_range):
+            result = []
+            for i in step_range:
+                phase = i / STEPS_PER_CYCLE * two_pi
+                await self.command(
+                    f"d pwm {phase % two_pi:.6f} {encoder_cal_voltage}")
+                await asyncio.sleep(settle_s)
+                motor_position = await self.read_data("motor_position")
+                result.append(
+                    (phase, motor_position.sources[commutation_source].raw))
+            return result
+
+        try:
+            # Lock the rotor to the starting phase before sweeping.
+            await self.command(f"d pwm 0 {encoder_cal_voltage}")
+            await asyncio.sleep(1.0)
+
+            print(f"Sweeping {cycles} electrical cycle(s) forward")
+            sweep_fwd = await hall_sweep(range(total_steps + 1))
+            print(f"Sweeping {cycles} electrical cycle(s) reverse")
+            sweep_rev = await hall_sweep(range(total_steps, -1, -1))
+        finally:
+            await self.command("d stop")
 
         if self.args.cal_write_raw:
             with open(self.args.cal_write_raw, "wb") as f:
-                f.write(json.dumps(hall_cal_data, indent=2).encode('utf8'))
-
-        await self.command("d stop")
+                f.write(json.dumps(
+                    {'forward': sweep_fwd, 'reverse': sweep_rev},
+                    indent=2).encode('utf8'))
 
         # See if we support phase_invert.
         allow_phase_invert = \
             await self.is_config_supported("motor.phase_invert")
 
         cal_result = ce.calibrate_hall(
-            hall_cal_data,
+            sweep_fwd,
             desired_direction=1 if not self.args.cal_invert else -1,
             allow_phase_invert=allow_phase_invert)
+
+        # Compute the per-sector boundary corrections before writing
+        # any configuration, so a failure here leaves the device
+        # untouched.
+        offset_table, boundary_phases, observations = \
+            ce.build_hall_offset_table_multi(
+                [sweep_fwd, sweep_rev], cal_result,
+                poles=self.args.cal_motor_poles)
+
+        summaries = ce.summarize_hall_observations(
+            boundary_phases, observations)
+        print("Hall boundary deltas (deg): "
+              "mean / fwd-rev hysteresis / spread across cycles")
+        for k, s in enumerate(summaries):
+            print(f"  {k}: {math.degrees(s.delta):+6.1f} / "
+                  f"{math.degrees(s.hysteresis):5.1f} / "
+                  f"{math.degrees(s.spread):5.1f}")
+        noisy = [k for k, s in enumerate(summaries)
+                 if s.count_up != cycles or s.count_down != cycles]
+        if noisy:
+            print(f"WARNING: unexpected transition counts at "
+                  f"boundaries {noisy}; the hall readings may be "
+                  f"noisy or the rotor may not be settling")
 
         await self.command(f"conf set motor.poles {self.args.cal_motor_poles}")
         await self.command(f"conf set motor_position.sources.{commutation_source}.sign {cal_result.sign}")
@@ -1839,15 +1897,6 @@ class Stream:
         if allow_phase_invert:
             await self.command(
                 f"conf set motor.phase_invert {1 if cal_result.phase_invert else 0}")
-
-        # Compute the per-sector boundary corrections and load them
-        # into motor.offset[].
-        offset_table, boundary_phases = ce.build_hall_offset_table(
-            hall_cal_data, cal_result, poles=self.args.cal_motor_poles)
-
-        print("Hall boundary deltas (deg):",
-              [f"{math.degrees((p - k * math.pi / 3 + math.pi) % (2 * math.pi) - math.pi):+.1f}"
-               for k, p in enumerate(boundary_phases)])
 
         for i, value in enumerate(offset_table):
             await self.command(f"conf set motor.offset.{i} {value:.6f}")
@@ -2915,6 +2964,16 @@ async def async_main():
     parser.add_argument('--cal-motor-poles', metavar='N', type=int,
                         default=None,
                         help='number of motor poles (2x pole pairs)')
+    parser.add_argument('--cal-hall-cycles', metavar='N', type=int,
+                        default=3,
+                        help='electrical cycles to sweep in each '
+                        'direction during hall calibration; <= 0 '
+                        'sweeps a full mechanical revolution')
+    parser.add_argument('--cal-hall-settle', metavar='S', type=float,
+                        default=0.05,
+                        help='per-step settle time in seconds during '
+                        'hall calibration sweeps; increase for high '
+                        'inertia or high friction rotors')
     parser.add_argument('--cal-force-kv', metavar='Kv', type=float,
                         default=None,
                         help='do not calibrate Kv, but use the specified value')

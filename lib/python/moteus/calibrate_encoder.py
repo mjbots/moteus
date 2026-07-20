@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import collections
 import json
 import math
 import scipy.optimize
@@ -524,47 +525,63 @@ def hall_bits_to_count(raw_bits, offset, sign, polarity):
     return ((base + offset) * sign + 6) % 6
 
 
-def find_hall_boundary_phases(samples):
-    """Given a list of (phase_rad, sector_count) samples taken at
-    monotonically increasing phases across [0, 2*pi), locate each of
-    the 6 sector boundaries.
+def find_hall_boundary_phases_multi(sweeps):
+    """Locate the 6 hall sector boundaries from one or more sweeps.
 
-    boundary_phase[k] is the lower-phase edge of the contiguous
-    "count == k" interval in sweep order, regardless of whether the
-    count sequence is locally increasing or decreasing.  Equivalently,
-    it is the midpoint phase of the +-1 transition that lands on
-    count == k.
+    Each sweep is a list of (phase_rad, sector_count) samples in
+    recording order, with phase monotonic within the sweep (in either
+    direction) and unwrapped, spanning any number of electrical
+    cycles.
 
-    Returns a list of 6 boundary phases (in radians in [0, 2*pi)).
-    Raises if any sector boundary was not observed -- usually a sign
-    the step size is too coarse.
+    Every single-step count transition is one observation of a
+    physical boundary.  Boundary k is the phase at which the
+    "count == k" region begins when traversed
+    in increasing-phase order; a transition seen while sweeping in
+    decreasing phase is the same physical boundary observed from the
+    other side.  The returned phase for each boundary is the circular
+    mean of all of its observations, so settling lag (which is
+    anti-symmetric between sweep directions) cancels, and per-cycle
+    placement variation averages out.
+
+    Returns (boundary_phases, observations).  boundary_phases[k] is in
+    [0, 2*pi); observations[k] is a list of (midpoint, direction)
+    tuples, one per transition, where midpoint is wrapped to
+    [0, 2*pi) and direction is +1 for a crossing with increasing
+    count (from below) and -1 otherwise -- useful for reporting
+    hysteresis.
     """
-    boundary_phase = [None] * 6
-    n = len(samples)
-    for i in range(n):
-        a_phase, a_count = samples[i]
-        b_phase, b_count = samples[(i + 1) % n]
-        # Wrap b_phase forward across the 0/2pi seam.
-        if (i + 1) == n:
-            b_phase = b_phase + 2 * math.pi
-        # Balanced delta in [-3, 3].  A single-step transition (in
-        # either direction) is one we can use; everything else is
-        # either no transition or a multi-step jump from a coarse
-        # sample interval (the latter is reported via the missing-
-        # sectors check below).
-        delta = ((b_count - a_count + 3) % 6) - 3
-        if abs(delta) != 1:
-            continue
-        midpoint = 0.5 * (a_phase + b_phase) % (2 * math.pi)
-        if boundary_phase[b_count] is None:
-            boundary_phase[b_count] = midpoint
+    observations = [[] for _ in range(6)]
+    for sweep in sweeps:
+        for (a_ph, a_count), (b_ph, b_count) in zip(sweep[:-1], sweep[1:]):
+            delta = ((b_count - a_count + 3) % 6) - 3
+            if abs(delta) != 1:
+                continue
+            # Attribute by the count delta rather than the sweep's
+            # phase direction: a +1 step enters the higher-count
+            # sector from below, while a -1 step re-crosses that
+            # same physical boundary from above.  A hall bounce
+            # (the count briefly re-crossing a boundary it just
+            # crossed) then yields a nearly-canceling pair of
+            # observations straddling the one boundary it occurred
+            # at, rather than a 60 deg-e outlier attributed to a
+            # neighboring boundary.
+            boundary = b_count if delta > 0 else a_count
+            midpoint = 0.5 * (a_ph + b_ph)
+            observations[boundary].append(
+                (midpoint % (2 * math.pi), delta))
 
-    missing = [k for k, v in enumerate(boundary_phase) if v is None]
+    missing = [k for k in range(6) if not observations[k]]
     if missing:
         raise RuntimeError(
             f"Hall transition scan missed sectors {missing}; "
             f"reduce step size or raise encoder voltage.")
-    return boundary_phase
+
+    boundary_phases = []
+    for k in range(6):
+        s = sum(math.sin(o[0]) for o in observations[k])
+        c = sum(math.cos(o[0]) for o in observations[k])
+        boundary_phases.append(math.atan2(s, c) % (2 * math.pi))
+    return boundary_phases, observations
 
 
 def compute_hall_offset_table(boundary_phases, cpr,
@@ -608,30 +625,86 @@ def compute_hall_offset_table(boundary_phases, cpr,
     return out
 
 
-def build_hall_offset_table(hall_cal_data, cal_result, poles,
-                            table_size=HALL_OFFSET_TABLE_SIZE):
-    """Build the motor.offset[] table from a raw hall sweep and the
-    `calibrate_hall` result.
+def build_hall_offset_table_multi(sweeps, cal_result, poles,
+                                  table_size=HALL_OFFSET_TABLE_SIZE):
+    """Build the motor.offset[] table from one or more raw hall sweeps
+    and the `calibrate_hall` result.
 
-    hall_cal_data is a list of (phase_rad, raw_bits) pairs spanning
-    one electrical cycle.  The natural (pre --cal-invert) sign is
-    used internally so the table reflects the physical hall layout
-    rather than the post-flip firmware view; the same table is
-    correct regardless of cal_result.phase_invert.
+    sweeps is a list of sweeps, each a list of (phase_rad, raw_bits)
+    pairs in recording order with monotonic (either direction),
+    unwrapped phases, spanning any number of electrical cycles.  Every
+    transition in every sweep contributes to a circular mean per
+    boundary; see find_hall_boundary_phases_multi.
 
-    Returns (offset_table, boundary_phases) where offset_table is the
-    list of `table_size` motor.offset[] values and boundary_phases is
-    the per-sector measurement that produced it (useful for logging).
+    The natural (pre --cal-invert) sign is used internally so the
+    table reflects the physical hall layout regardless of
+    cal_result.phase_invert.
+
+    Returns (offset_table, boundary_phases, observations) where
+    observations is find_hall_boundary_phases_multi's per-boundary
+    observation list.
     """
+    for i, sweep in enumerate(sweeps):
+        invalid = sum(1 for _, raw_bits in sweep if raw_bits in (0, 7))
+        if invalid:
+            raise RuntimeError(
+                f"sweep {i}: {invalid} invalid hall state(s) "
+                f"(bits 0 or 7) observed; check hall wiring and power")
     natural_sign = (-cal_result.sign if cal_result.phase_invert
                     else cal_result.sign)
-    sector_samples = [
-        (phase, hall_bits_to_count(
+    sector_sweeps = [
+        [(phase, hall_bits_to_count(
             raw_bits, offset=cal_result.offset,
             sign=natural_sign,
             polarity=cal_result.polarity))
-        for (phase, raw_bits) in hall_cal_data]
-    boundary_phases = find_hall_boundary_phases(sector_samples)
+         for (phase, raw_bits) in sweep]
+        for sweep in sweeps]
+    boundary_phases, observations = \
+        find_hall_boundary_phases_multi(sector_sweeps)
     offset_table = compute_hall_offset_table(
         boundary_phases, cpr=3 * poles, table_size=table_size)
-    return offset_table, boundary_phases
+    return offset_table, boundary_phases, observations
+
+
+HallBoundarySummary = collections.namedtuple(
+    'HallBoundarySummary',
+    ['delta', 'hysteresis', 'spread', 'count_up', 'count_down'])
+
+
+def summarize_hall_observations(boundary_phases, observations):
+    """Reduce find_hall_boundary_phases_multi's observations to
+    per-boundary statistics for reporting.
+
+    Returns a list of 6 HallBoundarySummary tuples, all angles in
+    radians.  delta is the boundary's mean deviation from its ideal
+    location; hysteresis is the difference between the means of the
+    up- and down-direction crossings (0.0 if a direction was never
+    observed); spread is the RMS deviation of the observations about
+    their own direction's mean, so large spread means the boundary's
+    placement varies significantly from pole pair to pole pair.
+    count_up/count_down are the number of crossings observed in each
+    direction -- on a clean scan both equal the number of electrical
+    cycles swept per direction.
+    """
+    def wrap_pi(x):
+        return (x + math.pi) % (2 * math.pi) - math.pi
+
+    result = []
+    for k, p in enumerate(boundary_phases):
+        by_dir = {}
+        for midpoint, direction in observations[k]:
+            by_dir.setdefault(direction, []).append(wrap_pi(midpoint - p))
+        dir_means = {d: sum(v) / len(v) for d, v in by_dir.items()}
+        hysteresis = abs(dir_means.get(1, 0.0) - dir_means.get(-1, 0.0)) \
+            if len(dir_means) == 2 else 0.0
+        devs = [x - dir_means[d]
+                for d, vals in by_dir.items() for x in vals]
+        spread = (sum(x * x for x in devs) / len(devs)) ** 0.5 \
+            if devs else 0.0
+        result.append(HallBoundarySummary(
+            delta=wrap_pi(p - k * math.pi / 3),
+            hysteresis=hysteresis,
+            spread=spread,
+            count_up=len(by_dir.get(1, [])),
+            count_down=len(by_dir.get(-1, []))))
+    return result
