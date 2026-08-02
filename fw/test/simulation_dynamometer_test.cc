@@ -1129,6 +1129,62 @@ BOOST_AUTO_TEST_CASE(SimFixedVoltageModeReverse) {
 }
 
 // ==========================================================================
+// Synthetic theta electrical frequency limit test
+// ==========================================================================
+
+// Modes which do not commutate from an encoder (synthetic theta, here
+// fixed_voltage_mode) are limited to kMaxSyntheticThetaElectricalHz
+// in the electrical frame no matter what velocity is commanded.  This
+// exercises the full chain: ISR_CalculateDerivedQuantities clamps
+// motor_max_velocity, BldcServoPosition::UpdateCommand clamps
+// control_velocity, and the synthetic electrical theta advances at
+// the clamped rate.
+BOOST_AUTO_TEST_CASE(SimSyntheticThetaFrequencyLimit) {
+  ctx.config_.bemf_feedforward_override = true;
+  ctx.Reset();
+  ConfigureFixedVoltageMode(ctx);
+
+  // With 14 poles and rotor_to_output_ratio == 1.0, the synthetic
+  // theta limit is 2 * 300 / 14 ~= 42.9 rev/s.  Command well above
+  // it (but below config_.max_velocity == 100).
+  const float velocity_limit =
+      kMaxSyntheticThetaElectricalHz * 2.0f / ctx.motor_.poles;
+  auto cmd = MakePositionCommand(kNaN, 80.0f, 0.3f);
+  ctx.Command(&cmd);
+  BOOST_TEST(cmd.synthetic_theta == true);
+
+  // Let the velocity limit filters converge.
+  ctx.RunSimulation(&cmd, 1.0f);
+
+  // Measure the actual electrical frequency over a window by
+  // unwrapping status_.electrical_theta.
+  float accumulated_rad = 0.0f;
+  float last_theta = ctx.status_.electrical_theta;
+  const int steps = static_cast<int>(0.1f / ctx.rate_config_.period_s);
+  for (int i = 0; i < steps; i++) {
+    ctx.StepSimulation(&cmd);
+    float delta = ctx.status_.electrical_theta - last_theta;
+    if (delta > kPi) { delta -= k2Pi; }
+    if (delta < -kPi) { delta += k2Pi; }
+    accumulated_rad += delta;
+    last_theta = ctx.status_.electrical_theta;
+  }
+  const float electrical_hz =
+      accumulated_rad /
+      (k2Pi * static_cast<float>(steps) * ctx.rate_config_.period_s);
+
+  // Must be limited to kMaxSyntheticThetaElectricalHz, and must
+  // actually be spinning at the limit (not stalled), demonstrating
+  // the limit rather than some other failure was binding.
+  BOOST_TEST(electrical_hz <= kMaxSyntheticThetaElectricalHz * 1.01f);
+  BOOST_TEST(electrical_hz >= kMaxSyntheticThetaElectricalHz * 0.9f);
+
+  // The reported velocity must likewise be clamped.
+  BOOST_TEST(std::abs(*ctx.status_.control_velocity) <=
+             velocity_limit * 1.01f);
+}
+
+// ==========================================================================
 // Current mode test
 // ==========================================================================
 

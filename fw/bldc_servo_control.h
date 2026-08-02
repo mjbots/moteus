@@ -119,6 +119,17 @@ int MapConfig(const Array& array, int value) {
 // and the gate driver's CSA settling time.
 constexpr float kIsrSampleTime = 0.60e-6f;
 
+// When commutation is not performed from an encoder ("synthetic
+// theta", i.e. fixed_voltage_mode or the fixed voltage/current
+// overrides, as well as the kVoltageFoc theta_rate), the achievable
+// electrical frequency is artificially limited to this value.
+constexpr float kMaxSyntheticThetaElectricalHz = 300.0f;
+
+// The same limit expressed as the maximum permissible kVoltageFoc
+// theta_rate, which is in electrical radians per second.
+constexpr float kMaxVoltageFocThetaRate =
+    kMaxSyntheticThetaElectricalHz * k2Pi;
+
 // All of these constants depend upon the pwm rate.
 struct RateConfig {
   int int_rate_hz = 0;
@@ -381,6 +392,17 @@ class BldcServoControl {
       const float cpr = static_cast<float>(pos_config->sources[cs].cpr);
       commutation_inv_cpr_ = (cpr > 0.0f) ? (1.0f / cpr) : 0.0f;
     }
+
+    // The rotor mechanical frequency corresponding to
+    // kMaxSyntheticThetaElectricalHz.  With poles unset (motor not
+    // yet calibrated), no synthetic theta can be generated at all, so
+    // no limit need apply.
+    max_synthetic_theta_rotor_hz_ =
+        (self().motor_.poles > 0) ?
+        (kMaxSyntheticThetaElectricalHz * 2.0f /
+         static_cast<float>(self().motor_.poles)) :
+        std::numeric_limits<float>::infinity();
+
     // Cache a TorqueModel with precomputed reciprocals so the ISR
     // can use multiplications instead of divisions.
     torque_model_ = TorqueModel(
@@ -622,6 +644,22 @@ class BldcServoControl {
       return std::min(cpsr_velocity, board_max_velocity);
     }();
     max_velocity_filter_(max_velocity, &self().status_.motor_max_velocity);
+
+    if (use_synthetic_theta) {
+      // Modes which commutate without an encoder are limited to
+      // kMaxSyntheticThetaElectricalHz in the electrical frame.
+      // BldcServoPosition::UpdateCommand clamps control_velocity, and
+      // thus the rate of synthetic theta advance, to
+      // +-motor_max_velocity.  Clamp after the filters so the limit
+      // takes effect immediately upon entering a synthetic theta
+      // mode.
+      const float synthetic_limit =
+          max_synthetic_theta_rotor_hz_ * rotor_to_output_ratio;
+      self().status_.motor_base_velocity =
+          std::min(self().status_.motor_base_velocity, synthetic_limit);
+      self().status_.motor_max_velocity =
+          std::min(self().status_.motor_max_velocity, synthetic_limit);
+    }
 
     return sin_cos;
   }
@@ -1422,6 +1460,11 @@ class BldcServoControl {
   }
 
   void ISR_DoVoltageFOC(BldcServoCommandData* data) MOTEUS_CCM_ATTRIBUTE {
+    // kVoltageFoc commutates from a host commanded theta_rate rather
+    // than an encoder, so it is subject to the
+    // kMaxSyntheticThetaElectricalHz limit.
+    data->theta_rate = Limit(
+        data->theta_rate, -kMaxVoltageFocThetaRate, kMaxVoltageFocThetaRate);
     data->theta += data->theta_rate * self().rate_config_.period_s;
     SinCos sc = self().cordic(RadiansToQ31(data->theta));
     const float max_voltage = (0.5f - self().rate_config_.min_pwm) *
@@ -1783,6 +1826,7 @@ class BldcServoControl {
   float fw_id_char_at_max_current_ = 0.0f;  // lambda_m / L_d(-fw_max_current_A_)
   float half_over_R_ = 0.0f;                // 0.5 / resistance_ohm (multiplied by filt_bus_V for Imax voltage limit)
   float board_max_velocity_factor_ = 0.0f;  // 0.5 * (max_voltage - kBoardVoltageMargin) / v_per_hz (multiplied by rotor_to_output_ratio for board_max_velocity)
+  float max_synthetic_theta_rotor_hz_ = 0.0f;  // kMaxSyntheticThetaElectricalHz * 2 / poles (multiplied by rotor_to_output_ratio for the synthetic theta velocity limit)
   float commutation_inv_cpr_ = 0.0f;        // 1 / commutation source cpr (avoids u32->float convert and divide every ISR)
   // Cached torque model — reconstructed in UpdateDerivedMotorConstants
   // so the per-call setup (including reciprocals) stays out of the

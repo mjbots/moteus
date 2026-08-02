@@ -104,6 +104,13 @@ struct Context : public BldcServoControl<Context> {
     return absolute_relative_delta_val;
   }
 
+  // Expose the protected filter initialization so tests can opt in
+  // to the real firmware filter time constants instead of the
+  // default pass-through filters.
+  void InitFilters(float pwm_rate_hz) {
+    InitControlFilters(pwm_rate_hz);
+  }
+
   Context() {
     // Non-default base-class state for this fixture.
     torque_constant_ = 0.1f;
@@ -714,6 +721,122 @@ BOOST_AUTO_TEST_CASE(BldcServoControlMotorMaxVelocityWhenUncalibrated) {
   BOOST_TEST(ctx.status_.motor_max_velocity > 1.0f);
 }
 
+namespace {
+// Configure a calibrated motor whose voltage-limited maximum
+// velocity is well above the synthetic theta electrical frequency
+// limit.  With Kv = 380 and a 24V bus, the unclamped maximum
+// velocity is roughly 108 rev/s, while the synthetic theta limit
+// for a 14 pole motor is 2 * 300 / 14 ~= 42.9 rev/s.
+void SetupSyntheticThetaContext(Context* ctx) {
+  ctx->status_.bus_V = 24.0f;
+  ctx->status_.filt_bus_V = 24.0f;
+  ctx->position_.epoch = 0;
+  ctx->isr_motor_position_epoch_ = 0;
+  ctx->motor_.poles = 14;
+  ctx->motor_.Kv = 380.0f;
+  ctx->motor_position_config_val.output.sign = 1;
+  ctx->motor_position_config_val.rotor_to_output_ratio = 1.0f;
+  // The synthetic theta path computes electrical theta from
+  // control_position_raw.
+  ctx->status_.control_position_raw = 0;
+
+  ctx->UpdateDerivedMotorConstants();
+  ctx->UpdateFieldWeakeningIdChar();
+}
+}  // namespace
+
+// Modes which do not commutate from an encoder (synthetic theta:
+// fixed_voltage_mode and the fixed voltage/current overrides) must
+// not be able to exceed kMaxSyntheticThetaElectricalHz in the
+// electrical frame.  BldcServoPosition::UpdateCommand clamps
+// control_velocity (which is what advances synthetic theta) to
+// +-motor_max_velocity, so verifying motor_max_velocity bounds the
+// electrical frequency.
+BOOST_AUTO_TEST_CASE(BldcServoControlSyntheticThetaVelocityLimit) {
+  Context ctx;
+  SetupSyntheticThetaContext(&ctx);
+
+  for (int i = 0; i < 100; i++) {
+    ctx.ISR_CalculateDerivedQuantities(0.0f, 0.0f, 0.0f, true);
+  }
+
+  const float expected_limit =
+      kMaxSyntheticThetaElectricalHz * 2.0f / 14.0f;
+  BOOST_TEST(ctx.status_.motor_max_velocity == expected_limit,
+             tt::tolerance(1e-3f));
+  BOOST_TEST(ctx.status_.motor_base_velocity <= expected_limit * 1.001f);
+
+  // The identical configuration commutating from the encoder must
+  // permit much higher speeds, i.e. the synthetic theta limit is
+  // what was binding above.
+  for (int i = 0; i < 100; i++) {
+    ctx.ISR_CalculateDerivedQuantities(0.0f, 0.0f, 0.0f, false);
+  }
+  BOOST_TEST(ctx.status_.motor_max_velocity > 2.0f * expected_limit);
+}
+
+// The synthetic theta limit is defined in the electrical frame, so
+// the output-space velocity limit must scale with
+// rotor_to_output_ratio.
+BOOST_AUTO_TEST_CASE(BldcServoControlSyntheticThetaVelocityLimitGearRatio) {
+  Context ctx;
+  SetupSyntheticThetaContext(&ctx);
+  ctx.motor_position_config_val.rotor_to_output_ratio = 0.1f;
+  ctx.UpdateDerivedMotorConstants();
+
+  for (int i = 0; i < 100; i++) {
+    ctx.ISR_CalculateDerivedQuantities(0.0f, 0.0f, 0.0f, true);
+  }
+
+  const float expected_limit =
+      kMaxSyntheticThetaElectricalHz * 2.0f / 14.0f * 0.1f;
+  BOOST_TEST(ctx.status_.motor_max_velocity == expected_limit,
+             tt::tolerance(1e-3f));
+}
+
+// The limit must take effect on the very first cycle of synthetic
+// theta operation, even if the velocity limit filters had previously
+// converged to a much larger value while commutating from the
+// encoder.
+BOOST_AUTO_TEST_CASE(BldcServoControlSyntheticThetaVelocityLimitImmediate) {
+  Context ctx;
+  SetupSyntheticThetaContext(&ctx);
+  // Use the real firmware filter time constants so that
+  // motor_max_velocity has persistent state across cycles.
+  ctx.InitFilters(30000.0f);
+
+  const float expected_limit =
+      kMaxSyntheticThetaElectricalHz * 2.0f / 14.0f;
+
+  // Converge the filters while commutating from the encoder.
+  for (int i = 0; i < 30000; i++) {
+    ctx.ISR_CalculateDerivedQuantities(0.0f, 0.0f, 0.0f, false);
+  }
+  BOOST_TEST(ctx.status_.motor_max_velocity > 2.0f * expected_limit);
+
+  // A single synthetic theta cycle must already be clamped.
+  ctx.ISR_CalculateDerivedQuantities(0.0f, 0.0f, 0.0f, true);
+  BOOST_TEST(ctx.status_.motor_max_velocity <= expected_limit * 1.001f);
+}
+
+// With no motor calibration (poles == 0), no synthetic theta can be
+// generated at all, so the limit must not clamp motor_max_velocity
+// to zero and break current-mode encoder calibration.
+BOOST_AUTO_TEST_CASE(BldcServoControlSyntheticThetaVelocityLimitUncalibrated) {
+  Context ctx;
+  SetupSyntheticThetaContext(&ctx);
+  ctx.motor_.poles = 0;
+  ctx.motor_.Kv = 0.0f;
+  ctx.UpdateDerivedMotorConstants();
+  ctx.UpdateFieldWeakeningIdChar();
+
+  for (int i = 0; i < 100; i++) {
+    ctx.ISR_CalculateDerivedQuantities(0.0f, 0.0f, 0.0f, true);
+  }
+
+  BOOST_TEST(ctx.status_.motor_max_velocity > 1.0f);
+}
+
 BOOST_AUTO_TEST_CASE(BldcServoControlDoPosition) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
@@ -882,6 +1005,39 @@ BOOST_AUTO_TEST_CASE(BldcServoControlVoltageFOC) {
              tt::tolerance(1e-6f));
   // Should have driven voltage.
   BOOST_TEST(ctx.pwm_control_count == 1);
+}
+
+// kVoltageFoc (which commutates from a host commanded theta_rate
+// rather than an encoder) must not be able to exceed
+// kMaxSyntheticThetaElectricalHz in the electrical frame.
+BOOST_AUTO_TEST_CASE(BldcServoControlVoltageFOCThetaRateLimit) {
+  Context ctx;
+  ctx.status_.filt_bus_V = 24.0f;
+
+  for (const float sign : {1.0f, -1.0f}) {
+    BldcServoCommandData data;
+    data.theta = 0.0f;
+    // Command well above the limit of 2 * pi * 300 ~= 1885 rad/s.
+    data.theta_rate = sign * 10000.0f;
+    data.voltage = 5.0f;
+
+    ctx.ISR_DoVoltageFOC(&data);
+
+    // theta must have advanced at no more than the limited rate.
+    BOOST_TEST(data.theta ==
+               sign * kMaxVoltageFocThetaRate * ctx.rate_config_.period_s,
+               tt::tolerance(1e-6f));
+    BOOST_TEST(data.theta_rate == sign * kMaxVoltageFocThetaRate,
+               tt::tolerance(1e-6f));
+  }
+
+  // A rate below the limit must be untouched.
+  BldcServoCommandData data;
+  data.theta = 0.0f;
+  data.theta_rate = 100.0f;
+  data.voltage = 5.0f;
+  ctx.ISR_DoVoltageFOC(&data);
+  BOOST_TEST(data.theta_rate == 100.0f, tt::tolerance(1e-6f));
 }
 
 BOOST_AUTO_TEST_CASE(BldcServoControlDoStopped) {
