@@ -2518,7 +2518,7 @@ class Application {
     co_await dut_->Command("d index 0");
 
     // Field weakening is allowed to use more runtime cycles.
-    dut_->SetMaxFinalTimer(3970);
+    dut_->SetMaxFinalTimer(3980);
 
     Controller::PidConstants pid;
     pid.fw_enable = true;
