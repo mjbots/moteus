@@ -39,7 +39,7 @@ def dyno(*args, keep_log=False):
 
     try:
         subprocess.run(args = [DYNAMOMETER_DRIVE,
-                               '--torque_transducer', '/dev/ttyUSB0',
+                               '--torque_transducer', '/dev/serial/by-id/usb-FTDI_FT231X_USB_UART_D3086Z20-if00-port0',
                                '--log', tmp.name] + list(args),
                        check = True)
         if not keep_log:
