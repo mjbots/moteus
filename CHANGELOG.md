@@ -11,6 +11,28 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
 (no entries yet)
 
+### 1.1.1 - 2026-08-04
+
+- Change the default gate drive strength for moteus-n1 to the values which it was qualified at.  When the moteus-c1 was introduced, the moteus-n1 was accidentally set to more aggressive gate drive strength values.  This could result in increased gate drive failure rates with poor phase wire soldering or input voltages above 36V.
+- Improve hall effect performance
+  - Reduce velocity ripple by not starting the velocity decay process until *after* the expected transition
+  - Improve velocity estimation when hall rising and falling times are mismatched
+- Fix AksIM-2 wrapping on startup
+- CUI AMT21: Actually operate the RS485 bus in half-duplex mode.  Previously, transmit was always asserted, which would occasionally sometimes work, but resulted in two masters on the bus at the same time.
+- Improve I2C aux port robustness
+  - Reset peripherals that are unresponsive
+  - Enable the STM32 analog filter
+  - Disable the STM32 own address matching feature
+- Fix the location of the default UART port for moteus-c1 and moteus-n1.  The location of the UART port by default for all controllers now matches the documentation:
+  - moteus-r4: AUX2/ABS
+  - moteus-n1: AUX1
+  - moteus-c1: AUX2
+  - moteus-x1: AUX1
+
+### 1.1.0 - 2026-08-04
+
+Erroneous release with no changelog
+
 ### 1.0.0 - 2026-05-28
 
 #### Firmware improvements
@@ -45,6 +67,18 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 ### Unreleased
 
 (no entries yet)
+
+### 1.1.1 - 2026-08-04
+
+- Improve hall effect calibration
+  - Fine calibration of hall transition point within the electrical cycle
+  - Sweep through 3 electrical cycles in forward and reverse direction
+  - If a hall sensor transition happens to be right on a sample point and oscillates, do something reasonable
+- Support firmware ABI 1.1.0
+
+### 1.1.0 - 2026-08-04
+
+Erroneous release with no changelog
 
 ### 1.0.0 - 2026-05-28
 
