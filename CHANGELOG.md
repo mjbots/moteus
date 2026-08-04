@@ -68,13 +68,17 @@ Erroneous release with no changelog
 
 (no entries yet)
 
-### 1.1.1 - 2026-08-04
+### 1.1.2 - 2026-08-04
 
 - Improve hall effect calibration
   - Fine calibration of hall transition point within the electrical cycle
   - Sweep through 3 electrical cycles in forward and reverse direction
   - If a hall sensor transition happens to be right on a sample point and oscillates, do something reasonable
 - Support firmware ABI 1.1.0
+
+### 1.1.1 - 2026-08-04
+
+Unreleased version
 
 ### 1.1.0 - 2026-08-04
 

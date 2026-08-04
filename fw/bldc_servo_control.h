@@ -123,7 +123,7 @@ constexpr float kIsrSampleTime = 0.60e-6f;
 // theta", i.e. fixed_voltage_mode or the fixed voltage/current
 // overrides, as well as the kVoltageFoc theta_rate), the achievable
 // electrical frequency is artificially limited to this value.
-constexpr float kMaxSyntheticThetaElectricalHz = 300.0f;
+constexpr float kMaxSyntheticThetaElectricalHz = 299.0f;
 
 // The same limit expressed as the maximum permissible kVoltageFoc
 // theta_rate, which is in electrical radians per second.
