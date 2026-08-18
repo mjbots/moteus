@@ -83,8 +83,12 @@ class MosracS {
         (uint32_t)(buffer_[2]) << 16 |
         (uint32_t)(buffer_[3]) << 8 |
         (uint32_t)(buffer_[4]);
+    const uint16_t multiturn =
+        (uint16_t)(buffer_[0]) << 8 |
+        (uint16_t)(buffer_[1]);
 
     status->value = angle;
+    status->mosrac_s_multiturn = multiturn;
     status->nonce++;
     status->active = validator_.Update(
         status->active, true, angle, timer_->ms_since_boot());
