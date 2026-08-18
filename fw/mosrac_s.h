@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include "fw/absolute_encoder_validator.h"
 #include "fw/aux_common.h"
 #include "fw/millisecond_timer.h"
-#include "fw/mosrac_s_validator.h"
 #include "fw/stm32g4_dma_uart.h"
 
 namespace moteus {
@@ -42,7 +42,8 @@ class MosracS {
         // We timed out.
         uart_->finish_dma_read();
         query_outstanding_ = false;
-        status->active = validator_.Update(status->active, false, 0);
+        status->active = validator_.Update(
+            status->active, false, 0, timer_->ms_since_boot());
       } else {
         ProcessQuery(status);
       }
@@ -85,7 +86,8 @@ class MosracS {
 
     status->value = angle;
     status->nonce++;
-    status->active = validator_.Update(status->active, true, angle);
+    status->active = validator_.Update(
+        status->active, true, angle, timer_->ms_since_boot());
   }
 
   bool ValidateCrc() const MOTEUS_CCM_ATTRIBUTE {
@@ -112,7 +114,7 @@ class MosracS {
 
   bool query_outstanding_ = false;
   uint32_t last_query_start_us_ = 0;
-  MosracSValidator validator_;
+  AbsoluteEncoderValidator validator_;
 
   static constexpr int kResyncBytes = 3;
 

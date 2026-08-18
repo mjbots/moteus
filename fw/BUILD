@@ -45,7 +45,6 @@ cc_library(
         "strtof.h",
         "bissc_extract.h",
         "absolute_encoder_validator.h",
-        "mosrac_s_validator.h",
     ],
     srcs = [
         "foc.cc",
