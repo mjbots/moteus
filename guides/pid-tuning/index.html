@@ -2536,9 +2536,11 @@ If you have an understanding of the system, you could select an initial kp that 
 </ul>
 <p>If you do not set an acceleration limit, or select one that is too high to be physically achievable, your system will experience overshoot during movements and you will find it challenging to tune the P(I)D parameters to achieve a desired response.</p>
 <h2 id="what-not-to-tune">What not to tune<a class="headerlink" href="#what-not-to-tune" title="Permanent link">&para;</a></h2>
-<p>The "current loop" gains are set in <code>servo.pid_dq</code>, and are set during
-calibration based on the desired torque bandwidth.  They are not
-normally changed by the user.  Instead, they are selected by specifying an appropriate <code>--cal-bw-hz</code> during calibration.</p>
+<p>The "current loop" bandwidth is set in <code>servo.pid_dq_hz</code>, and the
+gains are computed automatically from it and the calibrated motor
+parameters.  It is not normally changed by the user directly.
+Instead, it is selected by specifying an appropriate <code>--cal-bw-hz</code>
+during calibration.</p>
 <h2 id="next-steps">Next steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <p>Now you are ready to control moteus using one of the possible control modes:</p>
 <ul>

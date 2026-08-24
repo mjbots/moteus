@@ -2742,7 +2742,7 @@
 <p>The <code>ACAN2517FD</code> constructor requires that it be passed the correct pins that are used for the SPI peripheral connected to the MCP2517FD controller.  For an external controller, you can use the pins you have physically wired to the controller.  For an integrated MCP2517FD you will need to look at your board documentation.</p>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="cp">#define MCP2517_CS  17</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="cp">#define MCP2517_INT 7</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1">// For the Longan CANBed FD, the &quot;SPI&quot; peripheral determines which</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1">// For the Longan CANBed FD, the "SPI" peripheral determines which</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1">// pins are used.</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">ACAN2517FD</span><span class="w"> </span><span class="nf">can</span><span class="p">(</span><span class="n">MCP2517_CS</span><span class="p">,</span><span class="w"> </span><span class="n">SPI</span><span class="p">,</span><span class="w"> </span><span class="n">MCP2517_INT</span><span class="p">);</span>
 </span></code></pre></div>

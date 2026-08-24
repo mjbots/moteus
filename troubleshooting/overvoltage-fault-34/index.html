@@ -1827,10 +1827,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#servoflux_brake_resistance" class="md-nav__link">
+  <a href="#servoflux_brake_resistance_ohm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.flux_brake_resistance
+        servo.flux_brake_resistance_ohm
       
     </span>
   </a>
@@ -1838,10 +1838,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#servopid_dqmax_desired_rate" class="md-nav__link">
+  <a href="#servomax_current_desired_rate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.pid_dq.max_desired_rate
+        servo.max_current_desired_rate
       
     </span>
   </a>
@@ -2630,10 +2630,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#servoflux_brake_resistance" class="md-nav__link">
+  <a href="#servoflux_brake_resistance_ohm" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.flux_brake_resistance
+        servo.flux_brake_resistance_ohm
       
     </span>
   </a>
@@ -2641,10 +2641,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#servopid_dqmax_desired_rate" class="md-nav__link">
+  <a href="#servomax_current_desired_rate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.pid_dq.max_desired_rate
+        servo.max_current_desired_rate
       
     </span>
   </a>
@@ -2729,9 +2729,9 @@
 <li><code>servo.max_voltage</code>: When the voltage reaches this point, the over-voltage fault will trigger.</li>
 </ul>
 <p>You can increase <code>servo.flux_brake_margin_voltage</code> until the trigger point is maybe 1V above your nominal system voltage or fully charged voltage if on a battery.  You can also increase <code>servo.max_voltage</code> and <code>servo.flux_brake_margin_voltage</code> at the same time to give even more room.</p>
-<h3 id="servoflux_brake_resistance"><code>servo.flux_brake_resistance</code><a class="headerlink" href="#servoflux_brake_resistance" title="Permanent link">&para;</a></h3>
+<h3 id="servoflux_brake_resistance_ohm"><code>servo.flux_brake_resistance_ohm</code><a class="headerlink" href="#servoflux_brake_resistance_ohm" title="Permanent link">&para;</a></h3>
 <p>This constant determines how much energy is dissipated in the windigs for a given amount of voltage rise.  Lower values are more aggressive and will dissipate more energy, but can be less stable.  Unless you have a good mechanism for verifying stability, it is not recommended to lower this more than a factor of 2x from the default.</p>
-<h3 id="servopid_dqmax_desired_rate"><code>servo.pid_dq.max_desired_rate</code><a class="headerlink" href="#servopid_dqmax_desired_rate" title="Permanent link">&para;</a></h3>
+<h3 id="servomax_current_desired_rate"><code>servo.max_current_desired_rate</code><a class="headerlink" href="#servomax_current_desired_rate" title="Permanent link">&para;</a></h3>
 <p>This configuration value selects the maximum rate at which desired current can change.  By default, it is relatively slow at 10000A/s.  However, if you have raised it previously, lowering it back down can help reduce the rate at which regenerative power is increased.  If your application can tolerate it, lowering further will increase the effectiveness of flux braking.</p>
 
 

@@ -1967,10 +1967,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servopid_dq" class="md-nav__link">
+  <a href="#servopid_dq_hz" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.pid_dq
+        servo.pid_dq_hz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servomax_current_desired_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.max_current_desired_rate
       
     </span>
   </a>
@@ -2099,10 +2110,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servoderate_temperature" class="md-nav__link">
+  <a href="#servotemperature_margin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.derate_temperature
+        servo.temperature_margin
       
     </span>
   </a>
@@ -2132,10 +2143,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servomotor_derate_temperature" class="md-nav__link">
+  <a href="#servomotor_temperature_margin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.motor_derate_temperature
+        servo.motor_temperature_margin
       
     </span>
   </a>
@@ -2385,10 +2396,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aux12i2cdevicesxpoll_ms" class="md-nav__link">
+  <a href="#aux12i2cdevicesxpoll_rate_us" class="md-nav__link">
     <span class="md-ellipsis">
       
-        aux[12].i2c.devices.X.poll_ms
+        aux[12].i2c.devices.X.poll_rate_us
       
     </span>
   </a>
@@ -3287,10 +3298,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servopid_dq" class="md-nav__link">
+  <a href="#servopid_dq_hz" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.pid_dq
+        servo.pid_dq_hz
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servomax_current_desired_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.max_current_desired_rate
       
     </span>
   </a>
@@ -3419,10 +3441,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servoderate_temperature" class="md-nav__link">
+  <a href="#servotemperature_margin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.derate_temperature
+        servo.temperature_margin
       
     </span>
   </a>
@@ -3452,10 +3474,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servomotor_derate_temperature" class="md-nav__link">
+  <a href="#servomotor_temperature_margin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.motor_derate_temperature
+        servo.motor_temperature_margin
       
     </span>
   </a>
@@ -3705,10 +3727,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aux12i2cdevicesxpoll_ms" class="md-nav__link">
+  <a href="#aux12i2cdevicesxpoll_rate_us" class="md-nav__link">
     <span class="md-ellipsis">
       
-        aux[12].i2c.devices.X.poll_ms
+        aux[12].i2c.devices.X.poll_rate_us
       
     </span>
   </a>
@@ -4159,9 +4181,14 @@ revolution per second of error will result in 1 Nm of corrective
 torque.  Doubly note that these values are measured at the output,
 thus <em>after</em> any scaling in position, velocity, and torque implied by
 <code>motor_position.rotor_to_output_ratio</code>.</p>
-<h2 id="servopid_dq"><code>servo.pid_dq</code><a class="headerlink" href="#servopid_dq" title="Permanent link">&para;</a></h2>
-<p>These have the same semantics as the position mode PID controller, and
-affect the current control loop.</p>
+<h2 id="servopid_dq_hz"><code>servo.pid_dq_hz</code><a class="headerlink" href="#servopid_dq_hz" title="Permanent link">&para;</a></h2>
+<p>The bandwidth of the current control loop in Hz.  The PI gains for the
+current controller are computed automatically from this bandwidth and
+the calibrated motor resistance and inductance.  It is normally set
+during calibration by the <code>--cal-bw-hz</code> option to <code>moteus_tool</code>.</p>
+<h2 id="servomax_current_desired_rate"><code>servo.max_current_desired_rate</code><a class="headerlink" href="#servomax_current_desired_rate" title="Permanent link">&para;</a></h2>
+<p>The maximum rate at which the desired current can change, in A/s.  0
+means unlimited.</p>
 <h2 id="servodefault_velocity_limit-servodefault_accel_limit"><code>servo.default_velocity_limit</code> / <code>servo.default_accel_limit</code><a class="headerlink" href="#servodefault_velocity_limit-servodefault_accel_limit" title="Permanent link">&para;</a></h2>
 <p>Limits to be placed on trajectories generated within moteus.  If
 either is <code>nan</code>, then that limit is unset.  The limits may also be
@@ -4211,7 +4238,7 @@ sense resistors is not an option, this flag can be used to achieve
 smooth control.  The downside is that the actual torque will no longer
 follow the applied torque accurately at speed, or in the face of
 external disturbances.</p>
-<p>When set, the <code>servo.pid_dq</code> configuration values no longer affect
+<p>When set, the <code>servo.pid_dq_hz</code> configuration value no longer affects
 anything.</p>
 <h2 id="servofixed_voltage_mode"><code>servo.fixed_voltage_mode</code><a class="headerlink" href="#servofixed_voltage_mode" title="Permanent link">&para;</a></h2>
 <p>If non-zero, then no feedback based control of either position or
@@ -4258,16 +4285,18 @@ it is larger than the factory board power profile.</p>
 <p>The PWM rate to use, defaulting to 30000.  Allowable values are
 between 15000 and 60000.  Lower values increase efficiency, but limit
 peak power and reduce the maximum speed and control bandwidth.</p>
-<h2 id="servoderate_temperature"><code>servo.derate_temperature</code><a class="headerlink" href="#servoderate_temperature" title="Permanent link">&para;</a></h2>
-<p>Torque begins to be limited when the temperature reaches this value.</p>
+<h2 id="servotemperature_margin"><code>servo.temperature_margin</code><a class="headerlink" href="#servotemperature_margin" title="Permanent link">&para;</a></h2>
+<p>Torque begins to be limited when the temperature is within this many
+degrees Celsius of <code>servo.fault_temperature</code>.</p>
 <h2 id="servofault_temperature"><code>servo.fault_temperature</code><a class="headerlink" href="#servofault_temperature" title="Permanent link">&para;</a></h2>
 <p>If the temperature reaches this value, a fault is triggered and all
 torque is stopped.</p>
 <h2 id="servoenable_motor_temperature"><code>servo.enable_motor_temperature</code><a class="headerlink" href="#servoenable_motor_temperature" title="Permanent link">&para;</a></h2>
 <p>If true, then the motor temperature will be sensed via the TEMP pads
 on the board.</p>
-<h2 id="servomotor_derate_temperature"><code>servo.motor_derate_temperature</code><a class="headerlink" href="#servomotor_derate_temperature" title="Permanent link">&para;</a></h2>
-<p>Torque begins to be limited when the motor temperature reaches this value.</p>
+<h2 id="servomotor_temperature_margin"><code>servo.motor_temperature_margin</code><a class="headerlink" href="#servomotor_temperature_margin" title="Permanent link">&para;</a></h2>
+<p>Torque begins to be limited when the motor temperature is within this
+many degrees Celsius of <code>servo.motor_fault_temperature</code>.</p>
 <h2 id="servomotor_fault_temperature"><code>servo.motor_fault_temperature</code><a class="headerlink" href="#servomotor_fault_temperature" title="Permanent link">&para;</a></h2>
 <p>If the motor temperature reaches this value, a fault is triggered and
 all torque is stopped.</p>
@@ -4314,14 +4343,14 @@ power is reduced to 0.</p>
 <p>These values configure a higher order torque model for a motor.</p>
 <ul>
 <li><code>servo.rotation_current_cutoff_A</code> if the phase current is less than
-  this value, then the linear relationship implied by <code>motor.v_per_hz</code>
+  this value, then the linear relationship implied by <code>motor.Kv</code>
   is used.</li>
 </ul>
 <p>Once above that cutoff, the following formula is used to determine
 torque from phase current:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>torque = cutoff * tc + torque_scale * log2(1 + (I - cutoff) * current_scale)
 </span></code></pre></div>
-<p>Where <code>tc</code> is the torque constant derived from <code>motor.v_per_hz</code>.</p>
+<p>Where <code>tc</code> is the torque constant derived from <code>motor.Kv</code>.</p>
 <p>This model is not automatically calibrated, and needs to be determined
 and configured manually.</p>
 <h2 id="servodefault_timeout_s"><code>servo.default_timeout_s</code><a class="headerlink" href="#servodefault_timeout_s" title="Permanent link">&para;</a></h2>
@@ -4409,9 +4438,9 @@ pullups are not available on this auxiliary port for this board.</p>
 </ul>
 <h2 id="aux12i2cdevicesxaddress"><code>aux[12].i2c.devices.X.address</code><a class="headerlink" href="#aux12i2cdevicesxaddress" title="Permanent link">&para;</a></h2>
 <p>The I2C address to use.</p>
-<h2 id="aux12i2cdevicesxpoll_ms"><code>aux[12].i2c.devices.X.poll_ms</code><a class="headerlink" href="#aux12i2cdevicesxpoll_ms" title="Permanent link">&para;</a></h2>
-<p>How often in milliseconds to poll the device for more data.  Must no
-less than 5.</p>
+<h2 id="aux12i2cdevicesxpoll_rate_us"><code>aux[12].i2c.devices.X.poll_rate_us</code><a class="headerlink" href="#aux12i2cdevicesxpoll_rate_us" title="Permanent link">&para;</a></h2>
+<p>How often in microseconds to poll the device for more data.  Must be
+no less than 100.</p>
 <h2 id="aux12spimode"><code>aux[12].spi.mode</code><a class="headerlink" href="#aux12spimode" title="Permanent link">&para;</a></h2>
 <p>The type of SPI device.</p>
 <ul>
