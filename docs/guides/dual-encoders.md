@@ -117,7 +117,7 @@ aux1.pins.1.mode 1  # spi
 aux1.pins.2.mode 1  # spi
 aux1.pins.3.mode 2  # spi_cs
 aux1.spi.mode 5     # ma600
-aux1.spi_rate_hz 6000000
+aux1.spi.rate_hz 6000000
 motor_position.sources.1.aux_number 1
 motor_position.sources.1.type 1  # spi
 motor_position.sources.1.cpr 65536

@@ -76,10 +76,10 @@ Flux braking works by monitoring a filtered version of the system voltage and di
 
 You can increase `servo.flux_brake_margin_voltage` until the trigger point is maybe 1V above your nominal system voltage or fully charged voltage if on a battery.  You can also increase `servo.max_voltage` and `servo.flux_brake_margin_voltage` at the same time to give even more room.
 
-### `servo.flux_brake_resistance`
+### `servo.flux_brake_resistance_ohm`
 
 This constant determines how much energy is dissipated in the windigs for a given amount of voltage rise.  Lower values are more aggressive and will dissipate more energy, but can be less stable.  Unless you have a good mechanism for verifying stability, it is not recommended to lower this more than a factor of 2x from the default.
 
-### `servo.pid_dq.max_desired_rate`
+### `servo.max_current_desired_rate`
 
 This configuration value selects the maximum rate at which desired current can change.  By default, it is relatively slow at 10000A/s.  However, if you have raised it previously, lowering it back down can help reduce the rate at which regenerative power is increased.  If your application can tolerate it, lowering further will increase the effectiveness of flux braking.

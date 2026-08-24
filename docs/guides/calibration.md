@@ -59,7 +59,7 @@ If your application requires changing torque or velocity very quickly there are 
 
 `--cal-bw-hz X`
 
-**`servo.pid_dq.max_desired_rate`**: moteus limits the rate at which the commanded phase current to the motor can change.  By default, this is set to 10000A/s.  For a moteus-r4 with a 100A current limit, that means it can take 20ms to change full range from -100A to 100A.  Many high bandwidth applications will require rates larger than this.
+**`servo.max_current_desired_rate`**: moteus limits the rate at which the commanded phase current to the motor can change.  By default, this is set to 10000A/s.  For a moteus-r4 with a 100A current limit, that means it can take 20ms to change full range from -100A to 100A.  Many high bandwidth applications will require rates larger than this.
 
 ## Troubleshooting
 

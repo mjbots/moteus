@@ -52,9 +52,11 @@ If you do not set an acceleration limit, or select one that is too high to be ph
 
 ## What not to tune
 
-The "current loop" gains are set in `servo.pid_dq`, and are set during
-calibration based on the desired torque bandwidth.  They are not
-normally changed by the user.  Instead, they are selected by specifying an appropriate `--cal-bw-hz` during calibration.
+The "current loop" bandwidth is set in `servo.pid_dq_hz`, and the
+gains are computed automatically from it and the calibrated motor
+parameters.  It is not normally changed by the user directly.
+Instead, it is selected by specifying an appropriate `--cal-bw-hz`
+during calibration.
 
 ## Next steps
 

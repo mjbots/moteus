@@ -49,10 +49,17 @@ torque.  Doubly note that these values are measured at the output,
 thus *after* any scaling in position, velocity, and torque implied by
 `motor_position.rotor_to_output_ratio`.
 
-## `servo.pid_dq`
+## `servo.pid_dq_hz`
 
-These have the same semantics as the position mode PID controller, and
-affect the current control loop.
+The bandwidth of the current control loop in Hz.  The PI gains for the
+current controller are computed automatically from this bandwidth and
+the calibrated motor resistance and inductance.  It is normally set
+during calibration by the `--cal-bw-hz` option to `moteus_tool`.
+
+## `servo.max_current_desired_rate`
+
+The maximum rate at which the desired current can change, in A/s.  0
+means unlimited.
 
 ## `servo.default_velocity_limit` / `servo.default_accel_limit`
 
@@ -109,7 +116,7 @@ smooth control.  The downside is that the actual torque will no longer
 follow the applied torque accurately at speed, or in the face of
 external disturbances.
 
-When set, the `servo.pid_dq` configuration values no longer affect
+When set, the `servo.pid_dq_hz` configuration value no longer affects
 anything.
 
 ## `servo.fixed_voltage_mode`
@@ -178,9 +185,10 @@ The PWM rate to use, defaulting to 30000.  Allowable values are
 between 15000 and 60000.  Lower values increase efficiency, but limit
 peak power and reduce the maximum speed and control bandwidth.
 
-## `servo.derate_temperature`
+## `servo.temperature_margin`
 
-Torque begins to be limited when the temperature reaches this value.
+Torque begins to be limited when the temperature is within this many
+degrees Celsius of `servo.fault_temperature`.
 
 ## `servo.fault_temperature`
 
@@ -192,9 +200,10 @@ torque is stopped.
 If true, then the motor temperature will be sensed via the TEMP pads
 on the board.
 
-## `servo.motor_derate_temperature`
+## `servo.motor_temperature_margin`
 
-Torque begins to be limited when the motor temperature reaches this value.
+Torque begins to be limited when the motor temperature is within this
+many degrees Celsius of `servo.motor_fault_temperature`.
 
 ## `servo.motor_fault_temperature`
 
@@ -263,7 +272,7 @@ power is reduced to 0.
 These values configure a higher order torque model for a motor.
 
 * `servo.rotation_current_cutoff_A` if the phase current is less than
-  this value, then the linear relationship implied by `motor.v_per_hz`
+  this value, then the linear relationship implied by `motor.Kv`
   is used.
 
 Once above that cutoff, the following formula is used to determine
@@ -273,7 +282,7 @@ torque from phase current:
 torque = cutoff * tc + torque_scale * log2(1 + (I - cutoff) * current_scale)
 ```
 
-Where `tc` is the torque constant derived from `motor.v_per_hz`.
+Where `tc` is the torque constant derived from `motor.Kv`.
 
 This model is not automatically calibrated, and needs to be determined
 and configured manually.
@@ -387,10 +396,10 @@ What I2C device to expect.
 
 The I2C address to use.
 
-## `aux[12].i2c.devices.X.poll_ms`
+## `aux[12].i2c.devices.X.poll_rate_us`
 
-How often in milliseconds to poll the device for more data.  Must no
-less than 5.
+How often in microseconds to poll the device for more data.  Must be
+no less than 100.
 
 ## `aux[12].spi.mode`
 
