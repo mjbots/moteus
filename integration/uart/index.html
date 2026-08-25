@@ -2572,9 +2572,15 @@
 <h2 id="default-configuration">Default configuration<a class="headerlink" href="#default-configuration" title="Permanent link">&para;</a></h2>
 <p>By default, moteus controllers with a sufficiently new firmware version have the following pins configured for that purpose.</p>
 <ul>
-<li>moteus-r4: aux2 a/b</li>
-<li>moteus-c1: aux2 b/c</li>
-<li>moteus-n1/moteus-x1: aux1 d/e</li>
+<li><a href="../../reference/pinouts/#moteus-r4">moteus-r4</a>: aux2 - JST ZH-4</li>
+<li>A - Host TX / moteus RX</li>
+<li>B - Host RX / moteus TX</li>
+<li><a href="../../reference/pinouts/#moteus-c1">moteus-c1</a>: aux2 - JST GH-7</li>
+<li>C - Host RX / moteus TX</li>
+<li>D - Host TX / moteus RX</li>
+<li><a href="../../reference/pinouts/#moteus-n1">moteus-n1</a>/<a href="../../reference/pinouts/#moteus-x1">moteus-x1</a>: aux1 - JST GH-8</li>
+<li>D - Host TX / moteus RX</li>
+<li>E - Host RX / moteus TX</li>
 </ul>
 <p>Serial parameters:</p>
 <ul>
@@ -2654,6 +2660,7 @@
 <h3 id="reconfiguring">Reconfiguring<a class="headerlink" href="#reconfiguring" title="Permanent link">&para;</a></h3>
 <p>If a UART is the only means of communication, it can be challenging to configure the UART pins to a different port or a different baud rate. As with nearly all moteus configurable values, configuration changes take place <em>immediately</em>.  Thus it is recommended to first configure the new port location.  If the new port is on a lower number aux port, as soon as it is configured it will become the only means of control.  Then the host can be switched to that port in order to save configuration and reconfigure the original UART pins.</p>
 <p>Similarly, if an error is present on a given aux port configuration, then that will disable UART control along with all other functions on that aux port, even if the error is associated with a different pin on that aux port.  It may be necessary to power cycle the device or use CAN-FD to restore control.</p>
+<p><strong>Note</strong>: If the baud rate is changed from the default 921600 and moteus client side tools are used, the <code>--fdcanusb-baudrate</code> option can be used to specify the correct value.  See the <a href="../../reference/client-tools/#configuring-the-communications-transport">Client Tools Reference</a></p>
 <h3 id="addressing">Addressing<a class="headerlink" href="#addressing" title="Permanent link">&para;</a></h3>
 <p>moteus emulates a subset of the fdcanusb protocol, including any configured ID and CAN prefix.  Thus if you change <code>id.id</code> or <code>can.prefix</code>, you will need to use the correct CAN IDs and prefixes in further communication with the device.</p>
 <h3 id="non-bus-topology">Non-bus topology<a class="headerlink" href="#non-bus-topology" title="Permanent link">&para;</a></h3>

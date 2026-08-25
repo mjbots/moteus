@@ -1967,10 +1967,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuring-the-can-fd-transport" class="md-nav__link">
+  <a href="#configuring-the-communications-transport" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuring the CAN-FD transport
+        Configuring the communications transport
       
     </span>
   </a>
@@ -2540,10 +2540,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuring-the-can-fd-transport" class="md-nav__link">
+  <a href="#configuring-the-communications-transport" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuring the CAN-FD transport
+        Configuring the communications transport
       
     </span>
   </a>
@@ -2576,7 +2576,6 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python3 -m moteus_gui.tview --target 1[,2,3]...
 </span></code></pre></div>
 <p>When running, the configuration for each can be modified in the left hand tab, and live telemetry values can be displayed or plotted from the right hand tab.  diagnostic mode commands may be issued in the bottom terminal window.</p>
-<p>A simple command and scripting language beyond the diagnostic protocol is available within the tview terminal window.</p>
 <h3 id="communicating-with-a-specific-device">Communicating with a specific device<a class="headerlink" href="#communicating-with-a-specific-device" title="Permanent link">&para;</a></h3>
 <p>If more than one device is available, commands can be sent to a specific device by prefixing the command with <code>ID&gt;</code>.  For instance, to send a stop command to ID #2, you can do:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>2&gt;d stop
@@ -2619,11 +2618,12 @@ configure <code>motor_position.rotor_to_output_ratio</code>.</p>
 <p>The moteus controller can locate positions within one revolution after being power cycled, and will start with the reported position being between -0.5 and 0.5.  The physical zero position can be set using the following command:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python3 -m moteus.moteus_tool --target 1 --zero-offset
 </span></code></pre></div>
-<h2 id="configuring-the-can-fd-transport">Configuring the CAN-FD transport<a class="headerlink" href="#configuring-the-can-fd-transport" title="Permanent link">&para;</a></h2>
+<h2 id="configuring-the-communications-transport">Configuring the communications transport<a class="headerlink" href="#configuring-the-communications-transport" title="Permanent link">&para;</a></h2>
 <p><code>moteus_tool</code> and <code>tview</code> can be configured to communicate with a
 moteus controller through a variety of transports.  By default, it
 will attempt to autodetect either a fdcanusb or socketcan interface.</p>
-<p>To force usage of a particular fdcanusb, you can use:</p>
+<p>To force usage of a particular fdcanusb or a logic level UART, you can
+use:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>python3 -m moteus.moteus_tool --fdcanusb /path/to/fdcanusb
 </span></code></pre></div>
 <p>To force a particular python-can method, you can use:</p>
@@ -2633,6 +2633,9 @@ will attempt to autodetect either a fdcanusb or socketcan interface.</p>
 <code>--can-chan</code> specifies the "channel".</p>
 <p>Note, these are in addition to any other <code>moteus_tool</code> or <code>tview</code>
 options that may be desired.</p>
+<p>If a non-default baud rate is used with a logic level UART, then the baudrate can be specified with <code>--fdcanusb-baudrate</code>, like:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>python3 -m moteus.moteus_tool --fdcanusb /dev/ttyUSB0 --fdcanusb-baudrate 115200
+</span></code></pre></div>
 
 
 
