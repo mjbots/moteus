@@ -16,6 +16,7 @@
 
 import asyncio
 import io
+import json
 import math
 import unittest
 import unittest.mock
@@ -2541,6 +2542,24 @@ class CalibrateEncoderTest(unittest.TestCase):
             self.assertLess(s.spread, tol, f"boundary {k} spread")
             self.assertEqual(s.count_up, 2)
             self.assertEqual(s.count_down, 2)
+
+    def test_hall_calibration_result_to_json_boundaries(self):
+        # The calibration report is often the only artifact users
+        # share, so once populated the boundary statistics must make
+        # it through to_json and remain plain-JSON serializable.
+        result = ce.HallCalibrationResult()
+        result.sweep_cycles = 2
+        result.boundary_summaries = [
+            ce.HallBoundarySummary(
+                delta=0.1, hysteresis=0.2, spread=0.05,
+                count_up=2, count_down=2)
+            for _ in range(6)]
+        result.noisy_boundaries = [3]
+
+        report = json.loads(json.dumps(result.to_json()))
+        self.assertEqual(report['sweep_cycles'], 2)
+        self.assertEqual(report['noisy_boundaries'], [3])
+        self.assertEqual(len(report['boundaries']), 6)
 
     def test_build_hall_offset_table_multi_invert_matches_forward(self):
         # The motor.offset[] table reflects the physical hall layout

@@ -66,7 +66,7 @@ Erroneous release with no changelog
 
 ### Unreleased
 
-(no entries yet)
+- moteus_tool now reports hall effect performance in the calibration report
 
 ### 1.1.2 - 2026-08-04
 

@@ -1890,6 +1890,12 @@ class Stream:
                   f"boundaries {noisy}; the hall readings may be "
                   f"noisy or the rotor may not be settling")
 
+        # Carry the boundary statistics into the calibration report,
+        # since that is often the only thing users share.
+        cal_result.sweep_cycles = cycles
+        cal_result.boundary_summaries = summaries
+        cal_result.noisy_boundaries = noisy
+
         await self.command(f"conf set motor.poles {self.args.cal_motor_poles}")
         await self.command(f"conf set motor_position.sources.{commutation_source}.sign {cal_result.sign}")
         await self.command(f"conf set motor_position.sources.{commutation_source}.offset {cal_result.offset}")

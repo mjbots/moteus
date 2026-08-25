@@ -444,6 +444,14 @@ class HallCalibrationResult:
         self.polarity = None
         self.phase_invert = None
 
+        # Filled in when a boundary scan was performed: the number of
+        # electrical cycles swept in each direction, the per-boundary
+        # HallBoundarySummary list, and the list of boundary indices
+        # with unexpected transition counts.
+        self.sweep_cycles = None
+        self.boundary_summaries = None
+        self.noisy_boundaries = None
+
         self.errors = []
 
     def __repr__(self):
@@ -455,12 +463,25 @@ class HallCalibrationResult:
             })
 
     def to_json(self):
-        return {
+        result = {
             'offset': self.offset,
             'sign': self.sign,
             'polarity': self.polarity,
             'phase_invert': self.phase_invert,
         }
+        if self.boundary_summaries is not None:
+            result['sweep_cycles'] = self.sweep_cycles
+            result['boundaries'] = [
+                {
+                    'delta_deg': round(math.degrees(s.delta), 2),
+                    'hysteresis_deg': round(math.degrees(s.hysteresis), 2),
+                    'spread_deg': round(math.degrees(s.spread), 2),
+                    'count_up': s.count_up,
+                    'count_down': s.count_down,
+                }
+                for s in self.boundary_summaries]
+            result['noisy_boundaries'] = self.noisy_boundaries
+        return result
 
 
 # The bits-to-sector-count mapping used by the moteus firmware
