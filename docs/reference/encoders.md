@@ -236,15 +236,20 @@ can be used to directly interface to BiSS-C encoders.
 
 ## Pin Configuration
 
-Auxiliary port configuration is achieved in two steps.  First, the
-`aux[12].pins.X.mode` value is set to the proper capability for each
-pin.  `aux[12].pins.X.pull` can be used to configure an optional
-pullup or pulldown for some modes.  Second, the corresponding
-capabilities must be configured in one of the capability specific
-sections of `aux[12]`.  For instance, for each auxiliary port, the SPI
-configuration in `aux[12].spi` has a `mode` to select what the slave
-device is and a `rate_hz` to define the frequency of the SPI
-peripheral.
+Auxiliary port configuration is achieved in two steps.
+
+First, the `aux[12].pins.X.mode` value is set to the proper capability
+for each pin.  `aux[12].pins.X.pull` can be used to configure an
+optional pullup or pulldown for some modes.
+
+Second, the corresponding capabilities must be configured in one of
+the capability specific sections of `aux[12]`.  For instance, for each
+auxiliary port, the SPI configuration in `aux[12].spi` has a `mode` to
+select what the slave device is and a `rate_hz` to define the
+frequency of the SPI peripheral.  Any capability section that is not
+in use must be disabled.  By default, different moteus controllers
+have the UART configured to serial control mode on some auxiliary
+ports which may need to be disabled.
 
 For I2C ports, up to 3 different slave devices may be configured, in
 each of `aux[12].i2c.devices.[012]`.

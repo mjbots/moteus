@@ -33,6 +33,7 @@ aux2.pins.1.pull 1  # pull_up
 aux2.pins.2.mode 6  # hall
 aux2.pins.2.pull 1  # pull_up
 aux2.hall.enabled 1
+aux2.uart.mode 0    # disable serial control
 ```
 
 Then motor_position is configured as follows:

@@ -434,10 +434,21 @@ The type of UART device.
 * 3 - Per-control cycle debug information (undocumented)
 * 4 - CUI AMT21x series RS422
 * 5 - fdcanusb serial protocol, see [UART](../integration/uart.md)
+* 6 - "board default" - resolves to the board and port specific default on boot
 
 When the tunnel mode is selected, data may be sent or received using
 the CAN diagnostic protocol.  For aux1, use diagnostic channel 2.  For
 aux2, use diagnostic channel 3.
+
+The default value of this varies across auxiliary port and moteus board.
+
+* moteus-r4: aux1/Disabled(0), aux2/fdcanusb(5)
+* moteus-c1: aux1/Disabled(0), aux2/fdcanusb(5)
+* moteus-n1: aux1/fdcanusb(5), aux2/Disabled(0)
+* moteus-x1: aux1/fdcanusb(5), aux2/Disabled(0)
+
+If a particular auxiliary port does not have an RX and TX pin
+appropriately configured, the `uart.mode` must be set to Disabled(0).
 
 ## `aux[12].uart.baud_rate`
 
