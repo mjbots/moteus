@@ -2493,6 +2493,7 @@ aux2 port:</p>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>aux2.pins.3.mode 2  # spi_cs
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>aux2.spi.mode 5     # ma600
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>aux2.spi.rate_hz 6000000
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>aux2.uart.mode 0    # disable serial control
 </span></code></pre></div>
 <p>Then, configure motor_position:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>motor_position.sources.1.aux_number 2
@@ -2553,10 +2554,11 @@ aux2 port:</p>
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>aux1.pins.3.mode 2  # spi_cs
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>aux1.spi.mode 5     # ma600
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>aux1.spi.rate_hz 6000000
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>motor_position.sources.1.aux_number 1
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>motor_position.sources.1.type 1  # spi
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>motor_position.sources.1.cpr 65536
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>motor_position.sources.1.reference 1  # output
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>aux1.uart.mode 0    # disable serial control
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>motor_position.sources.1.aux_number 1
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>motor_position.sources.1.type 1  # spi
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>motor_position.sources.1.cpr 65536
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>motor_position.sources.1.reference 1  # output
 </span></code></pre></div>
 <p>Then, before configuring the MA600 to be used for output, match the sign of the MA600 and hall effects according to <a href="#match">the procedure here</a>.</p>
 <p>For an off-axis MA600, BCT tuning should be performed, and non-linear compensation may be performed.</p>

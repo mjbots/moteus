@@ -2589,6 +2589,7 @@
 <li>Stop bits: 1</li>
 <li>Parity: None</li>
 </ul>
+<p>To use these pins for any other purpose, the appropriate <a href="../../reference/configuration/#aux12uartmode"><code>aux[12].uart.mode</code></a> must be set to "Disabled (0)".</p>
 <h2 id="protocol">Protocol<a class="headerlink" href="#protocol" title="Permanent link">&para;</a></h2>
 <p>In this mode, moteus acts as if it were a fdcanusb device on the UART.  The moteus python, C++, and rust libraries can be used directly if the operating system device name for the UART is given instead of the fdcanusb.  The only difference is that moteus permits checksums on command lines and always emits checksums on response lines.  Once any command has been sent with a checksum, all further commands require a checksum.</p>
 <p>The checksum uses the following format:</p>

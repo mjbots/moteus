@@ -3629,15 +3629,18 @@ unrestricted and will be used for receipt.  On moteus-n1 and
 moteus-x1, aux1 D/E are connected to the onboard RS422 transceiver and
 can be used to directly interface to BiSS-C encoders.</p>
 <h2 id="pin-configuration">Pin Configuration<a class="headerlink" href="#pin-configuration" title="Permanent link">&para;</a></h2>
-<p>Auxiliary port configuration is achieved in two steps.  First, the
-<code>aux[12].pins.X.mode</code> value is set to the proper capability for each
-pin.  <code>aux[12].pins.X.pull</code> can be used to configure an optional
-pullup or pulldown for some modes.  Second, the corresponding
-capabilities must be configured in one of the capability specific
-sections of <code>aux[12]</code>.  For instance, for each auxiliary port, the SPI
-configuration in <code>aux[12].spi</code> has a <code>mode</code> to select what the slave
-device is and a <code>rate_hz</code> to define the frequency of the SPI
-peripheral.</p>
+<p>Auxiliary port configuration is achieved in two steps.</p>
+<p>First, the <code>aux[12].pins.X.mode</code> value is set to the proper capability
+for each pin.  <code>aux[12].pins.X.pull</code> can be used to configure an
+optional pullup or pulldown for some modes.</p>
+<p>Second, the corresponding capabilities must be configured in one of
+the capability specific sections of <code>aux[12]</code>.  For instance, for each
+auxiliary port, the SPI configuration in <code>aux[12].spi</code> has a <code>mode</code> to
+select what the slave device is and a <code>rate_hz</code> to define the
+frequency of the SPI peripheral.  Any capability section that is not
+in use must be disabled.  By default, different moteus controllers
+have the UART configured to serial control mode on some auxiliary
+ports which may need to be disabled.</p>
 <p>For I2C ports, up to 3 different slave devices may be configured, in
 each of <code>aux[12].i2c.devices.[012]</code>.</p>
 <p>The diagnostic values in <code>aux[12]</code> can be used to monitor for errors

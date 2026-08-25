@@ -4469,10 +4469,20 @@ access.</p>
 <li>3 - Per-control cycle debug information (undocumented)</li>
 <li>4 - CUI AMT21x series RS422</li>
 <li>5 - fdcanusb serial protocol, see <a href="../../integration/uart/">UART</a></li>
+<li>6 - "board default" - resolves to the board and port specific default on boot</li>
 </ul>
 <p>When the tunnel mode is selected, data may be sent or received using
 the CAN diagnostic protocol.  For aux1, use diagnostic channel 2.  For
 aux2, use diagnostic channel 3.</p>
+<p>The default value of this varies across auxiliary port and moteus board.</p>
+<ul>
+<li>moteus-r4: aux1/Disabled(0), aux2/fdcanusb(5)</li>
+<li>moteus-c1: aux1/Disabled(0), aux2/fdcanusb(5)</li>
+<li>moteus-n1: aux1/fdcanusb(5), aux2/Disabled(0)</li>
+<li>moteus-x1: aux1/fdcanusb(5), aux2/Disabled(0)</li>
+</ul>
+<p>If a particular auxiliary port does not have an RX and TX pin
+appropriately configured, the <code>uart.mode</code> must be set to Disabled(0).</p>
 <h2 id="aux12uartbaud_rate"><code>aux[12].uart.baud_rate</code><a class="headerlink" href="#aux12uartbaud_rate" title="Permanent link">&para;</a></h2>
 <p>The baud rate to use for the UART.</p>
 <h2 id="aux12uartpoll_rate_us"><code>aux[12].uart.poll_rate_us</code><a class="headerlink" href="#aux12uartpoll_rate_us" title="Permanent link">&para;</a></h2>
