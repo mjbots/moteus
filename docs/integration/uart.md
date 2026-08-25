@@ -6,9 +6,15 @@ In systems where CAN-FD is not available, moteus can be commanded and monitored 
 
 By default, moteus controllers with a sufficiently new firmware version have the following pins configured for that purpose.
 
-* moteus-r4: aux2 a/b
-* moteus-c1: aux2 b/c
-* moteus-n1/moteus-x1: aux1 d/e
+* [moteus-r4](../reference/pinouts.md#moteus-r4): aux2 - JST ZH-4
+  * A - Host TX / moteus RX
+  * B - Host RX / moteus TX
+* [moteus-c1](../reference/pinouts.md#moteus-c1): aux2 - JST GH-7
+  * C - Host RX / moteus TX
+  * D - Host TX / moteus RX
+* [moteus-n1](../reference/pinouts.md#moteus-n1)/[moteus-x1](../reference/pinouts.md#moteus-x1): aux1 - JST GH-8
+  * D - Host TX / moteus RX
+  * E - Host RX / moteus TX
 
 Serial parameters:
 
@@ -115,6 +121,8 @@ For usage with Arduino, see that [platform integration reference](../platforms/a
 If a UART is the only means of communication, it can be challenging to configure the UART pins to a different port or a different baud rate. As with nearly all moteus configurable values, configuration changes take place *immediately*.  Thus it is recommended to first configure the new port location.  If the new port is on a lower number aux port, as soon as it is configured it will become the only means of control.  Then the host can be switched to that port in order to save configuration and reconfigure the original UART pins.
 
 Similarly, if an error is present on a given aux port configuration, then that will disable UART control along with all other functions on that aux port, even if the error is associated with a different pin on that aux port.  It may be necessary to power cycle the device or use CAN-FD to restore control.
+
+**Note**: If the baud rate is changed from the default 921600 and moteus client side tools are used, the `--fdcanusb-baudrate` option can be used to specify the correct value.  See the [Client Tools Reference](../reference/client-tools.md#configuring-the-communications-transport)
 
 ### Addressing
 

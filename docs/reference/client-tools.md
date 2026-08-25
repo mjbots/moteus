@@ -10,8 +10,6 @@ python3 -m moteus_gui.tview --target 1[,2,3]...
 
 When running, the configuration for each can be modified in the left hand tab, and live telemetry values can be displayed or plotted from the right hand tab.  diagnostic mode commands may be issued in the bottom terminal window.
 
-A simple command and scripting language beyond the diagnostic protocol is available within the tview terminal window.
-
 ### Communicating with a specific device
 
 If more than one device is available, commands can be sent to a specific device by prefixing the command with `ID>`.  For instance, to send a stop command to ID #2, you can do:
@@ -89,13 +87,14 @@ The moteus controller can locate positions within one revolution after being pow
 python3 -m moteus.moteus_tool --target 1 --zero-offset
 ```
 
-## Configuring the CAN-FD transport
+## Configuring the communications transport
 
 `moteus_tool` and `tview` can be configured to communicate with a
 moteus controller through a variety of transports.  By default, it
 will attempt to autodetect either a fdcanusb or socketcan interface.
 
-To force usage of a particular fdcanusb, you can use:
+To force usage of a particular fdcanusb or a logic level UART, you can
+use:
 
 ```
 python3 -m moteus.moteus_tool --fdcanusb /path/to/fdcanusb
@@ -112,3 +111,9 @@ where `--can-iface` specifies the "interface" for python-can and
 
 Note, these are in addition to any other `moteus_tool` or `tview`
 options that may be desired.
+
+If a non-default baud rate is used with a logic level UART, then the baudrate can be specified with `--fdcanusb-baudrate`, like:
+
+```
+python3 -m moteus.moteus_tool --fdcanusb /dev/ttyUSB0 --fdcanusb-baudrate 115200
+```

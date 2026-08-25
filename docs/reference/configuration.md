@@ -433,7 +433,7 @@ The type of UART device.
 * 2 - Tunnel
 * 3 - Per-control cycle debug information (undocumented)
 * 4 - CUI AMT21x series RS422
-* 5 - fdcanusb serial protocol
+* 5 - fdcanusb serial protocol, see [UART](../integration/uart.md)
 
 When the tunnel mode is selected, data may be sent or received using
 the CAN diagnostic protocol.  For aux1, use diagnostic channel 2.  For

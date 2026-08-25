@@ -50,6 +50,23 @@ python3 -m moteus_gui.tview
 
 **Alternative**: Your pip installation may have added a `tview` script to your PATH, which you can use instead.
 
+**UART**: To use tview with a logic-level UART, the serial port device
+must be manually specified:
+
+=== "Linux"
+
+    ```bash
+    python3 -m moteus_gui.tview --fdcanusb /dev/serial/by-id/usb-FTDI_FT231X_USB_UART_DP050AG5-if00-port0
+    ```
+
+=== "Windows"
+
+    ```bash
+    python3 -m moteus_gui.tview --fdcanusb COM2
+    ```
+
+For information on connectors and cabling required for UART, see the [UART integration guide](../integration/uart.md).
+
 ## Understanding tview
 
 tview has three main panes: left, right, and bottom.

@@ -38,7 +38,7 @@ class FdcanusbFactory:
 
         parser.add_argument('--fdcanusb', type=str, action='append',
                             metavar='FILE',
-                            help='path to fdcanusb device')
+                            help='path to fdcanusb device or logic level UART')
         parser.add_argument('--fdcanusb-baudrate', type=int, metavar='BAUD',
                             help='baudrate for serial adapter')
 

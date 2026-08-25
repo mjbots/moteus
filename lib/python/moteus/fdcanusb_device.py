@@ -166,7 +166,7 @@ class FdcanusbDevice(TransportDevice):
           path: serial port where fdcanusb is located
           debug_log: optional file-like object for debug logging
           disable_brs: disable bitrate switching
-          baudrate: serial baud rate (default 1Mbps)
+          baudrate: serial baud rate (default 921600bps)
           command_timeout: time to wait for OK response (default 0.2s)
           response_timeout: time to wait for rcv response (default 0.2s)
           max_retries: number of retry attempts (default 3)
@@ -185,8 +185,6 @@ class FdcanusbDevice(TransportDevice):
         self._max_line_length = max_line_length if max_line_length is not None else DEFAULT_MAX_LINE_LENGTH
 
         # A fdcanusb or mjcanfd-usb-1x ignores the requested baudrate.
-        # If none is specified, use 1Mbps, which is the default for
-        # UART based communication with moteus.
         self._serial = aioserial.AioSerial(
             port=path, baudrate=baudrate or 921600)
 

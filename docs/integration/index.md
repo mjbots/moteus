@@ -4,7 +4,9 @@ Integrate moteus with your software and hardware.
 
 - [Python Client](python.md) - Python client library
 - [C++ Client](cpp.md) - C++ client library
+- [Rust Client](rust.md) - Rust client library
 - [Raw CAN-FD](can-fd.md) - Direct CAN-FD protocol access
+- [UART](uart.md) - Logic level UART access
 
 ## Host Platforms
 
