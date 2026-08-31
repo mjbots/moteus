@@ -25,11 +25,12 @@
 
 use crate::command::PositionCommand;
 use crate::query::QueryResult;
-use crate::transport::args::TransportArgs;
+use crate::transport::args::parse_with_transport_args;
 use crate::transport::async_transport::AsyncRouter;
 use crate::transport::singleton::get_singleton_transport;
 use crate::transport::transaction::Request;
 use crate::Controller;
+use crate::TransportOptions;
 use clap::Parser;
 use std::time::{Duration, Instant};
 
@@ -40,15 +41,12 @@ struct Args {
     /// Use async transport instead of blocking
     #[arg(long)]
     r#async: bool,
-
-    #[command(flatten)]
-    transport: TransportArgs,
 }
 
-fn run_blocking(args: &Args) -> Result<(), crate::Error> {
+fn run_blocking(_args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
     // Get the singleton transport with specified options.
     // This auto-discovers fdcanusb, socketcan, etc.
-    let transport = get_singleton_transport(Some(&args.transport.clone().into()))?;
+    let transport = get_singleton_transport(Some(transport))?;
     let mut transport = transport.lock().unwrap();
 
     // Discover all connected devices.
@@ -137,10 +135,9 @@ fn run_blocking(args: &Args) -> Result<(), crate::Error> {
 }
 
 #[tokio::main]
-async fn run_async(args: &Args) -> Result<(), crate::Error> {
+async fn run_async(_args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
     // Create async transport with specified options.
-    let opts = args.transport.clone().into();
-    let mut transport = AsyncRouter::with_options(&opts).await?;
+    let mut transport = AsyncRouter::with_options(transport).await?;
 
     // Discover all connected devices.
     let devices = transport.discover(0, 0).await?;
@@ -234,13 +231,13 @@ async fn run_async(args: &Args) -> Result<(), crate::Error> {
 /// transport factories (e.g. a pi3hat).  Pass `|| {}` to use only the
 /// built-in transports.
 pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
-    let args = Args::parse();
-
     register_transports();
 
+    let (args, transport) = parse_with_transport_args::<Args>().map_err(crate::Error::Protocol)?;
+
     if args.r#async {
-        run_async(&args)
+        run_async(&args, &transport)
     } else {
-        run_blocking(&args)
+        run_blocking(&args, &transport)
     }
 }

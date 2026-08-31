@@ -27,11 +27,12 @@
 //!   tools/bazel run //lib/rust:move_to -- --async
 
 use crate::move_to::{async_move_to, move_to, MoveToOptions};
-use crate::transport::args::TransportArgs;
+use crate::transport::args::parse_with_transport_args;
 use crate::transport::async_transport::AsyncRouter;
 use crate::transport::singleton::get_singleton_transport;
 use crate::transport::transaction::Request;
 use crate::Controller;
+use crate::TransportOptions;
 use clap::Parser;
 use std::time::Duration;
 
@@ -54,13 +55,10 @@ struct Args {
     /// Use async transport instead of blocking
     #[arg(long)]
     r#async: bool,
-
-    #[command(flatten)]
-    transport: TransportArgs,
 }
 
-fn run_blocking(args: &Args) -> Result<(), crate::Error> {
-    let transport = get_singleton_transport(Some(&args.transport.clone().into()))?;
+fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
+    let transport = get_singleton_transport(Some(transport))?;
     let mut transport = transport.lock().unwrap();
 
     let c1 = Controller::new(args.id1);
@@ -112,9 +110,8 @@ fn run_blocking(args: &Args) -> Result<(), crate::Error> {
 }
 
 #[tokio::main]
-async fn run_async(args: &Args) -> Result<(), crate::Error> {
-    let opts = args.transport.clone().into();
-    let mut transport = AsyncRouter::with_options(&opts).await?;
+async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
+    let mut transport = AsyncRouter::with_options(transport).await?;
 
     let c1 = Controller::new(args.id1);
     let c2 = Controller::new(args.id2);
@@ -173,13 +170,13 @@ async fn run_async(args: &Args) -> Result<(), crate::Error> {
 /// transport factories (e.g. a pi3hat).  Pass `|| {}` to use only the
 /// built-in transports.
 pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
-    let args = Args::parse();
-
     register_transports();
 
+    let (args, transport) = parse_with_transport_args::<Args>().map_err(crate::Error::Protocol)?;
+
     if args.r#async {
-        run_async(&args)
+        run_async(&args, &transport)
     } else {
-        run_blocking(&args)
+        run_blocking(&args, &transport)
     }
 }

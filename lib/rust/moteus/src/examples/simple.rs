@@ -22,7 +22,8 @@
 //!   tools/bazel run //lib/rust:simple -- --async
 
 use crate::command::PositionCommand;
-use crate::transport::args::TransportArgs;
+use crate::transport::args::parse_with_transport_args;
+use crate::TransportOptions;
 use crate::{AsyncController, BlockingController};
 use clap::Parser;
 use std::time::Duration;
@@ -38,16 +39,13 @@ struct Args {
     /// Use async transport instead of blocking
     #[arg(long)]
     r#async: bool,
-
-    #[command(flatten)]
-    transport: TransportArgs,
 }
 
-fn run_blocking(args: &Args) -> Result<(), crate::Error> {
+fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
     // Create a controller with the specified ID and transport options.
     // By default, this picks an arbitrary CAN-FD transport, preferring
     // an attached fdcanusb if available.
-    let mut c = BlockingController::with_options(args.id, &args.transport.clone().into())?;
+    let mut c = BlockingController::with_options(args.id, transport)?;
 
     // Clear any faults by sending a stop command.
     c.set_stop()?;
@@ -80,11 +78,11 @@ fn run_blocking(args: &Args) -> Result<(), crate::Error> {
 }
 
 #[tokio::main]
-async fn run_async(args: &Args) -> Result<(), crate::Error> {
+async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
     // Create a controller with the specified ID and transport options.
     // By default, this picks an arbitrary CAN-FD transport, preferring
     // an attached fdcanusb if available.
-    let mut c = AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
+    let mut c = AsyncController::with_options(args.id, transport).await?;
 
     // Clear any faults by sending a stop command.
     c.set_stop().await?;
@@ -120,18 +118,18 @@ async fn run_async(args: &Args) -> Result<(), crate::Error> {
 
 /// Run this example.
 ///
-/// `register_transports` is invoked after argument parsing but before
-/// any transport is created, so an embedding binary may register extra
-/// transport factories (e.g. a pi3hat).  Pass `|| {}` to use only the
-/// built-in transports.
+/// `register_transports` is invoked before argument parsing, so an
+/// embedding binary may register extra transport factories (e.g. a
+/// pi3hat) and have their arguments participate in parsing and
+/// `--help`.  Pass `|| {}` to use only the built-in transports.
 pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
-    let args = Args::parse();
-
     register_transports();
 
+    let (args, transport) = parse_with_transport_args::<Args>().map_err(crate::Error::Protocol)?;
+
     if args.r#async {
-        run_async(&args)
+        run_async(&args, &transport)
     } else {
-        run_blocking(&args)
+        run_blocking(&args, &transport)
     }
 }

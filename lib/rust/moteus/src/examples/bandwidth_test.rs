@@ -23,7 +23,7 @@
 
 use crate::command::{PositionCommand, PositionFormat};
 use crate::query::QueryFormat;
-use crate::transport::args::TransportArgs;
+use crate::transport::args::parse_with_transport_args;
 use crate::transport::singleton::create_default_transport;
 use crate::transport::transaction::Request;
 use crate::{Controller, Resolution};
@@ -44,9 +44,6 @@ struct Args {
     /// Use minimal CAN frame size with lower resolution
     #[arg(long)]
     minimal_format: bool,
-
-    #[command(flatten)]
-    transport: TransportArgs,
 }
 
 /// Run this example.  See [`crate::examples::simple::run`] for the
@@ -56,13 +53,12 @@ struct Args {
 /// single dedicated task with nothing else to schedule, so the async
 /// runtime would only add per-cycle overhead.
 pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
-    let args = Args::parse();
-
     register_transports();
 
+    let (args, transport) = parse_with_transport_args::<Args>().map_err(crate::Error::Protocol)?;
+
     // Create the transport with specified options.
-    let opts = args.transport.into();
-    let mut transport = create_default_transport(&opts)?;
+    let mut transport = create_default_transport(&transport)?;
 
     // Use specified targets or auto-discover.
     let targets: Vec<u8> = if args.target.is_empty() {

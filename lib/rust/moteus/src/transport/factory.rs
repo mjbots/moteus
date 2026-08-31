@@ -415,6 +415,18 @@ pub fn register(factory: Box<dyn TransportFactory>) {
     get_registry().lock().unwrap().push(factory);
 }
 
+/// Collect the command-line argument specifications of every
+/// registered factory -- built-in and external -- in registration
+/// order.
+pub(crate) fn registered_arg_specs() -> Vec<crate::transport::args::ArgSpec> {
+    get_registry()
+        .lock()
+        .unwrap()
+        .iter()
+        .flat_map(|factory| factory.arg_specs())
+        .collect()
+}
+
 /// Get the built-in transport factories.
 ///
 /// Returns fresh instances of the built-in factories. For the full set

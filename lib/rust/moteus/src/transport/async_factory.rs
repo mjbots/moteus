@@ -261,6 +261,18 @@ pub fn register_async(factory: Arc<dyn AsyncTransportFactory>) {
     get_async_registry().lock().unwrap().push(factory);
 }
 
+/// Collect the command-line argument specifications of every
+/// registered async factory -- built-in and external -- in
+/// registration order.
+pub(crate) fn registered_arg_specs() -> Vec<ArgSpec> {
+    get_async_registry()
+        .lock()
+        .unwrap()
+        .iter()
+        .flat_map(|factory| factory.arg_specs())
+        .collect()
+}
+
 /// Get the built-in async transport factories.
 ///
 /// Returns fresh instances of the built-in factories. For the full set

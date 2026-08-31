@@ -21,7 +21,8 @@
 //!   tools/bazel run //lib/rust:gpio -- --async
 
 use crate::query::QueryFormat;
-use crate::transport::args::TransportArgs;
+use crate::transport::args::parse_with_transport_args;
+use crate::TransportOptions;
 use crate::{AsyncController, BlockingController, Resolution};
 use clap::Parser;
 
@@ -36,9 +37,6 @@ struct Args {
     /// Use async transport instead of blocking
     #[arg(long)]
     r#async: bool,
-
-    #[command(flatten)]
-    transport: TransportArgs,
 }
 
 /// Display GPIO pin states for an auxiliary port.
@@ -50,8 +48,8 @@ fn display_gpio(aux_num: u8, value: u8, pin_count: u8) {
     }
 }
 
-fn run_blocking(args: &Args) -> Result<(), crate::Error> {
-    let mut c = BlockingController::with_options(args.id, &args.transport.clone().into())?;
+fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
+    let mut c = BlockingController::with_options(args.id, transport)?;
 
     // Read GPIO digital inputs from both AUX ports. Each value is a
     // byte where bit N represents pin N's state.
@@ -85,8 +83,8 @@ fn run_blocking(args: &Args) -> Result<(), crate::Error> {
 }
 
 #[tokio::main]
-async fn run_async(args: &Args) -> Result<(), crate::Error> {
-    let mut c = AsyncController::with_options(args.id, &args.transport.clone().into()).await?;
+async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crate::Error> {
+    let mut c = AsyncController::with_options(args.id, transport).await?;
 
     // Read GPIO digital inputs from both AUX ports. Each value is a
     // byte where bit N represents pin N's state.
@@ -126,13 +124,13 @@ async fn run_async(args: &Args) -> Result<(), crate::Error> {
 /// transport factories (e.g. a pi3hat).  Pass `|| {}` to use only the
 /// built-in transports.
 pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
-    let args = Args::parse();
-
     register_transports();
 
+    let (args, transport) = parse_with_transport_args::<Args>().map_err(crate::Error::Protocol)?;
+
     if args.r#async {
-        run_async(&args)
+        run_async(&args, &transport)
     } else {
-        run_blocking(&args)
+        run_blocking(&args, &transport)
     }
 }

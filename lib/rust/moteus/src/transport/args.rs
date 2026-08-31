@@ -189,16 +189,21 @@ pub static COMMON_ARG_SPECS: &[ArgSpec] = &[
 
 /// Get all transport-related argument specifications.
 ///
-/// Returns the common args plus args from all registered transport factories.
-/// This is dynamic: if external factories have been registered via
-/// [`register()`](super::factory::register), their arg specs are included.
+/// Returns the common args plus args from every registered transport
+/// factory -- built-in and external, blocking and (with the `tokio`
+/// feature) async.  This is dynamic: register external factories
+/// (e.g. via [`register()`](super::factory::register)) before calling
+/// this so their arg specs are included.  A spec name declared by
+/// several factories (e.g. by a factory's blocking and async
+/// variants) appears once, first declaration wins.
 pub fn transport_arg_specs() -> Vec<ArgSpec> {
-    use super::factory::get_factories;
-
     let mut specs: Vec<ArgSpec> = COMMON_ARG_SPECS.to_vec();
-    for factory in get_factories() {
-        specs.extend(factory.arg_specs());
-    }
+    specs.extend(super::factory::registered_arg_specs());
+    #[cfg(feature = "tokio")]
+    specs.extend(super::async_factory::registered_arg_specs());
+
+    let mut seen = std::collections::HashSet::new();
+    specs.retain(|spec| seen.insert(spec.name));
     specs
 }
 
@@ -207,77 +212,43 @@ impl TransportOptions {
     ///
     /// This works with arguments created via [`ArgSpec::to_clap_arg()`] or
     /// any clap arguments using the standard transport argument names.
-    /// Arguments from registered external factories are extracted into
-    /// the `extra` field.
+    ///
+    /// Exactly the arguments declared by [`transport_arg_specs()`] are
+    /// extracted: their values are converted to `(name, value)` string
+    /// pairs and handed to [`TransportOptions::from_pairs()`], which
+    /// owns the one mapping of argument names onto typed fields and
+    /// routes everything else (e.g. registered factory args) into the
+    /// `extra` field.  Declared arguments the command does not define
+    /// -- or defines itself with a different value type -- are simply
+    /// skipped, so this can be used with commands that carry any
+    /// subset of the transport args.
     #[cfg(feature = "clap")]
     pub fn from_arg_matches(matches: &clap::ArgMatches) -> std::result::Result<Self, String> {
-        let mut opts = TransportOptions::new();
-
-        if let Some(values) = matches.get_many::<String>("fdcanusb") {
-            opts.fdcanusb_paths = values.cloned().collect();
-        }
-
-        if matches.try_contains_id("fdcanusb-baudrate").is_ok() {
-            if let Some(value) = matches.get_one::<String>("fdcanusb-baudrate") {
-                let baudrate: u32 = value
-                    .parse()
-                    .map_err(|_| format!("invalid baudrate: {}", value))?;
-                opts.fdcanusb_baudrate = Some(baudrate);
-            }
-        }
-
-        if let Some(values) = matches.get_many::<String>("can-chan") {
-            opts.socketcan_interfaces = values.cloned().collect();
-        }
-
-        if matches.get_flag("can-disable-brs") {
-            opts.disable_brs = true;
-        }
-
-        if let Some(value) = matches.get_one::<String>("force-transport") {
-            opts.force_transport = Some(value.clone());
-        }
-
-        if let Some(value) = matches.get_one::<String>("timeout-ms") {
-            let ms: u32 = value
-                .parse()
-                .map_err(|_| format!("invalid timeout: {}", value))?;
-            opts.timeout = Duration::from_millis(ms as u64);
-        }
-
-        // Extract registered factory args into extra
-        for factory in super::factory::get_factories() {
-            for spec in factory.arg_specs() {
-                // Skip args we already handled above
-                if matches!(spec.name, "fdcanusb" | "fdcanusb-baudrate" | "can-chan") {
-                    continue;
+        // Absent ids and host-defined args with non-string value
+        // types both surface as Err from the try_ accessors; treat
+        // them as "not provided".
+        let mut pairs: Vec<(&'static str, String)> = Vec::new();
+        for spec in transport_arg_specs() {
+            match spec.arg_type {
+                ArgType::MultiString => {
+                    if let Ok(Some(values)) = matches.try_get_many::<String>(spec.name) {
+                        pairs.extend(values.map(|value| (spec.name, value.clone())));
+                    }
                 }
-                match spec.arg_type {
-                    ArgType::MultiString => {
-                        if let Some(values) = matches.get_many::<String>(spec.name) {
-                            let vals: Vec<String> = values.cloned().collect();
-                            if !vals.is_empty() {
-                                opts.extra.insert(spec.name.to_string(), vals);
-                            }
-                        }
+                ArgType::Bool => {
+                    if matches!(matches.try_get_one::<bool>(spec.name), Ok(Some(true))) {
+                        pairs.push((spec.name, "true".to_string()));
                     }
-                    ArgType::Bool => {
-                        if matches.get_flag(spec.name) {
-                            opts.extra
-                                .insert(spec.name.to_string(), vec!["true".to_string()]);
-                        }
-                    }
-                    ArgType::String | ArgType::Integer => {
-                        if let Some(value) = matches.get_one::<String>(spec.name) {
-                            opts.extra
-                                .insert(spec.name.to_string(), vec![value.clone()]);
-                        }
+                }
+                ArgType::String | ArgType::Integer => {
+                    if let Ok(Some(value)) = matches.try_get_one::<String>(spec.name) {
+                        pairs.push((spec.name, value.clone()));
                     }
                 }
             }
         }
 
-        Ok(opts)
+        Self::from_pairs(pairs.iter().map(|(name, value)| (*name, value.as_str())))
     }
 }
 
@@ -291,6 +262,58 @@ pub fn add_transport_args(mut cmd: clap::Command) -> clap::Command {
         cmd = cmd.arg(spec.to_clap_arg());
     }
     cmd
+}
+
+/// Parse `T` plus every registered transport argument from the
+/// process command line.
+///
+/// This is the derive-API companion to [`add_transport_args`]: `T`'s
+/// clap command is augmented with [`transport_arg_specs()`] (skipping
+/// any argument `T` already defines itself), the combined command
+/// line is parsed, and both the typed `T` and the resulting
+/// [`TransportOptions`] -- registered factory args included in
+/// `extra` -- are returned.  `T` should not also flatten
+/// [`TransportArgs`]; the transport arguments are provided by the
+/// augmentation.
+///
+/// Register any external transport factories (e.g. a pi3hat) *before*
+/// calling this, so their arguments participate in parsing and appear
+/// in `--help`.
+///
+/// Exits the process on a command-line parse error, like
+/// [`clap::Parser::parse`].
+///
+/// ```ignore
+/// use clap::Parser;
+/// use moteus::transport::args::parse_with_transport_args;
+///
+/// #[derive(Parser)]
+/// struct Args {
+///     #[arg(long, default_value = "1")]
+///     id: u8,
+/// }
+///
+/// moteus_pi3hat::transport::register();
+/// let (args, transport) = parse_with_transport_args::<Args>()?;
+/// ```
+#[cfg(feature = "clap")]
+pub fn parse_with_transport_args<T: clap::Parser>(
+) -> std::result::Result<(T, TransportOptions), String> {
+    let mut cmd = T::command();
+    let existing: std::collections::HashSet<String> = cmd
+        .get_arguments()
+        .map(|arg| arg.get_id().to_string())
+        .collect();
+    for spec in transport_arg_specs() {
+        if !existing.contains(spec.name) {
+            cmd = cmd.arg(spec.to_clap_arg());
+        }
+    }
+
+    let matches = cmd.get_matches();
+    let args = T::from_arg_matches(&matches).unwrap_or_else(|err| err.exit());
+    let options = TransportOptions::from_arg_matches(&matches)?;
+    Ok((args, options))
 }
 
 /// Command-line arguments for transport configuration.
@@ -448,5 +471,31 @@ mod tests {
                 _ => {} // External factory args - don't panic
             }
         }
+    }
+
+    /// The clap adapter extracts exactly the declared specs and
+    /// delegates the name-to-field mapping to `from_pairs()`.
+    #[test]
+    #[cfg(all(feature = "clap", feature = "serialport"))]
+    fn test_from_arg_matches_round_trip() {
+        let cmd = add_transport_args(clap::Command::new("test"));
+        let matches = cmd.get_matches_from([
+            "test",
+            "--fdcanusb",
+            "/dev/ttyACM0",
+            "--fdcanusb",
+            "/dev/ttyACM1",
+            "--can-disable-brs",
+            "--force-transport",
+            "fdcanusb",
+            "--timeout-ms",
+            "250",
+        ]);
+
+        let opts = TransportOptions::from_arg_matches(&matches).unwrap();
+        assert_eq!(opts.fdcanusb_paths, vec!["/dev/ttyACM0", "/dev/ttyACM1"]);
+        assert!(opts.disable_brs);
+        assert_eq!(opts.force_transport, Some("fdcanusb".to_string()));
+        assert_eq!(opts.timeout, Duration::from_millis(250));
     }
 }
