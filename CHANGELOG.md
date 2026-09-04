@@ -118,6 +118,10 @@ version and are released together.
 
 ### Unreleased
 
+(no entries yet)
+
+### 0.5.4 - 2026-09-04
+
 #### Improvements
 
 - The examples accept transport-specific arguments and report those in
