@@ -9,6 +9,12 @@ repository = "https://github.com/mjbots/moteus"
 keywords = ["moteus", "robotics", "motor-control", "can-fd"]
 categories = ["science::robotics", "hardware-support"]
 
+# docs.rs builds with default features only unless told otherwise;
+# without this the clap argument helpers and the entire tokio-gated
+# async API would be missing from the rendered documentation.
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 default = ["serialport"]
 clap = ["dep:clap"]
