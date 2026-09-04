@@ -118,7 +118,9 @@ version and are released together.
 
 ### Unreleased
 
-(no entries yet)
+- Integer transport arguments accept negative values, so
+  `--pi3hat-cpu -1` works as a bare argument (previously only
+  `--pi3hat-cpu=-1` or `none` did).
 
 ### 0.5.4 - 2026-09-04
 

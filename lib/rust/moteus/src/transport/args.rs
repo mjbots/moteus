@@ -145,8 +145,14 @@ impl ArgSpec {
             ArgType::MultiString => {
                 arg = arg.action(ArgAction::Append);
             }
-            ArgType::String | ArgType::Integer => {
+            ArgType::String => {
                 arg = arg.action(ArgAction::Set);
+            }
+            ArgType::Integer => {
+                // Without this, clap treats a bare `-1` as a short flag
+                // cluster, so e.g. `--pi3hat-cpu -1` (the C++ "never
+                // pin" spelling) is rejected before any parser sees it.
+                arg = arg.action(ArgAction::Set).allow_negative_numbers(true);
             }
         }
 
@@ -471,6 +477,19 @@ mod tests {
                 _ => {} // External factory args - don't panic
             }
         }
+    }
+
+    /// Integer arguments accept negative values (clap would otherwise
+    /// reject a bare `-1` as an unknown short flag).
+    #[test]
+    #[cfg(feature = "clap")]
+    fn test_integer_args_allow_negative_numbers() {
+        let cmd = add_transport_args(clap::Command::new("test"));
+        let matches = cmd.get_matches_from(["test", "--timeout-ms", "-1"]);
+        assert_eq!(
+            matches.get_one::<String>("timeout-ms").map(String::as_str),
+            Some("-1")
+        );
     }
 
     /// The clap adapter extracts exactly the declared specs and
