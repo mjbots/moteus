@@ -46,3 +46,18 @@ jobs:
     - name: cargo check (${{ matrix.target }})
       working-directory: lib/rust
       run: cargo check --target ${{ matrix.target }} ${{ matrix.flags }}
+
+  rust-msrv:
+    # The crates declare rust-version = "1.75" (lib/rust/Cargo.toml);
+    # prove it by compiling the whole workspace with exactly that
+    # toolchain.  Cargo.lock is kept at lockfile version 3 for this:
+    # version 4 needs cargo 1.78+ to parse.
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: install libudev-dev
+      run: sudo apt-get update && sudo apt-get install -y libudev-dev
+    - uses: dtolnay/rust-toolchain@1.75.0
+    - name: cargo check on the MSRV
+      working-directory: lib/rust
+      run: cargo check --workspace --all-features --all-targets --locked
