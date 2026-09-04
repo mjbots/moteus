@@ -92,6 +92,11 @@ when its own functionality changes.
 
 ## Cutting a release
 
+`release.py` refuses to tag unless `CHANGELOG.md` has a `### X.Y.Z`
+section with entries under the component being released -- rename the
+component's `### Unreleased` heading first.  (Entries themselves are
+added with the change that introduces them, not at release time.)
+
 Run the helper from the repo root, then push:
 
 ```bash

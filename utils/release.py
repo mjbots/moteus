@@ -48,6 +48,7 @@ its M.m does not exceed the M.m of the chosen release.
 """
 
 import argparse
+import datetime
 import pathlib
 import re
 import subprocess
@@ -56,6 +57,71 @@ import sys
 from encode_firmware_version import decode, encode
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+CHANGELOG_FILE = 'CHANGELOG.md'
+
+
+def changelog_blocks(section, min_level):
+    """Split a changelog section into (title, entry_count) blocks.
+
+    A block starts at a heading of `min_level` (e.g. `###`) whose title
+    is a version or "Unreleased"; deeper headings ("#### Fixes") and
+    their bullets belong to the enclosing block.
+    """
+    blocks = []
+    for line in section.splitlines():
+        m = re.match(r'^(#+) (.*?)\s*$', line)
+        if m and len(m.group(1)) >= min_level:
+            title = m.group(2)
+            if len(m.group(1)) == min_level or re.match(r'\d', title):
+                blocks.append([title, 0])
+                continue
+        if blocks and re.match(r'\s*[-*] ', line):
+            blocks[-1][1] += 1
+    return blocks
+
+
+def check_changelog(component, version, text=None):
+    """Refuse to release a component whose changelog was not written.
+
+    CHANGELOG.md is organized per component; the section for `version`
+    ("### X.Y.Z", optionally "- YYYY-MM-DD") must exist with entries.
+    Entries still under "### Unreleased" mean the heading was not
+    renamed; an empty or placeholder Unreleased section means nothing
+    was written.  Both are reported rather than discovered after the
+    tag is pushed.
+    """
+    if text is None:
+        text = (REPO_ROOT / CHANGELOG_FILE).read_text()
+    m = re.search(rf'^## {re.escape(component)}\s*$', text, re.MULTILINE)
+    if not m:
+        sys.exit(f'{CHANGELOG_FILE} has no "## {component}" section')
+    section = text[m.end():]
+    nxt = re.search(r'^## ', section, re.MULTILINE)
+    if nxt:
+        section = section[:nxt.start()]
+
+    blocks = changelog_blocks(section, 3)
+    for title, entries in blocks:
+        if title.split(' - ', 1)[0].strip() == version:
+            if entries:
+                return
+            sys.exit(f'\nERROR: the "### {title}" section of {CHANGELOG_FILE} '
+                     f'(under "## {component}") has no entries.\n')
+
+    unreleased = [e for t, e in blocks if t == 'Unreleased']
+    today = datetime.date.today().isoformat()
+    hint = (f'Its "### Unreleased" section has {unreleased[0]} entries; if '
+            f'they are this release,\nrename that heading to '
+            f'"### {version} - {today}".'
+            if unreleased and unreleased[0] else
+            'Its "### Unreleased" section is empty, so nothing has been '
+            'written for\nthis release.')
+    sys.exit(f'\nERROR: {CHANGELOG_FILE} has no entries for {component} '
+             f'{version}.\n\nThe "## {component}" section needs a '
+             f'"### {version}" heading (optionally\n'
+             f'"### {version} - YYYY-MM-DD") with this release\'s entries.  '
+             f'{hint}\n')
 
 
 def git(*args, capture=False, check=True):
@@ -275,6 +341,8 @@ def main():
         validate_python_version(new)
     elif args.component == 'rust':
         validate_rust_version(new)
+
+    check_changelog(args.component, new)
 
     tag = f'{tag_prefix}{new}'
     if git('rev-parse', '-q', '--verify', f'refs/tags/{tag}',

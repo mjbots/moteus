@@ -107,7 +107,7 @@ Erroneous release with no changelog
 
 (no entries yet)
 
-#### 1.0.0 - 2026-05-28
+### 1.0.0 - 2026-05-28
 
 * First semver based release.
 
