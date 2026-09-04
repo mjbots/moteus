@@ -121,46 +121,14 @@ load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencie
 
 crate_universe_dependencies()
 
-load("@rules_rust//crate_universe:defs.bzl", "crate", "crates_repository")
+load("@rules_rust//crate_universe:defs.bzl", "crates_repository")
+load("//lib/rust:crates.bzl", "moteus_crate_packages")
 
 crates_repository(
     name = "crate_index",
     cargo_lockfile = "//lib/rust:Cargo.lock",
     lockfile = "//lib/rust:Cargo.bazel.lock",
-    packages = {
-        "clap": crate.spec(
-            version = "4.5",
-            features = ["derive"],
-        ),
-        "proc-macro2": crate.spec(
-            version = "1",
-        ),
-        "quote": crate.spec(
-            version = "1",
-        ),
-        "syn": crate.spec(
-            version = "2",
-            features = ["full"],
-        ),
-        # default_features = False omits the libudev feature, which would
-        # otherwise require the system libudev library at build time.  This
-        # matches how mio-serial/tokio-serial already resolve serialport.
-        "serialport": crate.spec(
-            version = "4",
-            default_features = False,
-        ),
-        "tokio": crate.spec(
-            version = "1.0",
-            features = ["net", "io-util", "time", "rt", "rt-multi-thread", "macros", "sync"],
-        ),
-        "tokio-serial": crate.spec(
-            version = "5.4",
-        ),
-        "num_enum": crate.spec(
-            version = "0.7",
-            default_features = False,
-        ),
-    },
+    packages = moteus_crate_packages(),
 )
 
 load("@crate_index//:defs.bzl", "crate_repositories")
