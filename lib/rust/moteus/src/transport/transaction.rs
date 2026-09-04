@@ -470,9 +470,17 @@ impl std::fmt::Debug for Request {
 /// This is a helper function used by transport implementations to route
 /// incoming frames to the appropriate request.
 ///
+/// Requests that expect no replies never receive frames: a send-only
+/// command carries `FrameFilter::Any` with `expected_reply_count: 0`,
+/// and would otherwise swallow the reply belonging to a query batched
+/// after it in the same transaction.
+///
 /// Returns true if the frame was dispatched, false if no filter matched.
 pub fn dispatch_frame(frame: &CanFdFrame, requests: &[Request]) -> bool {
     for req in requests {
+        if req.expected_reply_count == 0 {
+            continue;
+        }
         if req.filter.matches(frame) {
             req.responses.push(frame.clone());
             return true;
@@ -484,6 +492,30 @@ pub fn dispatch_frame(frame: &CanFdFrame, requests: &[Request]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_dispatch_frame_skips_send_only_requests() {
+        // A send-only request (FrameFilter::Any, zero expected
+        // replies) batched ahead of a query must not swallow the
+        // query's reply.
+        let send_only = Request {
+            frame: Some(CanFdFrame::new()),
+            channel: None,
+            filter: FrameFilter::Any,
+            expected_reply_count: 0,
+            expected_reply_size: 0,
+            child_device: None,
+            address: None,
+            responses: ResponseCollector::new(),
+        };
+        let query = Request::receive_only(FrameFilter::Any);
+        let requests = vec![send_only, query];
+
+        let frame = CanFdFrame::new();
+        assert!(dispatch_frame(&frame, &requests));
+        assert_eq!(requests[0].responses.len(), 0);
+        assert_eq!(requests[1].responses.len(), 1);
+    }
 
     #[test]
     fn test_response_collector_new() {
