@@ -122,7 +122,8 @@ impl DeviceAddress {
         if self.can_id.is_none() && self.uuid.is_none() {
             return false;
         }
-        let can_match = self.can_id.is_none_or(|id| id == can_id);
+        // Option::is_none_or is only stable since 1.82; the crate's MSRV is 1.75.
+        let can_match = self.can_id.map_or(true, |id| id == can_id);
         let uuid_match = match (&self.uuid, uuid) {
             (Some(prefix), Some(device_uuid)) => device_uuid.starts_with(prefix),
             (Some(_), None) => false,
