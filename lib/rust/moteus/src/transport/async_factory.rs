@@ -291,6 +291,13 @@ pub fn get_async_factories() -> Vec<Box<dyn AsyncTransportFactory>> {
 /// This is the main entry point for creating async transports with auto-discovery.
 /// It tries each factory in priority order and returns all successfully created devices.
 /// Duplicate socketcan interfaces backed by fdcanusb devices are filtered out.
+///
+/// # Errors
+///
+/// A factory failure propagates when that transport was explicitly
+/// forced via `force_transport`, or when no factory produced any
+/// device at all (in which case the first failure is returned rather
+/// than an empty list).  Otherwise failing factories are skipped.
 pub async fn create_async_transports(
     options: &AsyncTransportOptions,
 ) -> Result<Vec<Box<dyn AsyncTransportDevice>>> {

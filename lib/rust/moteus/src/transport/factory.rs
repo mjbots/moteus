@@ -447,6 +447,13 @@ pub fn get_factories() -> Vec<Box<dyn TransportFactory>> {
 /// It tries each factory in priority order and returns all successfully created
 /// devices. Duplicate socketcan interfaces backed by fdcanusb devices are
 /// filtered out.
+///
+/// # Errors
+///
+/// A factory failure propagates when that transport was explicitly
+/// forced via `force_transport`, or when no factory produced any
+/// device at all (in which case the first failure is returned rather
+/// than an empty list).  Otherwise failing factories are skipped.
 pub fn create_transports(options: &TransportOptions) -> Result<Vec<Box<dyn TransportDevice>>> {
     use std::collections::HashSet;
 
