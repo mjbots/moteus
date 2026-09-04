@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 use crate::transport::args::ArgSpec;
 use crate::transport::device::TransportDevice;
 
@@ -463,6 +463,7 @@ pub fn create_transports(options: &TransportOptions) -> Result<Vec<Box<dyn Trans
 
     let mut all_devices = Vec::new();
     let mut fdcanusb_serials: HashSet<String> = HashSet::new();
+    let mut first_error: Option<Error> = None;
 
     for &idx in &indices {
         match registry[idx].create(options) {
@@ -477,7 +478,19 @@ pub fn create_transports(options: &TransportOptions) -> Result<Vec<Box<dyn Trans
                 }
                 all_devices.extend(devices);
             }
-            Err(_) => continue,
+            Err(e) => {
+                // A forced transport's failure is the caller's answer
+                // (e.g. a pi3hat needing root reports the permission
+                // error rather than a bare "no transport found").
+                if options.force_transport.is_some() {
+                    return Err(e);
+                }
+                // In auto-detection, keep trying other factories but
+                // remember the failure in case nothing else works out.
+                if first_error.is_none() {
+                    first_error = Some(e);
+                }
+            }
         }
     }
 
@@ -508,6 +521,14 @@ pub fn create_transports(options: &TransportOptions) -> Result<Vec<Box<dyn Trans
         }
 
         all_devices = filtered_devices;
+    }
+
+    // With nothing created at all, a factory failure is more useful
+    // than the empty list (which callers report as "not connected").
+    if all_devices.is_empty() {
+        if let Some(e) = first_error {
+            return Err(e);
+        }
     }
 
     Ok(all_devices)
