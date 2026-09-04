@@ -5,6 +5,10 @@ released independently; see [RELEASING.md](RELEASING.md) for the process.
 
 The format is loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+Entries are added under a component's `### Unreleased` heading by the
+change that introduces them; cutting a release only renames that
+heading to the version and date.
+
 ## firmware
 
 ### Unreleased
@@ -106,3 +110,56 @@ Erroneous release with no changelog
 #### 1.0.0 - 2026-05-28
 
 * First semver based release.
+
+## rust
+
+The `moteus`, `moteus-protocol`, and `moteus-derive` crates share one
+version and are released together.
+
+### Unreleased
+
+#### Improvements
+
+- The examples accept transport-specific arguments and report those in
+  help messages.
+- New `transport::args::parse_with_transport_args::<T>()`: parses a
+  clap derive struct together with every registered transport
+  argument.
+- The `bandwidth_test` example uses the synchronous transport.
+- docs.rs renders the feature-gated API (async transports, clap
+  helpers).
+- The bazel crate specifications are exported from
+  `lib/rust/crates.bzl` for downstream workspaces.
+
+#### Fixes
+
+- The crates build on their declared MSRV of 1.75 again (0.5.3 used
+  `Option::is_none_or`, which needs 1.82). CI now checks the MSRV.
+- `TransportOptions::from_arg_matches()` no longer panics when the
+  command defines only a subset of the transport arguments.
+
+#### Behavior changes
+
+- `dispatch_frame` never delivers replies to requests that do not
+  expect one.
+- `create_transports` / `create_async_transports` actually report
+  failure error messages to callers.
+
+### 0.5.3 - 2026-06-17
+
+- The example bodies are exposed as a library via the `examples`
+  feature, so downstream binaries can reuse them with other
+  transports.
+- `ArgSpec::new()` lets external transport factories declare
+  command-line arguments.
+
+### 0.5.2 - 2026-06-17
+
+- Re-release; no library changes.
+
+### 0.5.1 - 2026-06-17
+
+- Support out-of-crate transports: parent-only transport devices and
+  `known_can_ids` routing hints.
+- Support moteus connected directly over TTL-level UART.
+- Examples moved into the crate.
