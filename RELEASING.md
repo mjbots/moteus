@@ -396,3 +396,20 @@ must opt in with an explicit pre-release requirement
 
 crates.io is append-only — you can yank a version but cannot delete it
 or reuse the version number. The environment-gate is the safety net.
+
+## Rust dependency lockfiles
+
+`lib/rust` carries two committed lockfiles: `Cargo.lock` (cargo's own)
+and `Cargo.bazel.lock` (the rules_rust crate_universe resolution built
+from it). The third-party crate specifications for the bazel build
+live in `lib/rust/crates.bzl`, which downstream workspaces such as
+mjbots/pi3hat also consume. After changing any dependency
+specification (a crate's `Cargo.toml`, or `crates.bzl`), regenerate:
+
+```bash
+cd lib/rust && cargo update --workspace   # refreshes Cargo.lock minimally
+CARGO_BAZEL_REPIN=1 ./tools/bazel sync --only=crate_index
+```
+
+A stale `Cargo.bazel.lock` fails the bazel build with a message that
+names `CARGO_BAZEL_REPIN`, so drift is caught rather than silent.
