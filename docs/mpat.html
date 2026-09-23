@@ -615,6 +615,12 @@ const fieldDefinitions = {
     type: 'mixed',
     constraints: 'numeric (°C) or "default"'
   },
+  'max_junction_temp': {
+    defaultValue: 'default',
+    description: 'Maximum allowable estimated FET junction temperature in °C (use "default" for controller-specific limit)',
+    type: 'mixed',
+    constraints: 'numeric (°C) or "default"'
+  },
   'max_motor_temp': {
     defaultValue: 'default',
     description: 'Maximum allowable motor temperature in °C (use "default" for motor-specific limit)',
@@ -644,6 +650,7 @@ const fieldDefinitions = {
       'torque': { help: 'Torque at gearbox output in Nm' },
       'velocity': { help: 'Velocity at gearbox output in Hz' },
       'controller_temp': { help: 'Controller temperature in °C' },
+      'junction_temp': { help: 'Estimated hottest FET junction temperature in °C' },
       'motor_temp': { help: 'Motor temperature in °C' },
       'supply_power': { help: 'Total electrical power consumption in W' },
       'supply_current': { help: 'Current sourced from supply in A' },
@@ -653,6 +660,7 @@ const fieldDefinitions = {
       'copper_loss': { help: 'Power dissipated in motor windings in W' },
       'iron_loss': { help: 'Power dissipated in motor stator in W' },
       'controller_loss': { help: 'Power dissipated in controller in W' },
+      'fet_loss': { help: 'Power dissipated in the hottest FET in W' },
       'mechanical_power': { help: 'Mechanical power at output of gearbox in W' },
       'efficiency': { help: 'Motor efficiency as percentage' },
       'time': { help: 'Time to complete move' },
@@ -672,7 +680,7 @@ const fieldDefinitions = {
     description: 'Analysis method - determines what optimization or calculation to perform',
     type: 'constrained',
     options: {
-      'max_current': { help: 'Find maximum sustainable phase current' },
+      'max_current': { help: 'Find maximum sustainable phase current (locked rotor by default)' },
       'max_torque': { help: 'Find maximum sustainable torque' },
       'max_velocity': { help: 'Find maximum achievable velocity' },
       'operating_point': { help: 'Evaluate specific operating point' },
@@ -737,7 +745,7 @@ const fieldDefinitions = {
   },
   'motor.r_tempco': {
     defaultValue: String(kCopperResistanceTempco),
-    description: `Fractional increase in resistance per °C, with motor.r taken at 25°C (copper is ${kCopperResistanceTempco})`,
+    description: `Fractional increase in resistance per °C, 0 or more, with motor.r taken at 25°C (copper is ${kCopperResistanceTempco})`,
     type: 'numeric'
   }
 };
@@ -1063,6 +1071,7 @@ class Interpolator2D {
       torque = null;
       velocity = null;
       controller_temp = null;
+      junction_temp = null;
       motor_temp = null;
       supply_power = null;
       supply_current = null;
@@ -1072,6 +1081,7 @@ class Interpolator2D {
       copper_loss = null;
       iron_loss = null;
       controller_loss = null;
+      fet_loss = null;
       fan_power = null;
       mechanical_power = null;
       efficiency = null;
@@ -1092,6 +1102,7 @@ class Interpolator2D {
           torque: { unit: 'Nm', precision: 2, displayName: 'Motor Torque' },
           velocity: { unit: 'Hz', precision: 2, displayName: 'Velocity' },
           controller_temp: { unit: 'C', precision: 2, displayName: 'Controller Temperature' },
+          junction_temp: { unit: 'C', precision: 2, displayName: 'FET Junction Temperature' },
           motor_temp: { unit: 'C', precision: 2, displayName: 'Motor Temperature' },
           supply_power: { unit: 'W', precision: 2, displayName: 'Supply Power' },
           supply_current: { unit: 'A', precision: 2, displayName: 'Supply Current' },
@@ -1101,6 +1112,7 @@ class Interpolator2D {
           copper_loss: { unit: 'W', precision: 2, displayName: 'Copper Loss' },
           iron_loss: { unit: 'W', precision: 2, displayName: 'Iron Loss' },
           controller_loss: { unit: 'W', precision: 2, displayName: 'Controller Loss' },
+          fet_loss: { unit: 'W', precision: 2, displayName: 'Hottest FET Loss' },
           fan_power: { unit: 'W', precision: 2, displayName: 'Fan Power' },
           mechanical_power: { unit: 'W', precision: 2, displayName: 'Mechanical Power' },
           efficiency: { unit: '%', precision: 2, displayName: 'Efficiency' },
@@ -1182,6 +1194,358 @@ class Controller {
     return this.props['maxTemp'];
   }
 
+  // The FET junction thermal model, mirroring the firmware
+  // FetThermalParams, or null if this controller does not have one.
+  getFetThermal() {
+    return this.props['fetThermal'] ?? null;
+  }
+
+  getMaxJunctionTemp() {
+    return this.props['maxJunctionTemp'] ?? null;
+  }
+
+  // Per-FET dissipation, indexed as [channel * 2 + (0 = high side,
+  // 1 = low side)], mirroring the firmware model, as a function of
+  // the junction temperatures and the locked rotor angle,
+  // (junctionTemps, angle, losses) => losses.  When
+  // isLockedRotor(config), the rotor is locked at electrical angle
+  // `angle`, where physical channel k carries
+  // I * cos(angle - k * 120deg); getJunction takes the worst over
+  // angles.  Otherwise the losses are averaged over an electrical
+  // revolution.  Everything that depends only on the constants and
+  // the operating point is worked out once: getJunction evaluates
+  // the function many times per operating point.
+  //
+  // As in the firmware, the switching energies, the series
+  // resistance, and the spreader are zero where a board leaves them
+  // out.
+  fetLossModel(fet, config) {
+    const {voltage, pwm, phase_current} = config;
+    const I = Math.abs(phase_current);
+    // As in the firmware, the Rds(on) temperature feedback is only
+    // evaluated from -55C to 200C, which keeps the fixed point in
+    // getJunction() bounded for any input.
+    const r25 = fet.rds_on_25C_ohm;
+    const tempco = fet.rds_on_tempco_per_C;
+    const rds = (tj) => r25 * (1.0 + tempco *
+                               (Math.min(Math.max(tj, -55.0), 200.0) - 25.0));
+    const overlap_hs = fet.gate_switch_charge_coulomb *
+          (1.0 / fet.gate.hs_source_A + 1.0 / fet.gate.hs_sink_A);
+    const overlap_ls = fet.gate_switch_charge_coulomb *
+          (1.0 / fet.gate.ls_source_A + 1.0 / fet.gate.ls_sink_A);
+    // The FET that hard switches dissipates k * |i| + k_i2 * i2, with
+    // i2 the mean of the square of the current over the same time.
+    // Its loss per edge grows with the PWM rate.
+    const rate = pwm * (1.0 + (fet.hard_switching_per_Hz ?? 0.0) * pwm);
+    const k_va = rate * (fet.switching_energy_J_per_V_A ?? 0.0) * voltage;
+    const k_hs =
+          0.5 * voltage * overlap_hs * rate * fet.switching_loss_scale + k_va;
+    const k_ls =
+          0.5 * voltage * overlap_ls * rate * fet.switching_loss_scale + k_va;
+    const k_i2 = rate * (fet.switching_energy_J_per_A2 ?? 0.0);
+    // The other FET of the leg: its body diode through the dead time.
+    const k_diode = 2.0 * pwm * (fet.deadtime_diode_V_s ?? 0.0);
+    // Per FET of a switching leg, whatever the current.
+    const leg = 0.5 * pwm * ((fet.switching_energy_J ?? 0.0) +
+                             (fet.switching_energy_J_per_V ?? 0.0) * voltage);
+
+    const shunt = fet.shunt_ohm ?? 0.0;
+    const extra = fet.r_extra_ohm ?? 0.0;
+    if (isLockedRotor(config)) {
+      return (junctionTemps, angle, losses) => {
+        for (let channel = 0; channel < 3; channel++) {
+          const hs = channel * 2;
+          const ls = hs + 1;
+          const i = I * Math.cos(angle - channel * 2.0 * Math.PI / 3.0);
+          const i2 = i * i;
+          const a = Math.abs(i);
+          losses[hs] = i2 * (rds(junctionTemps[hs]) + extra) * 0.5 + leg;
+          losses[ls] =
+              i2 * (rds(junctionTemps[ls]) + extra + shunt) * 0.5 + leg;
+          if (i >= 0) {
+            losses[hs] += k_hs * a + k_i2 * i2;
+            losses[ls] += k_diode * a;
+          } else {
+            losses[ls] += k_ls * a + k_i2 * i2;
+            losses[hs] += k_diode * a;
+          }
+        }
+        return losses;
+      };
+    }
+    // mean(i^2) = I^2 / 2, split evenly by duty, and each FET hard
+    // switches for half a revolution where mean |i| = 2I/pi and mean
+    // i^2 = I^2 / 2, its body diode conducting for the other half.
+    const a = I / Math.PI;
+    const i2 = 0.25 * I * I;
+    const other = k_diode * a + leg;
+    const fixed_hs = k_hs * a + k_i2 * i2 + other;
+    const fixed_ls = k_ls * a + k_i2 * i2 + other;
+    return (junctionTemps, angle, losses) => {
+      for (let channel = 0; channel < 3; channel++) {
+        const hs = channel * 2;
+        const ls = hs + 1;
+        losses[hs] = i2 * (rds(junctionTemps[hs]) + extra) + fixed_hs;
+        losses[ls] = i2 * (rds(junctionTemps[ls]) + extra + shunt) + fixed_ls;
+      }
+      return losses;
+    };
+  }
+
+  // The board networks the estimator runs: the board bare and, if it
+  // has a spreader, the board with it; each junction's estimate is
+  // the hotter.
+  getFetNetworkConstants(fet) {
+    if ((fet.g_pad_spreader_W_per_K ?? 0.0) > 0.0) {
+      return [{...fet, g_pad_spreader_W_per_K: 0.0}, fet];
+    }
+    return [fet];
+  }
+
+  // One board network, mirroring the firmware (see
+  // fw/fet_thermal_model.h), as rises over ambient: the six pads, the
+  // copper at the thermistor (6), the bulk of the board (7), and a heat
+  // spreader on the pads (8) if it has one,
+  //
+  //   C dx/dt = P - G x
+  //
+  // with each node's heat capacity on the diagonal of C.  Scaled by
+  // C^-1/2 the system is symmetric, so its modes are real and
+  // orthogonal and each solves in closed form.  Computed once.
+  buildFetNetwork(fet, net) {
+    const spreader = (net.g_pad_spreader_W_per_K ?? 0.0) > 0.0;
+    const n = spreader ? 9 : 8;
+    const G = [...Array(n).keys()].map(() => new Array(n).fill(0.0));
+    const link = (a, b, g) => {
+      G[a][a] += g;
+      G[b][b] += g;
+      G[a][b] -= g;
+      G[b][a] -= g;
+    };
+    for (let i = 0; i < 6; i++) {
+      link(i, 6, net.g_pad_thermistor_W_per_K[i]);
+      G[i][i] += net.g_pad_ambient_W_per_K[i];
+      if (spreader) {
+        link(i, 8, net.g_pad_spreader_W_per_K);
+      }
+    }
+    for (let k = 0; k < fet.network_couplings; k++) {
+      link(fet.coupling_a[k], fet.coupling_b[k], net.coupling_W_per_K[k]);
+    }
+    const capacity = new Array(6).fill(net.c_pad_J_per_K);
+    link(6, 7, net.g_thermistor_board_W_per_K);
+    G[6][6] += net.g_thermistor_ambient_W_per_K;
+    G[7][7] += net.g_board_ambient_W_per_K;
+    capacity.push(net.c_thermistor_J_per_K, net.c_board_J_per_K);
+    if (spreader) {
+      G[8][8] += net.g_spreader_ambient_W_per_K;
+      capacity.push(net.c_spreader_J_per_K);
+    }
+    const s = capacity.map((c) => 1.0 / Math.sqrt(c));
+    const K = G.map((row, i) => row.map((g, j) => s[i] * g * s[j]));
+    const {values, vectors} = symmetricEigen(K);
+    return {net, n, s, values, vectors};
+  }
+
+  getFetNetworks(fet) {
+    if (this._fetNetworks?.fet !== fet) {
+      this._fetNetworks = {
+        fet,
+        networks: this.getFetNetworkConstants(fet).map(
+            (net) => this.buildFetNetwork(fet, net)),
+      };
+    }
+    return this._fetNetworks.networks;
+  }
+
+  // Each junction's pad rise over the thermistor's reading after `t`
+  // seconds of constant losses from a cold board, in one network.  For
+  // each mode,
+  //
+  //   x(t) = s * v (v . s P) / lambda * (1 - exp(-lambda t))
+  //
+  // and the reading follows the thermistor's copper through a first
+  // order lag, which each mode passes in closed form too.
+  networkPadRise(network, losses, t) {
+    const {net, n, s, values, vectors} = network;
+    const x = new Array(n).fill(0.0);
+    let reading = 0.0;
+    const tau = net.thermistor_lag_s;
+    for (let m = 0; m < n; m++) {
+      const lambda = values[m];
+      const v = vectors.map((row) => row[m]);
+      const b = v.reduce(
+          (sum, vi, i) => sum + vi * s[i] * (i < 6 ? losses[i] : 0.0), 0.0);
+      const steady = b / lambda;
+      const shape = (t == Infinity) ? 1.0 : 1.0 - Math.exp(-lambda * t);
+      for (let i = 0; i < n; i++) {
+        x[i] += s[i] * v[i] * steady * shape;
+      }
+      // The lag's response to 1 - exp(-lambda t), starting at zero.
+      let lagged = 1.0;
+      if (t != Infinity) {
+        const decay = Math.exp(-t / tau);
+        const d = 1.0 - lambda * tau;
+        lagged = 1.0 - decay - ((Math.abs(d) < 1e-9) ?
+                                (t / tau) * decay :
+                                (Math.exp(-lambda * t) - decay) / d);
+      }
+      reading += s[6] * v[6] * steady * lagged;
+    }
+    return x.slice(0, 6).map((xi) => xi - reading);
+  }
+
+  // One network's response to constant losses held for `t` seconds
+  // from a cold board, which is linear in the losses: each junction's
+  // rise over the thermistor's reading per watt in each FET, rise[6 * i
+  // + j], the pad's (networkPadRise) plus, on the diagonal, the
+  // junction stage's own.  Computed once per duration.
+  networkResponse(network, t) {
+    network.responses ??= new Map();
+    let rise = network.responses.get(t);
+    if (rise != null) {
+      return rise;
+    }
+    rise = new Float64Array(36);
+    const unit = new Array(6).fill(0.0);
+    for (let j = 0; j < 6; j++) {
+      unit.fill(0.0);
+      unit[j] = 1.0;
+      const pads = this.networkPadRise(network, unit, t);
+      for (let i = 0; i < 6; i++) {
+        rise[6 * i + j] = pads[i];
+      }
+    }
+    // The junction stage, per FET.  The pad is driven by the loss
+    // directly rather than through the junction node, which reads
+    // slightly hot for the first few junction time constants.
+    for (let i = 0; i < 6; i++) {
+      const r = network.net.r_junction_pad_C_per_W[i];
+      const tau = network.net.tau_junction_pad_s[i];
+      rise[7 * i] += r * ((t == Infinity) ? 1.0 : (1.0 - Math.exp(-t / tau)));
+    }
+    if (network.responses.size >= 64) {
+      network.responses.clear();
+    }
+    network.responses.set(t, rise);
+    return rise;
+  }
+
+  // Estimate the hottest FET junction given the board (thermistor)
+  // temperature.  Returns {junction_temp, fet_loss, index, angle_deg,
+  // junction_temps, losses} or null if this controller has no FET
+  // thermal model.  angle_deg is the locked rotor electrical angle
+  // of the result, null when rotating.
+  //
+  // The firmware's estimate starts hot at power up, at the start of
+  // derating, and relaxes over about a minute.  This models a
+  // controller past that, whose estimate starts from the board
+  // temperature.
+  getJunction(boardTemp, config) {
+    const fet = this.getFetThermal();
+    if (fet == null || boardTemp == null) {
+      return null;
+    }
+    // An operating point asks for the same junction twice, for its
+    // velocity limit and for itself, so keep the last answer.
+    const key = [fet, boardTemp, Math.abs(config.phase_current),
+                 isLockedRotor(config), config.locked_angle_deg ?? null,
+                 config.time, config.voltage, config.pwm];
+    const last = this._lastJunction;
+    if (last != null && key.every((v, i) => v === last.key[i])) {
+      return {...last.result};
+    }
+    const result = this.computeJunction(fet, boardTemp, config);
+    this._lastJunction = {key, result};
+    return {...result};
+  }
+
+  computeJunction(fet, boardTemp, config) {
+    // Each FET's estimate is the hottest of the networks, and as in
+    // the firmware, never less than the board.
+    const responses = this.getFetNetworks(fet).map(
+        (network) => this.networkResponse(network, config.time));
+    const lossesAt = this.fetLossModel(fet, config);
+
+    const evaluate = (angle) => {
+      let junctionTemps = new Array(6).fill(boardTemp);
+      const losses = new Array(6).fill(0.0);
+      // Rds(on) depends on the junction temperature, so iterate to a
+      // fixed point.  The loop gain is small, so a few passes suffice.
+      for (let iter = 0; iter < 6; iter++) {
+        lossesAt(junctionTemps, angle, losses);
+        const next = new Array(6).fill(boardTemp);
+        for (const rise of responses) {
+          for (let i = 0; i < 6; i++) {
+            let x = boardTemp;
+            for (let j = 0; j < 6; j++) {
+              x += rise[6 * i + j] * losses[j];
+            }
+            if (x > next[i]) {
+              next[i] = x;
+            }
+          }
+        }
+        let change = 0.0;
+        for (let i = 0; i < 6; i++) {
+          change = Math.max(change, Math.abs(next[i] - junctionTemps[i]));
+        }
+        junctionTemps = next;
+        if (change < 1e-9) {
+          break;
+        }
+      }
+      let index = 0;
+      for (let i = 1; i < 6; i++) {
+        if (junctionTemps[i] > junctionTemps[index]) {
+          index = i;
+        }
+      }
+      return {
+        junction_temp: junctionTemps[index],
+        fet_loss: losses[index],
+        index,
+        angle_deg: angle * 180.0 / Math.PI,
+        junction_temps: junctionTemps,
+        losses,
+      };
+    };
+
+    if (!isLockedRotor(config)) {
+      return {...evaluate(0.0), angle_deg: null};
+    }
+    // A fixed angle, for tests.
+    if (config.locked_angle_deg != null) {
+      return evaluate(config.locked_angle_deg * Math.PI / 180.0);
+    }
+    // A locked rotor can stop at any angle.  Without couplings each
+    // FET is at its worst at one of the six angles where a phase
+    // current peaks with the sign that makes that FET hard switch.
+    // With them, a FET's neighbours heat it too, and the worst is
+    // usually between those angles, where two phases share the
+    // current, so sweep and then refine around the hottest.
+    const worst = (a, b) => (b.junction_temp > a.junction_temp ? b : a);
+    const deg = Math.PI / 180.0;
+    if (!(fet.network_couplings > 0)) {
+      return [0, 1, 2, 3, 4, 5].map((k) => evaluate(k * 60.0 * deg))
+        .reduce(worst);
+    }
+    let result = [...Array(36).keys()].map((k) => evaluate(k * 10.0 * deg))
+        .reduce(worst);
+    for (const step of [5.0, 2.5, 1.25]) {
+      const center = result.angle_deg;
+      result = [center - step, center + step]
+        .map((a) => evaluate(a * deg)).reduce(worst, result);
+    }
+    return result;
+  }
+
+  // Junction estimate from the total controller loss (which sets the
+  // board temperature) and the operating point.
+  getJunctionFromThermalPower(thermalPower, config) {
+    return this.getJunction(this.getTemperature(thermalPower, config), config);
+  }
+
   getMaxVoltage() {
     return this.props['maxVoltage'];
   }
@@ -1217,7 +1581,9 @@ class Controller {
     const b = k1;
     const a = k2;
 
-    const current = new LimitedValue((-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a), 'controller_temp');
+    const current = new LimitedValue(
+        (-b + Math.sqrt(Math.max(0, b * b - 4 * a * (c - thermalW)))) / (2 * a),
+        'max_controller_temp');
     const result = LimitedValue.min(new LimitedValue(this.getMaxCurrent(voltage), 'controller_max_current'), current);
     return result;
   }
@@ -1406,14 +1772,6 @@ class Motor {
                (L_q !== undefined ? L_q : this.L_d);
     this.ld_scale = ld_scale_pp !== undefined ? ld_scale_pp / 2 :
                     (ld_scale !== undefined ? ld_scale : 0);
-    this.thermal = thermal;
-    this.rotationCurrentScale = rotationCurrentScale;
-    this.rotationCurrentCutoff = rotationCurrentCutoff;
-    this.rotationTorqueScale = rotationTorqueScale;
-    this.d0 = d0;
-    this.d1 = d1;
-    this.inertia = inertia;
-    this.poles = poles;
     // `R` is the resistance as measured at 25C, which is what the
     // firmware is configured with, so everything that mirrors a
     // firmware calculation (base velocity, field weakening current,
@@ -1422,6 +1780,14 @@ class Motor {
     // phase voltage use, and is passed explicitly to getPower(),
     // getPhaseVoltage(), and isVoltageFeasible().
     this.resistanceTempco = resistanceTempco;
+    this.thermal = thermal;
+    this.rotationCurrentScale = rotationCurrentScale;
+    this.rotationCurrentCutoff = rotationCurrentCutoff;
+    this.rotationTorqueScale = rotationTorqueScale;
+    this.d0 = d0;
+    this.d1 = d1;
+    this.inertia = inertia;
+    this.poles = poles;
 
     this.kt = 8.3 / this.Kv;
   }
@@ -1438,7 +1804,8 @@ class Motor {
   // motor temperature.
   windingResistance(tempC, config) {
     return this.resistanceAt(
-        (tempC != null && Number.isFinite(tempC)) ? tempC : maxMotorTemp(config));
+        (tempC != null && Number.isFinite(tempC)) ?
+          tempC : maxMotorTemp(config));
   }
 
   // The winding temperature rise per watt of loss after config.time
@@ -1574,10 +1941,11 @@ class Motor {
           config);
       const powerCurrent = Math.sqrt(maxControllerPower / 1.5 / powerR);
       return LimitedValue.min(
-        new LimitedValue(this.getIrLimitedCurrent(supplyVoltageMargin, K, config),
-                         'back_emf'),
+        new LimitedValue(
+            this.getIrLimitedCurrent(supplyVoltageMargin, K, config),
+            'back_emf'),
         LimitedValue.min(
-          new LimitedValue(thermalCurrent, 'max_motor_temperature'),
+          new LimitedValue(thermalCurrent, 'max_motor_temp'),
           new LimitedValue(powerCurrent, 'max_controller_power')));
     }
 
@@ -1589,7 +1957,7 @@ class Motor {
       new LimitedValue(supplyVoltageMargin / coolR, 'back_emf'),
       LimitedValue.min(
         new LimitedValue(Math.sqrt(thermalW / 1.5 / hotR),
-                         'max_motor_temperature'),
+                         'max_motor_temp'),
         new LimitedValue(Math.sqrt(maxControllerPower / 1.5 / coolR),
                          'max_controller_power')));
 
@@ -1621,13 +1989,14 @@ class Motor {
     const controllerPower = Math.abs(e.power.Ptotal - maxControllerPower);
     const maxDelta = Math.abs(resultCurrent - ImaxPossible.value);
     const irDelta = Math.abs(resultCurrent * e.R - supplyVoltageMargin);
-    const V_phase = this.getPhaseVoltage(resultCurrent, e.i_d, rotorVelocityHz, e.R);
+    const V_phase =
+          this.getPhaseVoltage(resultCurrent, e.i_d, rotorVelocityHz, e.R);
     const kSvpwmRatio = 2.0 / Math.sqrt(3);
     const V_max = config.controller.getMaxVoltageRatio(config) *
         kSvpwmRatio * 0.5 * config.voltage;
     const voltageDelta = Math.min(Math.abs(V_phase - V_max), irDelta);
     const resultReason = LimitedValue.min(
-      new LimitedValue(motorThermal, 'max_motor_temperature'),
+      new LimitedValue(motorThermal, 'max_motor_temp'),
       LimitedValue.min(
         new LimitedValue(controllerPower, 'max_controller_power'),
         LimitedValue.min(
@@ -1655,7 +2024,8 @@ class Motor {
     const Ta = config.ambient_temp;
     const Q = 1.5 * K * supplyVoltageMargin * supplyVoltageMargin;
     const temp = (B == 0.0) ? (Ta + Q / A) :
-          (-(A - B * Ta) + Math.sqrt(Math.pow(A - B * Ta, 2) + 4 * B * (A * Ta + Q))) /
+          (-(A - B * Ta) +
+           Math.sqrt(Math.pow(A - B * Ta, 2) + 4 * B * (A * Ta + Q))) /
           (2 * B);
     return supplyVoltageMargin / this.resistanceAt(temp);
   }
@@ -1694,6 +2064,31 @@ class Motor {
       return null;
     }
 
+    // The junction at rotor velocity `rotorVel`, in the loss regime
+    // the firmware would use there (see isLockedRotor).
+    const maxJunction = maxJunctionTemp(config);
+    const junctionAt = (rotorVel, phaseCurrent, boardTemp) =>
+          config.controller.getJunction(boardTemp, {
+            ...config,
+            phase_current: phaseCurrent,
+            velocity: rotorHzToOutputHz(rotorVel, config),
+          });
+    const junctionOk = (junction) =>
+          junction == null || maxJunction == null ||
+          junction.junction_temp <= maxJunction;
+
+    // The velocity is unknown here.  The losses of a rotating motor
+    // do not depend on it, and those of a locked rotor, below
+    // kFetAveragedAboveHz electrical, only read hotter, so the search
+    // is for a rotating motor.  If even that is over the limit, no
+    // velocity is feasible.  If the result turns out to be slow enough
+    // to be locked, it is checked again there: when the locked rotor
+    // is over the limit, so is every slower velocity, and again none
+    // is feasible.
+    if (!junctionOk(junctionAt(Infinity, current, controllerTemp))) {
+      return null;
+    }
+
     const d0 = this.d0;
     const d1 = this.d1;
     const pi = Math.PI;
@@ -1713,7 +2108,8 @@ class Motor {
         const motorThermalOk = (hot.Pcopper + hot.Piron) < thermalW;
         const R = this.getOperatingResistance(current, i_d, rotorVel, config).R;
         const controllerPowerOk =
-              this.getPower(current, rotorVel, i_d, R).Ptotal < maxControllerPower;
+              this.getPower(current, rotorVel, i_d, R).Ptotal <
+              maxControllerPower;
         // Controller temperature check: include the d-axis FW current
         // in phase_current since it also dissipates in the controller.
         const phaseCurrent = Math.sqrt(current * current + i_d * i_d);
@@ -1725,7 +2121,12 @@ class Motor {
             controllerLossW, config);
         const controllerTempOk =
             controllerTemp != null && controllerTemp < maxController;
+        // As above, the search is for a rotating motor, even at its
+        // zero velocity end.
+        const junctionRotatingOk = junctionOk(
+            junctionAt(Infinity, phaseCurrent, controllerTemp));
         return motorThermalOk && controllerPowerOk && controllerTempOk &&
+          junctionRotatingOk &&
           this.isVoltageFeasible(current, rotorVel, config, R);
       };
 
@@ -1739,7 +2140,8 @@ class Motor {
       const R = this.getOperatingResistance(
           current, i_d, resultRotorVel, config).R;
       const controllerDelta = Math.abs(
-          this.getPower(current, resultRotorVel, i_d, R).Ptotal - maxControllerPower);
+          this.getPower(current, resultRotorVel, i_d, R).Ptotal -
+          maxControllerPower);
       const maxVelDelta = Math.abs(resultRotorVel - maxRotorVel);
       const V_phase = this.getPhaseVoltage(current, i_d, resultRotorVel, R);
       const kSvpwmRatio = 2.0 / Math.sqrt(3);
@@ -1755,17 +2157,27 @@ class Motor {
           controllerLossW, config);
       const controllerTempDelta = (controllerTemp == null) ?
           Infinity : Math.abs(controllerTemp - maxController);
-      const limitingFactor = LimitedValue.min(
+      const junction = junctionAt(resultRotorVel, phaseCurrent, controllerTemp);
+      if (!junctionOk(junction)) {
+        return null;
+      }
+      const junctionDelta = (junction == null || maxJunction == null) ?
+          Infinity : Math.abs(junction.junction_temp - maxJunction);
+      const limiting = LimitedValue.min(
         new LimitedValue(motorThermalDelta, 'max_motor_temp'),
         LimitedValue.min(
           new LimitedValue(controllerDelta, 'max_controller_power'),
           LimitedValue.min(
             new LimitedValue(controllerTempDelta, 'max_controller_temp'),
             LimitedValue.min(
-              new LimitedValue(voltageDelta, 'back_emf'),
-              new LimitedValue(maxVelDelta, maxVelLimited.limitingFactor))))).limitingFactor;
+              new LimitedValue(junctionDelta, 'max_junction_temp'),
+              LimitedValue.min(
+                new LimitedValue(voltageDelta, 'back_emf'),
+                new LimitedValue(maxVelDelta,
+                                 maxVelLimited.limitingFactor))))));
 
-      return new LimitedValue(rotorHzToOutputHz(resultRotorVel, config), limitingFactor);
+      return new LimitedValue(rotorHzToOutputHz(resultRotorVel, config),
+                              limiting.limitingFactor);
     } else {
       // We are not using field weakening, so we can use an analytical
       // solution for the motor temperature limit.  All quantities
@@ -1773,10 +2185,16 @@ class Motor {
 
       const Piron_motor = thermalW - Pcopper_q;
 
-      // First find the rotor velocity as limited by motor temperature.
+      // First find the rotor velocity as limited by motor temperature,
+      // the larger root of 2 * pi * (d0 * v + d1 * v^2) = Piron_motor,
+      // in the same form as vPower below, which avoids dividing by
+      // zero when d1 is zero.
+      const bIron = 2 * pi * d0;
+      const sqrtIron = Math.sqrt(bIron * bIron + 4 * 2 * pi * d1 * Piron_motor);
       const vMotorTemp =
             new LimitedValue(
-              (-2 * pi * d0 + Math.sqrt(Math.pow(2 * pi * d0, 2) + 4 * 2 * pi * d1 * Piron_motor)) / (2 * 2 * pi * d1),
+              (bIron >= 0) ? (2 * Piron_motor / (bIron + sqrtIron)) :
+                ((-bIron + sqrtIron) / (2 * 2 * pi * d1)),
               'max_motor_temp');
 
       // Then the rotor velocity limited by controller maximum power.
@@ -1792,11 +2210,16 @@ class Motor {
       // Piron = 2 * pi * v * (d0 + d1 * v), the power limit
       // Pmech + Pcopper + Piron = maxControllerPower is a quadratic
       // a * v^2 + b * v + c = 0 in the rotor velocity.
-      const {R: R0, temp: T0} = this.getOperatingResistance(current, 0, 0, config);
+      const {R: R0, temp: T0} =
+            this.getOperatingResistance(current, 0, 0, config);
       const Pcopper0 = 1.5 * current * current * R0;
-      const betaK = this.resistanceTempco * 1.5 * current * current * this.R *
-            this.getThermalGain(config);
-      const g = (T0 != null && Number.isFinite(T0)) ? betaK / (1.0 - betaK) : 0.0;
+      let g = 0.0;
+      if (T0 != null && Number.isFinite(T0)) {
+        // The winding temperature, and so the thermal gain, is known.
+        const betaK = this.resistanceTempco * 1.5 * current * current *
+              this.R * this.getThermalGain(config);
+        g = betaK / (1.0 - betaK);
+      }
       const a = 2 * pi * d1 * (1.0 + g);
       const b = 2 * pi * (rotorTorque + d0 * (1.0 + g));
       const c = Pcopper0 - maxControllerPower;
@@ -1808,6 +2231,9 @@ class Motor {
       const vControllerPower = new LimitedValue(vPower, 'max_controller_power');
 
       const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
+      if (!junctionOk(junctionAt(rotorResult.value, current, controllerTemp))) {
+        return null;
+      }
       return new LimitedValue(rotorHzToOutputHz(rotorResult.value, config),
                               rotorResult.limitingFactor);
     }
@@ -2086,6 +2512,51 @@ class MoteusC1 extends MoteusController {
       P_h_W: 150.0,
       V_h: 41.0,
       defaultPwm: 30000,
+      // Mirrors the firmware FetThermalParams for the moteus-c1 in
+      // fw/moteus_hw.cc, measured on the automated thermal fixture on
+      // 2026-10-13/14: the board in still air, run bare and with a heat
+      // spreader, each FET's estimate the hotter.  The firmware derates
+      // from 140C to 165C, keeping the true junction 10C below the
+      // FETs' 175C absolute maximum; 150C is 40% of the way through
+      // that band.
+      maxJunctionTemp: 150.0,
+      fetThermal: {
+        rds_on_25C_ohm: 0.0147,
+        rds_on_tempco_per_C: 0.0073,
+        gate_switch_charge_coulomb: 5.5e-09,
+        r_junction_pad_C_per_W: [19.15, 20.89, 20.12, 20.89, 20.12, 21.97],
+        tau_junction_pad_s: [0.2055, 0.2242, 0.2159, 0.2242, 0.2159, 0.2357],
+        g_pad_thermistor_W_per_K: [
+          0.1, 9.003e-06, 0.01598, 0.004717, 0.003312, 9e-06],
+        g_pad_ambient_W_per_K: [
+          0.005384, 0.0118, 0.008028, 0.003324, 0.01115, 0.01109],
+        c_pad_J_per_K: 0.2281,
+        c_thermistor_J_per_K: 0.4839,
+        c_board_J_per_K: 0.5,
+        g_thermistor_board_W_per_K: 0.0009,
+        g_thermistor_ambient_W_per_K: 0.0002098,
+        g_board_ambient_W_per_K: 0.001165,
+        thermistor_lag_s: 0.02,
+        g_pad_spreader_W_per_K: 0.1,
+        g_spreader_ambient_W_per_K: 0.2,
+        c_spreader_J_per_K: 10,
+        switching_loss_scale: 0.4353,
+        r_extra_ohm: 0.001598,
+        switching_energy_J_per_V: 1.1e-07,
+        switching_energy_J_per_V_A: 0.0,
+        switching_energy_J_per_A2: 6.989e-08,
+        deadtime_diode_V_s: 1.849e-07,
+        network_couplings: 5,
+        coupling_a: [0, 1, 2, 2, 4],
+        coupling_b: [1, 3, 3, 4, 5],
+        coupling_W_per_K: [0.0321, 0.03891, 0.07851, 0.08665, 0.07238],
+        // Firmware default gate drive strengths (DRV8323).
+        gate: { hs_source_A: 0.06, hs_sink_A: 0.02,
+                ls_source_A: 0.06, ls_sink_A: 0.02 },
+        // Low side current sense shunt, in series with each low side
+        // FET; its dissipation is attributed to that FET.
+        shunt_ohm: 0.002,
+      },
     },
     {
       'voltages' : [12, 24, 36, 48],
@@ -2124,6 +2595,51 @@ class MoteusR4 extends MoteusController {
       P_h_W: 400.0,
       V_h: 38.0,
       defaultPwm: 30000,
+      // Mirrors the firmware FetThermalParams for the moteus-r4 in
+      // fw/moteus_hw.cc, measured on the automated thermal fixture on
+      // 2026-10-14/15: one board network, run bare and with a heat
+      // spreader, each FET's estimate the hotter.  The firmware derates
+      // from 140C to 165C, keeping the true junction 10C below the
+      // FETs' 175C absolute maximum; 150C is 40% of the way through
+      // that band.
+      maxJunctionTemp: 150.0,
+      fetThermal: {
+        rds_on_25C_ohm: 0.0019,
+        rds_on_tempco_per_C: 0.0085,
+        gate_switch_charge_coulomb: 1.9e-08,
+        r_junction_pad_C_per_W: [7.556, 6.748, 7.556, 6.748, 7.556, 6.748],
+        tau_junction_pad_s: [0.1706, 0.1524, 0.1706, 0.1524, 0.1706, 0.1524],
+        g_pad_thermistor_W_per_K: [
+          9e-06, 9e-06, 0.0362, 0.004103, 0.06861, 9e-06],
+        g_pad_ambient_W_per_K: [
+          0.02212, 0.01284, 0.01402, 0.01083, 0.004174, 0.02586],
+        c_pad_J_per_K: 0.2675,
+        c_thermistor_J_per_K: 0.3749,
+        c_board_J_per_K: 3.088,
+        g_thermistor_board_W_per_K: 0.007327,
+        g_thermistor_ambient_W_per_K: 0.03116,
+        g_board_ambient_W_per_K: 0.1968,
+        thermistor_lag_s: 0.02,
+        g_pad_spreader_W_per_K: 0.01,
+        g_spreader_ambient_W_per_K: 0.02,
+        c_spreader_J_per_K: 10,
+        switching_loss_scale: 0.3666,
+        r_extra_ohm: 0.001668,
+        switching_energy_J_per_V: 2.75e-07,
+        switching_energy_J_per_V_A: 0,
+        switching_energy_J_per_A2: 1.262e-08,
+        deadtime_diode_V_s: 0,
+        network_couplings: 5,
+        coupling_a: [0, 1, 2, 2, 4],
+        coupling_b: [1, 3, 3, 4, 5],
+        coupling_W_per_K: [0.1022, 0.06614, 0.1878, 0.04367, 0.08841],
+        // Firmware default gate drive strengths (DRV8353).
+        gate: { hs_source_A: 0.10, hs_sink_A: 0.20,
+                ls_source_A: 0.10, ls_sink_A: 0.60 },
+        // Low side current sense shunt, in series with each low side
+        // FET; its dissipation is attributed to that FET.
+        shunt_ohm: 0.0005,
+      },
     },
     {
       'voltages' : [12, 24, 36, 42],
@@ -2358,6 +2874,51 @@ class MoteusN1 extends MoteusController {
       P_h_W: 1000.0,
       V_h: 44.0,
       defaultPwm: 20000,
+      // Mirrors the firmware FetThermalParams for the moteus-n1 in
+      // fw/moteus_hw.cc, measured on the automated thermal fixture on
+      // 2026-10-15/16: one board network, run bare and with a heat
+      // spreader, each FET's estimate the hotter.  The firmware derates
+      // from 140C to 165C, keeping the true junction 10C below the
+      // FETs' 175C absolute maximum; 150C is 40% of the way through
+      // that band.
+      maxJunctionTemp: 150.0,
+      fetThermal: {
+        rds_on_25C_ohm: 0.0019,
+        rds_on_tempco_per_C: 0.0053,
+        gate_switch_charge_coulomb: 2.8e-08,
+        r_junction_pad_C_per_W: [6.884, 9.315, 7.252, 10.25, 8.565, 11.41],
+        tau_junction_pad_s: [0.2298, 0.3109, 0.242, 0.3423, 0.2859, 0.3808],
+        g_pad_thermistor_W_per_K: [
+          0.1, 4.536e-05, 0.001953, 0.02589, 9e-06, 9e-06],
+        g_pad_ambient_W_per_K: [
+          0.001897, 0.02614, 0.01089, 0.0005683, 0.006963, 0.02242],
+        c_pad_J_per_K: 0.4548,
+        c_thermistor_J_per_K: 0.8431,
+        c_board_J_per_K: 0.5,
+        g_thermistor_board_W_per_K: 0.004178,
+        g_thermistor_ambient_W_per_K: 9e-06,
+        g_board_ambient_W_per_K: 9e-06,
+        thermistor_lag_s: 0.02001,
+        g_pad_spreader_W_per_K: 0.1,
+        g_spreader_ambient_W_per_K: 0.2,
+        c_spreader_J_per_K: 10,
+        switching_loss_scale: 0.5247,
+        r_extra_ohm: 0.001761,
+        switching_energy_J_per_V: 3.79e-07,
+        switching_energy_J_per_V_A: 2.669e-09,
+        switching_energy_J_per_A2: 3.929e-08,
+        deadtime_diode_V_s: 9.453e-08,
+        network_couplings: 5,
+        coupling_a: [0, 1, 2, 2, 4],
+        coupling_b: [1, 3, 3, 4, 5],
+        coupling_W_per_K: [0.2077, 0.04999, 0.1738, 0.1091, 0.09596],
+        // Firmware default gate drive strengths.
+        gate: { hs_source_A: 0.15, hs_sink_A: 0.20,
+                ls_source_A: 0.15, ls_sink_A: 0.10 },
+        // Low side current sense shunt, in series with each low side
+        // FET; its dissipation is attributed to that FET.
+        shunt_ohm: 0.0005,
+      },
     },
     {
       'voltages' : [12, 24, 36, 48, 54],
@@ -2403,6 +2964,52 @@ class MoteusX1 extends MoteusController {
       P_h_W: 1000.0,
       V_h: 44.0,
       defaultPwm: 15000,
+      // Mirrors the firmware FetThermalParams for the moteus-x1 in
+      // fw/moteus_hw.cc, measured on the automated thermal fixture on
+      // 2026-09-29 through 2026-10-13: the board in still air, run bare
+      // and with a heat spreader, each FET's estimate the hotter.  The
+      // firmware derates from 115C to 140C, keeping the true junction
+      // 10C below the FETs' 150C absolute maximum; 125C is 40% of the
+      // way through that band.
+      maxJunctionTemp: 125.0,
+      fetThermal: {
+        rds_on_25C_ohm: 0.00106,
+        rds_on_tempco_per_C: 0.0064,
+        gate_switch_charge_coulomb: 6e-08,
+        r_junction_pad_C_per_W: [4.284, 3.956, 4.117, 3.472, 4.15, 4.098],
+        tau_junction_pad_s: [0.1286, 0.1188, 0.1236, 0.1043, 0.1246, 0.1231],
+        g_pad_thermistor_W_per_K: [
+          45, 9e-06, 0.03655, 0.006089, 0.001248, 0.005491],
+        g_pad_ambient_W_per_K: [
+          0.001791, 0.02806, 0.01595, 0.006952, 0.01484, 0.01827],
+        c_pad_J_per_K: 0.646,
+        c_thermistor_J_per_K: 0.2996,
+        c_board_J_per_K: 0.7029,
+        g_thermistor_board_W_per_K: 0.1705,
+        g_thermistor_ambient_W_per_K: 0.005227,
+        g_board_ambient_W_per_K: 9.651e-05,
+        thermistor_lag_s: 0.8277,
+        g_pad_spreader_W_per_K: 0.3,
+        g_spreader_ambient_W_per_K: 2,
+        c_spreader_J_per_K: 10,
+        switching_loss_scale: 0.4194,
+        r_extra_ohm: 0.000605,
+        switching_energy_J_per_V: 4.51e-07,
+        switching_energy_J_per_V_A: 1.63e-08,
+        switching_energy_J_per_A2: 1.834e-08,
+        deadtime_diode_V_s: 7e-07,
+        hard_switching_per_Hz: 4e-06,
+        network_couplings: 5,
+        coupling_a: [0, 1, 2, 2, 4],
+        coupling_b: [1, 3, 3, 4, 5],
+        coupling_W_per_K: [0.08442, 0.04818, 0.06422, 0.1397, 0.1203],
+        // Firmware default gate drive strengths.
+        gate: { hs_source_A: 0.30, hs_sink_A: 0.20,
+                ls_source_A: 0.85, ls_sink_A: 1.20 },
+        // Low side current sense shunt, in series with each low side
+        // FET; its dissipation is attributed to that FET.
+        shunt_ohm: 0.0005,
+      },
     },
     {
       'voltages' : [12, 24, 36, 48, 54],
@@ -2526,6 +3133,86 @@ class OdriveMicro extends OdriveController {
   }
 }
 
+// The eigenvalues and eigenvectors of a small symmetric matrix by the
+// cyclic Jacobi method: M = V diag(values) V^T, with the eigenvectors
+// in the columns of `vectors`.
+function symmetricEigen(M) {
+  const n = M.length;
+  const a = M.map((row) => row.slice());
+  const v = a.map((_, i) => a.map((_, j) => (i == j ? 1.0 : 0.0)));
+  for (let sweep = 0; sweep < 100; sweep++) {
+    let off = 0.0;
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        off += a[i][j] * a[i][j];
+      }
+    }
+    if (off < 1e-24) {
+      break;
+    }
+    for (let p = 0; p < n; p++) {
+      for (let q = p + 1; q < n; q++) {
+        if (Math.abs(a[p][q]) < 1e-300) {
+          continue;
+        }
+        const theta = (a[q][q] - a[p][p]) / (2.0 * a[p][q]);
+        const t = Math.sign(theta || 1.0) /
+              (Math.abs(theta) + Math.sqrt(theta * theta + 1.0));
+        const c = 1.0 / Math.sqrt(t * t + 1.0);
+        const s = t * c;
+        for (let k = 0; k < n; k++) {
+          const akp = a[k][p];
+          const akq = a[k][q];
+          a[k][p] = c * akp - s * akq;
+          a[k][q] = s * akp + c * akq;
+        }
+        for (let k = 0; k < n; k++) {
+          const apk = a[p][k];
+          const aqk = a[q][k];
+          a[p][k] = c * apk - s * aqk;
+          a[q][k] = s * apk + c * aqk;
+        }
+        for (let k = 0; k < n; k++) {
+          const vkp = v[k][p];
+          const vkq = v[k][q];
+          v[k][p] = c * vkp - s * vkq;
+          v[k][q] = s * vkp + c * vkq;
+        }
+      }
+    }
+  }
+  return {values: a.map((row, i) => row[i]), vectors: v};
+}
+
+// The electrical frequency above which the firmware averages each
+// FET's loss over a revolution (FetThermalModel::Inputs::
+// kAveragedAboveHz).
+const kFetAveragedAboveHz = 50.0;
+
+// Whether the FET losses are evaluated for a locked rotor.  As in the
+// firmware, that is at or below kFetAveragedAboveHz electrical, where
+// the model follows the phase currents themselves: with junction time
+// constants of 0.1s and more, a slowly turning rotor heats its FETs
+// like a locked one.  Without a pole count the electrical frequency is
+// taken as the rotor's own, the lowest it can be, and a missing
+// velocity is treated as locked, both the conservative choice.
+function isLockedRotor(config) {
+  const poles = (config.motor?.poles > 0) ? config.motor.poles : 2;
+  const electricalHz =
+        Math.abs(outputHzToRotorHz(config.velocity, config)) * poles / 2;
+  return !(electricalHz > kFetAveragedAboveHz);
+}
+
+// The junction temperature limit in effect for a config, falling back
+// to the controller's default.  null if the controller has no model.
+function maxJunctionTemp(config) {
+  const value = config.max_junction_temp;
+  if (value == null || value == 'default' || Number.isNaN(value)) {
+    return config.controller?.getMaxJunctionTemp() ?? null;
+  }
+  return value;
+}
+
 // The controller and motor temperature limits in effect for a
 // config, falling back to the hardware defaults.
 function maxControllerTemp(config) {
@@ -2570,16 +3257,50 @@ function evaluateMaxCurrent(config) {
     const thermalW = (timePeriodS == Infinity) ? (deltaT / R) :
           (deltaT) / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
 
-    const result = config.controller.getCurrentFromThermalPower(thermalW, config);
+    let result = config.controller.getCurrentFromThermalPower(thermalW, config);
 
     if (result.value < 0) {
       return null;
     }
 
+    let controllerTemp = config.max_controller_temp;
+    let controllerLoss = thermalW;
+    let junction = null;
+
+    // The estimated FET junction temperature may limit before the
+    // board thermistor does, particularly for short durations and at
+    // stall.
+    const maxJunction = maxJunctionTemp(config);
+    if (config.controller.getFetThermal() != null && maxJunction != null) {
+      const junctionAt = (current) => {
+        const opConfig = {...config, phase_current: current};
+        const loss = config.controller.getThermalPower(opConfig);
+        return [config.controller.getJunctionFromThermalPower(loss, opConfig),
+                loss];
+      };
+      const junctionOk = (current) => {
+        const j = junctionAt(current)[0];
+        return j != null && j.junction_temp <= maxJunction;
+      };
+      const junctionCurrent = bisectMaxTrue(result.value, junctionOk, 0.01);
+      if (junctionCurrent == null) {
+        return null;
+      }
+      if (junctionCurrent < result.value) {
+        result = new LimitedValue(junctionCurrent, 'max_junction_temp');
+        controllerLoss = junctionAt(junctionCurrent)[1];
+        controllerTemp =
+            config.controller.getTemperature(controllerLoss, config);
+      }
+      junction = junctionAt(result.value)[0];
+    }
+
     return new OperatingPoint({
       phase_current: result.value,
-      controller_temp: config.max_controller_temp,
-      controller_loss: thermalW,
+      controller_temp: controllerTemp,
+      controller_loss: controllerLoss,
+      junction_temp: junction ? junction.junction_temp : null,
+      fet_loss: junction ? junction.fet_loss : null,
       _limiting_factor: result.limitingFactor,
     });
 }
@@ -2667,6 +3388,16 @@ function evaluateOperatingPoint(config) {
   const maxController = maxControllerTemp(config);
   if ((op.controller_temp - maxController) > 0.001) {
     op._infeasible_reason = `Controller temperature ${op.controller_temp.toFixed(1)} exceeds maximum ${maxController.toFixed(1)}`;
+  }
+
+  const junction = config.controller.getJunctionFromThermalPower(
+      thermalPower, {...config, 'phase_current': op.phase_current});
+  op['junction_temp'] = junction ? junction.junction_temp : null;
+  op['fet_loss'] = junction ? junction.fet_loss : null;
+  const maxJunction = maxJunctionTemp(config);
+  if (junction && maxJunction != null &&
+      (op.junction_temp - maxJunction) > 0.001) {
+    op._infeasible_reason = `FET junction temperature ${op.junction_temp.toFixed(1)} exceeds maximum ${maxJunction.toFixed(1)}`;
   }
 
   const electricalPowerW = Math.abs(op.copper_loss + op.iron_loss + op.mechanical_power);
@@ -3557,7 +4288,8 @@ function ConfigFieldSelector({
 
 /* ---------- Plot View Component ---------- */
 function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
-  const [colorField, setColorField] = useState(plotMetadata?.colorField || 'bus_power');
+  const [colorField, setColorField] = useState(
+      plotMetadata?.colorField || 'bus_power');
 
   // Calculate reasonable defaults based on motor capabilities
   const getDefaultRanges = () => {
@@ -3748,7 +4480,11 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
             case 'controller_temp_2s':
             case 'controller_temp_60s':
             case 'controller_temp_inf':
-              value = result.controller_temp;
+              // The hottest of the board thermistor and, where the
+              // controller models it, the FET junction: either may be
+              // what limits the operating point.
+              value = Math.max(result.controller_temp,
+                               result.junction_temp ?? -Infinity);
               break;
             case 'motor_temp_2s':
             case 'motor_temp_60s':
@@ -4045,9 +4781,9 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
     switch (colorField) {
       case 'bus_power': return 'Supply Power (W)';
       case 'efficiency': return 'Efficiency (%)';
-      case 'controller_temp_2s': return 'Controller Temp @ 2s (°C)';
-      case 'controller_temp_60s': return 'Controller Temp @ 60s (°C)';
-      case 'controller_temp_inf': return 'Controller Temp @ ∞ (°C)';
+      case 'controller_temp_2s': return 'FET Temp @ 2s (°C)';
+      case 'controller_temp_60s': return 'FET Temp @ 60s (°C)';
+      case 'controller_temp_inf': return 'FET Temp @ ∞ (°C)';
       case 'motor_temp_2s': return 'Motor Temp @ 2s (°C)';
       case 'motor_temp_60s': return 'Motor Temp @ 60s (°C)';
       case 'motor_temp_inf': return 'Motor Temp @ ∞ (°C)';
@@ -4191,9 +4927,9 @@ function PlotView({ baseConfig, commonConfig, plotMetadata = null }) {
             >
               <option value="bus_power">Supply Power (W)</option>
               <option value="efficiency">Efficiency (%)</option>
-              <option value="controller_temp_2s">Controller Temp @ 2s (°C)</option>
-              <option value="controller_temp_60s">Controller Temp @ 60s (°C)</option>
-              <option value="controller_temp_inf">Controller Temp @ ∞ (°C)</option>
+              <option value="controller_temp_2s">FET Temp @ 2s (°C)</option>
+              <option value="controller_temp_60s">FET Temp @ 60s (°C)</option>
+              <option value="controller_temp_inf">FET Temp @ ∞ (°C)</option>
               <option value="motor_temp_2s">Motor Temp @ 2s (°C)</option>
               <option value="motor_temp_60s">Motor Temp @ 60s (°C)</option>
               <option value="motor_temp_inf">Motor Temp @ ∞ (°C)</option>
@@ -4598,8 +5334,12 @@ function reifyObjects(dict) {
   if (reified.motor === 'model') {
     const requiredFields = ['motor.kv', 'motor.r', 'motor.l_d', 'motor.thermal_r', 'motor.thermal_c'];
     const hasAllFields = requiredFields.every(field => reified[field] !== undefined && reified[field] !== null);
+    // A negative tempco would take the resistance to zero at some
+    // temperature.
+    const tempco = reified['motor.r_tempco'] ?? motorModelDefaults.r_tempco;
+    const validTempco = Number.isFinite(tempco) && tempco >= 0.0;
 
-    if (hasAllFields) {
+    if (hasAllFields && validTempco) {
       reified.motor = new Motor({
         name: 'model',
         displayName: 'model',
@@ -4613,7 +5353,7 @@ function reifyObjects(dict) {
         inertia: reified['motor.inertia'] ?? motorModelDefaults.inertia,
         poles: reified['motor.poles'] ?? 0,
         ld_scale_pp: reified['motor.ld_scale'] ?? motorModelDefaults.ld_scale_pp,
-        resistanceTempco: reified['motor.r_tempco'] ?? motorModelDefaults.r_tempco,
+        resistanceTempco: tempco,
         thermal: {
           'none': {
             R: reified['motor.thermal_r'],
@@ -4638,10 +5378,11 @@ function normalizeConfig(config) {
   // Populate some defaults.
   normalizedConfig.pwm = (normalizedConfig.pwm == 'default') ? normalizedConfig.controller?.getDefaultPwm() : normalizedConfig.pwm;
   normalizedConfig.max_controller_temp = (normalizedConfig.max_controller_temp == 'default') ? normalizedConfig.controller?.getMaxTemp() : normalizedConfig.max_controller_temp;
+  normalizedConfig.max_junction_temp = (normalizedConfig.max_junction_temp == 'default' || normalizedConfig.max_junction_temp == null) ? normalizedConfig.controller?.getMaxJunctionTemp() : normalizedConfig.max_junction_temp;
   normalizedConfig.max_motor_temp = (normalizedConfig.max_motor_temp == 'default') ? normalizedConfig.motor?.getMaxTemp() : normalizedConfig.max_motor_temp;
 
   const floatFields = [
-    'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'max_controller_temp', 'max_motor_temp', 'torque', 'move_distance', 'load_inertia'
+    'voltage', 'velocity', 'pwm', 'time', 'gear_reduction', 'ambient_temp', 'max_controller_temp', 'max_junction_temp', 'max_motor_temp', 'torque', 'move_distance', 'load_inertia'
   ];
 
   for (const field of floatFields) {

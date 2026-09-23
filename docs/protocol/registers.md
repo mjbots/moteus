@@ -205,8 +205,8 @@ A fault code which will be set if the primary mode is 1 (Fault).
 * 36 - *motor not configured* - the `moteus_tool --calibrate`
   procedure has not been run on this motor.
 * 37 - *pwm cycle overrun* - an internal firmware error
-* 38 - *over temperature* - the maximum configured temperature has
-  been exceeded
+* 38 - *over temperature* - the FET temperature sensor exceeded
+  `servo.fault_temperature`
 * 39 - *outside limit* - an attempt was made to start position control
   while outside the bounds configured by `servopos.position_min` and
   `servopos.position_max`.
@@ -235,6 +235,10 @@ A fault code which will be set if the primary mode is 1 (Fault).
   the threshold configured in `servo.fault_position_error`
 * 50 - *velocity control error* - the velocity control error exceeded
   the threshold configured in `servo.fault_velocity_error`
+* 51 - *FET junction over temperature* - the estimated FET junction
+  temperature exceeded `servo.fet_junction_fault_temperature`
+* 52 - *motor over temperature* - the motor temperature exceeded
+  `servo.motor_fault_temperature`
 
 Some non-zero codes can be presented during valid control modes
 without a fault.  These indicate which, if any, function is limiting
@@ -248,6 +252,9 @@ the output power of the controller.
 * 101 - `servo.motor_fault_temperature`
 * 102 - the commanded maximum torque
 * 103 - `servopos.position_min` or `servopos.position_max`
+* 104 - flux braking is active
+* 105 - field weakening is active
+* 106 - `servo.fet_junction_fault_temperature`
 
 
 ### 0x010 / 0x011 / 0x012 - PWM phase A / B / C

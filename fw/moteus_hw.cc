@@ -319,6 +319,69 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
     result.power_P_h_W = 400.0f;
     result.power_V_h = 38.0f;
+
+    // moteus-r4
+    //
+    // TPH2R506PL, absolute maximum junction temperature 175 C.
+    // Rds(on) (1.9 mOhm typical at Vgs = 10 V, 4.25 mOhm at 175 C)
+    // and Qsw (19 nC) are from the datasheet.
+    //
+    // The rest were measured on the automated thermal fixture, the
+    // constants from one complete dataset of 2026-10-14/15.  The losses
+    // (switching scale, series resistance, switching energies) and the
+    // junction's fast stage were fitted together, from fixed current
+    // runs, locked rotor pulses to 57 A at 36 V, 15 and 60 kHz (24 and
+    // 44 V, 30 and 45 kHz held out), and still air calorimetry, which
+    // also fixes the camera's lag; still air resistance and the bridge's
+    // overhead from switching only runs.  The fitted voltage-current and
+    // dead time diode energies are negligible and left at zero.  The
+    // copper of each FET is coupled to its neighbours in the column.
+    // The network is the worst combination of the best-fit board
+    // model's coolings, with the copper made 10% worse than fitted for
+    // unit variation and the junction stages 10% worse; it is run bare
+    // and with a heat spreader on the pads.  Chosen with the mfg-moteus
+    // fixture tools so that the hotter reads at or above every measured
+    // cooling and simulated fans and heat spreaders on the FETs (made
+    // 10% worse), in steady state and in the response to a step of
+    // loss, for any mix of the losses the phases produce.  Of the
+    // networks that do, this one reads lowest for a rotating load and
+    // the worst locked rotor load together.  It is checked in closed
+    // loop with the default derating (fault 165 C) from any starting
+    // temperature and pulse: the true junction stays below 165 C.  The
+    // FETs are in one column, 0, 1, 3, 2, 4, 5, with the thermistor
+    // nearest FET 4.
+    result.fet_thermal.rds_on_25C_ohm = 1.9e-3f;
+    result.fet_thermal.rds_on_tempco_per_C = 0.0085f;
+    result.fet_thermal.gate_switch_charge_coulomb = 19e-9f;
+    result.fet_thermal.r_junction_pad_C_per_W =
+        { 7.556f, 6.748f, 7.556f, 6.748f, 7.556f, 6.748f };
+    result.fet_thermal.tau_junction_pad_s =
+        { 0.1706f, 0.1524f, 0.1706f, 0.1524f, 0.1706f, 0.1524f };
+    result.fet_thermal.g_pad_thermistor_W_per_K =
+        { 9e-06f, 9e-06f, 0.0362f, 0.004103f, 0.06861f, 9e-06f };
+    result.fet_thermal.g_pad_ambient_W_per_K =
+        { 0.02212f, 0.01284f, 0.01402f, 0.01083f, 0.004174f, 0.02586f };
+    result.fet_thermal.c_pad_J_per_K = 0.2675f;
+    result.fet_thermal.c_thermistor_J_per_K = 0.3749f;
+    result.fet_thermal.c_board_J_per_K = 3.088f;
+    result.fet_thermal.g_thermistor_board_W_per_K = 0.007327f;
+    result.fet_thermal.g_thermistor_ambient_W_per_K = 0.03116f;
+    result.fet_thermal.g_board_ambient_W_per_K = 0.1968f;
+    result.fet_thermal.thermistor_lag_s = 0.02f;
+    result.fet_thermal.g_pad_spreader_W_per_K = 0.01f;
+    result.fet_thermal.g_spreader_ambient_W_per_K = 0.02f;
+    result.fet_thermal.c_spreader_J_per_K = 10.0f;
+    result.fet_thermal.switching_loss_scale = 0.3666f;
+    result.fet_thermal.r_extra_ohm = 0.001668f;
+    result.fet_thermal.switching_energy_J_per_V = 2.75e-07f;
+    result.fet_thermal.switching_energy_J_per_V_A = 0.0f;
+    result.fet_thermal.switching_energy_J_per_A2 = 1.262e-08f;
+    result.fet_thermal.deadtime_diode_V_s = 0.0f;
+    result.fet_thermal.network_couplings = 5;
+    result.fet_thermal.coupling_a = { 0, 1, 2, 2, 4 };
+    result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
+    result.fet_thermal.coupling_W_per_K =
+        { 0.1022f, 0.06614f, 0.1878f, 0.04367f, 0.08841f };
   } else if (fv.family == 1 || fv.family == 2 || fv.family == 3) {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
@@ -361,6 +424,67 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
       result.power_P_h_W = 1000.0f;
       result.power_V_h = 44.0f;
+
+      // TPH2R408QM, absolute maximum junction temperature 175 C.
+      // Rds(on) and Qsw are from the datasheet.
+      //
+      // The rest were measured on the automated thermal fixture, the
+      // constants from one complete dataset of 2026-10-15/16.  The
+      // losses (switching scale, series resistance, switching and dead
+      // time diode energies) and the junction's fast stage were fitted
+      // together, from fixed current runs, locked rotor pulses to 57 A
+      // at 36 V, 15 and 60 kHz (24 and 51 V, 30 and 45 kHz held out), and
+      // still air calorimetry, which also fixes the camera's lag; still
+      // air resistance and the bridge's overhead from switching only
+      // runs.  The copper of each FET is coupled to its neighbours in
+      // the column.  The network is the least cooled best-fit board
+      // model, with the copper made 10% worse than fitted for unit
+      // variation and each FET's junction stage made as much worse as
+      // it needs (29 to 63%); FET 0's tie to the thermistor is capped
+      // at 0.1 W/K, so that it does not follow the thermistor's lag.
+      // It is run bare and with a heat spreader on the pads.  Chosen
+      // with the mfg-moteus fixture tools so that the hotter reads at
+      // or above every measured cooling and simulated fans and heat
+      // spreaders on the FETs (made 10% worse), in steady state and in
+      // the response to a step of loss, for any mix of the losses the
+      // phases produce.  Of the networks that do, this one reads lowest
+      // for a rotating load.  It is checked in closed loop with the
+      // default derating (fault 165 C) from any starting temperature
+      // and pulse: the true junction stays below 165 C.  The FETs are
+      // in one column, 0, 1, 3, 2, 4, 5, with the thermistor next to
+      // FETs 0 and 1.
+      result.fet_thermal.rds_on_25C_ohm = 0.0019f;
+      result.fet_thermal.rds_on_tempco_per_C = 0.0053f;
+      result.fet_thermal.gate_switch_charge_coulomb = 2.8e-08f;
+      result.fet_thermal.r_junction_pad_C_per_W =
+          { 6.884f, 9.315f, 7.252f, 10.25f, 8.565f, 11.41f };
+      result.fet_thermal.tau_junction_pad_s =
+          { 0.2298f, 0.3109f, 0.242f, 0.3423f, 0.2859f, 0.3808f };
+      result.fet_thermal.g_pad_thermistor_W_per_K =
+          { 0.1f, 4.536e-05f, 0.001953f, 0.02589f, 9e-06f, 9e-06f };
+      result.fet_thermal.g_pad_ambient_W_per_K =
+          { 0.001897f, 0.02614f, 0.01089f, 0.0005683f, 0.006963f, 0.02242f };
+      result.fet_thermal.c_pad_J_per_K = 0.4548f;
+      result.fet_thermal.c_thermistor_J_per_K = 0.8431f;
+      result.fet_thermal.c_board_J_per_K = 0.5f;
+      result.fet_thermal.g_thermistor_board_W_per_K = 0.004178f;
+      result.fet_thermal.g_thermistor_ambient_W_per_K = 9e-06f;
+      result.fet_thermal.g_board_ambient_W_per_K = 9e-06f;
+      result.fet_thermal.thermistor_lag_s = 0.02001f;
+      result.fet_thermal.g_pad_spreader_W_per_K = 0.1f;
+      result.fet_thermal.g_spreader_ambient_W_per_K = 0.2f;
+      result.fet_thermal.c_spreader_J_per_K = 10.0f;
+      result.fet_thermal.switching_loss_scale = 0.5247f;
+      result.fet_thermal.r_extra_ohm = 0.001761f;
+      result.fet_thermal.switching_energy_J_per_V = 3.79e-07f;
+      result.fet_thermal.switching_energy_J_per_V_A = 2.669e-09f;
+      result.fet_thermal.switching_energy_J_per_A2 = 3.929e-08f;
+      result.fet_thermal.deadtime_diode_V_s = 9.453e-08f;
+      result.fet_thermal.network_couplings = 5;
+      result.fet_thermal.coupling_a = { 0, 1, 2, 2, 4 };
+      result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
+      result.fet_thermal.coupling_W_per_K =
+          { 0.2077f, 0.04999f, 0.1738f, 0.1091f, 0.09596f };
     } else if (fv.family == 2) {
       // moteus-c1
 
@@ -369,6 +493,71 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
       result.power_P_h_W = 150.0f;
       result.power_V_h = 41.0f;
+
+      // TPN19008QM, absolute maximum junction temperature 175 C.
+      // Rds(on) (14.7 mOhm typical at Vgs = 10 V, about 2.1 times that
+      // at 175 C) and Qsw (5.5 nC) are from the datasheet.
+      //
+      // The rest were measured on the automated thermal fixture, the
+      // constants from one complete dataset of 2026-10-13/14.  The
+      // losses (switching scale, series resistance, switching and dead
+      // time diode energies) and the junction's fast stage were fitted
+      // together, from fixed current runs, locked rotor pulses to 20 A
+      // at 36 V, 15 and 60 kHz (24 and 51 V, 30 and 45 kHz held out), and
+      // still air calorimetry, which also fixes the camera's lag; still
+      // air resistance and the bridge's overhead from switching only
+      // runs.  The fitted voltage-current energy is negligible and left
+      // at zero.  The copper of each FET is coupled to its neighbours
+      // in the row.  The network is the least cooled best-fit board
+      // model, with the copper made 10% worse than fitted for unit
+      // variation and each FET's junction stage made as much worse as
+      // it needs (17 to 25%).  It is run bare and with a heat spreader
+      // on the pads.  The fit pins FET 0's pad to the thermistor, which it
+      // sits next to, but the sensor lags the pad in a pulse; that
+      // conductance is cut to 0.1 W/K, which only raises the estimate,
+      // so FET 0 reads at or above the camera in 2 s pulses.  Chosen
+      // with the mfg-moteus fixture tools so that the hotter reads at
+      // or above every measured cooling and simulated fans and heat
+      // spreaders on the FETs (made 10% worse), in steady state and in
+      // the response to a step of loss, for any mix of the losses the
+      // phases produce.  Of the networks that do, this one reads lowest
+      // for a rotating load.  It is checked in closed loop with the
+      // default derating (fault 165 C) from any starting temperature
+      // and pulse: the true junction stays below 165 C.  The FETs are
+      // in one row, 5, 4, 2, 3, 1, 0, with the thermistor next to
+      // FET 0.
+      result.fet_thermal.rds_on_25C_ohm = 0.0147f;
+      result.fet_thermal.rds_on_tempco_per_C = 0.0073f;
+      result.fet_thermal.gate_switch_charge_coulomb = 5.5e-09f;
+      result.fet_thermal.r_junction_pad_C_per_W =
+          { 19.15f, 20.89f, 20.12f, 20.89f, 20.12f, 21.97f };
+      result.fet_thermal.tau_junction_pad_s =
+          { 0.2055f, 0.2242f, 0.2159f, 0.2242f, 0.2159f, 0.2357f };
+      result.fet_thermal.g_pad_thermistor_W_per_K =
+          { 0.1f, 9.003e-06f, 0.01598f, 0.004717f, 0.003312f, 9e-06f };
+      result.fet_thermal.g_pad_ambient_W_per_K =
+          { 0.005384f, 0.0118f, 0.008028f, 0.003324f, 0.01115f, 0.01109f };
+      result.fet_thermal.c_pad_J_per_K = 0.2281f;
+      result.fet_thermal.c_thermistor_J_per_K = 0.4839f;
+      result.fet_thermal.c_board_J_per_K = 0.5f;
+      result.fet_thermal.g_thermistor_board_W_per_K = 0.0009f;
+      result.fet_thermal.g_thermistor_ambient_W_per_K = 0.0002098f;
+      result.fet_thermal.g_board_ambient_W_per_K = 0.001165f;
+      result.fet_thermal.thermistor_lag_s = 0.02f;
+      result.fet_thermal.g_pad_spreader_W_per_K = 0.1f;
+      result.fet_thermal.g_spreader_ambient_W_per_K = 0.2f;
+      result.fet_thermal.c_spreader_J_per_K = 10.0f;
+      result.fet_thermal.switching_loss_scale = 0.4353f;
+      result.fet_thermal.r_extra_ohm = 0.001598f;
+      result.fet_thermal.switching_energy_J_per_V = 1.1e-07f;
+      result.fet_thermal.switching_energy_J_per_V_A = 0.0f;
+      result.fet_thermal.switching_energy_J_per_A2 = 6.989e-08f;
+      result.fet_thermal.deadtime_diode_V_s = 1.849e-07f;
+      result.fet_thermal.network_couplings = 5;
+      result.fet_thermal.coupling_a = { 0, 1, 2, 2, 4 };
+      result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
+      result.fet_thermal.coupling_W_per_K =
+          { 0.0321f, 0.03891f, 0.07851f, 0.08665f, 0.07238f };
     } else if (fv.family == 3) {
       // moteus-x1
 
@@ -377,6 +566,85 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
 
       result.power_P_h_W = 1000.0f;
       result.power_V_h = 44.0f;
+
+      // FDMT80080DC, a Dual Cool 88 package with its source pad exposed
+      // on top for a heatsink, absolute maximum junction temperature
+      // 150 C.  Rds(on) is the datasheet typical at Vgs = 10 V,
+      // 1.06 mOhm, rising to 1.74 mOhm at 125 C.  The datasheet gives
+      // no switching charge; Qgd (36 nC) plus about a third of Qgs
+      // (69 nC) is the starting point, which the fitted switching loss
+      // scale corrects.
+      //
+      // The rest were measured on the automated thermal fixture on
+      // 2026-09-29 through 2026-10-13, the constants from one complete
+      // dataset of 2026-10-12/13.  The losses (switching scale, series
+      // resistance, switching and dead time diode energies) and the
+      // junction's fast stage were fitted together, from fixed current
+      // runs, locked rotor pulses to 111 A at 15 and 60 kHz (24 and
+      // 54 V, 30 and 45 kHz held out), and still air calorimetry,
+      // which also fixes the camera's lag; still air resistance and
+      // the bridge's overhead from switching only runs.  The hard
+      // switching losses grow faster than the PWM rate, 4e-6 per Hz.
+      // The dead time diode term is raised from the fitted 0.33 to
+      // 0.7 uV s so the low side pulses' high side partners read at or
+      // above the camera at 60 kHz.  The network is the worst
+      // combination of the best-fit board model's coolings, with the
+      // copper made 10% worse than fitted for unit variation and each
+      // FET's junction stage made as much worse as it needs (22 to
+      // 44%).  It is run bare and with a heat spreader on the pads.
+      // Chosen with the mfg-moteus fixture tools so that the hotter
+      // reads at or above every measured cooling and simulated fans
+      // and heat spreaders on the FETs (made 10% worse), in steady
+      // state and in the response to a step of loss, for any mix of
+      // the losses the phases produce.  Of the networks that do, this
+      // one reads lowest for a rotating load.  It is checked in closed
+      // loop with the default derating (fault 140 C) from any starting
+      // temperature and pulse: the true junction stays below 140 C.
+      // The FETs are in one row, 5, 4, 2, 3, 1, 0, with the thermistor
+      // on FET 0's pad.
+      //
+      // The fit pins FET 0's pad to the thermistor (45 W/K), as it did
+      // on the moteus-n1 and moteus-c1, where that tie is capped at
+      // 0.1 W/K because FET 0 otherwise read up to 3 C below the camera
+      // in pulses.  Here the thermistor really does sit on that pad,
+      // the fitted thermistor lag stays at 0.83 s, and no FET of any
+      // pulse reads more than 0.3 C below the camera.  The same cap
+      // changes no check result, but lowers the locked rotor current
+      // held with a fan from 36 A to 32 A and derates 40-86 A steps up
+      // to 2.6 times sooner, so the fitted tie is kept.
+      result.fet_thermal.rds_on_25C_ohm = 1.06e-3f;
+      result.fet_thermal.rds_on_tempco_per_C = 0.0064f;
+      result.fet_thermal.gate_switch_charge_coulomb = 60e-9f;
+      result.fet_thermal.r_junction_pad_C_per_W =
+          { 4.284f, 3.956f, 4.117f, 3.472f, 4.15f, 4.098f };
+      result.fet_thermal.tau_junction_pad_s =
+          { 0.1286f, 0.1188f, 0.1236f, 0.1043f, 0.1246f, 0.1231f };
+      result.fet_thermal.g_pad_thermistor_W_per_K =
+          { 45.0f, 9e-06f, 0.03655f, 0.006089f, 0.001248f, 0.005491f };
+      result.fet_thermal.g_pad_ambient_W_per_K =
+          { 0.001791f, 0.02806f, 0.01595f, 0.006952f, 0.01484f, 0.01827f };
+      result.fet_thermal.c_pad_J_per_K = 0.646f;
+      result.fet_thermal.c_thermistor_J_per_K = 0.2996f;
+      result.fet_thermal.c_board_J_per_K = 0.7029f;
+      result.fet_thermal.g_thermistor_board_W_per_K = 0.1705f;
+      result.fet_thermal.g_thermistor_ambient_W_per_K = 0.005227f;
+      result.fet_thermal.g_board_ambient_W_per_K = 9.651e-05f;
+      result.fet_thermal.thermistor_lag_s = 0.8277f;
+      result.fet_thermal.g_pad_spreader_W_per_K = 0.3f;
+      result.fet_thermal.g_spreader_ambient_W_per_K = 2.0f;
+      result.fet_thermal.c_spreader_J_per_K = 10.0f;
+      result.fet_thermal.switching_loss_scale = 0.4194f;
+      result.fet_thermal.r_extra_ohm = 0.000605f;
+      result.fet_thermal.switching_energy_J_per_V = 4.51e-07f;
+      result.fet_thermal.switching_energy_J_per_V_A = 1.63e-08f;
+      result.fet_thermal.switching_energy_J_per_A2 = 1.834e-08f;
+      result.fet_thermal.deadtime_diode_V_s = 7e-07f;
+      result.fet_thermal.hard_switching_per_Hz = 4e-06f;
+      result.fet_thermal.network_couplings = 5;
+      result.fet_thermal.coupling_a = { 0, 1, 2, 2, 4 };
+      result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
+      result.fet_thermal.coupling_W_per_K =
+          { 0.08442f, 0.04818f, 0.06422f, 0.1397f, 0.1203f };
     } else {
       MJ_ASSERT(false);
     }

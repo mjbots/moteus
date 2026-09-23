@@ -52,6 +52,8 @@ enum class errc {
   kInvalidLimits = 48,
   kPositionControlError = 49,
   kVelocityControlError = 50,
+  kFetJunctionOverTemperature = 51,
+  kMotorOverTemperature = 52,
 
   // The following are not hard faults, but instead codes that are
   // presented while in a control mode if some factor is limiting the
@@ -66,6 +68,7 @@ enum class errc {
   kLimitPositionBounds = 103,   // servopos.position_min / servopos.position_max
   kLimitFluxBraking = 104,      // flux braking is active
   kLimitFieldWeakening = 105,   // field weakening is active
+  kLimitFetJunctionTemperature = 106, // servo.fet_junction_fault_temperature
 };
 
 mjlib::micro::error_code make_error_code(errc);

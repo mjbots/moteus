@@ -16,6 +16,8 @@
 
 #include "mjlib/base/inplace_function.h"
 
+#include "fw/fet_thermal_model.h"
+
 namespace moteus {
 
 class MotorDriver {
@@ -49,6 +51,9 @@ class MotorDriver {
   /// Return the minimum time required for the current sense
   /// amplifiers to settle.
   virtual float csa_settling_time() = 0;
+
+  /// Return the physical gate drive currents currently configured.
+  virtual GateDriveCurrents gate_drive() = 0;
 
   /// Register a callback to be invoked any time the configuration of
   /// this module is changed.  Only one callback can be active.

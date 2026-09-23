@@ -114,6 +114,8 @@ FAULT_CODE_DESCRIPTIONS = {
     48: "invalid limits",
     49: "position control error",
     50: "velocity control error",
+    51: "FET junction over temperature",
+    52: "motor over temperature",
     96: "limit: servo.max_velocity",
     97: "limit: servo.max_power_W",
     98: "limit: max system voltage",
@@ -124,6 +126,7 @@ FAULT_CODE_DESCRIPTIONS = {
     103: "limit: servopos limit",
     104: "limit: flux braking",
     105: "limit: field weakening",
+    106: "limit: servo.fet_junction_fault_temperature",
 }
 
 

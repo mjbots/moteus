@@ -18,6 +18,7 @@
 
 #include "mbed.h"
 
+#include "mjlib/base/assert.h"
 #include "mjlib/micro/async_exclusive.h"
 #include "mjlib/micro/async_stream.h"
 #include "mjlib/micro/command_manager.h"
@@ -189,6 +190,12 @@ int main(void) {
     // This firmware is not compatible with this board.
     mbed_die();
   }
+
+  // The FET junction estimator's constants are fixed for each board
+  // and nothing in the configuration can change them, so a board
+  // without a usable set is a firmware bug.  Otherwise the estimator
+  // would silently disable itself, and with it the junction derating.
+  MJ_ASSERT(g_hw_pins.fet_thermal.valid());
 
   // We require cycle counting be enabled for some things.
   {

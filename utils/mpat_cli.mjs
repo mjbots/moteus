@@ -81,6 +81,7 @@ function parseArgs(args) {
         gear_reduction: 1.0,
         ambient_temp: 25,
         max_controller_temp: null,  // Will use controller default
+        max_junction_temp: null,    // Will use controller default
         max_motor_temp: null,       // Will use motor default
         pwm: null,                  // Will use controller default
         move_distance: null,
@@ -109,6 +110,10 @@ function parseArgs(args) {
             result.help = true;
         } else if (arg === '--json') {
             result.json = true;
+        } else if (arg === '--dump_fet_thermal') {
+            result.dump_fet_thermal = true;
+        } else if (arg === '--dump_fet_junction') {
+            result.dump_fet_junction = args[++i];
         } else if (arg.startsWith('--')) {
             const key = arg.slice(2);
             const value = args[++i];
@@ -118,7 +123,8 @@ function parseArgs(args) {
             }
             // Handle numeric conversions
             if (['voltage', 'velocity', 'torque', 'time', 'gear_reduction',
-                 'ambient_temp', 'max_controller_temp', 'max_motor_temp', 'pwm',
+                 'ambient_temp', 'max_controller_temp', 'max_junction_temp',
+                 'max_motor_temp', 'pwm',
                  'move_distance', 'load_inertia',
                  'motor.kv', 'motor.r', 'motor.l_d', 'motor.l_q',
                  'motor.thermal_r', 'motor.thermal_c',
@@ -193,6 +199,7 @@ Optional Parameters:
   --motor_cooling TYPE       Cooling type (default: none)
   --pwm P           PWM frequency in Hz (default: controller default)
   --max_controller_temp T    Max controller temp C (default: controller limit)
+  --max_junction_temp T      Max FET junction temp C (default: controller limit)
   --max_motor_temp T         Max motor temp C (default: motor limit)
   --field_weakening on|off   Enable CVCP field weakening (default: off)
   --output FIELD    Specific output field to display
@@ -211,11 +218,23 @@ Custom Motor Parameters (when --motor model):
   --motor.poles P         Number of magnetic poles (default: 0)
   --motor.ld_scale S      Phase-to-phase D-axis inductance scale factor
                           in H/A (default: 0)
-  --motor.r_tempco A      Fractional increase in resistance per C, with
-                          --motor.r taken at 25C (default: copper, ${kCopperResistanceTempco})
+  --motor.r_tempco A      Fractional increase in resistance per C, 0 or
+                          more, with --motor.r taken at 25C (default:
+                          copper, ${kCopperResistanceTempco})
 
 Output Options:
   --json            Output results as JSON
+  --dump_fet_thermal
+                    Print the FET thermal constants and default junction
+                    temperature limit of every controller as JSON, then
+                    exit
+  --dump_fet_junction JSON
+                    Print the FET junction estimate for one operating
+                    point as JSON, then exit.  JSON gives controller,
+                    voltage, pwm, phase_current, velocity (electrical
+                    Hz), board_temp, time (null for steady state), and
+                    optionally angle_deg to fix a locked rotor's
+                    electrical angle
   --help, -h        Show this help message
 
 Examples:
@@ -271,6 +290,46 @@ function main() {
         process.exit(0);
     }
 
+    if (args.dump_fet_thermal) {
+        // The FET thermal constants and default junction limit of
+        // every controller that has them, so tests can check them
+        // against the firmware.
+        const result = {};
+        for (const [name, factory] of Object.entries(controllers)) {
+            const controller = factory();
+            const fetThermal = controller.getFetThermal();
+            if (fetThermal != null) {
+                result[name] = {
+                    ...fetThermal,
+                    maxJunctionTemp: controller.getMaxJunctionTemp(),
+                };
+            }
+        }
+        console.log(JSON.stringify(result, null, 2));
+        return;
+    }
+
+    if (args.dump_fet_junction) {
+        // The junction model at one operating point, with every FET,
+        // so tests can check it against an independent solution.
+        const op = JSON.parse(args.dump_fet_junction);
+        const controller = controllers[op.controller]();
+        const config = {
+            voltage: op.voltage,
+            pwm: op.pwm,
+            phase_current: op.phase_current,
+            // With no motor or gear reduction, the velocity is
+            // electrical.
+            velocity: op.velocity,
+            gear_reduction: 1.0,
+            time: op.time == null ? Infinity : op.time,
+            locked_angle_deg: op.angle_deg ?? null,
+        };
+        console.log(JSON.stringify(
+            controller.getJunction(op.board_temp, config), null, 2));
+        return;
+    }
+
     // Validate required options
     if (!args.analysis) {
         console.error('Error: --analysis is required');
@@ -307,6 +366,12 @@ function main() {
                 console.error(`Error: --${field} is required for custom motor model`);
                 process.exit(1);
             }
+        }
+        // A negative tempco would take the resistance to zero at some
+        // temperature.
+        if (!(args['motor.r_tempco'] >= 0)) {
+            console.error('Error: --motor.r_tempco must be 0 or more');
+            process.exit(1);
         }
         motor = new Motor({
             name: 'model',
@@ -349,6 +414,8 @@ function main() {
         gear_reduction: args.gear_reduction,
         ambient_temp: args.ambient_temp,
         max_controller_temp: args.max_controller_temp ?? controller.getMaxTemp(),
+        max_junction_temp:
+            args.max_junction_temp ?? controller.getMaxJunctionTemp(),
         max_motor_temp: args.max_motor_temp ?? (motor?.getMaxTemp() ?? 80),
         pwm: args.pwm ?? controller.getDefaultPwm(),
         move_distance: args.move_distance,

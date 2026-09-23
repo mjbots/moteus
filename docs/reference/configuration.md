@@ -195,6 +195,52 @@ degrees Celsius of `servo.fault_temperature`.
 If the temperature reaches this value, a fault is triggered and all
 torque is stopped.
 
+## `servo.fet_junction_temperature_margin`
+
+Torque begins to be limited when the hottest estimated FET junction
+temperature is within this many degrees Celsius of
+`servo.fet_junction_fault_temperature`.  With a value of 0 or less,
+the junction estimate does not limit torque before it faults.
+
+## `servo.fet_junction_fault_temperature`
+
+If the hottest estimated FET junction temperature reaches this value,
+a fault is triggered and all torque is stopped.  `nan` disables
+limiting and faulting on the junction estimate.  The default is 165C
+on the moteus-r4, moteus-c1 and moteus-n1, and 140C on the moteus-x1,
+whose FETs have absolute maximum junction temperatures of 175C and
+150C respectively.  The estimate's
+constants are chosen so that, with the default derating, the true
+junction stays at least 10C below that maximum.
+
+The estimate starts hot at power up, at the start of derating, and
+relaxes over about a minute: nothing is known of the FETs' state when
+the controller starts, and a board restarted while hot could otherwise
+take a full cold board's heating on top of hot FETs.  Until it has
+relaxed, less current is available for short pulses.  See
+`servo.fet_junction_hot_start` to disable this.
+
+The junction temperature of each FET is estimated from the phase
+currents, bus voltage, gate drive strength, and the board thermistor.
+The estimate, along with the estimated loss in each FET, is reported
+in the `fet_model` telemetry.  Torque limiting and the
+over-temperature fault apply to whichever is further through its
+derating band: the thermistor relative to `servo.fault_temperature`,
+or the hottest estimated junction relative to
+`servo.fet_junction_fault_temperature`.  While limiting, the fault
+register reports 100 for the thermistor and 106 for the junction
+estimate.  A fault reports 38 for the thermistor and 51 for the
+junction estimate.
+
+## `servo.fet_junction_hot_start`
+
+If true (the default), the FET junction temperature estimate starts at
+power up at the start of its derating band, as described under
+`servo.fet_junction_fault_temperature`.  If false, it starts at the
+board thermistor's first reading, so that full current is available
+immediately after power up.  This is only safe if the controller is
+never restarted while its FETs may still be hot from operation.
+
 ## `servo.enable_motor_temperature`
 
 If true, then the motor temperature will be sensed via the TEMP pads

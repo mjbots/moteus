@@ -18,6 +18,7 @@
 
 import json
 import math
+import re
 import subprocess
 import unittest
 
@@ -112,7 +113,9 @@ class MpatTest(unittest.TestCase):
             "--voltage", "48")
         self.assertIsNotNone(data)
         self.assertIn("phase_current", data)
-        self.assertLimitingFactor(data, "controller_temp")
+        # At stall, the default velocity, the x1's junction estimate
+        # binds before its board temperature.
+        self.assertLimitingFactor(data, "max_junction_temp")
 
     def test_json_output_no_limiting_factor(self):
         """An operating point has no limiting factor, so none is
@@ -302,7 +305,8 @@ class MpatTest(unittest.TestCase):
             "--voltage", "14",
             "--torque", "0",
             "--field_weakening", "on",
-            "--motor_cooling", "max")
+            "--motor_cooling", "max",
+            "--controller_cooling", "max")
         nonzero = self.run_mpat_json(
             "--analysis", "max_velocity",
             "--controller", "moteus-x1",
@@ -310,12 +314,15 @@ class MpatTest(unittest.TestCase):
             "--voltage", "14",
             "--torque", "0.5",
             "--field_weakening", "on",
-            "--motor_cooling", "max")
+            "--motor_cooling", "max",
+            "--controller_cooling", "max")
         self.assertIsNotNone(zero)
         self.assertIsNotNone(nonzero)
+        # With the controller cooled, the voltage the torque takes is
+        # what lowers the top speed.
         self.assertGreater(zero["velocity"], nonzero["velocity"])
         self.assertLimitingFactor(zero, "back_emf")
-        self.assertLimitingFactor(nonzero, "max_controller_temp")
+        self.assertLimitingFactor(nonzero, "back_emf")
 
     def test_fw_odrive_no_field_weakening(self):
         """ODrive controllers don't support field weakening, so
@@ -367,10 +374,12 @@ class MpatTest(unittest.TestCase):
         "--voltage", "12"]
 
     # A moteus-c1 at 48V, whose 150W power limit is reached before its
-    # 20A current limit or the motor temperature limit.
+    # 20A current limit or the motor temperature limit (its FET
+    # junction limit, which at a stall comes first, is lifted).
     POWER_LIMITED_MOTOR = [
         "--controller", "moteus-c1",
         "--controller_cooling", "max",
+        "--max_junction_temp", "5000",
         "--motor", "model",
         "--motor.kv", "100", "--motor.r", "1.0", "--motor.l_d", "1e-4",
         "--motor.thermal_r", "0.5", "--motor.thermal_c", "1000",
@@ -461,8 +470,8 @@ class MpatTest(unittest.TestCase):
             "--motor.r_tempco", "0")
         self.assertIsNotNone(hot)
         self.assertIsNotNone(fixed)
-        self.assertLimitingFactor(hot, "max_motor_temperature")
-        self.assertLimitingFactor(fixed, "max_motor_temperature")
+        self.assertLimitingFactor(hot, "max_motor_temp")
+        self.assertLimitingFactor(fixed, "max_motor_temp")
         self.assertAlmostEqual(hot["motor_temp"], 80, places=0)
         self.assertLess(hot["torque"], 0.95 * fixed["torque"])
 
@@ -474,7 +483,7 @@ class MpatTest(unittest.TestCase):
             "--analysis", "max_torque", *self.WINDING_MOTOR,
             "--velocity", "0", "--ambient_temp", "40")
         self.assertIsNotNone(data)
-        self.assertLimitingFactor(data, "max_motor_temperature")
+        self.assertLimitingFactor(data, "max_motor_temp")
         self.assertAlmostEqual(data["motor_temp"], 80, places=6)
         self.assertAlmostEqual(data["copper_loss"], (80 - 40) / 2, places=6)
         current = data["phase_current"]
@@ -540,7 +549,7 @@ class MpatTest(unittest.TestCase):
         one used at any other velocity, for each limit."""
         cases = [
             ("thermal", self.WINDING_MOTOR, [],
-             "max_motor_temperature"),
+             "max_motor_temp"),
             ("ir_drop", self.IR_LIMITED_MOTOR, ["--time", "60"],
              "back_emf"),
             ("controller_power", self.POWER_LIMITED_MOTOR, ["--time", "10"],
@@ -557,6 +566,29 @@ class MpatTest(unittest.TestCase):
                 self.assertLimitingFactor(moving, limit)
                 self.assertAlmostEqual(zero["torque"], moving["torque"],
                                        places=2)
+
+    def test_winding_negative_tempco_rejected(self):
+        """A negative resistance tempco would take the resistance to
+        zero at some temperature, so the custom model rejects it."""
+        result = self.run_mpat(
+            "--analysis", "max_torque", *self.WINDING_MOTOR,
+            "--velocity", "0", "--motor.r_tempco", "-0.001")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--motor.r_tempco must be 0 or more", result.stderr)
+
+    def test_winding_max_velocity_without_quadratic_drag(self):
+        """The motor temperature limited velocity is found with no
+        quadratic drag term, as well as with a tiny one.  Solving
+        the quadratic by dividing by d1 gave NaN there, so the search
+        fell back to the electrical limit."""
+        args = ["--analysis", "max_velocity", *self.WINDING_MOTOR,
+                "--torque", "0.3", "--motor.d0", "0.5"]
+        none = self.run_mpat_json(*args, "--motor.d1", "0")
+        tiny = self.run_mpat_json(*args, "--motor.d1", "1e-12")
+        self.assertIsNone(none.get("infeasible_reason"))
+        self.assertLimitingFactor(none, "max_motor_temp")
+        self.assertLimitingFactor(tiny, "max_motor_temp")
+        self.assertAlmostEqual(none["velocity"], tiny["velocity"], places=6)
 
     def test_winding_controller_power_limited_max_velocity(self):
         """The controller power limited velocity accounts for the
@@ -742,12 +774,184 @@ class MpatTest(unittest.TestCase):
         self.assertFieldAlmostEqual(sat, "d_current", -14.4, places=0)
 
 
-    def test_operating_point_max_controller_temp_override(self):
-        """The operating point is checked against the configured
-        controller temperature limit, not the controller default."""
+    # --- FET junction temperature tests ---
+
+    def test_n1_junction_temp_reported(self):
+        """The moteus-n1 has a FET thermal model, so operating points
+        report an estimated junction temperature above the board
+        temperature."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-n1",
+            "--motor", "mj5208",
+            "--voltage", "24", "--velocity", "5", "--torque", "0.5")
+        self.assertIsNotNone(data)
+        self.assertIn("junction_temp", data)
+        self.assertIn("fet_loss", data)
+        self.assertGreater(data["junction_temp"], data["controller_temp"])
+        self.assertGreater(data["fet_loss"], 0)
+        self.assertLess(data["fet_loss"], data["controller_loss"])
+
+    def test_no_junction_model(self):
+        """Controllers without a FET thermal model report null."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "odrive-s1",
+            "--motor", "mj5208",
+            "--voltage", "24", "--velocity", "5", "--torque", "0.5")
+        self.assertIsNotNone(data)
+        self.assertIsNone(data["junction_temp"])
+
+    def test_n1_stall_hotter_than_rotating(self):
+        """At stall one FET carries the full phase current, so the
+        hottest junction is hotter than when rotating at the same
+        current.  10 Hz is 70 Hz electrical, above where the losses
+        are averaged."""
+        stall = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-n1",
+            "--motor", "mj5208",
+            "--voltage", "24", "--velocity", "0", "--torque", "0.5")
+        rotating = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-n1",
+            "--motor", "mj5208",
+            "--voltage", "24", "--velocity", "10", "--torque", "0.5")
+        self.assertIsNotNone(stall)
+        self.assertIsNotNone(rotating)
+        self.assertGreater(stall["junction_temp"], rotating["junction_temp"])
+
+    def test_n1_slow_rotation_is_locked(self):
+        """As in the firmware, the losses are only averaged over a
+        revolution above 50 Hz electrical.  Below that the firmware
+        follows the phase currents, and a slowly turning rotor heats
+        its FETs like a locked one."""
+        args = ["--analysis", "max_torque",
+                "--controller", "moteus-n1",
+                "--motor", "mj5208",
+                "--voltage", "48", "--time", "5"]
+
+        def torque(velocity, *extra):
+            data = self.run_mpat_json(*args, "--velocity", velocity, *extra)
+            self.assertIsNotNone(data)
+            self.assertLimitingFactor(data, "max_junction_temp")
+            return data["torque"]
+
+        # The mj5208 has 14 poles, so 50 Hz electrical is 7.14 Hz.
+        locked = torque("0")
+        self.assertAlmostEqual(torque("0.001"), locked, places=3)
+        self.assertAlmostEqual(torque("7"), locked, places=3)
+        self.assertGreater(torque("7.2"), locked + 0.1)
+
+        # The threshold is on the rotor, behind the gear reduction.
+        self.assertAlmostEqual(torque("3.5", "--gear_reduction", "2"),
+                               2 * locked, places=3)
+        self.assertGreater(torque("3.6", "--gear_reduction", "2"),
+                           2 * locked + 0.2)
+
+    def test_n1_max_velocity_slow_enough_to_be_locked(self):
+        """The max velocity search evaluates the junction for a
+        rotating motor.  When the velocity it finds is slow enough to
+        count as a locked rotor, the junction is checked again there.
+        A motor with very large drag is limited by controller power to
+        about 5 Hz, 35 Hz electrical.  At 0.5 Nm the locked rotor
+        junction is within its limit, and is the one reported.  At
+        0.9 Nm only the rotating one is, so no velocity is feasible."""
+        args = ["--analysis", "max_velocity",
+                "--controller", "moteus-n1",
+                "--motor", "model",
+                "--motor.kv", "304", "--motor.r", "0.047",
+                "--motor.l_d", "2.6e-5", "--motor.l_q", "4.58e-5",
+                "--motor.thermal_r", "4.55", "--motor.thermal_c", "164.59",
+                "--motor.poles", "14", "--motor.d0", "20",
+                "--voltage", "48", "--time", "5"]
+
+        light = self.run_mpat_json(*args, "--torque", "0.5")
+        self.assertIsNotNone(light)
+        self.assertIsNone(light.get("infeasible_reason"))
+        self.assertLimitingFactor(light, "max_controller_power")
+        self.assertLess(light["velocity"], 7.0)
+        point = self.run_mpat_json(
+            *args, "--analysis", "operating_point",
+            "--velocity", str(light["velocity"]), "--torque", "0.5")
+        self.assertAlmostEqual(light["junction_temp"],
+                               point["junction_temp"], places=6)
+        rotating = self.run_mpat_json(
+            *args, "--analysis", "operating_point",
+            "--velocity", "10", "--torque", "0.5")
+        self.assertGreater(light["junction_temp"],
+                           rotating["junction_temp"] + 10.0)
+
+        heavy = self.run_mpat_json(*args, "--torque", "0.9")
+        self.assertIsNotNone(heavy)
+        self.assertIsNotNone(heavy.get("infeasible_reason"))
+
+    def test_n1_stall_worst_angle(self):
+        """A locked rotor is evaluated at its worst angle, so for the
+        same current it is hotter than rotating even for a short
+        duration.  Both stay below 200C, where the Rds(on) temperature
+        feedback stops."""
         args = ["--analysis", "operating_point",
                 "--controller", "moteus-n1",
-                "--torque", "4", "--time", "10"]
+                "--torque", "2", "--time", "10"]
+        stall = self.run_mpat_json(*args, "--velocity", "0")
+        rotating = self.run_mpat_json(*args, "--velocity", "10")
+        self.assertIsNotNone(stall)
+        self.assertIsNotNone(rotating)
+        self.assertIsNone(stall.get("infeasible_reason"))
+        self.assertLess(stall["junction_temp"], 200.0)
+        self.assertGreater(stall["junction_temp"], rotating["junction_temp"])
+        self.assertGreater(stall["fet_loss"], rotating["fet_loss"])
+
+    def test_n1_fw_max_velocity_with_junction_limit(self):
+        """With field weakening on, the max velocity search evaluates
+        the junction for a rotating motor.  Evaluating the zero
+        velocity end of the search as a locked rotor made the whole
+        search fail and fall back to the electrical limit.  The limit
+        sits between the rotating junction (about 107C here) and the
+        locked rotor one at the same current (about 198C)."""
+        args = ["--analysis", "max_velocity",
+                "--controller", "moteus-n1",
+                "--motor", "mj5208",
+                "--voltage", "48", "--torque", "0.9", "--time", "5",
+                "--max_junction_temp", "130"]
+        fw_off = self.run_mpat_json(*args, "--field_weakening", "off")
+        fw_on = self.run_mpat_json(*args, "--field_weakening", "on")
+        self.assertIsNotNone(fw_off)
+        self.assertIsNotNone(fw_on)
+        self.assertIsNone(fw_on.get("infeasible_reason"))
+        self.assertEqual(fw_on["limiting_factor"], "max_controller_power")
+        self.assertAlmostEqual(fw_on["velocity"], fw_off["velocity"], places=1)
+
+    def test_n1_junction_limits_max_current(self):
+        """Lowering the junction limit below what the board thermistor
+        would allow makes the junction the limiting factor."""
+        base = self.run_mpat_json(
+            "--analysis", "max_current",
+            "--controller", "moteus-n1",
+            "--voltage", "48", "--time", "5")
+        limited = self.run_mpat_json(
+            "--analysis", "max_current",
+            "--controller", "moteus-n1",
+            "--voltage", "48", "--time", "5",
+            "--max_junction_temp", "90")
+        self.assertIsNotNone(base)
+        self.assertIsNotNone(limited)
+        self.assertLess(limited["phase_current"], base["phase_current"])
+        self.assertEqual(limited["limiting_factor"],
+                         "max_junction_temp")
+        self.assertFieldAlmostEqual(limited, "junction_temp", 90.0, places=0)
+        self.assertLess(limited["controller_temp"], base["controller_temp"])
+
+    def test_operating_point_max_controller_temp_override(self):
+        """The operating point is checked against the configured
+        controller temperature limit, not the controller default.
+        Only the last failing check is reported, so the junction limit
+        is raised out of the way."""
+        args = ["--analysis", "operating_point",
+                "--controller", "moteus-n1",
+                "--torque", "4", "--time", "10",
+                "--max_junction_temp", "5000"]
         default = self.run_mpat_json(*args)
         lowered = self.run_mpat_json(*args, "--max_controller_temp", "35")
         self.assertIsNotNone(default)
@@ -763,7 +967,7 @@ class MpatTest(unittest.TestCase):
     def test_operating_point_max_motor_temp_override(self):
         """The operating point is checked against the configured motor
         temperature limit, not the motor default.  Only the last
-        failing check is reported, so the controller limit is raised
+        failing check is reported, so the controller limits are raised
         out of the way."""
         data = self.run_mpat_json(
             "--analysis", "operating_point",
@@ -771,10 +975,305 @@ class MpatTest(unittest.TestCase):
             "--motor", "mj5208",
             "--voltage", "24", "--velocity", "5", "--torque", "0.5",
             "--max_controller_temp", "500",
+            "--max_junction_temp", "500",
             "--max_motor_temp", "20")
         self.assertIsNotNone(data)
         self.assertIn("Motor temperature", data["infeasible_reason"])
         self.assertIn("exceeds maximum 20.0", data["infeasible_reason"])
+
+    def test_fet_thermal_constants_match_firmware(self):
+        """Each controller's fetThermal constants in mpat match the
+        FetThermalParams set for that board in fw/moteus_hw.cc.  The
+        firmware sets them in the branch opened by a "// moteus-NAME"
+        comment, where NAME is the mpat controller name."""
+        result = self.run_mpat('--dump_fet_thermal')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        mpat = json.loads(result.stdout)
+
+        path = self.runfiles.Rlocation(
+            "com_github_mjbots_moteus/fw/moteus_hw.cc")
+        with open(path) as f:
+            source = f.read()
+        firmware = {}
+        # Split into (board name, text of its branch) pairs.
+        parts = re.split(r'^\s*// (moteus-[\w.]+)\s*$', source,
+                         flags=re.MULTILINE)
+        for name, text in zip(parts[1::2], parts[2::2]):
+            params = {}
+            for key, value in re.findall(
+                    r'result\.fet_thermal\.(\w+)\s*=\s*([^;]+);', text):
+                numbers = [float(x) for x in re.findall(
+                    r'[-+]?[0-9.]+(?:e[-+]?[0-9]+)?', value)]
+                is_array = value.strip().startswith('{')
+                params[key] = numbers if is_array else numbers[0]
+            if params:
+                firmware[name] = params
+
+        self.assertTrue(firmware, "no FET thermal constants found in "
+                        "fw/moteus_hw.cc")
+        # These come from other firmware configuration, not
+        # FetThermalParams.  maxJunctionTemp is checked in
+        # test_max_junction_temp_matches_firmware.
+        mpat_only = {'gate', 'shunt_ohm', 'maxJunctionTemp'}
+        self.assertEqual(sorted(firmware), sorted(mpat))
+        for name, fw_params in firmware.items():
+            mpat_params = {k: v for k, v in mpat[name].items()
+                           if k not in mpat_only}
+            self.assertEqual(sorted(fw_params), sorted(mpat_params), name)
+            for key, fw_value in fw_params.items():
+                fw_list = fw_value if isinstance(fw_value, list) else [fw_value]
+                mpat_value = mpat_params[key]
+                mpat_list = (mpat_value if isinstance(mpat_value, list)
+                             else [mpat_value])
+                self.assertEqual(len(fw_list), len(mpat_list), f"{name} {key}")
+                for a, b in zip(fw_list, mpat_list):
+                    self.assertTrue(math.isclose(a, b, rel_tol=1e-6),
+                                    f"{name} {key}: firmware {fw_value} "
+                                    f"mpat {mpat_value}")
+
+    def test_max_junction_temp_matches_firmware(self):
+        """Each controller's maxJunctionTemp in mpat is 40% of the way
+        through the firmware's default junction derating band, from
+        fet_junction_fault_temperature and
+        fet_junction_temperature_margin in fw/bldc_servo_structs.h."""
+        result = self.run_mpat('--dump_fet_thermal')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        mpat = json.loads(result.stdout)
+
+        path = self.runfiles.Rlocation(
+            "com_github_mjbots_moteus/fw/bldc_servo_structs.h")
+        with open(path) as f:
+            source = f.read()
+        number = r'([-+]?[0-9.]+)f'
+        margin = float(re.search(
+            r'float fet_junction_temperature_margin\s*=\s*' + number + ';',
+            source).group(1))
+        # A chain of "(g_measured_hw_family == N) ? VALUE :" ending in
+        # the default for every other family.
+        fault_expr = re.search(
+            r'float fet_junction_fault_temperature\s*=([^;]+);',
+            source).group(1)
+        fault_by_family = {
+            int(family): float(value) for family, value in re.findall(
+                r'g_measured_hw_family\s*==\s*(\d+)\)\s*\?\s*' + number,
+                fault_expr)}
+        fault_default = float(re.search(number + r'\s*$',
+                                        fault_expr.strip()).group(1))
+
+        # The hardware family of each controller, as in fw/moteus_hw.cc.
+        families = {'moteus-r4': 0, 'moteus-n1': 1, 'moteus-c1': 2,
+                    'moteus-x1': 3}
+        self.assertEqual(sorted(families), sorted(mpat))
+        for name, family in families.items():
+            fault = fault_by_family.get(family, fault_default)
+            expected = fault - margin + 0.4 * margin
+            self.assertAlmostEqual(mpat[name]['maxJunctionTemp'], expected,
+                                   places=6, msg=name)
+
+    # --- FET conduction network tests ---
+    #
+    # These check mpat's network model against independent solutions
+    # of the same equations as the firmware (fw/fet_thermal_model.h),
+    # as rises over ambient: the six pads, the copper at the
+    # thermistor (6), the board (7), and with a spreader, a second run
+    # with it on the pads (8),
+    #
+    #   C dx/dt = P - G x
+    #
+    # with the thermistor's reading following node 6 through a lag, and
+    # each FET's estimate the hotter of the runs.
+
+    def fet_constants(self, name='moteus-n1'):
+        result = self.run_mpat('--dump_fet_thermal')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)[name]
+
+    def dump_junction(self, **op):
+        op = dict({'controller': 'moteus-n1', 'voltage': 36, 'pwm': 20000,
+                   'phase_current': 22, 'velocity': 0, 'board_temp': 50,
+                   'time': None}, **op)
+        result = self.run_mpat('--dump_fet_junction', json.dumps(op))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout)
+
+    @staticmethod
+    def board_matrix(fet, spreader):
+        """The network's conductance matrix and each node's heat
+        capacity, with or without the spreader."""
+        n = 9 if spreader else 8
+        G = [[0.0] * n for _ in range(n)]
+
+        def link(a, b, g):
+            G[a][a] += g
+            G[b][b] += g
+            G[a][b] -= g
+            G[b][a] -= g
+        for i in range(6):
+            link(i, 6, fet['g_pad_thermistor_W_per_K'][i])
+            G[i][i] += fet['g_pad_ambient_W_per_K'][i]
+            if spreader:
+                link(i, 8, fet['g_pad_spreader_W_per_K'])
+        for k in range(fet['network_couplings']):
+            link(fet['coupling_a'][k], fet['coupling_b'][k],
+                 fet['coupling_W_per_K'][k])
+        link(6, 7, fet['g_thermistor_board_W_per_K'])
+        G[6][6] += fet['g_thermistor_ambient_W_per_K']
+        G[7][7] += fet['g_board_ambient_W_per_K']
+        capacity = [fet['c_pad_J_per_K']] * 6 + [
+            fet['c_thermistor_J_per_K'], fet['c_board_J_per_K']]
+        if spreader:
+            G[8][8] += fet['g_spreader_ambient_W_per_K']
+            capacity.append(fet['c_spreader_J_per_K'])
+        return G, capacity
+
+    @staticmethod
+    def runs(fet):
+        if fet.get('g_pad_spreader_W_per_K', 0.0) > 0.0:
+            return [False, True]
+        return [False]
+
+    @staticmethod
+    def solve(G, rhs):
+        n = len(rhs)
+        a = [row[:] + [rhs[i]] for i, row in enumerate(G)]
+        for c in range(n):
+            for r in range(c + 1, n):
+                f = a[r][c] / a[c][c]
+                for k in range(c, n + 1):
+                    a[r][k] -= f * a[c][k]
+        x = [0.0] * n
+        for r in reversed(range(n)):
+            x[r] = (a[r][n] - sum(a[r][k] * x[k]
+                                  for k in range(r + 1, n))) / a[r][r]
+        return x
+
+    @staticmethod
+    def locked_rotor_losses(fet, voltage, pwm, current, angle_deg, junction):
+        """The firmware loss model at a locked rotor, with every leg
+        at 50% duty and switching, as mpat assumes."""
+        def rds(tj):
+            return fet['rds_on_25C_ohm'] * (
+                1.0 + fet['rds_on_tempco_per_C'] *
+                (min(max(tj, -55.0), 200.0) - 25.0))
+        gate = fet['gate']
+        qsw = fet['gate_switch_charge_coulomb']
+        overlap_hs = qsw * (1.0 / gate['hs_source_A'] + 1.0 / gate['hs_sink_A'])
+        overlap_ls = qsw * (1.0 / gate['ls_source_A'] + 1.0 / gate['ls_sink_A'])
+        # The switching energies and the rate growth, zero when
+        # absent, as in the firmware.
+        kva = fet.get('switching_energy_J_per_V_A', 0.0)
+        ka2 = fet.get('switching_energy_J_per_A2', 0.0)
+        kd = fet.get('deadtime_diode_V_s', 0.0)
+        rate = pwm * (1.0 + fet.get('hard_switching_per_Hz', 0.0) * pwm)
+        leg = 0.5 * pwm * (fet.get('switching_energy_J', 0.0) +
+                           fet.get('switching_energy_J_per_V', 0.0) * voltage)
+        losses = [0.0] * 6
+        for ch in range(3):
+            i = current * math.cos(math.radians(angle_deg - 120.0 * ch))
+            hs, ls = 2 * ch, 2 * ch + 1
+            losses[hs] = i * i * (rds(junction[hs]) +
+                                  fet['r_extra_ohm']) * 0.5 + leg
+            losses[ls] = i * i * (rds(junction[ls]) + fet['r_extra_ohm'] +
+                                  fet['shunt_ohm']) * 0.5 + leg
+            overlap = overlap_hs if i >= 0 else overlap_ls
+            hard, other = (hs, ls) if i >= 0 else (ls, hs)
+            losses[hard] += (
+                0.5 * voltage * abs(i) * overlap * rate *
+                fet['switching_loss_scale'] +
+                rate * (kva * voltage * abs(i) + ka2 * i * i))
+            losses[other] += 2.0 * pwm * kd * abs(i)
+        return losses
+
+    def check_network_steady_state(self, name):
+        """The steady junction temperatures mpat reports are, for each
+        FET, the hotter of the runs solved for the losses it reports,
+        and those losses are the loss model's at the reported junction
+        temperatures.  No FET reads below the board."""
+        fet = self.fet_constants(name)
+        self.assertGreater(fet['network_couplings'], 0)
+        data = self.dump_junction(controller=name)
+        board = 50.0
+        losses = data['losses']
+        expected = [board] * 6
+        for spreader in self.runs(fet):
+            G, capacity = self.board_matrix(fet, spreader)
+            x = self.solve(G, losses + [0.0] * (len(capacity) - 6))
+            # In steady state the reading is at the thermistor's copper.
+            for i in range(6):
+                expected[i] = max(expected[i], board + x[i] - x[6] +
+                                  losses[i] * fet['r_junction_pad_C_per_W'][i])
+        for i in range(6):
+            self.assertAlmostEqual(data['junction_temps'][i], expected[i],
+                                   places=6)
+
+        expected_losses = self.locked_rotor_losses(
+            fet, 36, 20000, 22, data['angle_deg'], data['junction_temps'])
+        for got, expected in zip(losses, expected_losses):
+            self.assertTrue(math.isclose(got, expected, rel_tol=1e-3),
+                            f"{got} != {expected}")
+        temps = data['junction_temps']
+        self.assertEqual(data['index'], temps.index(max(temps)))
+
+    def test_n1_network_steady_state(self):
+        self.check_network_steady_state('moteus-n1')
+
+    def test_x1_spreader_steady_state(self):
+        self.assertGreater(
+            self.fet_constants('moteus-x1')['g_pad_spreader_W_per_K'], 0.0)
+        self.check_network_steady_state('moteus-x1')
+
+    def check_network_transient(self, name):
+        """The closed form time response of each run's pads matches
+        integrating it from the thermistor temperature, as the firmware
+        does, for the losses mpat reports.  The junction stage is added
+        on top in closed form, as mpat models it, rather than as the
+        firmware's junction node coupled to the pad."""
+        fet = self.fet_constants(name)
+        t_end = 5.0
+        data = self.dump_junction(controller=name, time=t_end, angle_deg=75)
+        losses = data['losses']
+        expected = [50.0] * 6
+        for spreader in self.runs(fet):
+            G, capacity = self.board_matrix(fet, spreader)
+            n = len(capacity)
+            x = [0.0] * n       # rises over ambient
+            reading = 0.0
+            lag = fet['thermistor_lag_s']
+            q = losses + [0.0] * (n - 6)
+            dt = 1e-3
+            for step in range(int(round(t_end / dt))):
+                dx = [(q[i] - sum(G[i][j] * x[j] for j in range(n))) /
+                      capacity[i]
+                      for i in range(n)]
+                reading += dt * (x[6] - reading) / lag
+                x = [x[i] + dt * dx[i] for i in range(n)]
+            for i in range(6):
+                r_jp = fet['r_junction_pad_C_per_W'][i] * (
+                    1.0 - math.exp(-t_end / fet['tau_junction_pad_s'][i]))
+                expected[i] = max(expected[i], 50.0 + x[i] - reading +
+                                  losses[i] * r_jp)
+        for i in range(6):
+            self.assertAlmostEqual(data['junction_temps'][i], expected[i],
+                                   delta=0.05)
+
+    def test_n1_network_transient(self):
+        self.check_network_transient('moteus-n1')
+
+    def test_x1_spreader_transient(self):
+        self.check_network_transient('moteus-x1')
+
+    def test_n1_locked_rotor_worst_between_peak_angles(self):
+        """With the network, a FET's neighbours heat it too, so a
+        locked rotor is hottest where two phases share the current,
+        between the six angles where one phase carries it all, as
+        measured on the thermal fixture (around 75 deg on the n1)."""
+        swept = self.dump_junction()
+        offset = swept['angle_deg'] % 60.0
+        self.assertGreater(offset, 5.0)
+        self.assertLess(offset, 55.0)
+        peak = max(self.dump_junction(angle_deg=60 * k)['junction_temp']
+                   for k in range(6))
+        self.assertGreater(swept['junction_temp'], peak + 1.0)
 
     # --- Voltage-limited torque tests ---
 
@@ -802,7 +1301,7 @@ class MpatTest(unittest.TestCase):
         self.assertGreater(low_speed["torque"], 0.1)
         self.assertLess(high_speed["torque"], low_speed["torque"] * 0.6)
         self.assertGreater(high_speed["torque"], 0)
-        self.assertLimitingFactor(low_speed, "max_motor_temperature")
+        self.assertLimitingFactor(low_speed, "max_motor_temp")
         self.assertLimitingFactor(high_speed, "back_emf")
 
     def test_zero_torque_speed_matches_max_velocity(self):
@@ -866,7 +1365,7 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(high_v)
         self.assertGreater(high_v["torque"], low_v["torque"])
         self.assertLimitingFactor(low_v, "back_emf")
-        self.assertLimitingFactor(high_v, "max_motor_temperature")
+        self.assertLimitingFactor(high_v, "max_motor_temp")
 
 
     # --- ODrive back-EMF limited velocity regression tests ---

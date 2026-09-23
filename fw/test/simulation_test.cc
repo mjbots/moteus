@@ -743,6 +743,7 @@ BOOST_AUTO_TEST_CASE(SimFieldWeakeningFetTempLimit) {
     const float halfway_temp = ctx.derate_temperature_ +
         ctx.config_.temperature_margin * 0.5f;
     ctx.status_.filt_fet_temp_C = halfway_temp;
+    ctx.UpdateFetDerate(halfway_temp, kNaN);
     ctx.RunSimulation(&cmd, 2.0f);
     const float derated_i_d = ctx.control_.i_d_A;
 
@@ -770,6 +771,7 @@ BOOST_AUTO_TEST_CASE(SimFieldWeakeningFetTempLimit) {
     ctx.motor_sim_.state() = SpmsmMotorSimulator::State{};
     ctx.Reset();
     ctx.status_.filt_fet_temp_C = 25.0f;  // cool down
+    ctx.UpdateFetDerate(25.0f, kNaN);
 
     auto cmd = SetupFieldWeakeningAtSpeed(ctx, 120.0f, 24.0f, 2.0f);
 
@@ -788,6 +790,7 @@ BOOST_AUTO_TEST_CASE(SimFieldWeakeningFetTempLimit) {
     const float warm_temp = ctx.derate_temperature_ +
         ctx.config_.temperature_margin * 0.55f;
     ctx.status_.filt_fet_temp_C = warm_temp;
+    ctx.UpdateFetDerate(warm_temp, kNaN);
     ctx.RunSimulation(&cmd, 3.0f);
     const float final_vel = ctx.motor_sim_.velocity_rev_s();
 
@@ -925,6 +928,7 @@ BOOST_AUTO_TEST_CASE(SimFieldWeakeningTempLimitNoLoad) {
   const float warm_temp = ctx.derate_temperature_ +
       ctx.config_.temperature_margin * 0.55f;
   ctx.status_.filt_fet_temp_C = warm_temp;
+  ctx.UpdateFetDerate(warm_temp, kNaN);
   ctx.RunSimulation(&cmd, 3.0f);
   const float final_vel = ctx.motor_sim_.velocity_rev_s();
 

@@ -370,6 +370,7 @@ class SimulationContext : public BldcServoControl<SimulationContext> {
     status_.filt_1ms_bus_V = bus_voltage_;
     status_.bus_V = bus_voltage_;
     status_.filt_fet_temp_C = 25.0f;
+    UpdateFetDerate(status_.filt_fet_temp_C, kNaN);
     status_.max_power_W = 500.0f;
 
     // Disable timeouts by default

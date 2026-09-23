@@ -186,6 +186,10 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     telemetry_manager->Register("servo_stats", &status_);
     telemetry_manager->Register("servo_cmd", &telemetry_data_);
     telemetry_manager->Register("servo_control", &control_);
+    telemetry_manager->Register("fet_model", &fet_model_status_);
+    // The constants are fixed per board, so the model uses them where
+    // they are rather than a copy in the pool.
+    telemetry_manager->Register("fet_model_params", &g_hw_pins.fet_thermal);
 
     // The motor driver's csa_settling_time() depends on its
     // csa_gain config, which is registered separately as
@@ -334,6 +338,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   }
 
   void PollMillisecond() {
+    UpdateFetThermalModel();
+
     volatile auto* mode_volatile = &status_.mode;
     volatile auto* fault_volatile = &status_.fault;
     Mode mode = *mode_volatile;
@@ -1242,6 +1248,37 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     }
   }
 
+  // Runs at 1kHz from the main loop, not the ISR.  Every field read
+  // here that the ISR writes is a 32 bit aligned value, so each read
+  // is atomic even if the set is not perfectly coherent.  That is
+  // fine for a thermal model, whose fastest mode is several
+  // milliseconds.
+  void UpdateFetThermalModel() {
+    FetThermalModel::Inputs in;
+    in.dt_s = 0.001f;
+    in.thermistor_C = status_.filt_fet_temp_C;
+    in.bus_V = status_.filt_bus_V;
+    in.pwm_rate_hz = static_cast<float>(rate_config_.pwm_rate_hz);
+
+    const Vec3& pwm = control_.pwm;
+    const float electrical_hz = position_.velocity *
+        inv_rotor_to_output_ratio_ * motor_.poles * 0.5f;
+    in.SetPhases(torque_on(), motor_.phase_invert,
+                 status_.cur1_A, status_.cur2_A, status_.cur3_A,
+                 pwm.a, pwm.b, pwm.c,
+                 electrical_hz, status_.d_A, status_.q_A);
+
+    in.gate = motor_driver_->gate_drive();
+    in.shunt_ohm = config_.current_sense_ohm;
+    in.junction_fault_C = config_.fet_junction_fault_temperature;
+    in.junction_margin_C = config_.fet_junction_temperature_margin;
+    in.hot_start = config_.fet_junction_hot_start;
+
+    fet_thermal_model_.Update(g_hw_pins.fet_thermal, in, &fet_model_status_);
+    UpdateFetDerate(status_.filt_fet_temp_C,
+                    fet_model_status_.junction_derate_fraction);
+  }
+
   void DoPwmControl(const Vec3& pwm) MOTEUS_CCM_ATTRIBUTE {
     const uint16_t pwm1 =
         static_cast<uint16_t>(pwm.a * pwm_counts_);
@@ -1439,6 +1476,8 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
 
   ExponentialFilter velocity_filter_;
   ExponentialFilter temperature_filter_;
+  FetThermalStatus fet_model_status_;
+  FetThermalModel fet_thermal_model_;
 
   const bool family0_rev4_and_older_ = (
       g_measured_hw_family == 0 &&
