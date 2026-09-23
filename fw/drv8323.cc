@@ -30,6 +30,46 @@ namespace micro = mjlib::micro;
 namespace moteus {
 
 namespace {
+
+// moteus-r4.5 and earlier (family 0 hwrev <=6), and the moteus-c1
+// (family 2) both use the drv8323.
+bool IsDrv8323() {
+  return
+      (g_measured_hw_family == 0 && g_measured_hw_rev <= 6) ||
+      (g_measured_hw_family == 2);
+}
+
+// The gate drive current tables, in mA, indexed by register code.
+constexpr uint16_t idrivep_table_drv8323[] = {
+  10, 30, 60, 80, 120, 140, 170, 190,
+  260, 330, 370, 440, 570, 680, 820, 1000,
+};
+
+constexpr uint16_t idrivep_table_drv8353[] = {
+  50, 50, 100, 150, 300, 350, 400, 450,
+  550, 600, 650, 700, 850, 900, 950, 1000,
+};
+
+constexpr uint16_t idriven_table_drv8323[] = {
+  20, 60, 120, 160, 240, 280, 340, 380,
+  520, 660, 740, 880, 1140, 1360, 1640, 2000,
+};
+
+constexpr uint16_t idriven_table_drv8353[] = {
+  100, 100, 200, 300, 600, 700, 800, 900,
+  1100, 1200, 1300, 1400, 1700, 1800, 1900, 2000,
+};
+
+// Return the index of the first table entry which is at least as
+// large as the requested value, or the final entry if none are.
+template <typename Table>
+uint16_t map_choice(const Table& table, int ma) {
+  for (uint16_t i = 0; i < sizeof(table) / sizeof(*table); i++) {
+    if (ma <= table[i]) { return i; }
+  }
+  return (sizeof(table) / sizeof(*table)) - 1;
+}
+
 constexpr int kPollRate = 10;
 }
 
@@ -212,6 +252,24 @@ class Drv8323::Impl {
     return CsaSettlingTime(config_.csa_gain);
   }
 
+  GateDriveCurrents gate_drive() {
+    const bool drv8323 = IsDrv8323();
+    const auto& idrivep_table =
+        drv8323 ? idrivep_table_drv8323 : idrivep_table_drv8353;
+    const auto& idriven_table =
+        drv8323 ? idriven_table_drv8323 : idriven_table_drv8353;
+    const auto physical_A = [](const auto& table, int ma) {
+      return static_cast<float>(table[map_choice(table, ma)]) * 0.001f;
+    };
+
+    GateDriveCurrents result;
+    result.hs_source_A = physical_A(idrivep_table, config_.idrivep_hs_ma);
+    result.hs_sink_A = physical_A(idriven_table, config_.idriven_hs_ma);
+    result.ls_source_A = physical_A(idrivep_table, config_.idrivep_ls_ma);
+    result.ls_sink_A = physical_A(idriven_table, config_.idriven_ls_ma);
+    return result;
+  }
+
   void HandleConfigUpdate() {
     if (g_measured_hw_family == 0 &&
         g_measured_hw_rev == 7) {
@@ -272,31 +330,7 @@ class Drv8323::Impl {
       return (val ? 1 : 0) << pos;
     };
 
-    // moteus-r4.5 and earlier (family 0 hwrev <=6), and the moteus-c1
-    // (family 2) both use the drv8323.
-    const bool drv8323 =
-        (g_measured_hw_family == 0 && g_measured_hw_rev <= 6) ||
-        (g_measured_hw_family == 2);
-
-    constexpr uint16_t idrivep_table_drv8323[] = {
-      10, 30, 60, 80, 120, 140, 170, 190,
-      260, 330, 370, 440, 570, 680, 820, 1000,
-    };
-
-    constexpr uint16_t idrivep_table_drv8353[] = {
-      50, 50, 100, 150, 300, 350, 400, 450,
-      550, 600, 650, 700, 850, 900, 950, 1000,
-    };
-
-    constexpr uint16_t idriven_table_drv8323[] = {
-      20, 60, 120, 160, 240, 280, 340, 380,
-      520, 660, 740, 880, 1140, 1360, 1640, 2000,
-    };
-
-    constexpr uint16_t idriven_table_drv8353[] = {
-      100, 100, 200, 300, 600, 700, 800, 900,
-      1100, 1200, 1300, 1400, 1700, 1800, 1900, 2000,
-    };
+    const bool drv8323 = IsDrv8323();
 
     constexpr uint16_t tdrive_ns_table[] = {
       500, 1000, 2000, 4000,
@@ -330,13 +364,6 @@ class Drv8323::Impl {
 
     constexpr uint16_t sen_lvl_table[] = {
       250, 500, 750, 1000,
-    };
-
-    const auto map_choice = [](const auto& table, int ma) -> uint16_t {
-      for (uint16_t i = 0; i < sizeof(table) / sizeof(*table); i++) {
-        if (ma <= table[i]) { return i; }
-      }
-      return (sizeof(table) / sizeof(*table)) - 1;
     };
 
 
@@ -472,6 +499,7 @@ void Drv8323::PollMillisecond() { impl_->PollMillisecond(); }
 float Drv8323::max_sense_V() { return impl_->max_sense_V(); }
 float Drv8323::i_gain() { return impl_->i_gain(); }
 float Drv8323::csa_settling_time() { return impl_->csa_settling_time(); }
+GateDriveCurrents Drv8323::gate_drive() { return impl_->gate_drive(); }
 void Drv8323::SetConfigUpdateCallback(
     mjlib::base::inplace_function<void()> cb) {
   impl_->config_update_ = std::move(cb);

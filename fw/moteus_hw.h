@@ -16,6 +16,7 @@
 
 #include "mbed.h"
 
+#include "fw/fet_thermal_model.h"
 #include "fw/millisecond_timer.h"
 
 namespace moteus {
@@ -83,6 +84,10 @@ struct MoteusHwPins {
   float power_V_l = 24.0f;
   float power_P_h_W = 0.0f;
   float power_V_h = 34.0f;
+
+  // Constants for the FET junction temperature estimator.  Every
+  // board must provide these.  See fw/fet_thermal_model.h.
+  FetThermalParams fet_thermal;
 };
 
 

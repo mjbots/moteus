@@ -111,6 +111,9 @@ class Drv8323 : public MotorDriver {
   // The CSA settling time at the configured gain.
   float csa_settling_time() override;
 
+  // The physical gate drive currents currently configured.
+  GateDriveCurrents gate_drive() override;
+
   void SetConfigUpdateCallback(
       mjlib::base::inplace_function<void()>) override;
 

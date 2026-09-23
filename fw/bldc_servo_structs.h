@@ -534,6 +534,25 @@ struct BldcServoConfig {
       (g_measured_hw_family == 3) ? 105.0f :
       75.0f;
 
+  // The FET junction temperature is estimated from the phase
+  // currents and the board thermistor, and derating begins when the
+  // hottest estimated junction is within
+  // `fet_junction_temperature_margin` of
+  // `fet_junction_fault_temperature`.  The estimate is available in
+  // the `fet_model` telemetry.  The estimate's constants for each
+  // board keep the true junction, under this derating, 10 C or more
+  // below its FETs' absolute maximum: 175 C on the moteus-r4,
+  // moteus-n1 and moteus-c1, 150 C on the moteus-x1.
+  float fet_junction_temperature_margin = 25.0f;
+  float fet_junction_fault_temperature =
+      (g_measured_hw_family == 3) ? 140.0f :
+      165.0f;
+
+  // If true, the junction estimate starts at power up at the start of
+  // derating, since a board restarted while hot may have hot FETs.
+  // If false, it starts at the board thermistor's first reading.
+  bool fet_junction_hot_start = true;
+
   // If enabled, slightly more instructions are used per cycle, but
   // the motor temperature will be available for throttling in
   // addition to the FET temperature.
@@ -689,6 +708,9 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(override_board_max_power));
     a->Visit(MJ_NVP(temperature_margin));
     a->Visit(MJ_NVP(fault_temperature));
+    a->Visit(MJ_NVP(fet_junction_temperature_margin));
+    a->Visit(MJ_NVP(fet_junction_fault_temperature));
+    a->Visit(MJ_NVP(fet_junction_hot_start));
     a->Visit(MJ_NVP(enable_motor_temperature));
     a->Visit(MJ_NVP(motor_thermistor_ohm));
     a->Visit(MJ_NVP(motor_temperature_margin));

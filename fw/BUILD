@@ -18,6 +18,8 @@ package(default_visibility = ["//visibility:public"])
 load("@com_github_ARMmbed_mbed-g4//:rules.bzl", g4_mbed_binary = "mbed_binary")
 load("@com_github_ARMmbed_mbed-g4-bootloader//:rules.bzl", g4_bootloader_mbed_binary = "mbed_binary")
 
+exports_files(["bldc_servo_structs.h", "moteus_hw.cc"])
+
 COPTS = [
     "-Werror",
     "-Wdouble-promotion",
@@ -30,6 +32,7 @@ cc_library(
         "bldc_servo_control.h",
         "bldc_servo_position.h",
         "bldc_servo_structs.h",
+        "fet_thermal_model.h",
         "aux_common.h",
         "ccm.h",
         "error.h",
@@ -214,6 +217,7 @@ cc_test(
     srcs = [
         "test/bldc_servo_control_test.cc",
         "test/bldc_servo_position_test.cc",
+        "test/fet_thermal_model_test.cc",
         "test/foc_test.cc",
         "test/math_test.cc",
         "test/motor_position_test.cc",

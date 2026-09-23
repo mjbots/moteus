@@ -573,7 +573,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoCurrent) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -629,7 +628,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoCurrentLimits) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -650,11 +648,111 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoCurrentLimits) {
   BOOST_TEST(ctx.control_.i_q_A <= ctx.config_.max_current_A);
 }
 
+namespace {
+// Context holds pointers into itself, so it is set up in place.
+void SetupFetDerateContext(Context* ctx) {
+  ctx->status_.filt_bus_V = 24.0f;
+  ctx->status_.filt_1ms_bus_V = 24.0f;
+  ctx->status_.max_power_W = 500.0f;
+  ctx->position_.epoch = 0;
+  ctx->isr_motor_position_epoch_ = 0;
+  ctx->position_.theta_valid = true;
+  ctx->motor_.poles = 14;
+  ctx->motor_.resistance_ohm = 0.1f;
+  ctx->config_.max_current_A = 40.0f;
+  ctx->config_.max_velocity = 100.0f;
+  ctx->config_.max_velocity_derate = 20.0f;
+  ctx->motor_position_config_val.output.sign = 1;
+}
+}
+
+BOOST_AUTO_TEST_CASE(BldcServoControlFetDerateSelection) {
+  Context ctx;
+  // The fixture's board derating band is 50-75C, so 62.5C is
+  // halfway through it.
+  ctx.UpdateFetDerate(62.5f, NaN);
+  BOOST_TEST(ctx.fet_derate_fraction_ == 0.5f);
+  BOOST_CHECK(ctx.fet_derate_limit_ == errc::kLimitFetTemperature);
+  BOOST_CHECK(ctx.fet_derate_fault_ == errc::kOverTemperature);
+
+  // The junction takes over only when it is further through its band.
+  ctx.UpdateFetDerate(62.5f, 0.3f);
+  BOOST_TEST(ctx.fet_derate_fraction_ == 0.5f);
+  BOOST_CHECK(ctx.fet_derate_limit_ == errc::kLimitFetTemperature);
+
+  ctx.UpdateFetDerate(62.5f, 0.7f);
+  BOOST_TEST(ctx.fet_derate_fraction_ == 0.7f);
+  BOOST_CHECK(ctx.fet_derate_limit_ == errc::kLimitFetJunctionTemperature);
+  BOOST_CHECK(ctx.fet_derate_fault_ == errc::kFetJunctionOverTemperature);
+}
+
+BOOST_AUTO_TEST_CASE(BldcServoControlFetJunctionLimitCode) {
+  Context ctx;
+  SetupFetDerateContext(&ctx);
+
+  SinCos sc;
+  sc.s = 0.0f;
+  sc.c = 1.0f;
+
+  // Halfway through the junction derating band limits the current
+  // halfway between max_current_A (40A) and derate_current_A (-20A),
+  // and reports the junction as the reason.
+  ctx.UpdateFetDerate(25.0f, 0.5f);
+  ctx.ISR_DoCurrent(sc, 0.0f, 30.0f, 0.0f, false);
+  BOOST_TEST(ctx.status_.effective_max_current_A == 10.0f,
+             tt::tolerance(1e-3f));
+  BOOST_TEST(ctx.control_.i_q_A <= 10.0f + 1e-3f);
+  BOOST_CHECK(ctx.status_.fault == errc::kLimitFetJunctionTemperature);
+}
+
+BOOST_AUTO_TEST_CASE(BldcServoControlFetZeroMargin) {
+  // With no temperature margin the thermistor is a hard cutoff: full
+  // current while cool, a fault once past fault_temperature.
+  Context ctx;
+  SetupFetDerateContext(&ctx);
+  ctx.config_.temperature_margin = 0.0f;
+  ctx.derate_temperature_ = ctx.config_.fault_temperature;
+
+  SinCos sc;
+  sc.s = 0.0f;
+  sc.c = 1.0f;
+
+  ctx.UpdateFetDerate(40.0f, NaN);
+  ctx.ISR_DoCurrent(sc, 0.0f, 30.0f, 0.0f, false);
+  BOOST_TEST(ctx.status_.effective_max_current_A == 40.0f);
+  BOOST_TEST(ctx.control_.i_q_A == 30.0f, tt::tolerance(1e-3f));
+
+  // A junction estimate that is also cool, with a zero junction
+  // margin, must not change that.
+  ctx.UpdateFetDerate(
+      40.0f, FetThermalModel::DerateFraction(100.0f, 150.0f, 0.0f));
+  ctx.ISR_DoCurrent(sc, 0.0f, 30.0f, 0.0f, false);
+  BOOST_TEST(ctx.control_.i_q_A == 30.0f, tt::tolerance(1e-3f));
+
+  // Nor must a derate_current_A at or above max_current_A, which
+  // would otherwise multiply the -infinity fraction by zero or a
+  // positive number.
+  for (const float derate_current_A : { 40.0f, 60.0f }) {
+    ctx.config_.derate_current_A = derate_current_A;
+    ctx.UpdateFetDerate(40.0f, NaN);
+    ctx.ISR_DoCurrent(sc, 0.0f, 30.0f, 0.0f, false);
+    BOOST_TEST(ctx.status_.effective_max_current_A == 40.0f);
+    BOOST_TEST(ctx.control_.i_q_A == 30.0f, tt::tolerance(1e-3f));
+  }
+
+  // An unknown temperature still limits the current to zero.
+  ctx.UpdateFetDerate(NaN, NaN);
+  ctx.ISR_DoCurrent(sc, 0.0f, 30.0f, 0.0f, false);
+  BOOST_TEST(ctx.status_.effective_max_current_A == 0.0f);
+
+  ctx.UpdateFetDerate(80.0f, NaN);
+  BOOST_TEST(ctx.fet_derate_fraction_ > 1.0f);
+}
+
 BOOST_AUTO_TEST_CASE(BldcServoControlDoCurrentFieldWeakening) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -841,7 +939,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoPosition) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -880,7 +977,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoZeroVelocity) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -913,7 +1009,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoStayWithinBoundsInside) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -952,7 +1047,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoStayWithinBoundsOutside) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;
@@ -1043,7 +1137,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlVoltageFOCThetaRateLimit) {
 BOOST_AUTO_TEST_CASE(BldcServoControlDoStopped) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.theta_valid = true;
   ctx.motor_.poles = 14;
@@ -1150,7 +1243,6 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoControl) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.bus_V = 24.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
@@ -1190,13 +1282,36 @@ BOOST_AUTO_TEST_CASE(BldcServoControlDoControl) {
   ctx.ISR_DoControl(sc, &data);
   BOOST_CHECK(ctx.status_.mode == BldcServoMode::kFault);
   BOOST_CHECK(ctx.status_.fault == errc::kMotorDriverFault);
+  ctx.fault_state = false;
+
+  // Test fault detection - over temperature, with the fault code
+  // chosen by whichever source is past its fault temperature.  The
+  // fixture's board derating band is 50-75C.
+  ctx.UpdateFetDerate(80.0f, NaN);
+  ctx.status_.mode = BldcServoMode::kCurrent;
+  ctx.ISR_DoControl(sc, &data);
+  BOOST_CHECK(ctx.status_.mode == BldcServoMode::kFault);
+  BOOST_CHECK(ctx.status_.fault == errc::kOverTemperature);
+
+  ctx.UpdateFetDerate(25.0f, 1.2f);
+  ctx.status_.mode = BldcServoMode::kCurrent;
+  ctx.ISR_DoControl(sc, &data);
+  BOOST_CHECK(ctx.status_.mode == BldcServoMode::kFault);
+  BOOST_CHECK(ctx.status_.fault == errc::kFetJunctionOverTemperature);
+
+  ctx.UpdateFetDerate(25.0f, NaN);
+  ctx.config_.motor_fault_temperature = 120.0f;
+  ctx.status_.filt_motor_temp_C = 125.0f;
+  ctx.status_.mode = BldcServoMode::kCurrent;
+  ctx.ISR_DoControl(sc, &data);
+  BOOST_CHECK(ctx.status_.mode == BldcServoMode::kFault);
+  BOOST_CHECK(ctx.status_.fault == errc::kMotorOverTemperature);
 }
 
 BOOST_AUTO_TEST_CASE(BldcServoControlDynamicInductance) {
   Context ctx;
   ctx.status_.filt_bus_V = 24.0f;
   ctx.status_.filt_1ms_bus_V = 24.0f;
-  ctx.status_.filt_fet_temp_C = 25.0f;
   ctx.status_.max_power_W = 500.0f;
   ctx.position_.epoch = 0;
   ctx.isr_motor_position_epoch_ = 0;

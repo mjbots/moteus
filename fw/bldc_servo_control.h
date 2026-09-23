@@ -25,6 +25,7 @@
 #include "fw/bldc_servo_structs.h"
 #include "fw/ccm.h"
 #include "fw/error.h"
+#include "fw/fet_thermal_model.h"
 #include "fw/foc.h"
 #include "fw/math.h"
 #include "fw/motor_position.h"
@@ -210,12 +211,59 @@ class BldcServoControl {
   float derate_temperature_ = 0.0f;
   float motor_derate_temperature_ = 0.0f;
 
+  // How far the FETs are through their derating band (0 at the
+  // start of derating, 1 at the fault temperature), and the limit
+  // and fault codes to report for it.  Written at 1kHz by
+  // UpdateFetDerate() so that the control loop only reads a fraction
+  // and a code.  The fraction is never negative, but may be NaN.
+  float fet_derate_fraction_ = 0.0f;
+  errc fet_derate_limit_ = errc::kLimitFetTemperature;
+  errc fet_derate_fault_ = errc::kOverTemperature;
+
   // ISR epoch counter — set by the Impl (or tests) and compared
   // against position_.epoch inside the control loop to detect new
   // position data.
   uint8_t isr_motor_position_epoch_ = 0;
 
   BldcServoControl() {}
+
+  /// Select what the FET derating and over-temperature fault are
+  /// applied to: the board thermistor against servo.fault_temperature
+  /// and servo.temperature_margin, or the estimated junction
+  /// temperature (see FetThermalStatus::junction_derate_fraction),
+  /// whichever is further through its derating band.  A NaN junction
+  /// fraction leaves the thermistor alone in effect.
+  ///
+  /// This runs outside the ISR, and the three values are written
+  /// separately, so the ISR may pair a fraction with the other
+  /// source's codes for one cycle.  If the fault trips in that cycle,
+  /// the other code is latched; either one reports a FET over
+  /// temperature.
+  void UpdateFetDerate(float thermistor_C, float junction_fraction) {
+    const float margin = self().config_.temperature_margin;
+    const float board_fraction = FetThermalModel::DerateFraction(
+        thermistor_C, derate_temperature_ + margin, margin);
+    float fraction = board_fraction;
+    if (junction_fraction > board_fraction) {
+      fraction = junction_fraction;
+      fet_derate_limit_ = errc::kLimitFetJunctionTemperature;
+      fet_derate_fault_ = errc::kFetJunctionOverTemperature;
+    } else {
+      fet_derate_limit_ = errc::kLimitFetTemperature;
+      fet_derate_fault_ = errc::kOverTemperature;
+    }
+
+    // With a margin of 0 or less, the fraction is -infinity while
+    // below the fault temperature, and the ISR's interpolation would
+    // give 0 * infinity or -infinity.  Below the start of derating
+    // the fraction has no effect anyway, so clamp it here rather than
+    // spend cycles in the ISR.  A NaN is left alone, so that it still
+    // limits the current to zero.
+    if (fraction < 0.0f) {
+      fraction = 0.0f;
+    }
+    fet_derate_fraction_ = fraction;
+  }
 
   /// Process a command, applying defaults and transforming positions.
   /// This mirrors the logic in BldcServo::Impl::Command but without
@@ -929,12 +977,10 @@ class BldcServoControl {
                        maybe_fault, in_pair.second);
     };
 
-    float derate_fraction =
-        (self().status_.filt_fet_temp_C - derate_temperature_) /
-        self().config_.temperature_margin;
+    float derate_fraction = fet_derate_fraction_;
     errc derate_fault = errc::kLimitMaxCurrent;
     if (derate_fraction > 0.0f) {
-      derate_fault = errc::kLimitFetTemperature;
+      derate_fault = fet_derate_limit_;
     }
     if (std::isfinite(self().config_.motor_fault_temperature)) {
       const float motor_derate =
@@ -945,6 +991,10 @@ class BldcServoControl {
         derate_fault = errc::kLimitMotorTemperature;
       }
     }
+
+    // derate_fraction is already 0 or more here, since
+    // fet_derate_fraction_ is (see UpdateFetDerate()) and the motor
+    // derate only ever raises it.
 
     const float derate_current_A =
         std::max<float>(
@@ -1715,14 +1765,14 @@ class BldcServoControl {
         self().status_.mode = kFault;
         self().status_.fault = errc::kUnderVoltage;
       }
-      if (self().status_.filt_fet_temp_C > self().config_.fault_temperature) {
+      if (fet_derate_fraction_ > 1.0f) {
         self().status_.mode = kFault;
-        self().status_.fault = errc::kOverTemperature;
+        self().status_.fault = fet_derate_fault_;
       }
       if (std::isfinite(self().config_.motor_fault_temperature) &&
           self().status_.filt_motor_temp_C > self().config_.motor_fault_temperature) {
         self().status_.mode = kFault;
-        self().status_.fault = errc::kOverTemperature;
+        self().status_.fault = errc::kMotorOverTemperature;
       }
     }
 

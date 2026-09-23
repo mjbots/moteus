@@ -129,7 +129,11 @@ py_test(
     name = "mpat_test",
     srcs = ["test/mpat_test.py"],
     main = "test/mpat_test.py",
-    data = [":mpat"],
+    data = [
+        ":mpat",
+        "//fw:bldc_servo_structs.h",
+        "//fw:moteus_hw.cc",
+    ],
     deps = [
         "@bazel_tools//tools/python/runfiles",
     ],
