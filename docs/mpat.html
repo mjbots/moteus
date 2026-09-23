@@ -1550,7 +1550,7 @@ class Motor {
       phase_current: current
     });
     const controllerTemp = config.controller.getTemperature(controllerLossW, config);
-    if (controllerTemp == null || controllerTemp > config.controller.getMaxTemp()) {
+    if (controllerTemp == null || controllerTemp > maxControllerTemp(config)) {
       return null;
     }
 
@@ -1566,7 +1566,7 @@ class Motor {
     if (fwEnabled) {
       const maxVelLimited = this.getElectricalMaxVelocity(config);
       const maxRotorVel = outputHzToRotorHz(maxVelLimited.value, config);
-      const maxControllerTemp = config.controller.getMaxTemp();
+      const maxController = maxControllerTemp(config);
       const valid = (rotorVel) => {
         const i_d = this.getFieldWeakeningCurrent(rotorVel, config, current);
         const Pcopper_d = 1.5 * i_d * i_d * this.R;
@@ -1587,7 +1587,7 @@ class Motor {
         const controllerTemp = config.controller.getTemperature(
             controllerLossW, config);
         const controllerTempOk =
-            controllerTemp != null && controllerTemp < maxControllerTemp;
+            controllerTemp != null && controllerTemp < maxController;
         return motorThermalOk && controllerPowerOk && controllerTempOk &&
           this.isVoltageFeasible(current, rotorVel, config);
       };
@@ -1618,7 +1618,7 @@ class Motor {
       const controllerTemp = config.controller.getTemperature(
           controllerLossW, config);
       const controllerTempDelta = (controllerTemp == null) ?
-          Infinity : Math.abs(controllerTemp - maxControllerTemp);
+          Infinity : Math.abs(controllerTemp - maxController);
       const limitingFactor = LimitedValue.min(
         new LimitedValue(motorThermalDelta, 'max_motor_temp'),
         LimitedValue.min(
@@ -2362,6 +2362,24 @@ class OdriveMicro extends OdriveController {
   }
 }
 
+// The controller and motor temperature limits in effect for a
+// config, falling back to the hardware defaults.
+function maxControllerTemp(config) {
+  const value = config.max_controller_temp;
+  if (value == null || value == 'default' || Number.isNaN(value)) {
+    return config.controller?.getMaxTemp() ?? null;
+  }
+  return value;
+}
+
+function maxMotorTemp(config) {
+  const value = config.max_motor_temp;
+  if (value == null || value == 'default' || Number.isNaN(value)) {
+    return config.motor?.getMaxTemp() ?? null;
+  }
+  return value;
+}
+
 function evaluateMaxCurrent(config) {
     const required = [
       'controller', 'controller_cooling', 'voltage', 'pwm', 'time', 'ambient_temp',
@@ -2456,8 +2474,9 @@ function evaluateOperatingPoint(config) {
     op._infeasible_reason = `Phase current ${op.phase_current.toFixed(1)} exceeds controller maximum ${config.controller.getMaxCurrent(config.voltage).toFixed(1)}`;
   }
 
-  if ((op.motor_temp - config.motor.getMaxTemp()) > 0.001) {
-    op._infeasible_reason = `Motor temperature ${op.motor_temp.toFixed(1)} exceeds maximum ${config.motor.getMaxTemp().toFixed(1)}`;
+  const maxMotor = maxMotorTemp(config);
+  if ((op.motor_temp - maxMotor) > 0.001) {
+    op._infeasible_reason = `Motor temperature ${op.motor_temp.toFixed(1)} exceeds maximum ${maxMotor.toFixed(1)}`;
   }
 
   const thermalPower = config.controller.getThermalPower({
@@ -2469,8 +2488,9 @@ function evaluateOperatingPoint(config) {
     return null;
   }
 
-  if ((op.controller_temp - config.controller.getMaxTemp()) > 0.001) {
-    op._infeasible_reason = `Controller temperature ${op.controller_temp.toFixed(1)} exceeds maximum ${config.controller.getMaxTemp().toFixed(1)}`;
+  const maxController = maxControllerTemp(config);
+  if ((op.controller_temp - maxController) > 0.001) {
+    op._infeasible_reason = `Controller temperature ${op.controller_temp.toFixed(1)} exceeds maximum ${maxController.toFixed(1)}`;
   }
 
   const electricalPowerW = Math.abs(op.copper_loss + op.iron_loss + op.mechanical_power);

@@ -435,6 +435,40 @@ class MpatTest(unittest.TestCase):
         self.assertFieldAlmostEqual(sat, "d_current", -14.4, places=0)
 
 
+    def test_operating_point_max_controller_temp_override(self):
+        """The operating point is checked against the configured
+        controller temperature limit, not the controller default."""
+        args = ["--analysis", "operating_point",
+                "--controller", "moteus-n1",
+                "--torque", "4", "--time", "10"]
+        default = self.run_mpat_json(*args)
+        lowered = self.run_mpat_json(*args, "--max_controller_temp", "35")
+        self.assertIsNotNone(default)
+        self.assertIsNotNone(lowered)
+        self.assertIn("exceeds maximum 60.0", default["infeasible_reason"])
+        self.assertIn("exceeds maximum 35.0", lowered["infeasible_reason"])
+
+        raised = self.run_mpat_json(*args, "--max_controller_temp", "100")
+        self.assertIsNotNone(raised)
+        self.assertNotIn("Controller temperature",
+                         raised.get("infeasible_reason") or "")
+
+    def test_operating_point_max_motor_temp_override(self):
+        """The operating point is checked against the configured motor
+        temperature limit, not the motor default.  Only the last
+        failing check is reported, so the controller limit is raised
+        out of the way."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-n1",
+            "--motor", "mj5208",
+            "--voltage", "24", "--velocity", "5", "--torque", "0.5",
+            "--max_controller_temp", "500",
+            "--max_motor_temp", "20")
+        self.assertIsNotNone(data)
+        self.assertIn("Motor temperature", data["infeasible_reason"])
+        self.assertIn("exceeds maximum 20.0", data["infeasible_reason"])
+
     # --- Voltage-limited torque tests ---
 
     def test_voltage_limits_torque_near_max_speed(self):
