@@ -3179,6 +3179,9 @@ function ConfigFieldSelector({
     };
 
     const handleEditKeyDown = (e) => {
+      // Keep keystrokes from reaching react-select, which would
+      // otherwise interpret Backspace/Delete as removing a chip.
+      e.stopPropagation();
       if (e.key === 'Enter') {
         e.preventDefault();
         handleEditSubmit();
