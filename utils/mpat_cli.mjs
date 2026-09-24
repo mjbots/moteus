@@ -363,6 +363,9 @@ function main() {
             if (output._infeasible_reason) {
                 output.infeasible_reason = output._infeasible_reason;
             }
+            if (output._limiting_factor) {
+                output.limiting_factor = output._limiting_factor;
+            }
             delete output._infeasible_reason;
             delete output._limiting_factor;
         }

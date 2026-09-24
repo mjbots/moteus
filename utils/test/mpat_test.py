@@ -80,6 +80,11 @@ class MpatTest(unittest.TestCase):
         self.assertEqual(data[field], expected,
                          msg=f"{field}: {data[field]} != {expected}")
 
+    def assertLimitingFactor(self, data, expected):
+        """Assert that the analysis reports the given limiting
+        factor."""
+        self.assertFieldEqual(data, "limiting_factor", expected)
+
     def test_help(self):
         """Test that --help produces output."""
         result = self.run_mpat("--help")
@@ -106,6 +111,20 @@ class MpatTest(unittest.TestCase):
             "--voltage", "48")
         self.assertIsNotNone(data)
         self.assertIn("phase_current", data)
+        self.assertLimitingFactor(data, "controller_temp")
+
+    def test_json_output_no_limiting_factor(self):
+        """An operating point has no limiting factor, so none is
+        reported."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point",
+            "--controller", "moteus-x1",
+            "--motor", "mj5208",
+            "--voltage", "24",
+            "--velocity", "5",
+            "--torque", "0.1")
+        self.assertIsNotNone(data)
+        self.assertNotIn("limiting_factor", data)
 
     def test_fw_off_max_velocity(self):
         """FW off: max_velocity is back-EMF limited."""
@@ -118,6 +137,7 @@ class MpatTest(unittest.TestCase):
             "--field_weakening", "off",
             "--motor_cooling", "max")
         self.assertFieldAlmostEqual(data, "velocity", 102.0, places=0)
+        self.assertLimitingFactor(data, "back_emf")
 
     def test_fw_on_max_velocity_extended(self):
         """FW on with max cooling: velocity extends beyond base speed."""
@@ -148,6 +168,7 @@ class MpatTest(unittest.TestCase):
             "--velocity", "10",
             "--field_weakening", "on")
         self.assertAlmostEqual(off["torque"], on["torque"], places=2)
+        self.assertEqual(off["limiting_factor"], on["limiting_factor"])
 
     def test_fw_off_above_base_speed_null(self):
         """FW off above base speed: analysis returns null."""
@@ -224,17 +245,24 @@ class MpatTest(unittest.TestCase):
         """FW on: operating point with high torque in FW region is
         infeasible due to voltage limit."""
         # At velocity=130 (above base ~101 Hz), the voltage needed for
-        # torque=0.45 exceeds the available phase voltage.
-        data = self.run_mpat_json(
-            "--analysis", "operating_point",
-            "--controller", "moteus-x1",
-            "--motor", "mj5208",
-            "--voltage", "24",
-            "--velocity", "130",
-            "--torque", "0.45",
-            "--field_weakening", "on")
-        self.assertIsNotNone(data)
-        self.assertIn("infeasible_reason", data)
+        # torque=0.9 exceeds the available phase voltage, while 0.8
+        # still fits.  The short duration with maximum cooling keeps
+        # the thermal checks, which are reported in preference to the
+        # voltage limit, out of the way.
+        args = ["--analysis", "operating_point",
+                "--controller", "moteus-x1",
+                "--motor", "mj5208",
+                "--voltage", "24",
+                "--velocity", "130",
+                "--field_weakening", "on",
+                "--motor_cooling", "max",
+                "--time", "2"]
+        feasible = self.run_mpat_json(*args, "--torque", "0.8")
+        infeasible = self.run_mpat_json(*args, "--torque", "0.9")
+        self.assertIsNotNone(feasible)
+        self.assertIsNotNone(infeasible)
+        self.assertNotIn("infeasible_reason", feasible)
+        self.assertFieldEqual(infeasible, "infeasible_reason", "back_emf")
 
     def test_fw_max_torque_reduced_above_base_speed(self):
         """FW on: max torque in FW region is less than below base speed."""
@@ -259,6 +287,7 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(below)
         self.assertIsNotNone(above)
         self.assertGreater(below["torque"], above["torque"])
+        self.assertLimitingFactor(above, "back_emf")
 
     def test_fw_max_velocity_lower_with_torque(self):
         """FW on: max velocity with significant torque is lower than with
@@ -284,6 +313,8 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(zero)
         self.assertIsNotNone(nonzero)
         self.assertGreater(zero["velocity"], nonzero["velocity"])
+        self.assertLimitingFactor(zero, "back_emf")
+        self.assertLimitingFactor(nonzero, "max_controller_temp")
 
     def test_fw_odrive_no_field_weakening(self):
         """ODrive controllers don't support field weakening, so
@@ -307,13 +338,17 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(off)
         self.assertIsNotNone(on)
         self.assertAlmostEqual(off["velocity"], on["velocity"], places=4)
+        self.assertLimitingFactor(off, "back_emf")
+        self.assertLimitingFactor(on, "back_emf")
 
 
     # --- Inductance saturation tests ---
 
     def test_saturation_increases_max_velocity(self):
         """Inductance saturation should extend max FW velocity because
-        higher effective L_d at negative i_d increases id_char."""
+        higher effective L_d at negative i_d increases id_char.  Less
+        i_d is then needed at a given speed, so the d axis copper loss
+        that sets the motor temperature limit is reached later."""
         no_sat = self.run_mpat_json(
             "--analysis", "max_velocity",
             "--controller", "moteus-x1",
@@ -344,6 +379,8 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(sat)
         self.assertFieldAlmostEqual(no_sat, "velocity", 58.8, places=0)
         self.assertFieldAlmostEqual(sat, "velocity", 68.4, places=0)
+        self.assertLimitingFactor(no_sat, "max_motor_temp")
+        self.assertLimitingFactor(sat, "max_motor_temp")
 
     def test_saturation_zero_scale_matches_base(self):
         """With ld_scale=0, results should match the unsaturated model."""
@@ -495,6 +532,8 @@ class MpatTest(unittest.TestCase):
         self.assertGreater(low_speed["torque"], 0.1)
         self.assertLess(high_speed["torque"], low_speed["torque"] * 0.6)
         self.assertGreater(high_speed["torque"], 0)
+        self.assertLimitingFactor(low_speed, "max_motor_temperature")
+        self.assertLimitingFactor(high_speed, "back_emf")
 
     def test_zero_torque_speed_matches_max_velocity(self):
         """The speed at which max_torque reaches zero should match the
@@ -506,6 +545,7 @@ class MpatTest(unittest.TestCase):
             "--voltage", "14",
             "--torque", "0")
         self.assertIsNotNone(max_vel)
+        self.assertLimitingFactor(max_vel, "back_emf")
         # Query max_torque just below max_velocity (round down to avoid
         # exceeding the getMaxVelocity gate).
         vel_str = f"{max_vel['velocity'] * 0.99:.1f}"
@@ -555,6 +595,8 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(low_v)
         self.assertIsNotNone(high_v)
         self.assertGreater(high_v["torque"], low_v["torque"])
+        self.assertLimitingFactor(low_v, "back_emf")
+        self.assertLimitingFactor(high_v, "max_motor_temperature")
 
 
     # --- ODrive back-EMF limited velocity regression tests ---
@@ -587,6 +629,7 @@ class MpatTest(unittest.TestCase):
                 self.assertAlmostEqual(
                     data["velocity"], expected_vel, places=1,
                     msg=f"{ctrl} {motor}: {data['velocity']:.2f} != {expected_vel}")
+                self.assertLimitingFactor(data, "back_emf")
 
 
     # --- Gear reduction tests ---
@@ -626,6 +669,8 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(geared)
         self.assertAlmostEqual(
             geared["velocity"], direct["velocity"] / 2.0, places=3)
+        self.assertLimitingFactor(direct, "back_emf")
+        self.assertLimitingFactor(geared, "back_emf")
 
     def test_gear_reduction_rotor_invariance_below_base_speed(self):
         """Matched rotor conditions via different gear ratios produce
@@ -694,6 +739,8 @@ class MpatTest(unittest.TestCase):
         # operating point in both cases.
         self.assertAlmostEqual(
             geared["phase_current"], direct["phase_current"], places=6)
+        self.assertLimitingFactor(direct, "max_controller_power")
+        self.assertLimitingFactor(geared, "max_controller_power")
 
     def test_gear_reduction_fw_engages_at_scaled_output_velocity(self):
         """Field weakening onset is governed by rotor (not output)
@@ -786,8 +833,8 @@ class MpatTest(unittest.TestCase):
         1/gear_reduction even when the non-FW analytical
         controller-power path in Motor.getVelocityFromThermalPowerAndTorque
         is evaluated (mad8318 at 24V, torque=3 on gear=1 is back-EMF
-        limited at ~39.76 Hz; gear=2 at output_torque=6 must yield
-        ~19.88 Hz)."""
+        limited at ~40.26 Hz; gear=2 at output_torque=6 must yield
+        ~20.13 Hz)."""
         direct = self.run_mpat_json(
             "--analysis", "max_velocity",
             "--controller", "moteus-x1",
@@ -812,6 +859,8 @@ class MpatTest(unittest.TestCase):
         self.assertIsNotNone(geared)
         self.assertAlmostEqual(
             geared["velocity"], direct["velocity"] / 2.0, places=2)
+        self.assertLimitingFactor(direct, "back_emf")
+        self.assertLimitingFactor(geared, "back_emf")
 
 
 if __name__ == "__main__":
