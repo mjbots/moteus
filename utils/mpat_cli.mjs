@@ -19,6 +19,7 @@
 
 import {
     fieldDefinitions,
+    kCopperResistanceTempco,
     Motor,
     OperatingPoint,
     evaluateMaxCurrent,
@@ -98,6 +99,7 @@ function parseArgs(args) {
         'motor.inertia': 0,
         'motor.poles': 0,
         'motor.ld_scale': 0,
+        'motor.r_tempco': kCopperResistanceTempco,
         field_weakening: 'off',
     };
 
@@ -121,7 +123,7 @@ function parseArgs(args) {
                  'motor.kv', 'motor.r', 'motor.l_d', 'motor.l_q',
                  'motor.thermal_r', 'motor.thermal_c',
                  'motor.d0', 'motor.d1', 'motor.inertia', 'motor.poles',
-                 'motor.ld_scale'].includes(key)) {
+                 'motor.ld_scale', 'motor.r_tempco'].includes(key)) {
                 if (value.toLowerCase() === 'infinity') {
                     result[key] = Infinity;
                 } else {
@@ -209,6 +211,8 @@ Custom Motor Parameters (when --motor model):
   --motor.poles P         Number of magnetic poles (default: 0)
   --motor.ld_scale S      Phase-to-phase D-axis inductance scale factor
                           in H/A (default: 0)
+  --motor.r_tempco A      Fractional increase in resistance per C, with
+                          --motor.r taken at 25C (default: copper, ${kCopperResistanceTempco})
 
 Output Options:
   --json            Output results as JSON
@@ -317,6 +321,7 @@ function main() {
             inertia: args['motor.inertia'],
             poles: args['motor.poles'],
             ld_scale_pp: args['motor.ld_scale'],
+            resistanceTempco: args['motor.r_tempco'],
             thermal: {
                 'none': {
                     R: args['motor.thermal_r'],

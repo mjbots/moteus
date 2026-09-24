@@ -60,6 +60,9 @@ export {
     // Field definitions (source of truth for motors, controllers, etc.)
     fieldDefinitions,
 
+    // Physical constants
+    kCopperResistanceTempco,
+
     // Helper classes
     LimitedValue,
     Interpolator2D,
