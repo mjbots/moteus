@@ -17,6 +17,7 @@
 """Test that the mpat CLI tool runs and produces output."""
 
 import json
+import math
 import subprocess
 import unittest
 
@@ -342,6 +343,273 @@ class MpatTest(unittest.TestCase):
         self.assertLimitingFactor(on, "back_emf")
 
 
+    # --- Winding resistance temperature tests ---
+
+    COPPER_TEMPCO = 0.00393
+
+    # Phase resistance 0.1 ohm, 2 C/W, 100 J/C.
+    WINDING_MOTOR = [
+        "--controller", "moteus-x1",
+        "--motor", "model",
+        "--motor.kv", "100", "--motor.r", "0.2", "--motor.l_d", "1e-4",
+        "--motor.thermal_r", "2", "--motor.thermal_c", "100",
+        "--motor.poles", "14",
+        "--voltage", "24"]
+
+    # Phase resistance 1 ohm at a low voltage, so the resistive drop
+    # limits the current at zero velocity.
+    IR_LIMITED_MOTOR = [
+        "--controller", "moteus-x1",
+        "--motor", "model",
+        "--motor.kv", "100", "--motor.r", "2", "--motor.l_d", "1e-4",
+        "--motor.thermal_r", "2", "--motor.thermal_c", "100",
+        "--motor.poles", "14",
+        "--voltage", "12"]
+
+    # A moteus-c1 at 48V, whose 150W power limit is reached before its
+    # 20A current limit or the motor temperature limit.
+    POWER_LIMITED_MOTOR = [
+        "--controller", "moteus-c1",
+        "--controller_cooling", "max",
+        "--motor", "model",
+        "--motor.kv", "100", "--motor.r", "1.0", "--motor.l_d", "1e-4",
+        "--motor.thermal_r", "0.5", "--motor.thermal_c", "1000",
+        "--motor.poles", "14",
+        "--voltage", "48"]
+
+    def resistance_ratio(self, temp):
+        """The winding resistance at `temp` relative to that at 25C."""
+        return 1 + self.COPPER_TEMPCO * (temp - 25)
+
+    def electrical_power(self, data):
+        return (data["copper_loss"] + data["iron_loss"] +
+                data["mechanical_power"])
+
+    def test_winding_copper_loss_at_temperature(self):
+        """Copper loss uses the resistance at the winding temperature
+        the operating point reaches, from the 25C value."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point", *self.WINDING_MOTOR,
+            "--velocity", "0", "--torque", "1")
+        self.assertIsNotNone(data)
+        current = data["phase_current"]
+        temp = data["motor_temp"]
+        r25 = 0.2 / 2
+        expected = 1.5 * current * current * r25 * self.resistance_ratio(temp)
+        self.assertAlmostEqual(data["copper_loss"], expected, places=6)
+        # At zero velocity the copper loss is all of it, and in steady
+        # state the rise is that loss times the thermal resistance.
+        self.assertAlmostEqual(temp, 25 + data["copper_loss"] * 2, places=6)
+        self.assertGreater(temp, 70)
+
+    def test_winding_temperature_with_ambient_and_iron_loss(self):
+        """With an ambient other than 25C and iron loss, the winding
+        temperature and copper loss are still self consistent."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point", *self.WINDING_MOTOR,
+            "--motor.d0", "0.01",
+            "--ambient_temp", "40",
+            "--velocity", "5", "--torque", "1")
+        self.assertIsNotNone(data)
+        current = data["phase_current"]
+        temp = data["motor_temp"]
+        self.assertGreater(data["iron_loss"], 0.1)
+        self.assertAlmostEqual(
+            data["copper_loss"],
+            1.5 * current * current * 0.1 * self.resistance_ratio(temp),
+            places=6)
+        self.assertAlmostEqual(
+            temp, 40 + (data["copper_loss"] + data["iron_loss"]) * 2,
+            places=6)
+
+    def test_winding_transient_temperature(self):
+        """Over a finite time, the rise is the loss at the final
+        temperature times the transient thermal gain."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point", *self.WINDING_MOTOR,
+            "--velocity", "0", "--torque", "1", "--time", "60")
+        self.assertIsNotNone(data)
+        current = data["phase_current"]
+        temp = data["motor_temp"]
+        gain = 2 * (1 - math.exp(-60 / (2 * 100)))
+        self.assertAlmostEqual(
+            data["copper_loss"],
+            1.5 * current * current * 0.1 * self.resistance_ratio(temp),
+            places=6)
+        self.assertAlmostEqual(temp, 25 + data["copper_loss"] * gain,
+                               places=6)
+        self.assertLess(temp, 50)
+
+    def test_winding_tempco_zero_matches_fixed_resistance(self):
+        """With no tempco the copper loss uses the 25C resistance."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point", *self.WINDING_MOTOR,
+            "--velocity", "0", "--torque", "1", "--motor.r_tempco", "0")
+        self.assertIsNotNone(data)
+        current = data["phase_current"]
+        self.assertAlmostEqual(data["copper_loss"],
+                               1.5 * current * current * 0.1, places=6)
+
+    def test_winding_hot_reduces_thermally_limited_torque(self):
+        """When the motor temperature is the limit, the winding is at
+        its maximum temperature, so less torque is available than with
+        the 25C resistance."""
+        hot = self.run_mpat_json(
+            "--analysis", "max_torque", *self.WINDING_MOTOR, "--velocity", "1")
+        fixed = self.run_mpat_json(
+            "--analysis", "max_torque", *self.WINDING_MOTOR, "--velocity", "1",
+            "--motor.r_tempco", "0")
+        self.assertIsNotNone(hot)
+        self.assertIsNotNone(fixed)
+        self.assertLimitingFactor(hot, "max_motor_temperature")
+        self.assertLimitingFactor(fixed, "max_motor_temperature")
+        self.assertAlmostEqual(hot["motor_temp"], 80, places=0)
+        self.assertLess(hot["torque"], 0.95 * fixed["torque"])
+
+    def test_winding_thermal_limit_exact_at_zero_velocity(self):
+        """At zero velocity the thermally limited current is solved
+        exactly, so the winding ends at exactly the maximum
+        temperature, including with an ambient other than 25C."""
+        data = self.run_mpat_json(
+            "--analysis", "max_torque", *self.WINDING_MOTOR,
+            "--velocity", "0", "--ambient_temp", "40")
+        self.assertIsNotNone(data)
+        self.assertLimitingFactor(data, "max_motor_temperature")
+        self.assertAlmostEqual(data["motor_temp"], 80, places=6)
+        self.assertAlmostEqual(data["copper_loss"], (80 - 40) / 2, places=6)
+        current = data["phase_current"]
+        self.assertAlmostEqual(
+            data["copper_loss"],
+            1.5 * current * current * 0.1 * self.resistance_ratio(80),
+            places=6)
+
+    def test_winding_cool_voltage_limited_unchanged(self):
+        """A voltage limited point over a short duration leaves the
+        winding near ambient, so the tempco barely matters there."""
+        args = ["--analysis", "max_torque", *self.WINDING_MOTOR,
+                "--velocity", "30", "--time", "0.1"]
+        hot = self.run_mpat_json(*args)
+        fixed = self.run_mpat_json(*args, "--motor.r_tempco", "0")
+        self.assertIsNotNone(hot)
+        self.assertIsNotNone(fixed)
+        self.assertLimitingFactor(hot, "back_emf")
+        self.assertLimitingFactor(fixed, "back_emf")
+        self.assertLess(hot["motor_temp"], 26)
+        self.assertAlmostEqual(hot["torque"], fixed["torque"], places=2)
+
+    def test_winding_ir_limited_current_at_zero_velocity(self):
+        """At zero velocity with the resistive drop as the limit, the
+        drop at the winding temperature that current produces is the
+        same as the drop at 25C with no tempco, which is the available
+        voltage."""
+        args = ["--analysis", "max_torque", *self.IR_LIMITED_MOTOR,
+                "--velocity", "0", "--time", "60"]
+        hot = self.run_mpat_json(*args)
+        fixed = self.run_mpat_json(*args, "--motor.r_tempco", "0")
+        self.assertIsNotNone(hot)
+        self.assertIsNotNone(fixed)
+        self.assertLimitingFactor(hot, "back_emf")
+        self.assertLimitingFactor(fixed, "back_emf")
+        self.assertGreater(hot["motor_temp"], 35)
+        self.assertAlmostEqual(
+            hot["phase_current"] * self.resistance_ratio(hot["motor_temp"]),
+            fixed["phase_current"], places=6)
+
+    def test_winding_controller_power_limited_at_zero_velocity(self):
+        """At zero velocity with the controller power as the limit,
+        the copper loss is exactly that power, at the winding
+        temperature it produces."""
+        args = ["--analysis", "max_torque", *self.POWER_LIMITED_MOTOR,
+                "--velocity", "0", "--time", "10"]
+        hot = self.run_mpat_json(*args)
+        fixed = self.run_mpat_json(*args, "--motor.r_tempco", "0")
+        self.assertIsNotNone(hot)
+        self.assertIsNotNone(fixed)
+        self.assertLimitingFactor(hot, "max_controller_power")
+        self.assertLimitingFactor(fixed, "max_controller_power")
+        self.assertAlmostEqual(hot["copper_loss"], 150, places=6)
+        self.assertAlmostEqual(fixed["copper_loss"], 150, places=6)
+        self.assertAlmostEqual(
+            hot["phase_current"],
+            fixed["phase_current"] /
+            math.sqrt(self.resistance_ratio(hot["motor_temp"])),
+            places=6)
+
+    def test_winding_max_torque_continuous_at_zero_velocity(self):
+        """The exact zero velocity solution agrees with the numerical
+        one used at any other velocity, for each limit."""
+        cases = [
+            ("thermal", self.WINDING_MOTOR, [],
+             "max_motor_temperature"),
+            ("ir_drop", self.IR_LIMITED_MOTOR, ["--time", "60"],
+             "back_emf"),
+            ("controller_power", self.POWER_LIMITED_MOTOR, ["--time", "10"],
+             "max_controller_power"),
+        ]
+        for name, motor, extra, limit in cases:
+            with self.subTest(limit=name):
+                args = ["--analysis", "max_torque", *motor, *extra]
+                zero = self.run_mpat_json(*args, "--velocity", "0")
+                moving = self.run_mpat_json(*args, "--velocity", "0.001")
+                self.assertIsNotNone(zero)
+                self.assertIsNotNone(moving)
+                self.assertLimitingFactor(zero, limit)
+                self.assertLimitingFactor(moving, limit)
+                self.assertAlmostEqual(zero["torque"], moving["torque"],
+                                       places=2)
+
+    def test_winding_controller_power_limited_max_velocity(self):
+        """The controller power limited velocity accounts for the
+        copper loss at the winding temperature that velocity produces,
+        so the electrical power there is exactly the limit, and the
+        velocity is lower than with no tempco."""
+        args = ["--analysis", "max_velocity",
+                *self.POWER_LIMITED_MOTOR,
+                "--motor.r", "0.4",
+                "--motor.thermal_r", "1", "--motor.thermal_c", "300",
+                "--motor.d0", "0.01", "--motor.d1", "0.0005",
+                "--torque", "0.5"]
+        for fw, places in [("off", 6), ("on", 1)]:
+            with self.subTest(field_weakening=fw):
+                hot = self.run_mpat_json(*args, "--field_weakening", fw)
+                fixed = self.run_mpat_json(
+                    *args, "--field_weakening", fw, "--motor.r_tempco", "0")
+                self.assertIsNotNone(hot)
+                self.assertIsNotNone(fixed)
+                self.assertLimitingFactor(hot, "max_controller_power")
+                self.assertLimitingFactor(fixed, "max_controller_power")
+                self.assertIsNone(hot.get("infeasible_reason"))
+                self.assertAlmostEqual(self.electrical_power(hot), 150,
+                                       places=places)
+                self.assertAlmostEqual(self.electrical_power(fixed), 150,
+                                       places=places)
+                self.assertGreater(hot["motor_temp"], 40)
+                self.assertLess(hot["velocity"], fixed["velocity"] - 0.1)
+
+    def test_winding_thermal_runaway_infeasible(self):
+        """If the copper loss grows with temperature faster than the
+        cooling removes it, there is no steady temperature."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point", *self.WINDING_MOTOR,
+            "--motor.thermal_r", "1000",
+            "--velocity", "0", "--torque", "1")
+        self.assertIsNotNone(data)
+        self.assertIsNone(data["motor_temp"])
+        self.assertIn("Motor thermal runaway", data["infeasible_reason"])
+
+    def test_winding_thermal_runaway_finite_time_infeasible(self):
+        """Over a finite time, a runaway is reported as exceeding the
+        maximum temperature."""
+        data = self.run_mpat_json(
+            "--analysis", "operating_point", *self.WINDING_MOTOR,
+            "--motor.thermal_r", "1000",
+            "--velocity", "0", "--torque", "1", "--time", "2000")
+        self.assertIsNotNone(data)
+        self.assertIsNone(data["motor_temp"])
+        self.assertEqual(
+            data["infeasible_reason"],
+            "Motor temperature exceeds maximum 80.0 (thermal runaway)")
+
     # --- Inductance saturation tests ---
 
     def test_saturation_increases_max_velocity(self):
@@ -361,6 +629,7 @@ class MpatTest(unittest.TestCase):
             "--torque", "0",
             "--field_weakening", "on",
             "--motor_cooling", "none",
+            "--motor.r_tempco", "0",
             "--motor.ld_scale", "0")
         sat = self.run_mpat_json(
             "--analysis", "max_velocity",
@@ -374,6 +643,7 @@ class MpatTest(unittest.TestCase):
             "--torque", "0",
             "--field_weakening", "on",
             "--motor_cooling", "none",
+            "--motor.r_tempco", "0",
             "--motor.ld_scale", "-3.6e-6")
         self.assertIsNotNone(no_sat)
         self.assertIsNotNone(sat)

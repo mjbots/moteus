@@ -475,6 +475,9 @@ const parseKV = (txt) => {
 
 /* MPAT_CORE_START - Core computation logic extractable for CLI use */
 
+// Fractional increase in copper resistance per degree C.
+const kCopperResistanceTempco = 0.00393;
+
 // Consolidated field definitions - single source of truth for all field metadata
 const fieldDefinitions = {
   // Common fields
@@ -561,7 +564,7 @@ const fieldDefinitions = {
       },
       'model': {
         help: 'Generic motor model - for full custom motor definitions',
-        requiresSubFields: ['kv', 'r', 'l_d', 'l_q', 'd0', 'd1', 'thermal_r', 'thermal_c', 'inertia', 'poles', 'ld_scale']
+        requiresSubFields: ['kv', 'r', 'l_d', 'l_q', 'd0', 'd1', 'thermal_r', 'thermal_c', 'inertia', 'poles', 'ld_scale', 'r_tempco']
       }
     }
   },
@@ -731,6 +734,11 @@ const fieldDefinitions = {
     defaultValue: '0',
     description: 'Phase-to-phase D-axis inductance scale factor in H/A',
     type: 'numeric'
+  },
+  'motor.r_tempco': {
+    defaultValue: String(kCopperResistanceTempco),
+    description: `Fractional increase in resistance per °C, with motor.r taken at 25°C (copper is ${kCopperResistanceTempco})`,
+    type: 'numeric'
   }
 };
 
@@ -761,6 +769,7 @@ const motorModelDefaults = {
   'poles': 0,
   'ld_scale_pp': 0,
   'l_q_pp': undefined,
+  'r_tempco': kCopperResistanceTempco,
 };
 
 // Default axis configurations
@@ -1379,6 +1388,7 @@ class Motor {
                d0=0, d1=0,
                inertia=null,
                poles=0,
+               resistanceTempco=kCopperResistanceTempco,
                productInfo=null}) {
     this.nameValue = name;
     this.displayNameValue = displayName;
@@ -1404,8 +1414,73 @@ class Motor {
     this.d1 = d1;
     this.inertia = inertia;
     this.poles = poles;
+    // `R` is the resistance as measured at 25C, which is what the
+    // firmware is configured with, so everything that mirrors a
+    // firmware calculation (base velocity, field weakening current,
+    // CPSR) uses it.  The physical resistance at the winding's actual
+    // temperature, from resistanceAt(), is what the copper loss and
+    // phase voltage use, and is passed explicitly to getPower(),
+    // getPhaseVoltage(), and isVoltageFeasible().
+    this.resistanceTempco = resistanceTempco;
 
     this.kt = 8.3 / this.Kv;
+  }
+
+  // Phase resistance at winding temperature `tempC`, from the 25C
+  // value.
+  resistanceAt(tempC) {
+    return this.R * (1.0 + this.resistanceTempco * (tempC - 25.0));
+  }
+
+  // Phase resistance for a winding temperature as returned by
+  // getWindingTemp().  When that is unknown (null) or unbounded
+  // (thermal runaway), the winding is taken to be at the maximum
+  // motor temperature.
+  windingResistance(tempC, config) {
+    return this.resistanceAt(
+        (tempC != null && Number.isFinite(tempC)) ? tempC : maxMotorTemp(config));
+  }
+
+  // The winding temperature rise per watt of loss after config.time
+  // (steady state for Infinity), or null if the cooling is unknown.
+  getThermalGain(config) {
+    const [R, C] = this.getThermalProperties(config.motor_cooling);
+    if (R == null || C == null) {
+      return null;
+    }
+    return R * (1.0 - Math.exp(-config.time / (R * C)));
+  }
+
+  // The winding temperature after config.time given the copper loss
+  // it would have at 25C and the iron loss.  The copper loss grows
+  // linearly with the winding's own temperature, so with the single
+  // node thermal model this has a closed form.  Using the final
+  // temperature's resistance for the whole interval slightly
+  // overstates a transient, which is conservative.  Returns Infinity
+  // for thermal runaway (the loss grows faster than the cooling), or
+  // null if the cooling is unknown.
+  getWindingTemp(copperLoss25, ironLoss, config) {
+    const K = this.getThermalGain(config);
+    if (K == null) {
+      return null;
+    }
+    const alpha = this.resistanceTempco;
+    const denominator = 1.0 - copperLoss25 * alpha * K;
+    if (denominator <= 0.0) {
+      return Infinity;
+    }
+    return (config.ambient_temp +
+            (copperLoss25 * (1.0 - 25.0 * alpha) + ironLoss) * K) /
+        denominator;
+  }
+
+  // The winding temperature reached for the given currents and
+  // velocity, as from getWindingTemp(), and the phase resistance at
+  // that temperature, as from windingResistance().  Returns {R, temp}.
+  getOperatingResistance(i_q, i_d, rotorVelocityHz, config) {
+    const r25 = this.getPower(i_q, rotorVelocityHz, i_d, this.R);
+    const temp = this.getWindingTemp(r25.Pcopper, r25.Piron, config);
+    return {R: this.windingResistance(temp, config), temp: temp};
   }
 
   getThermalProperties(coolingName) {
@@ -1448,10 +1523,11 @@ class Motor {
               1 + (current - this.rotationCurrentCutoff) * this.rotationCurrentScale);
   }
 
-  getPower(q_current, rotorVelocityHz, d_current) {
+  // `R` is the phase resistance, which defaults to the 25C value.
+  getPower(q_current, rotorVelocityHz, d_current, R=this.R) {
     const torque = this.getRotorTorque(q_current);
     const Pmech = 2 * Math.PI * torque * rotorVelocityHz;
-    const Pcopper = 1.5 * (q_current * q_current + d_current * d_current) * this.R;
+    const Pcopper = 1.5 * (q_current * q_current + d_current * d_current) * R;
     const ironDrag = this.d0 + this.d1 * rotorVelocityHz;
     const Piron = rotorVelocityHz == 0 ? 0 : (2 * Math.PI * rotorVelocityHz * ironDrag);
     return {
@@ -1464,58 +1540,92 @@ class Motor {
   }
 
   getCurrentFromThermalPowerAndVelocity(thermalW, rotorVelocityHz, maxControllerPower, supplyVoltageMargin, config) {
-    // TODO: Should we model the fact that resistance tends to go up with
-    // temperature?
-
     // Our convention is that resistance is measured to the virtual center,
     // and that phase current is measured as per moteus convention.  Thus:
     //
     // torque = Kt * I + ts * log2(1 + (I - Ic)*is)
     // Pmech = 2 * pi * torque * rotorVelocityHz
-    // Pcopper = 1.5 * I^2 * R
+    // Pcopper = 1.5 * I^2 * R(T)
     // Ptotal = Pcopper + Piron + Pmech
 
     // and (Pcopper + Piron) < thermalW
     // and (Ptotal) < maxControllerPower
+    //
+    // R(T) is the winding resistance at the winding temperature T
+    // that the candidate current produces.  The thermal budget
+    // thermalW is what brings the winding to exactly max_motor_temp,
+    // and the winding temperature rises monotonically with loss, so
+    // "T <= max_motor_temp" is the same condition as "the loss at
+    // R(max_motor_temp) fits in thermalW".  Every other constraint
+    // is evaluated at the candidate's own temperature, so a motor
+    // that is not thermally limited is not treated as hot.
+    const hotR = this.resistanceAt(maxMotorTemp(config));
+    const coolR = Math.min(this.resistanceAt(config.ambient_temp), hotR);
+    const K = this.getThermalGain(config);
+
+    if (rotorVelocityHz == 0.0) {
+      // At zero velocity there is no d axis current, iron loss, or
+      // mechanical power, so each constraint has an exact solution.
+      const thermalCurrent = Math.sqrt(thermalW / 1.5 / hotR);
+      // At the controller power limit the copper loss equals
+      // maxControllerPower, which fixes the winding temperature.
+      const powerR = this.windingResistance(
+          (K == null) ? null : config.ambient_temp + maxControllerPower * K,
+          config);
+      const powerCurrent = Math.sqrt(maxControllerPower / 1.5 / powerR);
+      return LimitedValue.min(
+        new LimitedValue(this.getIrLimitedCurrent(supplyVoltageMargin, K, config),
+                         'back_emf'),
+        LimitedValue.min(
+          new LimitedValue(thermalCurrent, 'max_motor_temperature'),
+          new LimitedValue(powerCurrent, 'max_controller_power')));
+    }
 
     // Upper bound for q-axis current (ignoring d-axis copper loss
-    // for the bound, since i_d depends on i_q).
-    const thermalLimit = LimitedValue.min(
-      new LimitedValue(thermalW, 'max_motor_temperature'),
-      new LimitedValue(maxControllerPower, 'max_controller_power'));
-
+    // for the bound, since i_d depends on i_q).  The winding is never
+    // cooler than ambient, so coolR gives a bound for the constraints
+    // evaluated at the candidate's own temperature.
     const ImaxPossible = LimitedValue.min(
-      new LimitedValue(supplyVoltageMargin / this.R, 'back_emf'),
-      new LimitedValue(Math.sqrt(thermalLimit.value / 1.5 / this.R), thermalLimit.limitingFactor));
-    // This equation is not really possible to solve directly, so lets just
-    // find it numerically.  The answer is much easier if the velocity is 0.
-    if (rotorVelocityHz == 0.0) {
-      return ImaxPossible;
-    }
+      new LimitedValue(supplyVoltageMargin / coolR, 'back_emf'),
+      LimitedValue.min(
+        new LimitedValue(Math.sqrt(thermalW / 1.5 / hotR),
+                         'max_motor_temperature'),
+        new LimitedValue(Math.sqrt(maxControllerPower / 1.5 / coolR),
+                         'max_controller_power')));
 
     // Bisect between 0 and ImaxPossible to find a current which is as large
     // as possible while satisfying both of our inequalities.
     // i_d depends on i_q (via current-dependent base speed), so we
     // compute it inside the loop.
-    const valid = (I) => {
+    const evaluate = (I) => {
       const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, I);
-      const r = this.getPower(I, rotorVelocityHz, i_d);
-      return (((r.Pcopper + r.Piron) < thermalW) &&
-              (r.Ptotal < maxControllerPower) &&
-              this.isVoltageFeasible(I, rotorVelocityHz, config));
+      const R = this.getOperatingResistance(I, i_d, rotorVelocityHz, config).R;
+      return {
+        i_d: i_d,
+        R: R,
+        hot: this.getPower(I, rotorVelocityHz, i_d, hotR),
+        power: this.getPower(I, rotorVelocityHz, i_d, R),
+      };
+    };
+    const valid = (I) => {
+      const e = evaluate(I);
+      return (((e.hot.Pcopper + e.hot.Piron) < thermalW) &&
+              (e.power.Ptotal < maxControllerPower) &&
+              (I * e.R <= supplyVoltageMargin) &&
+              this.isVoltageFeasible(I, rotorVelocityHz, config, e.R));
     };
 
     const resultCurrent = bisectMaxTrue(ImaxPossible.value, valid, 0.01);
-    const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, resultCurrent);
-    const r = this.getPower(resultCurrent, rotorVelocityHz, i_d);
-    const motorThermal = Math.abs((r.Pcopper + r.Piron) - thermalW);
-    const controllerPower = Math.abs(r.Ptotal - maxControllerPower);
+    const e = evaluate(resultCurrent);
+    const motorThermal = Math.abs((e.hot.Pcopper + e.hot.Piron) - thermalW);
+    const controllerPower = Math.abs(e.power.Ptotal - maxControllerPower);
     const maxDelta = Math.abs(resultCurrent - ImaxPossible.value);
-    const V_phase = this.getPhaseVoltage(resultCurrent, i_d, rotorVelocityHz);
+    const irDelta = Math.abs(resultCurrent * e.R - supplyVoltageMargin);
+    const V_phase = this.getPhaseVoltage(resultCurrent, e.i_d, rotorVelocityHz, e.R);
     const kSvpwmRatio = 2.0 / Math.sqrt(3);
     const V_max = config.controller.getMaxVoltageRatio(config) *
         kSvpwmRatio * 0.5 * config.voltage;
-    const voltageDelta = Math.abs(V_phase - V_max);
+    const voltageDelta = Math.min(Math.abs(V_phase - V_max), irDelta);
     const resultReason = LimitedValue.min(
       new LimitedValue(motorThermal, 'max_motor_temperature'),
       LimitedValue.min(
@@ -1526,6 +1636,30 @@ class Motor {
     return new LimitedValue(resultCurrent, resultReason.limitingFactor);
   }
 
+  // The largest current at zero velocity whose resistive drop fits in
+  // supplyVoltageMargin, with the resistance at the winding
+  // temperature that current produces.  With the copper loss at
+  // 1.5 * I^2 * R(T) and I = margin / R(T), the winding temperature
+  // satisfies (T - T_ambient) * R(T) = 1.5 * K * margin^2, a
+  // quadratic in T.
+  getIrLimitedCurrent(supplyVoltageMargin, K, config) {
+    if (!Number.isFinite(supplyVoltageMargin)) {
+      return Infinity;
+    }
+    if (K == null) {
+      return supplyVoltageMargin / this.windingResistance(null, config);
+    }
+    // R(T) = A + B * T
+    const A = this.R * (1.0 - 25.0 * this.resistanceTempco);
+    const B = this.R * this.resistanceTempco;
+    const Ta = config.ambient_temp;
+    const Q = 1.5 * K * supplyVoltageMargin * supplyVoltageMargin;
+    const temp = (B == 0.0) ? (Ta + Q / A) :
+          (-(A - B * Ta) + Math.sqrt(Math.pow(A - B * Ta, 2) + 4 * B * (A * Ta + Q))) /
+          (2 * B);
+    return supplyVoltageMargin / this.resistanceAt(temp);
+  }
+
   // Returns max output velocity (as LimitedValue) given motor and
   // controller thermal budgets and a requested output torque.
   // Internals work in rotor frame throughout.
@@ -1533,10 +1667,16 @@ class Motor {
     const rotorTorque = outputNmToRotorNm(outputTorque, config);
     const current = this.getCurrentFromTorque(outputTorque, config);
 
+    // As in getCurrentFromThermalPowerAndVelocity, the motor thermal
+    // limit is checked with the winding at max_motor_temp, which is
+    // exact, and everything else at the candidate's own winding
+    // temperature.
+    const hotR = this.resistanceAt(maxMotorTemp(config));
+
     // The Q axis portion of copper loss does not change with
     // velocity.  The D axis can if field weakening is enabled, and we
     // handle that later.
-    const Pcopper_q = 1.5 * current * current * this.R;
+    const Pcopper_q = 1.5 * current * current * hotR;
 
     if (Pcopper_q > thermalW) {
       // The torque alone is more thermal load than the motor can
@@ -1569,14 +1709,11 @@ class Motor {
       const maxController = maxControllerTemp(config);
       const valid = (rotorVel) => {
         const i_d = this.getFieldWeakeningCurrent(rotorVel, config, current);
-        const Pcopper_d = 1.5 * i_d * i_d * this.R;
-        const totalPcopper = Pcopper_q + Pcopper_d;
-        const ironDrag = d0 + d1 * rotorVel;
-        const Piron = rotorVel == 0 ? 0 : (2 * pi * rotorVel * ironDrag);
-        const motorThermalOk = (totalPcopper + Piron) < thermalW;
-        const Pmech = 2 * pi * this.getRotorTorque(current) * rotorVel;
-        const Ptotal = Pmech + totalPcopper + Piron;
-        const controllerPowerOk = Ptotal < maxControllerPower;
+        const hot = this.getPower(current, rotorVel, i_d, hotR);
+        const motorThermalOk = (hot.Pcopper + hot.Piron) < thermalW;
+        const R = this.getOperatingResistance(current, i_d, rotorVel, config).R;
+        const controllerPowerOk =
+              this.getPower(current, rotorVel, i_d, R).Ptotal < maxControllerPower;
         // Controller temperature check: include the d-axis FW current
         // in phase_current since it also dissipates in the controller.
         const phaseCurrent = Math.sqrt(current * current + i_d * i_d);
@@ -1589,7 +1726,7 @@ class Motor {
         const controllerTempOk =
             controllerTemp != null && controllerTemp < maxController;
         return motorThermalOk && controllerPowerOk && controllerTempOk &&
-          this.isVoltageFeasible(current, rotorVel, config);
+          this.isVoltageFeasible(current, rotorVel, config, R);
       };
 
       const resultRotorVel = bisectMaxTrue(maxRotorVel, valid, 0.01);
@@ -1597,15 +1734,14 @@ class Motor {
 
       // Determine limiting factor
       const i_d = this.getFieldWeakeningCurrent(resultRotorVel, config, current);
-      const Pcopper_d = 1.5 * i_d * i_d * this.R;
-      const totalPcopper = Pcopper_q + Pcopper_d;
-      const ironDrag = d0 + d1 * resultRotorVel;
-      const Piron = resultRotorVel == 0 ? 0 : (2 * pi * resultRotorVel * ironDrag);
-      const motorThermalDelta = Math.abs((totalPcopper + Piron) - thermalW);
-      const Pmech = 2 * pi * this.getRotorTorque(current) * resultRotorVel;
-      const controllerDelta = Math.abs((Pmech + totalPcopper + Piron) - maxControllerPower);
+      const hot = this.getPower(current, resultRotorVel, i_d, hotR);
+      const motorThermalDelta = Math.abs((hot.Pcopper + hot.Piron) - thermalW);
+      const R = this.getOperatingResistance(
+          current, i_d, resultRotorVel, config).R;
+      const controllerDelta = Math.abs(
+          this.getPower(current, resultRotorVel, i_d, R).Ptotal - maxControllerPower);
       const maxVelDelta = Math.abs(resultRotorVel - maxRotorVel);
-      const V_phase = this.getPhaseVoltage(current, i_d, resultRotorVel);
+      const V_phase = this.getPhaseVoltage(current, i_d, resultRotorVel, R);
       const kSvpwmRatio = 2.0 / Math.sqrt(3);
       const V_max = config.controller.getMaxVoltageRatio(config) *
           kSvpwmRatio * 0.5 * config.voltage;
@@ -1632,7 +1768,8 @@ class Motor {
       return new LimitedValue(rotorHzToOutputHz(resultRotorVel, config), limitingFactor);
     } else {
       // We are not using field weakening, so we can use an analytical
-      // solution.  All quantities here are rotor-space.
+      // solution for the motor temperature limit.  All quantities
+      // here are rotor-space.
 
       const Piron_motor = thermalW - Pcopper_q;
 
@@ -1643,10 +1780,32 @@ class Motor {
               'max_motor_temp');
 
       // Then the rotor velocity limited by controller maximum power.
-      const vControllerPower =
-            new LimitedValue(
-              (-pi * rotorTorque - d0 * pi + Math.sqrt(Math.pow(pi * rotorTorque, 2) + 2 * d0 * pi * pi * rotorTorque + Math.pow(d0 * pi, 2) + (2 * maxControllerPower - 2 * Pcopper_q) * d1 * pi)) / (2 * d1 * pi),
-              'max_controller_power');
+      // The winding temperature from getWindingTemp() is affine in
+      // the iron loss, so the copper loss at that temperature is too:
+      //
+      //   Pcopper = Pcopper0 + g * Piron
+      //   g = beta * K / (1 - beta * K),  beta = alpha * Pcopper(25C)
+      //
+      // where Pcopper0 is the copper loss at zero velocity.  When the
+      // winding is instead taken to be at the maximum temperature (see
+      // windingResistance()), g is zero.  With
+      // Piron = 2 * pi * v * (d0 + d1 * v), the power limit
+      // Pmech + Pcopper + Piron = maxControllerPower is a quadratic
+      // a * v^2 + b * v + c = 0 in the rotor velocity.
+      const {R: R0, temp: T0} = this.getOperatingResistance(current, 0, 0, config);
+      const Pcopper0 = 1.5 * current * current * R0;
+      const betaK = this.resistanceTempco * 1.5 * current * current * this.R *
+            this.getThermalGain(config);
+      const g = (T0 != null && Number.isFinite(T0)) ? betaK / (1.0 - betaK) : 0.0;
+      const a = 2 * pi * d1 * (1.0 + g);
+      const b = 2 * pi * (rotorTorque + d0 * (1.0 + g));
+      const c = Pcopper0 - maxControllerPower;
+      // The larger root, in a form which avoids cancellation when a
+      // is small.
+      const sqrtDisc = Math.sqrt(b * b - 4 * a * c);
+      const vPower = (b >= 0) ? (-2 * c / (b + sqrtDisc)) :
+            ((-b + sqrtDisc) / (2 * a));
+      const vControllerPower = new LimitedValue(vPower, 'max_controller_power');
 
       const rotorResult = LimitedValue.min(vMotorTemp, vControllerPower);
       return new LimitedValue(rotorHzToOutputHz(rotorResult.value, config),
@@ -1794,13 +1953,10 @@ class Motor {
       if (config[field] == null) return electrical;
     }
 
-    const [R, C] = this.getThermalProperties(config.motor_cooling);
-    if (R == null || C == null) return electrical;
+    const K = this.getThermalGain(config);
+    if (K == null) return electrical;
 
-    const deltaT = config.max_motor_temp - config.ambient_temp;
-    const thermalW = (config.time == Infinity) ?
-          deltaT / R :
-          deltaT / (R * (1.0 - Math.exp(-config.time / (R * C))));
+    const thermalW = (maxMotorTemp(config) - config.ambient_temp) / K;
 
     const thermalVelocity = this.getVelocityFromThermalPowerAndTorque(
         thermalW,
@@ -1841,6 +1997,9 @@ class Motor {
     // When base velocity is very low (high resistive drop), the
     // formula can produce i_d values that increase voltage rather
     // than reduce it.  In that case, don't apply field weakening.
+    // This uses the 25C resistance, like the rest of the i_d
+    // calculation, so that i_d does not depend on the winding
+    // temperature.
     if (this.getPhaseVoltage(i_q, i_d, rotorVelocityHz) >=
         this.getPhaseVoltage(i_q, 0, rotorVelocityHz)) {
       return 0;
@@ -1848,15 +2007,16 @@ class Motor {
     return i_d;
   }
 
-  getPhaseVoltage(i_q, i_d, rotorVelocityHz) {
+  // `R` is the phase resistance, which defaults to the 25C value.
+  getPhaseVoltage(i_q, i_d, rotorVelocityHz, R=this.R) {
     const omega_e = 2 * Math.PI * Math.abs(rotorVelocityHz) * (this.poles / 2);
     const lambda_m = this.getLambdaM();
     // V_q uses effective L_d for the d-axis coupling (saturated).
     // V_d uses base L_q for the q-axis coupling (static).
     // This mirrors the firmware cross-coupling feedforward convention.
     const L_d_eff = this.getEffectiveInductance(i_d);
-    const V_q = this.R * i_q + omega_e * L_d_eff * i_d + omega_e * lambda_m;
-    const V_d = this.R * i_d - omega_e * this.L_q * i_q;
+    const V_q = R * i_q + omega_e * L_d_eff * i_d + omega_e * lambda_m;
+    const V_d = R * i_d - omega_e * this.L_q * i_q;
     return Math.sqrt(V_q * V_q + V_d * V_d);
   }
 
@@ -1864,10 +2024,12 @@ class Motor {
     return 0.5 * config.controller.getSpeedFactor(config) * config.voltage;
   }
 
-  isVoltageFeasible(i_q, rotorVelocityHz, config) {
+  // `R` is the phase resistance at the winding temperature, which
+  // defaults to the 25C value.
+  isVoltageFeasible(i_q, rotorVelocityHz, config, R=this.R) {
     if (this.L_d > 0 && this.poles > 0) {
       const i_d = this.getFieldWeakeningCurrent(rotorVelocityHz, config, i_q);
-      const V_phase = this.getPhaseVoltage(i_q, i_d, rotorVelocityHz);
+      const V_phase = this.getPhaseVoltage(i_q, i_d, rotorVelocityHz, R);
       // Matches firmware max_V = max_voltage_ratio * kSvpwmRatio * 0.5 * bus_V.
       const kSvpwmRatio = 2.0 / Math.sqrt(3);
       const V_max = config.controller.getMaxVoltageRatio(config) *
@@ -1893,17 +2055,19 @@ class Motor {
     result.d_current = i_d;
     result.phase_current = total_phase_current;
 
-    const r = this.getPower(i_q, rotorVelocityHz, i_d);
+    const {R, temp} = this.getOperatingResistance(
+        i_q, i_d, rotorVelocityHz, config);
+    if (temp == null) {
+      return null;
+    }
+    // On thermal runaway, the temperature is Infinity, and the copper
+    // loss is that at the maximum motor temperature, i.e. at the
+    // point where the motor limit is crossed.
+    const r = this.getPower(i_q, rotorVelocityHz, i_d, R);
     result.copper_loss = r.Pcopper;
     result.iron_loss = r.Piron;
     result.mechanical_power = r.Pmech;
-    const motorLossPower = r.Pcopper + r.Piron;
-
-    const [R, C] = this.getThermalProperties(config.motor_cooling);
-    if (R == null || C == null) {
-      return null;
-    }
-    result.motor_temp = config.ambient_temp + motorLossPower * R * (1.0 - Math.exp(-config.time / (R * C)));
+    result.motor_temp = temp;
 
     return result;
   }
@@ -2447,7 +2611,11 @@ function evaluateOperatingPoint(config) {
     return null;
   }
   const rotorVelocityHz = outputHzToRotorHz(config.velocity, config);
-  if (!config.motor.isVoltageFeasible(op.q_current, rotorVelocityHz, config)) {
+  // The resistive drop is evaluated at the winding temperature of
+  // this operating point.
+  const windingR = config.motor.windingResistance(op.motor_temp, config);
+  if (!config.motor.isVoltageFeasible(
+      op.q_current, rotorVelocityHz, config, windingR)) {
     op._infeasible_reason = `back_emf`;
   }
 
@@ -2475,7 +2643,15 @@ function evaluateOperatingPoint(config) {
   }
 
   const maxMotor = maxMotorTemp(config);
-  if ((op.motor_temp - maxMotor) > 0.001) {
+  if (!Number.isFinite(op.motor_temp)) {
+    // Over a finite time the temperature is bounded, but the copper
+    // loss alone then gives a rise of roughly 1 / resistanceTempco
+    // (254C for copper) or more, which is past any plausible
+    // maximum.
+    op._infeasible_reason = (config.time == Infinity) ?
+      `Motor thermal runaway: copper loss grows faster with temperature than the cooling removes it` :
+      `Motor temperature exceeds maximum ${maxMotor.toFixed(1)} (thermal runaway)`;
+  } else if ((op.motor_temp - maxMotor) > 0.001) {
     op._infeasible_reason = `Motor temperature ${op.motor_temp.toFixed(1)} exceeds maximum ${maxMotor.toFixed(1)}`;
   }
 
@@ -2538,17 +2714,12 @@ function evaluateMaxTorque(config) {
     return null;
   }
 
-  const [R, C] = config.motor.getThermalProperties(config.motor_cooling);
-  if (R== null || C == null) {
+  const K = config.motor.getThermalGain(config);
+  if (K == null) {
     return null;
   }
 
-  const timePeriodS = config.time;
-  const deltaT = config.max_motor_temp - config.ambient_temp;
-
-  const thermalW = (timePeriodS == Infinity) ?
-        deltaT / R :
-        deltaT / (R * (1.0 - Math.exp(-timePeriodS / (R * C))));
+  const thermalW = (maxMotorTemp(config) - config.ambient_temp) / K;
 
   const rotorVelocityHz = outputHzToRotorHz(config.velocity, config);
   const fwEnabled = config.motor.isFieldWeakeningEnabled(config);
@@ -2631,7 +2802,9 @@ function evaluateMinMovementTime(config) {
   // from velocity=0 and ending at velocity=0.
   //
   // Current caveats:
-  //  * Controller and motor thermals are completely ignored.
+  //  * Controller and motor thermals are completely ignored, aside
+  //    from the winding resistance being evaluated at the temperature
+  //    reached over each 10ms step, which is essentially ambient.
   //  * This assumes the controller is able to plan a motion profile
   //    to exactly matches the maximum possible torque at each
   //    instant.  moteus only supports constant acceleration
@@ -4440,6 +4613,7 @@ function reifyObjects(dict) {
         inertia: reified['motor.inertia'] ?? motorModelDefaults.inertia,
         poles: reified['motor.poles'] ?? 0,
         ld_scale_pp: reified['motor.ld_scale'] ?? motorModelDefaults.ld_scale_pp,
+        resistanceTempco: reified['motor.r_tempco'] ?? motorModelDefaults.r_tempco,
         thermal: {
           'none': {
             R: reified['motor.thermal_r'],
