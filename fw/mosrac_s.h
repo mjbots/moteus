@@ -38,7 +38,7 @@ class MosracS {
     const uint32_t delta_us = (now_us - last_query_start_us_);
 
     if (query_outstanding_) {
-      if (delta_us > (uint32_t)(2 * config_.poll_rate_us)) {
+      if (delta_us > static_cast<uint32_t>(2 * config_.poll_rate_us)) {
         // We timed out.
         uart_->finish_dma_read();
         query_outstanding_ = false;
@@ -51,13 +51,13 @@ class MosracS {
 
     if (query_outstanding_) { return; }
 
-    if (delta_us < (uint32_t)(config_.poll_rate_us)) {
+    if (delta_us < static_cast<uint32_t>(config_.poll_rate_us)) {
       return;
     }
 
     last_query_start_us_ = now_us;
     query_outstanding_ = true;
-    uart_->write_char((char)(0x31));
+    uart_->write_char(static_cast<char>(0x31));
     StartRead();
   }
 
@@ -80,12 +80,12 @@ class MosracS {
     }
 
     const uint32_t angle =
-        (uint32_t)(buffer_[2]) << 16 |
-        (uint32_t)(buffer_[3]) << 8 |
-        (uint32_t)(buffer_[4]);
+        static_cast<uint32_t>(buffer_[2]) << 16 |
+        static_cast<uint32_t>(buffer_[3]) << 8 |
+        static_cast<uint32_t>(buffer_[4]);
     const uint16_t multiturn =
-        (uint16_t)(buffer_[0]) << 8 |
-        (uint16_t)(buffer_[1]);
+        static_cast<uint16_t>(buffer_[0]) << 8 |
+        static_cast<uint16_t>(buffer_[1]);
 
     status->value = angle;
     status->mosrac_s_multiturn = multiturn;
@@ -99,8 +99,8 @@ class MosracS {
     for (int i = 0; i < 5; i++) {
       crc ^= buffer_[i];
       for (int j = 0; j < 8; j++) {
-        crc = (crc & 0x80) ? (uint8_t)((crc << 1) ^ 0x97)
-                           : (uint8_t)(crc << 1);
+        crc = (crc & 0x80) ? static_cast<uint8_t>((crc << 1) ^ 0x97)
+                           : static_cast<uint8_t>(crc << 1);
       }
     }
     return crc == buffer_[5];
@@ -108,7 +108,7 @@ class MosracS {
 
   void StartRead() MOTEUS_CCM_ATTRIBUTE {
     uart_->start_dma_read(
-        mjlib::base::string_span((char*)(&buffer_[0]),
+        mjlib::base::string_span(reinterpret_cast<char*>(&buffer_[0]),
                                  sizeof(buffer_)));
   }
 

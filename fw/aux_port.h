@@ -28,7 +28,6 @@
 #include "mjlib/micro/telemetry_manager.h"
 
 #include "fw/aksim2.h"
-#include "fw/mosrac_s.h"
 #include "fw/as5047.h"
 #include "fw/aux_adc.h"
 #include "fw/aux_common.h"
@@ -43,6 +42,7 @@
 #include "fw/ma732.h"
 #include "fw/mbed_util.h"
 #include "fw/millisecond_timer.h"
+#include "fw/mosrac_s.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
 #include "fw/strtof.h"
