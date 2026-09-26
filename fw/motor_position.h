@@ -1492,7 +1492,7 @@ class MotorPosition {
     return true;
   }
 
-  void ISR_SetOutputPositionNearestHelper(float value) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_SetOutputPositionNearestHelper(float value) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
     const auto& output_status =
         status_.sources[config_.output.source];
     const auto& output_config =

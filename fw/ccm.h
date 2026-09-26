@@ -16,6 +16,12 @@
 
 #if defined(TARGET_STM32G4)
 #define MOTEUS_CCM_ATTRIBUTE __attribute__ ((section (".ccmram")))
+// For CCM functions which should remain out of line regardless of
+// the inlining budget GCC has left in a given translation unit, so
+// that CCM usage does not depend upon unrelated code.
+#define MOTEUS_CCM_NOINLINE_ATTRIBUTE \
+  __attribute__ ((section (".ccmram"), noinline))
 #else
 #define MOTEUS_CCM_ATTRIBUTE
+#define MOTEUS_CCM_NOINLINE_ATTRIBUTE
 #endif

@@ -774,7 +774,7 @@ class BldcServoControl {
         -velocity_rotor * self().v_per_hz_ * pid_q_share;
   }
 
-  void ISR_DoPwmControl(const Vec3& pwm) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_DoPwmControl(const Vec3& pwm) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
     self().control_.pwm.a = LimitPwm(pwm.a);
     self().control_.pwm.b = LimitPwm(pwm.b);
     self().control_.pwm.c = LimitPwm(pwm.c);
@@ -825,7 +825,7 @@ class BldcServoControl {
   }
 
   void ISR_DoVoltageDQ(const SinCos& sin_cos,
-                       float d_V, float q_V) MOTEUS_CCM_ATTRIBUTE {
+                       float d_V, float q_V) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
     ISR_DoBalancedVoltageControl(
         ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
   }
@@ -1474,7 +1474,7 @@ class BldcServoControl {
     ISR_DoBalancedVoltageControl(Vec3{idt.a, idt.b, idt.c});
   }
 
-  void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_ATTRIBUTE {
+  void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
     if (self().status_.cooldown_count) {
       if (self().status_.cooldown_count > self().config_.cooldown_brake) {
         ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f, false);
