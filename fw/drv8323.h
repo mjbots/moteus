@@ -376,7 +376,7 @@ struct IsEnum<moteus::Drv8323::PwmMode> {
   static constexpr bool value = true;
 
   using P = moteus::Drv8323::PwmMode;
-  static std::array<std::pair<P, const char*>,
+  static constexpr std::array<std::pair<P, const char*>,
                     static_cast<int>(P::kNumPwmModes)> map() {
     return { {
         { P::k6x, "6x" },
@@ -392,7 +392,7 @@ struct IsEnum<moteus::Drv8323::OcpMode> {
   static constexpr bool value = true;
 
   using O = moteus::Drv8323::OcpMode;
-  static std::array<std::pair<O, const char*>,
+  static constexpr std::array<std::pair<O, const char*>,
                     static_cast<int>(O::kNumOcpModes)> map() {
     return { {
         { O::kLatchedFault, "latched_fault" },

@@ -1656,7 +1656,7 @@ struct IsEnum<moteus::MotorPosition::SourceConfig::Type> {
   static constexpr bool value = true;
 
   using T = moteus::MotorPosition::SourceConfig::Type;
-  static std::array<std::pair<T, const char*>, T::kNumTypes> map() {
+  static constexpr std::array<std::pair<T, const char*>, T::kNumTypes> map() {
     return { {
         { T::kNone, "none" },
         { T::kSpi, "spi" },
@@ -1677,7 +1677,7 @@ struct IsEnum<moteus::MotorPosition::SourceConfig::Reference> {
   static constexpr bool value = true;
 
   using R = moteus::MotorPosition::SourceConfig::Reference;
-  static std::array<std::pair<R, const char*>, 2> map() {
+  static constexpr std::array<std::pair<R, const char*>, 2> map() {
     return { {
         { R::kRotor, "rotor" },
         { R::kOutput, "output" },
@@ -1690,7 +1690,7 @@ struct IsEnum<moteus::MotorPosition::Status::Error> {
   static constexpr bool value = true;
 
   using E = moteus::MotorPosition::Status::Error;
-  static std::array<std::pair<E, const char*>, E::kNumErrors> map() {
+  static constexpr std::array<std::pair<E, const char*>, E::kNumErrors> map() {
     return { {
         { E::kNone, "none" },
         { E::kMotorNotConfigured, "motor_not_conf" },
@@ -1706,7 +1706,7 @@ struct IsEnum<moteus::MotorPosition::Status::Homed> {
   static constexpr bool value = true;
 
   using H = moteus::MotorPosition::Status::Homed;
-  static std::array<std::pair<H, const char*>, 3> map() {
+  static constexpr std::array<std::pair<H, const char*>, 3> map() {
     return { {
         { H::kRelative, "relative" },
         { H::kRotor, "rotor" },

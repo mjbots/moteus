@@ -588,7 +588,7 @@ struct IsEnum<moteus::aux::Spi::Config::Mode> {
   static constexpr bool value = true;
 
   using M = moteus::aux::Spi::Config::Mode;
-  static std::array<std::pair<M, const char*>, M::kNumModes> map() {
+  static constexpr std::array<std::pair<M, const char*>, M::kNumModes> map() {
     return {{
         { M::kOnboardAs5047, "onboard" },
         { M::kDisabled, "disabled" },
@@ -609,7 +609,7 @@ struct IsEnum<moteus::aux::Spi::Config::Trim> {
   static constexpr bool value = true;
 
   using T = moteus::aux::Spi::Config::Trim;
-  static std::array<std::pair<T, const char*>, T::kSize> map() {
+  static constexpr std::array<std::pair<T, const char*>, T::kSize> map() {
     return {{
         { T::kNone, "none" },
         { T::kTrimX, "x" },
@@ -624,7 +624,7 @@ struct IsEnum<moteus::aux::UartEncoder::Config::Mode> {
 
   using M = moteus::aux::UartEncoder::Config::Mode;
 
-  static std::array<std::pair<M, const char*>, M::kNumModes> map() {
+  static constexpr std::array<std::pair<M, const char*>, M::kNumModes> map() {
     return {{
         { M::kDisabled, "disabled" },
         { M::kAksim2, "aksim2" },
@@ -643,7 +643,7 @@ struct IsEnum<moteus::aux::I2C::DeviceConfig::Type> {
 
   using T = moteus::aux::I2C::DeviceConfig::Type;
 
-  static std::array<std::pair<T, const char*>, T::kNumTypes> map() {
+  static constexpr std::array<std::pair<T, const char*>, T::kNumTypes> map() {
     return {{
         { T::kNone, "none" },
         { T::kAs5048, "as5048" },
@@ -658,7 +658,7 @@ struct IsEnum<moteus::aux::Pin::Mode> {
 
   using P = moteus::aux::Pin::Mode;
 
-  static std::array<std::pair<P, const char*>,
+  static constexpr std::array<std::pair<P, const char*>,
                     static_cast<int>(P::kLength)> map() {
     return {{
         { P::kNC, "nc" },
@@ -690,7 +690,7 @@ struct IsEnum<moteus::aux::Pin::Pull> {
   static constexpr bool value = true;
 
   using P = moteus::aux::Pin::Pull;
-  static std::array<std::pair<P, const char*>, 4> map() {
+  static constexpr std::array<std::pair<P, const char*>, 4> map() {
     return {{
         { P::kNone, "none" },
         { P::kPullUp, "pull_up" },
@@ -706,7 +706,7 @@ struct IsEnum<moteus::aux::AuxError> {
 
   using A = moteus::aux::AuxError;
 
-  static std::array<std::pair<A, const char*>,
+  static constexpr std::array<std::pair<A, const char*>,
                     static_cast<int>(A::kLength)> map() {
     return {{
         { A::kNone, "none" },

@@ -809,7 +809,7 @@ struct IsEnum<moteus::BldcServoMode> {
   static constexpr bool value = true;
 
   using M = moteus::BldcServoMode;
-  static std::array<std::pair<M, const char*>, M::kNumModes> map() {
+  static constexpr std::array<std::pair<M, const char*>, M::kNumModes> map() {
     return { {
         { M::kStopped, "stopped" },
         { M::kFault, "fault" },

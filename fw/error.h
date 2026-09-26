@@ -77,7 +77,7 @@ template <>
 struct IsEnum<moteus::errc> {
   static constexpr bool value = true;
 
-  static std::array<std::pair<moteus::errc, const char*>, 0> map() {
+  static constexpr std::array<std::pair<moteus::errc, const char*>, 0> map() {
     return {{}};
   }
 };
