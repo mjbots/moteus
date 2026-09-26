@@ -99,6 +99,7 @@ MOTEUS_SOURCES = [
     "aux_port.h",
     "bissc.h",
     "mbed_util.h",
+    "mosrac_s.h",
     "moteus_assert.cc",
     "bldc_servo.h",
     "bldc_servo.cc",
