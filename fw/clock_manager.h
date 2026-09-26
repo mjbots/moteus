@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include <inttypes.h>
+
 #include "mbed.h"
 
 #include "mjlib/micro/async_stream.h"
