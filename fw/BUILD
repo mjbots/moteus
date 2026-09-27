@@ -236,6 +236,20 @@ cc_test(
 )
 
 cc_test(
+    name = "serialization_equivalence_test",
+    srcs = [
+        "test/serialization_equivalence_test.cc",
+        "test/test_main.cc",
+    ],
+    deps = [
+        ":common",
+        "@boost//:test",
+        "@com_github_mjbots_mjlib//mjlib/micro:serializable_handler_equivalence",
+    ],
+    size = "medium",
+)
+
+cc_test(
     name = "slow_test",
     srcs = [
         "test/motor_model.h",
@@ -363,6 +377,7 @@ test_suite(
     tests = [
         "test",
         "slow_test",
+        "serialization_equivalence_test",
         "dummy_host_test",
         "hall_regression_test",
         "encoder_bw_regression_test",
