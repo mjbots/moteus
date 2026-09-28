@@ -103,6 +103,7 @@ struct UartEncoder {
       kCuiAmt21,
       kSerial,   // fdcanusb ASCII protocol for serial control
       kBoardDefault,
+      kMosracS,
 
       kNumModes,
     };
@@ -130,6 +131,7 @@ struct UartEncoder {
     bool aksim2_warn = false;
     uint16_t aksim2_status = 0;
     uint16_t checksum_errors = 0;
+    uint16_t mosrac_s_multiturn = 0;
 
     template <typename Archive>
     void Serialize(Archive* a) {
@@ -141,6 +143,7 @@ struct UartEncoder {
       a->Visit(MJ_NVP(aksim2_warn));
       a->Visit(MJ_NVP(aksim2_status));
       a->Visit(MJ_NVP(checksum_errors));
+      a->Visit(MJ_NVP(mosrac_s_multiturn));
     }
   };
 };
@@ -633,6 +636,7 @@ struct IsEnum<moteus::aux::UartEncoder::Config::Mode> {
         { M::kCuiAmt21, "cui_amt21" },
         { M::kSerial, "serial" },
         { M::kBoardDefault, "board_default" },
+        { M::kMosracS, "mosrac_s" },
       }};
   }
 };
