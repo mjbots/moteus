@@ -97,9 +97,7 @@ async def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--input', '-i')
-    parser.add_argument('--output', '-o', type=str,
-                        default=tempfile.NamedTemporaryFile(
-                            prefix='cogging-', suffix='.log').name)
+    parser.add_argument('--output', '-o', type=str, default=None)
     parser.add_argument('--target', '-t', type=int, default=1)
     parser.add_argument('--verbose', '-v', action='store_true')
     parser.add_argument('--average-count', type=int, default=1)
@@ -112,6 +110,11 @@ async def main():
     parser.add_argument('--store', action='store_true')
 
     args = parser.parse_args()
+
+    if args.output is None:
+        with tempfile.NamedTemporaryFile(
+                prefix='cogging-', suffix='.log', delete=False) as tmp:
+            args.output = tmp.name
 
     if args.split_count < MIN_SPLIT_COUNT:
         print(

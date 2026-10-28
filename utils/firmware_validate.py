@@ -32,22 +32,25 @@ TORQUE_RIPPLE = RUNFILES.Rlocation(
     "com_github_mjbots_moteus/utils/dyno_static_torque_ripple")
 
 def dyno(*args, keep_log=False):
-    tmp = tempfile.NamedTemporaryFile(
-        prefix='{}-moteus_firmware_validate-'.format(
-            datetime.datetime.now().isoformat()),
-        delete = False)
+    # We only need a unique filename for dynamometer_drive to write
+    # to, so close our handle immediately.
+    with tempfile.NamedTemporaryFile(
+            prefix='{}-moteus_firmware_validate-'.format(
+                datetime.datetime.now().isoformat()),
+            delete = False) as tmp:
+        log_name = tmp.name
 
     try:
         subprocess.run(args = [DYNAMOMETER_DRIVE,
                                '--torque_transducer', '/dev/serial/by-id/usb-FTDI_FT231X_USB_UART_D3086Z20-if00-port0',
-                               '--log', tmp.name] + list(args),
+                               '--log', log_name] + list(args),
                        check = True)
         if not keep_log:
-            os.remove(tmp.name)
+            os.remove(log_name)
             return None
-        return tmp.name
+        return log_name
     except:
-        print("Failing log: {}".format(tmp.name))
+        print("Failing log: {}".format(log_name))
         raise
 
 
