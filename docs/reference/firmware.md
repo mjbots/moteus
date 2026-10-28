@@ -36,10 +36,10 @@ system is required.
 First install dependencies:
 
 ```
-sudo python3-build python3-can python3-serial python3-setuptools \
-     python3-pyelftools python3-qtpy python3-wheel \
-     python3-importlib-metadata python3-scipy python3-usb \
-     mypy nodejs wget curl
+sudo apt install python3-build python3-can python3-serial \
+     python3-setuptools python3-pyelftools python3-qtpy \
+     python3-wheel python3-importlib-metadata python3-scipy \
+     python3-usb mypy nodejs wget curl
 ```
 
 Then the firmware can be built with:
