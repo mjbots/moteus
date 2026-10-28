@@ -774,7 +774,8 @@ class BldcServoControl {
         -velocity_rotor * self().v_per_hz_ * pid_q_share;
   }
 
-  void ISR_DoPwmControl(const Vec3& pwm) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
+  __attribute__((always_inline))
+  void ISR_DoPwmControlInline(const Vec3& pwm) MOTEUS_CCM_ATTRIBUTE {
     self().control_.pwm.a = LimitPwm(pwm.a);
     self().control_.pwm.b = LimitPwm(pwm.b);
     self().control_.pwm.c = LimitPwm(pwm.c);
@@ -782,10 +783,19 @@ class BldcServoControl {
     self().DoPwmControl(self().control_.pwm);
   }
 
+  // Out of line to conserve CCM.  ISR_DoVoltageDQ, which every
+  // current and position mode cycle passes through, uses
+  // ISR_DoPwmControlInline instead, since the call costs ~15 cycles
+  // there.
+  void ISR_DoPwmControl(const Vec3& pwm) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
+    ISR_DoPwmControlInline(pwm);
+  }
+
   /// Assume that the voltages are intended to be balanced around the
-  /// midpoint and can be shifted accordingly.
+  /// midpoint and can be shifted accordingly.  Return the PWM values
+  /// to apply.
   __attribute__((always_inline))
-  void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
+  Vec3 ISR_CalculateBalancedPwm(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
     self().control_.voltage = voltage;
 
     const float inv_bus_V = 1.0f / self().status_.filt_bus_V;
@@ -799,10 +809,15 @@ class BldcServoControl {
 
     const float offset = 0.5f * (pwmmin + pwmmax) - 0.5f;
 
-    ISR_DoPwmControl(Vec3{
+    return Vec3{
         pwm_in.a - offset,
         pwm_in.b - offset,
-        pwm_in.c - offset});
+        pwm_in.c - offset};
+  }
+
+  __attribute__((always_inline))
+  void ISR_DoBalancedVoltageControl(const Vec3& voltage) MOTEUS_CCM_ATTRIBUTE {
+    ISR_DoPwmControl(ISR_CalculateBalancedPwm(voltage));
   }
 
   Vec3 ISR_CalculatePhaseVoltage(const SinCos& sin_cos,
@@ -826,8 +841,9 @@ class BldcServoControl {
 
   void ISR_DoVoltageDQ(const SinCos& sin_cos,
                        float d_V, float q_V) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
-    ISR_DoBalancedVoltageControl(
-        ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V));
+    ISR_DoPwmControlInline(
+        ISR_CalculateBalancedPwm(
+            ISR_CalculatePhaseVoltage(sin_cos, d_V, q_V)));
   }
 
   void ISR_DoVoltageDQCommand(const SinCos& sin_cos,
