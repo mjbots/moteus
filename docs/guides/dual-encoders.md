@@ -18,7 +18,7 @@ This section will cover how to set up several common dual encoder configurations
 
 In this configuration, the rotor is sensed with the moteus onboard encoder and the output is sensed with an MA600 on-axis encoder.  Assuming low backlash, the output positioning is performed from the onboard encoder and the output encoder is only used for disambiguation.  This results in the best performance since the effective resolution of the onboard encoder is multiplied by the gear reduction and will be much better than the MA600 on the output.
 
-The MA600 is attached to the aux2 port on one of the moteus-c1 [(c1 pinout)](../reference/pinouts.md#moteus-c1), moteus-n1 [(n1 pinout)](../reference/pinouts.md#moteus-n1), or moteus-x1 [(x1 pinout)](../reference/pinouts.md#moteus-x1).
+The MA600 is attached to the aux2 port on one of the moteus-c1 [(c1 pinout)](../reference/pinouts.md#moteus-c1), moteus-r5 [(r5 pinout)](../reference/pinouts.md#moteus-r5), moteus-n1 [(n1 pinout)](../reference/pinouts.md#moteus-n1), or moteus-x1 [(x1 pinout)](../reference/pinouts.md#moteus-x1).
 
 This pinout is the one accomplished if using the cable included with the [mjbots MA600 breakout board](https://mjbots.com/products/ma600-breakout).
 

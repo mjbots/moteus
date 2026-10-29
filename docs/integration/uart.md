@@ -9,7 +9,7 @@ By default, moteus controllers with a sufficiently new firmware version have the
 * [moteus-r4](../reference/pinouts.md#moteus-r4): aux2 - JST ZH-4
   * A - Host TX / moteus RX
   * B - Host RX / moteus TX
-* [moteus-c1](../reference/pinouts.md#moteus-c1): aux2 - JST GH-7
+* [moteus-c1](../reference/pinouts.md#moteus-c1)/[moteus-r5](../reference/pinouts.md#moteus-r5): aux2 - JST GH-7
   * C - Host RX / moteus TX
   * D - Host TX / moteus RX
 * [moteus-n1](../reference/pinouts.md#moteus-n1)/[moteus-x1](../reference/pinouts.md#moteus-x1): aux1 - JST GH-8

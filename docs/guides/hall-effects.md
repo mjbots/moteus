@@ -4,7 +4,9 @@ Many motors include hall effect sensors used to provide commutation information 
 
 **They may not be needed**: Just because a motor has hall effect sensors built in, does not mean you need to use them.  If you can use the on-axis magnetic encoder integrated into moteus by mounting moteus appropriately relative to the rotor, that will always give better results than using hall effect encoders.
 
-**You will likely need additional hardware**: Most configurations with hall effects will require additional filtering capacitors, placed near moteus, between each signal line and ground.  1nF is a recommended starting point.  They can be added either in the wire harness, or on unpopulated 0402 pads on the moteus-c1, moteus-n1, and moteus-x1.
+**You will likely need additional hardware**: For all moteus controllers but the moteus-r5, most configurations with hall effects will require additional filtering capacitors, placed near moteus, between each signal line and ground.  1nF is a recommended starting point.  They can be added either in the wire harness, or on unpopulated 0402 pads on the moteus-c1, moteus-n1, and moteus-x1.
+
+The moteus-r5 has built-in software enabled filtering capacitors for hall effect sensors and needs no additional hardware.
 
 **Hall effect sensors used for output positioning have very poor low velocity performance**: While hall effect sensors are minimally useful for commutation and higher speed output operation, they will provide poor performance when used as an output encoder at low speeds.  That means many position control applications, which are inherently often at low speed, will give poor results.
 
@@ -17,11 +19,11 @@ If using hall effects for commutation or output positioning is still desired, th
 This configuration uses hall effect sensors connected to the aux2 GH7
 connector for both commutation and output positioning.
 
-moteus-c1 [(c1 pinout)](../reference/pinouts.md#moteus-c1), moteus-n1 [(n1 pinout)](../reference/pinouts.md#moteus-n1), and moteus-x1 [(x1 pinout)](../reference/pinouts.md#moteus-x1) all have an aux2 GH7 connector that can provide 5V output and has 5V tolerant IO pins.  The typical wiring diagram looks like the below, although the hall connector is "nominal" as there is no real standard:
+moteus-c1 [(c1 pinout)](../reference/pinouts.md#moteus-c1), moteus-r5 [(r5 pinout)](../reference/pinouts.md#moteus-r5), moteus-n1 [(n1 pinout)](../reference/pinouts.md#moteus-n1), and moteus-x1 [(x1 pinout)](../reference/pinouts.md#moteus-x1) all have an aux2 GH7 connector that can provide 5V output and has 5V tolerant IO pins.  The typical wiring diagram looks like the below, although the hall connector is "nominal" as there is no real standard:
 
 ![](images/hall-wiring.png)
 
-As mentioned above, either 1nF capacitors should be installed in the harness between each signal line and ground, or installed on the appropriate unpopulated pads on the board.
+As mentioned above, for boards which are not a moteus-r5, either 1nF capacitors should be installed in the harness between each signal line and ground, or installed on the appropriate unpopulated pads on the board.
 
 The following aux2 configuration parameters should be set.
 
@@ -34,6 +36,12 @@ aux2.pins.2.mode 6  # hall
 aux2.pins.2.pull 1  # pull_up
 aux2.hall.enabled 1
 aux2.uart.mode 0    # disable serial control
+```
+
+For moteus-r5 hall filter capacitors should be enabled with:
+
+```
+aux2.hall.filt 1
 ```
 
 Then motor_position is configured as follows:

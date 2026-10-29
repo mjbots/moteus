@@ -631,7 +631,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       ADC5->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
           (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
-    } else if (family1or2or3_) {
+    } else if (family1or2or3or4_) {
       // For family 1, ADC4 always stays on temperature sense.
       adc4_sqr_ = ADC4->SQR1 =
           (0 << ADC_SQR1_L_Pos) |  // length 1
@@ -915,7 +915,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       status_.adc_cur1_raw = ADC1->DR;
       status_.adc_cur2_raw = ADC2->DR;
       status_.adc_cur3_raw = ADC3->DR;
-    } else if (family2_ || family3_) {
+    } else if (family2or3or4_) {
       status_.adc_cur1_raw = ADC3->DR;
       status_.adc_cur2_raw = ADC2->DR;
       status_.adc_cur3_raw = ADC1->DR;
@@ -938,7 +938,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       status_.adc_motor_temp_raw = ADC4->DR;
     } else if (family0_) {
       status_.adc_voltage_sense_raw = ADC4->DR;
-    } else if (family1or2or3_) {
+    } else if (family1or2or3or4_) {
       status_.adc_fet_temp_raw = ADC4->DR;
     }
 
@@ -952,7 +952,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       } else if (family0_) {
         status_.adc_fet_temp_raw = ADC5->DR;
         ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (msense_sqr_ << ADC_SQR1_SQ1_Pos);
-      } else if (family1or2or3_) {
+      } else if (family1or2or3or4_) {
         status_.adc_voltage_sense_raw = ADC5->DR;
         ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (msense_sqr_ << ADC_SQR1_SQ1_Pos);
       }
@@ -965,7 +965,7 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       } else if (family0_) {
         status_.adc_motor_temp_raw = ADC5->DR;
         ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (tsense_sqr_ << ADC_SQR1_SQ1_Pos);
-      } else if (family1or2or3_) {
+      } else if (family1or2or3or4_) {
         status_.adc_motor_temp_raw = ADC5->DR;
         ADC5->SQR1 = (0 << ADC_SQR1_L_Pos) | (vsense_sqr_ << ADC_SQR1_SQ1_Pos);
       }
@@ -1425,8 +1425,12 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
   // Must be in memory accessible by DMA (not CCM).
   uint32_t lptim1_sngstrt_value_ = 0;
 
-  Thermistor fet_thermistor_;
-  Thermistor motor_thermistor_;
+  // On family 4 (moteus-r5), the NTC thermistor is on the low side of
+  // the voltage divider; on all prior families it is on the high side.
+  Thermistor fet_thermistor_{
+      g_measured_hw_family == 4 ? Thermistor::kLow : Thermistor::kHigh};
+  Thermistor motor_thermistor_{
+      g_measured_hw_family == 4 ? Thermistor::kLow : Thermistor::kHigh};
 
   CommandData data_buffers_[2] = {};
 
@@ -1483,12 +1487,14 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
       g_measured_hw_family == 0 &&
       g_measured_hw_rev <= 4);
   const bool family0_ = (g_measured_hw_family == 0);
-  const bool family1or2or3_ = (g_measured_hw_family == 1 ||
-                               g_measured_hw_family == 2 ||
-                               g_measured_hw_family == 3);
+  const bool family1or2or3or4_ = (g_measured_hw_family == 1 ||
+                                  g_measured_hw_family == 2 ||
+                                  g_measured_hw_family == 3 ||
+                                  g_measured_hw_family == 4);
+  const bool family2or3or4_ = (g_measured_hw_family == 2 ||
+                               g_measured_hw_family == 3 ||
+                               g_measured_hw_family == 4);
   const bool family1_ = (g_measured_hw_family == 1);
-  const bool family2_ = (g_measured_hw_family == 2);
-  const bool family3_ = (g_measured_hw_family == 3);
 
   static Impl* g_impl_;
 };

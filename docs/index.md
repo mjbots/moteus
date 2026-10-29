@@ -17,6 +17,7 @@ moteus controllers are high-performance modular brushless motor controllers with
 | Name   | Voltage Input | Peak Power     | Mass  | Dimensions   |
 |--------|---------------|----------------|-------|--------------|
 | r4.11  | 10-44V        | 900W @ 30V     | 14.2g | 46x53mm      |
+| r5     | 10-34V        | 600W @ 26V     | 10.0g | 40x40x9mm    |
 | c1     | 10-51V        | 250W @ 28V     | 8.9g  | 38x38x9mm    |
 | n1     | 10-54V        | 2kW @ 36V      | 14.6g | 46x46x8mm    |
 | x1     | 10-54V        | 1.3kW @ 36V    | 23.8g | 56x56x10mm   |

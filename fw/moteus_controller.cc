@@ -18,6 +18,7 @@
 
 #include "fw/aux_port.h"
 #include "fw/drv8323.h"
+#include "fw/fxl6408.h"
 #include "fw/math.h"
 #include "fw/moteus_hw.h"
 #include "fw/motor_position.h"
@@ -384,16 +385,16 @@ aux::AuxHardwareConfig GetAux1HardwareConfig() {
           };
   } else if (g_measured_hw_family == 1 ||
              g_measured_hw_family == 2 ||
-             g_measured_hw_family == 3) {
-    // Family 2 has no I2C pullup on AUX1.
-    aux_options.i2c_pullup =
-        g_measured_hw_family == 2 ? NC : PB_8;
+             g_measured_hw_family == 3 ||
+             g_measured_hw_family == 4) {
+    // Family 2/4 have no I2C pullup on AUX1.
+    const bool family2or4 =
+        g_measured_hw_family == 2 || g_measured_hw_family == 4;
+    aux_options.i2c_pullup = family2or4 ? NC : PB_8;
 
-    // Family 2 has no RS422.
-    aux_options.rs422_re =
-        g_measured_hw_family == 2 ? NC : PB_10;
-    aux_options.rs422_de =
-        g_measured_hw_family == 2 ? NC : PB_11;
+    // Family 2/4 has no RS422.
+    aux_options.rs422_re = family2or4 ? NC : PB_10;
+    aux_options.rs422_de = family2or4 ? NC : PB_11;
     return aux::AuxHardwareConfig{
       {{
           //          ADC#  CHN    I2C      SPI      USART    TIMER
@@ -443,8 +444,17 @@ aux::AuxHardwareConfig GetAux2HardwareConfig() {
           };
   } else if (g_measured_hw_family == 1 ||
              g_measured_hw_family == 2 ||
-             g_measured_hw_family == 3) {
-    aux_options.i2c_pullup = PA_12;
+             g_measured_hw_family == 3 ||
+             g_measured_hw_family == 4) {
+    if (g_measured_hw_family == 4) {
+      // PA12 is now the I2C bus to the FXL6408 I/O expander; the AUX2
+      // pullup is enabled by setting GPIO1 on the expander, and the hall
+      // input filter by GPIO3.
+      aux_options.i2c_pullup_expander_bit = 1;
+      aux_options.hall_filter_expander_bit = 3;
+    } else {
+      aux_options.i2c_pullup = PA_12;
+    }
     return aux::AuxHardwareConfig{
       {{
           //          ADC#  CHN    I2C      SPI      USART    TIMER
@@ -479,18 +489,27 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
        MillisecondTimer* timer,
        FirmwareInfo* firmware,
        Uuid* uuid)
-      : aux1_port_("aux1", "ic_pz1", GetAux1HardwareConfig(),
+      : expander_([&]() -> std::optional<Fxl6408> {
+          if (g_measured_hw_family != 4) { return std::nullopt; }
+          Fxl6408::Options opts;
+          opts.sda = PA_12;
+          opts.scl = PB_8;
+          return Fxl6408(timer, opts);
+        }()),
+        aux1_port_("aux1", "ic_pz1", GetAux1HardwareConfig(),
                    &aux_adc_.aux_info[0],
                    persistent_config, command_manager, telemetry_manager,
                    multiplex_protocol->MakeTunnel(2),
                    timer,
-                   g_measured_hw_family != 3 ?
+                   (g_measured_hw_family != 3 &&
+                    g_measured_hw_family != 4) ?
                    AuxPort::kDefaultOnboardSpi :
                    AuxPort::kDefaultOnboardMa600,
                    (g_measured_hw_family == 1 ||
                     g_measured_hw_family == 3) ?
                    AuxPort::kDefaultUartSerial : AuxPort::kDefaultUartDisabled,
-                   {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6, DMA1_Channel7}),
+                   {DMA1_Channel3, DMA1_Channel4, DMA1_Channel5, DMA1_Channel6, DMA1_Channel7},
+                   expander_ ? &*expander_ : nullptr),
         aux2_port_("aux2", "ic_pz2", GetAux2HardwareConfig(),
                    &aux_adc_.aux_info[1],
                    persistent_config, command_manager, telemetry_manager,
@@ -498,9 +517,11 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
                    timer,
                    AuxPort::kNoDefaultSpi,
                    (g_measured_hw_family == 0 ||
-                    g_measured_hw_family == 2) ?
+                    g_measured_hw_family == 2 ||
+                    g_measured_hw_family == 4) ?
                    AuxPort::kDefaultUartSerial : AuxPort::kDefaultUartDisabled,
-                   {DMA1_Channel8, DMA2_Channel1, DMA2_Channel2, DMA2_Channel3, DMA2_Channel4}),
+                   {DMA1_Channel8, DMA2_Channel1, DMA2_Channel2, DMA2_Channel3, DMA2_Channel4},
+                   expander_ ? &*expander_ : nullptr),
         motor_position_(persistent_config, telemetry_manager,
                         aux1_port_.status(),
                         aux2_port_.status(),
@@ -1266,6 +1287,7 @@ class MoteusController::Impl : public multiplex::MicroServer::Server {
   }
 
   AuxADC aux_adc_;
+  std::optional<Fxl6408> expander_;
   AuxPort aux1_port_;
   AuxPort aux2_port_;
   MotorPosition motor_position_;

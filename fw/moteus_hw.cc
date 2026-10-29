@@ -131,6 +131,10 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
       // Family 3 boards can be identified by the external pull down
       // on PB11 and PB10 being floating.
       result.family = 3;
+    } else if (family_code == 0x00) {
+      // Family 4 boards can be identified by the external pull down
+      // on both PB10 and PB11.
+      result.family = 4;
     } else if (family_code == 0x03) {
       // If both are floating, then we are family 0 or 1.
 
@@ -208,7 +212,10 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
           }
           return -1;
         }();
-  } else if (result.family == 1 || result.family == 2 || result.family == 3) {
+  } else if (result.family == 1 ||
+             result.family == 2 ||
+             result.family == 3 ||
+             result.family == 4) {
     __HAL_RCC_ADC12_CLK_ENABLE();
 
     DisableAdc(ADC2);
@@ -248,6 +255,8 @@ FamilyAndVersion DetectMoteusFamily(MillisecondTimer* timer) {
       // We don't have any uniformly specified versions yet.
       result.hw_version = 0;
     } else if (result.family == 3) {
+      result.hw_version = 0;
+    } else if (result.family == 4) {
       result.hw_version = 0;
     }
   } else {
@@ -382,7 +391,10 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
     result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
     result.fet_thermal.coupling_W_per_K =
         { 0.1022f, 0.06614f, 0.1878f, 0.04367f, 0.08841f };
-  } else if (fv.family == 1 || fv.family == 2 || fv.family == 3) {
+  } else if (fv.family == 1 ||
+             fv.family == 2 ||
+             fv.family == 3 ||
+             fv.family == 4) {
     result.drv8323_enable = PC_14;
     result.drv8323_hiz = PC_15;
     result.drv8323_cs = PB_0;
@@ -645,6 +657,81 @@ MoteusHwPins FindHardwarePins(FamilyAndVersion fv) {
       result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
       result.fet_thermal.coupling_W_per_K =
           { 0.08442f, 0.04818f, 0.06422f, 0.1397f, 0.1203f };
+    } else if (fv.family == 4) {
+      // moteus-r5
+
+      result.power_P_l_W = 900.0f;
+      result.power_V_l = 26.0f;
+      result.power_P_h_W = 300.0f;
+      result.power_V_h = 32.0f;
+
+      // TPH2R506PL (as the moteus-r4), absolute maximum junction
+      // temperature 175 C.  Rds(on) (1.9 mOhm typical at Vgs = 10 V,
+      // 4.25 mOhm at 175 C) and Qsw (19 nC) are from the datasheet.
+      //
+      // The rest were measured on the automated thermal fixture, the
+      // constants from one complete dataset of 2026-10-29/30.  The
+      // losses (switching scale, series resistance, switching
+      // energies) and the junction's fast stage were fitted together,
+      // from fixed current runs, locked rotor pulses to 74 A at 24 V,
+      // 15 and 60 kHz (16 and 34 V, 30 and 45 kHz held out), and still
+      // air calorimetry, which also fixes the camera's lag; still air
+      // resistance and the bridge's overhead from switching only runs.
+      // The fitted voltage-current energy is negligible and left at
+      // zero.  The copper of each FET is coupled to its neighbours in
+      // the row.  The network is the best-fit board model's still air
+      // cooling, with the copper made 10% worse than fitted for unit
+      // variation and each FET's junction stage made as much worse as
+      // it needs (17 to 38%).  It is run bare and with a heat spreader
+      // on the pads.  Chosen with the mfg-moteus fixture tools so that
+      // the hotter reads at or above every measured cooling and
+      // simulated fans and heat spreaders on the FETs (made 10% worse),
+      // in steady state and in the response to a step of loss, for any
+      // mix of the losses the phases produce.  Of the networks that do,
+      // this one reads lowest for a rotating load and the worst locked
+      // rotor load together.  It is checked in closed loop with the
+      // default derating (fault 165 C) from any starting temperature
+      // and pulse: the true junction stays below 165 C.  The FETs are
+      // in one row, 5, 4, 2, 3, 1, 0, with the thermistor on FET 0's
+      // pad.
+      //
+      // The fit pins FET 0's pad to the thermistor (45 W/K), as on the
+      // moteus-n1 and moteus-c1; FET 0 then follows the thermistor's
+      // lag and read up to 6 C below the camera in 60 kHz pulses.  That
+      // tie is capped at 0.1 W/K, after which no FET of any pulse reads
+      // more than 0.2 C below the camera.
+      result.fet_thermal.rds_on_25C_ohm = 1.9e-3f;
+      result.fet_thermal.rds_on_tempco_per_C = 0.0085f;
+      result.fet_thermal.gate_switch_charge_coulomb = 19e-9f;
+      result.fet_thermal.r_junction_pad_C_per_W =
+          { 8.862f, 9.703f, 7.885f, 10.46f, 8.341f, 8.87f };
+      result.fet_thermal.tau_junction_pad_s =
+          { 0.2001f, 0.2192f, 0.1781f, 0.2363f, 0.1884f, 0.2003f };
+      result.fet_thermal.g_pad_thermistor_W_per_K =
+          { 0.1f, 9.06e-06f, 0.01296f, 9e-06f, 9e-06f, 0.001675f };
+      result.fet_thermal.g_pad_ambient_W_per_K =
+          { 0.0004495f, 0.01732f, 0.002008f, 0.02165f, 0.01742f, 0.005505f };
+      result.fet_thermal.c_pad_J_per_K = 0.3398f;
+      result.fet_thermal.c_thermistor_J_per_K = 0.3473f;
+      result.fet_thermal.c_board_J_per_K = 0.5f;
+      result.fet_thermal.g_thermistor_board_W_per_K = 0.0009f;
+      result.fet_thermal.g_thermistor_ambient_W_per_K = 0.0006585f;
+      result.fet_thermal.g_board_ambient_W_per_K = 0.03659f;
+      result.fet_thermal.thermistor_lag_s = 0.09556f;
+      result.fet_thermal.g_pad_spreader_W_per_K = 0.3f;
+      result.fet_thermal.g_spreader_ambient_W_per_K = 0.2f;
+      result.fet_thermal.c_spreader_J_per_K = 10.0f;
+      result.fet_thermal.switching_loss_scale = 0.4503f;
+      result.fet_thermal.r_extra_ohm = 0.0001016f;
+      result.fet_thermal.switching_energy_J_per_V = 2.57e-07f;
+      result.fet_thermal.switching_energy_J_per_V_A = 0.0f;
+      result.fet_thermal.switching_energy_J_per_A2 = 1.822e-08f;
+      result.fet_thermal.deadtime_diode_V_s = 2.77e-07f;
+      result.fet_thermal.network_couplings = 5;
+      result.fet_thermal.coupling_a = { 0, 1, 2, 2, 4 };
+      result.fet_thermal.coupling_b = { 1, 3, 3, 4, 5 };
+      result.fet_thermal.coupling_W_per_K =
+          { 0.08453f, 0.04468f, 0.07114f, 0.09191f, 0.05356f };
     } else {
       MJ_ASSERT(false);
     }

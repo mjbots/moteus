@@ -29,7 +29,7 @@ Similarly, manipulating or working on the system while it is energized should be
 
 moteus-n1 has a voltage regulator which is light sensitive and will fail when exposed to sunlight.  The enclosure used to house the system should be opaque.  If for some reason an enclosure can not be used, opaque expoxy can be placed over the voltage regulator IC.
 
-moteus-c1, moteus-r4 and moteus-x1 have no light sensitivity considerations to take into account.
+moteus-c1, moteus-r4, moteus-r5 and moteus-x1 have no light sensitivity considerations to take into account.
 
 ## Next Steps
 

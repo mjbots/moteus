@@ -41,6 +41,16 @@ struct AuxPinConfig {
 
 struct AuxExtraOptions {
   PinName i2c_pullup = NC;
+  // When >= 0, the I2C pullup for this port is controlled by the given
+  // bit on the shared I/O expander.  The bit drives a PFET gate and is
+  // active low: the output is driven low to enable the pullup and high
+  // to disable it.  Only one of i2c_pullup or i2c_pullup_expander_bit
+  // should be set per port.
+  int i2c_pullup_expander_bit = -1;
+  // When >= 0, the hall input filter for this port is controlled by the
+  // given bit on the shared I/O expander.  The bit is active high: the
+  // output is driven high to enable the filter and low to disable it.
+  int hall_filter_expander_bit = -1;
   PinName rs422_re = NC;
   PinName rs422_de = NC;
 };

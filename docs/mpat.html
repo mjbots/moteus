@@ -494,6 +494,10 @@ const fieldDefinitions = {
         help: html`46×53mm, 14.2g, 900W peak, 10-42V - <a href="https://mjbots.com/products/moteus-r4-11" target="_blank">product page</a>`,
         model: () => new MoteusR4()
       },
+      'moteus-r5': {
+        help: html`40×40×9mm, 10.0g, 600W peak, 10-34V - <a href="https://mjbots.com/products/moteus-r5" target="_blank">product page</a>`,
+        model: () => new MoteusR5()
+      },
       'moteus-n1': {
         help: html`46×46×8mm, 14.6g, 2kW peak, 10-54V - <a href="https://mjbots.com/products/moteus-n1" target="_blank">product page</a>`,
         model: () => new MoteusN1()
@@ -2663,6 +2667,96 @@ class MoteusR4 extends MoteusController {
       'heatspreader':  {R: 8.6,  C:13.9, P:0},
       '4030sink':      {R: 6.2,  C:19.4, P:0},
       'max':           {R: 2.4,  C:12.7, P:2.0},
+    });
+  }
+}
+
+class MoteusR5 extends MoteusController {
+  constructor() {
+    super({
+      name: 'moteus-r5',
+      maxTemp: 80.0,
+      maxCurrent: 100.0,
+      maxVoltage: 34.0,
+      P_l_W: 900.0,
+      V_l: 26.0,
+      P_h_W: 300.0,
+      V_h: 32.0,
+      defaultPwm: 20000,
+      // Mirrors the firmware FetThermalParams for the moteus-r5 in
+      // fw/moteus_hw.cc, measured on the automated thermal fixture on
+      // 2026-10-29/30: one board network, run bare and with a heat
+      // spreader, each FET's estimate the hotter.  The firmware derates
+      // from 140C to 165C, keeping the true junction 10C below the
+      // FETs' 175C absolute maximum; 150C is 40% of the way through
+      // that band.
+      maxJunctionTemp: 150.0,
+      fetThermal: {
+        rds_on_25C_ohm: 0.0019,
+        rds_on_tempco_per_C: 0.0085,
+        gate_switch_charge_coulomb: 1.9e-08,
+        r_junction_pad_C_per_W: [8.862, 9.703, 7.885, 10.46, 8.341, 8.87],
+        tau_junction_pad_s: [0.2001, 0.2192, 0.1781, 0.2363, 0.1884, 0.2003],
+        g_pad_thermistor_W_per_K: [
+          0.1, 9.06e-06, 0.01296, 9e-06, 9e-06, 0.001675],
+        g_pad_ambient_W_per_K: [
+          0.0004495, 0.01732, 0.002008, 0.02165, 0.01742, 0.005505],
+        c_pad_J_per_K: 0.3398,
+        c_thermistor_J_per_K: 0.3473,
+        c_board_J_per_K: 0.5,
+        g_thermistor_board_W_per_K: 0.0009,
+        g_thermistor_ambient_W_per_K: 0.0006585,
+        g_board_ambient_W_per_K: 0.03659,
+        thermistor_lag_s: 0.09556,
+        g_pad_spreader_W_per_K: 0.3,
+        g_spreader_ambient_W_per_K: 0.2,
+        c_spreader_J_per_K: 10,
+        switching_loss_scale: 0.4503,
+        r_extra_ohm: 0.0001016,
+        switching_energy_J_per_V: 2.57e-07,
+        switching_energy_J_per_V_A: 0,
+        switching_energy_J_per_A2: 1.822e-08,
+        deadtime_diode_V_s: 2.77e-07,
+        network_couplings: 5,
+        coupling_a: [0, 1, 2, 2, 4],
+        coupling_b: [1, 3, 3, 4, 5],
+        coupling_W_per_K: [0.08453, 0.04468, 0.07114, 0.09191, 0.05356],
+        // Firmware default gate drive strengths (DRV8353).
+        gate: { hs_source_A: 0.05, hs_sink_A: 0.10,
+                ls_source_A: 0.05, ls_sink_A: 0.30 },
+        // Low side current sense shunt, in series with each low side
+        // FET; its dissipation is attributed to that FET.
+        shunt_ohm: 0.0005,
+      },
+    },
+    {
+      'voltages' : [12, 24, 34],
+      'pwms' : [15000, 20000, 24000, 30000, 40000, 60000],
+      'k0' : [[0.976, 0.943, 1.313],
+              [0.936, 1.131, 1.516],
+              [1.035, 1.350, 1.600],
+              [1.014, 1.334, 1.665],
+              [1.057, 1.440, 1.858],
+              [1.040, 1.688, 2.206]],
+      'k1' : [[-0.019, 0.069, 0.089],
+              [0.041, 0.108, 0.102],
+              [0.031, 0.102, 0.137],
+              [0.059, 0.127, 0.174],
+              [0.083, 0.192, 0.242],
+              [0.196, 0.363, 0.483]],
+      'k2' : [[0.011, 0.009, 0.010],
+              [0.009, 0.009, 0.012],
+              [0.011, 0.013, 0.012],
+              [0.010, 0.015, 0.015],
+              [0.012, 0.016, 0.018],
+              [0.012, 0.016, 0.012]],
+    },
+    {
+      'none' :         {R: 10.7,  C:13.1, P:0},
+      'fan_5v' :       {R: 2.5,  C:13.1, P:0.29},
+      'heatspreader':  {R: 9.8,  C:32.2, P:0},
+      '4030sink':      {R: 7.9,  C:60.2, P:0},
+      'max':           {R: 2.5,  C:13.1, P:2.0},
     });
   }
 }

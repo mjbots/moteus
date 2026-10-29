@@ -8,6 +8,10 @@
 
 <img src="../r4/moteus-r4-pinout-rendered.svg" width="100%" />
 
+## moteus-r5
+
+<img src="../r5/moteus-r5-pinout-rendered.svg" width="100%" />
+
 ## moteus-x1
 
 <img src="../x1/moteus-x1-pinout-rendered.svg" width="100%" />

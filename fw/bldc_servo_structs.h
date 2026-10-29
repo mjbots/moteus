@@ -500,6 +500,7 @@ struct BldcServoConfig {
        g_measured_hw_rev <= 2) ? 60000 :
       g_measured_hw_family == 1 ? 20000 :
       g_measured_hw_family == 3 ? 15000 :
+      g_measured_hw_family == 4 ? 20000 :
       30000;
 
   float current_sense_ohm =
@@ -513,6 +514,7 @@ struct BldcServoConfig {
       g_measured_hw_family == 1 ? 56.0f :
       g_measured_hw_family == 2 ? 54.0f :
       g_measured_hw_family == 3 ? 56.0f :
+      g_measured_hw_family == 4 ? 36.0f :
       invalid_float()
       ;
 
@@ -528,10 +530,11 @@ struct BldcServoConfig {
   // If we are within this many degrees C of the `fault_temperature`,
   // begin limiting current.
   float temperature_margin =
-      (g_measured_hw_family == 3) ? 15.0f :
+      (g_measured_hw_family == 3 || g_measured_hw_family == 4) ? 15.0f :
       25.0f;
   float fault_temperature =
       (g_measured_hw_family == 3) ? 105.0f :
+      (g_measured_hw_family == 4) ? 85.0f :
       75.0f;
 
   // The FET junction temperature is estimated from the phase
@@ -542,7 +545,7 @@ struct BldcServoConfig {
   // the `fet_model` telemetry.  The estimate's constants for each
   // board keep the true junction, under this derating, 10 C or more
   // below its FETs' absolute maximum: 175 C on the moteus-r4,
-  // moteus-n1 and moteus-c1, 150 C on the moteus-x1.
+  // moteus-r5, moteus-n1 and moteus-c1, 150 C on the moteus-x1.
   float fet_junction_temperature_margin = 25.0f;
   float fet_junction_fault_temperature =
       (g_measured_hw_family == 3) ? 140.0f :
@@ -643,7 +646,9 @@ struct BldcServoConfig {
 
   // If positive, configure flux braking to occur this many volts
   // below 'max_voltage'.
-  float flux_brake_margin_voltage = 3.0f;
+  float flux_brake_margin_voltage =
+      (g_measured_hw_family == 4) ? 2.5f :
+      3.0f;
   float flux_brake_resistance_ohm = 0.025f;
 
   // Maximum power (watts) allowed to regenerate back to the bus.
@@ -658,14 +663,16 @@ struct BldcServoConfig {
 
   float max_current_A =
       (g_measured_hw_family == 0 ||
-       g_measured_hw_family == 1) ? 100.0f :
+       g_measured_hw_family == 1 ||
+       g_measured_hw_family == 4) ? 100.0f :
       g_measured_hw_family == 2 ? 20.0f :
       g_measured_hw_family == 3 ? 120.0f :
       invalid_float();
   float derate_current_A =
       (g_measured_hw_family == 0 ||
        g_measured_hw_family == 1 ||
-       g_measured_hw_family == 3) ? -20.0f :
+       g_measured_hw_family == 3 ||
+       g_measured_hw_family == 4) ? -20.0f :
       g_measured_hw_family == 2 ? -3.0f :
       invalid_float();
 

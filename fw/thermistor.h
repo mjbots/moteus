@@ -21,7 +21,15 @@ namespace moteus {
 /// reading.
 class Thermistor {
  public:
-  Thermistor() {}
+  // Which side of the voltage divider holds the NTC thermistor.
+  // The fixed resistor is on the opposite side.
+  enum NtcSide {
+    kHigh,  // NTC on high side (toward Vcc), R on low side (toward GND)
+    kLow,   // NTC on low side (toward GND), R on high side (toward Vcc)
+  };
+
+  Thermistor(NtcSide ntc_side = kHigh)
+      : ntc_side_(ntc_side) {}
 
   void Reset(float resistance_ohm) {
     for (size_t i = 0; i < table_.size(); i++) {
@@ -50,12 +58,15 @@ class Thermistor {
     constexpr float B = 4050.0f;
     constexpr float R = 10000.0f;  // The resistor divider pair.
 
-    float r_t = 3.3f * R / v - R;
+    const float r_t = (ntc_side_ == kHigh) ?
+        (3.3f * R / v - R) :
+        (R * v / (3.3f - v));
     return (1.0f / (1.0f / (273.15f + 25.0f) +
                     (1.0f / B) *  std::log(r_t / thermistor_value)) -
             273.15f);
   }
 
+  const NtcSide ntc_side_;
   std::array<float, 32> table_ = {};
 };
 }

@@ -1063,7 +1063,7 @@ class MpatTest(unittest.TestCase):
 
         # The hardware family of each controller, as in fw/moteus_hw.cc.
         families = {'moteus-r4': 0, 'moteus-n1': 1, 'moteus-c1': 2,
-                    'moteus-x1': 3}
+                    'moteus-x1': 3, 'moteus-r5': 4}
         self.assertEqual(sorted(families), sorted(mpat))
         for name, family in families.items():
             fault = fault_by_family.get(family, fault_default)

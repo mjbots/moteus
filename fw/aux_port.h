@@ -36,6 +36,7 @@
 #include "fw/ccm.h"
 #include "fw/cui_amt21.h"
 #include "fw/cui_amt22.h"
+#include "fw/fxl6408.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
 #include "fw/orbis.h"
@@ -82,7 +83,8 @@ class AuxPort {
           MillisecondTimer* timer,
           SpiDefault spi_default,
           UartDefault uart_default,
-          std::array<DMA_Channel_TypeDef*, 5> dma_channels)
+          std::array<DMA_Channel_TypeDef*, 5> dma_channels,
+          Fxl6408* expander = nullptr)
       : pin_count_(std::max_element(
                        hw_config.pins.begin(), hw_config.pins.end(),
                        [](const auto& a, const auto& b) {
@@ -92,6 +94,7 @@ class AuxPort {
         adc_info_(*adc_info),
         hw_config_(hw_config),
         dma_channels_(dma_channels),
+        expander_(expander),
         spi_default_(spi_default),
         uart_default_(uart_default) {
     persistent_config->Register(aux_name, &config_,
@@ -818,6 +821,13 @@ class AuxPort {
     // Disable our ISR before changing any config.
     any_isr_enabled_ = false;
 
+    // Flush any staged expander changes when we leave this function,
+    // regardless of which return path we take.
+    struct ExpanderApplyOnExit {
+      Fxl6408* expander;
+      ~ExpanderApplyOnExit() { if (expander) { expander->Apply(); } }
+    } apply_on_exit{expander_};
+
     const auto old_epoch = status_.epoch;
 
     status_ = {};
@@ -832,6 +842,17 @@ class AuxPort {
       // Construct, then destroy a DigitalInput to get the pin to be
       // tri-stated again.
       DigitalIn din(hw_config_.options.i2c_pullup);
+    }
+    if (expander_ && hw_config_.options.i2c_pullup_expander_bit >= 0) {
+      // The expander pullup bit drives a PFET gate and is active low.
+      // Drive it high to keep the PFET (and thus the pullup) off.  We
+      // must not tri-state it, or the gate would float.
+      expander_->SetAsOutput(hw_config_.options.i2c_pullup_expander_bit, true);
+    }
+    if (expander_ && hw_config_.options.hall_filter_expander_bit >= 0) {
+      // Default the hall input filter off (active high); the hall config
+      // below re-enables it if requested.
+      expander_->SetAsOutput(hw_config_.options.hall_filter_expander_bit, false);
     }
     i2c_state_ = {};
 
@@ -1004,14 +1025,23 @@ class AuxPort {
         return;
       }
 
-      if (hw_config_.options.i2c_pullup != NC) {
-        if (config_.i2c.pullup) {
-          i2c_pullup_dout_.emplace(hw_config_.options.i2c_pullup, 1);
-          i2c_pullup_dout_->write(1);
-        }
-      } else if (config_.i2c.pullup) {
+      const int pullup_bit = hw_config_.options.i2c_pullup_expander_bit;
+      const bool has_pullup_hw =
+          (hw_config_.options.i2c_pullup != NC) ||
+          (expander_ != nullptr && pullup_bit >= 0);
+      if (config_.i2c.pullup && !has_pullup_hw) {
         status_.error = aux::AuxError::kI2cPinError;
         return;
+      }
+      if (config_.i2c.pullup) {
+        if (hw_config_.options.i2c_pullup != NC) {
+          i2c_pullup_dout_.emplace(hw_config_.options.i2c_pullup, 1);
+          i2c_pullup_dout_->write(1);
+        } else {
+          // The expander pullup bit is active low (it drives a PFET
+          // gate), so drive it low to enable the pullup.
+          expander_->SetAsOutput(pullup_bit, false);
+        }
       }
 
       i2c_.emplace(
@@ -1188,6 +1218,24 @@ class AuxPort {
         }
       }
       updated_any_isr = true;
+    }
+
+    {
+      // Hall input filter, driven by a bit on the shared I/O expander
+      // (active high).  Only present on some ports (e.g. aux2 on the
+      // moteus-r5); requesting it where there is no such hardware is a
+      // configuration error.
+      const int hall_filter_bit = hw_config_.options.hall_filter_expander_bit;
+      const bool has_hall_filter_hw =
+          (expander_ != nullptr && hall_filter_bit >= 0);
+      if (config_.hall.filt && !has_hall_filter_hw) {
+        status_.error = aux::AuxError::kHallPinError;
+        return;
+      }
+      if (has_hall_filter_hw) {
+        // Drive the bit high to enable the filter, low to disable it.
+        expander_->SetAsOutput(hall_filter_bit, config_.hall.filt);
+      }
     }
 
     if (config_.quadrature.enabled) {
@@ -1600,6 +1648,7 @@ class AuxPort {
   std::optional<DigitalOut> i2c_pullup_dout_;
   const aux::AuxHardwareConfig hw_config_;
   const std::array<DMA_Channel_TypeDef*, 5> dma_channels_;
+  Fxl6408* const expander_ = nullptr;
   const SpiDefault spi_default_;
   const UartDefault uart_default_;
 

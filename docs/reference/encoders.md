@@ -57,6 +57,7 @@ They can provide power to external devices in addition to I/O pins:
 |-----------------|----------|---------|----------|
 | moteus-r4.5     | 50mA     | N/A     | N/A      |
 | moteus-r4.8-4.11| 100mA    | N/A     | N/A      |
+| moteus-r5       | 50mA     | 100mA   | N/A      |
 | moteus-c1       | 50mA     | 100mA   | N/A      |
 | moteus-n1       | 100mA    | 200mA   | N/A      |
 | moteus-x1       | 100mA    | 200mA   | 150mA    |
@@ -94,9 +95,9 @@ They can provide power to external devices in addition to I/O pins:
 
 Note: For moteus r4.5/8/11, DBG 1/2 are not present on the ABS connector, but are exposed pads on the circuit board.
 
-### c1 Pins
+### c1 / r5 Pins
 
-The moteus-c1 has limited AUX1 port availability. Only pins D and E from AUX1 are exposed on an unpopulated 0.05" through-hole land pattern. I2C pullups are not available on moteus-c1 for aux1.
+The moteus-c1 and moteus-r5 have limited AUX1 port availability. Only pins D and E from AUX1 are exposed on an unpopulated 0.05" through-hole land pattern. I2C pullups are not available on moteus-c1 or moteus-r5 for aux1.
 
 | moteus c1  | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
 |------------|-----|-----|------|-------------|-----|-------------|------|-----|
@@ -120,9 +121,9 @@ Note: For moteus n1, the B pin software configured pullup cannot be used effecti
 
 Note: The moteus n1 and x1 have a hardware RS422 transceiver connected to aux1's pins D and E which can be enabled through configuration. RS485 devices like the CUI AMT21x can be used if the RS422 pin Y is connected to A and RS422 pin Z is connected to B.
 
-### c1/n1/x1 Pins (AUX2/ABS)
+### c1/r5/n1/x1 Pins (AUX2/ABS)
 
-| moteus n1/x1  | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
+| moteus        | Con | AUX | SPI  | ADC/Sin/Cos | I2C | HW Quad/PWM | UART | 5VT |
 |---------------|-----|-----|------|-------------|-----|-------------|------|-----|
 | 5V (5)        | 1   |     |      |             |     |             |      |     |
 | 3.3V (3)      | 2   |     |      |             |     |             |      |     |

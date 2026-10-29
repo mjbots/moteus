@@ -115,6 +115,7 @@ MOTEUS_SOURCES = [
     "drv8323.h",
     "drv8323.cc",
     "error.cc",
+    "fxl6408.h",
     "hardfault.s",
     "firmware_info.h",
     "firmware_info.cc",

@@ -177,11 +177,16 @@ struct Hall {
   struct Config {
     bool enabled = false;
     uint8_t polarity = 0;
+    // Enable the hall input filter.  Only supported on hardware that
+    // wires the filter to the shared I/O expander (e.g. aux2 on the
+    // moteus-r5); requesting it elsewhere is a configuration error.
+    bool filt = false;
 
     template <typename Archive>
     void Serialize(Archive* a) {
       a->Visit(MJ_NVP(enabled));
       a->Visit(MJ_NVP(polarity));
+      a->Visit(MJ_NVP(filt));
     }
   };
 
