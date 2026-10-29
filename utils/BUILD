@@ -138,6 +138,7 @@ py_test(
         "@bazel_tools//tools/python/runfiles",
     ],
     size = "small",
+    shard_count = 4,
 )
 
 # Extract core computation logic from mpat.html for CLI use
