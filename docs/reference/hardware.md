@@ -31,7 +31,7 @@ the maximum allowable power at the default configured PWM rate.
 | moteus-c1  | <= 28V 250W  | linear derated | >= 41V 150W      | 30kHz       |
 | moteus-r4  | <= 30V 900W  | linear derated | >= 38V 400W      | 30kHz       |
 | moteus-r5  | <= 26V 600W  | linear derated | >= 32V 200W      | 20kHz       |
-| moteus-n1  | <= 36V 2000W | linear derated | >= 44V 1000W     | 30kHz       |
+| moteus-n1  | <= 36V 1333W | linear derated | >= 44V 667W      | 20kHz       |
 | moteus-x1  | <= 36V 1000W | linear derated | >= 44V 500W      | 15kHz       |
 
 For other values of `servo.pwm_rate_hz`, the allowable maximum power
