@@ -18,6 +18,7 @@
 
 import json
 import math
+import os
 import re
 import subprocess
 import unittest
@@ -1630,6 +1631,31 @@ class MpatTest(unittest.TestCase):
             geared["velocity"], direct["velocity"] / 2.0, places=2)
         self.assertLimitingFactor(direct, "back_emf")
         self.assertLimitingFactor(geared, "back_emf")
+
+
+def _flatten(suite):
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from _flatten(item)
+        else:
+            yield item
+
+
+def load_tests(loader, tests, pattern):
+    """Run only this shard's subset of tests when bazel shards the
+    test via shard_count."""
+    status_file = os.environ.get("TEST_SHARD_STATUS_FILE")
+    if status_file:
+        open(status_file, "a").close()
+
+    total_shards = int(os.environ.get("TEST_TOTAL_SHARDS", "1"))
+    shard_index = int(os.environ.get("TEST_SHARD_INDEX", "0"))
+    if total_shards <= 1:
+        return tests
+
+    return unittest.TestSuite(
+        test for i, test in enumerate(_flatten(tests))
+        if i % total_shards == shard_index)
 
 
 if __name__ == "__main__":
