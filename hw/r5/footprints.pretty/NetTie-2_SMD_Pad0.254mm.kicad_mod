@@ -1,0 +1,26 @@
+(footprint "NetTie-2_SMD_Pad0.254mm" (version 20221018) (generator pcbnew)
+  (layer "F.Cu")
+  (descr "Net tie, 2 pin, 0.5mm square SMD pads")
+  (tags "net tie")
+  (attr exclude_from_pos_files exclude_from_bom)
+  (net_tie_pad_groups "1, 2")
+  (fp_text reference "REF**" (at 0 -1.2) (layer "F.SilkS") hide
+      (effects (font (size 1 1) (thickness 0.15)))
+    (tstamp eba058f4-175e-4413-b550-93e1748b898d)
+  )
+  (fp_text value "NetTie-2_SMD_Pad0.254mm" (at 0 1.2) (layer "F.Fab") hide
+      (effects (font (size 1 1) (thickness 0.15)))
+    (tstamp 55decc6c-ccba-49a9-9c58-e53b55d22ed2)
+  )
+  (fp_poly
+    (pts
+      (xy -0.31 -0.297)
+      (xy 0.3 -0.297)
+      (xy 0.3 0.297)
+      (xy -0.31 0.297)
+    )
+
+    (stroke (width 0) (type solid)) (fill solid) (layer "F.Cu") (tstamp 4c587801-35de-4fc4-895b-9942aca7f89f))
+  (pad "1" smd circle (at -0.3 0) (size 0.6 0.6) (layers "F.Cu") (tstamp 1745e8e7-cb05-4e0c-be57-60ff31465fb9))
+  (pad "2" smd circle (at 0.3 0) (size 0.6 0.6) (layers "F.Cu") (tstamp b531e0f4-5d47-4a72-8a54-a3eaafb85b86))
+)
