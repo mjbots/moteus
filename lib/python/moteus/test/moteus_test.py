@@ -988,5 +988,84 @@ class StreamFlowControlTest(unittest.TestCase):
         asyncio.run(test())
 
 
+class _FakeDiagnosticResult:
+    def __init__(self, data):
+        self.data = data
+
+
+class _FakeDiagnosticController:
+    """Just enough of a Controller for Stream, without flow control.
+
+    Each entry in 'responses' is the data returned by one poll, b''
+    meaning nothing was available."""
+
+    max_diagnostic_write = 61
+
+    def __init__(self):
+        self.responses = []
+        self.written = []
+
+    async def send_diagnostic_write(self, data, channel):
+        self.written.append(data)
+
+    async def diagnostic_read(self, max_length, channel):
+        data = self.responses.pop(0) if self.responses else b''
+        return [_FakeDiagnosticResult(data)]
+
+
+class StreamPollBackoffTest(unittest.TestCase):
+    def _run(self, coro_fn):
+        sleeps = []
+        orig_sleep = asyncio.sleep
+
+        async def fake_sleep(delay, *args, **kwargs):
+            sleeps.append(round(delay, 6))
+            await orig_sleep(0)
+
+        async def test():
+            asyncio.sleep = fake_sleep
+            try:
+                controller = _FakeDiagnosticController()
+                stream = mot.Stream(controller, use_flow_control=False)
+                return await coro_fn(controller, stream)
+            finally:
+                asyncio.sleep = orig_sleep
+
+        return asyncio.run(test()), sleeps
+
+    def test_backoff_grows_to_cap(self):
+        async def fn(controller, stream):
+            await stream.write_message(b'tel get foo')
+            controller.responses = [b''] * 6 + [b'emit foo\r\n']
+            return await stream.readline()
+
+        result, sleeps = self._run(fn)
+        self.assertEqual(result, b'emit foo')
+        self.assertEqual(sleeps, [0.001, 0.002, 0.004, 0.008, 0.01, 0.01])
+
+    def test_write_and_data_reset_backoff(self):
+        async def fn(controller, stream):
+            controller.responses = [b''] * 4 + [b'1']
+            await stream.read(1)
+            # Data arrived, so the next empty poll waits the minimum.
+            controller.responses = [b'', b'2']
+            await stream.read(1)
+            # Back off again, then a write resets it.
+            controller.responses = [b''] * 3 + [b'3']
+            await stream.read(1)
+            await stream.write_message(b'foo')
+            controller.responses = [b'', b'4']
+            return await stream.read(1)
+
+        result, sleeps = self._run(fn)
+        self.assertEqual(result, b'4')
+        self.assertEqual(sleeps, [
+            0.001, 0.002, 0.004, 0.008,
+            0.001,
+            0.001, 0.002, 0.004,
+            0.001,
+        ])
+
+
 if __name__ == '__main__':
     unittest.main()

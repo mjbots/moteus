@@ -1246,6 +1246,24 @@ class Stream:
         self._readers = {}
         self._maxlen = controller.max_diagnostic_write
 
+        self._poll_backoff_s = self.POLL_BACKOFF_MIN_S
+
+    # When a diagnostic poll returns no data, we wait before polling
+    # again.  The wait starts short, so that the response to something
+    # we just wrote is picked up promptly, and doubles up to a cap
+    # while nothing arrives, so that an idle stream (an open console,
+    # say) polls no faster than with a fixed delay.
+    POLL_BACKOFF_MIN_S = 0.001
+    POLL_BACKOFF_MAX_S = 0.010
+
+    def _reset_poll_backoff(self):
+        self._poll_backoff_s = self.POLL_BACKOFF_MIN_S
+
+    async def _poll_backoff(self):
+        await asyncio.sleep(self._poll_backoff_s)
+        self._poll_backoff_s = min(
+            self._poll_backoff_s * 2, self.POLL_BACKOFF_MAX_S)
+
     def write(self, data):
         self._write_data += data
 
@@ -1256,6 +1274,9 @@ class Stream:
             async with self.lock:
                 await self.controller.send_diagnostic_write(
                     data=to_write, channel=self.channel)
+
+            # A response may be on its way.
+            self._reset_poll_backoff()
 
     async def _read_with_flow_control(self, bytes_to_request):
         """Read using flow control protocol with acknowledgments."""
@@ -1329,8 +1350,9 @@ class Stream:
             self._read_data += this_data
 
             if len(this_data) == 0:
-                # Wait a bit before asking again.
-                await asyncio.sleep(0.01)
+                await self._poll_backoff()
+            else:
+                self._reset_poll_backoff()
 
         to_return, self._read_data = self._read_data[0:size], self._read_data[size:]
         return to_return
@@ -1369,7 +1391,9 @@ class Stream:
             self._read_data += this_data
 
             if len(this_data) == 0:
-                await asyncio.sleep(0.01)
+                await self._poll_backoff()
+            else:
+                self._reset_poll_backoff()
 
         first_newline = min((self._read_data.find(c) for c in b'\r\n'
                              if c in self._read_data), default=None)
