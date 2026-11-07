@@ -74,7 +74,7 @@ Erroneous release with no changelog
 
 ### Unreleased
 
-(no entries yet)
+- Fix "TypeError: exceptions must derive from BaseException" when using the default transport from more than one event loop, for instance by calling asyncio.run() more than once.  A new default transport is now created once the event loop of the previous one has finished.
 
 ### 1.1.3 - 2026-11-07
 

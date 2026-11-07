@@ -15,6 +15,7 @@
 # limitations under the License.
 
 
+import asyncio
 import unittest
 import unittest.mock
 import warnings
@@ -107,6 +108,103 @@ class TransportFactoryTest(unittest.TestCase):
 
         names = [f.name for f in result]
         self.assertEqual(names, ['fdcanusb', 'pythoncan', 'good'])
+
+
+
+class _FakeDevice:
+    def __init__(self):
+        self.closed = False
+
+    def parent(self):
+        return None
+
+    def close(self):
+        self.closed = True
+
+
+class _FakeFactory:
+    PRIORITY = 1
+    name = 'fake'
+
+    def __init__(self):
+        self.devices = []
+
+    def __call__(self, args):
+        device = _FakeDevice()
+        self.devices.append(device)
+        return [device]
+
+    def is_args_set(self, args):
+        return False
+
+
+class SingletonTransportTest(unittest.TestCase):
+    def setUp(self):
+        self.factory = _FakeFactory()
+        self.patchers = [
+            unittest.mock.patch(
+                'moteus.transport_factory.get_transport_factories',
+                return_value=[self.factory]),
+            unittest.mock.patch(
+                'moteus.transport_factory.check_gui_compatibility'),
+        ]
+        for p in self.patchers:
+            p.start()
+        transport_factory.GLOBAL_TRANSPORT = None
+        transport_factory.GLOBAL_TRANSPORT_LOOP = None
+
+    def tearDown(self):
+        for p in self.patchers:
+            p.stop()
+        transport_factory.GLOBAL_TRANSPORT = None
+        transport_factory.GLOBAL_TRANSPORT_LOOP = None
+
+    def test_same_loop_reuses_transport(self):
+        async def get_two():
+            return (transport_factory.get_singleton_transport(),
+                    transport_factory.get_singleton_transport())
+
+        first, second = asyncio.run(get_two())
+        self.assertIs(first, second)
+        self.assertEqual(len(self.factory.devices), 1)
+
+    def test_new_transport_after_event_loop_finishes(self):
+        # Transport devices are tied to the event loop they were
+        # created on, so a program that calls asyncio.run() more than
+        # once needs a new transport each time.
+        async def get():
+            return transport_factory.get_singleton_transport()
+
+        first = asyncio.run(get())
+        second = asyncio.run(get())
+
+        self.assertIsNot(first, second)
+        self.assertEqual(len(self.factory.devices), 2)
+        self.assertTrue(self.factory.devices[0].closed)
+        self.assertFalse(self.factory.devices[1].closed)
+
+    def test_other_running_loop_keeps_transport(self):
+        # If the loop the transport was created on is still running
+        # (in another thread, say), keep returning it rather than
+        # closing it out from under that loop.
+        import threading
+
+        async def get():
+            return transport_factory.get_singleton_transport()
+
+        other_loop = asyncio.new_event_loop()
+        thread = threading.Thread(target=other_loop.run_forever)
+        thread.start()
+        try:
+            first = asyncio.run_coroutine_threadsafe(get(), other_loop).result()
+            second = asyncio.run(get())
+        finally:
+            other_loop.call_soon_threadsafe(other_loop.stop)
+            thread.join()
+            other_loop.close()
+
+        self.assertIs(first, second)
+        self.assertFalse(self.factory.devices[0].closed)
 
 
 if __name__ == '__main__':

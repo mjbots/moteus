@@ -267,7 +267,17 @@ class FdcanusbDevice(TransportDevice):
 
     async def _ensure_reader_started(self):
         if self._reader_task and self._reader_task.done():
-            raise self._reader_task.exception()
+            if (not self._reader_task.cancelled() and
+                    self._reader_task.exception() is not None):
+                raise self._reader_task.exception()
+            # The reader stopped without an error, which happens when
+            # the device is closed, or when the event loop it was
+            # running on finished (e.g. a previous asyncio.run()).
+            # The serial port is tied to that loop too, so it can't
+            # simply be restarted.
+            raise RuntimeError(
+                f'{self} is no longer running: it was closed, or was '
+                'created on an event loop that has since finished')
 
         if self._reader_task is None and self._running:
             self._reader_task = asyncio.create_task(self._reader_loop())

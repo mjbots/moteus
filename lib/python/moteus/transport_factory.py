@@ -14,6 +14,7 @@
 
 
 import argparse
+import asyncio
 import importlib_metadata
 import sys
 import typing
@@ -142,6 +143,19 @@ def get_transport_factories():
 
 GLOBAL_TRANSPORT = None
 
+# The event loop GLOBAL_TRANSPORT was created on, if any.  Transport
+# devices (an fdcanusb's serial port reader, for instance) are tied to
+# that loop, so a program that calls asyncio.run() more than once
+# needs a new transport for each.
+GLOBAL_TRANSPORT_LOOP = None
+
+
+def _get_running_loop_or_none():
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
 
 def make_transport_args(parser):
     """Add transport specific arguments to an argparse.ArgumentParser
@@ -193,17 +207,33 @@ def get_singleton_transport(args=None):
     Returns:
         a moteus.Transport object
     """
-    global GLOBAL_TRANSPORT
+    global GLOBAL_TRANSPORT, GLOBAL_TRANSPORT_LOOP
+
+    loop = _get_running_loop_or_none()
 
     if GLOBAL_TRANSPORT:
-        return GLOBAL_TRANSPORT
+        if (GLOBAL_TRANSPORT_LOOP is not None and
+                GLOBAL_TRANSPORT_LOOP.is_closed() and
+                loop is not None):
+            # The loop this transport was created on has finished,
+            # so it can no longer be used.  Make a new one.
+            try:
+                GLOBAL_TRANSPORT.close()
+            except Exception:
+                pass
+            GLOBAL_TRANSPORT = None
+            GLOBAL_TRANSPORT_LOOP = None
+        else:
+            if GLOBAL_TRANSPORT_LOOP is None:
+                GLOBAL_TRANSPORT_LOOP = loop
+            return GLOBAL_TRANSPORT
 
     # We check this here because it will likely only be called once
     # per application instance, and will nearly always be called by
     # the GUI.
     check_gui_compatibility()
 
-    if args and args.can_debug:
+    if args and isinstance(args.can_debug, str):
         args.can_debug = open(args.can_debug, 'wb')
 
     maybe_result = None
@@ -264,4 +294,5 @@ def get_singleton_transport(args=None):
             ','.join([str(x) for x in errors])))
 
     GLOBAL_TRANSPORT = transport.Transport(devices)
+    GLOBAL_TRANSPORT_LOOP = loop
     return GLOBAL_TRANSPORT

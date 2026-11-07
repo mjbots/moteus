@@ -134,6 +134,32 @@ class FdcanusbTest(FdcanusbTestBase):
         self.run_async(test())
 
 
+    def test_use_after_event_loop_finished(self):
+        # The reader task, and the serial port, belong to the event
+        # loop the device was created on.  Once that loop has
+        # finished, using the device should fail with an explanation,
+        # rather than 'TypeError: exceptions must derive from
+        # BaseException'.
+        async def make():
+            return fdcanusb.FdcanusbDevice()
+        dut = self.run_async(make())
+
+        # Finish the loop the way asyncio.run() does.
+        pending = asyncio.all_tasks(self.loop)
+        for task in pending:
+            task.cancel()
+        self.loop.run_until_complete(
+            asyncio.gather(*pending, return_exceptions=True))
+
+        loop2 = asyncio.new_event_loop()
+        try:
+            with self.assertRaisesRegex(RuntimeError, 'event loop'):
+                loop2.run_until_complete(
+                    asyncio.wait_for(dut.receive_frame(), timeout=1.0))
+        finally:
+            loop2.close()
+
+
 class FdcanusbTimeoutRetryTest(FdcanusbTestBase):
     """Tests for FdcanusbDevice timeout and retry behavior."""
 
