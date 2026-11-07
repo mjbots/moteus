@@ -15,7 +15,7 @@ heading to the version and date.
 
 (no entries yet)
 
-### 1.1.1 - 2026-08-04
+### 1.1.2 - 2026-08-04
 
 - Change the default gate drive strength for moteus-n1 to the values which it was qualified at.  When the moteus-c1 was introduced, the moteus-n1 was accidentally set to more aggressive gate drive strength values.  This could result in increased gate drive failure rates with poor phase wire soldering or input voltages above 36V.
 - Improve hall effect performance
@@ -32,6 +32,10 @@ heading to the version and date.
   - moteus-n1: AUX1
   - moteus-c1: AUX2
   - moteus-x1: AUX1
+
+### 1.1.1 - 2026-08-04
+
+Erroneous release with no changelog
 
 ### 1.1.0 - 2026-08-04
 
@@ -70,7 +74,12 @@ Erroneous release with no changelog
 
 ### Unreleased
 
+(no entries yet)
+
+### 1.1.3 - 2026-11-07
+
 - moteus_tool now reports hall effect performance in the calibration report
+- moteus.Stream uses adaptive polling delays to reduce latency
 
 ### 1.1.2 - 2026-08-04
 
