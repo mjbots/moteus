@@ -1923,10 +1923,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#c1-pins" class="md-nav__link">
+  <a href="#c1-r5-pins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        c1 Pins
+        c1 / r5 Pins
       
     </span>
   </a>
@@ -1945,10 +1945,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#c1n1x1-pins-aux2abs" class="md-nav__link">
+  <a href="#c1r5n1x1-pins-aux2abs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        c1/n1/x1 Pins (AUX2/ABS)
+        c1/r5/n1/x1 Pins (AUX2/ABS)
       
     </span>
   </a>
@@ -2717,10 +2717,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#c1-pins" class="md-nav__link">
+  <a href="#c1-r5-pins" class="md-nav__link">
     <span class="md-ellipsis">
       
-        c1 Pins
+        c1 / r5 Pins
       
     </span>
   </a>
@@ -2739,10 +2739,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#c1n1x1-pins-aux2abs" class="md-nav__link">
+  <a href="#c1r5n1x1-pins-aux2abs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        c1/n1/x1 Pins (AUX2/ABS)
+        c1/r5/n1/x1 Pins (AUX2/ABS)
       
     </span>
   </a>
@@ -3123,6 +3123,12 @@ used for various functions.</p>
 <td>N/A</td>
 </tr>
 <tr>
+<td>moteus-r5</td>
+<td>50mA</td>
+<td>100mA</td>
+<td>N/A</td>
+</tr>
+<tr>
 <td>moteus-c1</td>
 <td>50mA</td>
 <td>100mA</td>
@@ -3320,8 +3326,8 @@ used for various functions.</p>
 </tbody>
 </table>
 <p>Note: For moteus r4.5/8/11, DBG 1/2 are not present on the ABS connector, but are exposed pads on the circuit board.</p>
-<h3 id="c1-pins">c1 Pins<a class="headerlink" href="#c1-pins" title="Permanent link">&para;</a></h3>
-<p>The moteus-c1 has limited AUX1 port availability. Only pins D and E from AUX1 are exposed on an unpopulated 0.05" through-hole land pattern. I2C pullups are not available on moteus-c1 for aux1.</p>
+<h3 id="c1-r5-pins">c1 / r5 Pins<a class="headerlink" href="#c1-r5-pins" title="Permanent link">&para;</a></h3>
+<p>The moteus-c1 and moteus-r5 have limited AUX1 port availability. Only pins D and E from AUX1 are exposed on an unpopulated 0.05" through-hole land pattern. I2C pullups are not available on moteus-c1 or moteus-r5 for aux1.</p>
 <table>
 <thead>
 <tr>
@@ -3469,11 +3475,11 @@ used for various functions.</p>
 </table>
 <p>Note: For moteus n1, the B pin software configured pullup cannot be used effectively. Thus the B pin is unsuitable for open-drain inputs like hall effect sensors unless external pullups are provided.</p>
 <p>Note: The moteus n1 and x1 have a hardware RS422 transceiver connected to aux1's pins D and E which can be enabled through configuration. RS485 devices like the CUI AMT21x can be used if the RS422 pin Y is connected to A and RS422 pin Z is connected to B.</p>
-<h3 id="c1n1x1-pins-aux2abs">c1/n1/x1 Pins (AUX2/ABS)<a class="headerlink" href="#c1n1x1-pins-aux2abs" title="Permanent link">&para;</a></h3>
+<h3 id="c1r5n1x1-pins-aux2abs">c1/r5/n1/x1 Pins (AUX2/ABS)<a class="headerlink" href="#c1r5n1x1-pins-aux2abs" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
-<th>moteus n1/x1</th>
+<th>moteus</th>
 <th>Con</th>
 <th>AUX</th>
 <th>SPI</th>

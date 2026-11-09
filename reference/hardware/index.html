@@ -2470,6 +2470,11 @@
 <td><a href="https://github.com/mjbots/moteus/blob/main/hw/controller/r4.5/20210124-moteus-controller-r45-mechanical.step">STEP</a></td>
 </tr>
 <tr>
+<td>moteus-r5</td>
+<td><a href="https://drive.google.com/file/d/1Pa3So3BNT_e4rWNzldQHFPhBak31ursY/view?usp=sharing">2D CAD</a></td>
+<td><a href="https://drive.google.com/file/d/11RlFxt261KNmc5EEJ8R9ohNMbpqtYvU4/view?usp=drive_link">STEP</a></td>
+</tr>
+<tr>
 <td>moteus-x1</td>
 <td><a href="https://drive.google.com/file/d/1R7wuc7vk1khD5ZvDWPy54Bx4PgHYiUCu/view">2D CAD</a></td>
 <td><a href="https://drive.google.com/file/d/19tJa4gzy0ZBWYYsaJA-Du0PgzoDWizjL/view?usp=sharing">STEP</a></td>
@@ -2517,6 +2522,16 @@
 <td>N/A</td>
 </tr>
 <tr>
+<td>moteus-r5</td>
+<td>10V</td>
+<td>24V</td>
+<td>34V (&lt;= 8S)</td>
+<td>100A</td>
+<td>50mA</td>
+<td>100mA</td>
+<td>N/A</td>
+</tr>
+<tr>
 <td>moteus-x1</td>
 <td>10V</td>
 <td>24V</td>
@@ -2541,7 +2556,7 @@
 <h2 id="power-limits">Power Limits<a class="headerlink" href="#power-limits" title="Permanent link">&para;</a></h2>
 <p>The allowable maximum power for each moteus controller depends upon
 the input voltage and PWM switching frequency.  The below table gives
-the maximum allowable power at <code>servo.pwm_rate_hz=30000</code>.</p>
+the maximum allowable power at the default configured PWM rate.</p>
 <table>
 <thead>
 <tr>
@@ -2549,34 +2564,51 @@ the maximum allowable power at <code>servo.pwm_rate_hz=30000</code>.</p>
 <th>Peak power</th>
 <th></th>
 <th>High input power</th>
+<th>Default PWM</th>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>moteus-r4</td>
-<td>&lt;= 30V 900W</td>
-<td>linear derated</td>
-<td>&gt;= 38V 400W</td>
-</tr>
 <tr>
 <td>moteus-c1</td>
 <td>&lt;= 28V 250W</td>
 <td>linear derated</td>
 <td>&gt;= 41V 150W</td>
+<td>30kHz</td>
+</tr>
+<tr>
+<td>moteus-r4</td>
+<td>&lt;= 30V 900W</td>
+<td>linear derated</td>
+<td>&gt;= 38V 400W</td>
+<td>30kHz</td>
+</tr>
+<tr>
+<td>moteus-r5</td>
+<td>&lt;= 26V 600W</td>
+<td>linear derated</td>
+<td>&gt;= 32V 200W</td>
+<td>20kHz</td>
 </tr>
 <tr>
 <td>moteus-n1</td>
-<td>&lt;= 36V 2000W</td>
+<td>&lt;= 36V 1333W</td>
 <td>linear derated</td>
-<td>&gt;= 44V 1000W</td>
+<td>&gt;= 44V 667W</td>
+<td>20kHz</td>
+</tr>
+<tr>
+<td>moteus-x1</td>
+<td>&lt;= 36V 1000W</td>
+<td>linear derated</td>
+<td>&gt;= 44V 500W</td>
+<td>15kHz</td>
 </tr>
 </tbody>
 </table>
 <p>For other values of <code>servo.pwm_rate_hz</code>, the allowable maximum power
-changes linearly with the PWM rate, so that at 15000, the maximum
-power is half of that in the above table and at 60000 it is double
-that.  Note however, that efficiency of the controller goes down
-significantly at higher PWM rates.</p>
+changes linearly with the PWM rate.  If the PWM rate is doubled, so is
+the rated power.  Note however, that efficiency of the controller goes
+down significantly at higher PWM rates.</p>
 <p>The current power limit is reported in <code>servo_stats.max_power_W</code>.  The
 controller will attempt to limit output phase current so as to stay
 within this reported power limit in either direction, i.e. applying

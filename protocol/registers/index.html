@@ -4889,8 +4889,8 @@ complete, and the controller is following the final velocity.</p>
 <li>36 - <em>motor not configured</em> - the <code>moteus_tool --calibrate</code>
   procedure has not been run on this motor.</li>
 <li>37 - <em>pwm cycle overrun</em> - an internal firmware error</li>
-<li>38 - <em>over temperature</em> - the maximum configured temperature has
-  been exceeded</li>
+<li>38 - <em>over temperature</em> - the FET temperature sensor exceeded
+  <code>servo.fault_temperature</code></li>
 <li>39 - <em>outside limit</em> - an attempt was made to start position control
   while outside the bounds configured by <code>servopos.position_min</code> and
   <code>servopos.position_max</code>.</li>
@@ -4919,6 +4919,10 @@ complete, and the controller is following the final velocity.</p>
   the threshold configured in <code>servo.fault_position_error</code></li>
 <li>50 - <em>velocity control error</em> - the velocity control error exceeded
   the threshold configured in <code>servo.fault_velocity_error</code></li>
+<li>51 - <em>FET junction over temperature</em> - the estimated FET junction
+  temperature exceeded <code>servo.fet_junction_fault_temperature</code></li>
+<li>52 - <em>motor over temperature</em> - the motor temperature exceeded
+  <code>servo.motor_fault_temperature</code></li>
 </ul>
 <p>Some non-zero codes can be presented during valid control modes
 without a fault.  These indicate which, if any, function is limiting
@@ -4932,6 +4936,9 @@ the output power of the controller.</p>
 <li>101 - <code>servo.motor_fault_temperature</code></li>
 <li>102 - the commanded maximum torque</li>
 <li>103 - <code>servopos.position_min</code> or <code>servopos.position_max</code></li>
+<li>104 - flux braking is active</li>
+<li>105 - field weakening is active</li>
+<li>106 - <code>servo.fet_junction_fault_temperature</code></li>
 </ul>
 <h3 id="0x010-0x011-0x012-pwm-phase-a-b-c">0x010 / 0x011 / 0x012 - PWM phase A / B / C<a class="headerlink" href="#0x010-0x011-0x012-pwm-phase-a-b-c" title="Permanent link">&para;</a></h3>
 <p>Mode: Read/write</p>

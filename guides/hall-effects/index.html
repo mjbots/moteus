@@ -2426,16 +2426,17 @@
 <h1 id="motor-with-hall-effect-sensors">Motor with Hall Effect Sensors<a class="headerlink" href="#motor-with-hall-effect-sensors" title="Permanent link">&para;</a></h1>
 <p>Many motors include hall effect sensors used to provide commutation information to motor controllers.  moteus is able to use hall effect sensors for both commutation and output positioning.  First, some caveats:</p>
 <p><strong>They may not be needed</strong>: Just because a motor has hall effect sensors built in, does not mean you need to use them.  If you can use the on-axis magnetic encoder integrated into moteus by mounting moteus appropriately relative to the rotor, that will always give better results than using hall effect encoders.</p>
-<p><strong>You will likely need additional hardware</strong>: Most configurations with hall effects will require additional filtering capacitors, placed near moteus, between each signal line and ground.  1nF is a recommended starting point.  They can be added either in the wire harness, or on unpopulated 0402 pads on the moteus-c1, moteus-n1, and moteus-x1.</p>
+<p><strong>You will likely need additional hardware</strong>: For all moteus controllers but the moteus-r5, most configurations with hall effects will require additional filtering capacitors, placed near moteus, between each signal line and ground.  1nF is a recommended starting point.  They can be added either in the wire harness, or on unpopulated 0402 pads on the moteus-c1, moteus-n1, and moteus-x1.</p>
+<p>The moteus-r5 has built-in software enabled filtering capacitors for hall effect sensors and needs no additional hardware.</p>
 <p><strong>Hall effect sensors used for output positioning have very poor low velocity performance</strong>: While hall effect sensors are minimally useful for commutation and higher speed output operation, they will provide poor performance when used as an output encoder at low speeds.  That means many position control applications, which are inherently often at low speed, will give poor results.</p>
 <p><strong>moteus-r4 cannot easily drive many hall effect sensors</strong>: moteus-r4 specifically has only 3.3V supply for external devices, whereas most hall effect encoders require 5V.  Further, the only means of connecting hall effect sensors to moteus-r4 are using unpopulated pads on the back of the board, and <em>not</em> using the onboard encoder.  Other moteus products do not have these specification limitations regarding supply voltage and connectors.</p>
 <p>If using hall effects for commutation or output positioning is still desired, the below configurations can get you started.</p>
 <h2 id="aux2-configuration">aux2 configuration<a class="headerlink" href="#aux2-configuration" title="Permanent link">&para;</a></h2>
 <p>This configuration uses hall effect sensors connected to the aux2 GH7
 connector for both commutation and output positioning.</p>
-<p>moteus-c1 <a href="../../reference/pinouts/#moteus-c1">(c1 pinout)</a>, moteus-n1 <a href="../../reference/pinouts/#moteus-n1">(n1 pinout)</a>, and moteus-x1 <a href="../../reference/pinouts/#moteus-x1">(x1 pinout)</a> all have an aux2 GH7 connector that can provide 5V output and has 5V tolerant IO pins.  The typical wiring diagram looks like the below, although the hall connector is "nominal" as there is no real standard:</p>
+<p>moteus-c1 <a href="../../reference/pinouts/#moteus-c1">(c1 pinout)</a>, moteus-r5 <a href="../../reference/pinouts/#moteus-r5">(r5 pinout)</a>, moteus-n1 <a href="../../reference/pinouts/#moteus-n1">(n1 pinout)</a>, and moteus-x1 <a href="../../reference/pinouts/#moteus-x1">(x1 pinout)</a> all have an aux2 GH7 connector that can provide 5V output and has 5V tolerant IO pins.  The typical wiring diagram looks like the below, although the hall connector is "nominal" as there is no real standard:</p>
 <p><img alt="" src="../images/hall-wiring.png" /></p>
-<p>As mentioned above, either 1nF capacitors should be installed in the harness between each signal line and ground, or installed on the appropriate unpopulated pads on the board.</p>
+<p>As mentioned above, for boards which are not a moteus-r5, either 1nF capacitors should be installed in the harness between each signal line and ground, or installed on the appropriate unpopulated pads on the board.</p>
 <p>The following aux2 configuration parameters should be set.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>aux2.pins.0.mode 6  # hall
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>aux2.pins.0.pull 1  # pull_up
@@ -2446,13 +2447,16 @@ connector for both commutation and output positioning.</p>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>aux2.hall.enabled 1
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>aux2.uart.mode 0    # disable serial control
 </span></code></pre></div>
+<p>For moteus-r5 hall filter capacitors should be enabled with:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>aux2.hall.filt 1
+</span></code></pre></div>
 <p>Then motor_position is configured as follows:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>motor_position.sources.0.aux_number 2
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>motor_position.sources.0.type 4  # hall
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>motor_position.sources.0.aux_number 2
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>motor_position.sources.0.type 4  # hall
 </span></code></pre></div>
 <p>Finally, when calibrating, the number of poles is required to be
 specified.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python -m moteus.moteus_tool -t 1 --calibrate --cal-motor-poles 30
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python -m moteus.moteus_tool -t 1 --calibrate --cal-motor-poles 30
 </span></code></pre></div>
 <h2 id="advanced-dual-encoder-setup">Advanced: Dual Encoder Setup<a class="headerlink" href="#advanced-dual-encoder-setup" title="Permanent link">&para;</a></h2>
 <p>A more performant configuration may use the hall effect sensors for commutation and a different encoder measuring the output position.  That is not directly described here, but you can look at the <a href="../dual-encoders/">Dual Encoders</a> guide as well as the <a href="../../reference/encoders/">encoder reference</a> to understand how to configure it.</p>

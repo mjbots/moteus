@@ -2132,6 +2132,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servofet_junction_temperature_margin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fet_junction_temperature_margin
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofet_junction_fault_temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fet_junction_fault_temperature
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofet_junction_hot_start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fet_junction_hot_start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#servoenable_motor_temperature" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3463,6 +3496,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#servofet_junction_temperature_margin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fet_junction_temperature_margin
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofet_junction_fault_temperature" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fet_junction_fault_temperature
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#servofet_junction_hot_start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        servo.fet_junction_hot_start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#servoenable_motor_temperature" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4291,6 +4357,44 @@ degrees Celsius of <code>servo.fault_temperature</code>.</p>
 <h2 id="servofault_temperature"><code>servo.fault_temperature</code><a class="headerlink" href="#servofault_temperature" title="Permanent link">&para;</a></h2>
 <p>If the temperature reaches this value, a fault is triggered and all
 torque is stopped.</p>
+<h2 id="servofet_junction_temperature_margin"><code>servo.fet_junction_temperature_margin</code><a class="headerlink" href="#servofet_junction_temperature_margin" title="Permanent link">&para;</a></h2>
+<p>Torque begins to be limited when the hottest estimated FET junction
+temperature is within this many degrees Celsius of
+<code>servo.fet_junction_fault_temperature</code>.  With a value of 0 or less,
+the junction estimate does not limit torque before it faults.</p>
+<h2 id="servofet_junction_fault_temperature"><code>servo.fet_junction_fault_temperature</code><a class="headerlink" href="#servofet_junction_fault_temperature" title="Permanent link">&para;</a></h2>
+<p>If the hottest estimated FET junction temperature reaches this value,
+a fault is triggered and all torque is stopped.  <code>nan</code> disables
+limiting and faulting on the junction estimate.  The default is 165C
+on the moteus-r4, moteus-c1 and moteus-n1, and 140C on the moteus-x1,
+whose FETs have absolute maximum junction temperatures of 175C and
+150C respectively.  The estimate's
+constants are chosen so that, with the default derating, the true
+junction stays at least 10C below that maximum.</p>
+<p>The estimate starts hot at power up, at the start of derating, and
+relaxes over about a minute: nothing is known of the FETs' state when
+the controller starts, and a board restarted while hot could otherwise
+take a full cold board's heating on top of hot FETs.  Until it has
+relaxed, less current is available for short pulses.  See
+<code>servo.fet_junction_hot_start</code> to disable this.</p>
+<p>The junction temperature of each FET is estimated from the phase
+currents, bus voltage, gate drive strength, and the board thermistor.
+The estimate, along with the estimated loss in each FET, is reported
+in the <code>fet_model</code> telemetry.  Torque limiting and the
+over-temperature fault apply to whichever is further through its
+derating band: the thermistor relative to <code>servo.fault_temperature</code>,
+or the hottest estimated junction relative to
+<code>servo.fet_junction_fault_temperature</code>.  While limiting, the fault
+register reports 100 for the thermistor and 106 for the junction
+estimate.  A fault reports 38 for the thermistor and 51 for the
+junction estimate.</p>
+<h2 id="servofet_junction_hot_start"><code>servo.fet_junction_hot_start</code><a class="headerlink" href="#servofet_junction_hot_start" title="Permanent link">&para;</a></h2>
+<p>If true (the default), the FET junction temperature estimate starts at
+power up at the start of its derating band, as described under
+<code>servo.fet_junction_fault_temperature</code>.  If false, it starts at the
+board thermistor's first reading, so that full current is available
+immediately after power up.  This is only safe if the controller is
+never restarted while its FETs may still be hot from operation.</p>
 <h2 id="servoenable_motor_temperature"><code>servo.enable_motor_temperature</code><a class="headerlink" href="#servoenable_motor_temperature" title="Permanent link">&para;</a></h2>
 <p>If true, then the motor temperature will be sensed via the TEMP pads
 on the board.</p>
