@@ -13,10 +13,17 @@ heading to the version and date.
 
 ### Unreleased
 
+(no entries yet)
+
+### 1.2.0 - 2026-11-09
+
 - Add a FET junction temperature estimator (`fet_model` telemetry).
  - Derating and the over-temperature fault now apply to the estimated junction temperature via `servo.fet_junction_fault_temperature` and `servo.fet_junction_temperature_margin`, in addition to the board thermistor, and report the new limit code 106 and fault code 51 when it is in effect.
  - A motor over-temperature fault now reports the new fault code 52 instead of 38.
  - After power up, the junction estimate starts at the beginning of its derating band and takes about a minute to settle, so less current is available for short pulses until then.  Setting `servo.fet_junction_hot_start` to false starts the estimate at the board thermistor instead.
+- Support pull-up pin modes for I2C configured pins, this is mostly useful for the moteus-c1 aux1 pins, as they have no software configurable I2C pullup resistors
+- Reduce firmware flash image size through improved serialization (mjlib upgrade)
+- Support the moteus-r5
 
 ### 1.1.2 - 2026-08-04
 
