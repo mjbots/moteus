@@ -25,15 +25,9 @@ def moteus_crate_packages():
     from these specs instead of hand-mirroring them.
     """
     return {
-        # clap and clap_derive are pinned to exact versions: newer
-        # clap_derive (4.6+) requires Cargo's edition2024 feature,
-        # which is unavailable on the pinned Rust toolchain (1.82).
         "clap": crate.spec(
-            version = "=4.5.54",
+            version = "4.5",
             features = ["derive"],
-        ),
-        "clap_derive": crate.spec(
-            version = "=4.5.49",
         ),
         "proc-macro2": crate.spec(
             version = "1",

@@ -1,5 +1,5 @@
 {
-  "checksum": "052f744f25da32503340816c6b447da571c573fc54b082e30347b3d0def58fc5",
+  "checksum": "9805be4670b1f8db7916ed6499d1f29e95cfbaea5f829fdcbbea875dc20b1593",
   "crates": {
     "anstream 0.6.21": {
       "name": "anstream",
@@ -952,15 +952,6 @@
           "selects": {}
         },
         "edition": "2018",
-        "proc_macro_deps": {
-          "common": [
-            {
-              "id": "clap_derive 4.5.49",
-              "target": "clap_derive"
-            }
-          ],
-          "selects": {}
-        },
         "version": "0.0.1"
       },
       "license": null,
@@ -5508,7 +5499,6 @@
   },
   "direct_deps": [
     "clap 4.5.54",
-    "clap_derive 4.5.49",
     "num_enum 0.7.5",
     "proc-macro2 1.0.105",
     "quote 1.0.40",

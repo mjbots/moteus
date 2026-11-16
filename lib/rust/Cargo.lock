@@ -149,7 +149,6 @@ name = "direct-cargo-bazel-deps"
 version = "0.0.1"
 dependencies = [
  "clap",
- "clap_derive",
  "num_enum",
  "proc-macro2",
  "quote",
