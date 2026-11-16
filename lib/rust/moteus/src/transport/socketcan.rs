@@ -179,7 +179,7 @@ mod linux {
                 disable_brs,
                 info: TransportDeviceInfo::new(0, "SocketCan")
                     .with_serial(interface.to_string())
-                    .with_detail(format!("'{}'", interface)),
+                    .with_detail(format!("'{interface}'")),
             })
         }
 

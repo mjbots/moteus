@@ -123,6 +123,7 @@ impl DeviceAddress {
             return false;
         }
         // Option::is_none_or is only stable since 1.82; the crate's MSRV is 1.75.
+        #[allow(clippy::unnecessary_map_or)]
         let can_match = self.can_id.map_or(true, |id| id == can_id);
         let uuid_match = match (&self.uuid, uuid) {
             (Some(prefix), Some(device_uuid)) => device_uuid.starts_with(prefix),
@@ -142,11 +143,11 @@ impl fmt::Debug for DeviceAddress {
                 if i > 0 {
                     write!(f, ":")?;
                 }
-                write!(f, "{:02x}", byte)?;
+                write!(f, "{byte:02x}")?;
             }
         }
         if let Some(td) = self.transport_device {
-            write!(f, ", td={}", td)?;
+            write!(f, ", td={td}")?;
         }
         write!(f, ")")
     }
@@ -155,23 +156,23 @@ impl fmt::Debug for DeviceAddress {
 impl fmt::Display for DeviceAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match (&self.can_id, &self.uuid) {
-            (Some(id), None) => write!(f, "{}", id),
+            (Some(id), None) => write!(f, "{id}"),
             (None, Some(uuid)) => {
                 for (i, byte) in uuid.iter().enumerate() {
                     if i > 0 {
                         write!(f, ":")?;
                     }
-                    write!(f, "{:02x}", byte)?;
+                    write!(f, "{byte:02x}")?;
                 }
                 Ok(())
             }
             (Some(id), Some(uuid)) => {
-                write!(f, "{}(", id)?;
+                write!(f, "{id}(")?;
                 for (i, byte) in uuid.iter().enumerate() {
                     if i > 0 {
                         write!(f, ":")?;
                     }
-                    write!(f, "{:02x}", byte)?;
+                    write!(f, "{byte:02x}")?;
                 }
                 write!(f, ")")
             }
@@ -229,7 +230,7 @@ impl core::str::FromStr for DeviceAddress {
         // Try parsing as hex UUID (with or without colons)
         let hex_str: String = s.chars().filter(|c| *c != ':' && *c != '-').collect();
         if hex_str.len() % 2 != 0 {
-            return Err(format!("invalid address: {}", s));
+            return Err(format!("invalid address: {s}"));
         }
 
         let bytes: Result<Vec<u8>, _> = (0..hex_str.len())
@@ -239,7 +240,7 @@ impl core::str::FromStr for DeviceAddress {
 
         match bytes {
             Ok(uuid) if !uuid.is_empty() => Ok(DeviceAddress::uuid(uuid)),
-            _ => Err(format!("invalid address: {}", s)),
+            _ => Err(format!("invalid address: {s}")),
         }
     }
 }
@@ -360,7 +361,7 @@ mod tests {
             uuid: Some(vec![0x01, 0x02]),
             transport_device: None,
         };
-        assert_eq!(format!("{}", addr), "5(01:02)");
+        assert_eq!(format!("{addr}"), "5(01:02)");
     }
 
     #[test]

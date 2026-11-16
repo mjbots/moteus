@@ -113,7 +113,7 @@ rules_rust_dependencies()
 
 rust_register_toolchains(
     edition = "2021",
-    versions = ["1.82.0"],
+    versions = ["1.88.0"],
 )
 
 # Rust crate dependencies via crates_repository

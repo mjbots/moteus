@@ -679,7 +679,7 @@ mod tests {
 
     /// Formats a response line with a valid checksum appended.
     fn checksummed(content: &str) -> String {
-        let with_space = format!("{} ", content);
+        let with_space = format!("{content} ");
         format!(
             "{}*{:02X}\n",
             with_space,
@@ -723,7 +723,7 @@ mod tests {
 
             // The sent command must end with a valid " *XX" checksum.
             let (content, had, valid) = codec::strip_checksum(command.as_bytes());
-            assert!(had, "no checksum on: {}", command);
+            assert!(had, "no checksum on: {command}");
             assert!(valid);
             assert!(content.starts_with(b"can send 0105 30313233"));
 

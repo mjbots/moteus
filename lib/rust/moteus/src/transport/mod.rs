@@ -675,16 +675,14 @@ impl Router {
 
         match found.len() {
             0 => Err(Error::DeviceNotFound(format!(
-                "{} not found on any CAN bus",
-                address
+                "{address} not found on any CAN bus"
             ))),
             1 => {
                 self.routing_table.insert(address.clone(), found[0]);
                 Ok(found[0])
             }
             _ => Err(Error::Protocol(format!(
-                "More than one {} found across connected CAN busses",
-                address
+                "More than one {address} found across connected CAN busses"
             ))),
         }
     }
@@ -1054,7 +1052,7 @@ impl Router {
                     None => Ok(None),
                 }
             } else {
-                Err(Error::DeviceNotFound(format!("Channel {} not found", idx)))
+                Err(Error::DeviceNotFound(format!("Channel {idx} not found")))
             }
         } else {
             // Try to read from parent devices only
@@ -1088,7 +1086,7 @@ impl Router {
             if let Some(device) = self.devices.get_mut(idx) {
                 device.flush()
             } else {
-                Err(Error::DeviceNotFound(format!("Channel {} not found", idx)))
+                Err(Error::DeviceNotFound(format!("Channel {idx} not found")))
             }
         } else {
             // Flush parent devices only
@@ -1287,7 +1285,7 @@ mod tests {
     impl MockDevice {
         fn new(id: usize) -> Self {
             Self {
-                info: TransportDeviceInfo::new(id, format!("mock{}", id)),
+                info: TransportDeviceInfo::new(id, format!("mock{id}")),
                 timeout: Duration::from_millis(100),
                 responses: Vec::new(),
                 log: MockDeviceLog::new(),

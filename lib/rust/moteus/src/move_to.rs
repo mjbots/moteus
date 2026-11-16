@@ -788,7 +788,7 @@ mod tests {
         let result = move_to(&mut transport, &[(&c, 0.5.into())], &opts);
         match result {
             Err(Error::DeviceNotFound(msg)) => assert!(msg.contains("servo 1")),
-            other => panic!("expected DeviceNotFound, got {:?}", other),
+            other => panic!("expected DeviceNotFound, got {other:?}"),
         }
     }
 

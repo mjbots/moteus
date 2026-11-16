@@ -448,8 +448,7 @@ impl QueryResult {
                     } else {
                         debug_assert!(
                             false,
-                            "MAX_EXTRA ({}) exceeded, register 0x{:x} dropped",
-                            MAX_EXTRA, register
+                            "MAX_EXTRA ({MAX_EXTRA}) exceeded, register 0x{register:x} dropped"
                         );
                     }
                 }

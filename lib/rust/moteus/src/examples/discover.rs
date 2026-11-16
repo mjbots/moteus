@@ -49,7 +49,7 @@ pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
     }
 
     for device in &devices {
-        println!("{}", device);
+        println!("{device}");
     }
 
     Ok(())

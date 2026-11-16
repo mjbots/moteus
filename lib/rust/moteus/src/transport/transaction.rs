@@ -202,7 +202,7 @@ impl FrameFilter {
 impl std::fmt::Debug for FrameFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameFilter::BySource(id) => write!(f, "BySource({})", id),
+            FrameFilter::BySource(id) => write!(f, "BySource({id})"),
             FrameFilter::Any => write!(f, "Any"),
             FrameFilter::Custom(_) => write!(f, "Custom(...)"),
         }
@@ -722,9 +722,9 @@ mod tests {
         let f2 = FrameFilter::Any;
         let f3 = FrameFilter::custom(|_| true);
 
-        assert_eq!(format!("{:?}", f1), "BySource(5)");
-        assert_eq!(format!("{:?}", f2), "Any");
-        assert_eq!(format!("{:?}", f3), "Custom(...)");
+        assert_eq!(format!("{f1:?}"), "BySource(5)");
+        assert_eq!(format!("{f2:?}"), "Any");
+        assert_eq!(format!("{f3:?}"), "Custom(...)");
     }
 
     #[test]

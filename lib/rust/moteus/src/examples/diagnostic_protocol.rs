@@ -63,10 +63,10 @@ fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::
     let new_kp = 4.0;
 
     // Set a configuration value (waits for "OK").
-    let cmd = format!("conf set servo.pid_position.kp {}", new_kp);
+    let cmd = format!("conf set servo.pid_position.kp {new_kp}");
     stream.command(cmd.as_bytes())?;
 
-    println!("Changed kp from {} to {}", old_kp, new_kp);
+    println!("Changed kp from {old_kp} to {new_kp}");
 
     Ok(())
 }
@@ -92,10 +92,10 @@ async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crat
     let new_kp = 4.0;
 
     // Set a configuration value (waits for "OK").
-    let cmd = format!("conf set servo.pid_position.kp {}", new_kp);
+    let cmd = format!("conf set servo.pid_position.kp {new_kp}");
     stream.command(cmd.as_bytes()).await?;
 
-    println!("Changed kp from {} to {}", old_kp, new_kp);
+    println!("Changed kp from {old_kp} to {new_kp}");
 
     Ok(())
 }

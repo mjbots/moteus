@@ -41,10 +41,10 @@ struct Args {
 
 /// Display GPIO pin states for an auxiliary port.
 fn display_gpio(aux_num: u8, value: u8, pin_count: u8) {
-    println!("AUX{}", aux_num);
+    println!("AUX{aux_num}");
     for i in 0..pin_count {
         let state = if value & (1 << i) != 0 { "HIGH" } else { "LOW" };
-        println!("  Pin {} - {}", i, state);
+        println!("  Pin {i} - {state}");
     }
 }
 

@@ -63,7 +63,7 @@ fn main() {
 
     let reply_size = custom_query.serialize(&mut query_frame);
     print_frame(&query_frame);
-    println!("  Expected reply size: {} bytes", reply_size);
+    println!("  Expected reply size: {reply_size} bytes");
 
     // Example 4: Parse a simulated response
     println!("\n4. Parsing a simulated response:");
@@ -118,11 +118,11 @@ fn print_frame(frame: &CanFdFrame) {
     let (source, destination, _prefix) = parse_arbitration_id(frame.arbitration_id);
     let reply_required = frame.arbitration_id & 0x8000 != 0;
     print!("  Arbitration ID: 0x{:04X}", frame.arbitration_id);
-    println!(" (dest={}, source={})", destination, source);
+    println!(" (dest={destination}, source={source})");
     print!("  Data ({} bytes): ", frame.size);
     for i in 0..frame.size as usize {
         print!("{:02X} ", frame.data[i]);
     }
     println!();
-    println!("  Reply required: {}", reply_required);
+    println!("  Reply required: {reply_required}");
 }

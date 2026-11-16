@@ -1,5 +1,5 @@
 {
-  "checksum": "0d8be9bd78c62221b5d7f4a5d3e2d2d93de860f2778e519e7b6b9127702622a9",
+  "checksum": "052f744f25da32503340816c6b447da571c573fc54b082e30347b3d0def58fc5",
   "crates": {
     "anstream 0.6.21": {
       "name": "anstream",

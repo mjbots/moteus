@@ -84,7 +84,7 @@ fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::
     let mut cycle = 0u64;
     loop {
         // Move to position A.
-        println!("Cycle {}: Moving to position A (c1=0.0, c2=0.0)", cycle);
+        println!("Cycle {cycle}: Moving to position A (c1=0.0, c2=0.0)");
         let results = move_to(
             &mut *transport,
             &[(&c1, 0.0.into()), (&c2, 0.0.into())],
@@ -95,7 +95,7 @@ fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::
         }
 
         // Move to position B.
-        println!("Cycle {}: Moving to position B (c1=1.0, c2=3.0)", cycle);
+        println!("Cycle {cycle}: Moving to position B (c1=1.0, c2=3.0)");
         let results = move_to(
             &mut *transport,
             &[(&c1, 1.0.into()), (&c2, 3.0.into())],
@@ -136,7 +136,7 @@ async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crat
     let mut cycle = 0u64;
     loop {
         // Move to position A.
-        println!("Cycle {}: Moving to position A (c1=0.0, c2=0.0)", cycle);
+        println!("Cycle {cycle}: Moving to position A (c1=0.0, c2=0.0)");
         let results = async_move_to(
             &mut transport,
             &[(&c1, 0.0.into()), (&c2, 0.0.into())],
@@ -148,7 +148,7 @@ async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crat
         }
 
         // Move to position B.
-        println!("Cycle {}: Moving to position B (c1=1.0, c2=3.0)", cycle);
+        println!("Cycle {cycle}: Moving to position B (c1=1.0, c2=3.0)");
         let results = async_move_to(
             &mut transport,
             &[(&c1, 1.0.into()), (&c2, 3.0.into())],

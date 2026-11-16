@@ -456,16 +456,14 @@ impl AsyncRouter {
 
         match found.len() {
             0 => Err(Error::DeviceNotFound(format!(
-                "{} not found on any CAN bus",
-                address
+                "{address} not found on any CAN bus"
             ))),
             1 => {
                 self.routing_table.insert(address.clone(), found[0]);
                 Ok(found[0])
             }
             _ => Err(Error::Protocol(format!(
-                "More than one {} found across connected CAN busses",
-                address
+                "More than one {address} found across connected CAN busses"
             ))),
         }
     }
@@ -735,8 +733,7 @@ impl AsyncRouter {
                 }
                 Err(join_err) => {
                     if first_error.is_none() {
-                        first_error =
-                            Some(Error::Protocol(format!("task join error: {}", join_err)));
+                        first_error = Some(Error::Protocol(format!("task join error: {join_err}")));
                     }
                 }
             }
@@ -829,7 +826,7 @@ impl AsyncRouter {
                     None => Ok(None),
                 }
             } else {
-                Err(Error::DeviceNotFound(format!("Channel {} not found", idx)))
+                Err(Error::DeviceNotFound(format!("Channel {idx} not found")))
             }
         } else {
             for &idx in &self.parent_indices {
@@ -859,7 +856,7 @@ impl AsyncRouter {
                 let mut guard = self.devices[idx].lock().await;
                 guard.flush().await
             } else {
-                Err(Error::DeviceNotFound(format!("Channel {} not found", idx)))
+                Err(Error::DeviceNotFound(format!("Channel {idx} not found")))
             }
         } else {
             for &idx in &self.parent_indices {

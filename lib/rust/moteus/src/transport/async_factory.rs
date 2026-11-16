@@ -146,7 +146,7 @@ impl AsyncTransportFactory for AsyncFdcanusbFactory {
                         // Update device info
                         let mut dev_info = TransportDeviceInfo::new(idx, "AsyncFdcanusb");
                         if let Some(ref sn) = info.serial_number {
-                            dev_info.detail = Some(format!("sn='{}'", sn));
+                            dev_info.detail = Some(format!("sn='{sn}'"));
                             dev_info.serial_number = Some(sn.clone());
                         }
                         device.info = dev_info;
@@ -225,7 +225,7 @@ impl AsyncTransportFactory for AsyncSocketCanFactory {
                     Ok(mut device) => {
                         device.info = TransportDeviceInfo::new(idx, "AsyncSocketCan")
                             .with_serial(interface)
-                            .with_detail(format!("'{}'", interface));
+                            .with_detail(format!("'{interface}'"));
                         devices.push(Box::new(device));
                     }
                     Err(_) => continue,

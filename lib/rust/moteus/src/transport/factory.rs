@@ -160,7 +160,7 @@ impl TransportOptions {
                 "fdcanusb-baudrate" => {
                     let baudrate: u32 = value
                         .parse()
-                        .map_err(|_| format!("invalid baudrate: {}", value))?;
+                        .map_err(|_| format!("invalid baudrate: {value}"))?;
                     opts.fdcanusb_baudrate = Some(baudrate);
                 }
                 "can-chan" => opts.socketcan_interfaces.push(value.to_string()),
@@ -171,7 +171,7 @@ impl TransportOptions {
                 "timeout-ms" => {
                     let ms: u32 = value
                         .parse()
-                        .map_err(|_| format!("invalid timeout: {}", value))?;
+                        .map_err(|_| format!("invalid timeout: {value}"))?;
                     opts.timeout = Duration::from_millis(ms as u64);
                 }
                 _ => {
@@ -296,8 +296,7 @@ impl TransportFactory for FdcanusbFactory {
                 Ok(mut device) => {
                     device.info.id = idx;
                     device.info.serial_number = info.serial_number.clone();
-                    device.info.detail =
-                        info.serial_number.as_ref().map(|sn| format!("sn='{}'", sn));
+                    device.info.detail = info.serial_number.as_ref().map(|sn| format!("sn='{sn}'"));
                     devices.push(Box::new(device));
                 }
                 Err(_) => continue, // Skip devices that fail to open

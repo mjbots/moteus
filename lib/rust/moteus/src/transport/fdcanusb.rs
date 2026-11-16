@@ -877,7 +877,7 @@ mod tests {
 
     /// Formats a response line with a valid checksum appended.
     fn checksummed(content: &str) -> String {
-        let with_space = format!("{} ", content);
+        let with_space = format!("{content} ");
         format!(
             "{}*{:02X}\n",
             with_space,
@@ -904,7 +904,7 @@ mod tests {
         let written = mock.written();
         let line = std::str::from_utf8(&written).unwrap().trim_end();
         let (content, had, valid) = codec::strip_checksum(line.as_bytes());
-        assert!(had, "no checksum on: {}", line);
+        assert!(had, "no checksum on: {line}");
         assert!(valid);
         assert!(content.starts_with(b"can send 0105 30313233"));
     }

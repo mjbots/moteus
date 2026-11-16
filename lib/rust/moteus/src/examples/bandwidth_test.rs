@@ -75,7 +75,7 @@ pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
 
     println!("Testing with {} target(s):", targets.len());
     for t in &targets {
-        println!(" * {}", t);
+        println!(" * {t}");
     }
     println!();
 
@@ -132,7 +132,7 @@ pub fn run(register_transports: impl FnOnce()) -> Result<(), crate::Error> {
         let elapsed = status_time.elapsed().as_secs_f64();
         if elapsed > STATUS_PERIOD_S {
             let hz = hz_count as f64 / elapsed;
-            print!("{:6.1}Hz  rx_count={}  \r", hz, count);
+            print!("{hz:6.1}Hz  rx_count={count}  \r");
             std::io::stdout().flush().ok();
             hz_count = 0;
             status_time = Instant::now();

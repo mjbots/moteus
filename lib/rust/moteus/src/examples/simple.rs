@@ -61,7 +61,7 @@ fn run_blocking(args: &Args, transport: &TransportOptions) -> Result<(), crate::
         let state = c.set_position(PositionCommand::new().position(f32::NAN))?;
 
         // Print out everything.
-        println!("{:?}", state);
+        println!("{state:?}");
 
         // Print out just the position register.
         println!("Position: {}", state.position);
@@ -100,7 +100,7 @@ async fn run_async(args: &Args, transport: &TransportOptions) -> Result<(), crat
             .await?;
 
         // Print out everything.
-        println!("{:?}", state);
+        println!("{state:?}");
 
         // Print out just the position register.
         println!("Position: {}", state.position);

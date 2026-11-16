@@ -204,7 +204,7 @@ mod linux {
                 timeout,
                 info: TransportDeviceInfo::new(0, "AsyncSocketCan")
                     .with_serial(interface.to_string())
-                    .with_detail(format!("'{}'", interface)),
+                    .with_detail(format!("'{interface}'")),
                 needs_recovery: false,
             })
         }

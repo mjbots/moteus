@@ -49,17 +49,17 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Io(e) => write!(f, "I/O error: {}", e),
+            Error::Io(e) => write!(f, "I/O error: {e}"),
             Error::Timeout => write!(f, "Timeout waiting for response"),
             Error::NoResponse => write!(f, "No response from controller"),
             Error::Fault { mode, code } => {
-                write!(f, "Controller fault: mode={}, code={}", mode, code)
+                write!(f, "Controller fault: mode={mode}, code={code}")
             }
-            Error::InvalidResponse(msg) => write!(f, "Invalid response: {}", msg),
+            Error::InvalidResponse(msg) => write!(f, "Invalid response: {msg}"),
             Error::NotConnected => write!(f, "Transport not connected"),
-            Error::DeviceNotFound(dev) => write!(f, "Device not found: {}", dev),
-            Error::Protocol(msg) => write!(f, "Protocol error: {}", msg),
-            Error::Device { message, .. } => write!(f, "fdcanusb error: {}", message),
+            Error::DeviceNotFound(dev) => write!(f, "Device not found: {dev}"),
+            Error::Protocol(msg) => write!(f, "Protocol error: {msg}"),
+            Error::Device { message, .. } => write!(f, "fdcanusb error: {message}"),
         }
     }
 }

@@ -98,7 +98,7 @@ fn is_fdcanusb_path_sysfs(path: &str) -> bool {
     // Non-USB devices (e.g. /dev/ttyAMA0) do not have these files; a
     // real fdcanusb is always a USB device.
     let read_hex = |field: &str| -> Option<u16> {
-        let sysfs_path = format!("/sys/class/tty/{}/device/../{}", tty_name, field);
+        let sysfs_path = format!("/sys/class/tty/{tty_name}/device/../{field}");
         u16::from_str_radix(fs::read_to_string(sysfs_path).ok()?.trim(), 16).ok()
     };
 
@@ -299,7 +299,7 @@ fn detect_fdcanusb_serial_linux(ifname: &str) -> Option<String> {
     use std::path::PathBuf;
 
     // Navigate through sysfs to find the USB device
-    let device_path = PathBuf::from(format!("/sys/class/net/{}/device", ifname));
+    let device_path = PathBuf::from(format!("/sys/class/net/{ifname}/device"));
     let device_path = fs::canonicalize(&device_path).ok()?;
 
     // Go up to find the USB device directory (contains idVendor, idProduct, serial)
