@@ -305,7 +305,8 @@ impl ExecutorHelper for Processor {
         self.itstate.get_bits(0..4) == 0b1000
     }
     fn integer_zero_divide_trapping_enabled(&self) -> bool {
-        true
+        // CCR.DIV_0_TRP
+        self.ccr & (1 << 4) != 0
     }
 
     #[inline(always)]

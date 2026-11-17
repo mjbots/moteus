@@ -140,11 +140,11 @@ impl Bus for Processor {
             0xE000_E014 => self.syst_read_rvr(),
             0xE000_E018 => self.syst_read_cvr(),
             0xE000_E01C => self.syst_read_calib(),
-            0xE000_E100..=0xE000_E13C => self.nvic_read_iser(((addr - 0xE000_E100) >> 5) as usize),
-            0xE000_E180..=0xE000_E1BC => self.nvic_read_icer(((addr - 0xE000_E180) >> 5) as usize),
-            0xE000_E200..=0xE000_E23C => self.nvic_read_ispr(((addr - 0xE000_E200) >> 5) as usize),
-            0xE000_E280..=0xE000_E2BC => self.nvic_read_icpr(((addr - 0xE000_E280) >> 5) as usize),
-            0xE000_E300..=0xE000_E33C => self.nvic_read_iabr(((addr - 0xE000_E300) >> 5) as usize),
+            0xE000_E100..=0xE000_E13C => self.nvic_read_iser(((addr - 0xE000_E100) >> 2) as usize),
+            0xE000_E180..=0xE000_E1BC => self.nvic_read_icer(((addr - 0xE000_E180) >> 2) as usize),
+            0xE000_E200..=0xE000_E23C => self.nvic_read_ispr(((addr - 0xE000_E200) >> 2) as usize),
+            0xE000_E280..=0xE000_E2BC => self.nvic_read_icpr(((addr - 0xE000_E280) >> 2) as usize),
+            0xE000_E300..=0xE000_E33C => self.nvic_read_iabr(((addr - 0xE000_E300) >> 2) as usize),
             0xE000_E400..=0xE000_E5EC => self.nvic_read_ipr(((addr - 0xE000_E400) >> 2) as usize),
 
             0xE000_ED00 => self.cpuid,
@@ -194,6 +194,8 @@ impl Bus for Processor {
 
             // DWT
             0xE000_1000 => self.dwt_ctrl,
+            // Unmodelled private peripheral bus registers read as zero.
+            0xE000_0000..=0xE00F_FFFF => 0,
             _ => return Err(Fault::DAccViol),
         };
         Ok(result)
@@ -227,6 +229,12 @@ impl Bus for Processor {
 
             0xE000_ED04 => self.write_icsr(value),
             0xE000_ED08 => self.write_vtor(value),
+            0xE000_ED0C => {
+                if (value >> 16) == 0x05FA {
+                    self.aircr = 0xFA05_0000 | (value & 0x0700);
+                }
+            }
+            0xE000_ED14 => self.ccr = value,
             0xE000_ED10 => self.write_scr(value),
             0xE000_ED24 => self.write_shcsr(value),
             #[cfg(not(feature = "armv6m"))]
@@ -254,16 +262,16 @@ impl Bus for Processor {
             0xE000_E014 => self.syst_write_rvr(value),
             0xE000_E018 => self.syst_write_cvr(value),
             0xE000_E100..=0xE000_E13C => {
-                self.nvic_write_iser(((addr - 0xE000_E100) >> 5) as usize, value);
+                self.nvic_write_iser(((addr - 0xE000_E100) >> 2) as usize, value);
             }
             0xE000_E180..=0xE000_E1BC => {
-                self.nvic_write_icer(((addr - 0xE000_E180) >> 5) as usize, value);
+                self.nvic_write_icer(((addr - 0xE000_E180) >> 2) as usize, value);
             }
             0xE000_E200..=0xE000_E23C => {
-                self.nvic_write_ispr(((addr - 0xE000_E200) >> 5) as usize, value);
+                self.nvic_write_ispr(((addr - 0xE000_E200) >> 2) as usize, value);
             }
             0xE000_E280..=0xE000_E2BC => {
-                self.nvic_write_icpr(((addr - 0xE000_E280) >> 5) as usize, value);
+                self.nvic_write_icpr(((addr - 0xE000_E280) >> 2) as usize, value);
             }
             0xE000_E400..=0xE000_E5EC => {
                 self.nvic_write_ipr(((addr - 0xE000_E400) >> 2) as usize, value);
@@ -271,6 +279,8 @@ impl Bus for Processor {
 
             #[cfg(any(feature = "armv7m", feature = "armv7em"))]
             0xE000_EF00 => self.write_stir(value),
+            // Unmodelled private peripheral bus registers ignore writes.
+            0xE000_0000..=0xE00F_FFFF => {}
             _ => return Err(Fault::DAccViol),
         }
         Ok(())

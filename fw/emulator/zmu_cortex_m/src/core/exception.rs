@@ -279,6 +279,7 @@ impl ExceptionHandlingHelpers for Processor {
 
         self.mode = ProcessorMode::HandlerMode;
         self.psr.set_isr_number(exception.into());
+        self.itstate = 0;
         #[cfg(feature = "has-fp")]
         {
             self.control.fpca = false;
@@ -389,8 +390,12 @@ impl ExceptionHandlingHelpers for Processor {
         self.write32(frameptr.wrapping_add(0x10), r12)?;
         self.write32(frameptr.wrapping_add(0x14), lr)?;
         self.write32(frameptr.wrapping_add(0x18), ret_addr)?;
-        let xpsr =
-            (self.psr.value & 0b1111_1111_1111_1111_1111_1101_1111_1111) | frameptralign << 9;
+        // ITSTATE is held outside of psr.value: fold it into the stacked
+        // xPSR (IT[1:0] at bits 26:25, IT[7:2] at bits 15:10).
+        let it = u32::from(self.itstate);
+        let psr_with_it =
+            (self.psr.value & !0x0600_fc00) | ((it & 3) << 25) | ((it >> 2) << 10);
+        let xpsr = (psr_with_it & 0b1111_1111_1111_1111_1111_1101_1111_1111) | frameptralign << 9;
         self.write32(frameptr.wrapping_add(0x1c), xpsr)?;
 
         #[cfg(feature = "has-fp")]
@@ -576,6 +581,8 @@ impl ExceptionHandlingHelpers for Processor {
         self.psr.value.set_bits(0..9, psr.get_bits(0..9));
         self.psr.value.set_bits(10..16, psr.get_bits(10..16));
         self.psr.value.set_bits(24..27, psr.get_bits(24..27));
+        self.itstate = ((psr.get_bits(10..16) << 2) | psr.get_bits(25..27)) as u8;
+        self.psr.value &= !0x0600_fc00;
         // GE[3:0] bits (APSR bits 19:16) are DSP-extension-only architectural state.
         // Restore them from the stacked xPSR only when the DSP extension is present.
         #[cfg(feature = "has-dsp-ext")]

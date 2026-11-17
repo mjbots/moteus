@@ -118,7 +118,7 @@ fn clear_bits_array(array: &mut [u32; 16], index: usize, value: u32) {
 impl NVICHelper for Processor {
     fn nvic_set_pending_exceptions(&mut self, index: usize) {
         let mut active = self.nvic_interrupt_pending[index] & self.nvic_interrupt_enabled[index];
-        let mut irqn = index * 4;
+        let mut irqn = index * 32;
         while active != 0 {
             if active & 1 != 0 {
                 self.set_exception_pending(Interrupt { n: irqn });
@@ -130,7 +130,7 @@ impl NVICHelper for Processor {
 
     fn nvic_clear_unpended_exceptions(&mut self, index: usize) {
         let mut active = self.nvic_interrupt_pending[index] & self.nvic_interrupt_enabled[index];
-        for irqn in (index * 4)..(index * 4) + 32 {
+        for irqn in (index * 32)..(index * 32) + 32 {
             if active & 1 == 0 {
                 self.clear_pending_exception(Interrupt { n: irqn });
             }
