@@ -66,6 +66,25 @@ import tempfile
 # other datasets.
 RATE_OVERRIDES_HZ = {
     '20260715-hboard-n1-1hz': 20000,
+    '20261117-spindle-n1-ramp': 20000,
+}
+
+# 20261117-spindle-n1-ramp is a moteus-n1 driving a 2 pole spindle
+# motor at 24V, captured at a 20 kHz control rate: a 20 Hz/s ramp from
+# rest up to the voltage limited top speed (about 153 Hz, 920
+# edges/s), a hold there, and a ramp back down.  Unlike every other
+# dataset it is evaluated with the correct pole count, so the source
+# has only 6 counts per revolution.  The PLL path used to limit the
+# velocity to 1/8 revolution per update, which for a hall source with
+# so few counts is less than the one count per update of any steady
+# rotation: the estimate was pinned near 75% of the true speed (or
+# pushed far from it by the lag compensation) as soon as the loop
+# left slow mode.  At 50 and 124 Hz the PLL is active over most of
+# the ramp; at 248 Hz the capture stays in slow mode.
+#
+# Motor pole count each dataset is evaluated with (default 30).
+POLES = {
+    '20261117-spindle-n1-ramp': 2,
 }
 
 TESTS = [
@@ -79,6 +98,7 @@ TESTS = [
     ('20260618-spindle-sweep',        50,   0.0285,  1.88,  116.0,   67.0,   1.0,   1.07),
     ('20260618-spindle-hw',           50,   0.0306,  1.8,   650.0,   141.0,  1.0,   0.48),
     ('20260715-hboard-n1-1hz',        50,   0.00561, 1.8,   50.3,    117.0,  1.12,  0.316),
+    ('20261117-spindle-n1-ramp',      50,     0.021, 1.73, 214.0,     54.6,   1.0,  0.459),
 
     ('20250616-speed-cycle',         124,   0.129,   2.4,   430.0,   136.0,  1.0,   0.3),
     ('20250616-back-and-forth',      124,   0.195,   2.68,  141.0,   82.3,   1.0,   0.303),
@@ -89,6 +109,7 @@ TESTS = [
     ('20260618-spindle-sweep',       124,   0.0221,  1.88,  175.0,   77.7,   1.0,   2.51),
     ('20260618-spindle-hw',          124,   0.024,   1.8,   711.0,   148.0,  1.0,   0.86),
     ('20260715-hboard-n1-1hz',       124,   0.00561, 1.8,   50.3,    117.0,  1.12,  0.316),
+    ('20261117-spindle-n1-ramp',     124,    0.0218, 1.73, 225.0,     60.2,   1.0,  0.512),
 
     ('20250616-speed-cycle',         248,   0.13,    2.4,   446.0,   143.0,  1.0,   0.3),
     ('20250616-back-and-forth',      248,   0.195,   2.68,  141.0,   82.3,   1.0,   0.303),
@@ -99,6 +120,7 @@ TESTS = [
     ('20260618-spindle-sweep',       248,   0.0247,  1.88,  187.0,   68.6,   1.0,   0.664),
     ('20260618-spindle-hw',          248,   0.0237,  1.8,   947.0,   169.0,  1.0,   1.36),
     ('20260715-hboard-n1-1hz',       248,   0.00561, 1.8,   50.3,    117.0,  1.12,  0.316),
+    ('20261117-spindle-n1-ramp',     248,     0.021, 1.73, 356.0,     76.2,   1.0,  0.731),
 
     ('20250616-speed-cycle',         496,   0.129,   2.4,   714.0,   218.0,  1.0,   0.3),
     ('20250616-back-and-forth',      496,   0.195,   2.68,  141.0,   82.3,   1.0,   0.303),
@@ -144,7 +166,8 @@ def main():
                                os.path.join(tdir.name, source_test_filename)])
 
         rate_hz = RATE_OVERRIDES_HZ.get(test_name, 30000)
-        result_json = subprocess.check_output([args.binary, '--input', os.path.join(tdir.name, f"{test_name}.dat"), "--pll_filter_hz", f"{pll_filter_hz}", "--rate_hz", f"{rate_hz}"])
+        poles = POLES.get(test_name, 30)
+        result_json = subprocess.check_output([args.binary, '--input', os.path.join(tdir.name, f"{test_name}.dat"), "--pll_filter_hz", f"{pll_filter_hz}", "--rate_hz", f"{rate_hz}", "--poles", f"{poles}"])
 
         result = json.loads(result_json)
 

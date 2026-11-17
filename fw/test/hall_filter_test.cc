@@ -41,6 +41,7 @@ struct Options {
   double pll_filter_hz = 40.0;
   double rate_hz = 30000.0;
   bool no_commutation = false;
+  int poles = 30;
 
   template <typename Archive>
   void Serialize(Archive* a) {
@@ -49,6 +50,7 @@ struct Options {
     a->Visit(MJ_NVP(pll_filter_hz));
     a->Visit(MJ_NVP(rate_hz));
     a->Visit(MJ_NVP(no_commutation));
+    a->Visit(MJ_NVP(poles));
   }
 };
 
@@ -84,9 +86,9 @@ std::vector<int> ParseDebugStream(const std::string& str) {
   return result;
 }
 
-double wrap_encoder_delta(double i) {
-  if (i > 45) { return i - 90; }
-  if (i < -45) { return i + 90; }
+double wrap_encoder_delta(double i, double cpr) {
+  if (i > 0.5 * cpr) { return i - cpr; }
+  if (i < -0.5 * cpr) { return i + cpr; }
   return i;
 }
 
@@ -144,7 +146,7 @@ struct Application {
       dut.config()->commutation_source = 1;
     }
 
-    dut.motor()->poles = 30;
+    dut.motor()->poles = options.poles;
 
     pcf.persistent_config.Load();
   }
@@ -262,9 +264,10 @@ struct Application {
       }
     }
 
-    auto wrap_modulo = [](double v) {
-      v = std::fmod(v, 90.0);
-      if (v < 0.0) { v += 90.0; }
+    const double cpr = 3.0 * options.poles;
+    auto wrap_modulo = [cpr](double v) {
+      v = std::fmod(v, cpr);
+      if (v < 0.0) { v += cpr; }
       return v;
     };
 
@@ -319,7 +322,8 @@ struct Application {
       data_[i].truth_value = pos;
       data_[i].truth_velocity = vel;
 
-      const double position_error = wrap_encoder_delta(data_[i].truth_value - data_[i].filtered_value);
+      const double position_error = wrap_encoder_delta(
+          data_[i].truth_value - data_[i].filtered_value, cpr);
       const double velocity_error = data_[i].truth_velocity - data_[i].velocity;
 
       const double this_position_metric = std::pow(position_error, 2.0);

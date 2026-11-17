@@ -1327,13 +1327,19 @@ class MotorPosition {
           }
 
           // We don't let our velocity get beyond 1 revolution in 8
-          // encoder samples.
-          const float max_velocity =
-              0.125f * cpr / status.time_since_update;
-          status.integral =
-              ISR_Limit(status.integral, -max_velocity, max_velocity);
-          status.velocity =
-              ISR_Limit(status.velocity, -max_velocity, max_velocity);
+          // encoder samples.  Hall sources are exempt: they update
+          // exactly once per count, so the estimate cannot alias onto
+          // a multiple of the true rate, and with few poles a
+          // legitimate velocity of one count per update exceeds this
+          // bound (0.125 * cpr is 0.75 counts for a 2 pole motor).
+          if (config.type != SourceConfig::kHall) {
+            const float max_velocity =
+                0.125f * cpr / status.time_since_update;
+            status.integral =
+                ISR_Limit(status.integral, -max_velocity, max_velocity);
+            status.velocity =
+                ISR_Limit(status.velocity, -max_velocity, max_velocity);
+          }
         } else {
           status.filtered_value = status.compensated_value;
           status.integral = 0.0f;

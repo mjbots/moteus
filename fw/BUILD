@@ -360,6 +360,7 @@ py_test(
         "test/data/20260618-spindle-sweep.dat.gz",
         "test/data/20260715-hboard-n1-1hz.dat.gz",
         "test/data/20260618-spindle-hw.dat.gz",
+        "test/data/20261117-spindle-n1-ramp.dat.gz",
     ],
 )
 
