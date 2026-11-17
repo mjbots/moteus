@@ -32,7 +32,6 @@ pub mod bus;
 pub mod core;
 pub mod decoder;
 pub mod executor;
-pub mod gdb;
 pub mod memory;
 pub mod peripheral;
 pub mod semihosting;

@@ -7,8 +7,6 @@ edition = "2024"
 [dependencies]
 byteorder = "1.5"
 enum-set = "0.0.8"
-gdbstub = "0.7.8"
-gdbstub_arch = "0.3.2"
 log = "0.4.28"
 num-bigfloat = { version = "1.7.2", default-features = false, features = ['num-traits'] }
 thiserror = "2.0.17"
