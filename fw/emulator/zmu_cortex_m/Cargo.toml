@@ -1,0 +1,28 @@
+[package]
+name = "zmu_cortex_m"
+version = "0.1.0"
+authors = ["Jarmo Torvinen <jarmo.torvinen@iki.fi>"]
+edition = "2024"
+
+[dependencies]
+byteorder = "1.5"
+enum-set = "0.0.8"
+gdbstub = "0.7.8"
+gdbstub_arch = "0.3.2"
+log = "0.4.28"
+num-bigfloat = { version = "1.7.2", default-features = false, features = ['num-traits'] }
+thiserror = "2.0.17"
+
+
+[features]
+default = ["armv7m"]
+has-fp = []
+vfp-register-bank-d16 = []
+fpv4-sp-d16 = ["has-fp", "vfp-register-bank-d16"]
+fpv5-sp-d16 = ["has-fp", "vfp-register-bank-d16"]
+fpv5-d16 = ["has-fp", "vfp-register-bank-d16"]
+# Additive DSP extension capability (Armv7E-M = Armv7-M + DSP extension).
+has-dsp-ext = []
+armv6m = []
+armv7m = []
+armv7em = ["has-dsp-ext"]
