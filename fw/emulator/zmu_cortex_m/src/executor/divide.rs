@@ -23,7 +23,7 @@ impl IsaDivide for Processor {
                 0
             } else {
                 let rn = self.get_r(params.rn);
-                (rn as i32) / (rm as i32)
+                (rn as i32).wrapping_div(rm as i32)
             };
             self.set_r(params.rd, result as u32);
             return Ok(ExecuteSuccess::Taken { cycles: 2 });

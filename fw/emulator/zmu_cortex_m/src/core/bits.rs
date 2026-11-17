@@ -47,7 +47,8 @@ impl Bits for u32 {
 
     #[inline(always)]
     fn set_bits(&mut self, range: Range<usize>, value: Self) {
-        let mask: Self = !(((1 << (range.end - range.start)) - 1) << range.start);
+        let width = range.end - range.start;
+        let mask: Self = !((((1u64 << width) - 1) << range.start) as u32);
 
         *self &= mask;
         *self |= value << range.start;

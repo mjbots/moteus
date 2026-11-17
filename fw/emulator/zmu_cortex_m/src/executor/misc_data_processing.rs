@@ -195,7 +195,7 @@ impl IsaMiscDataProcessing for Processor {
             if msbit <= 31 {
                 let upper = msbit + 1;
                 let data = self.get_r(params.rn).get_bits(params.lsb..upper);
-                let data = sign_extend(data, msbit, 32) as i32;
+                let data = sign_extend(data, params.widthminus1, 32) as i32;
                 self.set_r(params.rd, data as u32);
             } else {
                 todo!();

@@ -42,8 +42,8 @@ impl IsaSignedMultiply for Processor {
 
     fn exec_smull(&mut self, params: &Reg643232Params) -> ExecuteResult {
         if self.condition_passed() {
-            let rn = i64::from(self.get_r(params.rn));
-            let rm = i64::from(self.get_r(params.rm));
+            let rn = i64::from(self.get_r(params.rn) as i32);
+            let rm = i64::from(self.get_r(params.rm) as i32);
             let result = rn.wrapping_mul(rm) as u64;
 
             self.set_r(params.rdlo, result.get_bits(0..32) as u32);
