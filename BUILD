@@ -20,6 +20,7 @@ test_suite(
     name = "host",
     tests = [
         "//fw:host",
+        "//fw/emulator:host",
         "//utils:host",
         "//lib/python:host",
         "//lib/cpp:host",

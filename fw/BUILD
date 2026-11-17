@@ -213,6 +213,16 @@ genrule(
     cmd = (OCD_G4 + " -c init -c \"reset_config none separate; program $(location moteus.08000000.bin) verify 0x8000000; program $(location moteus.0800c000.bin) verify 0x800c000; program $(location moteus.08010000.bin) verify reset exit 0x08010000\" && touch $@"),
 )
 
+# The motor model used by the simulation tests, for anything else
+# which wants a simulated motor.
+cc_library(
+    name = "motor_simulator",
+    hdrs = [
+        "test/motor_model.h",
+        "test/spmsm_motor_simulator.h",
+    ],
+)
+
 cc_test(
     name = "test",
     srcs = [
