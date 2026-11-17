@@ -9,7 +9,7 @@ use crate::executor::ExecuteSuccess;
 
 use super::ExecuteResult;
 use super::fp_generic::{FloatingPointChecks, FloatingPointPublicOperations};
-use crate::core::register::ExtensionRegOperations;
+use crate::core::register::{ExtensionRegOperations, SingleReg};
 use crate::executor::ExecutorHelper;
 
 pub trait IsaFloatingPointDataProcessing {
@@ -36,6 +36,7 @@ pub trait IsaFloatingPointDataProcessing {
     fn exec_vfms_f32(&mut self, params: &VAddSubParamsf32) -> ExecuteResult;
     fn exec_vfms_f64(&mut self, params: &VAddSubParamsf64) -> ExecuteResult;
     fn exec_vfnms_f32(&mut self, params: &VAddSubParamsf32) -> ExecuteResult;
+    fn exec_vfnma_f32(&mut self, params: &VAddSubParamsf32) -> ExecuteResult;
     fn exec_vfnms_f64(&mut self, params: &VAddSubParamsf64) -> ExecuteResult;
     fn exec_vmul_f32(&mut self, params: &VAddSubParamsf32) -> ExecuteResult;
     fn exec_vmul_f64(&mut self, params: &VAddSubParamsf64) -> ExecuteResult;
@@ -46,6 +47,13 @@ pub trait IsaFloatingPointDataProcessing {
     fn exec_vsub_f64(&mut self, params: &VAddSubParamsf64) -> ExecuteResult;
 
     fn exec_vcvt(&mut self, params: &VCVTParams) -> ExecuteResult;
+    fn exec_vcvt_fixed_f32(
+        &mut self,
+        sd: SingleReg,
+        to_fixed: bool,
+        unsigned: bool,
+        fraction_bits: u8,
+    ) -> ExecuteResult;
     fn exec_vcvt_f64_f32(&mut self, params: VCVTParamsF64F32) -> ExecuteResult;
     fn exec_vcvt_f32_f64(&mut self, params: VCVTParamsF32F64) -> ExecuteResult;
     fn exec_vsel_f32(&mut self, params: VSelParamsf32) -> ExecuteResult;
@@ -297,6 +305,19 @@ impl IsaFloatingPointDataProcessing for Processor {
         Ok(ExecuteSuccess::NotTaken)
     }
 
+    fn exec_vfnma_f32(&mut self, params: &VAddSubParamsf32) -> ExecuteResult {
+        if self.condition_passed() {
+            self.execute_fp_check()?;
+            let addend = self.get_sr(params.sd) ^ 0x8000_0000;
+            let op1 = self.get_sr(params.sn) ^ 0x8000_0000;
+            let op2 = self.get_sr(params.sm);
+            let result = self.fp_mul_add::<u32>(addend, op1, op2, true);
+            self.set_sr(params.sd, result);
+            return Ok(ExecuteSuccess::Taken { cycles: 1 });
+        }
+        Ok(ExecuteSuccess::NotTaken)
+    }
+
     fn exec_vfnms_f32(&mut self, params: &VAddSubParamsf32) -> ExecuteResult {
         if self.condition_passed() {
             self.execute_fp_check()?;
@@ -408,6 +429,41 @@ impl IsaFloatingPointDataProcessing for Processor {
             return Ok(ExecuteSuccess::Taken { cycles: 1 });
         }
         Ok(ExecuteSuccess::NotTaken)
+    }
+
+    fn exec_vcvt_fixed_f32(
+        &mut self,
+        sd: SingleReg,
+        to_fixed: bool,
+        unsigned: bool,
+        fraction_bits: u8,
+    ) -> ExecuteResult {
+        if !self.condition_passed() {
+            return Ok(ExecuteSuccess::NotTaken);
+        }
+        self.execute_fp_check()?;
+        // Scaling by a power of two is exact in double precision, so
+        // the host arithmetic gives the correctly rounded result.
+        let scale = f64::from(2.0f32).powi(i32::from(fraction_bits));
+        let bits = self.get_sr(sd);
+        let result = if to_fixed {
+            // Truncate toward zero, saturating.  NaN converts to zero.
+            let scaled = (f64::from(f32::from_bits(bits)) * scale).trunc();
+            if unsigned {
+                scaled as u32
+            } else {
+                scaled as i32 as u32
+            }
+        } else {
+            let value = if unsigned {
+                f64::from(bits)
+            } else {
+                f64::from(bits as i32)
+            };
+            ((value / scale) as f32).to_bits()
+        };
+        self.set_sr(sd, result);
+        Ok(ExecuteSuccess::Taken { cycles: 1 })
     }
 
     fn exec_vcvt(&mut self, params: &VCVTParams) -> ExecuteResult {

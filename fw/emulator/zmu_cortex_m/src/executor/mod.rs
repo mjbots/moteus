@@ -512,6 +512,56 @@ impl ExecutorHelper for Processor {
             //
             // --------------------------------------------
             Instruction::UXTAB { params } => self.exec_uxtab(params),
+            Instruction::UXTAH { params } => self.exec_ext_add(params, 16, false),
+            Instruction::SXTAH { params } => self.exec_ext_add(params, 16, true),
+            Instruction::SXTAB { params } => self.exec_ext_add(params, 8, true),
+            Instruction::RBIT { params } => {
+                if self.condition_passed() {
+                    let rm = self.get_r(params.rm);
+                    self.set_r(params.rd, rm.reverse_bits());
+                    Ok(ExecuteSuccess::Taken { cycles: 1 })
+                } else {
+                    Ok(ExecuteSuccess::NotTaken)
+                }
+            }
+            Instruction::USAT { rd, rn, sat_to, asr, shift_n } => {
+                if self.condition_passed() {
+                    let v = self.get_r(*rn) as i32;
+                    let shifted: i64 = if *asr {
+                        i64::from(v >> u32::from((*shift_n).min(31)))
+                    } else {
+                        i64::from(v.wrapping_shl(u32::from(*shift_n)))
+                    };
+                    let max: i64 = (1i64 << *sat_to) - 1;
+                    let result = shifted.clamp(0, max);
+                    if result != shifted {
+                        self.psr.set_q(true);
+                    }
+                    self.set_r(*rd, result as u32);
+                    Ok(ExecuteSuccess::Taken { cycles: 1 })
+                } else {
+                    Ok(ExecuteSuccess::NotTaken)
+                }
+            }
+            Instruction::ORN_imm { params } => {
+                if self.condition_passed() {
+                    let rn = self.get_r(params.rn);
+                    let c = self.psr.get_c();
+                    let (im, carry) = expand_conditional_carry(&params.imm32, c);
+                    let result = rn | !im;
+                    self.set_r(params.rd, result);
+                    if params.setflags {
+                        self.psr.set_n(result);
+                        self.psr.set_z(result);
+                        self.psr.set_c(carry);
+                    }
+                    Ok(ExecuteSuccess::Taken { cycles: 1 })
+                } else {
+                    Ok(ExecuteSuccess::NotTaken)
+                }
+            }
+            #[cfg(feature = "has-fp")]
+            Instruction::VFNMA_f32 { params } => self.exec_vfnma_f32(params),
 
             // --------------------------------------------
             //
@@ -776,6 +826,13 @@ impl ExecutorHelper for Processor {
             Instruction::VSUB_f64 { params } => self.exec_vsub_f64(params),
             #[cfg(feature = "has-fp")]
             Instruction::VCVT { params } => self.exec_vcvt(params),
+            #[cfg(feature = "has-fp")]
+            Instruction::VCVT_fixed_f32 {
+                sd,
+                to_fixed,
+                unsigned,
+                fraction_bits,
+            } => self.exec_vcvt_fixed_f32(*sd, *to_fixed, *unsigned, *fraction_bits),
             #[cfg(feature = "has-fp")]
             Instruction::VCVT_f64_f32 { params } => self.exec_vcvt_f64_f32(*params),
             #[cfg(feature = "has-fp")]

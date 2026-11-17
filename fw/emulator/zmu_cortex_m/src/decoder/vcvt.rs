@@ -105,3 +105,27 @@ pub fn decode_VCVT_ds_t1(opcode: u32) -> Instruction {
         }
     }
 }
+
+#[allow(non_snake_case)]
+pub fn decode_VCVT_fx_t1(opcode: u32) -> Instruction {
+    let vd = opcode.get_bits(12..16) as u8;
+    let D = u8::from(opcode.get_bit(22));
+    let double = opcode.get_bit(8);
+    let size32 = opcode.get_bit(7);
+    let imm5 = ((opcode.get_bits(0..4) << 1) | u32::from(opcode.get_bit(5))) as u8;
+
+    // Only the single precision, 32 bit fixed point form is supported.
+    if double || !size32 || imm5 > 32 {
+        return Instruction::UDF {
+            imm32: 0,
+            opcode: opcode.into(),
+            thumb32: true,
+        };
+    }
+    Instruction::VCVT_fixed_f32 {
+        sd: SingleReg::from(vd << 1 | D),
+        to_fixed: opcode.get_bit(18),
+        unsigned: opcode.get_bit(16),
+        fraction_bits: 32 - imm5,
+    }
+}

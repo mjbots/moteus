@@ -39,27 +39,33 @@ pub fn decode_REV16_t1(opcode: u16) -> Instruction {
 
 #[allow(non_snake_case)]
 pub fn decode_REV16_t2(opcode: u32) -> Instruction {
-    Instruction::UDF {
-        imm32: 0,
-        opcode: opcode.into(),
+    Instruction::REV16 {
+        params: Reg2RdRmParams {
+            rd: opcode.get_bits(8..12).into(),
+            rm: opcode.get_bits(0..4).into(),
+        },
         thumb32: true,
     }
 }
 
 #[allow(non_snake_case)]
 pub fn decode_REVSH_t2(opcode: u32) -> Instruction {
-    Instruction::UDF {
-        imm32: 0,
-        opcode: opcode.into(),
+    Instruction::REVSH {
+        params: Reg2RdRmParams {
+            rd: opcode.get_bits(8..12).into(),
+            rm: opcode.get_bits(0..4).into(),
+        },
         thumb32: true,
     }
 }
 
 #[allow(non_snake_case)]
 pub fn decode_REV_t2(opcode: u32) -> Instruction {
-    Instruction::UDF {
-        imm32: 0,
-        opcode: opcode.into(),
+    Instruction::REV {
+        params: Reg2RdRmParams {
+            rd: opcode.get_bits(8..12).into(),
+            rm: opcode.get_bits(0..4).into(),
+        },
         thumb32: true,
     }
 }

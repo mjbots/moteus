@@ -1050,6 +1050,39 @@ pub enum Instruction {
     UXTAB {
         params: Reg3UsizeParams,
     },
+    /// Unsigned extend and add halfword
+    UXTAH {
+        params: Reg3UsizeParams,
+    },
+    /// Signed extend and add halfword
+    SXTAH {
+        params: Reg3UsizeParams,
+    },
+    /// Signed extend and add byte
+    SXTAB {
+        params: Reg3UsizeParams,
+    },
+    /// Reverse bits
+    RBIT {
+        params: Reg2RdRmParams,
+    },
+    /// Unsigned saturate. `shift_n` is negative for ASR.
+    USAT {
+        rd: Reg,
+        rn: Reg,
+        sat_to: u8,
+        asr: bool,
+        shift_n: u8,
+    },
+    /// Bitwise OR NOT (immediate)
+    ORN_imm {
+        params: Reg2ImmCarryParams,
+    },
+    /// Floating point fused negate multiply accumulate
+    #[cfg(feature = "has-fp")]
+    VFNMA_f32 {
+        params: VAddSubParamsf32,
+    },
     //UXTAB16
     //UXTAH
     //UXTB16
@@ -1577,6 +1610,15 @@ pub enum Instruction {
     #[cfg(feature = "has-fp")]
     VCVT {
         params: VCVTParams,
+    },
+    /// Convert in place between single precision and 32 bit fixed
+    /// point.
+    #[cfg(feature = "has-fp")]
+    VCVT_fixed_f32 {
+        sd: SingleReg,
+        to_fixed: bool,
+        unsigned: bool,
+        fraction_bits: u8,
     },
     #[cfg(feature = "has-fp")]
     VCVT_f64_f32 {
@@ -2602,6 +2644,16 @@ impl fmt::Display for Instruction {
                     String::new()
                 }
             ),
+            Self::UXTAH { params } => write!(f, "uxtah {},{},{}", params.rd, params.rn, params.rm),
+            Self::SXTAH { params } => write!(f, "sxtah {},{},{}", params.rd, params.rn, params.rm),
+            Self::SXTAB { params } => write!(f, "sxtab {},{},{}", params.rd, params.rn, params.rm),
+            Self::RBIT { params } => write!(f, "rbit {},{}", params.rd, params.rm),
+            Self::USAT { rd, rn, sat_to, .. } => write!(f, "usat {rd},#{sat_to},{rn}"),
+            Self::ORN_imm { params } => write!(f, "orn {},{},#imm", params.rd, params.rn),
+            #[cfg(feature = "has-fp")]
+            Self::VFNMA_f32 { params } => {
+                write!(f, "vfnma.f32 {},{},{}", params.sd, params.sn, params.sm)
+            }
             Self::UXTAB { params } => write!(
                 f,
                 "uxtb.w {},{},{} {}",
@@ -2861,6 +2913,10 @@ impl fmt::Display for Instruction {
             }
             #[cfg(feature = "has-fp")]
             Self::VCVT { params } => write!(f, "{}", fmt_vcvt(params)),
+            #[cfg(feature = "has-fp")]
+            Self::VCVT_fixed_f32 {
+                sd, fraction_bits, ..
+            } => write!(f, "vcvt {sd}, {sd}, #{fraction_bits}"),
             #[cfg(feature = "has-fp")]
             Self::VCVT_f64_f32 { params } => write!(f, "vcvt.f64.f32 {}, {}", params.dd, params.sm),
             #[cfg(feature = "has-fp")]
@@ -3187,6 +3243,14 @@ pub fn instruction_size(instruction: &Instruction) -> usize {
         //USUB16
         //USUB8
         Instruction::UXTAB { .. } => 4,
+        Instruction::UXTAH { .. } => 4,
+        Instruction::SXTAH { .. } => 4,
+        Instruction::SXTAB { .. } => 4,
+        Instruction::RBIT { .. } => 4,
+        Instruction::USAT { .. } => 4,
+        Instruction::ORN_imm { .. } => 4,
+        #[cfg(feature = "has-fp")]
+        Instruction::VFNMA_f32 { .. } => 4,
         //UXTAB16
         //UXTAH
         Instruction::UXTB { thumb32, .. } => isize_t(*thumb32),
@@ -3213,6 +3277,8 @@ pub fn instruction_size(instruction: &Instruction) -> usize {
         //VCVTX
         #[cfg(feature = "has-fp")]
         Instruction::VCVT { .. } => 4,
+        #[cfg(feature = "has-fp")]
+        Instruction::VCVT_fixed_f32 { .. } => 4,
         //VCVTB
         //VCVTT
         #[cfg(feature = "has-fp")]

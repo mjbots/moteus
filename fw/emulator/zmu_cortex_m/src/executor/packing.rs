@@ -17,6 +17,7 @@ pub trait IsaPacking {
     fn exec_uxtb(&mut self, params: &Reg2UsizeParams) -> ExecuteResult;
     fn exec_uxth(&mut self, params: &Reg2UsizeParams) -> ExecuteResult;
     fn exec_uxtab(&mut self, params: &Reg3UsizeParams) -> ExecuteResult;
+    fn exec_ext_add(&mut self, params: &Reg3UsizeParams, bits: usize, signed: bool) -> ExecuteResult;
 }
 
 impl IsaPacking for Processor {
@@ -57,6 +58,22 @@ impl IsaPacking for Processor {
             let rm = self.get_r(params.rm);
             let rotated = ror(rm, params.rotation);
             self.set_r(params.rd, rotated.get_bits(0..16));
+            return Ok(ExecuteSuccess::Taken { cycles: 1 });
+        }
+        Ok(ExecuteSuccess::NotTaken)
+    }
+
+    fn exec_ext_add(&mut self, params: &Reg3UsizeParams, bits: usize, signed: bool) -> ExecuteResult {
+        if self.condition_passed() {
+            let rm = self.get_r(params.rm);
+            let rotated = ror(rm, params.rotation);
+            let rn = self.get_r(params.rn);
+            let ext = if signed {
+                sign_extend(rotated.get_bits(0..bits), bits - 1, 32) as u32
+            } else {
+                rotated.get_bits(0..bits)
+            };
+            self.set_r(params.rd, rn.wrapping_add(ext));
             return Ok(ExecuteSuccess::Taken { cycles: 1 });
         }
         Ok(ExecuteSuccess::NotTaken)
