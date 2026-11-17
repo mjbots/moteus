@@ -5,7 +5,6 @@ authors = ["Jarmo Torvinen <jarmo.torvinen@iki.fi>"]
 edition = "2024"
 
 [dependencies]
-num-bigfloat = { version = "1.7.2", default-features = false, features = ['num-traits'] }
 
 
 [features]
