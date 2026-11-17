@@ -74,6 +74,32 @@ rust_test(
     size = "small",
 )
 
+BOARDS = [
+    "r4",
+    "n1",
+    "c1",
+    "x1",
+    "r5",
+]
+
+[rust_test(
+    name = "modes_test_" + board,
+    srcs = ["tests/modes_test.rs"],
+    crate_name = "modes_test",
+    edition = "2021",
+    rustc_flags = ["-D", "warnings"],
+    data = [":firmware"],
+    env = {
+        "MOTEUS_BOARD": board,
+        "MOTEUS_ELF": "$(rootpath :firmware)",
+    },
+    deps = [
+        ":moteus_emulator",
+        "//lib/rust/moteus",
+    ],
+    size = "small",
+) for board in BOARDS]
+
 rust_test(
     name = "cpu_test",
     srcs = ["tests/cpu_test.rs"],
@@ -122,6 +148,10 @@ test_suite(
         ":boot_test",
         ":calibration_test",
         ":cpu_test",
+    ] + [
+        ":modes_test_" + board
+        for board in BOARDS
+    ] + [
         ":moteus_emulator_test",
     ],
 )
