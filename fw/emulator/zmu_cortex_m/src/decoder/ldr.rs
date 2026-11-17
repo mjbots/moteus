@@ -116,6 +116,11 @@ pub fn decode_LDR_lit_t2(opcode: u32) -> Instruction {
 
 #[allow(non_snake_case)]
 pub fn decode_LDR_reg_t2(opcode: u32) -> Instruction {
+    if opcode.get_bits(16..20) == 15 {
+        // Rn == PC is the literal form, which the generated table
+        // otherwise shadows for small negative offsets.
+        return decode_LDR_lit_t2(opcode);
+    }
     Instruction::LDR_reg {
         params: Reg3FullParams {
             rm: Reg::from(opcode.get_bits(0..4) as u8),

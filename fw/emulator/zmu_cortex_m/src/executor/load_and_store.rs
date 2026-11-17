@@ -586,9 +586,9 @@ impl IsaLoadAndStore for Processor {
 
             if params.rt == Reg::PC {
                 self.load_write_pc(data)?;
-            } else {
-                self.set_r(params.rt, data);
+                return Ok(ExecuteSuccess::Branched { cycles: 2 });
             }
+            self.set_r(params.rt, data);
 
             return Ok(ExecuteSuccess::Taken { cycles: 2 });
         }
