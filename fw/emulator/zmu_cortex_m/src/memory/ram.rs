@@ -5,7 +5,6 @@
 
 use crate::bus::Bus;
 use crate::core::fault::Fault;
-use byteorder::{ByteOrder, LittleEndian};
 
 #[derive(Debug)]
 /// RAM memory with configurable start address
@@ -46,13 +45,18 @@ impl Bus for RAM {
     fn read16(&self, addr: u32) -> Result<u16, Fault> {
         let a = (addr - self.start_address) as usize;
 
-        Ok(LittleEndian::read_u16(&self.data[a..a + 2]))
+        Ok(u16::from_le_bytes([self.data[a], self.data[a + 1]]))
     }
 
     #[inline(always)]
     fn read32(&mut self, addr: u32) -> Result<u32, Fault> {
         let a = (addr - self.start_address) as usize;
-        Ok(LittleEndian::read_u32(&self.data[a..a + 4]))
+        Ok(u32::from_le_bytes([
+            self.data[a],
+            self.data[a + 1],
+            self.data[a + 2],
+            self.data[a + 3],
+        ]))
     }
 
     #[inline(always)]
@@ -66,14 +70,14 @@ impl Bus for RAM {
     fn write16(&mut self, addr: u32, value: u16) -> Result<(), Fault> {
         let a = (addr - self.start_address) as usize;
 
-        LittleEndian::write_u16(&mut self.data[a..a + 2], value);
+        self.data[a..a + 2].copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 
     #[inline(always)]
     fn write32(&mut self, addr: u32, value: u32) -> Result<(), Fault> {
         let a = (addr - self.start_address) as usize;
-        LittleEndian::write_u32(&mut self.data[a..a + 4], value);
+        self.data[a..a + 4].copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
 

@@ -5,7 +5,6 @@
 
 use crate::bus::Bus;
 use crate::core::fault::Fault;
-use byteorder::{ByteOrder, LittleEndian};
 
 #[derive(Debug)]
 /// Flash memory with configurable start address and data content
@@ -43,13 +42,18 @@ impl Bus for FlashMemory {
     fn read16(&self, addr: u32) -> Result<u16, Fault> {
         let a = addr as usize;
 
-        Ok(LittleEndian::read_u16(&self.data[a..a + 2]))
+        Ok(u16::from_le_bytes([self.data[a], self.data[a + 1]]))
     }
 
     #[inline(always)]
     fn read32(&mut self, addr: u32) -> Result<u32, Fault> {
         let a = addr as usize;
-        Ok(LittleEndian::read_u32(&self.data[a..a + 4]))
+        Ok(u32::from_le_bytes([
+            self.data[a],
+            self.data[a + 1],
+            self.data[a + 2],
+            self.data[a + 3],
+        ]))
     }
 
     #[inline(always)]
