@@ -44,6 +44,8 @@ pub enum Error {
         /// enabled) may resolve the error.
         retryable: bool,
     },
+    /// A telemetry schema or record could not be read.
+    Parse(crate::reader::ParseError),
 }
 
 impl fmt::Display for Error {
@@ -60,6 +62,7 @@ impl fmt::Display for Error {
             Error::DeviceNotFound(dev) => write!(f, "Device not found: {dev}"),
             Error::Protocol(msg) => write!(f, "Protocol error: {msg}"),
             Error::Device { message, .. } => write!(f, "fdcanusb error: {message}"),
+            Error::Parse(e) => write!(f, "Telemetry error: {e}"),
         }
     }
 }
@@ -68,6 +71,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::Io(e) => Some(e),
+            Error::Parse(e) => Some(e),
             _ => None,
         }
     }

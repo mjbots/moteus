@@ -23,6 +23,7 @@ pub mod device_address;
 pub mod diagnostic;
 pub mod error;
 pub mod move_to;
+pub mod reader;
 pub mod transport;
 
 /// Reusable bodies of the example programs (gated behind the `examples`
@@ -54,6 +55,7 @@ pub use transport::convenience::SocketCan;
 pub use moteus_protocol::{command, query, CanFdFrame, Mode, Register, Resolution};
 
 // These modules are public for advanced use but not re-exported at the root.
-// Access via moteus::diagnostic::DiagnosticStream, moteus::move_to::Setpoint, etc.
+// Access via moteus::diagnostic::DiagnosticStream, moteus::move_to::Setpoint,
+// moteus::reader::Type, etc.
 mod async_controller;
 mod blocking_controller;

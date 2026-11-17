@@ -133,6 +133,25 @@ cmd.serialize(&mut frame, &PositionFormat::default());
 // frame.data and frame.size now contain the encoded command
 ```
 
+## Binary Telemetry
+
+The `reader` module reads the self-describing binary telemetry which a
+controller sends on its diagnostic stream and which `tview` logs, as the
+Python `moteus.reader` module does:
+
+```rust
+use moteus::reader::{ParseError, Type, Value};
+
+/// `schema` is the response to "tel schema servo_stats", and `data` a
+/// response to "tel get servo_stats" once "tel fmt servo_stats 0" has
+/// selected binary output.
+fn velocity(schema: &[u8], data: &[u8]) -> Result<Option<f64>, ParseError> {
+    let servo_stats = Type::from_binary(schema)?;
+    let value = servo_stats.read(data)?;
+    Ok(value.get_path("velocity").and_then(Value::as_f64))
+}
+```
+
 ## Controller Configuration
 
 Use the builder pattern to configure controller settings:
