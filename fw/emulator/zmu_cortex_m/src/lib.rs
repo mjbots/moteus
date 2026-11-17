@@ -226,6 +226,11 @@ pub struct Processor {
 
     instruction_cache: Vec<CachedInstruction>,
 
+    /// Decoded instructions outside of flash, by address.  This is
+    /// only valid while that memory is unchanged: whoever provides the
+    /// memory must call `clear_ram_instruction_cache` if it is written.
+    ram_instruction_cache: HashMap<u32, CachedInstruction>,
+
     fault_trap_mode: FaultTrapMode,
     pending_fault_trap: Option<FaultContext>,
     pending_fault_status: Option<FaultStatusContext>,
@@ -403,6 +408,7 @@ impl Processor {
             syst_cvr: 0,
             syst_csr: 0,
             instruction_cache: Vec::new(),
+            ram_instruction_cache: HashMap::new(),
             fault_trap_mode: FaultTrapMode::hardfault(),
             pending_fault_trap: None,
             pending_fault_status: None,
@@ -465,6 +471,11 @@ impl Processor {
 
     pub(crate) fn take_pending_fault_status(&mut self) -> FaultStatusContext {
         self.pending_fault_status.take().unwrap_or_default()
+    }
+
+    /// Forget instructions decoded from outside of flash.
+    pub fn clear_ram_instruction_cache(&mut self) {
+        self.ram_instruction_cache.clear();
     }
 
     ///

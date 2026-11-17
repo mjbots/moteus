@@ -880,12 +880,26 @@ impl Executor for Processor {
             Some(CachedInstruction::FetchFault { fault, status }) => {
                 self.handle_fault_with_status(fault, pc, status)
             }
-            None => match self.fetch(pc) {
-                Ok(thumb) => {
-                    let instruction = self.decode(thumb);
-                    self.execute(&instruction, instruction_size(&instruction))
-                }
-                Err(fault) => self.handle_fault(fault, pc),
+            None => match self.ram_instruction_cache.get(&pc).copied() {
+                Some(CachedInstruction::Decoded {
+                    instruction,
+                    instruction_size,
+                }) => self.execute(&instruction, instruction_size),
+                _ => match self.fetch(pc) {
+                    Ok(thumb) => {
+                        let instruction = self.decode(thumb);
+                        let instruction_size = instruction_size(&instruction);
+                        self.ram_instruction_cache.insert(
+                            pc,
+                            CachedInstruction::Decoded {
+                                instruction,
+                                instruction_size,
+                            },
+                        );
+                        self.execute(&instruction, instruction_size)
+                    }
+                    Err(fault) => self.handle_fault(fault, pc),
+                },
             },
         };
         self.cycle_count += u64::from(count);
