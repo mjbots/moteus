@@ -9,7 +9,7 @@ use crate::{
         register::{BaseReg, Reg},
     },
 };
-use enum_set::EnumSet;
+use crate::core::enum_set::EnumSet;
 
 /// Load and Store operations
 pub trait IsaLoadAndStoreMultiple {

@@ -25,7 +25,6 @@
 #![allow(clippy::many_single_char_names)]
 #![allow(clippy::too_many_arguments)]
 
-extern crate enum_set;
 
 pub mod bus;
 pub mod core;

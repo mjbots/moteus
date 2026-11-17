@@ -1,4 +1,4 @@
-use enum_set::EnumSet;
+use crate::core::enum_set::EnumSet;
 
 use crate::core::bits::Bits;
 use crate::core::instruction::{Instruction, VPushPopParams};

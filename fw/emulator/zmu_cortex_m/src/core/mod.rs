@@ -4,6 +4,7 @@
 
 pub mod bits;
 pub mod condition;
+pub mod enum_set;
 pub mod exception;
 pub mod fault;
 pub mod fetch;

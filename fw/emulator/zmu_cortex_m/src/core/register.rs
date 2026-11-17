@@ -7,7 +7,7 @@ use crate::ProcessorMode;
 use crate::core::bits::Bits;
 use crate::core::exception::ExceptionHandling;
 use crate::core::fault::Fault;
-use enum_set::CLike;
+use crate::core::enum_set::CLike;
 use std::fmt;
 use std::mem;
 

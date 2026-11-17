@@ -3,7 +3,7 @@ use crate::core::instruction::{
     AddressingMode, Instruction, VStoreMultipleParams32, VStoreMultipleParams64,
 };
 use crate::core::register::{DoubleReg, Reg, SingleReg};
-use enum_set::EnumSet;
+use crate::core::enum_set::EnumSet;
 
 #[allow(non_snake_case)]
 #[inline(always)]

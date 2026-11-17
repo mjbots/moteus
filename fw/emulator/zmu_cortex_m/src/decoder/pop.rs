@@ -3,7 +3,7 @@ use crate::core::bits::Bits;
 use crate::core::instruction::Instruction;
 use crate::core::operation::get_reglist;
 use crate::core::register::Reg;
-use enum_set::EnumSet;
+use crate::core::enum_set::EnumSet;
 
 #[allow(non_snake_case)]
 #[inline(always)]

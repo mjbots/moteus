@@ -285,7 +285,7 @@ mod tests {
     use super::*;
     use crate::bus::Bus;
     use crate::core::register::{DoubleReg, SingleReg};
-    use enum_set::EnumSet;
+    use crate::core::enum_set::EnumSet;
 
     fn fp_test_processor() -> Processor {
         let mut processor = Processor::new();

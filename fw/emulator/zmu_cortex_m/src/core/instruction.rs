@@ -5,7 +5,7 @@
 use crate::core::condition::Condition;
 use crate::core::register::{DoubleReg, ExtensionReg, Reg, SingleReg};
 use crate::core::thumb::ThumbCode;
-use enum_set::EnumSet;
+use crate::core::enum_set::EnumSet;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
