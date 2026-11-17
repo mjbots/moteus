@@ -18,17 +18,26 @@ use std::time::Instant;
 ///
 /// Various reasons for simulation to stop before completing fully
 ///
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum SimulationError {
     ///
     /// A fault was triggered and escalated to stop the simulation
     ///
-    #[error("{context}")]
     FaultTrap {
         /// Detailed trap context.
         context: FaultContext,
     },
 }
+
+impl std::fmt::Display for SimulationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::FaultTrap { context } => write!(f, "{context}"),
+        }
+    }
+}
+
+impl std::error::Error for SimulationError {}
 
 ///
 /// Statistical information on the simulation run.
