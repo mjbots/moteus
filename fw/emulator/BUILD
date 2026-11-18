@@ -96,10 +96,31 @@ rust_test(
     size = "small",
 )
 
+rust_test(
+    name = "calibration_test",
+    srcs = ["tests/calibration_test.rs"],
+    edition = "2021",
+    rustc_flags = ["-D", "warnings"],
+    data = [
+        "calibration/benchmarks.txt",
+        "calibration/hardware_cycles_x1.txt",
+    ],
+    env = {
+        "BENCHMARKS": "$(rootpath calibration/benchmarks.txt)",
+        "HARDWARE_CYCLES": "$(rootpath calibration/hardware_cycles_x1.txt)",
+    },
+    deps = [
+        ":moteus_emulator",
+        "//fw/emulator/zmu_cortex_m",
+    ],
+    size = "small",
+)
+
 test_suite(
     name = "host",
     tests = [
         ":boot_test",
+        ":calibration_test",
         ":cpu_test",
         ":moteus_emulator_test",
     ],
