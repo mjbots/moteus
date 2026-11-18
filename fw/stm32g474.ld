@@ -57,3 +57,12 @@ SECTIONS
 
 /* And now delegate everything else to the regular mbed linker script */
 INCLUDE external/com_github_ARMmbed_mbed-g4/linker_script.ld
+
+/* Keep the stack, and with it everything main() allocates there,
+   within SRAM1.  SRAM2, which is the last 16k of what the mbed script
+   calls RAM, takes longer to access. */
+__StackTop = 0x20014000;
+_estack = __StackTop;
+__stack = __StackTop;
+__StackLimit = __StackTop - STACK_SIZE;
+__HeapLimit = __StackLimit;
