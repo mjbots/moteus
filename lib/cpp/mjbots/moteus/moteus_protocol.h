@@ -603,7 +603,7 @@ struct Query {
             extra_index++;
           } else {
             // Ignore this value.
-            parser->ReadInt(res);
+            parser->Ignore(res);
           }
           break;
         }
@@ -774,7 +774,28 @@ struct Query {
         return parser->ReadConcrete(res, concrete_type);
       }
     }
-    return parser->ReadInt(res);
+
+    // The scale of this register is unknown.  Return an integer reply
+    // as the exact integer and a float reply as the float.
+    switch (res) {
+      case Resolution::kInt8: {
+        return parser->Read<int8_t>();
+      }
+      case Resolution::kInt16: {
+        return parser->Read<int16_t>();
+      }
+      case Resolution::kInt32: {
+        return parser->Read<int32_t>();
+      }
+      case Resolution::kFloat: {
+        return parser->Read<float>();
+      }
+      default: {
+        break;
+      }
+    }
+
+    abort();
   }
 };
 

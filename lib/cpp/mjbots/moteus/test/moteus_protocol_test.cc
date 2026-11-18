@@ -16,6 +16,7 @@
 
 #include <boost/test/auto_unit_test.hpp>
 
+#include <cmath>
 #include <string>
 
 using namespace mjbots;
@@ -145,6 +146,61 @@ BOOST_AUTO_TEST_CASE(QueryMaximal) {
   BOOST_TEST(result.extra[1].register_number == moteus::Register::kEncoder0Velocity);
   BOOST_TEST(result.extra[1].value == 0.012);
   BOOST_TEST(result.extra[2].register_number == std::numeric_limits<int16_t>::max());
+}
+
+BOOST_AUTO_TEST_CASE(QueryUnknownRegisterInt) {
+  // Integer registers outside the parse table return the exact word.
+  // Register 0x161 is not known to this library.  A custom firmware
+  // reports a 32 bit word there, which can be the integer minimum.
+  moteus::CanData query_data{
+    {
+      0x2a, 0x80, 0x02,
+      0x03, 0x00, 0x00, 0x00,  // model number
+      0x01, 0x0a, 0x01, 0x00,  // firmware version
+      0x21, 0x90, 0x02,
+      0x07,  // multiplex id
+      0x29, 0xe1, 0x02,
+      0x00, 0x00, 0x00, 0x80,  // a custom 32 bit word
+    },
+    22,
+  };
+
+  const auto result = moteus::Query::Parse(&query_data);
+  BOOST_TEST(result.extra[0].register_number == moteus::Register::kModelNumber);
+  BOOST_TEST(result.extra[0].value == 3.0);
+  BOOST_TEST(result.extra[1].register_number == moteus::Register::kFirmwareVersion);
+  BOOST_TEST(result.extra[1].value == 0x010a01);
+  BOOST_TEST(result.extra[2].register_number == moteus::Register::kMultiplexId);
+  BOOST_TEST(result.extra[2].value == 7.0);
+  BOOST_TEST(result.extra[3].register_number == 0x161);
+  BOOST_TEST(result.extra[3].value == -2147483648.0);
+}
+
+BOOST_AUTO_TEST_CASE(QueryUnknownRegisterFloat) {
+  // Registers 0x090 to 0x092 are not known to this library.  A custom
+  // firmware reports a linear acceleration in g there, as floats, and NaN
+  // when it has no sample.
+  moteus::CanData query_data{
+    {
+      0x2f, 0x90, 0x01,
+      0x0a, 0xd7, 0xa3, 0x3c,  // 0.02
+      0x8f, 0xc2, 0xf5, 0xbc,  // -0.03
+      0xa4, 0x70, 0x7d, 0x3f,  // 0.99
+      0x2d, 0x90, 0x01,
+      0x00, 0x00, 0xc0, 0x7f,  // NaN
+    },
+    22,
+  };
+
+  const auto result = moteus::Query::Parse(&query_data);
+  BOOST_TEST(result.extra[0].register_number == 0x090);
+  BOOST_TEST(result.extra[0].value == 0.02, tt::tolerance(1e-6));
+  BOOST_TEST(result.extra[1].register_number == 0x091);
+  BOOST_TEST(result.extra[1].value == -0.03, tt::tolerance(1e-6));
+  BOOST_TEST(result.extra[2].register_number == 0x092);
+  BOOST_TEST(result.extra[2].value == 0.99, tt::tolerance(1e-6));
+  BOOST_TEST(result.extra[3].register_number == 0x090);
+  BOOST_TEST(std::isnan(result.extra[3].value));
 }
 
 BOOST_AUTO_TEST_CASE(GenericQueryMake) {
