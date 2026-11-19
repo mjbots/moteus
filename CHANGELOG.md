@@ -13,7 +13,7 @@ heading to the version and date.
 
 ### Unreleased
 
-(no entries yet)
+- Stop re-running the DRV8353 current sense amplifier auto calibration at each enable (moteus-r4.8 and later, moteus-n1, moteus-x1, moteus-r5).  On some units it left a step in one phase's current reading at zero current, which degraded low current control, most visibly on the moteus-n1 since firmware 1.1.0.
 
 ### 1.2.0 - 2026-11-09
 

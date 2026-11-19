@@ -413,10 +413,13 @@ class Drv8323::Impl {
         bit(config_.dis_sen, 5) |
         (map_choice(sen_lvl_table, config_.sen_lvl_mv) << 0);
 
-    const uint16_t reg7 =
-        // This is the CAL_MODE bit, that must be 1 on the drv8353 to
-        // have equivalent behavior to the drv8323.
-        (drv8323 ? 0 : bit(true, 0));
+    // Bit 0 is the drv8353's CAL_MODE.  We leave it at 0 (manual), so
+    // that the amplifier keeps its power-on trim and we only measure
+    // the remaining offset at each enable.  Setting it to 1 re-runs
+    // the amplifier's auto trim at each enable, which on some units
+    // leaves a multi-count step in the phase 2 reading as the current
+    // crosses zero.
+    const uint16_t reg7 = 0;
 
     const uint16_t regs[] = { 0, 0, reg2, reg3, reg4, reg5, reg6, reg7 };
 
