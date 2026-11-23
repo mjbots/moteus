@@ -45,7 +45,7 @@ use moteus::{BlockingController, command::PositionCommand};
 
 fn main() -> Result<(), moteus::Error> {
     // Auto-discovers transport on first use
-    let mut ctrl = BlockingController::new(1);
+    let mut ctrl = BlockingController::new(1)?;
 
     // Clear any faults
     ctrl.set_stop()?;
@@ -79,7 +79,7 @@ use moteus::command::PositionCommand;
 #[tokio::main]
 async fn main() -> Result<(), moteus::Error> {
     // Auto-discovers transport on first use
-    let mut ctrl = AsyncController::new(1);
+    let mut ctrl = AsyncController::new(1).await?;
 
     ctrl.set_stop().await?;
 
@@ -140,7 +140,7 @@ use moteus::query::QueryFormat;
 let mut query_format = QueryFormat::default();
 query_format.power = Resolution::Float;
 
-let mut ctrl = BlockingController::new(1);
+let mut ctrl = BlockingController::new(1)?;
 ctrl.controller.query_format = query_format;
 ```
 
@@ -156,7 +156,7 @@ query_format.extra[0] = ExtraQuery {
     resolution: Resolution::Float,
 };
 
-let mut ctrl = BlockingController::new(1);
+let mut ctrl = BlockingController::new(1)?;
 ctrl.controller.query_format = query_format;
 ```
 
@@ -174,7 +174,7 @@ let opts = TransportOptions::new()
     .socketcan_interfaces(vec!["can0"])
     .timeout(Duration::from_millis(200));
 
-let mut ctrl = BlockingController::with_options(1, &opts);
+let mut ctrl = BlockingController::with_options(1, &opts)?;
 ```
 
 ### Explicit Transport
