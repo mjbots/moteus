@@ -1113,9 +1113,14 @@ class BldcServo::Impl : public BldcServoControl<BldcServo::Impl> {
     status_.mode = kCalibrationComplete;
   }
 
-  void ISR_MaybeEmitDebug() MOTEUS_CCM_ATTRIBUTE {
+  void ISR_MaybeEmitDebug() __attribute__((always_inline)) {
     if (config_.emit_debug == 0 || !debug_uart_) { return; }
+    ISR_EmitDebug();
+  }
 
+  // This is only used during development, so is not worth the space
+  // it would take up in CCM RAM.
+  void ISR_EmitDebug() __attribute__((noinline)) {
     debug_buf_[0] = 0x5a;
 
     int pos = 1;
