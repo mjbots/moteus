@@ -64,6 +64,22 @@ velocity is continued indefinitely.
     auto result = controller.SetPosition(cmd);
     ```
 
+=== "Rust"
+
+    ```rust
+    use moteus::{BlockingController, command::PositionCommand};
+
+    let mut controller = BlockingController::new(1)?;
+
+    let result = controller.set_position(
+        PositionCommand::new()
+            .position(1.0)
+            .velocity(0.0)
+            .accel_limit(2.0)
+            .velocity_limit(0.5),
+    )?;
+    ```
+
 Default values for acceleration and velocity limits can also be set in
 configuration.
 
@@ -107,6 +123,16 @@ disturbances is decreased.
     cmd.velocity = 2.0;  // 2 revolutions/second
 
     auto result = controller.SetPosition(cmd);
+    ```
+
+=== "Rust"
+
+    ```rust
+    let result = controller.set_position(
+        PositionCommand::new()
+            .position(f32::NAN)  // NaN for velocity mode
+            .velocity(2.0),      // 2 revolutions/second
+    )?;
     ```
 
 
@@ -154,6 +180,24 @@ For a pure torque control application, the PID gains of the position control loo
     cmd.feedforward_torque = 0.1;
 
     auto result = controller.SetPosition(cmd);
+    ```
+
+=== "Rust"
+
+    ```rust
+    use moteus::{BlockingController, command::PositionCommand};
+
+    let mut controller = BlockingController::new(1)?;
+
+    let result = controller.set_position(
+        PositionCommand::new()
+            .position(f32::NAN)
+            .velocity(0.0)
+            .kp_scale(0.0)
+            .kd_scale(0.0)
+            .ilimit_scale(0.0)
+            .feedforward_torque(0.1),
+    )?;
     ```
 
 **Caveat**: Using external torque control will be much lower
