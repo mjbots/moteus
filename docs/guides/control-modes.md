@@ -59,7 +59,7 @@ velocity is continued indefinitely.
     cmd.position = 1.0;
     cmd.velocity = 0.0;
     cmd.accel_limit = 2.0;
-    cmd_velocity_limit = 0.5;
+    cmd.velocity_limit = 0.5;
 
     auto result = controller.SetPosition(cmd);
     ```
