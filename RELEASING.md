@@ -416,5 +416,10 @@ cd lib/rust && cargo update --workspace   # refreshes Cargo.lock minimally
 CARGO_BAZEL_REPIN=1 ./tools/bazel sync --only=crate_index
 ```
 
+The repin starts from the versions in `Cargo.lock`, but does not
+modify it: bazel is given a copy (`lib/rust/cargo_lock.bzl`), as what
+it writes back is not usable by cargo, and is in a lockfile version
+that the 1.75 MSRV toolchain cannot parse.
+
 A stale `Cargo.bazel.lock` fails the bazel build with a message that
 names `CARGO_BAZEL_REPIN`, so drift is caught rather than silent.

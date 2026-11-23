@@ -122,11 +122,18 @@ load("@rules_rust//crate_universe:repositories.bzl", "crate_universe_dependencie
 crate_universe_dependencies()
 
 load("@rules_rust//crate_universe:defs.bzl", "crates_repository")
+load("//lib/rust:cargo_lock.bzl", "cargo_lock_copy")
 load("//lib/rust:crates.bzl", "moteus_crate_packages")
+
+# Repinning rewrites cargo_lockfile, so it is given a copy.
+cargo_lock_copy(
+    name = "moteus_cargo_lock",
+    src = "//lib/rust:Cargo.lock",
+)
 
 crates_repository(
     name = "crate_index",
-    cargo_lockfile = "//lib/rust:Cargo.lock",
+    cargo_lockfile = "@moteus_cargo_lock//:Cargo.lock",
     lockfile = "//lib/rust:Cargo.bazel.lock",
     packages = moteus_crate_packages(),
 )
