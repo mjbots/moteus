@@ -43,6 +43,7 @@
 #include "fw/ma732.h"
 #include "fw/mbed_util.h"
 #include "fw/millisecond_timer.h"
+#include "fw/mosrac_s.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
 #include "fw/strtof.h"
@@ -222,6 +223,10 @@ class AuxPort {
         }
         case SampleType::kAksim2: {
           aksim2_->ISR_Update(&status_.uart);
+          break;
+        }
+        case SampleType::kMosracS: {
+          mosrac_s_->ISR_Update(&status_.uart);
           break;
         }
         case SampleType::kCuiAmt21: {
@@ -457,6 +462,7 @@ class AuxPort {
     kPwmInput = 12,
     kBissC = 13,
     kOrbis = 14,
+    kMosracS = 15,
 
     kLastEntry,
   };
@@ -905,6 +911,7 @@ class AuxPort {
     if (rs422_re_) { rs422_re_->write(1); }
     aksim2_.reset();
     cui_amt21_.reset();
+    mosrac_s_.reset();
 
     for (auto& cfg : adc_info_.config) {
       cfg.adc_num = -1;
@@ -1347,6 +1354,10 @@ class AuxPort {
           aksim2_.emplace(config_.uart, &*uart_, timer_);
           break;
         }
+        case C::kMosracS: {
+          mosrac_s_.emplace(config_.uart, &*uart_, timer_);
+          break;
+        }
         case C::kTunnel: {
           uart_->start_dma_read(current_tunnel_write_buf_);
           tunnel_polling_enabled_ = true;
@@ -1490,6 +1501,7 @@ class AuxPort {
     if (index_) { AddSampleType(SampleType::kIndex, false, true); }
     if (aksim2_) { AddSampleType(SampleType::kAksim2, false, true); }
     if (cui_amt21_) { AddSampleType(SampleType::kCuiAmt21, false, true); }
+    if (mosrac_s_) { AddSampleType(SampleType::kMosracS, false, true); }
     if (i2c_) { AddSampleType(SampleType::kI2c, false, true); }
     if (pwm_input_) { AddSampleType(SampleType::kPwmInput, false, true); }
     if (bissc_) { AddSampleType(SampleType::kBissC, false, true); }
@@ -1608,6 +1620,7 @@ class AuxPort {
   std::optional<UartFdcanusbMicroServer> uart_micro_server_;
   std::optional<Aksim2> aksim2_;
   std::optional<CuiAmt21> cui_amt21_;
+  std::optional<MosracS> mosrac_s_;
   std::optional<DigitalOut> rs422_re_;
   std::optional<DigitalOut> rs422_de_;
 
