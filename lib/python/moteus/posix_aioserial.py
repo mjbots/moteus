@@ -7,7 +7,6 @@
 import array
 import asyncio
 import concurrent.futures
-import sys
 from typing import List, Optional, Union
 
 import serial
@@ -56,8 +55,7 @@ class AioSerial:
 
     @property
     def loop(self) -> Optional[asyncio.AbstractEventLoop]:
-        return self._loop if self._loop else asyncio.get_running_loop() \
-                if sys.version_info >= (3, 7) else asyncio.get_event_loop()
+        return self._loop if self._loop else asyncio.get_running_loop()
 
     @loop.setter
     def loop(self, value: Optional[asyncio.AbstractEventLoop]):

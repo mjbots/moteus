@@ -85,6 +85,7 @@ Erroneous release with no changelog
 ### Unreleased
 
 - Fix "TypeError: exceptions must derive from BaseException" when using the default transport from more than one event loop, for instance by calling asyncio.run() more than once.  A new default transport is now created once the event loop of the previous one has finished.
+- The minimum supported python version is now 3.9 (moteus and moteus_gui).  Earlier versions could already not satisfy the scipy dependency (3.7), or had no working moteus_pi3hat package (3.8).
 
 ### 1.1.3 - 2026-11-07
 

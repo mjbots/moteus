@@ -8,7 +8,7 @@ version = {{VERSION}}
 description = "moteus brushless controller library and tools"
 readme = "README.md"
 license = {text = "Apache-2.0"}
-requires-python = ">=3.7, <4"
+requires-python = ">=3.9, <4"
 authors = [{name = "mjbots Robotic Systems", email = "info@mjbots.com"}]
 keywords = ["moteus"]
 classifiers = [

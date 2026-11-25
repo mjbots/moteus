@@ -24,7 +24,6 @@ asyncio.timeout().
 """
 
 import asyncio
-import sys
 
 
 class Timeout:
@@ -46,7 +45,6 @@ class Timeout:
         self._delay = delay
         self._task = None
         self._timeout_handle = None
-        self._cancelled_by_timeout = False
         # Per-instance sentinel so nested Timeout blocks can each
         # recognize only the cancellations they themselves issued.
         self._sentinel = f"_moteus_timeout_expired:{id(self)}"
@@ -72,28 +70,17 @@ class Timeout:
             self._timeout_handle = None
 
         if exc_type is asyncio.CancelledError:
-            # Check if this cancellation was from our timeout
-            if sys.version_info >= (3, 9):
-                # On 3.9+, check the cancel message for our sentinel
-                # to avoid misattributing an external cancel as a timeout.
-                if (getattr(exc_val, 'args', ()) and
-                    exc_val.args[0] == self._sentinel):
-                    raise asyncio.TimeoutError() from exc_val
-            elif self._cancelled_by_timeout:
-                # Pre-3.9, best effort using the flag
-                self._cancelled_by_timeout = False
+            # Check the cancel message for our sentinel to avoid
+            # misattributing an external cancel as a timeout.
+            if (getattr(exc_val, 'args', ()) and
+                exc_val.args[0] == self._sentinel):
                 raise asyncio.TimeoutError() from exc_val
 
         return False
 
     def _on_timeout(self):
         """Called when the timeout expires."""
-        self._cancelled_by_timeout = True
-        # Use cancel message if available (Python 3.9+)
-        if sys.version_info >= (3, 9):
-            self._task.cancel(self._sentinel)
-        else:
-            self._task.cancel()
+        self._task.cancel(self._sentinel)
 
 
 def timeout(delay):
