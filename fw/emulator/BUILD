@@ -97,7 +97,11 @@ BOARDS = [
         ":moteus_emulator",
         "//lib/rust/moteus",
     ],
+    # These take around 30s, but several times that on a machine
+    # which is also busy building.  Remain "small" so that they are
+    # run by default.
     size = "small",
+    timeout = "moderate",
 ) for board in BOARDS]
 
 rust_test(
