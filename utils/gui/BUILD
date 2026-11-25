@@ -54,7 +54,14 @@ genrule(
         "RELOUT=$$(realpath --relative-to $$(dirname $(location README.md)) " +
         "          $$(dirname $(location moteus_gui-{ver}.tar.gz))) && " +
         "SRCROOT=$$(dirname $(location README.md)) && " +
-        "ln -s $$(realpath $(location pyproject.toml)) $$SRCROOT/pyproject.toml && " +
+        # setuptools >= 77 deprecates the table form of
+        # project.license in favor of a SPDX string, but older
+        # versions (Ubuntu 24.04) reject the string form.
+        "if python3 -c 'import setuptools as s; raise SystemExit(int(s.__version__.split(\".\")[0]) < 77)'; then " +
+        "  sed 's/^license = .text = \\(.*\\).$$/license = \\1/' $(location pyproject.toml) > $$SRCROOT/pyproject.toml; " +
+        "else " +
+        "  ln -s $$(realpath $(location pyproject.toml)) $$SRCROOT/pyproject.toml; " +
+        "fi && " +
         "ln -s $$(realpath $(location //utils/gui/moteus_gui:version.py)) $$SRCROOT/moteus_gui/version.py && " +
         "cd $$SRCROOT && " +
         "python3 -m build --no-isolation --outdir $$RELOUT 1>/dev/null " +
