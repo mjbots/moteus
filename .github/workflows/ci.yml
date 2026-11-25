@@ -5,7 +5,7 @@ on: [push, pull_request]
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
     - uses: actions/checkout@v5
@@ -19,7 +19,7 @@ jobs:
       run: ./travis-ci.sh
 
   rust-cross-platform:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         include:
@@ -52,7 +52,7 @@ jobs:
     # prove it by compiling the whole workspace with exactly that
     # toolchain.  Cargo.lock is kept at lockfile version 3 for this:
     # version 4 needs cargo 1.78+ to parse.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v4
     - name: install libudev-dev

@@ -16,7 +16,7 @@ jobs:
   pypi:
     # Only fire for python releases, not firmware/cpp.
     if: startsWith(github.event.release.tag_name, 'python/v')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment:
       name: pypi
       url: https://pypi.org/project/moteus/
