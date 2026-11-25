@@ -2624,8 +2624,8 @@
 <h3 id="velocity-limits">Velocity Limits<a class="headerlink" href="#velocity-limits" title="Permanent link">&para;</a></h3>
 <p><strong><code>servo.max_velocity</code></strong></p>
 <p>Limits the maximum speed the motor is permitted to achieve before no torque is produced. This acts as a safety limit to prevent excessive speeds that could damage the motor or mechanical system.</p>
-<p><strong><code>servo.default_velocity_limit</code> / <code>servo.default_accel_limit</code></strong></p>
-<p>Controls how fast the motor can accelerate and spin in order to reach position and velocity targets. Bare boards ship with these unset, while development kits ship with human-eye pleasing values. Adjust these to match your application's performance requirements.</p>
+<p><strong><code>servo.default_velocity_limit</code> / <code>servo.default_accel_limit</code> / <code>servo.default_jerk_limit</code></strong></p>
+<p>Controls how fast the motor can accelerate and spin in order to reach position and velocity targets. Development kits ship with human-eye pleasing values. Adjust these to match your application's performance requirements.</p>
 <h3 id="gearbox-scaling">Gearbox Scaling<a class="headerlink" href="#gearbox-scaling" title="Permanent link">&para;</a></h3>
 <p><strong><code>motor_position.rotor_to_output_ratio</code></strong></p>
 <p>A gearbox scaling factor. A reducing gearbox should be configured with a number smaller than one (e.g., 0.25 for a 4x reduction gearbox). This affects reported position, speed, and torques, scaling them to represent the output shaft values rather than motor shaft values.</p>

@@ -2397,6 +2397,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#jerk-measured-in-revolutions-s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jerk (measured in revolutions / s^3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pwm-and-kpkd-scale-unitless" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2841,6 +2852,28 @@
     <span class="md-ellipsis">
       
         0x02d - Ignore position bounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02e-acceleration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x02e - Acceleration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02f-jerk-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x02f - Jerk limit
       
     </span>
   </a>
@@ -3648,6 +3681,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#jerk-measured-in-revolutions-s3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jerk (measured in revolutions / s^3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#pwm-and-kpkd-scale-unitless" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -4092,6 +4136,28 @@
     <span class="md-ellipsis">
       
         0x02d - Ignore position bounds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02e-acceleration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x02e - Acceleration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#0x02f-jerk-limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0x02f - Jerk limit
       
     </span>
   </a>
@@ -4785,6 +4851,12 @@ values.</p>
 <li>int16 =&gt; 1 LSB =&gt; 0.001 l/s^2</li>
 <li>int32 =&gt; 1 LSB =&gt; 0.00001 l/s^2</li>
 </ul>
+<h4 id="jerk-measured-in-revolutions-s3">Jerk (measured in revolutions / s^3)<a class="headerlink" href="#jerk-measured-in-revolutions-s3" title="Permanent link">&para;</a></h4>
+<ul>
+<li>int8 =&gt; 1 LSB =&gt; 10.0 l/s^3</li>
+<li>int16 =&gt; 1 LSB =&gt; 0.1 l/s^3</li>
+<li>int32 =&gt; 1 LSB =&gt; 0.001 l/s^3</li>
+</ul>
 <h4 id="pwm-and-kpkd-scale-unitless">PWM and kp/kd scale (unitless)<a class="headerlink" href="#pwm-and-kpkd-scale-unitless" title="Permanent link">&para;</a></h4>
 <ul>
 <li>int8 =&gt; 1 LSB =&gt; (1/127) - 0.007874</li>
@@ -5068,6 +5140,19 @@ of a fixed voltage, a fixed D axis current is controlled.</p>
 <p>Mode: Read/write</p>
 <p>If specified and non-zero, <code>servopos.position_min</code> and
 <code>servopos.position_max</code> will be ignore.</p>
+<h3 id="0x02e-acceleration">0x02e - Acceleration<a class="headerlink" href="#0x02e-acceleration" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>The rate at which the commanded velocity (0x021) changes, so that the
+commanded trajectory is <code>x = x_c + v_c * t + 0.5 * a_c * t^2</code>.  The
+commanded velocity stops changing when it reaches the velocity limit.</p>
+<p>This is limited to the acceleration limit.  If unspecified, it is 0.</p>
+<h3 id="0x02f-jerk-limit">0x02f - Jerk limit<a class="headerlink" href="#0x02f-jerk-limit" title="Permanent link">&para;</a></h3>
+<p>Mode: Read/write</p>
+<p>This can be used to override the global jerk limit for internally
+generated trajectories.</p>
+<p>If negative or zero, then no limit is applied.</p>
+<p>If unspecified, it is NaN / maximally negative, which implies to use
+the global configurable default <code>servo.default_jerk_limit</code>.</p>
 <h3 id="0x030-proportional-torque">0x030 - Proportional torque<a class="headerlink" href="#0x030-proportional-torque" title="Permanent link">&para;</a></h3>
 <p>Mode: Read</p>
 <p>This reports the torque contribution from the proportional term in the

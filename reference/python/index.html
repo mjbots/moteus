@@ -2908,6 +2908,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.acceleration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        acceleration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.jerk_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        jerk_limit
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4155,6 +4177,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.acceleration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        acceleration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#moteus.PositionResolution.jerk_limit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        jerk_limit
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4516,7 +4560,7 @@ medium.</p>
 
 
 <h3 id="moteus.Controller.make_position" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">make_position</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">feedforward_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kp_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kd_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">maximum_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">watchdog_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accel_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_voltage_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ilimit_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_current_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ignore_position_bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">make_position</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">feedforward_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kp_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">kd_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">maximum_torque</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stop_position</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">watchdog_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">velocity_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accel_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_voltage_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ilimit_scale</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fixed_current_override</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ignore_position_bounds</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">acceleration</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">jerk_limit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">query</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">query_override</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#moteus.Controller.make_position" class="headerlink" title="Permanent link">&para;</a></h3>
 
@@ -5228,6 +5272,24 @@ so the actual completion times may still be quite far apart.</p>
               <div class="doc-md-description">
                 <p>Default acceleration limit. Setpoint values override
            this.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>jerk_limit</code>
+            </td>
+            <td>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Default jerk limit. When set, the trajectory
+          generator slews acceleration at no more than this
+          rate per second, producing an S-curve velocity
+          profile. Setpoint values override this.</p>
               </div>
             </td>
             <td>
@@ -6278,6 +6340,48 @@ sending position mode commands.</p>
   </span>
 
 <a href="#moteus.PositionResolution.ignore_position_bounds" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.acceleration" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">acceleration</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.acceleration" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="moteus.PositionResolution.jerk_limit" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">jerk_limit</span> <span class="o">=</span> <span class="n">mp</span><span class="o">.</span><span class="n">F32</span></code>
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-class-attribute"><code>class-attribute</code></small>
+      <small class="doc doc-label doc-label-instance-attribute"><code>instance-attribute</code></small>
+  </span>
+
+<a href="#moteus.PositionResolution.jerk_limit" class="headerlink" title="Permanent link">&para;</a></h3>
 
 
     <div class="doc doc-contents ">

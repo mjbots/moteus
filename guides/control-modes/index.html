@@ -850,13 +850,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#constant-acceleration-trajectories" class="md-nav__link">
+  <a href="#constant-jerk-or-acceleration-trajectories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constant Acceleration Trajectories
+        Constant Jerk or Acceleration Trajectories
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Constant Jerk or Acceleration Trajectories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accelerating-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accelerating targets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -876,17 +893,6 @@
     <span class="md-ellipsis">
       
         Torque Control
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jerk-limited-trajectories" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Jerk Limited Trajectories
       
     </span>
   </a>
@@ -2437,13 +2443,30 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#constant-acceleration-trajectories" class="md-nav__link">
+  <a href="#constant-jerk-or-acceleration-trajectories" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Constant Acceleration Trajectories
+        Constant Jerk or Acceleration Trajectories
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Constant Jerk or Acceleration Trajectories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accelerating-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accelerating targets
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -2463,17 +2486,6 @@
     <span class="md-ellipsis">
       
         Torque Control
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#jerk-limited-trajectories" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Jerk Limited Trajectories
       
     </span>
   </a>
@@ -2528,18 +2540,20 @@
 <li><strong>Acceleration limit override</strong>: If non-special, override the configured acceleration limit, which constrains how quickly the target position is reached</li>
 </ul>
 <p>Additionally, the position may be set as a "special value" (NaN for floating point and the debug interface, maximal negative for integer encodings). In that case, the position selected is "wherever you are right now".</p>
-<h2 id="constant-acceleration-trajectories">Constant Acceleration Trajectories<a class="headerlink" href="#constant-acceleration-trajectories" title="Permanent link">&para;</a></h2>
-<p>Velocity and acceleration limits can be configured either globally, or
-on a per-command basis which will cause moteus to internally generate
-continuous acceleration limited trajectories to reach the given
-position and velocity.  Once the trajectory is complete, the command
-velocity is continued indefinitely.</p>
+<h2 id="constant-jerk-or-acceleration-trajectories">Constant Jerk or Acceleration Trajectories<a class="headerlink" href="#constant-jerk-or-acceleration-trajectories" title="Permanent link">&para;</a></h2>
+<p>Velocity, acceleration, and jerk limits can be configured either
+globally, or on a per-command basis which will cause moteus to
+internally generate continuous jerk/acceleration/velocity limited
+trajectories to reach a target position and velocity.  Once the
+trajectory is complete, the command velocity is continued
+indefinitely.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Diagnostic Protocol</label><label for="__tabbed_1_2">Python</label><label for="__tabbed_1_3">C++</label><label for="__tabbed_1_4">Rust</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a># Move to position 1 then stop.  Accelerate/decelerate at 2Hz/s
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a># and use a maximum velocity of 0.5Hz.
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>d pos 1 0 nan a2 v0.5
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a># Move to position 1 then stop.  Accelerate/decelerate at 2Hz/s,
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a># change acceleration by no more than 10Hz/s^2 and use a maximum
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a># velocity of 0.5Hz.
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>d pos 1 0 nan a2 v0.5 j10
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -2548,23 +2562,26 @@ velocity is continued indefinitely.</p>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">velocity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">accel_limit</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">velocity_limit</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">jerk_limit</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">)</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="o">::</span><span class="n">Options</span><span class="w"> </span><span class="n">options</span><span class="p">;</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="w"> </span><span class="nf">controller</span><span class="p">(</span><span class="n">options</span><span class="p">);</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">PositionMode</span><span class="o">::</span><span class="n">Command</span><span class="w"> </span><span class="n">cmd</span><span class="p">;</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">cmd</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">cmd</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="p">;</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">controller</span><span class="p">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">cmd</span><span class="p">);</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">options</span><span class="p">.</span><span class="n">position_format</span><span class="p">.</span><span class="n">jerk_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">kFloat</span><span class="p">;</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">Controller</span><span class="w"> </span><span class="nf">controller</span><span class="p">(</span><span class="n">options</span><span class="p">);</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">mjbots</span><span class="o">::</span><span class="n">moteus</span><span class="o">::</span><span class="n">PositionMode</span><span class="o">::</span><span class="n">Command</span><span class="w"> </span><span class="n">cmd</span><span class="p">;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">cmd</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0</span><span class="p">;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">cmd</span><span class="p">.</span><span class="n">accel_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">2.0</span><span class="p">;</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">cmd</span><span class="p">.</span><span class="n">velocity_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.5</span><span class="p">;</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">cmd</span><span class="p">.</span><span class="n">jerk_limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">10.0</span><span class="p">;</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="k">auto</span><span class="w"> </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">controller</span><span class="p">.</span><span class="n">SetPosition</span><span class="p">(</span><span class="n">cmd</span><span class="p">);</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -2577,18 +2594,37 @@ velocity is continued indefinitely.</p>
 </span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">        </span><span class="p">.</span><span class="n">position</span><span class="p">(</span><span class="mf">1.0</span><span class="p">)</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">        </span><span class="p">.</span><span class="n">velocity</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
 </span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">        </span><span class="p">.</span><span class="n">accel_limit</span><span class="p">(</span><span class="mf">2.0</span><span class="p">)</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="p">.</span><span class="n">velocity_limit</span><span class="p">(</span><span class="mf">0.5</span><span class="p">),</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">        </span><span class="p">.</span><span class="n">velocity_limit</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">        </span><span class="p">.</span><span class="n">jerk_limit</span><span class="p">(</span><span class="mf">10.0</span><span class="p">),</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="p">)</span><span class="o">?</span><span class="p">;</span>
 </span></code></pre></div>
 </div>
 </div>
 </div>
-<p>Default values for acceleration and velocity limits can also be set in
-configuration.</p>
+<p>Default values for jerk, acceleration and velocity limits can also be
+set in configuration.</p>
 <ul>
 <li><code>servo.default_accel_limit</code></li>
 <li><code>servo.default_velocity_limit</code></li>
+<li><code>servo.default_jerk_limit</code></li>
 </ul>
+<p>When a jerk limit is set, the velocity that the motor is able to reach
+at the present supply voltage is treated as a further velocity limit,
+so that it too is approached without exceeding the jerk limit.</p>
+<h3 id="accelerating-targets">Accelerating targets<a class="headerlink" href="#accelerating-targets" title="Permanent link">&para;</a></h3>
+<p>A position mode command may also give an acceleration, in which case
+the commanded velocity changes at that rate until it reaches the
+velocity limit.  The target is then the trajectory <code>x = x_c + v_c * t
++ 0.5 * a_c * t^2</code>, rather than a point moving at a constant velocity.</p>
+<p>When a jerk limit is set, the trajectory moteus generates joins that
+target with matching acceleration.  A host can thus send a sequence of
+position, velocity, and acceleration commands which describe segments
+of a longer trajectory, without the acceleration returning to zero
+between them.  With no limits set, the commanded trajectory is
+followed exactly.  With only velocity or acceleration limits and no
+jerk limit, the target is approached without regard for its
+acceleration, so the acceleration changes abruptly on reaching it,
+after which it is followed exactly.</p>
 <h2 id="velocity-control">Velocity Control<a class="headerlink" href="#velocity-control" title="Permanent link">&para;</a></h2>
 <p>To implement a velocity controller, each command should have the
 "position" set to NaN (or equivalent integral encoding).  It is
@@ -2700,14 +2736,6 @@ controller.</p>
 <li><code>servo.pid_position.kd</code></li>
 <li><code>servo.pid_position.ilimit</code></li>
 </ul>
-<h2 id="jerk-limited-trajectories">Jerk Limited Trajectories<a class="headerlink" href="#jerk-limited-trajectories" title="Permanent link">&para;</a></h2>
-<p>moteus only supports acceleration limited internal trajectories.  To
-approximate a constant jerk trajectory, the host processor should send
-a sequence of piecewise linear constant velocity trajectories which
-approximate the desired one.  This would be done by sending commands
-consisting of at least a position and velocity at some moderate to
-high rate while disabling the internal velocity and acceleration
-limits.</p>
 <h2 id="low-speed-or-precise-positioning">Low Speed or Precise Positioning<a class="headerlink" href="#low-speed-or-precise-positioning" title="Permanent link">&para;</a></h2>
 <p>For either operation at very low speeds, or when precise positioning
 performance is desired, it is recommended to configure a non-zero <code>ki</code>

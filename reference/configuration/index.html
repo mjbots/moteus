@@ -1989,10 +1989,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servodefault_velocity_limit-servodefault_accel_limit" class="md-nav__link">
+  <a href="#servodefault_velocity_limit-servodefault_accel_limit-servodefault_jerk_limit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.default_velocity_limit / servo.default_accel_limit
+        servo.default_velocity_limit / servo.default_accel_limit / servo.default_jerk_limit
       
     </span>
   </a>
@@ -3353,10 +3353,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#servodefault_velocity_limit-servodefault_accel_limit" class="md-nav__link">
+  <a href="#servodefault_velocity_limit-servodefault_accel_limit-servodefault_jerk_limit" class="md-nav__link">
     <span class="md-ellipsis">
       
-        servo.default_velocity_limit / servo.default_accel_limit
+        servo.default_velocity_limit / servo.default_accel_limit / servo.default_jerk_limit
       
     </span>
   </a>
@@ -4255,36 +4255,45 @@ during calibration by the <code>--cal-bw-hz</code> option to <code>moteus_tool</
 <h2 id="servomax_current_desired_rate"><code>servo.max_current_desired_rate</code><a class="headerlink" href="#servomax_current_desired_rate" title="Permanent link">&para;</a></h2>
 <p>The maximum rate at which the desired current can change, in A/s.  0
 means unlimited.</p>
-<h2 id="servodefault_velocity_limit-servodefault_accel_limit"><code>servo.default_velocity_limit</code> / <code>servo.default_accel_limit</code><a class="headerlink" href="#servodefault_velocity_limit-servodefault_accel_limit" title="Permanent link">&para;</a></h2>
+<h2 id="servodefault_velocity_limit-servodefault_accel_limit-servodefault_jerk_limit"><code>servo.default_velocity_limit</code> / <code>servo.default_accel_limit</code> / <code>servo.default_jerk_limit</code><a class="headerlink" href="#servodefault_velocity_limit-servodefault_accel_limit-servodefault_jerk_limit" title="Permanent link">&para;</a></h2>
 <p>Limits to be placed on trajectories generated within moteus.  If
-either is <code>nan</code>, then that limit is unset.  The limits may also be
-overriden individually on a per command basis.  The semantics of the
-limits are as follows:</p>
+any is <code>nan</code>, then that limit is unset.  The limits may also be
+overriden individually on a per command basis.  The semantics
+depend on which limits are set.</p>
 <ul>
 <li>
-<p><em>Neither set (both nan)</em> In this case, position and velocity
-  commands take immediate effect.  The control position will be
-  initialized to the command position, and the control velocity will
-  be set to the command velocity.  The control position will advance
-  at the given velocity indefinitely, or until the command stop
-  position is reached.</p>
+<p><em>None set (all nan)</em>: position and velocity commands take immediate
+  effect.  The control position will be initialized to the command
+  position, and the control velocity will be set to the command
+  velocity.  The control position will advance at the given velocity
+  indefinitely, or until the command stop position is reached.</p>
 </li>
 <li>
-<p><em>Either set</em>: If x_c is the command position, v_c is the command
-  velocity, and t is the time from receipt of the command, the
-  semantics can be described as: "match the trajectory defined by x =
-  x_c + v_c * t".</p>
+<p><em>jerk_limit set</em>: Acceleration changes no faster than the given
+  rate, following a triangular or trapezoidal path.  Velocity follows
+  an S curve.  A trajectory is planned to finish slightly more
+  conservatively than the limits strictly permit, and thus takes
+  slightly longer than a time optimal one.</p>
+</li>
+<li>
+<p><em>accel_limit set</em>: If set, the acceleration is capped at the given
+  value in either the positive or negative direction.  If no jerk
+  limit is set, then acceleration switches instantaneously between
+  [-accel_limit, 0, and accel_limit].  If a jerk limit is configured,
+  then acceleration will follow a trapezoidal trajectory.</p>
+</li>
+<li>
+<p><em>velocity_limit set</em>: If set, then velocity is capped at the given
+  value in either the positive or negative direction.  If neither jerk
+  nor acceleration limits are set, then velocity switches
+  instantaneously between [-velocity_limit, 0, velocity_limit].  If
+  either jerk or acceleration limits are configured, they constrain
+  changes in velocity.</p>
 </li>
 </ul>
-<p>If the acceleration limit is set, the above is effected by
-  commanding accelerations of either [-accel_limit, 0, accel_limit].
-  If an acceleration limit is not set, then the velocity will change
-  instantaneously.</p>
-<p>If the velocity limit is set, then the intermediate velocities will
-  obey "-velocity_limit &lt; velocity &lt; +velocity_limit".  If it is not
-  set, then the velocities may grow to arbitrary magnitude.</p>
-<p>NOTE: This is limited internally to be no more than
-<code>servo.max_velocity</code>.</p>
+<p>NOTE: <code>velocity_limit</code> is limited internally to be no more than
+<code>servo.max_velocity</code>.  If any limit is set and <code>velocity_limit</code> is
+not, then <code>servo.max_velocity</code> is used as the velocity limit.</p>
 <h2 id="servoinertia_feedforward"><code>servo.inertia_feedforward</code><a class="headerlink" href="#servoinertia_feedforward" title="Permanent link">&para;</a></h2>
 <p>When set to non-zero, and acceleration limits are currently in effect,
 this will apply a feedforward torque equal to the current acceleration
@@ -4481,10 +4490,11 @@ The allowable values are a subset of the top level modes.</p>
 <li>12 - "zero velocity"</li>
 <li>15 - "brake"</li>
 </ul>
-<p>For mode 10, <code>servo.default_velocity_limit</code> and
-<code>servo.default_accel_limit</code> are used to control the deceleration
-profile to zero speed.  The default PID gains are used.  The only
-limit on torque when in this timeout mode is <code>servo.max_current_A</code>.</p>
+<p>For mode 10, <code>servo.default_velocity_limit</code>,
+<code>servo.default_accel_limit</code>, and <code>servo.default_jerk_limit</code> are used
+to control the deceleration profile to zero speed.  The default PID
+gains are used.  The only limit on torque when in this timeout mode
+is <code>servo.max_current_A</code>.</p>
 <h2 id="servomotor_thermistor_ohm"><code>servo.motor_thermistor_ohm</code><a class="headerlink" href="#servomotor_thermistor_ohm" title="Permanent link">&para;</a></h2>
 <p>The resistance of any attached motor NTC thermistor as measured at 25C
 in ohms.</p>

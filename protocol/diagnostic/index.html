@@ -3331,6 +3331,13 @@ phase rate is in radians per second.</p>
   velocity limit for the duration of this command.</li>
 <li><code>a</code> - acceleration limit: the given value will override the global
   acceleration limit for the duration of this command.</li>
+<li><code>x</code> - acceleration: the commanded velocity changes at this rate,
+  until it reaches the velocity limit.</li>
+<li><code>j</code> - jerk limit: the given value will override the global jerk
+  limit for the duration of this command.  When set, the trajectory
+  generator slews acceleration at no more than this rate per second,
+  producing a trapezoidal acceleration profile and an S-curve velocity
+  profile.</li>
 <li><code>o</code> - fixed voltage override: while in affect, treat the control as
   if <code>fixed_voltage_mode</code> were enabled with the given voltage</li>
 <li><code>c</code> - fixed current override: while in affect, treat the control
