@@ -127,6 +127,7 @@ FAULT_CODE_DESCRIPTIONS = {
     104: "limit: flux braking",
     105: "limit: field weakening",
     106: "limit: servo.fet_junction_fault_temperature",
+    107: "limit: velocity_limit",
 }
 
 

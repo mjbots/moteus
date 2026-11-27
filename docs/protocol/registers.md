@@ -261,6 +261,7 @@ the output power of the controller.
 * 104 - flux braking is active
 * 105 - field weakening is active
 * 106 - `servo.fet_junction_fault_temperature`
+* 107 - the commanded velocity limit, see `servo.velocity_limit_derate`
 
 
 ### 0x010 / 0x011 / 0x012 - PWM phase A / B / C
