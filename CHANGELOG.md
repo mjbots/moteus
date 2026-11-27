@@ -88,6 +88,7 @@ Erroneous release with no changelog
 
 ### Unreleased
 
+- `PythonCanDevice` opens a CSS Electronics CANsub (`--can-iface cansub`) at 1 Mbit/s and 5 Mbit/s CAN FD, like the PCAN default.
 - Added the `jerk_limit` argument to `make_position`, `set_position`, and `move_to`.
 - Added the `acceleration` argument to `make_position` and `set_position`.
 - `lib/python/examples/ruckig_multiservo.py` commands the acceleration of the trajectory along with its position and velocity, and gives each servo jerk, acceleration, and velocity limits.  `--no-acceleration` restores the previous behavior for older firmware.
