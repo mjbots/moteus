@@ -107,7 +107,9 @@ python3 -m moteus.moteus_tool --can-iface socketcan --can-chan can0
 ```
 
 where `--can-iface` specifies the "interface" for python-can and
-`--can-chan` specifies the "channel".
+`--can-chan` specifies the "channel".  For example, a CSS Electronics
+CANsub (`pip install python-can-cansub`) is used with
+`--can-iface cansub --can-chan aabbccdd-usb.local@1`.
 
 Note, these are in addition to any other `moteus_tool` or `tview`
 options that may be desired.

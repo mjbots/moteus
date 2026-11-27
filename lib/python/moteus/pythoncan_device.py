@@ -287,6 +287,12 @@ class PythonCanDevice(TransportDevice):
                 nom_sample_point=66, data_sample_point=66,
                 f_clock=80000000)
 
+        if kwargs.get('interface', can.rc.get('interface', None)) == 'cansub':
+            # The CSS Electronics CANsub (python-can-cansub) takes the
+            # bitrates directly; default to the rates moteus uses.
+            kwargs.setdefault('bitrate', 1000000)
+            kwargs.setdefault('data_bitrate', 5000000)
+
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
 
