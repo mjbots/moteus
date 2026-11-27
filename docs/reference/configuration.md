@@ -318,6 +318,29 @@ Output power will be limited if the velocity exceeds this threshold.
 Once velocity reaches the max_velocity plus this value, allowed output
 power is reduced to 0.
 
+## `servo.velocity_limit_derate`
+
+When finite, the q-axis current is additionally derated based on the
+measured velocity and the `velocity_limit` of the active position
+mode command.  Derating begins when the measured velocity reaches
+`velocity_limit`, and the allowed current is 0 once it reaches
+`velocity_limit` plus this value.  Current which opposes the direction
+of motion (braking) is never derated.  The stricter of this and the
+`servo.max_velocity` derate applies.  Units are revolutions per
+second, in the output frame.
+
+This bounds the overshoot of the measured velocity above
+`velocity_limit`, for instance when accumulated position error is
+recovered after a stall.  It acts on the measured velocity, so this
+value must be clearly larger than the velocity measurement noise,
+otherwise the torque will be modulated by noise when operating near
+the limit.
+
+While this derate is the active limit, fault code 107 is reported in
+position mode.
+
+NaN (the default) disables this feature.
+
 ## `servo.rotation_*`
 
 These values configure a higher order torque model for a motor.

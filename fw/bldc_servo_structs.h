@@ -691,6 +691,14 @@ struct BldcServoConfig {
   float max_velocity = 500.0;
   float max_velocity_derate = 2.0;
 
+  // When finite, the q-axis current limit is additionally derated
+  // based on the measured velocity and the velocity_limit of the
+  // current position mode command.  Derating begins at
+  // velocity_limit, and reaches 0 at velocity_limit +
+  // velocity_limit_derate.  Current that opposes the motion (braking)
+  // is never derated.  NaN disables this feature.
+  float velocity_limit_derate = std::numeric_limits<float>::quiet_NaN();
+
   uint16_t cooldown_cycles = 256;
   uint16_t cooldown_brake = 64;
 
@@ -764,6 +772,7 @@ struct BldcServoConfig {
     a->Visit(MJ_NVP(derate_current_A));
     a->Visit(MJ_NVP(max_velocity));
     a->Visit(MJ_NVP(max_velocity_derate));
+    a->Visit(MJ_NVP(velocity_limit_derate));
     a->Visit(MJ_NVP(cooldown_cycles));
     a->Visit(MJ_NVP(cooldown_brake));
     a->Visit(MJ_NVP(velocity_zero_capture_threshold));

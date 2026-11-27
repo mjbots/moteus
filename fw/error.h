@@ -69,6 +69,7 @@ enum class errc {
   kLimitFluxBraking = 104,      // flux braking is active
   kLimitFieldWeakening = 105,   // field weakening is active
   kLimitFetJunctionTemperature = 106, // servo.fet_junction_fault_temperature
+  kLimitVelocityLimit = 107,    // command velocity_limit + servo.velocity_limit_derate
 };
 
 mjlib::micro::error_code make_error_code(errc);

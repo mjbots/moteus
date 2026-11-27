@@ -940,7 +940,8 @@ class BldcServoControl {
 
   void ISR_DoCurrent(const SinCos& sin_cos, float i_d_A_in, float i_q_A_in,
                      float feedforward_velocity_rotor,
-                     bool ignore_position_bounds) MOTEUS_CCM_ATTRIBUTE {
+                     bool ignore_position_bounds,
+                     float velocity_limit) MOTEUS_CCM_ATTRIBUTE {
     if (self().motor_.poles == 0) {
       self().status_.mode = kFault;
       self().status_.fault = errc::kMotorNotConfigured;
@@ -985,16 +986,37 @@ class BldcServoControl {
     auto limit_q_velocity = [&](std::pair<float, errc> in_pair) -> std::pair<float, errc> MOTEUS_CCM_ATTRIBUTE {
       const auto in = in_pair.first;
       const float abs_velocity = std::abs(self().position_.velocity);
-      if (abs_velocity < self().config_.max_velocity ||
+      const bool is_max_velocity_derating =
+          abs_velocity >= self().config_.max_velocity;
+      // Optionally also derate based on the commanded velocity_limit.
+      const bool is_within_velocity_derate =
+          abs_velocity >= velocity_limit &&
+          std::isfinite(self().config_.velocity_limit_derate);
+      if ((!is_max_velocity_derating && !is_within_velocity_derate) ||
           self().position_.velocity * in < 0.0f) {
         return in_pair;
       }
-      const float derate_fraction =
+      const float max_velocity_derate_fraction =
+          is_max_velocity_derating ?
           1.0f - ((abs_velocity - self().config_.max_velocity) /
-                  self().config_.max_velocity_derate);
+                  self().config_.max_velocity_derate) :
+          1.0f;
+      const float velocity_limit_derate_fraction =
+          is_within_velocity_derate ?
+          1.0f - ((abs_velocity - velocity_limit) /
+                  self().config_.velocity_limit_derate) :
+          1.0f;
+      const bool velocity_limit_stricter =
+          velocity_limit_derate_fraction < max_velocity_derate_fraction;
+      const float derate_fraction =
+          velocity_limit_stricter ?
+          velocity_limit_derate_fraction : max_velocity_derate_fraction;
       const float current_limit =
           std::max(0.0f, derate_fraction * self().config_.max_current_A);
-      const errc maybe_fault = derate_fraction < 1.0f ? errc::kLimitMaxVelocity : errc::kLimitMaxCurrent;
+      const errc maybe_fault =
+          derate_fraction >= 1.0f ? errc::kLimitMaxCurrent :
+          velocity_limit_stricter ? errc::kLimitVelocityLimit :
+          errc::kLimitMaxVelocity;
       return LimitCode(in, -current_limit, current_limit,
                        maybe_fault, in_pair.second);
     };
@@ -1314,7 +1336,8 @@ class BldcServoControl {
       if (!std::isnan(data->fixed_current_override)) {
         ISR_DoCurrent(sin_cos,
                       data->fixed_current_override,
-                      0.0f, 0.0f, data->ignore_position_bounds);
+                      0.0f, 0.0f, data->ignore_position_bounds,
+                      std::numeric_limits<float>::quiet_NaN());
       } else {
         const float fixed_voltage =
             std::isnan(data->fixed_voltage_override) ?
@@ -1490,7 +1513,8 @@ class BldcServoControl {
     ISR_DoCurrent(
         sin_cos, d_A, q_A,
         velocity_command * self().inv_rotor_to_output_ratio_,
-        data->ignore_position_bounds);
+        data->ignore_position_bounds,
+        data->velocity_limit);
   }
 
   void ISR_DoStayWithinBounds(const SinCos& sin_cos,
@@ -1565,7 +1589,8 @@ class BldcServoControl {
   void ISR_DoStopped(const SinCos& sin_cos) MOTEUS_CCM_NOINLINE_ATTRIBUTE {
     if (self().status_.cooldown_count) {
       if (self().status_.cooldown_count > self().config_.cooldown_brake) {
-        ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f, false);
+        ISR_DoCurrent(sin_cos, 0.0f, 0.0f, 0.0f, false,
+                      std::numeric_limits<float>::quiet_NaN());
       } else {
         self().DoHiz();
       }
@@ -1859,7 +1884,8 @@ class BldcServoControl {
       }
       case kCurrent: {
         ISR_DoCurrent(sin_cos, data->i_d_A, data->i_q_A, 0.0f,
-                      data->ignore_position_bounds);
+                      data->ignore_position_bounds,
+                      std::numeric_limits<float>::quiet_NaN());
         break;
       }
       case kPosition: {

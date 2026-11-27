@@ -30,6 +30,7 @@ As of firmware version 2025-07-21, the firmware will report if a factor is limit
 - **104 flux_braking**: Flux braking: The input voltage is too high and the controller is dissipating energy in the motor windings.
 - **105 field_weakening**: Field weakening: The motor is above its base speed, so the controller is applying negative D axis current to reach the commanded speed, which reduces the torque available.  This is configured with `servo.fw.enable` and related `servo.fw.*` parameters.
 - **106 fet_junction_temperature**: Temperature: The estimated FET junction temperature can limit the output current.  This is configured with `servo.fet_junction_fault_temperature`/`servo.fet_junction_temperature_margin`.  The estimate is reported in the `fet_model` telemetry.
+- **107 velocity_limit**: Velocity limit: The observed velocity exceeds the `velocity_limit` of the current position mode command, so torque is limited in the direction that would cause the velocity to increase.  This is only active if `servo.velocity_limit_derate` is configured.
 
 ### Other possibilities
 
