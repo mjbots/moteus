@@ -88,6 +88,7 @@ Erroneous release with no changelog
 
 ### Unreleased
 
+- `PythonCanDevice` now requests 1Mbps/5Mbps CAN-FD from every python-can interface, including third party plugins, not just `pcan`.  The 0.666 sample point is additionally requested from `kvaser`, `vector`, `nixnet`, `cansub`, and `candle`.  Any bitrate or bit timing option given explicitly or in a python-can configuration file takes precedence.
 - Added the `jerk_limit` argument to `make_position`, `set_position`, and `move_to`.
 - Added the `acceleration` argument to `make_position` and `set_position`.
 - `lib/python/examples/ruckig_multiservo.py` commands the acceleration of the trajectory along with its position and velocity, and gives each servo jerk, acceleration, and velocity limits.  `--no-acceleration` restores the previous behavior for older firmware.

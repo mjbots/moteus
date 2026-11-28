@@ -188,6 +188,13 @@ py_test(
     size = "small",
 )
 
+py_test(
+    name = "pythoncan_device_test",
+    srcs = ["test/pythoncan_device_test.py"],
+    deps = [":moteus"],
+    size = "small",
+)
+
 filegroup(
     name = "ld_testdata",
     srcs = glob(["test/testdata/ld_*.json"]),
@@ -213,6 +220,7 @@ test_suite(
         ":moteus_tool_test",
         ":multiplex_test",
         ":protocol_test",
+        ":pythoncan_device_test",
         ":reader_test",
         ":regression_test",
         ":transport_factory_test",

@@ -238,6 +238,82 @@ class PythonCanSubscription(Subscription):
         self._device._remove_subscription(self._id)
 
 
+# moteus uses 1Mbps/5Mbps CAN-FD with a sample point of 0.666.
+_NOMINAL_BITRATE = 1000000
+_DATA_BITRATE = 5000000
+_SAMPLE_POINT = 66
+
+# python-can has no uniform way to request a CAN-FD bitrate.  Most
+# backends, and all of the third party plugins surveyed, accept
+# 'bitrate' and 'data_bitrate' keyword arguments.  The backends listed
+# here instead need a 'can.BitTimingFd', or need one in order to use
+# the correct sample point.
+# The value is the CAN clock in Hz that each is able to use.
+#
+# Other backends accept a 'timing' argument, but reject a
+# 'can.BitTimingFd', so this cannot be determined by inspection.
+_FD_TIMING_F_CLOCK = {
+    'cansub': 80000000,
+    'kvaser': 80000000,
+    'nixnet': 40000000,
+    'pcan': 80000000,
+    # slcan only looks at the two bitrates.
+    'slcan': 80000000,
+    'vector': 80000000,
+}
+
+# These backends take bitrates, but need additional options in order
+# to use the correct sample point.
+_SAMPLE_POINT_OPTIONS = {
+    'candle': {
+        'sample_point': _SAMPLE_POINT,
+        'data_sample_point': _SAMPLE_POINT,
+    },
+}
+
+
+def _is_bitrate_option(key):
+    return (key in ('timing', 'bitrate', 'data_bitrate', 'fd_bitrate',
+                    'f_clock', 'f_clock_mhz', 'btr', 'brp', 'nof_samples',
+                    'sample_point')
+            or key.startswith(('nom_', 'data_', 'tseg', 'sjw', 'ssp')))
+
+
+def _apply_default_bitrates(kwargs):
+    """Add to @p kwargs the options necessary for the selected
+    python-can interface to operate at the bitrates moteus uses.
+    Nothing is changed if any bitrate or bit timing option has already
+    been specified, either in @p kwargs or in the python-can
+    configuration."""
+
+    if any(_is_bitrate_option(key) for key in kwargs if type(key) is str):
+        return
+    if any(_is_bitrate_option(key) for key in can.rc if type(key) is str):
+        return
+
+    fd = kwargs.get('fd', can.rc.get('fd', True))
+    interface = kwargs.get('interface', can.rc.get('interface', None))
+    if type(interface) is not str:
+        interface = None
+    f_clock = _FD_TIMING_F_CLOCK.get(interface, None)
+
+    if fd and f_clock is not None:
+        kwargs['timing'] = can.BitTimingFd.from_sample_point(
+            nom_bitrate=_NOMINAL_BITRATE, data_bitrate=_DATA_BITRATE,
+            nom_sample_point=_SAMPLE_POINT, data_sample_point=_SAMPLE_POINT,
+            f_clock=f_clock)
+        return
+
+    # Backends which have no use for these ignore them.
+    kwargs['bitrate'] = _NOMINAL_BITRATE
+    if fd:
+        kwargs['data_bitrate'] = _DATA_BITRATE
+
+    for key, value in _SAMPLE_POINT_OPTIONS.get(interface, {}).items():
+        if fd or not key.startswith('data_'):
+            kwargs[key] = value
+
+
 class PythonCanDevice(TransportDevice):
     '''Implements a 'Transport' on top of python-can.'''
 
@@ -277,15 +353,7 @@ class PythonCanDevice(TransportDevice):
         # Extract fdcanusb serial number before passing kwargs to can.Bus
         self._fdcanusb_serial = kwargs.pop('fdcanusb_serial', None)
 
-        if ('timing' not in kwargs and
-            kwargs.get('interface', can.rc.get('interface', None)) == 'pcan'):
-            # We default to the timing that works with moteus and assume
-            # an 80MHz base clock, which seems pretty typical for PCAN
-            # interfaces.
-            kwargs['timing'] = can.BitTimingFd.from_sample_point(
-                nom_bitrate=1000000, data_bitrate=5000000,
-                nom_sample_point=66, data_sample_point=66,
-                f_clock=80000000)
+        _apply_default_bitrates(kwargs)
 
         self._can = can.Bus(*args, **kwargs)
         self._setup = False
