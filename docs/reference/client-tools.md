@@ -109,6 +109,16 @@ python3 -m moteus.moteus_tool --can-iface socketcan --can-chan can0
 where `--can-iface` specifies the "interface" for python-can and
 `--can-chan` specifies the "channel".
 
+moteus requests 1Mbps/5Mbps CAN-FD from the python-can interface
+automatically.  This works for interfaces provided by third party
+python-can plugins as well.  For instance, a CSS Electronics CANsub
+(`pip install python-can-cansub`) can be used with
+`--can-iface cansub --can-chan aabbccdd-usb.local@1`.  If any bitrate
+or bit timing option is set in a
+[python-can configuration file](https://python-can.readthedocs.io/en/stable/configuration.html),
+then that is used instead.  `socketcan` interfaces are the exception:
+they must be [configured separately](../platforms/socketcan.md).
+
 Note, these are in addition to any other `moteus_tool` or `tview`
 options that may be desired.
 
